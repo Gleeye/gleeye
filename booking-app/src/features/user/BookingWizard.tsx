@@ -3,7 +3,7 @@ import { addMinutes, format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, e
 import { it } from 'date-fns/locale';
 import { supabase } from '../../lib/supabaseClient';
 import { prepareAvailabilityContext, calculateAvailability } from '../../lib/availability';
-import { Calendar as CalendarIcon, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, CheckCircle, ChevronLeft, ChevronRight, Clock, Sparkles, MapPin } from 'lucide-react';
 
 export default function BookingWizard() {
     const [step, setStep] = useState(1);
@@ -368,45 +368,78 @@ export default function BookingWizard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 
                 {/* RIGHT COLUMN: Sidebar Summary (Visible from Step 2) */}
+                {/* RIGHT COLUMN: Sidebar Summary (Visible from Step 2) */}
                 <div className="md:col-span-1 md:col-start-3 md:row-start-1">
-                    <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100 p-6 sticky top-24 transition-all duration-500">
-                        <h3 className="font-bold text-lg mb-6 text-slate-800 tracking-tight flex items-center gap-2">
-                            <span className="w-1 h-6 bg-indigo-500 rounded-full"></span>
-                            Riepilogo
-                        </h3>
+                    <div className="sticky top-24">
+                        <div className="bg-white/80 backdrop-blur-2xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 p-6 relative overflow-hidden group transition-all duration-500 hover:shadow-[0_8px_30px_rgb(99,102,241,0.1)]">
+                            {/* Decorative top gradient */}
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-80"></div>
 
-                        {!selectedService ? (
-                            <p className="text-sm text-slate-400 italic">Seleziona un servizio</p>
-                        ) : (
-                            <div className="space-y-6">
-                                <div>
-                                    <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-2">Servizio</div>
-                                    <div className="font-bold text-slate-800 text-lg leading-tight">
-                                        {selectedService.name}
-                                    </div>
-                                    <div className="text-sm font-medium text-slate-500 mt-1 bg-slate-50 inline-block px-2 py-1 rounded-md">
-                                        ⏱ {selectedService.duration || 60} min
-                                    </div>
+                            <h3 className="font-bold text-xl mb-6 text-slate-800 tracking-tight flex items-center gap-2">
+                                <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
+                                    <Sparkles className="w-4 h-4 fill-indigo-200" />
+                                </span>
+                                La tua esperienza
+                            </h3>
+
+                            {!selectedService ? (
+                                <div className="text-center py-8 text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                                    <p className="text-sm italic">Seleziona un servizio<br />per iniziare</p>
                                 </div>
-
-                                {/* Removed Expert & Price as requested */}
-
-                                {selectedSlot && (
-                                    <div className="pt-6 border-t border-slate-100">
-                                        <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-2">Quando</div>
-                                        <div className="flex flex-col gap-1">
-                                            <div className="font-bold text-indigo-600 text-lg">
-                                                {format(new Date(selectedSlot.start), 'd MMMM yyyy', { locale: it })}
-                                            </div>
-                                            <div className="font-medium text-slate-600 bg-indigo-50 px-3 py-1 rounded-lg self-start border border-indigo-100/50">
-                                                ore {selectedSlot.time}
-                                            </div>
+                            ) : (
+                                <div className="space-y-6 relative z-10">
+                                    {/* Service Block */}
+                                    <div className="group/service">
+                                        <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-2 flex items-center gap-1">
+                                            Servizio
+                                        </div>
+                                        <div className="font-bold text-slate-800 text-xl leading-tight mb-2">
+                                            {selectedService.name}
+                                        </div>
+                                        <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-100/80 px-3 py-1.5 rounded-full border border-slate-100">
+                                            <Clock className="w-3 h-3" />
+                                            {selectedService.duration || 60} min
                                         </div>
                                     </div>
-                                )}
 
-                            </div>
-                        )}
+                                    {/* Date & Time Block */}
+                                    {selectedSlot && (
+                                        <div className="pt-6 relative">
+                                            {/* Connector Line */}
+                                            <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
+
+                                            <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-3 flex items-center gap-1">
+                                                Quando
+                                            </div>
+
+                                            <div className="flex items-start gap-4">
+                                                {/* Visual Date Badge */}
+                                                <div className="flex-shrink-0 bg-white border border-slate-100 rounded-xl shadow-sm overflow-hidden text-center w-14">
+                                                    <div className="bg-indigo-50 text-indigo-600 text-[10px] font-bold py-1 uppercase tracking-wider">
+                                                        {format(new Date(selectedSlot.start), 'MMM', { locale: it })}
+                                                    </div>
+                                                    <div className="text-xl font-bold text-slate-800 py-1">
+                                                        {format(new Date(selectedSlot.start), 'dd')}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-col justify-center h-14">
+                                                    <div className="text-sm font-medium text-slate-500 mb-0.5">Orario di inizio</div>
+                                                    <div className="text-lg font-bold text-indigo-600 flex items-center gap-1.5">
+                                                        {selectedSlot.time}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Location Placeholder (Optional Future) */}
+                                    {/* <div className="flex items-center gap-2 text-xs text-slate-400 pt-2">
+                                        <MapPin className="w-3 h-3" /> Sede Principale
+                                    </div> */}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
