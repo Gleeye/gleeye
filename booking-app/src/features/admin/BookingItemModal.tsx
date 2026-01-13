@@ -5,6 +5,7 @@ import { X, Loader2, Clock, CreditCard, Eye, Home, Globe, LayoutGrid, Users, Set
 import BookingCategorySelect from './BookingCategorySelect';
 import CollaboratorMultiSelect from './CollaboratorMultiSelect';
 import CustomSelect from './CustomSelect';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 
 interface BookingItemModalProps {
     isOpen: boolean;
@@ -70,6 +71,9 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
     // Staff Tab Fields
     const [selectedCollaborators, setSelectedCollaborators] = useState<string[]>([]);
     const [logicType, setLogicType] = useState<'OR' | 'AND'>('OR');
+
+    // Confirm Dialog State
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -684,20 +688,7 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
                     <div>
                         {editItem && (
                             <button
-                                onClick={async () => {
-                                    if (confirm('Sei sicuro di voler eliminare questo servizio?')) {
-                                        setLoading(true);
-                                        const { error } = await supabase.from('booking_items').delete().eq('id', editItem.id);
-                                        if (error) {
-                                            showToast('Errore durante l\'eliminazione', 'error');
-                                            setLoading(false);
-                                        } else {
-                                            showToast('Servizio eliminato', 'success');
-                                            onSuccess();
-                                            handleClose();
-                                        }
-                                    }
-                                }}
+                                onClick={() => setShowDeleteConfirm(true)}
                                 disabled={loading}
                                 className="px-4 py-2 text-red-600 font-bold hover:bg-red-50 rounded-xl transition-colors flex items-center gap-2"
                             >
@@ -723,6 +714,29 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
                     </div>
                 </div>
             </div>
+
+            <ConfirmDialog
+                isOpen={showDeleteConfirm}
+                title="Elimina Servizio"
+                message="Sei sicuro di voler eliminare questo servizio? Questa azione non può essere annullata."
+                variant="danger"
+                confirmText="Elimina"
+                cancelText="Annulla"
+                onConfirm={async () => {
+                    setLoading(true);
+                    setShowDeleteConfirm(false);
+                    const { error } = await supabase.from('booking_items').delete().eq('id', editItem.id);
+                    if (error) {
+                        showToast('Errore durante l\'eliminazione', 'error');
+                        setLoading(false);
+                    } else {
+                        showToast('Servizio eliminato', 'success');
+                        onSuccess();
+                        handleClose();
+                    }
+                }}
+                onCancel={() => setShowDeleteConfirm(false)}
+            />
         </div>
     );
 }

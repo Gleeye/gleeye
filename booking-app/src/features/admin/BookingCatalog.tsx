@@ -4,8 +4,11 @@ import type { BookingItem, BookingCategory } from '../../types';
 import { Plus, Briefcase, ChevronRight, Folder, FolderOpen, Loader2, Edit2, Trash2, ChevronDown } from 'lucide-react';
 import BookingItemModal from './BookingItemModal';
 import BookingCategoryModal from './BookingCategoryModal';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../components/ui/Toast';
 
 export default function BookingCatalog() {
+    const { showToast } = useToast();
     const [categories, setCategories] = useState<BookingCategory[]>([]);
     const [nestedCategories, setNestedCategories] = useState<BookingCategory[]>([]);
     const [items, setItems] = useState<BookingItem[]>([]);
@@ -16,6 +19,15 @@ export default function BookingCatalog() {
     const [editingCategory, setEditingCategory] = useState<BookingCategory | null>(null);
     const [editingItem, setEditingItem] = useState<BookingItem | null>(null);
     const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
+
+    // Confirm Dialog State
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant?: 'danger' | 'warning' | 'info';
+    }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
 
     useEffect(() => {
         fetchData();
@@ -64,27 +76,43 @@ export default function BookingCatalog() {
 
     async function deleteCategory(e: React.MouseEvent, id: string) {
         e.stopPropagation();
-        if (!confirm('Sei sicuro di voler eliminare questa categoria? Le voci collegate verranno scolligate.')) return;
-
-        const { error } = await supabase.from('booking_categories').delete().eq('id', id);
-        if (error) {
-            alert('Errore durante l\'eliminazione');
-        } else {
-            if (selectedCategory === id) setSelectedCategory(null);
-            fetchData();
-        }
+        setConfirmDialog({
+            isOpen: true,
+            title: 'Elimina Categoria',
+            message: 'Sei sicuro di voler eliminare questa categoria? Le voci collegate verranno scolligate.',
+            variant: 'danger',
+            onConfirm: async () => {
+                const { error } = await supabase.from('booking_categories').delete().eq('id', id);
+                if (error) {
+                    showToast('Errore durante l\'eliminazione', 'error');
+                } else {
+                    showToast('Categoria eliminata', 'success');
+                    if (selectedCategory === id) setSelectedCategory(null);
+                    fetchData();
+                }
+                setConfirmDialog({ ...confirmDialog, isOpen: false });
+            }
+        });
     }
 
     async function deleteItem(e: React.MouseEvent, id: string) {
         e.stopPropagation();
-        if (!confirm('Sei sicuro di voler eliminare questo servizio?')) return;
-
-        const { error } = await supabase.from('booking_items').delete().eq('id', id);
-        if (error) {
-            alert('Errore durante l\'eliminazione del servizio');
-        } else {
-            fetchData();
-        }
+        setConfirmDialog({
+            isOpen: true,
+            title: 'Elimina Servizio',
+            message: 'Sei sicuro di voler eliminare questo servizio? Questa azione non può essere annullata.',
+            variant: 'danger',
+            onConfirm: async () => {
+                const { error } = await supabase.from('booking_items').delete().eq('id', id);
+                if (error) {
+                    showToast('Errore durante l\'eliminazione del servizio', 'error');
+                } else {
+                    showToast('Servizio eliminato', 'success');
+                    fetchData();
+                }
+                setConfirmDialog({ ...confirmDialog, isOpen: false });
+            }
+        });
     }
 
     const toggleExpand = (id: string) => {
@@ -251,6 +279,17 @@ export default function BookingCatalog() {
                     )}
                 </div>
             </div>
+
+            <ConfirmDialog
+                isOpen={confirmDialog.isOpen}
+                title={confirmDialog.title}
+                message={confirmDialog.message}
+                onConfirm={confirmDialog.onConfirm}
+                onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+                variant={confirmDialog.variant}
+                confirmText="Elimina"
+                cancelText="Annulla"
+            />
 
             <BookingItemModal
                 isOpen={isItemModalOpen}
