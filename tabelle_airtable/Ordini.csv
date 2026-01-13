@@ -1,0 +1,572 @@
+﻿Id_Ordine,Clienti,Data Ordine,Titolo Commessa,Referente,Registro Servizi,Costi Totali Previsti,Costi Finali,Prezzi Totali Previsti,Prezzi Finali,Ricavi Previsti,Ricavi Finali,Servizi,Stato Offerta,Stato Lavori,Fatture Attive,Stato Fatture Attive,Fatture Passive,Stato Fatture P,Allegati,Collaboratori,Collaboratori 2,Collaboratori 3,Doc consegna,Last Modified,Denominazione,Select,Calculation,Calculation 2,Genera Preventivo,URL,Progetti,Note,To-do List,Stato Offerte ,Aggiungi Servizi Fornitori,Registro Servizi Fornitori,Rollup,Account Gleeye,Account,Email_Account,Telefono_Account,Genera Documento di Consegna,Link Documento di Consegna,Data Consegna,Anno,Id,Created,Modalita Pagamento,N. Rate,Tipo rateizzazione,Valore Rata,Stato Rateizzazione,Anticipo,Valore Anticipo,Stato Anticipo,Saldo,Valore Saldo,Stato Saldo,Totale Commessa,Fatturato,Incassato,Da Fatturare,Da Incassare,Durata contratto (mesi),Pagamenti,Appuntamenti,Invia Incarichi,Incarichi,Genera Parte Contrattuale,Link Parte Contrattuale,Denominazione Cliente,P. IVA Cliente,Indirizzo Cliente,Cap Cliente,Città Cliente,Provincia Cliente,Email Cliente,Pec Cliente,Telefono Cliente,Dettagli Pagamento,Genera Contratto,Link contratto,Incarichi 2,Collaboratori elenco,Attività,Data Cons,Dettagli Commessa,Note condivise,Incarichi 3,To-do List copy,Next Order ID,Eliminato,Registro Servizi Collaboratori copy,Servizio in Vendita,ID Lead,Contratto Firmato,Clienti - Titolo Commessa,Link Dropbox,Link Cartella Drive,Id Cartella Drive
+23-0075,Start 4.0,1/12/2023,Video corso CTE,"Nagwa Ibrahim,Georgia  Cesarone",,€0.00,,"€0,00",,"€0,00","€0,00",,Offerta da inviare,Completato,,,,,,,,,,17/7/2025 5:20pm,Start 4.0,Inviato,Inviato,,,,,In attesa delle slide di Santoro epr la sua pillola e poi per manca anche il teaser (mi sa) perché fa tutto un modulo.,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,27/9/2024,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€0.00,€0.00,,,,,,,,CENTRO DI COMPETENZA START 4.0,02586330991,CORSO FERDINANDO MARIA PERRONE 24,16152,GENOVA,GE,uberto.cremonini@start4-0.it,,,Modalità da concordare,,,,,Sviluppo Teaser moduli,,Dettagli Commessa,,,,0075,,,,,,Start 4.0 / Video corso CTE,,,
+23-0076,,20/12/2023,prova,,,€0.00,,"€0,00",,"€0,00","€0,00",,Offerta da inviare,Contratto da inviare,,,,,,,,,,3/1/2025 7:20pm,,Inviato,Inviato,,,,,,,In Lavorazione,,,"€0,00",,,,,,,,24,,29/12/2024,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€0.00,€0.00,,,,,,,,,,,,,,,,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0076,checked,,,,, / prova,,,
+24-CVS,Casaviva,1/1/2024,CasaViva Partnership,,,€0.00,,"€0,00",,"€0,00","€0,00",,Offerta da inviare,In svolgimento,,,,,,,,,,6/7/2025 6:23pm,Casaviva,Inviato,Inviato,,,,,,"Scade SSL Gestionale Casaviva,Tracciare conversioni Linkedin,Creare nuove mail del flusso",Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,27/9/2024,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€0.00,€0.00,,,"Call di aggiornamento landing,Call con Anna ",,,,,KATEI ITALIA SRL,01716980931,VIA PIERO SCHIAFFINO 14/8,16032,CAMOGLI,GE,amministrazione@casavivaservice.it,,,Modalità da concordare,,,,,"Social,Newsletter,Campagne Google Ads",,Dettagli Commessa,,,"24/11/17 - Casaviva / Debriefing Incontro Cliente,25/02/27 - Casaviva / Debriefing Incontro Cliente",CVS,,,,,,Casaviva / CasaViva Partnership,,,
+24-0001,Aqua,12/2/2024,"Restyling logo, ristrutturazione del sito web con integrazione del booking engine",Maia Nogaro,"24-0001-1-Aqua,24-0001-2-Aqua,24-0001-3-Aqua,24-0001-4-Aqua,24-0001-5-Aqua,24-0001-6-Aqua,24-0001-7-Aqua,24-0001-8-Aqua",€3011.20,"€2880,00","€7175,00","€7000,00","€4163,80","€4120,00","Restyling Logo, Creazione Brand Guideline Logo, Sviluppo Sito Web con CMS Wordpress, Sviluppo Design Sito Web, Installazione e Configurazione dei Plugin, Integrazione dei contenuti, Ottimizzazione SEO, Manutenzione e Assistenza Sito Web Vetrina",Offerta accettata,Finito da fatturare,"24-3,24-13,24-19,25-5",Saldata,"Sara Verterano 24-34,Sara Verterano 24-12,Sara Verterano 25-180625",Pagato,Progetto aqua_compressed.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/oYrHicyRqOv4R3hwCl0Kwg/ANoJ7P2JxYGP2vPlm_BmsUdk1lW04mFeLyDvoI3HKpqJ0b9MXm77Qm2mLOidYLVuSizCkNL5m4xVThCm90i0bLkDSg7TiLIG5j6vmckDfYMdKIwXGOu8XbWI7ojhD2KTZZpPhWmg24k72lfiypu0dPEUGThrUyXpV_GIRgCFvQs/P2YDYcN8edJSAHJ46we1-qcEcpmjUVDXzf-pbuPnhDQ),SARA,,,,6/7/2025 8:04pm,Aqua,,,,checked,https://docs.google.com/presentation/d/1yAGc6EO3x_l9GgMip0gnn9kX3UJWYXlVcrUeJRWxYRk,,,Scadenza contratto,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,1,21/2/2024,Anticipo + Rate,4,trimestrale,€1375.00,In attesa,21%,€1500.00,Saldato,,,,€ 7000.00,"€5625,00","€5625,00",€1375.00,€0.00,12,"Anticipo 24-0001 Aqua,Rata 1/4 24-0001 Aqua,Rata 2/4 24-0001 Aqua,Rata 3/4 24-0001 Aqua,Rata 4/4 24-0001 Aqua,Anticipo 24-0001 SARA,Rata 1/2 24-0001 SARA,Rata 2/2 24-0001 SARA",Incontro Gestionale,,24-0001-FltmM,checked,https://docs.google.com/document/d/1_kMzPZ4NvVu5l2OunQ103XsMxCM4-Ec3XRdhk8maEB8,ESTETICA E BENESSERE DI STEFANIA CAMORIANO,02129390999,MOLO PONTE MOROSINI 46,16126,GENOVA,GE,info@aquaesteticaebenessere.it,aquaestetica2.0@pec.it,,Anticipo del 22 percento pari a 1500 €. N. 4 rate da 1375 €. Tipo rateizzazione: trimestrale,,,,Sara Verterano,,,Dettagli Commessa,,,,0001,,,,,,"Aqua / Restyling logo, ristrutturazione del sito web con integrazione del booking engine",,,
+24-0002,Fanimar,22/2/2024,Restyling del sito web + manutenzione assistenza 12 mesi,Gabriella Caorsi,"24-0002-1-Fanimar,24-0002-2-Fanimar,24-0002-3-Fanimar,24-0002-4-Fanimar,24-0002-5-Fanimar,24-0002-6-Fanimar,24-0002-7-Fanimar",€1865.20,"€1780,00","€4450,00","€4950,00","€2584,80","€3170,00","Progettazione del Sito Web, Sviluppo Sito Web con CMS Wordpress, Sviluppo Design Sito Web, Installazione e Configurazione dei Plugin, Integrazione dei contenuti, Ottimizzazione SEO, Manutenzione e Assistenza Sito Web Vetrina",Offerta accettata,Completato,24-1,Saldata,Sara Verterano 24-24,Pagato,,SARA,,,,29/12/2024 5:58pm,Fanimar,,,,checked,https://docs.google.com/presentation/d/1k7cve9Ge9bPkX4OtqIAT-YjmWnNKYI7jAFfu4m-Mf4s,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,2,21/2/2024,Saldo alla fattura,,,,,,,,100%,€4950.00,Saldato,€ 4950.00,"€4950,00","€4950,00",€0.00,€0.00,,"Saldo 24-0002 Fanimar,Saldo 24-0002 SARA",,,24-0002-bjsuM,checked,,FA.NI.MAR.,95043570100,VIA MILANO 40 C/3 SC.DX,16126,GENOVA,GE,info@fanimar.it,,+390102518524,Modalità da concordare,,,,Sara Verterano,,,Dettagli Commessa,,,,0002,,,,,,Fanimar / Restyling del sito web + manutenzione assistenza 12 mesi,,,
+24-0015,Gruppo Consiliare PD Regione Liguria ,1/3/2024,"Attività di supporto alle iniziative
+del Gruppo consiliare e in
+particolare nella Provincia di
+Savona",Lara  Pizzorno,,€0.00,,"€0,00","€9500,00","€0,00","€9500,00",,Offerta da inviare,Completato,"24-4,24-10",Saldata,,,"Proposta controfirmata.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/HqMjc2fhViZaaK8Boxwsug/pabx8G3ld5s06QC7ZAKJuAPNYt2Ey7FEcaYHWJ-5TsI_E-TBN6e6-d-7TO4Gjnjv8aSF_98R5K3lVUN0RTnObnPQA_Yjb1heCJEukRTQ8rTPU_McpUxZiJup-kumFJE0jUXXwBrhv0DUKzeOyV5a1M_PkgBGSEwM-xxd0SaeCZQ/8DWiVjkkXw1Ev-J-bcSA1tUuvXHDobGDCEyBons5zko),Proposta Gruppo PD Liguria_Savona_Rev2.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/O7hRybrL-5HTacC_9ARoMQ/G88crJBWniAgtQop-1ytcr8wOKXRv_LO7Ox8utn-5wLdCZD0xh7Hi1FxEY5NydVnwAAy0pjEmwYqqxX-yfMtUViLoUsq_fkhVmezG9F89YP8tyG8GgsEITdin3qFk4C-vPz1bZnu7HSuYBStgDK-7pkgc5yCxU7ZCC-n0t7lCeehYfxOcJ0o7eQBHRLfTffi/RsksYhPcKaKHiACEdyfN3t02jPteUi2VYZXwUeYKCzU),Informative Gruppo consiliare_Gleeye.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/_zvaTbrCzLnpLMNG_X4XCQ/6hQ76M7p8PLwMTt5CumbcxkNWEkFbAQqoHcgajx6ltHb70XukQnihdecI6iV1_KSUjKzqG5Dbuqjsrat1BkLmaUjyklzlxGSxpMN5Ijfv3BR-Wom-panEmWdQIFsb66s4ZkeefJXODVGh4PIeGIXAeQdD5eiRL6GwPga_R4FfKd_J7UwVYO-KtANQ4qp6KXQ/oooC-7THHlMBxMLz9J-lBLXqARM-oh7ttz3cNkMLTag)",,,,,29/12/2024 5:57pm,Gruppo Consiliare PD Regione Liguria ,Inviato,Inviato,,,,,"Nel contratto c'è scritto 12000 ma il saldo finale è di 9500 perché dopo il 31 luglio (data del decreto per la convocazione dei comizi, vedi pdf allegati) il Gruppo è in par condicio e non può spendere per comunicazione istituzionale. I 2.500€ mancanti saranno recuperati nella prossima legislatura (2025). ",,Offerta Accettata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,24,,20/5/2024,Anticipo e saldo,,,,,53%,€5035.00,Saldato,47%,€4465.00,Da inviare,€ 9500.00,"€9500,00","€9500,00",€0.00,€0.00,,"Anticipo 24-0015 Gruppo Consiliare PD Regione Liguria ,Saldo 24-0015 Gruppo Consiliare PD Regione Liguria ",,,,,https://docs.google.com/document/d/1_kMzPZ4NvVu5l2OunQ103XsMxCM4-Ec3XRdhk8maEB8,"Gruppo Consiliare Partito Democratico
+Articolo Uno Regione Liguria",95220660104,Via Fieschi 15,16121,Genova,,Lara.Pizzorno@regione.liguria.it,,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0015,,,,,,"Gruppo Consiliare PD Regione Liguria  / Attività di supporto alle iniziative
+del Gruppo consiliare e in
+particolare nella Provincia di
+Savona",,,
+24-0003,TARA BIANCA ,11/3/2024,Restyling sito + consulenza social light ,Matteo  Laffranchi,"24-0003-1-TARA BIANCA ,24-0003-2-TARA BIANCA ,24-0003-3-TARA BIANCA ,24-0003-4-TARA BIANCA ,24-0003-5-TARA BIANCA ,24-0003-6-TARA BIANCA ",€2929.20,"€2805,00","€6410,00","€10000,00","€3480,80","€7195,00","Progettazione del Sito Web, Sviluppo Sito Web con CMS Wordpress, Consulenza Social, Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta inviata,Finito da fatturare,"24-7,25-2,25-4,25-10",Saldata,"Gabriele Picone 2-25,William Bignone 25-13,Sara Verterano 25-180625,Gabriele Picone 3-GLY/2025",Pagato,"Proposta TARA BIANCA_Rev2 (2).pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/1wMl9QBj_dj0BDWaoR9JMw/Eaq8yjurKcXsLANSroZpBAcszKUwmIztoGdK8U1wlJhMxS17yuuWIeUUmKQAf3s_2EOo2d12VwysgeqIx8Qpk5Ei5CJQugKLtCE7oE5P5tsuoc_QucPWwbL8zH_JPuQmCSrcpAKHsflnJuSQV_KdZRhSDyNXYF5WlE4u1AVPmKndo169BzKRUzJ2SxXwP195/OvV3AAbXKDgK6fPbiPe0EcQ4nFdbP0VrPTRXKDyRRDk),contratto GLEEYE firmato.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/8RsidEGZjZvLHnowQg_bIw/M5D0rurBp9R0pzWyF3k_f8-Q2vsIm0f-rY2nAeomWHybLZnyRkbzkdFISCocQk8zvAsFHeSrcj_E5eqaNBYswkg7w747cMG8xCpXqp3QMz_S_8BetYNjbefK70oVo5Q6Zv2RheuR3Wrz4VzLBnR027pO3Ep3ME9gySl1mTj7ey1L0WqjZr5uN3kNmE4ocAPJ/T_s6C-U4NzHepFCbLzECoRoPboViZ0z2-ANOdZHtvCI),24-0003-TARA BIANCA -doc cons (1).pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/_ZU6EAYhIMRrC5W1NnXOIw/KTu5QNUG7Xl3I0NJSguyXXmOleTFI0FIh5drxKyzGrm98GAb3p_XZ2UEWH5XEKCFPj-7a0uYw4b0R0fyar1BIdOLb70SIolEYPET4sSmsvFllbN8D5VZ1U9VaHc43ZIM3TjfxWvcbdv2gjtfyBYObXsEEElEcu828Pfj-3EmkioGz__snZcbE2EHrotzHT6J/2qTYRHQtYwU1DN4vUEIvvncgSEyPhE9M-v30-bhI7Dk)","SARA, GABRI, WILLY",,,,15/9/2025 11:02am,TARA BIANCA ,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1OP8WrmM9Fo2CqWev1XuBKp65Qe3gINfzGrYqrUNCDmA,,"
+SITEMAP
+
+*menu tendina
+
+CHI SIAMO 
+Il Centro (le persone, cosa facciamo, valori etc)
+
+MAESTRI 
+no sottotendina 
+
+NEWS (ARTICOLI SEO) - EVENTI 
+
+SOSTIENICI (??) (Mettiamo anche iscriviti, pre-iscrizione) 
+
+ATTIVITA'
+
+Calendario con filtri 
+
+Filtri dei programmi settimanali: 
+- maestri 
+- categorie: insegnamenti, meditazione, cerimoniali 
+- esperienza/classi 
+- Presenza/online
+- eventi 
+- Programmi  
+
+
+modulo per richiedi partecipazione online 
+
+
+Nel footer: 
+- Statuto 
+- Regolamento etico 
+
+
+hOME
+
+chi siamo 
+eventi/programmi 
+sostienici/8x1000
+
+
+-----------
+Dati tecnici sito 
+Accesso hosting e wordpress 
+
+-----------
+
+
+
+
+Punti aperti: 
+1. Collaboratrice Elisa
+2. Preventivo già inviato, va rimandato con modalità di pagamento e con contrattino allegato. 
+3. Tempistica: 1 giugno - 30 maggio 2025 
+4. Modalità di pagamento
+
+(pagamento a 30 giorni) 
+30% alla firma 
+70% alla consegna del sito  
+
+Manda a loro contratto da firmare e definisci modalità di pagamento 
+Definisci  data per riunione. 
+
+
+Call io Elisa e Sara 
+Call io Elisa Sara e TARA BIANCA 
+
+
+
+",Fare Vademecum,Offerta Accettata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,checked,https://docs.google.com/document/d/1RA_j8axej5YtsCg8mi5VGKIvZGY9020x496MNTt_M28,24/4/2025,24,3,11/3/2024,A&S + Rate,4,trimestrale,€1000.00,In attesa,30%,€3000.00,Saldato,30%,€3000.00,Da inviare,€ 10000.00,"€10000,00","€10000,00",€0.00,€0.00,12,"Saldo a consegna sito  24-0003 TARA BIANCA ,Rata 2/4 24-0003 TARA BIANCA ,Anticipo  24-0003 TARA BIANCA ,Rata 1/4  24-0003 TARA BIANCA ,Rata 3/4 24-0003 TARA BIANCA ,Rata 4/4 24-0003 TARA BIANCA ,Saldo 24-0003 SARA,Rata 1/4 24-0003 GABRI,Rata 2/4 24-0003 GABRI,Rata 3/4 24-0003 GABRI,Rata 4/4 24-0003 GABRI,Saldo 24-0003 WILLY","Assesment finale,GASA",checked,"24-0003-ufRay,24-0003-LwGUo,24-0003-kAQyy",checked,https://docs.google.com/document/d/13qI6ZUxtuavVNuODbecVxLmxdxPZXKsMDn7p4E360xs,Associazione TARA BIANCA, 95137920104,Via Bernardo Castello 3/9,16121,Genova ,Ge,segreteria@tarabianca.org,,010232434390,Anticipo del 30 percento pari a 3000 €. Saldo alla chiusura del progetto pari a 30 percento pari a 3000 €. N. 4 rate da 1000 €. Tipo rateizzazione: trimestrale,checked,https://drive.google.com/file/d/1GBYj3zTZn2AOuoKuNi-npZwD-IXAPwBC/view?usp=drive_link,,"Sara Verterano, Gabriele Picone, William Bignone","Sviluppo sito web ,Socialia",24/4/2025,Dettagli Commessa,,,,0003,,,,,,TARA BIANCA  / Restyling sito + consulenza social light ,,,
+24-0004,Partito Democratico di Genova e della Liguria ,12/3/2024,Sviluppo sito web,Andrea  Casassa ,"24-0004--Partito Democratico di Genova e della Liguria ,24-0004--Partito Democratico di Genova e della Liguria ,24-0004--Partito Democratico di Genova e della Liguria ,24-0004--Partito Democratico di Genova e della Liguria ,24-0004--Partito Democratico di Genova e della Liguria ,24-0004--Partito Democratico di Genova e della Liguria ,24-0004--Partito Democratico di Genova e della Liguria ",€1657.20,"€1200,00","€3550,00","€3000,00","€1892,80","€1800,00","Progettazione del Sito Web, Installazione e Configurazione dei Plugin, Sviluppo Sito Web con CMS Wordpress, Sviluppo Design Sito Web, Ottimizzazione SEO, Integrazione dei contenuti, Manutenzione Sito Web Vetrina",Offerta da inviare,Completato,24-11,Saldata,Sara Verterano 24-12,Pagato,"24-6 Partito Democratico di Genova e della Liguria .pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/_wdY1KfB6rzWbY6BgBq1qQ/hRgnkUDytrzeOfqV9N45-KwLRnlEaly4fRA_XYT5vbyi7BgDvWCIZPkDt2hCXowO7YSem7-gV_Z1WXq4t5lR-U84U8rTzspbxDnxQnmnZ_NqUKmdlNaaFOuLrgfoVQUu39Oh1eBZm_eTh0aXpcWiYNaa-ifG44xyrSHdmwI4Y6dGxydbLUFJrfh3akAtU_WM/A0FptXkyElKuQWdPRMAsXEk5ZclO7qrJSvTix78gBzI),24-6 Partito Democratico di Genova e della Liguria .pptx (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/1sTyM-fdRGusq13QTKf8fw/MbCUUk_qiWEs-3b7nlZwIqWk9rIN-FIczpMrUn-j9EbTeJEvDOSPj0NPe-UWK2NUiL9VhPNAze-YL_iS_W0qSR9yX1N432VzpH0QGHJGBb2zkEfP10Fq2YsyPW_Y3YSrmWWVJ3Ja-Caj6KmR_-f3CqsJ7_LyoIsSTes2Cvaa2gh2yI6I5onLWLLDOoVp2GXX/MCFv3lsE2R-yoxApTTVNH8ReFgzihbw6l0BGyrlXHpo),proposta PD Liguria firmata.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/iWIbgWqTEd41XuEVt0A0iw/tdwxhvANW5wsSvu9jkJIU9BAnH1WRZGoW6ZVQow0BvtU4wecs_Uv6iyPNOmV2GKJO0rq6WkTLeDVAh2sdEmvdjcBNZkAL2D0CKDSi6D6LWvGnBPQnjl6SY-rtDgTbRLod1vcGnr2ZBMQ-So8Ng0PrL-_k5iLa_GamwzawzRWMyE/51KFvtAThDJaGoMb56-9xC1rtgoRTfYwp5PtM1-BjvI),24-4-Partito Democratico di Genova e della Liguria -CONSEGNA (2).pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/Axg44zANju00z1BZBmZLtg/n_u24WecaBARXbfa_kzFKotphnmhirrZuwET6mBngnXKhPrX7U7m9urRkM7oUdmq3neY4ZczYXPNEtjdaVwoBoIj1Yh6-VYYL4CGRUvm4lO4zGN9-ZThN82KBl1a94GaLVvOKipUieZNPWVno_Kb5bdNHdhL1PQUVGqbrvdhzz45LZe7JJ88uDvWG0kLvYHmAWZhEQ1n4oWkO293SQMyHU6gHX42w9tK8jalirPW44Y/2wJocRDFpjiBCPUXrkuZAUp98vswM9yx5pcXV6Eb8Ug)",SARA,,,,2/4/2025 3:20pm,Partito Democratico di Genova e della Liguria ,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1slXSWAjpY7WYWHpz7_2F9naO_I3sHA7oYxdj5Pd1Zqs,,"
+AMMINISTRAZIONE 
+- Fattura a saldo 
+- Fattura per hosting 
+
+Se mi dai le date per articoli e eventi li inserisco con la data corretta.
+- idem per le categorie articoli: al momento sono a caso.
+- le foto dove vedi la ripetizione della foto in home è perché non so cosa mettere, non so se in archivio loro possano avere qualcosa prima di lanciarsi sulle foto stock
+- FOrm di contatto dove finisce 
+- Ugo truffelli mandami liste 
+- Casassa mandami info per trasparenza e altro 
+
+
+
+
+
+",,Offerta Accettata,ServerPlan,,"€92,72",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,checked,https://docs.google.com/document/d/1vjbbMAkwYx88tQhjz75bt-wG0SusMmt7Zl_a1LA64HE,8/9/2024,24,4,18/3/2024,Saldo alla fattura,,,,,,,,100%,€3000.00,,€ 3000.00,"€3092,52","€3092,52",-€92.52,€0.00,,"Saldo 24-0004 Partito Democratico di Genova e della Liguria ,Saldo 24-0004 SARA",,,24-0004-QZ8vY,,,PD Genova e Liguria ,,,,Genova ,Ge ,,,,Modalità da concordare,,,,Sara Verterano,,,Dettagli Commessa,,,,0004,,,,,,Partito Democratico di Genova e della Liguria  / Sviluppo sito web,,,
+24-0005,IIT - Istituto Italiano di Tecnologia,13/3/2024,Supporto annuale per relazioni istituzionali ,,"24-0005-1-IIT - Istituto Italiano di Tecnologia,24-0005-2-IIT - Istituto Italiano di Tecnologia,24-0005-3-IIT - Istituto Italiano di Tecnologia",€8658.80,"€8320,00","€24960,00","€15000,00","€16301,20","€6680,00","Monitoraggio legislativo, Monitoraggio eventi ed attività istituzionali , Cura dei contatti istituzionali e stakeholder PR",Offerta da inviare,,,,,,"24-5 IIT - Istituto Italiano di Tecnologia.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/fFkFbuLo7Obe1W5inryoMg/DYfKQp4fvTY2SXvcEeHaxXf3FkvwTU7RvvvMqtYcdGVp_bQJh0GsmJP_U1Ye9uVOuJbBsb35NIizYxofZ7UcVpGs4N6LvUWT2Kra-pfAVhsN8Nu2ic53JJRBKghuL5Ohpde65eYPFNjnUgKgIe2rz6ry6uVUoafoqN0eNTjNoAuZFsSYvjTmDtGMRgf3SUBX/VBaJY-u9kN7eoml6fvonYAFs8FruE7XH4j_ysw95eS4),Monitoraggio istituzionale IIT.ods (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/5T7I04YnGVaIY5MxpNbs9Q/526c0oAUO7wlBj5WcafCOU9eJTadJAMWG7iou6dNdtb9E6oOxVTHpHj_34i6H4BujfF7Ay2xExlsLgSoc8RybypkzVeCuByIanzKBP9_D_EId27z6FREJn5kcGE8S8POL8dHXklEgyxveZfz2DQkSrXQSxXEcleGOMMjY6ujD8U/MiaP2znMSZ1ipeSuo660aXiMg26yGWKDRN-NHlGehT8),Monitoraggio Legislativo.docx (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/rxuHOue0Yj_xXvPSUCio2A/6nlSzfUDBN7SFoUBV7tq_M9ki_1fh_pXbUleNKavtCnsfxilO9ZyO8JGn8jQ3ZoEtlMWHdJJiUlVHvfmcFzWHfaXlSdHq0LAnKxrzZvrx6iKC2kRqK957IWiCmBb5PJ25msiXCNU-JhNYE1SL27LR78cw5VcZ1_LRMOKYXzoioU/ENDONb6rhAHlif2bg7NrFXXqPm2FGbUsNTRSMqVZwOk)",,,,,17/7/2025 5:07pm,IIT - Istituto Italiano di Tecnologia,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1LJoV4AF32zpr_ZJodZdAjQEtsI8SAQmeOnnipgAsSQ8,,"1. Sviluppa con Davide, sulla base del templete ""progetti "" (es. Sambin e Aqua) l'esempio di output per la selezione settimanale (attualmente manuale) del servizio di monitoraggio. 
+2. Manda mail a Giuliano, dettagliando il servizio e mandando esempio di templete. 
+
+
+PAGINE DEL DOCUMENTO ""RESOCONTO SETTIMANALE""
+
+1. Attività Governo 
+2. Attiva Camera (Aula) 
+3. Attività Camera (Commissioni) 
+4. Attività Camera (Eventi) 
+5. Attiva Senato (Aula) 
+6. Attività Senato (Commissioni) 
+7. Attività Senato (Eventi) 
+8. Progressivo attività istituzionali 
+9. Progressivo contatti istituzionali
+
+
+ ",,Offerta Rifiutata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,24,5,13/3/2024,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€15000.00,€0.00,,,,,,,,FONDAZIONE ISTITUTO ITALIANO DI TECNOLOGIA-IIT,09198791007,VIA MOREGO 30,16163,GENOVA,GE,,fatture@pec.iit.it,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0005,,,,,,IIT - Istituto Italiano di Tecnologia / Supporto annuale per relazioni istituzionali ,,,
+24-0007,Banchero Costa Insurance,26/3/2024,Realizzazione Video Corporate,Alda Santini,"24-0007-1-Banchero Costa Insurance,24-0007-2-Banchero Costa Insurance,24-0007-3-Banchero Costa Insurance",€380.40,"€360,00","€780,00","€900,00","€399,60","€540,00","Sviluppo del concept, Raccolta materiale, Editing e post-produzione",Offerta da inviare,,,,,,,SPINE,,,,29/12/2024 5:58pm,Banchero Costa Insurance,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1-Net4DXqUy4yIo6jPjM7HNC8lnK-rs6WsHMYIv7Z34I,,"Per voice-over trovati questi: https://voceaudioproduzioni.it/
+
+in ita previsto sui 100€ in eng sui 200€",,Offerta Rifiutata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,7,26/3/2024,Saldo alla fattura,,,,,,,,100%,€900.00,,€ 900.00,"€0,00","€0,00",€900.00,€0.00,,,,checked,,,,BANCHERO COSTA INSURANCE BROKER S.P.A.,00609560107,Via Pammatone 2,16121,Genova,GE,insurance@bcinsurance.it,bcinsurancebroker@legalmail.it,,Modalità da concordare,,,,Simone Spinetti,,,Dettagli Commessa,,,,0007,,,,,,Banchero Costa Insurance / Realizzazione Video Corporate,,,
+24-0008,Ordine Ingegneri Genova ,3/4/2024,Strategia di comunicazione per il posizionamento e la visibilità online/ due anni ,Georgia  Cesarone,"24-0008-1-Ordine Ingegneri Genova ,24-0008-2-Ordine Ingegneri Genova ,24-0008-3-Ordine Ingegneri Genova ,24-0008-4-Ordine Ingegneri Genova ,24-0008-5-Ordine Ingegneri Genova ,24-0008-6-Ordine Ingegneri Genova ,24-0008-7-Ordine Ingegneri Genova ",€12696.80,"€12696,80","€25525,00","€33000,00","€12828,20","€20303,20","Consulenza Social, Servizi social, Servizi grafica, Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set",Offerta da inviare,In svolgimento,"24-9,24-14,25-1,25-3,25-13,25-22,25-28","Saldata, Inviata","Mara Barbero 4/24,Martina Gommellini 24-2,Mara Barbero 25-1,Brevo SIB-3060991,Mattia Montano 10-2025,Simone Spinetti 25-10,Mara Barbero 25-3,Mara Barbero 25-4",Pagato,"proposta ordine ingegneri genova.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/RuRduCxHjfU5H9nSnVgrwA/ZXPEVDYU1OYx5ZabVe-omC8AY5CTcdWjqIRQE7RJ_i0WuubOwnEG4vHwZ1swKUZnVhiHbftTkjNYxtseY9m9oDCzy0PzQBcaYZvywaqPs_j3fy3uhqUfjIAcasaSPJ_EkJgWiDi4JJqIdSpKtvMI3ThaM6v0evKL8xy-AdHrMAT1Ur9Ic4IcS-aZbxTiYLFc/FUND4uLhjfqYewpyU4aA5kkIoZz1KL0_bKZJyP2LuCI),contratto firmato.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/QQKXRZj0bzgzbqMYIN4QzQ/zWHznHeH5lJD4Dx3-c-pj4km0oa3sKtUX6Jp3sRvFob6zhJ9_-tKqMq3HjBVjJ265lDE0GbOE7qjBzX5cKMI4PeT1wb1sx6AOvXp9LP-hytflOYTFbQ64U_BEs4QsDzQVOjY8vpJkWaT4LhY56W1r3Wh_RQQH7Q9lYPnOE7QDnI/4b5g1BXCETlgvaY4gPc3GSWmOSt8z5dO-zLSJm46_S4)","BARBEROM, GOMMELLINIM, MATTIA, SPINE",,,,29/12/2025 11:24am,Ordine Ingegneri Genova ,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1rzxt0_gGI0P6LJEBZPmn8yXBmQ5iZRiTQ3Hwbp6HqAQ,,"CALCOLO RAGAZZE 
+
+MARA 
+
+----------------------------------- -------------------- ----------------- -------------
+60 
+8
+5760
++ 4%
+
+--------------------------------------------------------------------------------------
+
+60 
+6 
+4320 
+
+
+------------------------------------- -------------------- ------------------------------
+
+Capire newsletter con loro ed eventualmente prendere Brevo. 
+
+
+
+TRIMESTRALE 
+
+
+-------------------
+2h di riunione mensile di assessment con il cliente 
+2h di redazione/generazione/adattamento idee/confronto interno (grazie a chatGpt) 
+1h di Revisione e Approvazione dei Contenuti (Project management) 
+------------------
+5hx 52 settimane lavorative = 260x 30euro = 7.800 all’anno, totale per due anni (economia di scala, sfilo un 15%): 13.260
+
+
+MARTINA 
+
+30*22 = 600 
+
+1h a settimana 
+3h x 52 settimane lavorative= 102 x 20 = 2.040, totale per due anni (economia di scala, sfilo un 15%): 3.468
+
+Totale costo due anni netto RAGAZZE (13.260 + 3.468) = 16.728
+Costo totale ragazze + altro (16.728 + 204 brevo + 1.000 sponsorizzate) = 17.932
+
+
+CONTRATTO 1 LUGLIO 2024 - 30 GIUGNO 2026. 
+OGNI 3 MESI FATTURA INSIEME AL REPORT DETTAGLIATO 
+sono 8 rate in 2 anni
+
+
+",analisi giovani ,Offerta Accettata,"Google Ads ,Brevo",,"€1204,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,8,3/4/2024,Anticipo + Rate,8,trimestrale,€3300.00,In attesa,20%,€6600.00,Da inviare,,,,€ 33000.00,"€26400,00","€23100,00",€6600.00,€3300.00,24,"Anticipo 24-0008 Ordine Ingegneri Genova ,Rata 1 24-0008 Ordine Ingegneri Genova ,Rata 2 24-0008 Ordine Ingegneri Genova ,Rata 3 24-0008 Ordine Ingegneri Genova ,Rata 4 24-0008 Ordine Ingegneri Genova ,Rata 5 24-0008 Ordine Ingegneri Genova ,Rata 6 24-0008 Ordine Ingegneri Genova ,Rata 7 24-0008 Ordine Ingegneri Genova ,Rata 8 24-0008 Ordine Ingegneri Genova ,Saldo 24-0008 GOMMELLINIM,Rata 1/8 24-0008 BARBEROM,Rata 2/8 24-0008 BARBEROM,Rata 3/8 24-0008 BARBEROM,Rata 4/8 24-0008 BARBEROM,Rata 5/8 24-0008 BARBEROM,Rata 6/8 24-0008 BARBEROM,Rata 7/8 24-0008 BARBEROM,Rata 8/8 24-0008 BARBEROM,Saldo 24-0008 MATTIA,Saldo 24-0008 SPINE","Appuntamento con Mara,Appuntamento con Consiglio,Cerimonia Grandi Senatori",,"24-0008-N5Pme,24-0008-H7r3s,24-0008-34G30,24-0008-RM0hi",checked,https://docs.google.com/document/d/1RZ6JYE590JS3RfNV8LRUWKMFWt6hi68EqeB49DNTBds,Ordine degli Ingegneri di Genova,80039470101,Piazza della Vittoria 11/10 , 16121 ,Genova,Ge,ordine@ordineingegneri.genova.it,ordine.genova@ingpec.eu,,Anticipo del 20 percento pari a 6600 €. N. 8 rate da 3300 €. Tipo rateizzazione: trimestrale,checked,https://drive.google.com/file/d/18i63obaXeN_GtkH4sUPZHD9gjVQU5HBG/view?usp=sharing,,"Mara Barbero, Martina Gommellini, Mattia Montano, Simone Spinetti","Impostare newsletter,Impostare Telegram,Sponsorizzate,Questione GDPR,POST LINKEDIN ",1/7/2026,Dettagli Commessa,,,,0008,,,,,,Ordine Ingegneri Genova  / Strategia di comunicazione per il posizionamento e la visibilità online/ due anni ,https://www.dropbox.com/scl/fo/b4emgkokq6ccjyptdxbh4/AC9x6ehUnHFS-0Rle0VhDy4?rlkey=95oavco2rovfo11nco01a34lb&dl=0,,
+24-0009,Fabio Gilardi Sindaco ,4/4/2024,Consulenza Vado - Gestione profili social e sito web ,Fabio  Gilardi ,"24-0009--Fabio Gilardi Sindaco ,24-0009--Fabio Gilardi Sindaco ,24-0009--Fabio Gilardi Sindaco ",€4415.60,"€4000,00","€10600,00","€2050,00","€6184,40","-€1950,00","Servizi grafica, Servizi social",Offerta da inviare,Completato,24-12,Saldata,"Sara Verterano 24-34,Elisa Bertolone 24-2,Gabriele Picone 2-25",Pagato,,"SARA, ELISA, ",,,,5/2/2025 11:48pm,Fabio Gilardi Sindaco ,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1eBCspxDI39AFAgRQ-nb7SMdpkG8hYyO2TVVPhW7H8sE,,,,Offerta Accettata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,17/4/2024,24,9,4/4/2024,Saldo alla fattura,,,,,,,,100%,€2050.00,,€ 2050.00,"€2050,00","€2050,00",€0.00,€0.00,,"Saldo 24-0009 ELISA,Saldo 24-0009 SARA",,,"24-0009-qOiD6,24-0009-da7rg",checked,,Fabio Gilardi Sindaco ,GLRFBA78S20I480B,,17047,Vado Ligure,SV,Gilardif@gmail.com ,,,Modalità da concordare,,,,"Sara Verterano, Elisa Bertolone",,,Dettagli Commessa,,,,0009,,,,,,Fabio Gilardi Sindaco  / Consulenza Vado - Gestione profili social e sito web ,,,
+24-0010,Confindustria Genova,5/4/2024,Video Presentazione Portale,Matilde Orlando,"24-0010-1-Confindustria Genova,24-0010-2-Confindustria Genova,24-0010-3-Confindustria Genova",€422.00,"€400,00","€850,00","€1000,00","€428,00","€600,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,Completato,24-6,Saldata,Simone Spinetti 24-14,Pagato,"Ordine Gleeye_ConfindustriaGe_firmato.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/s_UBgk9HBYwc4g3190Itew/xmF_Tk2hxEOcpoYJJsIISTK0eIOJDv_OE6RaJ1KZ_I6Be4qHy-OLVRR1Rg5EgqKTrKHIWI_OtfXr_SjYULJkae8sz3Vn5vqaaFFdps44J8_l_0i8KJ1nCFVk3ndhJi9FDQ8SAalAMuoNGspaK7isNv28N8YV6uS7vV6J8IBa6N5rvpE7OrHRDykOErkiw3mc/w5QHNBo0diehhKr8PGOX_bNdgSIJYtta0D-ikUYUKbQ),preventivo_Davide Gentile_Confindustria Ge_firmato.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/cDhKrQpEkHOgQVBXtqAKEQ/s8fbZjZZHi2b7MqgtyIrryhZZD1IHzFKiLvZsWgxKTRVIoDMiKkWqDLf-iBZx-V63tJ8ZrnXgyK9ZlzbLG56Y5F46NB4NeIa3zDbydAogVlujxEucS_1K2E0BBflZ5y5imCWqv7LlCu0ZCg42m5wDgrxE-p1YWISwfcHdwVWozjy8V7fPsfPj_IWot5mABQs3K96cnRsJ7w7dEpVVSYCTA/clMQCIvjxbYES_u8d4TlnHGgedUSE4vXTlPXftJ37YM)",SPINE,,,,29/12/2024 5:58pm,Confindustria Genova,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1rx2b2JvOQntyzBvV1bwm0SPEkfugGW9V3BE2OZZE5-E/edit,,"Fare il video della nuova piattaforma/portale realizzata da DAS, come ha fatto Conf Brescia
+- Simo già avvisato e ha visto il video 
+- DAS ci fornirebbero loro le registrazioni della navigazione del portale
+- A differenza di quello di Brescia non c'è la parte sull'app mobile e una sezione (
+- A OGGI manca la quotazione del voice-over in attesa di vedere se:
+    - trovano qualcuno del teatro disponibile
+    - va bene usare questo https://elevenlabs.io/
+    - tocca chiamare questi che chiederanno almeno 500€ https://voceaudioproduzioni.it/
+",,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,17/4/2024,24,10,5/4/2024,Saldo alla fattura,,,,,,,,100%,€1000.00,Da inviare,€ 1000.00,"€1000,00","€1000,00",€0.00,€0.00,,"Saldo 24-0010 Confindustria Genova,Saldo 24-0010 SPINE",,,24-0010-wWYaM,checked,https://docs.google.com/document/d/1_kMzPZ4NvVu5l2OunQ103XsMxCM4-Ec3XRdhk8maEB8,CONFINDUSTRIA GENOVA,80030250106,VIA SAN VINCENZO 2,16121,GENOVA,GE,,fatture@pec.confindustria.ge.it,,Modalità da concordare,,,,Simone Spinetti,,,Dettagli Commessa,,,,0010,,,,,,Confindustria Genova / Video Presentazione Portale,,,
+24-0011,Start 4.0,1/5/2024,Supporto attività di comunicazione 24 - 25 ,Uberto Cremonini,"24-0011--Start 4.0,24-0011--Start 4.0,24-0011--Start 4.0,24-0011--Start 4.0,24-0011--Start 4.0,24-0011-1-Start 4.0,24-0011-2-Start 4.0,24-0011-3-Start 4.0,24-0011--Start 4.0,24-0011--Start 4.0,24-0011-4-Start 4.0,24-0011-5-Start 4.0,24-0011-6-Start 4.0,24-0011-6-Start 4.0,24-0011-8-Start 4.0,24-0011-8-Start 4.0",€2918.00,"€820,00","€6340,00","€2500,00","€3422,00","€1680,00","Servizi social, Editing e post-produzione, Tariffa oraria per la prestazione su set, Uscita con attrezzatura professionale per la realizzazione del servizio",Offerta da inviare,Completato,25-19,Inviata,"Simone Spinetti 24-14,William Bignone 24-12,Gabriele Picone 2-25,Paolo Ferretti 25-1",Pagato,"Gleeye Start.ods (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/XkbIu5qcM3iXVsyQsqt8sA/ug2B4DCdljWUBtfNqv-2czH4-1hj9uiGMohhknqFCa6dK9GHHOAJP7ELO5WDS70FHHZVRljX4sURH-eMTVMMwbYIOxA4hFiPvKmxeyJ7fwnX2FrF0I-f-fy9vx4FRKHDkbO2SpormmBF78pHRJFQ2okSjGTIiKQyN17KBXiTcis/uSFgmE9sP56pC5NTAXZA-7Kd0k1_Zw-rtvWTQTEZhV4),ATTO DEL PRESIDENTE_servizi supporto comunicazione_Gleeye-signed.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/4ddAyVILgY3WpwwlQMJFEw/Cn-pTI42rUtrdmO2iOcS3KxHT2Z0Gi-T4wPB42R6HC7CIZi5NpOodjepLhrw1ttiGVqbxelU23gkgn1kDvwGyhxJG4DXhA_UBgG9cgE6to0fSmwl5Jo_PH9xJq4dU5gDm75q9hIGbKPyjdUuouq10NnjiAm7DoVNHS54zw7Kd8ec5dQsG6SDpuDAQQe3ggXh2SlFzgXdgJeLpDreOfqfXAn-_zpatH7GNwfGQd5CEAY/DP42XeMENcVGshIgoKMFBnO_OgFuq3-m4nxOETt8CuI),24-0011 Start 4.0_Gleeye.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/rmygqjVLBWbpPeFYM-8VRg/36TyfK1jVJmm6IItYxnj1xU2QYDkz3gxEyRquuUYt-td0KuimAB74XibAB7wIfjtgQWyRUxTSyUn7tk0tZANxdr388MDWvIQ-32fTVxF30aheNSluxB5A0GqqK9Z3vR23GWwYfAL_16wMl7aI9IQgbBGLLhv5z2MjzluBOjAPO_E-JFqraM0qCuctwHNdhhF/EnUVZQx_JSQzkLJe5OQ8XJDj_nBfP9V8orztqSMYuKI)","GABRI, , SPINE, WILLY, FERRETTIP",,,,13/10/2025 5:24pm,Start 4.0,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1lyBriVDeYkfDqtIstIlz7TrxqnLOireEYL2EJ2zb4b0,,"
+Attività: 
+ A) 8 NEWSLETTER BIMESTRALI 2024- 2025 (restyling grafico e supporto invio newsletter). Luglio 24, Ottobre 24, dicembre 24, febbraio 25, aprile 25, giugno 25, ottobre 25, dicembre 25. 
+
+8 NEWSLETTER 
+3h 
+24 x 20= 480
+
+
+Prezzo: 1500 (per eccesso) 
+
+---------------------------------- -------------------------------------------
+
+B) 25 GETTONI FOTO E VIDEO PER EVENTI E ATTVITITA' START 4.0 
+
+Costo Spine: 900 (15 gettoni) 
+Costo Willy: 500 (10 gettoni) 
+Costo totale: 1400
+Prezzo: 3.500
+(vedi tab 1 file Gleeye Start) 
+
+
+(meno video e un po' di grafica a parità prezzo) 
+
+
+----------------------------------------------------------------
+Totale costo: 1880
+Totale totale: 5.000
+
+
+
+
+
+",,Offerta Accettata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,24,,1/5/2024,Anticipo e saldo,,,,,50%,€1250.00,Da inviare,50%,€1250.00,Da inviare,€ 2500.00,"€2500,00","€0,00",€0.00,€2500.00,,"Saldo evento inaugurazione sede Start 4.0 24-0011 SPINE,Saldo evento inaugurazione sede start 4.0  24-0011 WILLY,Saldo 24-0011 FERRETTIP",,checked,"24-0011-zqExI,24-0011-6q9xj,24-0011-hswNK,24-0011-MaYNX",checked,https://docs.google.com/document/d/1bsZHs64OSAdw77zkasKWnX_MgpKrvlMpa0tMadkk3nk,CENTRO DI COMPETENZA START 4.0,02586330991,CORSO FERDINANDO MARIA PERRONE 24,16152,GENOVA,GE,uberto.cremonini@start4-0.it,,,Modalità da concordare,,,,"Gabriele Picone, Simone Spinetti, William Bignone, Paolo Ferretti",,,Dettagli Commessa,,,,0011,,,,,,Start 4.0 / Supporto attività di comunicazione 24 - 25 ,,,
+24-0012,PRESSCOMM TECH,2/5/2024,"Riprese Video Evento ""Festival Glocal 2024""",Nicola Reineri,"24-0012-1-PRESSCOMM TECH,24-0012-2-PRESSCOMM TECH",€420.00,"€400,00","€900,00","€900,00","€480,00","€500,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set",Offerta da inviare,Completato,24-2,Saldata,Simone Spinetti 24-12,Pagato,24-12 PRESSCOMM TECH (1).pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/S1LHM_zAvRNGha84otTLtg/_YQdNTRMAFKU75P4SelApI6Tszn-fsk1gMWLdTcIyqNo3tFy8LyoF3OlUbJlcM9SM9r7BspIs1BY-nEwjGzeMBtEKVNqlNDNo4SG-f9ut07JTfpz9vRhCjACFwa8bjiZZrVf0bwKKIm7iUJvzRFaBkHE-jT9pyUhyy0298K1AkA/PHvj7RRULf8Ov7yUq7JUq-8uBFE7IXWXcjlUck7MwHw),SPINE,,,,29/12/2024 5:57pm,PRESSCOMM TECH,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/16KBHwQeoSPXBQGXwOkpMuwkpJkd8tQj8MwQTZhTVSFg,,NB PER FATTURAZIONE: Codice univoco | SZLUBAI,,Offerta Accettata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,24,,2/5/2024,Saldo alla fattura,,,,,,,,100%,€900.00,Saldato,€ 900.00,"€900,00","€900,00",€0.00,€0.00,,"Saldo 24-0012 PRESSCOMM TECH,Saldo 24-0012 SPINE",,,24-0012-c0dJ9,checked,https://docs.google.com/document/d/1_kMzPZ4NvVu5l2OunQ103XsMxCM4-Ec3XRdhk8maEB8,PRESSCOMM TECH SRL,01602980086,VIA MATTEOTTI 12,18038,SANREMO,IM,,,,Modalità da concordare,,,,Simone Spinetti,,,Dettagli Commessa,,,,0012,,,,,,"PRESSCOMM TECH / Riprese Video Evento ""Festival Glocal 2024""",,,
+24-0013,Fanimar,14/5/2024,Creazione documentazione in inglese,Gabriella Caorsi,24-0013-1-Fanimar,€189.20,"€180,00","€450,00","€500,00","€260,80","€320,00",Servizi grafica,Offerta da inviare,Completato,24-5,Saldata,Sara Verterano 24-24,Pagato,,SARA,,,,29/12/2024 5:57pm,Fanimar,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1xouuCV_8L14gxBsIEudYFysLW3BNaNJ_I8pvgTXPa_Y,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,14/5/2024,Saldo alla fattura,,,,,,,,100%,€500.00,Saldato,€ 500.00,"€500,00","€500,00",€0.00,€0.00,,"Saldo 24-0013 Fanimar,Saldo 24-0013 SARA",,,24-0013-dsaUD,,https://docs.google.com/document/d/1_kMzPZ4NvVu5l2OunQ103XsMxCM4-Ec3XRdhk8maEB8,FA.NI.MAR.,95043570100,VIA MILANO 40 C/3 SC.DX,16126,GENOVA,GE,info@fanimar.it,,+390102518524,Modalità da concordare,,,,Sara Verterano,,,Dettagli Commessa,,,,0013,,,,,,Fanimar / Creazione documentazione in inglese,,,
+24-0014,Serteco Volley School Genova ,20/5/2024,Consulenza Social e Content editing stagione sportiva 24/25 ,Andrea  Casassa ,"24-0014--Serteco Volley School Genova ,24-0014--Serteco Volley School Genova ",€3207.20,"€3210,00","€7600,00","€8000,00","€4392,80","€4790,00","Servizi social, Consulenza Social",Offerta da inviare,Contratto da inviare,,,,,,,,,,29/12/2024 5:57pm,Serteco Volley School Genova ,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1c3leuNfKYanAia9Hzsc6Pw5lJxTg9kqen8FosnTNVXM,,"Calcolo consulenza iniziale 4h (assessment) 
+Calcolo Servizi social (creazione content editor reel e post instagram): 4 ore a settimana per 9 mesi 
+
+settembre - giugno (una stagione, 9 mesi) 
+
+2.5 x 
+
+Per serteco sono circa 800 € al mese 
+Per ragazza sono circa 360€ al mese 
+
+
+CAMILLE 
+
+
+",,Offerta Rifiutata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,24,,20/5/2024,Anticipo + Rate,2,quadrimestrale,€2800.00,In attesa,30%,€2400.00,Da inviare,,,,€ 8000.00,"€0,00","€0,00",€8000.00,€0.00,9,,,,,,https://docs.google.com/document/d/1yf4T5gW4ZX2Vta0iqWogMTjKBBPuB3ieLMBlnoXtfiM,SERTECO VOLLEY,02044460992,Via Digione 48r,,Genova,Ge,,sertecovolleyschoolsrl@pec.it,,Anticipo del 30 percento pari a 2400 €. N. 2 rate da 2800 €. Tipo rateizzazione: quadrimestrale,,,,,,,Dettagli Commessa,,,,0014,,,,,,Serteco Volley School Genova  / Consulenza Social e Content editing stagione sportiva 24/25 ,,,
+24-0016,Ausind,20/6/2024,"Servizi foto e video per evento ""PMI Networking evening""","Matilde Orlando,Giuliana De Lucchi,Piera Ponta","24-0016-1-Ausind,24-0016-2-Ausind,24-0016-3-Ausind,24-0016-4-Ausind,24-0016-5-Ausind,24-0016-6-Ausind",€350.00,"€350,00","€750,00","€750,00","€400,00","€400,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,Completato,24-8,Saldata,"William Bignone 24-12,Mattia Montano 24-1",Pagato,ordine gleeye.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/hfM1CMBq_qp4xo_udWObAg/NHxD-zHsUY8HR9G56eAkJldKtt0j7NbelWmc5seixIDqILtcqLY3TeM8dDehQmC3tsgaS5y8xE7YWopCfOx0nPLdJj1oli75eDGbHkms2R-DtEoUrmUFkUa27itggEXw1J29BVDzzrpw_40_SQJ0ApIm5LsPYUyD_IV4726D7is/kVZk7wCrp1rwSlvIffLoXGoqBT4oSXVMrC7svQZhPT0),"MATTIA, WILLY",,,,29/12/2024 5:57pm,Ausind,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1wZfzRyNP05f6nVQeD4SfyiTwgAagGuH2mosvFp1sSfk,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,20/6/2024,Saldo alla fattura,,,,,,,,100%,€750.00,Da inviare,€ 750.00,"€750,00","€750,00",€0.00,€0.00,,"Saldo 24-0016 Ausind,Saldo 24-0016 MATTIA,Saldo 24-0016 WILLY",,,"24-0016-rUGsj,24-0016-mHNcS",,,AUSIND SRL,00972070106,VIA SAN VINCENZO 2,16121,GENOVA,GE,ausind@confindustria.ge.it,,,Modalità da concordare,,,,"Mattia Montano, William Bignone",,,Dettagli Commessa,,,,0016,,,,,,"Ausind / Servizi foto e video per evento ""PMI Networking evening""",,,
+24-0017,Fanimar,20/6/2024,Sviluppo Area Riservata per Compilazione Modulistica,Gabriella Caorsi,24-0017-1-Fanimar,€210.00,"€210,00","€500,00","€920,00","€290,00","€710,00",Installazione e Configurazione dei Plugin,Offerta da inviare,Contratto da inviare,,,,,,SARA,,,,29/12/2024 5:57pm,Fanimar,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/19IkTSILT0HDE20-_x3ociqq9-Ef0ED1DvJrou_KSeQc,,"Area privata:
+L’utente può iscriversi (non è obbligatorio) e una volta iscritto può mandare le richieste di rimborso tramite una sezione dedicata in cui non deve più immettere tutti i dati richiesti nel modulo, ma avrà un modulo semplificato e più breve.
+Essendosi iscritto Fanimar ha già in memoria la sua anagrafica nei loro sistemi. 
+A livello tecnico: 
+- creazione di una pagina per la registrazione
+- creazione di una pagina per il login 
+- creazione di un modulo ad hoc che vedrà solo l’utente registrato
+",,Offerta Rifiutata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,20/6/2024,Saldo alla fattura,,,,,,,,100%,€920.00,Da inviare,€ 920.00,"€0,00","€0,00",€920.00,€0.00,,,,,,,,FA.NI.MAR.,95043570100,VIA MILANO 40 C/3 SC.DX,16126,GENOVA,GE,info@fanimar.it,,+390102518524,Modalità da concordare,,,,Sara Verterano,,,Dettagli Commessa,,,,0017,,,,,,Fanimar / Sviluppo Area Riservata per Compilazione Modulistica,,,
+24-0018,Start 4.0,4/7/2024,START 4.0 - CTE VIDEO ,Uberto Cremonini,"24-0018--Start 4.0,24-0018--Start 4.0,24-0018--Start 4.0,24-0018-1-Start 4.0,24-0018-2-Start 4.0,24-0018-3-Start 4.0,24-0018-4-Start 4.0,24-0018-5-Start 4.0,24-0018-6-Start 4.0",€1141.20,"€1200,00","€2510,00","€9000,00","€1368,80","€7800,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,Finito da fatturare,25-15,Saldata,Simone Spinetti 24-14,Pagato,Contratto START_GLEEYE SRL.docx (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/9uK28B8ZJT21VHzP9Mu_ag/GtSKzKr9nw6fScbj91lfWquVbCGO2DqglJ9SMXSwFgt8Ow45NuH0cY8iQ8V9gZee5xAtjxEu9lvP0fpvYn_7M7J74EDwYSOjUlS19xPAhuEMolnYUosxDE_Fl12cyRPwEgOV7sIrAsSvWhCEuRbnh9wDj5YZdDBrqlZcfm297bUs_qTkaZQAsOApKNPmnCQ2/PBQ2gskKc8PS5bd6dS9y0RcKB0aSFGLSk6zQGbq_Nxo),", SPINE, CASTELLANOA",,,,2/11/2025 12:22pm,Start 4.0,Inviato,Inviato,,,,,"Scadenza 30/6 
+
+costo collaboratori 
+si tratta di 2 uscite da 50€ 
++ 
+4h di lavoro standard (2h di riprese e 2h di editing) 
+
+Quelli nel contesto CTE (uno già fatto il 19/6)
+
+-------
+
+4 saranno usati per altro START 4.0
+si tratta di 2 uscite da 50€ 
+6h di lavoro standard (3h riprese, 3h editing) 
+
+-------------------------------------------------------------------
+
+Quindi ricapitolando Simo ha 6 video da fare e lo paghiamo 1200, quindi 200€ a video. 
+
+
+",,Offerta Accettata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,24,,4/7/2024,Saldo alla fattura,,,,,,,,100%,€9000.00,Da inviare,€ 9000.00,"€9000,00","€9000,00",€0.00,€0.00,12,"Saldo 24-0018 Start 4.0,Saldo Evento 19/6 24-0018 SPINE,Saldo  24-0018 SPINE,Saldo  24-0018 Start 4.0,Saldo 24-0018 CASTELLANOA",,,"24-0018-yZhTN,24-0018-WwSnW,24-0018-InbqK",,,CENTRO DI COMPETENZA START 4.0,02586330991,CORSO FERDINANDO MARIA PERRONE 24,16152,GENOVA,GE,uberto.cremonini@start4-0.it,,,Modalità da concordare,,,,"Simone Spinetti, Alessio Castellano",,,Dettagli Commessa,,,,0018,,,,,,Start 4.0 / START 4.0 - CTE VIDEO ,,,
+24-0020,,10/7/2024,Campagna Elettorale Regionali Arboscello ,Roberto  Arboscello ,"24-0020-2-,24-0020-1-,24-0020-4-,24-0020-3-,24-0020-5-,24-0020--",€2242.80,"€2250,00","€5335,00",,"€3092,20","-€2250,00","Sviluppo Sito Web con CMS Wordpress, Servizi grafica, Tariffa oraria per la prestazione su set, Uscita con attrezzatura professionale per la realizzazione del servizio, Servizi social, Editing e post-produzione",Offerta da inviare,Completato,,,"Ricardo  Vela  24-1,Martina Gommellini 24-3,William Bignone 24-26",Pagato,FIRMA PROGETTO.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/rr36Tu14meFhcvejehkWyg/3not0tC0SAeKh_ieb5m0g6WBJ22_TB54mte15czE6kDI2PKMqjM-z3QyM_iPFPoNclskUntuH0HCUJKalBqSV2qeegvMyJrEBOmTp1Yey0Amx4s12S2NBQydJWmEXwSFwZrQvICkR1ANWCowLUPScmaHPHxeCs7t_vpjHZpTfc0/OGrfOIgNN_utGZmSbdWoFkddfFBqWqBEVSBu0wEFouA),"SARA, GOMMELLINIM, WILLY, RICARDO",,,,7/1/2025 4:11pm,,Inviato,Inviato,,,,,"Vedi in entrata Arvo, Transmare e Vernazza. 
+In uscita possibile Despini 
+
+No riprese, no grafiche. 
+Solo reel ed eventuale supporto gestione pagina (che ho messo ma magari noin serve) 
+
+
+BOZZA PER RICARDO VELA
+
+-----------------------------------------
+A) 5 reel su contenuti programmati (da diffondere in modo ""originale"", nel contesto della comunicazione politica) 
+- Sanità (lista attesa) 
+- NO al rigassificatore 
+- Modo diverso di fare politica rispetto al centrodestra (ascolto cittadini e condivisione, no scelte calate dall'alto) 
+- Sviluppo economico e industria ambientalmente compatibile 
+
+B) Editing di video e immagini realizzate da altri (da remoto). Non sarà necessario sviluppare video di eventi, c'è un'altra risorsa, tranne i 4 contenuti nel punto A. 
+
+C) Supporto nella gestione e pubblicazione della pagina Instagram 
+
+D) Supporto per la realizzazione di grafiche su progetti CANVA 
+
+----------------------------------------------------------------------------------------
+
+PUNTO A: FORMAT Ogni reel (considerando creatività, uscita, riprese, editing) calcolo 7h, quindi 28h totali
+
+PUNTO C E D:  1h a settimana per 6 settimane, 6 h
+
+----------------------------
+
+100€ a reel 
+50€ instagram 
+
+
+
+------------------------------
+
+
+TOTALE COSTO: 2.250
+MARTINA 1.140
+SARA 300 + 100 per acquisto dominio -----> 400
+RICARDO  550
+willy 160
+
+------------------------------ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+FORMAT E TECNICHE PER FAR GUARDARE QUESTI CONTENUTI
+-         Gancio diverso
+-         Giornata in più parti di Savona, incontro con la gente 
+-         Voice over accattivanti 
+-         Piano editoriale e tecnicalità 
+
+
+Chiedi sua presentaizone. 
+
+
+1. Programmata (temi già conosciuti
+
+
+
+Capire come mi può dare una mano Ricardo. Quali sono le caratteristiche e poi partire e trasmettergliele. 
+
+Mandami lavoro fatto Ricardo. 
+
+
+
+
+------------------------------------------------
+
+
+
+
+",,Offerta Rifiutata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,24,,9/7/2024,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€0.00,€0.00,,"Saldo 24-0020 RICARDO,Saldo 24-0020 GOMMELLINIM,Saldo 24-0020 WILLY",,,"24-0020-cgnI9,24-0020-v0n6o,24-0020-3qTxe,24-0020-t0q1B",,,,,,,,,,,,Modalità da concordare,,,,"Sara Verterano, Martina Gommellini, William Bignone, Ricardo  Vela ",,,Dettagli Commessa,,,,0020,,,,,, / Campagna Elettorale Regionali Arboscello ,,,
+24-0022,,14/7/2024,Campagna elettorale regionali BASIC - candidato X,,"24-0022--,24-0022--,24-0022--,24-0022--",€2504.00,"€3000,00","€5400,00","€9000,00","€2896,00","€6000,00","Servizi grafica, Consulenza Social, Servizi social, Sviluppo Sito Web con CMS Wordpress",Offerta da inviare,Contratto da inviare,,,,,Regione Liguria - Elezioni 2024 (1).pptx (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/4id2Oei9rSqdykHXiG6qDw/vFhF_9XSQpJs8ltm4zz3S-HI9A4F413Lkr__CctZJIjkS1LbIjtbp7ti81ZCccMwXHzwF8NlXVhw7kMFheWsTl_Q-vXxg7oZCzF7COsvFG_K-2wV-lLdF6W8hQrzYi2Laj4EYXYbqHaD91RIQ3DlIdbGhHn62oS4-eltpwYl6IuXRTnSIFLyUP0oA5XVJr8N/khi-Z_qjmFD01hKgO-6Z6EV4dgSPkhWV8z8gvnVxqSE),"GOMMELLINIM, GABRI, SARA",,,,29/12/2024 5:57pm,,Inviato,Inviato,,,,,"
+GABRI:1500
+MARTINA 500
+SARA: 250
+SPINE: 550 --------> Montaggio di roba per i social 
+WILLY: 200
+tot: 3000
+
+
+",,Offerta Rifiutata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,24,,14/7/2024,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€9000.00,€0.00,,,,,,,,,,,,,,,,,Modalità da concordare,,,,"Martina Gommellini, Gabriele Picone, Sara Verterano",,,Dettagli Commessa,,,,0022,,,,,, / Campagna elettorale regionali BASIC - candidato X,,,
+24-0023,,18/7/2024,Evento NATO Sestri Levante,,"24-0023-1-,24-0023-2-,24-0023-3-,24-0023-4-,24-0023-5-,24-0023-6-,24-0023-7-,24-0023-8-,24-0023-9-,24-0023-10-",€2370.40,,"€4970,00",,"€2599,60","€0,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,Contratto da inviare,,,,,,,,,,29/12/2024 7:53pm,,Inviato,Inviato,,,https://docs.google.com/presentation/d/1DjRFbfWwTRU6G5batrub7woREMEVs58D6k3BJYrvxAM,,,,Offerta Rifiutata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,18/7/2024,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€0.00,€0.00,,,,,,,,,,,,,,,,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0023,checked,,,,, / Evento NATO Sestri Levante,,,
+24-0024,,23/7/2024,Video Deliverable servizi START [con riprese],,"24-0024--,24-0024--,24-0024--",€349.20,"€350,00","€710,00","€800,00","€360,80","€450,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,Contratto da inviare,,,,,,SPINE,,,,29/12/2024 5:57pm,,Inviato,Inviato,,,,,,,Invio Progammato,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,24,,23/7/2024,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€800.00,€0.00,,,,,,,,,,,,,,,,,Modalità da concordare,,,,Simone Spinetti,,,Dettagli Commessa,,,,0024,,,,,, / Video Deliverable servizi START [con riprese],,,
+24-0025,,23/7/2024,Video servizi Start 4.0 [solo grafica],,24-0025--,€189.20,"€230,00","€360,00","€550,00","€170,80","€320,00",Editing e post-produzione,Offerta da inviare,Contratto da inviare,,,,,,GOMMELLINIM,,,,29/12/2024 5:57pm,,Inviato,Inviato,,,,,,,Invio Progammato,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,24,,23/7/2024,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€550.00,€0.00,,,,,,,,,,,,,,,,,Modalità da concordare,,,,Martina Gommellini,,,Dettagli Commessa,,,,0025,,,,,, / Video servizi Start 4.0 [solo grafica],,,
+24-0026,Chiappe Revello ,25/7/2024,Advisory strategica,Elena  Baccini ,24-0026--Chiappe Revello ,€1042.00,,"€3000,00","€3000,00","€1958,00","€3000,00",Monitoraggio eventi ed attività istituzionali ,Offerta da inviare,,,,,,24_26 Advisory strategica Chiappe e Revello.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/m7rIenDDNOJuLuV90YUv-A/_KshQ8aQK8Z48jJsiQz4lDokqoPJZpQPB40yc52--qiv-1yWLox3QlgqlqFpk_l1_IU4sA10szu8Y_ziatTMMfzEwee8rTO_d4Jemh8qIEC_jqMLL29TYwkfi0x6QK_FDnyODaKZV8bpBQJF83regLN6wAn_w4G58ddN-0b5dByEw6rRgTFAfIU-XmRpTtYKHEzAi5tmyyL-NmUYz_HQnw/Do5jC3xbSpQJEoXW9RXH2BrPSDH_G-DDsueiZqV9ELo),ANDREA,,,,17/7/2025 5:08pm,Chiappe Revello ,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1oAsYMw19t-9q3B2KWmkmG-fetIXItnqtocry5_0YwMA,,"
+
+
+",,Offerta Rifiutata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,24,,25/7/2024,Saldo alla fattura,,,,,,,,,€0.00,,€ 0.00,"€0,00","€0,00",€3000.00,€0.00,,,,,,checked,https://docs.google.com/document/d/1vQOLVOFQFYbYZVMWohh-dJgAahbexNktKuvhnLmjnlM,Chiappe Revello ,02634530105, VIA DOMENICO FIASELLA 1/13,16121,Genova,GE,e.baccini@chiapperevello.it,cra@pec.chiapperevello.it,,Modalità da concordare,checked,https://drive.google.com/file/d/1OsWHDUSDAm9RNws3BdLIPrFio-RZEBUf,,Andrea Visentin,,,Dettagli Commessa,,,,0026,,,,,,Chiappe Revello  / Advisory strategica,,,
+24-0027,Camera di Commercio Genova ,8/8/2024,Restart with Digital - sito e grafica ,Serena  Pagliosa,"24-0027--Camera di Commercio Genova ,24-0027--Camera di Commercio Genova ,24-0027--Camera di Commercio Genova ,24-0027--Camera di Commercio Genova ",NaN,"€800,00",NaN,"€2500,00",NaN,"€1700,00","Servizi grafica, Manutenzione e Assistenza Sito Web Vetrina, Installazione e Configurazione dei Plugin, Integrazione dei contenuti",Offerta da inviare,,,,,,"24-27 Camera di Commercio Genova .pptx (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/vBV27-DgRMfelkbuYfs18w/cYsWSJtMvo-rexRcavysLLhpXwGwRu1hmhj4q2nKJk5dZvCBi9C1OXJtIkSiZb2fhmNl7dESYaBR4keN3xZSdySMkdyawpeJBUwGCquQcCGE-nB2Onp3chEiQ33rUPnxkfDb0T0_8WzUrWB8NEbfjGwqgOhZkDwvLeGApdUSITyWodhz8pouKpeSgMPkfGkF/uLTPslh0BQ2N_VfHq2LLABiqluhfpftrW_r3s8--Fik),24-27 Camera di Commercio Genova .pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/kdLp9LlTjndPxeOdqg8lvA/7oNMbUUPrTpK7NQFN9_c9E3kTpCA8CZfgdyBV0DC9bGX8ajlRQXST-9DTiXJYWyaV_6vdKmZaWyGfMyQfjQeFcEInVK43athvWAyoCBkFqjx-7F5zDMNM7nNmUNcZ5Ta5f6Tqgq3AOu1VFsREVMi3onWjdMkj9oZWP69gOmXPAbsM8lrDmIboo-phzzWdkrq/PiLhdByCjIYOBfxN7ctBtO1-xGIo1C00SrqMLfnIrWY)",SARA,,,,29/12/2024 5:57pm,Camera di Commercio Genova ,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1oehYDy3RBi8yJIQSUwFW2sBREje4DAoClUtnPH2UBpc,,"Preventivo lavori di aggiornamento Restart with digital
+
+Sito
+Creazione homepage e albero strutturale del sito
+Creazione pagina del corso propedeutico
+Creazione pagina del corso nuovo (magari cambiando i colori per differenziare i due corsi)
+Impostazione tecnica per i nuovi questionari
+Aggiunta e aggiornamento dei questionari nel corso dell'anno
+
+Grafica
+Locandine per i due corsi
+Social card per i corsi
+Test d'ingresso per i corsi
+Programma in pdf dei corsi
+Certificato di partecipazione finale",,Offerta Rifiutata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,8/8/2024,Saldo alla fattura,,,,,,,,,€0.00,,€ 0.00,"€0,00","€0,00",€2500.00,€0.00,,,,,,,,Camera di Commercio Genova ,00796640100,Via Garibaldi 4 ,16124,Genova ,GE,camera.genova@ge.camcom.it ,cciaa.genova@ge.legalmail.camcom.it,,Modalità da concordare,,,,Sara Verterano,,,Dettagli Commessa,,,,0027,,,,,,Camera di Commercio Genova  / Restart with Digital - sito e grafica ,,,
+24-0006,Partito Democratico di Genova e della Liguria ,28/8/2024,Social Management,,"24-0006--Partito Democratico di Genova e della Liguria ,24-0006--Partito Democratico di Genova e della Liguria ",€5432.80,"€5220,00","€12600,00","€12000,00","€7167,20","€6780,00","Servizi social, Consulenza Social",Offerta da inviare,,,,,,,BEATRICE,,,,2/7/2025 6:23pm,Partito Democratico di Genova e della Liguria ,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1A252cwHzzjN-WownsJMoEEfK1SpszrdKJtGPRcIanhA,,,,Offerta Rifiutata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,24,6,19/3/2024,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€12000.00,€0.00,,,,,,,,PD Genova e Liguria ,,,,Genova ,Ge ,,,,Modalità da concordare,,,,Beatrice Frugone,,,Dettagli Commessa,,,,0006,,,,,,Partito Democratico di Genova e della Liguria  / Social Management,,,
+24-0031,Start 4.0,8/9/2024,Videocorso A2A,"Georgia  Cesarone,Cristina Carnevali ","24-0031--Start 4.0,24-0031-1-Start 4.0,24-0031-2-Start 4.0,24-0031-3-Start 4.0,24-0031-4-Start 4.0",€426.00,,"€900,00","€5000,00","€474,00","€5000,00",", Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set",Offerta da inviare,Completato,,,"Mattia Montano 25-7,Simone Spinetti 25-9",Pagato,,"MED, SPINE, MATTIA",,,,17/6/2025 6:49pm,Start 4.0,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1EypYwUxB4LA5e1HP9DivAAOc2xvH70U3O-DsdKVZZcs,,"Chiedere conferma ad Andre come procedere per ufficializzare sto delirio di ordine
+Mi ha detto che cte ha 5k e che si pagherà anno prossimo -> compilare al più presto bene tutto
+
+____
+
+Prima lezione fatta, in attesa di partire con le altre",Fare guida processo,In Lavorazione,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,27/9/2024,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€5000.00,€0.00,,"Saldo 24-0031 SPINE,Saldo 24-0031 MATTIA","Riprese per corso A2A,Call con A2a per scorm,Riprese Corso @ CNR,Riprese Sede A2A,Riprese ",,"24-0031-O7SjZ,24-0031-Q3DUy,24-0031-NstGP",,,CENTRO DI COMPETENZA START 4.0,02586330991,CORSO FERDINANDO MARIA PERRONE 24,16152,GENOVA,GE,uberto.cremonini@start4-0.it,,,Modalità da concordare,,,,"Marco Selvaggio, Simone Spinetti, Mattia Montano","Sviluppo file scorm,Video-trailer control room,Modifiche Video",28/2/2025,Dettagli Commessa,,,,0031,,,,,,Start 4.0 / Videocorso A2A,,,
+24-0033,Vernazza Autogru,8/9/2024,Servizio di Assessment Strategico iniziale  ,,,€0.00,,"€0,00","€2460,00","€0,00","€2460,00",,Offerta da inviare,Completato,24-22,Saldata,,,,,,,,6/4/2025 12:11pm,Vernazza Autogru,Inviato,Inviato,,,,,"Vela 
+Un'analisi completa e personalizzata delle strategie di marketing e comunicazione ",,Offerta Accettata,,,"€0,00",,,,,,,,24,,28/10/2024,Saldo alla fattura,,,,,,,,100%,€2460.00,Inviato,€ 2460.00,"€2460,00","€2460,00",€0.00,€0.00,,Saldo 24-0033 Vernazza Autogru,,,,,,Vernazza Autogru,,Str. di Scorrimento Veloce 11,17047,Vado Ligure,SV,,,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0033,,,,,,Vernazza Autogru / Servizio di Assessment Strategico iniziale  ,,,
+24-0028,Ausind,13/9/2024,Montaggio video con foto eventi,Giuliana De Lucchi,24-0028-1-Ausind,€64.40,,"€120,00","€170,00","€55,60","€170,00",Editing e post-produzione,Offerta da inviare,Completato,24-15,Inviata,,,,,,,,29/12/2024 5:57pm,Ausind,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1SPCeczH_k60qbAb_pGSkpQZl2w_mklNsoMigsefkPNw,,"montare un video con le foto degli eventi da mandare in loop (no audio, no scritte)",,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,16/9/2024,Saldo alla fattura,,,,,,,,100%,€170.00,,€ 170.00,"€170,00","€0,00",€0.00,€170.00,,Saldo 24-0028 Ausind,,,,,,AUSIND SRL,00972070106,VIA SAN VINCENZO 2,16121,GENOVA,GE,ausind@confindustria.ge.it,,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0028,,,,,,Ausind / Montaggio video con foto eventi,,,
+24-0029,Ameri,16/9/2024,Servizio di Riprese e Montaggio Video per Presentazione dei Locali Laboratorio Farmaceutico,,"24-0029-1-Ameri,24-0029-2-Ameri,24-0029-3-Ameri",€172.40,,"€370,00","€580,00","€197,60","€580,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,Contratto da inviare,,,,,,,,,,13/5/2025 9:56am,Ameri,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1kk16J7vPkHwVGH1XTkBHURvS1Kug7xhhI6P1lwv0wfU,,,,Offerta Rifiutata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,16/9/2024,Saldo alla fattura,,,,,,,,100%,€580.00,,€ 580.00,"€0,00","€0,00",€580.00,€0.00,,,,,,,,AMERI S.R.L.,03765810100,VIA DOMENICO FIASELLA 16/20,16121,GENOVA,GE,,,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0029,,,,,,Ameri / Servizio di Riprese e Montaggio Video per Presentazione dei Locali Laboratorio Farmaceutico,,,
+24-0030,Gruppo Frama,16/9/2024,Campagna Ads Meta e Creazione Creatività per il Salone Nautico di Genova,Francesca Fratea,"24-0030-1-Gruppo Frama,24-0030-2-Gruppo Frama",€212.52,,"€451,00","€450,00","€238,48","€450,00","Servizi social, Editing e post-produzione",Offerta da inviare,Completato,,,Leyla El Abiri 14/24,Pagato,,LEYLA,,,,13/10/2025 5:50pm,Gruppo Frama,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1t1oYbWFyxjh2rhKDy2JblQkRZmeVdXJanwk1lkuKdqA,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,17/9/2024,Saldo alla fattura,,,,,,,,100%,€450.00,,€ 450.00,"€0,00","€0,00",€450.00,€0.00,,Saldo 24-0030 LEYLA,,,24-0030-htmGS,,,FRAMA SOCIETA' IN NOME COLLETTIVO DI ANTONIO FRATEA & C.,03792330106,MOLO PONTE MOROSINI 19/20,16126,GENOVA,GE,info@gruppoframa.it,,,Modalità da concordare,,,,Leyla El Abiri,,,Dettagli Commessa,,,,0030,,,,,,Gruppo Frama / Campagna Ads Meta e Creazione Creatività per il Salone Nautico di Genova,,,
+24-0034,Transmare,18/9/2024,Servizio di Assessment Strategico iniziale ,,,€0.00,,"€0,00","€2460,00","€0,00","€2460,00",,Offerta da inviare,Completato,24-21,Saldata,,,,,,,,6/4/2025 12:11pm,Transmare,Inviato,Inviato,,,,,"Analisi completa e personalizzata delle strategie di marketing e comunicazione 
+",,Offerta Accettata,,,"€0,00",,,,,,,,24,,28/10/2024,Saldo alla fattura,,,,,,,,100%,€2460.00,Da inviare,€ 2460.00,"€2460,00","€2460,00",€0.00,€0.00,,Saldo 24-0034 Transmare,,,,,,Transmare,,Via Aurelia 322,17047,Vado Ligure,SV,,,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0034,,,,,,Transmare / Servizio di Assessment Strategico iniziale ,,,
+24-0035,ARCO SRL,26/9/2024,Servizio di Assessment Strategico iniziale ,,,€0.00,,"€0,00","€3280,00","€0,00","€3280,00",,Offerta da inviare,Completato,24-20,Saldata,,,,,,,,6/4/2025 12:11pm,ARCO SRL,Inviato,Inviato,,,,,"
+
+
+
+
+",,Offerta Accettata,,,"€0,00",,,,,,,,24,,28/10/2024,Saldo alla fattura,,,,,,,,100%,€3280.00,Inviato,€ 3280.00,"€3280,00","€3280,00",€0.00,€0.00,,Saldo 24-0035 ARCO SRL,,,,,,,,,,,,,,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0035,,,,,,ARCO SRL / Servizio di Assessment Strategico iniziale ,,,
+24-0032,Ameri,6/10/2024,"Servizi Digital Content Creator, Servizi Foto e Video per social ristorante/bar
+",,"24-0032-1-Ameri,24-0032-2-Ameri,24-0032-3-Ameri,24-0032-4-Ameri,24-0032-5-Ameri,24-0032-6-Ameri,24-0032-7-Ameri",€648.40,"€650,00","€1370,00","€1750,00","€721,60","€1100,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione, Servizi social",Offerta da inviare,Contratto da inviare,,,,,,,,,,3/3/2025 5:57pm,Ameri,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1Y9_js5a9YHpejL4VnSgmRDgCz9gNxXtdR7J1kOJeDNM,,,,Offerta Rifiutata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,6/10/2024,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€1750.00,€0.00,,,,,,,,AMERI S.R.L.,03765810100,VIA DOMENICO FIASELLA 16/20,16121,GENOVA,GE,,,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0032,,,,,,"Ameri / Servizi Digital Content Creator, Servizi Foto e Video per social ristorante/bar
+",,,
+24-0021,Ecosteer S.r.l.,28/10/2024,Video progetto DOP (bando 3 Start) ,Elena  Pasquali ,,€0.00,,"€0,00",,"€0,00","€0,00",,Offerta da inviare,Contratto da inviare,,,,,,,,,,3/1/2025 7:43pm,Ecosteer S.r.l.,Inviato,Inviato,,,,,,,Invio Progammato,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,24,,10/7/2024,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€0.00,€0.00,,,,,,,,Ecosteer,,,,,,,,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0021,checked,,,,,Ecosteer S.r.l. / Video progetto DOP (bando 3 Start) ,,,
+24-0019,Columbia Group SRL ,30/10/2024,Foto e video CSET 2024,Cristina Carnevali ,"24-0019--Columbia Group SRL ,24-0019--Columbia Group SRL ,24-0019--Columbia Group SRL ,24-0019--Columbia Group SRL ,24-0019--Columbia Group SRL ,24-0019--Columbia Group SRL ",€636.00,"€750,00","€1400,00","€4000,00","€764,00","€3250,00","Tariffa oraria per la prestazione su set, Uscita con attrezzatura professionale per la realizzazione del servizio, Editing e post-produzione",Offerta da inviare,Contratto da inviare,,,,,24-19 Columbia Group SRL_CSET 2024.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/R6I3wBm-FCVQ-UjzgiHyuA/tViJeUVk_bzT265QavTlbOD2dF_NrLbDm9-vfra_WwPkiOlRydM__Q5dXqAoktYgPWADETh56n8ZlzNCy6EaJ1HI06mQKMa5coPX8oQPOn4pbf-RV1OvqUzRFLCYJL1JmrLy5FcBrGs32ZjkNqkeAhlxULmEhRECW3my2QkpRQUL6nIdXs8pPvOeY_RW3Jpy/CM-COtVUGngCAVIuqPlEaIie1_GtzNdke_hgQK5NaPs),"SPINE, WILLY",,,,29/12/2024 5:57pm,Columbia Group SRL ,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1LLT7oXqLnd5hTjYWdjZXDQBpe_k-A-ZJjWlci0m0P1A,,"'
+
+----------------------------
+Spine 350 (6h) 
+Willy 300 (4h) 
+---------------------------
+
+2.500
+
+----------------------------
+
+
+",,Offerta Rifiutata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,24,,8/7/2024,Saldo alla fattura,,,,,,,,,€0.00,,€ 0.00,"€0,00","€0,00",€4000.00,€0.00,,,,,,checked,https://docs.google.com/document/d/1PnAN63F3_-Z3OUiKJGQMKr1V6_rch_3tfXm3AHbp4no,Columbia Group SRL ,01320930991,Viale Brigate Partigiane 10/4 ,16129 ,Genova,GE,Cristina.Carnevali@unige.it,,,Modalità da concordare,,,,"Simone Spinetti, William Bignone",,,Dettagli Commessa,,,,0019,,,,,,Columbia Group SRL  / Foto e video CSET 2024,,,
+24-0036,Ausind,7/11/2024,"Servizio fotografico ""Assemblea Pubblica Confindustria Genova 2024""","Matilde Orlando,Piera Ponta,Giuliana De Lucchi","24-0036-1-Ausind,24-0036-2-Ausind,24-0036-3-Ausind",€208.80,"€200,00","€440,00","€350,00","€231,20","€150,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,Finito da fatturare,24-16,Saldata,Alessio Ursida 25-1,Pagato,,URSIDA,,,,2/4/2025 3:23pm,Ausind,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1BzJJ_uWxV1ECjdL9eUA12M8c6voeWsuiq96eBSTT-tA,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,7/11/2024,Saldo alla fattura,,,,,,,,100%,€350.00,,€ 350.00,"€350,00","€350,00",€0.00,€0.00,,"Saldo 24-0036 URSIDA,Saldo 24-0036 Ausind",GIORNO EVENTO - FOTO,,24-0036-ClGu4,,,AUSIND SRL,00972070106,VIA SAN VINCENZO 2,16121,GENOVA,GE,ausind@confindustria.ge.it,,,Modalità da concordare,,,,Alessio Ursida,,,Dettagli Commessa,,,,0036,,,,,,"Ausind / Servizio fotografico ""Assemblea Pubblica Confindustria Genova 2024""",,,
+24-0037,Ameri,14/11/2024,"Video istituzionale fino a 300""",Lorena Ameri,"24-0037-1-Ameri,24-0037-2-Ameri,24-0037-3-Ameri,24-0037-4-Ameri,24-0037-5-Ameri",€779.60,"€779,60","€1500,00","€1800,00","€720,40","€1020,40","""Attività di Pre-Produzione, Pianificazione, Organizzazione Set Video"", Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Tariffa oraria per la prestazione dell'assistente, Editing e post-produzione",Offerta da inviare,Contratto da inviare,,,,,,,,,,3/3/2025 5:57pm,Ameri,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1s3lR6YLwqJ4fWRc25W8B6zxycnxvN_oFbcy-ZN89vjw,,,,Offerta Rifiutata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,14/11/2024,Saldo alla fattura,,,,,,,,100%,€1800.00,,€ 1800.00,"€0,00","€0,00",€1800.00,€0.00,,,,,,,,AMERI S.R.L.,03765810100,VIA DOMENICO FIASELLA 16/20,16121,GENOVA,GE,,,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0037,,,,,,"Ameri / Video istituzionale fino a 300""",,,
+24-0038,Celivo,22/11/2024,"Servizio foto per ""Premio partnership sociali""",Matilde Orlando,"24-0038-1-Celivo,24-0038-2-Celivo,24-0038-3-Celivo",€125.60,"€125,60","€280,00","€230,00","€154,40","€104,40","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,Contratto da inviare,,,,,,,,,,29/12/2024 5:56pm,Celivo,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1UB8LJrVmSDVIPtQJo73TtOIK43P6jDxTamX-WLo6PzA,,,,Offerta Rifiutata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,22/11/2024,Saldo alla fattura,,,,,,,,100%,€230.00,,€ 230.00,"€0,00","€0,00",€230.00,€0.00,,,,,,,,CELIVO CENTRO SERVIZI AL VOLONTARIATO,95039260104,VIA DI SOTTORIPA 1,16124,GENOVA,GE,CELIVO@CELIVO.IT,,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0038,,,,,,"Celivo / Servizio foto per ""Premio partnership sociali""",,,
+24-0039,Ordine Ingegneri Genova ,22/11/2024,"Video Aftermovie Evento 60""",Georgia  Cesarone,"24-0039-1-Ordine Ingegneri Genova ,24-0039-2-Ordine Ingegneri Genova ,24-0039-3-Ordine Ingegneri Genova ",€193.20,"€193,20","€410,00","€450,00","€216,80","€256,80","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,Contratto da inviare,,,,,,,,,,29/12/2024 5:56pm,Ordine Ingegneri Genova ,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1RTYbaGXSgtjD-NXLbgIZ55fyzFuoqbJ8gqT_6NE63AU,,,,Offerta Rifiutata,,,"€0,00","DAVIDE,BARBEROM","Davide Gentile, Mara Barbero","davide@gleeye.eu, mara@gleeye.eu","+39 335 16 24 363, +39 347 58 59 230",,,,24,,22/11/2024,Saldo alla fattura,,,,,,,,100%,€450.00,,€ 450.00,"€0,00","€0,00",€450.00,€0.00,,,,,,,,Ordine degli Ingegneri di Genova,80039470101,Piazza della Vittoria 11/10 , 16121 ,Genova,Ge,ordine@ordineingegneri.genova.it,ordine.genova@ingpec.eu,,Modalità da concordare,,,,,,,Dettagli Commessa,,,24/12/17 - Ordine Ingegneri Genova  / Debriefing Incontro Gleeye,0039,,,,,,"Ordine Ingegneri Genova  / Video Aftermovie Evento 60""",,,
+24-0040,Start 4.0,9/12/2024,"Video, foto, interviste EVENTO ""Progetto Genova urban digital twin"" (CTE GENOVA)",,"24-0040-1-Start 4.0,24-0040-2-Start 4.0,24-0040-3-Start 4.0,24-0040-4-Start 4.0,24-0040-5-Start 4.0,24-0040--Start 4.0,24-0040-7-Start 4.0,24-0040-8-Start 4.0,24-0040--Start 4.0,24-0040-10-Start 4.0",€862.40,"€865,00","€1740,00","€4000,00","€877,60","€3135,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione, Allestimento set piccolo, Tariffa oraria per la prestazione dell'assistente, Consegna in giornata",Offerta da inviare,Contratto da inviare,,,,,,"SPINE, MED, WILLY",,,,29/12/2024 5:56pm,Start 4.0,Inviato,Inviato,,,,,Video e foto dell’evento + 8 interviste durante evento (marzo 2025) ,,Invio Progammato,,,"€0,00",,,,,,,,24,,9/12/2024,Saldo alla fattura,,,,,,,,100%,€4000.00,,€ 4000.00,"€0,00","€0,00",€4000.00,€0.00,,,,,,,,CENTRO DI COMPETENZA START 4.0,02586330991,CORSO FERDINANDO MARIA PERRONE 24,16152,GENOVA,GE,uberto.cremonini@start4-0.it,,,Modalità da concordare,,,,"Simone Spinetti, Marco Selvaggio, William Bignone",,,Dettagli Commessa,,,,0040,,,,,,"Start 4.0 / Video, foto, interviste EVENTO ""Progetto Genova urban digital twin"" (CTE GENOVA)",,,
+24-0041,Start 4.0,9/12/2024,"Giornata di riprese ed editing video ""progetto Genova urban digital twin"" (CTE GENOVA)",,"24-0041-1-Start 4.0,24-0041-2-Start 4.0,24-0041-3-Start 4.0,24-0041-4-Start 4.0,24-0041-5-Start 4.0",€498.80,"€500,00","€990,00","€2000,00","€491,20","€1500,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione, ""Attività di Pre-Produzione, Pianificazione, Organizzazione Set Video"", Raccolta materiale",Offerta da inviare,Contratto da inviare,,,,,,SPINE,,,,29/12/2024 5:56pm,Start 4.0,Inviato,Inviato,,,,,Febbraio 2025 ,,Invio Progammato,,,"€0,00",,,,,,,,24,,9/12/2024,Saldo alla fattura,,,,,,,,100%,€2000.00,,€ 2000.00,"€0,00","€0,00",€2000.00,€0.00,,,,,,,,CENTRO DI COMPETENZA START 4.0,02586330991,CORSO FERDINANDO MARIA PERRONE 24,16152,GENOVA,GE,uberto.cremonini@start4-0.it,,,Modalità da concordare,,,,Simone Spinetti,,,Dettagli Commessa,,,,0041,,,,,,"Start 4.0 / Giornata di riprese ed editing video ""progetto Genova urban digital twin"" (CTE GENOVA)",,,
+24-0042,Edilporta,17/12/2024,Manutenzione & Assistenza sito web 12 mesi ,Diamila Musso,24-0042-1-Edilporta,€501.20,"€480,00","€1200,00","€850,00","€698,80","€370,00",Manutenzione e Assistenza Sito Web Vetrina,Offerta da inviare,Completato,24-18,Saldata,Sara Verterano 25-180625,Pagato,,SARA,,,,6/7/2025 8:04pm,Edilporta,Inviato,Inviato,,,,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,24,,16/12/2024,Pagamento completo,,,,,,,,100%,€850.00,,€ 850.00,"€850,00","€850,00",€0.00,€0.00,12,"Saldo 24-0042 Edilporta,Saldo 24-0042 SARA",,,24-0042-cgTEj,,,EDIL PORTA SRL,02819820990,VIALE BRIGATA BISAGNO 10,16129,GENOVA,GE,INFO@EDILPORTA.NET,,,Saldo alla firma del contratto pari a 850 €.,,,,Sara Verterano,,,Dettagli Commessa,,,,0042,,,,,,Edilporta / Manutenzione & Assistenza sito web 12 mesi ,,,
+24-0043,Comitato elettorale Andrea Orlando ,18/12/2024,Pacchetto video e foto eventi ANDREA ORLANDO [Genova] ,Vittoria  Canessa,"24-0043--Comitato elettorale Andrea Orlando ,24-0043--Comitato elettorale Andrea Orlando ,24-0043--Comitato elettorale Andrea Orlando ,24-0043--Comitato elettorale Andrea Orlando ,24-0043--Comitato elettorale Andrea Orlando ,24-0043--Comitato elettorale Andrea Orlando ,24-0043--Comitato elettorale Andrea Orlando ",€2926.00,"€2500,00","€6700,00","€6500,00","€3774,00","€4000,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione, Consegna in tempo reale",Offerta da inviare,Contratto da inviare,,,,,,,,,,29/12/2024 6:00pm,Comitato elettorale Andrea Orlando ,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1ur4fReEV0x-mLHsU70rCGEqMmHVKkDHI0j1t9O7Us3w,," 150€ a evento  per video - SPINE: 1.500€
+100€ evento per foto - WILLY: 1.000€ 
+Tot costo: 2.500€
+
+------
+media di 2.5h prestazione, 1.5h di editing 
+
+
+",,Offerta Rifiutata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,24,,21/8/2024,Anticipo e saldo,,,,,50%,€3250.00,Da inviare,50%,€3250.00,Da inviare,€ 6500.00,"€0,00","€0,00",€6500.00,€0.00,,,,,,,,Andrea Orlando ,,,,,,,,,Modalità da concordare,,,24-11 GABRI,,,,Dettagli Commessa,,,,0043,,,,,,Comitato elettorale Andrea Orlando  / Pacchetto video e foto eventi ANDREA ORLANDO [Genova] ,,,
+25-0001,Roberto Arboscello - Vicepresidente Consiglio Regionale della Liguria ,7/1/2025,Grafica e Reel per comunicazione sui social ,,"25-0001--Roberto Arboscello - Vicepresidente Consiglio Regionale della Liguria ,25-0001--Roberto Arboscello - Vicepresidente Consiglio Regionale della Liguria ",NaN,"€1755,00",NaN,"€1755,00",NaN,"€0,00","Servizi social, Servizi grafica",Offerta da inviare,In svolgimento,,,,,25-0001 LEYLA_60 REEL.docx (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/iR91XDkqiVAC1sTOsIZ6eQ/lzvGpv7bUL55gDivGR9es3tc-c4XmjKzO87YxZ-YBFVIpYz6Nwf_7we9t2WTDTbd9CnwU9m7gG-y-UZz-mKFXQYA59FlG4T89xxqwADklId3C2xKei-pyxE3TD1DGMTe8zMhhUlzNE9ZLjdeBQOPO-WubnqFGH_SGj7lAroVQUY/8Mh6YfjEpFFKNfHecgSllwPEijzUICAFm-2b-OY5WXs),"LEYLA, ",,,,1/4/2025 4:47pm,Roberto Arboscello - Vicepresidente Consiglio Regionale della Liguria ,Inviato,Inviato,,,,,"Calcolo su anno solare 2025 
+(stime)
+MONTE ORE LEYLA 
+60 reel a 18€ ora 
+totale 1.080 
+60 ore 
+
+(Raluca sono 400, abbiamo ancora 200 da poterle dare)
+--------------------------------------------------------------------------------
+Il prezzo finale viene 4.400, ma per la campagna di Arboscello abbiamo ricevuto 10 ( i tre assessment) a fronte di un'offerta accettata di 6.5. Ha un credito di 3.5, dal quale tolgo ancora 800 (fattura Despini) e Arboscello ha quindi un credito di 2.7. 
+Questi 4.4 vengono quindi pagati da 2.7 (credito) + 1.700 (prezzo finale che andremo a fatturare per questi servizi)
+
+Spero sia chiaro. In totale abbiamo un bel surplus. Penso di aver fatto le cose per bene. 
+
+i 1700 non sono ancora certi ma li formalizzerò. 
+Nb. Metto 1755 nel file in modo che non si crei un buco 
+
+
+
+------------------------------------------------------------------------
+",,Offerta Accettata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,25,,7/1/2025,Saldo alla fattura,,,,,,,,100%,€1755.00,,€ 1755.00,"€0,00","€0,00",€1755.00,€0.00,12,,,,25-0001-jFm9z,,,Roberto Arboscello - Vicepresidente Consiglio Regionale della Liguria ,,,,,,,,,Modalità da concordare,,,,Leyla El Abiri,,,Dettagli Commessa,,,,0001,,,,,,Roberto Arboscello - Vicepresidente Consiglio Regionale della Liguria  / Grafica e Reel per comunicazione sui social ,,,
+25-0003,Ausind,26/2/2025,Realizzazione Video per ciclo di seminari 'Il Capitale nelle Imprese',Matilde Orlando,"25-0003-1-Ausind,25-0003-3-Ausind,25-0003-2-Ausind",€328.40,"€328,40","€820,00","€820,00","€491,60","€491,60","Uscita con attrezzatura professionale per la realizzazione del servizio, Editing e post-produzione, Tariffa oraria per la prestazione su set",Offerta da inviare,Completato,25-21,Inviata,,,,,,,,13/10/2025 5:32pm,Ausind,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1LU94tFa1Nv2ZccfggPHmnRe_-Pwd5r95JY8j-Kl11uM,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,26/2/2025,Saldo alla fattura,,,,,0%,,,100%,€820.00,,€ 820.00,"€820,00","€0,00",€0.00,€820.00,,"Saldo 25-0003 Ausind,Saldo 25-0003 MED","Uscita per ripresa Video Testimonianza,Uscita per ripresa Video,Uscita per ripresa Video,Uscita per ripresa Video",,25-0003-Wnzjv,,,AUSIND SRL,00972070106,VIA SAN VINCENZO 2,16121,GENOVA,GE,ausind@confindustria.ge.it,,,Modalità da concordare,,,,,,,Dettagli Commessa,"Per ciascun incontro registrare una breve testimonianza post-evento (5 min) in cui il relatore principale sintetizza i contenuti toccati.
+
+Calendario dei seminari:
+
+Martedì 4 marzo 2025 – Governance e managerializzazione
+
+Sfide, rischi ed errori nelle imprese familiari
+Strumenti di governance e managerializzazione
+
+Relatore: Luca Petoletti (The European House Ambrosetti)
+
+
+Martedì 15 aprile 2025 – Capitalizzazione e apertura del capitale: il private equity
+
+Vantaggi e svantaggi del private equity per le PMI
+Come attrarre fondi e investitori
+Governance del private equity: accordi di investimento e strategie di exit
+
+Relatori: Andrea Ansaldo (Banca Passadore & C.), Giacinto D’Onofrio (NB Aurora)
+
+
+Martedì 20 maggio 2025 – Capitalizzazione e quotazione in borsa
+
+Scelta tra private equity e quotazione
+Processi e vantaggi della quotazione
+Novità del “Decreto Capitali”
+
+Relatori: Niccolò Mosci (Morgan Stanley), Pietro La Placa (San Quirico SpA)
+
+
+Martedì 17 giugno 2025 – Caso pratico: governance e apertura del capitale in un’azienda familiare
+
+Studio della famiglia Cardini e Human Company
+Intervista a Marta Cardini
+
+Relatore: Luca Petoletti",,,0003,,,,,,Ausind / Realizzazione Video per ciclo di seminari 'Il Capitale nelle Imprese',,,
+25-0004,Ameri,28/2/2025,Video Zoom,,"25-0004--Ameri,25-0004--Ameri,25-0004-1-Ameri",€6.00,"€5,00","€100,00","€31,00","€94,00","€26,00",", Allestimento set grande (fondale + luci)",Offerta da inviare,Contratto da inviare,,,,,,,,,,24/5/2025 12:46pm,Ameri,Inviato,Inviato,,,https://docs.google.com/presentation/d/1esK1pUM0hwsImEgaxy11k9LJ93oDfD-72iRIZs1cTrs,,,,In Lavorazione,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,28/2/2025,Pagamento completo,4,mensile,€0.00,,100%,,,100%,€31.00,,€ 31.00,"€0,00","€0,00",€31.00,€0.00,,,,,,,,AMERI S.R.L.,03765810100,VIA DOMENICO FIASELLA 16/20,16121,GENOVA,GE,,,,Saldo alla firma del contratto pari a 31 €.,,,,,,,Dettagli Commessa,,,,0004,,,Video Zoom Software House,Ameri-24-01-25,,Ameri / Video Zoom,,,
+25-0005,,25/3/2025,Supporto grafica ,,25-0005-1-,€418.00,"€418,00","€1000,00","€418,00","€582,00","€0,00",Servizi grafica,Offerta da inviare,Contratto da inviare,,,Raluca Ghebenei 25-1,Pagato,,RALUCA,,,,4/7/2025 12:50am,,Inviato,Inviato,,,,,"PACCHETTO DI 20 ORE DA USARE ENTRO IL 31/12 
+1 CARD= 0.5H 
+1 mockup e costruzione landing= 1h
+ORE TOTALI CONTEGGIATE= 20
+Possibili applicazioni: 
+
+- CARD social Gleeye e card social Roberto Arboscello 
+- Supporto Mockup landing page  servizi Gleeye",,In Lavorazione,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,25,,25/3/2025,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€418.00,€0.00,,"Anticipo 25-0005 RALUCA,Saldo 25-0005 RALUCA",,,,,,,,,,,,,,,Modalità da concordare,,,,Raluca Ghebenei,,,Dettagli Commessa,,,,0005,,,,,, / Supporto grafica ,,,
+25-0006,Aqua,9/4/2025,Manutezione e assistenza sito web per 12 mesi,Maia Nogaro,25-0006-1-Aqua,€501.20,"€480,00","€1200,00","€1080,00","€698,80","€600,00",Manutenzione e Assistenza Sito Web Vetrina,Offerta da inviare,Contratto da inviare,,,,,,SARA,,,,9/4/2025 7:01pm,Aqua,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1b10sNL-eMY9jKtkrhiDVE9n3O66ekr5AVszqhwuSKGI,,,,In Attesa Di Risposta,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,9/4/2025,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€1080.00,€0.00,12,,,,,,,ESTETICA E BENESSERE DI STEFANIA CAMORIANO,02129390999,MOLO PONTE MOROSINI 46,16126,GENOVA,GE,info@aquaesteticaebenessere.it,aquaestetica2.0@pec.it,,Modalità da concordare,,,,Sara Verterano,,,Dettagli Commessa,,,,0006,,,,,,Aqua / Manutezione e assistenza sito web per 12 mesi,,,
+25-0007,Fanimar,9/4/2025,Manutezione e assistenza sito web per 12 mesi,Gabriella Caorsi,25-0007-1-Fanimar,€501.20,"€480,00","€1200,00","€1200,00","€698,80","€720,00",Manutenzione e Assistenza Sito Web Vetrina,Offerta da inviare,Contratto da inviare,25-6,Saldata,,,,SARA,,,,19/5/2025 11:35am,Fanimar,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1hKwd9Ia3TDVC6TmBLXPjrv3WjSGvC2Xii-ZTomqwkjs,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,9/4/2025,Saldo alla fattura,,,,,0%,,,100%,€1200.00,,€ 1200.00,"€1200,00","€1200,00",€0.00,€0.00,12,"Saldo 25-0007 Fanimar,Saldo 25-0007 SARA",,,25-0007-7iHKK,,,FA.NI.MAR.,95043570100,VIA MILANO 40 C/3 SC.DX,16126,GENOVA,GE,info@fanimar.it,,+390102518524,Modalità da concordare,,,,Sara Verterano,,,Dettagli Commessa,,,,0007,,,,,,Fanimar / Manutezione e assistenza sito web per 12 mesi,,,
+25-0008,CNR IMATI,12/5/2025,Realizzazione n. 2 video di presentazione del progetto video – CNR IMATI / Museo Chiossone,Franca Giannini,"25-0008-1-CNR IMATI,25-0008-2-CNR IMATI,25-0008-3-CNR IMATI,25-0008-4-CNR IMATI,25-0008-5-CNR IMATI,25-0008-9-CNR IMATI",€688.00,"€948,80","€1400,00","€2750,00","€712,00","€1801,20","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,Completato,25-12,Saldata,"Mattia Montano 20251 - 11,Simone Spinetti 25-10",Pagato,,"MATTIA, SPINE",,,,17/7/2025 4:56pm,CNR IMATI,Inviato,Inviato,,,https://docs.google.com/presentation/d/1UtSOqocL7O3Dm1O7SbEcuBAwJkZiq9J0KZVsvSaPS5s,," video, con solo sottofondo musicale, che avrei bisogno di far fare, a tal proposito invio una breve descrizione di quanto vorremmo fosse realizzato:
+
+1.  video della durata totale circa 3-4 minuti  come  ""assemblaggio"" di video già esistenti e video nuovi .
+    
+    -   il video nuovo è costituito da ripresa dall'alto e dall'interno del museo d'arte orientale Chiossone
+        
+1.  video della durata di circa 6-8 minuti utilizzando gli spezzoni del video precedente, eventualmente più lunghi) più nuovi video:
+    
+    -   riprese di persona che fa acquisizione di opere presso il suddetto museo
+        
+    -   riprese di persona che ricostruisce il modello 3D (quindi che opera a terminale)
+        
+
+Purtroppo al momento non ho il link a tutti i video disponibili, posso anticipare:
+
+-   Genova vista dall'alto potrebbe essere ripreso dal video della parte  iniziale di presentazione della CTE https://cte.comune.genova.it/
+    
+-   video da tagliare MuseoChiossone_ExplorationGame.mov",,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,12/5/2025,Saldo alla fattura,0,,,,,,,100%,€2750.00,,€ 2750.00,"€2750,00","€2750,00",€0.00,€0.00,0,"Saldo 25-0008 CNR IMATI,Saldo 25-0008 MATTIA,Saldo 25-0008 SPINE","Appuntamento 1 Attività 1,Appuntamento 2 Attività 2,Appuntamento 1 Attività 2",,"25-0008-AuJCk,25-0008-nmNTK",,,CNR-IMATI, 02118311006,"Via Ferrata, 5/A",27100,Pavia,PV,segreteria@imati.cnr.it,imati@pec.cnr.it,+39 0382 548211,Modalità da concordare,,,,"Mattia Montano, Simone Spinetti","Attività 4,Attività 3,Attività 2,Attività 1",13/6/2025,Dettagli Commessa,,,,0008,,,Video Zoom Software House,,,CNR IMATI / Realizzazione n. 2 video di presentazione del progetto video – CNR IMATI / Museo Chiossone,https://www.dropbox.com/scl/fo/b57sq34czs2eihxfqpb50/ADE31qWuV9hF4QbyFZizmE4?rlkey=0h88wwwwj3wmqxgatebdidgr5&dl=0,,
+25-0009,SEC AND PARTNERS,15/5/2025,"Servizio video per ""Evento Talenti storie di imprese straordinarie: Hotel Bristol Palace Genova """,Licia Mazzoni,"25-0009-1-SEC AND PARTNERS,25-0009-2-SEC AND PARTNERS",€186.00,"€203,60","€400,00","€500,00","€214,00","€296,40","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set",Offerta da inviare,Contratto da inviare,,,,,,MATTIA,,,,17/6/2025 10:18am,SEC AND PARTNERS,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1g0Op6B4SSLkcyMpB9PBPr4s4gvIcVa3XJami8v27tj8,,,,Offerta Rifiutata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,15/5/2025,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€500.00,€0.00,,,,,,,,SEC AND PARTNERS S.R.L,12971121004,VIA GIUSEPPE GIOACCHINO BELLI 39,00193,ROMA,RM,,cambreitaliasrl@pec.it,+39026249991,Modalità da concordare,,,,Mattia Montano,,,Dettagli Commessa,,,,0009,,,,,,"SEC AND PARTNERS / Servizio video per ""Evento Talenti storie di imprese straordinarie: Hotel Bristol Palace Genova """,,,
+25-0010,GLEEYE,30/5/2025,Video Explainer,,"25-0010-4-GLEEYE,25-0010-3-GLEEYE,25-0010-1-GLEEYE,25-0010-2-GLEEYE,25-0010-5-GLEEYE",€712.00,"€712,00","€1440,00","€2000,00","€728,00","€1288,00","Creazione dello Storyboard, Editing e post-produzione, Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, ""Attività di Pre-Produzione, Pianificazione, Organizzazione Set Video""",Offerta da inviare,Contratto da inviare,,,,,,,,,,16/12/2025 4:47pm,GLEEYE,Inviato,Inviato,,,https://docs.google.com/presentation/d/1wxQ_BcbH-h7lpI_r2AgoAIG_rw-R1ef_0u-hI4xEn7s,,,,In Lavorazione,,,"€0,00",,,,,,,,25,,30/5/2025,Saldo alla fattura,,,,,0%,,,100%,€2000.00,,€ 2000.00,"€0,00","€0,00",€2000.00,€0.00,,,,,,,,Gleeye Srl,02944020995,Piazza Brignole 2/3,161222,Genova,Ge,info@gleeye.eu,gleeye@lamiapec.it,+39010453421,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0010,,,Video Explainer,,,GLEEYE / Video Explainer,,,
+25-0011,Ausind,9/6/2025,"Servizi foto e video per evento ""PMI Networking evening 2025""",,"25-0011-1-Ausind,25-0011-2-Ausind,25-0011-3-Ausind,25-0011-4-Ausind,25-0011-5-Ausind,25-0011-6-Ausind",€365.60,"€365,60","€780,00","€750,00","€414,40","€384,40","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,Completato,25-11,Saldata,"William Bignone 25-21,Mattia Montano 25-16",Pagato,,"MATTIA, WILLY",,,,15/9/2025 11:09am,Ausind,Inviato,Inviato,,,https://docs.google.com/presentation/d/1h8JoP9Pw9WV5WP57AaBZoU84AOPnGSiqHEKNhhAH70k,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,9/6/2025,Saldo alla fattura,,bimestrale,,,0%,,,100%,€750.00,,€ 750.00,"€750,00","€750,00",€0.00,€0.00,0,"Saldo 25-0011 Ausind,Saldo 25-0011 MATTIA,Saldo 25-0011 WILLY",,,"25-0011-bGoMk,25-0011-hGuqx",,,AUSIND SRL,00972070106,VIA SAN VINCENZO 2,16121,GENOVA,GE,ausind@confindustria.ge.it,,,Modalità da concordare,,,,"Mattia Montano, William Bignone",,,Dettagli Commessa,,,,0011,,,,,,"Ausind / Servizi foto e video per evento ""PMI Networking evening 2025""",https://www.dropbox.com/scl/fo/n6kyf31c8e6r6sr84h7bq/AHsNajuMJ3HP5qbYDzWpEk0?rlkey=iawx0elwx9amwvvp6j6y07qxb&dl=0,,
+25-0012,TARA BIANCA ,20/6/2025,SERVIZIO GESTIONE CAMPAGNE META ADS,Matteo  Laffranchi,,€0.00,"€620,00","€0,00","€1240,00","€0,00","€620,00",,Offerta da inviare,Contratto da inviare,,,,,,,,,,12/11/2025 12:18pm,TARA BIANCA ,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1UneZM0O04WOtBuvJZmqCZ8Eh-DmZEusjaxk6TYRAloA,,,,Offerta Rifiutata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,20/6/2025,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€1240.00,€0.00,,,,,,,,Associazione TARA BIANCA, 95137920104,Via Bernardo Castello 3/9,16121,Genova ,Ge,segreteria@tarabianca.org,,010232434390,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0012,,,,,,TARA BIANCA  / SERVIZIO GESTIONE CAMPAGNE META ADS,,,
+25-0013,Ausind,3/7/2025,Servizio Foto e Video per Assemblea + Convegno “Mediterraneo”,,"25-0013-1-Ausind,25-0013-2-Ausind,25-0013-3-Ausind,25-0013-4-Ausind,25-0013-5-Ausind,25-0013-6-Ausind",€376.00,"€376,00","€800,00","€750,00","€424,00","€374,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,Completato,25-16,Saldata,"Paolo Ferretti 25-2,Mattia Montano 25-16",Pagato,,"FERRETTIP, MATTIA",,,,7/10/2025 11:30pm,Ausind,Inviato,Inviato,,,https://docs.google.com/presentation/d/1_NgKT2znmenQ6UKSFwBZKR5976Si_xmwlBOpOtyC2LI,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,3/7/2025,Saldo alla fattura,0,,,,,,,100%,€750.00,,€ 750.00,"€750,00","€750,00",€0.00,€0.00,0,"Saldo 25-0013 MATTIA,Saldo 25-0013 Ausind,Saldo 25-0013 FERRETTIP",,,"25-0013-2VdRI,25-0013-fJkFh",,,AUSIND SRL,00972070106,VIA SAN VINCENZO 2,16121,GENOVA,GE,ausind@confindustria.ge.it,,,Modalità da concordare,,,,"Paolo Ferretti, Mattia Montano",,,Dettagli Commessa,,,,0013,,,,,,Ausind / Servizio Foto e Video per Assemblea + Convegno “Mediterraneo”,https://www.dropbox.com/scl/fo/uw3za1s76c6s3c0mhmvti/ACxCH8d99_qZUOivlVZwKNk?rlkey=2s1rdlufqudzes708p1idlob7&dl=0,,
+25-0014,Start 4.0,8/7/2025,Podcast da Remoto Essential,Georgia  Cesarone,"25-0014-1-Start 4.0,25-0014-2-Start 4.0,25-0014-3-Start 4.0,25-0014-4-Start 4.0,25-0014-6-Start 4.0,25-0014-5-Start 4.0,25-0014-7-Start 4.0,25-0014-8-Start 4.0",€1295.20,"€1293,20","€3060,00","€3060,00","€1764,80","€1766,80","Setup iniziale del Podcast, Setup tecnico, Regia da remoto, Montaggio Podcast, Pubblicazione e report, Servizi grafica",Offerta da inviare,In svolgimento,25-25,Inviata,Raluca Ghebenei 25-4,Pagato,,"DENURCHISN, PIAZZAE, RALUCA",,,,12/11/2025 11:57am,Start 4.0,Inviato,Inviato,,,https://docs.google.com/presentation/d/1gXn7qY2wX0DdV7rxKGT3cc0OG4HcnFmFGtLyePqlrdE,,,"06. Pubblicazione,05. Approvazione Finale Cliente,04. Invio al Cliente,03. Montaggio,02. Registrazione da Remoto,01. Appuntamento Registrazione,04. Produzione dei tappetini sonori,03. Produzione Intro e Outro,02. Composizione e registrazione Sigla,01. Analisi Brief creativo e raccolta reference,03. Sviluppo di un template modulare per le copertine episodi,02. Progettazione della cover principale,01. Analisi Brief creativo e raccolta reference,10. Approvazione finale,09. Invio Proposte Cliente,08. Identità Grafica,07. Identità Sonora ,05. Ricezione Materiale Cliente,01. Restituzione questionario,06. Creazione Bozza Script,04. Invio mail di riepilogo,03. Kick-off,02. Studio del questionario",Offerta Accettata,,,"€0,00",BARBEROM,Mara Barbero,mara@gleeye.eu,+39 347 58 59 230,,,,25,,8/7/2025,,0,,,,0%,,,0%,,,€ 0.00,"€3000,00","€0,00",€60.00,€3000.00,0,"Saldo 25-0014 RALUCA,Saldo 25-0014 DENURCHISN,Saldo 25-0014 PIAZZAE",,,"25-0014-RHPST,25-0014-PsiU5,25-0014-TzFlP",,,CENTRO DI COMPETENZA START 4.0,02586330991,CORSO FERDINANDO MARIA PERRONE 24,16152,GENOVA,GE,uberto.cremonini@start4-0.it,,,Modalità da concordare,,,,"Nadia Denurchis, Elisa Piazza, Raluca Ghebenei","Registrazione,Identità Sonora,Identità Grafica,Start-Up Podcast",,Dettagli Commessa,,,25/07/17 - Start 4.0 / Questionario,0014,,,Podcast da Remoto Essential,Start 4.0-08-07-25,,Start 4.0 / Podcast da Remoto Essential,https://www.dropbox.com/scl/fo/cs4sufhgfnxygro5bhf4t/AKFZ2dn3GJWpc9Y9JtPEkWs?rlkey=aa30kbo0ytp6e0jollqiajmh6&dl=0,https://drive.google.com/drive/folders/1R3wWSL-g4XPI7x3F9b2z5ZTohnaOhCqz,1R3wWSL-g4XPI7x3F9b2z5ZTohnaOhCqz
+25-0015,PRESSCOMM TECH,10/7/2025,Foto e video evento 16 luglio ,Nicola Reineri,"25-0015-1-PRESSCOMM TECH,25-0015-2-PRESSCOMM TECH,25-0015-3-PRESSCOMM TECH",€136.00,"€100,00","€300,00","€250,00","€164,00","€150,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set",Offerta da inviare,Finito da fatturare,25-23,Saldata,Mattia Montano 25-16,Pagato,,MATTIA,,,,13/10/2025 5:47pm,PRESSCOMM TECH,Inviato,Inviato,,,https://docs.google.com/presentation/d/1kAv8WUe2hiW1WmAUTUbBZKh7VHh86_Ne52kCK_X8ILA,,"copertura evento a Genova la data ufficiale è mercoledì 16 luglio alle ore 17.30 c/o il Istituto Nautico San Giorgio - Edificio Calata Darsena (Genova).
+
+<br/>
+
+Ciao Da, PressCom organizza evento mercoledì 16 luglio alle ore 17.30 c/o il Istituto Nautico San Giorgio - Edificio Calata Darsena (Genova).
+
+<br/>
+
+Mi hanno chiesto se possiamo fare preventivo al volo per 1.5h di lavoro, senza editing.
+
+<br/>
+
+- foto a Scajola e al palco
+
+- riprese copertura (no dettaglio)
+
+- intervista a Scajola
+
+<br/>
+
+Poi mandiamo tutto a loro, che se lo montano e lo usano sui loro giornali",,Offerta Accettata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,25,,10/7/2025,Saldo alla fattura,0,,,,,,,100%,€250.00,,€ 250.00,"€2750,00","€2750,00",-€2500.00,€0.00,0,"Saldo 25-0015 MATTIA,Saldo 25-0015 PRESSCOMM TECH",,,25-0015-PC61g,,,PRESSCOMM TECH SRL,01602980086,VIA MATTEOTTI 12,18038,SANREMO,IM,,,,Modalità da concordare,,,,Mattia Montano,,,Dettagli Commessa,,,,0015,,,,,,PRESSCOMM TECH / Foto e video evento 16 luglio ,https://www.dropbox.com/scl/fo/jy39awy1rt0p6gm703kkf/APQEd-q3Gtw1gEPPCPPC4Pk?rlkey=dehlivhhy2n6fp7nmsg12lj2u&dl=0,,
+25-0016,PRESSCOMM TECH,11/7/2025,Evento FLEX4FACT ,Nicola Reineri,"25-0016-1-PRESSCOMM TECH,25-0016-2-PRESSCOMM TECH,25-0016-3-PRESSCOMM TECH,25-0016-4-PRESSCOMM TECH,25-0016-5-PRESSCOMM TECH,25-0016-6-PRESSCOMM TECH",€568.40,"€568,40","€1170,00","€2500,00","€601,60","€1931,60","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,Finito da fatturare,,,"William Bignone 25-27,Mattia Montano 25-20",Pagato,,"MATTIA, WILLY",,,,7/12/2025 12:55pm,PRESSCOMM TECH,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1nRF9zFyzBRQiukhkBwHPazKcDb0_6FbLLqt1w0gZfsY,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,11/7/2025,,0,,,,0%,,,0%,,,€ 0.00,"€0,00","€0,00",€2500.00,€0.00,0,"Saldo 25-0016 MATTIA,Saldo 25-0016 WILLY,Saldo 25-0016 PRESSCOMM TECH",,,"25-0016-Eym6C,25-0016-Z2eBI",,,PRESSCOMM TECH SRL,01602980086,VIA MATTEOTTI 12,18038,SANREMO,IM,,,,Modalità da concordare,,,,"Mattia Montano, William Bignone",,,Dettagli Commessa,"30 settembre 2025 
+ore 8.30 - 14.30 presso Blue district, Genova Molo. ",,,0016,,,,,,PRESSCOMM TECH / Evento FLEX4FACT ,https://www.dropbox.com/scl/fo/6zsa830w5w4lil9wwv02z/ADZZ3brpMN2kJtuh67ZXkMI?rlkey=kmxh9p79sm9tmnl559cs8hycs&dl=0,,
+25-0017,AIGA Genova,20/7/2025,Servizi Foto e Video per evento,,"25-0017-1-AIGA Genova,25-0017-2-AIGA Genova,25-0017-3-AIGA Genova,25-0017-4-AIGA Genova,25-0017-5-AIGA Genova,25-0017-6-AIGA Genova",€584.00,"€584,00","€1250,00","€1250,00","€666,00","€666,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set",Offerta da inviare,Completato,25-24,Saldata,William Bignone 25-28,Pagato,,,,,,25/11/2025 12:36pm,AIGA Genova,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1AIf69Gs5fDJV8cE-ejG54GyXxGfUbIxyPPKy9whtc6c,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,20/7/2025,,,,,,,,,,,,€ 0.00,"€1250,00","€1250,00",€0.00,€0.00,,"Saldo 25-0017 AIGA Genova,Saldo 25-0017 WILLY",,,25-0017-1ghc4,,,Associazione Italiana Giovani Avvocati  Sezione di Genova,95068490101,Piazza Corvetto 1/8,16121,Genova,GE,info@aigagenova.it,,+39010561623,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0017,,,,,,AIGA Genova / Servizi Foto e Video per evento,,,
+25-0018,Ameri,2/9/2025,Cena di Gala Ocean Race,,"25-0018-1-Ameri,25-0018-2-Ameri,25-0018-3-Ameri,25-0018-4-Ameri,25-0018-5-Ameri,25-0018-6-Ameri",€344.80,,"€740,00",,"€395,20","€0,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,Contratto da inviare,,,,,,,,,,9/9/2025 6:14pm,Ameri,Inviato,Inviato,,,,,,,In Lavorazione,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,2/9/2025,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€0.00,€0.00,,,,,,,,AMERI S.R.L.,03765810100,VIA DOMENICO FIASELLA 16/20,16121,GENOVA,GE,,,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0018,checked,,,,,Ameri / Cena di Gala Ocean Race,,,
+25-0019,Ausind,10/9/2025,"Video Remix Eventi fino a 120""",,25-0019-1-Ausind,€236.00,"€236,00","€450,00","€450,00","€214,00","€214,00",Editing e post-produzione,Offerta da inviare,Completato,25-20,Inviata,Mattia Montano 25-20,Pagato,,MATTIA,,,,7/12/2025 12:55pm,Ausind,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/14_iF2YSvpQUUYo4UNWZMoM5ongdmG83vGqvNth-lNSw,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,10/9/2025,,,,,,,,,,,,€ 0.00,"€450,00","€0,00",€0.00,€450.00,,"Saldo 25-0019 Ausind,Saldo 25-0019 MATTIA",,,25-0019-xVebT,,,AUSIND SRL,00972070106,VIA SAN VINCENZO 2,16121,GENOVA,GE,ausind@confindustria.ge.it,,,Modalità da concordare,,,,Mattia Montano,,,Dettagli Commessa,,,,0019,,,,,,"Ausind / Video Remix Eventi fino a 120""",,,
+25-0020,Confindustria Genova,12/9/2025,Video Testimonial Iscrizioni,,"25-0020-1-Confindustria Genova,25-0020-2-Confindustria Genova,25-0020-7-Confindustria Genova",€708.00,"€700,00","€1700,00","€1800,00","€992,00","€1100,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,In svolgimento,,,,,,MATTIA,,,,13/10/2025 6:12pm,Confindustria Genova,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1qv6KDDdQCp9oPemCp4MoFysuN8jeZu6o22oviX85NU4,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,12/9/2025,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€1800.00,€0.00,,"Saldo 25-0020 Confindustria Genova,Saldo 25-0020 MATTIA",,,25-0020-KoRww,,,CONFINDUSTRIA GENOVA,80030250106,VIA SAN VINCENZO 2,16121,GENOVA,GE,,fatture@pec.confindustria.ge.it,,Modalità da concordare,,,,Mattia Montano,,,Dettagli Commessa,,,,0020,,,,,,Confindustria Genova / Video Testimonial Iscrizioni,,,
+25-0021,Comune di Genova - Sindaco,29/9/2025,Comunicazione Salis,,,€0.00,"€14000,00","€0,00","€48000,00","€0,00","€34000,00",,Offerta da inviare,Lavoro in attesa,25-30,Inviata,,,Ordine Gleeye per 2025 e per 2026.pdf (https://v5.airtableusercontent.com/v3/u/48/48/1767391200000/H6VpTyq3dLOTfXC3DzrkLA/-s3HUdhwHIfxhLqAbx4Tu7Cc9_NZndw-E2ElQM4IIajakznRrxPPUlw5P3wWrLU6aWVMyLwgCZ3u2GPJj4QAs0k2zFyVugc45vt2Nsatl1VI4UEkyvlpypqQy6bIb3sCAtjeFmbXan0-15_woSVcrBbmpRrgOIwE0vJxNGxF2Urf0XIy-JNBgmMXvdbEkG4Z/9RLh-pjFdiBuQJFukv3WDW6_Ul_-iNfx3UTeT-NjBIs),,,,,29/12/2025 11:55am,Comune di Genova - Sindaco,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1OQNhzCyHxKxy8BocE3IkcLGA8IOg7inVsnri6vy6OaM,,"SPESE PREVISTE:
+
+- 500€/mese per content presidio: 6000€/anno
+-200 bp (8000€) (40€ a bp di costi per noi)
+- 24000€ per stipendio davide?
+-10000€ di margine",,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,29/9/2025,,,,,,,,,,,,€ 0.00,"€4000,00","€0,00",€44000.00,€4000.00,12,,,,,,,Comune di Genova - Area Gabinetto Sindaco,00856930102,Via Garibaldi 9,16124,Genova,GE,,,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0021,,,,,,Comune di Genova - Sindaco / Comunicazione Salis,,,
+25-0022,GLEEYE,14/10/2025,Supporto grafica ,,25-0022-1-GLEEYE,€22.80,"€200,00","€50,00","€200,00","€27,20","€0,00",Servizi grafica,Offerta da inviare,Lavoro in attesa,,,,,,RALUCA,,,,2/11/2025 12:19pm,GLEEYE,Inviato,Inviato,,,,,,,Offerta Accettata,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,25,,14/10/2025,Anticipo + Rate,,,,,30%,€60.00,,70%,,,€ 60.00,"€0,00","€0,00",€200.00,€0.00,,,,,25-0022-xxd7y,,,Gleeye Srl,02944020995,Piazza Brignole 2/3,161222,Genova,Ge,info@gleeye.eu,gleeye@lamiapec.it,+39010453421,Anticipo del 30 percento pari a 60 €. N.  rate da NaN €. Tipo rateizzazione: ,,,,Raluca Ghebenei,,,Dettagli Commessa,,,,0022,,,,,,GLEEYE / Supporto grafica ,,,
+25-0023,PRESSCOMM TECH,2/11/2025,Eventi ARTOUR e URBAN DIGITAL TWIN ,Nicola Reineri,"25-0023-1-PRESSCOMM TECH,25-0023-2-PRESSCOMM TECH,25-0023-3-PRESSCOMM TECH",€292.00,"€300,00","€600,00","€1200,00","€308,00","€900,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set",Offerta da inviare,Contratto da inviare,,,,,,URSIDA,,,,2/11/2025 12:59pm,PRESSCOMM TECH,Inviato,Inviato,,,,,"ARTOUR 14 novembre [8.30 – 13.00] solo video, no postproduzione
+
+UDT 19 novembre [15.30 – 18.00] video e foto, no postproduzione",,In Lavorazione,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,25,,2/11/2025,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€1200.00,€0.00,,,,,,,,PRESSCOMM TECH SRL,01602980086,VIA MATTEOTTI 12,18038,SANREMO,IM,,,,Modalità da concordare,,,,Alessio Ursida,,,Dettagli Commessa,,,,0023,,,,,,PRESSCOMM TECH / Eventi ARTOUR e URBAN DIGITAL TWIN ,,,
+25-0024, Centofiori Fondazione ,2/11/2025,"Podcast ""Pillole di politica savonese""",,25-0024-1- Centofiori Fondazione ,€28.00,,"€60,00",,"€32,00","€0,00",Setup iniziale del Podcast,Offerta da inviare,Contratto da inviare,,,,,,DENURCHISN,,,,2/11/2025 1:24pm, Centofiori Fondazione ,Inviato,Inviato,,,,,Voce fissa Parrinello (segretario provinciale) e si alternano ospiti,,In Lavorazione,,,"€0,00",ANDREA,Andrea Visentin,andrea@gleeye.eu,+39 340 10 99 024,,,,25,,2/11/2025,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€0.00,€0.00,,,,,,,, Centofiori Fondazione ,92085530092,"via Pozzo Garitta, 32 ",17012  ,Albissola Marina,Savona,,,,Modalità da concordare,,,,Nadia Denurchis,,,Dettagli Commessa,,,,0024,,,,,," Centofiori Fondazione  / Podcast ""Pillole di politica savonese""",,,
+25-0025,Confindustria Genova,10/11/2025,Servizi Foto e Video per evento 80° Anniversario Confindustria,,"25-0025-1-Confindustria Genova,25-0025-2-Confindustria Genova,25-0025-3-Confindustria Genova,25-0025-4-Confindustria Genova,25-0025-5-Confindustria Genova,25-0025-6-Confindustria Genova",€381.20,"€350,00","€810,00","€750,00","€428,80","€400,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set, Editing e post-produzione",Offerta da inviare,Completato,25-26,Inviata,,,,"WILLY, MATTIA",,,,25/11/2025 10:45am,Confindustria Genova,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/1RYY_zB2TSfqsHg7T5__gQALsj3maB4OuGoMU9yQdo7U,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,10/11/2025,Saldo alla fattura,,,,,0%,,,100%,€750.00,,€ 750.00,"€750,00","€0,00",€0.00,€750.00,,"Saldo 25-0025 MATTIA,Saldo 25-0025 WILLY,Saldo 25-0025 Ausind",,,"25-0025-UHSfV,25-0025-Q61CE",,,CONFINDUSTRIA GENOVA,80030250106,VIA SAN VINCENZO 2,16121,GENOVA,GE,,fatture@pec.confindustria.ge.it,,Modalità da concordare,,,,"William Bignone, Mattia Montano",,,Dettagli Commessa,,,,0025,,,,,,Confindustria Genova / Servizi Foto e Video per evento 80° Anniversario Confindustria,,,
+25-0026,Irida,19/11/2025,Servizi Video per Italia-Cile a Genova,,"25-0026-1-Irida,25-0026-2-Irida",€550.00,"€600,00","€1250,00","€1250,00","€700,00","€650,00","Uscita con attrezzatura professionale per la realizzazione del servizio, Tariffa oraria per la prestazione su set",Offerta da inviare,Completato,25-27,Saldata,,,,,,,,25/11/2025 10:47am,Irida,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/17P24g2JtdAkaSkfCgd14AkfEMp-vNeaVUWIcPJ7zc0o,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,19/11/2025,Saldo alla fattura,,,,,0%,,,100%,€1250.00,,€ 1250.00,"€1250,00","€1250,00",€0.00,€0.00,,"Saldo 25-0026 MATTIA,Saldo 25-0026 Irida",,,25-0026-tYGJD,,,Irida S.R.L.,10876301002,P.zza Manfredo Fanti 38,00185,Roma,RM,,,,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0026,,,,,,Irida / Servizi Video per Italia-Cile a Genova,,,
+25-0027,Palazzo Ducale,15/12/2025,Progetto di Consulenza e Formazione per Strategia e Gestione Social Media,,,€0.00,,"€0,00","€26250,00","€0,00","€26250,00",,Offerta da inviare,Contratto da inviare,,,,,,,,,,29/12/2025 9:20am,Palazzo Ducale,Inviato,Inviato,,checked,https://docs.google.com/presentation/d/19S9ZzJZa0SdNM9HTqW3Hp0UU8zxO7O7kEIIEl3rBnjc,,,,In Lavorazione,,,"€0,00",BARBEROM,Mara Barbero,mara@gleeye.eu,+39 347 58 59 230,,,,25,,15/12/2025,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€26250.00,€0.00,,,,,,,,Palazzo Ducale Fondazione per la Cultura,03137910109,Piazza Matteotti 9,16123,Genova,GE,palazzoducale@palazzoducale.genova.it,palazzoducale@pec.palazzoducale.genova.it,+39010 817 1600,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0027,,,,,,Palazzo Ducale / Progetto di Consulenza e Formazione per Strategia e Gestione Social Media,,,
+25-0028,AIGA Genova,16/12/2025,,,,€0.00,,"€0,00",,"€0,00","€0,00",,Offerta da inviare,Contratto da inviare,,,,,,,,,,16/12/2025 11:47pm,AIGA Genova,Inviato,Inviato,,,,,,,In Lavorazione,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,16/12/2025,,,,,,,,,,,,€ 0.00,"€0,00","€0,00",€0.00,€0.00,,,,,,,,Associazione Italiana Giovani Avvocati  Sezione di Genova,95068490101,Piazza Corvetto 1/8,16121,Genova,GE,info@aigagenova.it,,+39010561623,Modalità da concordare,,,,,,,Dettagli Commessa,,,,0028,checked,,,,,AIGA Genova / ,,,
+25-0029,Top Pulizie,29/12/2025,Sito vetrina WordPress con Copy SEO e Blog,,"25-0029-1-Top Pulizie,25-0029-2-Top Pulizie,25-0029-3-Top Pulizie",€2065.20,"€2065,20","€4950,00","€4300,00","€2884,80","€2234,80","Sviluppo Sito Web con CMS Wordpress, Manutenzione e Assistenza Sito Web Vetrina, Ottimizzazione Testi Sito Web Vetrina",Offerta da inviare,Lavoro in attesa,25-29,Inviata,,,,"SARA, SAVONAS",,,,29/12/2025 11:41am,Top Pulizie,Inviato,Inviato,,,,,,,Offerta Accettata,,,"€0,00",DAVIDE,Davide Gentile,davide@gleeye.eu,+39 335 16 24 363,,,,25,,29/12/2025,Saldo alla fattura,,,,,0%,,,100%,€4300.00,,€ 4300.00,"€4300,00","€0,00",€0.00,€4300.00,,"Saldo 25-0029 SARA,Saldo 25-0029 SAVONAS,Saldo 25-0029 Top Pulizie",,,"25-0029-kjBcD,25-0029-xwv0s",,,Top Pulizie srl,03047650993,Via Piero Schiaffino 14/8,16032,Camogli,GE,info@toppulizie.it,,,Modalità da concordare,,,,"Sara Verterano, Sharon Savona",,,Dettagli Commessa,,,,0029,,,,,,Top Pulizie / Sito vetrina WordPress con Copy SEO e Blog,,,

@@ -1,0 +1,434 @@
+/* --- FORMS & INPUTS OVERHAUL --- */
+input:not([type="checkbox"]):not([type="radio"]):not(#global-search),
+select,
+textarea {
+    width: 100%;
+    padding: 1rem 1.25rem;
+    background: var(--input-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.95rem;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-weight: 400;
+}
+
+
+input:not([type="checkbox"]):not([type="radio"]):not(#global-search):focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--brand-blue);
+    background: var(--card-bg);
+    box-shadow: 0 0 0 4px rgba(78, 146, 216, 0.15);
+}
+
+/* Custom Select (Native Hidden) - MODIFIED: Disabled global hiding to ensure compatibility */
+/* OLD logic commented out:
+select:not(.modal-input):not(#pay-mode):not([id^="pay-"]) {
+    appearance: none;
+    -webkit-appearance: none;
+    opacity: 0;
+    pointer-events: none;
+} 
+*/
+
+/* Explicitly show typical selects globally */
+select {
+    appearance: menulist;
+    -webkit-appearance: menulist;
+    opacity: 1;
+    position: static;
+    width: 100%;
+    height: auto;
+    pointer-events: auto;
+    display: block;
+}
+
+/* --- CUSTOM SELECT COMPONENT STYLES --- */
+.custom-select-container {
+    position: relative;
+    width: 100%;
+}
+
+.custom-select-trigger {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: var(--input-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.custom-select-trigger:after {
+    content: "expand_more";
+    font-family: "Material Icons Round";
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    transition: transform 0.3s;
+}
+
+.custom-select-container.open .custom-select-trigger {
+    border-color: var(--brand-blue);
+    box-shadow: 0 0 0 4px rgba(78, 146, 216, 0.15);
+    background: var(--card-bg);
+}
+
+.custom-select-container.open .custom-select-trigger:after {
+    transform: rotate(180deg);
+    color: var(--brand-blue);
+}
+
+.custom-select-options {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-premium);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 250px;
+    overflow-y: auto;
+    backdrop-filter: blur(20px);
+    padding: 0.5rem;
+}
+
+.custom-select-container.open .custom-select-options {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.custom-option {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.2s;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.custom-option:hover {
+    background: rgba(var(--brand-blue-rgb), 0.1);
+    color: var(--brand-blue);
+}
+
+.custom-option.selected {
+    background: var(--brand-gradient);
+    color: white;
+}
+
+/* Checkboxes and Radios */
+input[type="checkbox"],
+input[type="radio"] {
+    width: 20px !important;
+    height: 20px !important;
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid var(--text-secondary);
+    border-radius: 6px;
+    margin: 0;
+    cursor: pointer;
+    display: inline-grid;
+    place-content: center;
+    transition: all 0.2s;
+    background: transparent;
+}
+
+input[type="radio"] {
+    border-radius: 50%;
+}
+
+input[type="checkbox"]::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    transform: scale(0);
+    transition: 0.1s transform ease-in-out;
+    box-shadow: inset 1em 1em white;
+    transform-origin: center;
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+input[type="radio"]::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    transform: scale(0);
+    transition: 0.1s transform ease-in-out;
+    box-shadow: inset 1em 1em white;
+}
+
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+    background: var(--brand-blue);
+    border-color: var(--brand-blue);
+}
+
+input[type="checkbox"]:checked::before,
+input[type="radio"]:checked::before {
+    transform: scale(1);
+}
+
+/* Chips */
+.chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-height: 50px;
+    padding: 0.5rem;
+    background: var(--input-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    margin-bottom: 0.5rem;
+    align-items: center;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.8rem;
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.chip .remove {
+    cursor: pointer;
+    font-size: 1rem;
+    color: var(--text-secondary);
+    transition: color 0.2s;
+}
+
+.chip .remove:hover {
+    color: var(--danger-color, #ef4444);
+}
+
+#profile-form input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Auth Inputs */
+.input-group {
+    position: relative;
+    margin-bottom: 1.25rem;
+}
+
+.input-group .material-icons-round {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    pointer-events: none;
+}
+
+.input-group input {
+    padding-left: 3rem;
+    font-size: 1rem;
+}
+
+/* Form Grid System */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding-left: 0.1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Custom Checkbox Row */
+.fiscal-checkbox-row {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.custom-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    font-weight: 500;
+    user-select: none;
+    color: var(--text-primary);
+}
+
+.custom-checkbox input {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--brand-viola);
+}
+
+/* Multi Select Container */
+.multi-select-container {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 1rem;
+    min-height: 100px;
+}
+
+/* Passive Invoice Specific Inputs */
+.form-row-grid-1 {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-row-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-row-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Searchable Select */
+.searchable-select {
+    position: relative;
+    width: 100%;
+}
+
+.select-search {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+}
+
+.select-search:focus {
+    border-color: var(--brand-viola);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
+    outline: none;
+}
+
+.select-dropdown {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    /* Adaptive background for both themes */
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-xl);
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 10000;
+    /* Higher z-index */
+    padding: 0.5rem;
+}
+
+.select-dropdown.hidden {
+    display: none;
+}
+
+.select-option {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-primary);
+}
+
+.select-option:hover {
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--brand-viola);
+}
+
+.select-option.selected {
+    background: var(--brand-viola);
+    color: white;
+}
+
+/* Restore visibility for selects in specific contexts */
+#passive-invoice-form select,
+#service-form select,
+div[id^="payment-config-container-"] select,
+div[id^="assignment-payment-config-container-"] select,
+.payment-config-edit select {
+    appearance: auto !important;
+    -webkit-appearance: menulist !important;
+    opacity: 1 !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    pointer-events: auto !important;
+    background: var(--input-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+#passive-invoice-form select:focus,
+#service-form select:focus {
+    border-color: var(--brand-viola);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
+    outline: none;
+}
+
+.tag-input-container {
+    cursor: pointer;
+}

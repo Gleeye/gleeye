@@ -1,0 +1,370 @@
+--- ORDER 23-0075 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=0.0, DB_Actual=0, CSV_Prev=0.0, CSV_Fin=0.0, CSV_Tot=0.0
+  Revenue: DB_Planned=0.0, DB_Actual=0.0, CSV_Prev=0.0, CSV_Fin=0.0
+
+--- ORDER 23-0076 ---
+  Status: DB='In Lavorazione', CSV1='Offerta da inviare', CSV2='In Lavorazione'
+  Price: DB_Planned=0.0, DB_Actual=0, CSV_Prev=0.0, CSV_Fin=0.0, CSV_Tot=0.0
+  Revenue: DB_Planned=0.0, DB_Actual=0.0, CSV_Prev=0.0, CSV_Fin=0.0
+
+--- ORDER 24-CVS ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=0.0, DB_Actual=0, CSV_Prev=0.0, CSV_Fin=0.0, CSV_Tot=0.0
+  Revenue: DB_Planned=0.0, DB_Actual=0.0, CSV_Prev=0.0, CSV_Fin=0.0
+
+--- ORDER 24-0001 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta accettata', CSV2='Offerta Accettata'
+  Price: DB_Planned=7175.0, DB_Actual=7000.0, CSV_Prev=7175.0, CSV_Fin=7000.0, CSV_Tot=7000.0
+  Revenue: DB_Planned=4163.8, DB_Actual=4120.0, CSV_Prev=4163.8, CSV_Fin=4120.0
+
+--- ORDER 24-0002 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta accettata', CSV2='Offerta Accettata'
+  Price: DB_Planned=4450.0, DB_Actual=4950.0, CSV_Prev=4450.0, CSV_Fin=4950.0, CSV_Tot=4950.0
+  Revenue: DB_Planned=2584.8, DB_Actual=3170.0, CSV_Prev=2584.8, CSV_Fin=3170.0
+
+--- ORDER 24-0015 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=0.0, DB_Actual=9500.0, CSV_Prev=0.0, CSV_Fin=9500.0, CSV_Tot=9500.0
+  Revenue: DB_Planned=0.0, DB_Actual=9500.0, CSV_Prev=0.0, CSV_Fin=9500.0
+
+--- ORDER 24-0003 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta inviata', CSV2='Offerta Accettata'
+  Price: DB_Planned=6410.0, DB_Actual=10000.0, CSV_Prev=6410.0, CSV_Fin=10000.0, CSV_Tot=10000.0
+  Revenue: DB_Planned=3480.8, DB_Actual=7195.0, CSV_Prev=3480.8, CSV_Fin=7195.0
+
+--- ORDER 24-0004 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=3550.0, DB_Actual=3000.0, CSV_Prev=3550.0, CSV_Fin=3000.0, CSV_Tot=3000.0
+  Revenue: DB_Planned=1892.8, DB_Actual=1800.0, CSV_Prev=1892.8, CSV_Fin=1800.0
+
+--- ORDER 24-0005 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=24960.0, DB_Actual=15000.0, CSV_Prev=24960.0, CSV_Fin=15000.0, CSV_Tot=0.0
+  Revenue: DB_Planned=16301.2, DB_Actual=6680.0, CSV_Prev=16301.2, CSV_Fin=6680.0
+
+--- ORDER 24-0007 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=780.0, DB_Actual=900.0, CSV_Prev=780.0, CSV_Fin=900.0, CSV_Tot=900.0
+  Revenue: DB_Planned=399.6, DB_Actual=540.0, CSV_Prev=399.6, CSV_Fin=540.0
+
+--- ORDER 24-0008 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=25525.0, DB_Actual=33000.0, CSV_Prev=25525.0, CSV_Fin=33000.0, CSV_Tot=33000.0
+  Revenue: DB_Planned=12828.2, DB_Actual=20303.2, CSV_Prev=12828.2, CSV_Fin=20303.2
+
+--- ORDER 24-0009 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=10600.0, DB_Actual=2050.0, CSV_Prev=10600.0, CSV_Fin=2050.0, CSV_Tot=2050.0
+  Revenue: DB_Planned=6184.4, DB_Actual=1950.0, CSV_Prev=6184.4, CSV_Fin=1950.0
+
+--- ORDER 24-0010 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=850.0, DB_Actual=1000.0, CSV_Prev=850.0, CSV_Fin=1000.0, CSV_Tot=1000.0
+  Revenue: DB_Planned=428.0, DB_Actual=600.0, CSV_Prev=428.0, CSV_Fin=600.0
+
+--- ORDER 24-0011 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=6340.0, DB_Actual=2500.0, CSV_Prev=6340.0, CSV_Fin=2500.0, CSV_Tot=2500.0
+  Revenue: DB_Planned=3422.0, DB_Actual=1680.0, CSV_Prev=3422.0, CSV_Fin=1680.0
+
+--- ORDER 24-0012 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=900.0, DB_Actual=900.0, CSV_Prev=900.0, CSV_Fin=900.0, CSV_Tot=900.0
+  Revenue: DB_Planned=480.0, DB_Actual=500.0, CSV_Prev=480.0, CSV_Fin=500.0
+
+--- ORDER 24-0013 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=450.0, DB_Actual=500.0, CSV_Prev=450.0, CSV_Fin=500.0, CSV_Tot=500.0
+  Revenue: DB_Planned=260.8, DB_Actual=320.0, CSV_Prev=260.8, CSV_Fin=320.0
+
+--- ORDER 24-0014 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=7600.0, DB_Actual=8000.0, CSV_Prev=7600.0, CSV_Fin=8000.0, CSV_Tot=8000.0
+  Revenue: DB_Planned=4392.8, DB_Actual=4790.0, CSV_Prev=4392.8, CSV_Fin=4790.0
+
+--- ORDER 24-0016 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=750.0, DB_Actual=750.0, CSV_Prev=750.0, CSV_Fin=750.0, CSV_Tot=750.0
+  Revenue: DB_Planned=400.0, DB_Actual=400.0, CSV_Prev=400.0, CSV_Fin=400.0
+
+--- ORDER 24-0017 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=500.0, DB_Actual=920.0, CSV_Prev=500.0, CSV_Fin=920.0, CSV_Tot=920.0
+  Revenue: DB_Planned=290.0, DB_Actual=710.0, CSV_Prev=290.0, CSV_Fin=710.0
+
+--- ORDER 24-0018 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=2510.0, DB_Actual=9000.0, CSV_Prev=2510.0, CSV_Fin=9000.0, CSV_Tot=9000.0
+  Revenue: DB_Planned=1368.8, DB_Actual=7800.0, CSV_Prev=1368.8, CSV_Fin=7800.0
+
+--- ORDER 24-0020 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=5335.0, DB_Actual=0, CSV_Prev=5335.0, CSV_Fin=0.0, CSV_Tot=0.0
+  Revenue: DB_Planned=3092.2, DB_Actual=2250.0, CSV_Prev=3092.2, CSV_Fin=2250.0
+
+--- ORDER 24-0022 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=5400.0, DB_Actual=9000.0, CSV_Prev=5400.0, CSV_Fin=9000.0, CSV_Tot=0.0
+  Revenue: DB_Planned=2896.0, DB_Actual=6000.0, CSV_Prev=2896.0, CSV_Fin=6000.0
+
+--- ORDER 24-0023 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=4970.0, DB_Actual=0, CSV_Prev=4970.0, CSV_Fin=0.0, CSV_Tot=0.0
+  Revenue: DB_Planned=2599.6, DB_Actual=0.0, CSV_Prev=2599.6, CSV_Fin=0.0
+
+--- ORDER 24-0024 ---
+  Status: DB='Invio Progammato', CSV1='Offerta da inviare', CSV2='Invio Progammato'
+  Price: DB_Planned=710.0, DB_Actual=800.0, CSV_Prev=710.0, CSV_Fin=800.0, CSV_Tot=0.0
+  Revenue: DB_Planned=360.8, DB_Actual=450.0, CSV_Prev=360.8, CSV_Fin=450.0
+
+--- ORDER 24-0025 ---
+  Status: DB='Invio Progammato', CSV1='Offerta da inviare', CSV2='Invio Progammato'
+  Price: DB_Planned=360.0, DB_Actual=550.0, CSV_Prev=360.0, CSV_Fin=550.0, CSV_Tot=0.0
+  Revenue: DB_Planned=170.8, DB_Actual=320.0, CSV_Prev=170.8, CSV_Fin=320.0
+
+--- ORDER 24-0026 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=3000.0, DB_Actual=3000.0, CSV_Prev=3000.0, CSV_Fin=3000.0, CSV_Tot=0.0
+  Revenue: DB_Planned=1958.0, DB_Actual=3000.0, CSV_Prev=1958.0, CSV_Fin=3000.0
+
+--- ORDER 24-0027 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=0, DB_Actual=2500.0, CSV_Prev=0.0, CSV_Fin=2500.0, CSV_Tot=0.0
+  Revenue: DB_Planned=0, DB_Actual=1700.0, CSV_Prev=0.0, CSV_Fin=1700.0
+
+--- ORDER 24-0006 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=12600.0, DB_Actual=12000.0, CSV_Prev=12600.0, CSV_Fin=12000.0, CSV_Tot=0.0
+  Revenue: DB_Planned=7167.2, DB_Actual=6780.0, CSV_Prev=7167.2, CSV_Fin=6780.0
+
+--- ORDER 24-0031 ---
+  Status: DB='In Lavorazione', CSV1='Offerta da inviare', CSV2='In Lavorazione'
+  Price: DB_Planned=900.0, DB_Actual=5000.0, CSV_Prev=900.0, CSV_Fin=5000.0, CSV_Tot=0.0
+  Revenue: DB_Planned=474.0, DB_Actual=5000.0, CSV_Prev=474.0, CSV_Fin=5000.0
+
+--- ORDER 24-0033 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=0.0, DB_Actual=2460.0, CSV_Prev=0.0, CSV_Fin=2460.0, CSV_Tot=2460.0
+  Revenue: DB_Planned=0.0, DB_Actual=2460.0, CSV_Prev=0.0, CSV_Fin=2460.0
+
+--- ORDER 24-0028 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=120.0, DB_Actual=170.0, CSV_Prev=120.0, CSV_Fin=170.0, CSV_Tot=170.0
+  Revenue: DB_Planned=55.6, DB_Actual=170.0, CSV_Prev=55.6, CSV_Fin=170.0
+
+--- ORDER 24-0029 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=370.0, DB_Actual=580.0, CSV_Prev=370.0, CSV_Fin=580.0, CSV_Tot=580.0
+  Revenue: DB_Planned=197.6, DB_Actual=580.0, CSV_Prev=197.6, CSV_Fin=580.0
+
+--- ORDER 24-0030 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=451.0, DB_Actual=450.0, CSV_Prev=451.0, CSV_Fin=450.0, CSV_Tot=450.0
+  Revenue: DB_Planned=238.48, DB_Actual=450.0, CSV_Prev=238.48, CSV_Fin=450.0
+
+--- ORDER 24-0034 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=0.0, DB_Actual=2460.0, CSV_Prev=0.0, CSV_Fin=2460.0, CSV_Tot=2460.0
+  Revenue: DB_Planned=0.0, DB_Actual=2460.0, CSV_Prev=0.0, CSV_Fin=2460.0
+
+--- ORDER 24-0035 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=0.0, DB_Actual=3280.0, CSV_Prev=0.0, CSV_Fin=3280.0, CSV_Tot=3280.0
+  Revenue: DB_Planned=0.0, DB_Actual=3280.0, CSV_Prev=0.0, CSV_Fin=3280.0
+
+--- ORDER 24-0032 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=1370.0, DB_Actual=1750.0, CSV_Prev=1370.0, CSV_Fin=1750.0, CSV_Tot=0.0
+  Revenue: DB_Planned=721.6, DB_Actual=1100.0, CSV_Prev=721.6, CSV_Fin=1100.0
+
+--- ORDER 24-0021 ---
+  Status: DB='Invio Progammato', CSV1='Offerta da inviare', CSV2='Invio Progammato'
+  Price: DB_Planned=0.0, DB_Actual=0, CSV_Prev=0.0, CSV_Fin=0.0, CSV_Tot=0.0
+  Revenue: DB_Planned=0.0, DB_Actual=0.0, CSV_Prev=0.0, CSV_Fin=0.0
+
+--- ORDER 24-0019 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=1400.0, DB_Actual=4000.0, CSV_Prev=1400.0, CSV_Fin=4000.0, CSV_Tot=0.0
+  Revenue: DB_Planned=764.0, DB_Actual=3250.0, CSV_Prev=764.0, CSV_Fin=3250.0
+
+--- ORDER 24-0036 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=440.0, DB_Actual=350.0, CSV_Prev=440.0, CSV_Fin=350.0, CSV_Tot=350.0
+  Revenue: DB_Planned=231.2, DB_Actual=150.0, CSV_Prev=231.2, CSV_Fin=150.0
+
+--- ORDER 24-0037 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=1500.0, DB_Actual=1800.0, CSV_Prev=1500.0, CSV_Fin=1800.0, CSV_Tot=1800.0
+  Revenue: DB_Planned=720.4, DB_Actual=1020.4, CSV_Prev=720.4, CSV_Fin=1020.4
+
+--- ORDER 24-0038 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=280.0, DB_Actual=230.0, CSV_Prev=280.0, CSV_Fin=230.0, CSV_Tot=230.0
+  Revenue: DB_Planned=154.4, DB_Actual=104.4, CSV_Prev=154.4, CSV_Fin=104.4
+
+--- ORDER 24-0039 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=410.0, DB_Actual=450.0, CSV_Prev=410.0, CSV_Fin=450.0, CSV_Tot=450.0
+  Revenue: DB_Planned=216.8, DB_Actual=256.8, CSV_Prev=216.8, CSV_Fin=256.8
+
+--- ORDER 24-0040 ---
+  Status: DB='Invio Progammato', CSV1='Offerta da inviare', CSV2='Invio Progammato'
+  Price: DB_Planned=1740.0, DB_Actual=4000.0, CSV_Prev=1740.0, CSV_Fin=4000.0, CSV_Tot=4000.0
+  Revenue: DB_Planned=877.6, DB_Actual=3135.0, CSV_Prev=877.6, CSV_Fin=3135.0
+
+--- ORDER 24-0041 ---
+  Status: DB='Invio Progammato', CSV1='Offerta da inviare', CSV2='Invio Progammato'
+  Price: DB_Planned=990.0, DB_Actual=2000.0, CSV_Prev=990.0, CSV_Fin=2000.0, CSV_Tot=2000.0
+  Revenue: DB_Planned=491.2, DB_Actual=1500.0, CSV_Prev=491.2, CSV_Fin=1500.0
+
+--- ORDER 24-0042 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=1200.0, DB_Actual=850.0, CSV_Prev=1200.0, CSV_Fin=850.0, CSV_Tot=850.0
+  Revenue: DB_Planned=698.8, DB_Actual=370.0, CSV_Prev=698.8, CSV_Fin=370.0
+
+--- ORDER 24-0043 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=6700.0, DB_Actual=6500.0, CSV_Prev=6700.0, CSV_Fin=6500.0, CSV_Tot=6500.0
+  Revenue: DB_Planned=3774.0, DB_Actual=4000.0, CSV_Prev=3774.0, CSV_Fin=4000.0
+
+--- ORDER 25-0001 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=0, DB_Actual=1755.0, CSV_Prev=0.0, CSV_Fin=1755.0, CSV_Tot=1755.0
+  Revenue: DB_Planned=0, DB_Actual=0.0, CSV_Prev=0.0, CSV_Fin=0.0
+
+--- ORDER 25-0003 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=820.0, DB_Actual=820.0, CSV_Prev=820.0, CSV_Fin=820.0, CSV_Tot=820.0
+  Revenue: DB_Planned=491.6, DB_Actual=491.6, CSV_Prev=491.6, CSV_Fin=491.6
+
+--- ORDER 25-0004 ---
+  Status: DB='In Lavorazione', CSV1='Offerta da inviare', CSV2='In Lavorazione'
+  Price: DB_Planned=100.0, DB_Actual=31.0, CSV_Prev=100.0, CSV_Fin=31.0, CSV_Tot=31.0
+  Revenue: DB_Planned=94.0, DB_Actual=26.0, CSV_Prev=94.0, CSV_Fin=26.0
+
+--- ORDER 25-0005 ---
+  Status: DB='In Lavorazione', CSV1='Offerta da inviare', CSV2='In Lavorazione'
+  Price: DB_Planned=1000.0, DB_Actual=418.0, CSV_Prev=1000.0, CSV_Fin=418.0, CSV_Tot=0.0
+  Revenue: DB_Planned=582.0, DB_Actual=0.0, CSV_Prev=582.0, CSV_Fin=0.0
+
+--- ORDER 25-0006 ---
+  Status: DB='In Attesa Di Risposta', CSV1='Offerta da inviare', CSV2='In Attesa Di Risposta'
+  Price: DB_Planned=1200.0, DB_Actual=1080.0, CSV_Prev=1200.0, CSV_Fin=1080.0, CSV_Tot=0.0
+  Revenue: DB_Planned=698.8, DB_Actual=600.0, CSV_Prev=698.8, CSV_Fin=600.0
+
+--- ORDER 25-0007 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=1200.0, DB_Actual=1200.0, CSV_Prev=1200.0, CSV_Fin=1200.0, CSV_Tot=1200.0
+  Revenue: DB_Planned=698.8, DB_Actual=720.0, CSV_Prev=698.8, CSV_Fin=720.0
+
+--- ORDER 25-0008 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=1400.0, DB_Actual=2750.0, CSV_Prev=1400.0, CSV_Fin=2750.0, CSV_Tot=2750.0
+  Revenue: DB_Planned=712.0, DB_Actual=1801.2, CSV_Prev=712.0, CSV_Fin=1801.2
+
+--- ORDER 25-0009 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=400.0, DB_Actual=500.0, CSV_Prev=400.0, CSV_Fin=500.0, CSV_Tot=0.0
+  Revenue: DB_Planned=214.0, DB_Actual=296.4, CSV_Prev=214.0, CSV_Fin=296.4
+
+--- ORDER 25-0010 ---
+  Status: DB='In Lavorazione', CSV1='Offerta da inviare', CSV2='In Lavorazione'
+  Price: DB_Planned=1440.0, DB_Actual=2000.0, CSV_Prev=1440.0, CSV_Fin=2000.0, CSV_Tot=2000.0
+  Revenue: DB_Planned=728.0, DB_Actual=1288.0, CSV_Prev=728.0, CSV_Fin=1288.0
+
+--- ORDER 25-0011 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=780.0, DB_Actual=750.0, CSV_Prev=780.0, CSV_Fin=750.0, CSV_Tot=750.0
+  Revenue: DB_Planned=414.4, DB_Actual=384.4, CSV_Prev=414.4, CSV_Fin=384.4
+
+--- ORDER 25-0012 ---
+  Status: DB='Offerta Rifiutata', CSV1='Offerta da inviare', CSV2='Offerta Rifiutata'
+  Price: DB_Planned=0.0, DB_Actual=1240.0, CSV_Prev=0.0, CSV_Fin=1240.0, CSV_Tot=0.0
+  Revenue: DB_Planned=0.0, DB_Actual=620.0, CSV_Prev=0.0, CSV_Fin=620.0
+
+--- ORDER 25-0013 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=800.0, DB_Actual=750.0, CSV_Prev=800.0, CSV_Fin=750.0, CSV_Tot=750.0
+  Revenue: DB_Planned=424.0, DB_Actual=374.0, CSV_Prev=424.0, CSV_Fin=374.0
+
+--- ORDER 25-0014 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=3060.0, DB_Actual=3060.0, CSV_Prev=3060.0, CSV_Fin=3060.0, CSV_Tot=0.0
+  Revenue: DB_Planned=1764.8, DB_Actual=1766.8, CSV_Prev=1764.8, CSV_Fin=1766.8
+
+--- ORDER 25-0015 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=300.0, DB_Actual=250.0, CSV_Prev=300.0, CSV_Fin=250.0, CSV_Tot=250.0
+  Revenue: DB_Planned=164.0, DB_Actual=150.0, CSV_Prev=164.0, CSV_Fin=150.0
+
+--- ORDER 25-0016 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=1170.0, DB_Actual=2500.0, CSV_Prev=1170.0, CSV_Fin=2500.0, CSV_Tot=0.0
+  Revenue: DB_Planned=601.6, DB_Actual=1931.6, CSV_Prev=601.6, CSV_Fin=1931.6
+
+--- ORDER 25-0017 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=1250.0, DB_Actual=1250.0, CSV_Prev=1250.0, CSV_Fin=1250.0, CSV_Tot=0.0
+  Revenue: DB_Planned=666.0, DB_Actual=666.0, CSV_Prev=666.0, CSV_Fin=666.0
+
+--- ORDER 25-0018 ---
+  Status: DB='In Lavorazione', CSV1='Offerta da inviare', CSV2='In Lavorazione'
+  Price: DB_Planned=740.0, DB_Actual=0, CSV_Prev=740.0, CSV_Fin=0.0, CSV_Tot=0.0
+  Revenue: DB_Planned=395.2, DB_Actual=0.0, CSV_Prev=395.2, CSV_Fin=0.0
+
+--- ORDER 25-0019 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=450.0, DB_Actual=450.0, CSV_Prev=450.0, CSV_Fin=450.0, CSV_Tot=0.0
+  Revenue: DB_Planned=214.0, DB_Actual=214.0, CSV_Prev=214.0, CSV_Fin=214.0
+
+--- ORDER 25-0020 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=1700.0, DB_Actual=1800.0, CSV_Prev=1700.0, CSV_Fin=1800.0, CSV_Tot=0.0
+  Revenue: DB_Planned=992.0, DB_Actual=1100.0, CSV_Prev=992.0, CSV_Fin=1100.0
+
+--- ORDER 25-0021 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=0.0, DB_Actual=48000.0, CSV_Prev=0.0, CSV_Fin=48000.0, CSV_Tot=0.0
+  Revenue: DB_Planned=0.0, DB_Actual=34000.0, CSV_Prev=0.0, CSV_Fin=34000.0
+
+--- ORDER 25-0022 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=50.0, DB_Actual=200.0, CSV_Prev=50.0, CSV_Fin=200.0, CSV_Tot=60.0
+  Revenue: DB_Planned=27.2, DB_Actual=0.0, CSV_Prev=27.2, CSV_Fin=0.0
+
+--- ORDER 25-0023 ---
+  Status: DB='In Lavorazione', CSV1='Offerta da inviare', CSV2='In Lavorazione'
+  Price: DB_Planned=600.0, DB_Actual=1200.0, CSV_Prev=600.0, CSV_Fin=1200.0, CSV_Tot=0.0
+  Revenue: DB_Planned=308.0, DB_Actual=900.0, CSV_Prev=308.0, CSV_Fin=900.0
+
+--- ORDER 25-0024 ---
+  Status: DB='In Lavorazione', CSV1='Offerta da inviare', CSV2='In Lavorazione'
+  Price: DB_Planned=60.0, DB_Actual=0, CSV_Prev=60.0, CSV_Fin=0.0, CSV_Tot=0.0
+  Revenue: DB_Planned=32.0, DB_Actual=0.0, CSV_Prev=32.0, CSV_Fin=0.0
+
+--- ORDER 25-0025 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=810.0, DB_Actual=750.0, CSV_Prev=810.0, CSV_Fin=750.0, CSV_Tot=750.0
+  Revenue: DB_Planned=428.8, DB_Actual=400.0, CSV_Prev=428.8, CSV_Fin=400.0
+
+--- ORDER 25-0026 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=1250.0, DB_Actual=1250.0, CSV_Prev=1250.0, CSV_Fin=1250.0, CSV_Tot=1250.0
+  Revenue: DB_Planned=700.0, DB_Actual=650.0, CSV_Prev=700.0, CSV_Fin=650.0
+
+--- ORDER 25-0027 ---
+  Status: DB='In Lavorazione', CSV1='Offerta da inviare', CSV2='In Lavorazione'
+  Price: DB_Planned=0.0, DB_Actual=26250.0, CSV_Prev=0.0, CSV_Fin=26250.0, CSV_Tot=0.0
+  Revenue: DB_Planned=0.0, DB_Actual=26250.0, CSV_Prev=0.0, CSV_Fin=26250.0
+
+--- ORDER 25-0028 ---
+  Status: DB='In Lavorazione', CSV1='Offerta da inviare', CSV2='In Lavorazione'
+  Price: DB_Planned=0.0, DB_Actual=0, CSV_Prev=0.0, CSV_Fin=0.0, CSV_Tot=0.0
+  Revenue: DB_Planned=0.0, DB_Actual=0.0, CSV_Prev=0.0, CSV_Fin=0.0
+
+--- ORDER 25-0029 ---
+  Status: DB='Offerta Accettata', CSV1='Offerta da inviare', CSV2='Offerta Accettata'
+  Price: DB_Planned=4950.0, DB_Actual=4300.0, CSV_Prev=4950.0, CSV_Fin=4300.0, CSV_Tot=4300.0
+  Revenue: DB_Planned=2884.8, DB_Actual=2234.8, CSV_Prev=2884.8, CSV_Fin=2234.8
+

@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&family=Questrial&display=swap');
+
+:root {
+    /* Brand Colors */
+    --brand-blue: #4e92d8;
+    --brand-blue-rgb: 78, 146, 216;
+    --brand-viola: #614aa2;
+    --brand-viola-rgb: 97, 74, 162;
+    --brand-gradient: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-viola) 100%);
+
+    /* Global Styles */
+    --font-titles: 'Outfit', sans-serif;
+    --font-body: 'Outfit', sans-serif;
+    --transition-speed: 0.3s;
+    --border-radius-xl: 32px;
+    --border-radius-lg: 24px;
+    --border-radius-md: 16px;
+    --border-radius-sm: 8px;
+}
+
+/* Theme Configuration */
+:root[data-theme='light'] {
+    --bg-color: #fafbfc;
+    --sidebar-bg: rgba(255, 255, 255, 0.95);
+    --card-bg: #ffffff;
+    --text-primary: #1a1f36;
+    --text-secondary: #697386;
+    --text-tertiary: #a0aec0;
+    --glass-border: rgba(0, 0, 0, 0.06);
+    --glass-highlight: rgba(0, 0, 0, 0.02);
+    --input-bg: rgba(255, 255, 255, 0.8);
+    --accent-primary: var(--brand-blue);
+    --accent-secondary: var(--brand-viola);
+    --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.04);
+    --shadow-premium: 0 2px 8px rgba(0, 0, 0, 0.06);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03);
+    --glass-bg: rgba(0, 0, 0, 0.02);
+    --shadow-xl: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --success-color: #10b981;
+    --error-color: #dc2626;
+    --warning-color: #f59e0b;
+    --success-soft: #16a34a;
+    --error-soft: #dc2626;
+}
+
+:root[data-theme='dark'] {
+    --bg-color: #0a0a0a;
+    --sidebar-bg: rgba(20, 20, 20, 0.8);
+    --card-bg: rgba(25, 25, 25, 0.6);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-tertiary: #64748b;
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-highlight: rgba(255, 255, 255, 0.05);
+    --input-bg: rgba(0, 0, 0, 0.4);
+    --accent-primary: var(--brand-blue);
+    --accent-secondary: var(--brand-viola);
+    --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-premium: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+    --glass-bg: rgba(255, 255, 255, 0.02);
+    --shadow-xl: 0 8px 16px rgba(0, 0, 0, 0.5);
+    --success-color: #10b981;
+    --error-color: #ef4444;
+    --warning-color: #f59e0b;
+    --success-soft: #16a34a;
+    --error-soft: #dc2626;
+}

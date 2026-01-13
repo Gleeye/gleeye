@@ -1,0 +1,110 @@
+import { useState } from 'react';
+import { Calendar, Clock, Briefcase, ArrowLeft } from 'lucide-react';
+import BookingCatalog from './BookingCatalog';
+import GoogleCalendarConfig from './GoogleCalendarConfig';
+
+export default function AdminDashboard() {
+    const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'availability' | 'calendars'>('dashboard');
+
+    if (activeView === 'services') {
+        return (
+            <div className="animate-fade-in">
+                <button
+                    onClick={() => setActiveView('dashboard')}
+                    className="mb-4 flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-medium"
+                >
+                    <ArrowLeft className="w-4 h-4" /> Torna alla Dashboard
+                </button>
+                <BookingCatalog />
+            </div>
+        );
+    }
+
+    if (activeView === 'calendars') {
+        return (
+            <div className="animate-fade-in max-w-2xl mx-auto p-6">
+                <button
+                    onClick={() => setActiveView('dashboard')}
+                    className="mb-6 flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-medium"
+                >
+                    <ArrowLeft className="w-4 h-4" /> Torna alla Dashboard
+                </button>
+
+                <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm text-center">
+                    <div className="w-20 h-20 bg-purple-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <Calendar className="w-10 h-10 text-purple-600" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-slate-900 mb-4">Integrazione Calendari</h2>
+                    <p className="text-slate-600 mb-8 leading-relaxed">
+                        L'integrazione con Google Calendar è personale per ogni collaboratore.
+                        Per collegare il tuo account, vai nel tuo <strong>Pannello Utente</strong> nella sezione <strong>Disponibilità</strong>.
+                    </p>
+                    <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-500 text-left border border-slate-100">
+                        <h4 className="font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                            Istruzioni:
+                        </h4>
+                        <ol className="list-decimal list-inside space-y-2">
+                            <li>Clicca sul tuo nome nella barra laterale</li>
+                            <li>Vai alla scheda <strong>Disponibilità</strong></li>
+                            <li>Scorri fino a <strong>Integrazione Google Calendar</strong></li>
+                            <li>Clicca su <strong>Collega Google</strong></li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-6 max-w-6xl mx-auto animate-fade-in">
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-900">Configurazione Prenotazioni</h2>
+                    <p className="text-slate-500">Gestisci servizi, disponibilità e regole.</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Services Card */}
+                <div
+                    onClick={() => setActiveView('services')}
+                    className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group hover:border-blue-200"
+                >
+                    <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors">
+                        <Briefcase className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Servizi</h3>
+                    <p className="text-slate-500 text-sm">Crea e modifica i servizi prenotabili, imposta durate e prezzi.</p>
+                </div>
+
+                {/* Availability Card */}
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group hover:border-emerald-200">
+                    <div className="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-emerald-100 transition-colors">
+                        <Clock className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Disponibilità</h3>
+                    <p className="text-slate-500 text-sm">Gestisci orari, turni e giorni di chiusura del team.</p>
+                </div>
+
+                {/* Calendar Sync Card */}
+                <div
+                    onClick={() => setActiveView('calendars')}
+                    className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group hover:border-purple-200"
+                >
+                    <div className="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-purple-100 transition-colors">
+                        <Calendar className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Calendari Esterni</h3>
+                    <p className="text-slate-500 text-sm">Configura le integrazioni con Google e Apple Calendar.</p>
+                </div>
+            </div>
+
+            <div className="mt-8 bg-slate-50 rounded-xl p-6 border border-slate-200">
+                <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-4">Prossime Prenotazioni</h3>
+                <div className="text-center py-8 text-slate-400">
+                    Nessuna prenotazione recente da mostrare.
+                </div>
+            </div>
+        </div>
+    );
+}

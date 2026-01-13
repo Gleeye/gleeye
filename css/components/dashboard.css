@@ -1,0 +1,121 @@
+/* --- STANDARDIZED DASHBOARD LAYOUT --- */
+.dashboard-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.dashboard-header-inline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.dashboard-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+.dashboard-controls-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card-bg);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius-md);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(10px);
+}
+
+@media (max-width: 1024px) {
+    .dashboard-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-controls-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+}
+
+/* Ranking UI (Standardized) */
+.ranking-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.ranking-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ranking-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.ranking-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ranking-value {
+    font-weight: 700;
+    color: var(--brand-blue);
+}
+
+.ranking-progress-bg {
+    height: 8px;
+    background: var(--input-bg);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.ranking-progress-bar {
+    height: 100%;
+    background: var(--brand-gradient);
+    border-radius: 4px;
+    transition: width 1s ease-out;
+}
+
+/* Fiscal Breakdown */
+.fiscal-breakdown {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--glass-border);
+}
+
+.breakdown-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.breakdown-item label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.6;
+    margin-bottom: 0.5rem;
+}
+
+.breakdown-item .sub-total {
+    font-weight: 600;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+}
+
+/* Relations Section */
+.relations-section {
+    margin-top: 2rem;
+    border-top: 1px solid var(--glass-border);
+    padding-top: 2rem;
+}

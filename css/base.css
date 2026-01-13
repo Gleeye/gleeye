@@ -1,0 +1,63 @@
+.hidden {
+    display: none !important;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: var(--font-body);
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    background-attachment: fixed;
+    height: 100vh;
+    overflow: hidden;
+    letter-spacing: -0.3px;
+    font-weight: 400;
+}
+
+:root[data-theme='dark'] body {
+    background-image: none;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(var(--brand-blue-rgb, 78, 146, 216), 0.2);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(var(--brand-blue-rgb, 78, 146, 216), 0.4);
+}
+
+.brand h1,
+.top-bar h2,
+.section-header,
+.auth-card h2,
+h1,
+h2,
+h3,
+h4 {
+    font-family: var(--font-titles);
+    font-weight: 500;
+}
+
+h1 {
+    font-weight: 500;
+}
+
+h2 {
+    font-weight: 500;
+}

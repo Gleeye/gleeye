@@ -1,0 +1,770 @@
+import { state } from '../modules/state.js?v=210';
+import { supabase } from '../modules/config.js?v=210';
+import { fetchCollaborators, upsertCollaborator, fetchAvailabilityRules, saveAvailabilityRules, fetchPayments, fetchRestDays, upsertRestDay, deleteRestDay, fetchCollaboratorServices, fetchCollaboratorSkills, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchBookingItemCollaborators } from '../modules/api.js?v=BINGO';
+import { formatAmount } from '../modules/utils.js?v=210';
+
+export async function renderUserProfile(container) {
+    console.log("User Dashboard v999 loaded"); // Debug version
+    const session = state.session;
+    if (!session) {
+        container.innerHTML = '<div style="padding:2rem;">Sessione scaduta. Effettua il login.</div>';
+        return;
+    }
+
+    // Ensure we have the user's collaborator data
+    if (!state.collaborators || state.collaborators.length === 0) {
+        await fetchCollaborators();
+    }
+
+    const myCollab = state.collaborators.find(c => c.email === session.user.email);
+
+    if (!myCollab) {
+        container.innerHTML = `
+            <div style="padding: 3rem; text-align: center;">
+                <span class="material-icons-round" style="font-size: 3rem; color: var(--text-tertiary);">person_off</span>
+                <h3>Profilo non trovato</h3>
+                <p>Non risulta nessun collaboratore associato all'email <strong>${session.user.email}</strong>.</p>
+                <p>Contatta un amministratore per creare il tuo profilo.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="animate-fade-in">
+            <!-- Header -->
+            <div style="margin-bottom: 2rem; display: flex; align-items: center; gap: 1.5rem;">
+                <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--brand-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 2.5rem; font-weight: 400; box-shadow: var(--shadow-premium);">
+                    ${myCollab.avatar_url ? `<img src="${myCollab.avatar_url}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : (myCollab.first_name?.[0] || 'U')}
+                </div>
+                <div>
+                    <h1 style="margin: 0; font-size: 2rem;">Ciao, ${myCollab.first_name || 'Utente'}</h1>
+                    <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary);">Gestisci il tuo profilo e le tue attività</p>
+                </div>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="tabs-container" style="margin-bottom: 2rem; border-bottom: 1px solid var(--glass-border); display: flex; gap: 1.5rem;">
+                <button class="tab-btn active" data-tab="dashboard" style="padding: 0.8rem 1rem; background: none; border: none; border-bottom: 2px solid var(--brand-blue); color: var(--brand-blue); font-weight: 500; cursor: pointer;">
+                    Dashboard
+                </button>
+                <button class="tab-btn" data-tab="settings" style="padding: 0.8rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">
+                    Dati & Impostazioni
+                </button>
+                <button class="tab-btn" data-tab="availability" style="padding: 0.8rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">
+                    Disponibilità
+                </button>
+            </div>
+
+            <!-- Tab Content: Dashboard -->
+            <div id="tab-dashboard" class="tab-content">
+                <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                    <!-- Quick Stats -->
+                    <div class="glass-card" style="padding: 1.5rem;">
+                        <h3 style="margin-top:0;">Le tue attività</h3>
+                        <p style="color:var(--text-secondary);">Riepilogo ordini e pagamenti</p>
+                        <!-- TODO: Insert Stats Here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Content: Settings -->
+            <div id="tab-settings" class="tab-content hidden">
+                <div class="glass-card" style="padding: 2rem; max-width: 800px;">
+                    <form id="profile-settings-form">
+                        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                            <!-- Personal Info -->
+                            <div class="form-group"><label>Nome</label><input type="text" id="my-first-name" value="${myCollab.first_name || ''}" required></div>
+                            <div class="form-group"><label>Cognome</label><input type="text" id="my-last-name" value="${myCollab.last_name || ''}" required></div>
+                            
+                            <div class="form-group"><label>Email</label><input type="email" value="${myCollab.email || ''}" disabled style="opacity: 0.7; cursor: not-allowed;" title="Contatta l'admin per cambiare email"></div>
+                            <div class="form-group"><label>Telefono</label><input type="text" id="my-phone" value="${myCollab.phone || ''}"></div>
+                            
+                            <div class="form-group full-width" style="grid-column: 1/-1;"><label>Indirizzo</label><input type="text" id="my-address" value="${myCollab.address || ''}"></div>
+                            
+                            <div class="form-group"><label>Codice Fiscale</label><input type="text" id="my-fiscal-code" value="${myCollab.fiscal_code || ''}"></div>
+                            <div class="form-group"><label>P.IVA</label><input type="text" id="my-vat" value="${myCollab.vat_number || ''}"></div>
+                        </div>
+                        
+                        <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
+                            <button type="submit" class="primary-btn">Salva Modifiche</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tab Content: Availability -->
+            <div id="tab-availability" class="tab-content hidden">
+                <div class="card-grid" style="grid-template-columns: 1fr;">
+                    <div id="availability-wrapper"></div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Tabs Logic
+    const tabs = container.querySelectorAll('.tab-btn');
+    const contents = container.querySelectorAll('.tab-content');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => {
+                t.classList.remove('active');
+                t.style.borderBottomColor = 'transparent';
+                t.style.color = 'var(--text-secondary)';
+            });
+            contents.forEach(c => c.classList.add('hidden'));
+
+            tab.classList.add('active');
+            tab.style.borderBottomColor = 'var(--brand-blue);'; // Note: inline style might need check
+            tab.style.borderBottomColor = 'var(--brand-blue)';
+            tab.style.color = 'var(--brand-blue)';
+
+            const target = document.getElementById('tab-' + tab.dataset.tab);
+            if (target) target.classList.remove('hidden');
+
+            if (tab.dataset.tab === 'availability') {
+                loadAvailability(myCollab.id);
+            }
+        });
+    });
+
+    // Form Submit Logic
+    const form = document.getElementById('profile-settings-form');
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = form.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'Salvataggio...';
+            btn.disabled = true;
+
+            const updates = {
+                id: myCollab.id, // Important
+                first_name: document.getElementById('my-first-name').value,
+                last_name: document.getElementById('my-last-name').value,
+                phone: document.getElementById('my-phone').value,
+                address: document.getElementById('my-address').value,
+                fiscal_code: document.getElementById('my-fiscal-code').value,
+                vat_number: document.getElementById('my-vat').value,
+                full_name: `${document.getElementById('my-first-name').value} ${document.getElementById('my-last-name').value}`,
+                // Keep existing fields that aren't in this form but required by upsert if any
+                email: myCollab.email,
+                role: myCollab.role,
+                tags: myCollab.tags
+            };
+
+            try {
+                await upsertCollaborator(updates);
+                window.showAlert('Profilo aggiornato con successo!', 'success');
+                // Could refresh state here
+            } catch (err) {
+                console.error(err);
+                window.showAlert('Errore: ' + err.message, 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    }
+}
+
+async function loadAvailability(collaboratorId) {
+    const container = document.getElementById('availability-wrapper');
+    if (!container) return;
+
+    container.innerHTML = '<div style="padding:2rem; text-align:center;"><span class="loader"></span></div>';
+
+    try {
+        console.log("Loading availability...");
+        const [rules, restDays, _, skills, extraSlots, bookingAssignments] = await Promise.all([
+            fetchAvailabilityRules(collaboratorId),
+            fetchRestDays(collaboratorId),
+            fetchCollaboratorServices(), // Keep for other logic if needed
+            fetchCollaboratorSkills(collaboratorId), // New: Get assigned competencies
+            fetchAvailabilityOverrides(collaboratorId), // New: Get extra slots
+            fetchBookingItemCollaborators(collaboratorId) // New: Booking Items
+        ]);
+
+        // 1. Services from Active Orders (Historical/Current)
+        const orderServices = state.collaboratorServices
+            .filter(cs => cs.collaborator_id === collaboratorId)
+            .map(cs => ({
+                id: cs.service_id,
+                name: cs.services?.name || 'Servizio sconosciuto'
+            }));
+
+        // 2. Services from Competencies (Assigned Skills)
+        const skillServices = skills.map(s => ({
+            id: s.service_id,
+            name: s.services?.name || 'Servizio sconosciuto'
+        }));
+
+        // 3. Services from Booking Module (Prenotazioni)
+        const bookingServices = bookingAssignments.map(ba => ({
+            id: ba.booking_item_id,
+            name: ba.booking_items?.name || 'Servizio Booking'
+        }));
+
+        // Merge and Deduplicate
+        const allServices = [...skillServices, ...orderServices, ...bookingServices];
+        const uniqueServices = [];
+        const seen = new Set();
+
+        allServices.forEach(s => {
+            if (s.id && !seen.has(s.id)) {
+                uniqueServices.push(s);
+                seen.add(s.id);
+            }
+        });
+
+        console.log("Availability Dropdown Services:", uniqueServices);
+
+        renderAvailabilityEditor(container, collaboratorId, rules, restDays, uniqueServices, extraSlots);
+    } catch (err) {
+        container.innerHTML = `
+            <div style="padding:2rem; text-align:center; color: var(--error-color);">
+                <span class="material-icons-round">error_outline</span>
+                <p>Errore caricamento: ${err.message}</p>
+                <button class="secondary-btn" onclick="document.querySelector('[data-tab=availability]').click()">Riprova</button>
+            </div>`;
+        console.error(err);
+    }
+}
+
+function renderAvailabilityEditor(container, collaboratorId, existingRules, restDays, myServices, extraSlots = []) {
+    console.log("Rendering Availability. Extra Slots:", extraSlots);
+    const days = [
+        { id: 1, name: 'Lun', fullName: 'Lunedì' },
+        { id: 2, name: 'Mar', fullName: 'Martedì' },
+        { id: 3, name: 'Mer', fullName: 'Mercoledì' },
+        { id: 4, name: 'Gio', fullName: 'Giovedì' },
+        { id: 5, name: 'Ven', fullName: 'Venerdì' },
+        { id: 6, name: 'Sab', fullName: 'Sabato' },
+        { id: 0, name: 'Dom', fullName: 'Domenica' }
+    ];
+
+    // Prepare rules map: Day -> Array of Rules
+    const rulesMap = {};
+    days.forEach(d => rulesMap[d.id] = []);
+    existingRules.forEach(r => {
+        if (rulesMap[r.day_of_week]) rulesMap[r.day_of_week].push(r);
+    });
+
+    // Helper to generate service options
+    const getServiceOptions = (selectedId) => {
+        return `
+            <option value="" ${!selectedId ? 'selected' : ''}>Tutti i servizi</option>
+            ${myServices.map(s => `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}>${s.name}</option>`).join('')}
+        `;
+    };
+
+    const html = `
+        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem; height: calc(100vh - 280px); overflow: hidden;">
+            
+            <!-- LEFT COLUMN: WEEKLY SCHEDULE -->
+            <section style="background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid var(--glass-border); display: flex; flex-direction: column; overflow: hidden;">
+                <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="material-icons-round" style="color: var(--brand-blue);">calendar_month</span>
+                            Orario Settimanale
+                        </h3>
+                        <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: var(--text-secondary); font-weight: 400;">Fasce ricorrenti ogni settimana</p>
+                    </div>
+                    <button class="primary-btn" id="save-availability-btn" style="padding: 0.6rem 1.25rem; font-size: 0.9rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);">
+                        <span class="material-icons-round" style="font-size: 18px;">save</span>
+                        Salva
+                    </button>
+                </div>
+                
+                <div class="schedule-grid" style="flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; padding-right: 0.5rem;">
+                    ${days.map(day => `
+                        <div class="day-row" data-day="${day.id}" style="background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--glass-border); padding: 1rem; min-height: 80px; display: flex; flex-direction: column;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                                <strong style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">${day.name}</strong>
+                                <button type="button" class="icon-btn add-slot-btn" title="Aggiungi Fascia" style="width: 26px; height: 26px; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                    <span class="material-icons-round" style="font-size: 16px; color: var(--brand-blue);">add</span>
+                                </button>
+                            </div>
+                            <div class="slots-container" style="display: flex; flex-direction: column; gap: 0.5rem; flex: 1;">
+                                <!-- Slots injected here -->
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </section>
+
+            <!-- RIGHT COLUMN: EXTRA & REST DAYS -->
+            <div style="display: flex; flex-direction: column; gap: 1.5rem; overflow: hidden;">
+                
+                <!-- EXTRA AVAILABILITY -->
+                <section style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); padding: 1.75rem; border-radius: 16px; border: 2px solid #667eea30; flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                    <div style="margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 1rem; font-weight: 600; color: #667eea; display: flex; align-items: center; gap: 0.5rem;">
+                                <span class="material-icons-round" style="font-size: 20px;">event_available</span>
+                                Disponibilità Extra
+                            </h3>
+                            <p style="margin: 0.25rem 0 0 0; font-size: 0.8rem; color: var(--text-secondary); font-weight: 400;">Date specifiche aggiuntive</p>
+                        </div>
+                        <button class="primary-btn" id="add-extra-slot-btn" style="padding: 0.5rem 1rem; font-size: 0.85rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                            <span class="material-icons-round" style="font-size: 16px;">add</span>
+                            Aggiungi
+                        </button>
+                    </div>
+
+                    <div id="extra-slots-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.6rem; padding-right: 0.5rem;">
+                         <!-- List injected via JS -->
+                    </div>
+                </section>
+
+                <!-- REST DAYS -->
+                <section style="background: white; padding: 1.75rem; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid var(--glass-border); flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                    <div style="margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 1rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                                <span class="material-icons-round" style="color: #ef4444;">event_busy</span>
+                                Giorni di Riposo
+                            </h3>
+                            <p style="margin: 0.25rem 0 0 0; font-size: 0.8rem; color: var(--text-secondary); font-weight: 400;">Ferie e permessi</p>
+                        </div>
+                        <button class="secondary-btn" id="add-rest-day-btn" style="padding: 0.5rem 1rem; font-size: 0.85rem; background: white; border: 1px solid var(--glass-border); box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+                            <span class="material-icons-round" style="font-size: 16px;">add</span>
+                            Aggiungi
+                        </button>
+                    </div>
+
+                    <div id="rest-days-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.6rem; padding-right: 0.5rem;">
+                        <!-- List injected via JS -->
+                    </div>
+                </section>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    <div id="rest-days-list" style="display: grid; gap: 0.8rem;">
+        ${restDays.length > 0 ? restDays.map(rd => `
+                        <div class="glass-card" style="padding: 1rem; display: flex; justify-content: space-between; align-items: center; background: white;">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <div style="width: 40px; height: 40px; border-radius: 8px; background: #FFF0F0; display: flex; align-items: center; justify-content: center; color: var(--error-color);">
+                                    <span class="material-icons-round">event_busy</span>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 500;">${rd.name}</div>
+                                    <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                                        ${new Date(rd.start_date).toLocaleDateString()} - ${new Date(rd.end_date).toLocaleDateString()}
+                                        ${rd.repeat_annually ? '<span class="badge warning" style="margin-left:8px; font-size:0.7em;">Annuale</span>' : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="icon-btn delete-rest-day-btn" data-id="${rd.id}" title="Elimina">
+                                <span class="material-icons-round" style="color: var(--error-color);">delete</span>
+                            </button>
+                        </div>
+                    `).join('') : '<p style="text-align:center; color:var(--text-tertiary); padding: 1rem;">Nessun giorno di riposo pianificato.</p>'}
+    </div>
+            </section >
+        </div >
+        `;
+
+    container.innerHTML = html;
+
+    // --- LOGIC: SLOTS RENDERER ---
+    const renderSlot = (slotContainer, start = '09:00', end = '18:00', serviceId = null) => {
+        const slotDiv = document.createElement('div');
+        slotDiv.className = 'time-slot';
+        slotDiv.style.cssText = `display: grid; grid - template - columns: auto 1fr auto; gap: 0.5rem; align - items: center; background: var(--bg - secondary); padding: 0.5rem; border - radius: 6px; `;
+
+        slotDiv.innerHTML = `
+        < div style = "display: flex; align-items: center; gap: 4px;" >
+            <input type="time" class="slot-start" value="${start}" style="border: 1px solid var(--glass-border); padding: 4px; border-radius: 4px; width: 80px;">
+                <span>-</span>
+                <input type="time" class="slot-end" value="${end}" style="border: 1px solid var(--glass-border); padding: 4px; border-radius: 4px; width: 80px;">
+                </div>
+                <select class="slot-service" style="border: 1px solid var(--glass-border); padding: 4px; border-radius: 4px; width: 100%; font-size: 0.9rem;">
+                    ${getServiceOptions(serviceId)}
+                </select>
+                <button type="button" class="icon-btn remove-slot-btn" style="color: var(--error-color); width: 24px; height: 24px;">
+                    <span class="material-icons-round" style="font-size: 1.1rem;">close</span>
+                </button>
+                `;
+
+        // Bind Remove
+        slotDiv.querySelector('.remove-slot-btn').addEventListener('click', () => {
+                    slotDiv.remove();
+        });
+
+                slotContainer.appendChild(slotDiv);
+    };
+
+    // Initialize Slots
+    days.forEach(day => {
+        const dayRow = container.querySelector(`.day-row[data-day="${day.id}"]`);
+                const slotsContainer = dayRow.querySelector('.slots-container');
+                const dayRules = rulesMap[day.id];
+
+        if (dayRules && dayRules.length > 0) {
+                    dayRules.forEach(r => renderSlot(slotsContainer, r.start_time.slice(0, 5), r.end_time.slice(0, 5), r.service_id));
+        }
+
+        // Bind Add Button
+        dayRow.querySelector('.add-slot-btn').addEventListener('click', () => {
+                    renderSlot(slotsContainer);
+        });
+    });
+
+                // --- LOGIC: SAVE AVAILABILITY ---
+                const saveBtn = container.querySelector('#save-availability-btn');
+    saveBtn.addEventListener('click', async () => {
+                    saveBtn.innerHTML = 'Salvataggio...';
+                saveBtn.disabled = true;
+
+                const newRules = [];
+        container.querySelectorAll('.day-row').forEach(row => {
+            const dayId = parseInt(row.dataset.day);
+            row.querySelectorAll('.time-slot').forEach(slot => {
+                const start = slot.querySelector('.slot-start').value;
+                const end = slot.querySelector('.slot-end').value;
+                const serviceId = slot.querySelector('.slot-service').value || null;
+
+                if (start && end) {
+                    newRules.push({
+                        day_of_week: dayId,
+                        start_time: start,
+                        end_time: end,
+                        service_id: serviceId
+                    });
+                }
+            });
+        });
+
+                try {
+                    await saveAvailabilityRules(collaboratorId, newRules);
+                window.showAlert('Disponibilità salvata con successo!', 'success');
+        } catch (err) {
+                    console.error(err);
+                window.showAlert('Errore salvataggio: ' + err.message, 'error');
+        } finally {
+                    saveBtn.innerHTML = 'Salva Disponibilità';
+                saveBtn.disabled = false;
+        }
+    });
+
+    // --- LOGIC: EXTRA AVAILABILITY (OVERRIDES) ---
+    const renderExtraSlot = (slot) => {
+        const startDate = new Date(slot.date).toLocaleDateString();
+                const endDate = slot.end_date ? new Date(slot.end_date).toLocaleDateString() : null;
+                const dateDisplay = endDate ? `${startDate} - ${endDate}` : startDate;
+
+                return `
+                <div class="glass-card" style="padding: 1rem; display: flex; justify-content: space-between; align-items: center; background: white; border-left: 3px solid var(--brand-blue); border-radius: 12px;">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div style="width: 40px; height: 40px; border-radius: 10px; background: #E3F2FD; display: flex; align-items: center; justify-content: center; color: var(--brand-blue);">
+                            <span class="material-icons-round">event</span>
+                        </div>
+                        <div>
+                            <div style="font-weight: 500; color: var(--text-primary);">
+                                ${dateDisplay}
+                                <span style="font-weight:400; color:var(--text-secondary); margin-left: 8px;">(${slot.start_time.slice(0, 5)} - ${slot.end_time.slice(0, 5)})</span>
+                            </div>
+                            <div style="font-size: 0.8rem; color: var(--brand-blue); font-weight: 500; margin-top:2px;">
+                                ${slot.services?.name || 'Tutti i servizi'}
+                            </div>
+                        </div>
+                    </div>
+                    <button class="icon-btn delete-override-btn" data-id="${slot.id}" title="Elimina" style="background: var(--bg-secondary); border-radius: 50%;">
+                        <span class="material-icons-round" style="color: var(--error-color); font-size: 1.2rem;">delete_outline</span>
+                    </button>
+                </div>
+                `;
+    };
+
+                const extrasList = container.querySelector('#extra-slots-list');
+    if (extraSlots && extraSlots.length > 0) {
+                    extrasList.innerHTML = extraSlots.map(renderExtraSlot).join('');
+    } else {
+                    extrasList.innerHTML = '<p style="text-align:center; color:var(--text-tertiary); padding: 1rem;">Nessuna disponibilità extra aggiunta.</p>';
+    }
+
+    // Handlers
+    container.querySelectorAll('.delete-override-btn').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        if (await window.showConfirm('Eliminare questa disponibilità extra?')) {
+                            try {
+                                await deleteAvailabilityOverride(btn.dataset.id);
+                                loadAvailability(collaboratorId);
+                            } catch (err) {
+                                window.showAlert('Errore: ' + err.message, 'error');
+                            }
+                        }
+                    });
+    });
+
+    container.querySelector('#add-extra-slot-btn').addEventListener('click', () => {
+                    openExtraSlotModal(collaboratorId, myServices, () => loadAvailability(collaboratorId));
+    });
+
+    // --- LOGIC: REST DAYS ---
+
+    // Delete Handlers
+    container.querySelectorAll('.delete-rest-day-btn').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        if (await window.showConfirm('Eliminare questo giorno di riposo?')) {
+                            try {
+                                await deleteRestDay(btn.dataset.id);
+                                loadAvailability(collaboratorId); // Reload to refresh list
+                            } catch (err) {
+                                window.showAlert('Errore eliminazione: ' + err.message, 'error');
+                            }
+                        }
+                    });
+    });
+
+    // Add Handler (Simple Prompt or Modal - Improving to Custom Modal)
+    container.querySelector('#add-rest-day-btn').addEventListener('click', () => {
+                    openRestDayModal(collaboratorId, () => loadAvailability(collaboratorId));
+    });
+}
+
+                function openRestDayModal(collaboratorId, onSuccess) {
+    const content = `
+                <h3 style="margin-top:0;">Aggiungi Periodo di Riposo</h3>
+                <form id="rest-day-form" style="display: flex; flex-direction: column; gap: 1rem;">
+                    <div>
+                        <label style="display:block; margin-bottom:5px; font-weight:500;">Nome (es. Ferie Estive)</label>
+                        <input type="text" name="name" required style="width:100%; padding: 8px; border:1px solid #ddd; border-radius:6px;">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label style="display:block; margin-bottom:5px; font-weight:500;">Dal</label>
+                            <input type="date" name="start_date" required style="width:100%; padding: 8px; border:1px solid #ddd; border-radius:6px;">
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:5px; font-weight:500;">Al</label>
+                            <input type="date" name="end_date" required style="width:100%; padding: 8px; border:1px solid #ddd; border-radius:6px;">
+                        </div>
+                    </div>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" name="repeat_annually">
+                            <span>Ripeti ogni anno</span>
+                    </label>
+                    <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem;">
+                        <button type="button" class="secondary-btn close-modal">Annulla</button>
+                        <button type="submit" class="primary-btn">Salva</button>
+                    </div>
+                </form>
+                `;
+
+                // Use global render helper
+                const modalId = 'rest-day-modal';
+                // Small hack: we need to access the renderModal from utils or just implement it here if not available
+                // importing renderModal from user_dashboard? No, it's in utils. 
+                // We didn't import renderModal in imports. 
+                // Let's rely on a simple dynamic creation or existing global if any.
+                // Actually, let's just append to body as we did in ModalUtils (system modals are usually global, but custom forms...)
+
+                // We'll Create a Quick Modal overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'modal active';
+                overlay.style.zIndex = '9999';
+                overlay.innerHTML = `<div class="modal-content animate-scale-in" style="max-width: 500px;">${content}</div>`;
+                document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+                overlay.querySelector('.close-modal').addEventListener('click', close);
+
+    overlay.querySelector('form').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                const formData = new FormData(e.target);
+                const data = {
+                    collaborator_id: collaboratorId,
+                name: formData.get('name'),
+                start_date: formData.get('start_date'),
+                end_date: formData.get('end_date'),
+                repeat_annually: formData.get('repeat_annually') === 'on'
+        };
+
+                const btn = overlay.querySelector('button[type="submit"]');
+                btn.disabled = true;
+                btn.innerText = 'Salvataggio...';
+
+                try {
+                    await upsertRestDay(data);
+                window.showAlert('Salvato!', 'success');
+                close();
+                onSuccess();
+        } catch (err) {
+                    console.error(err);
+                btn.disabled = false;
+                btn.innerText = 'Salva';
+                window.showAlert('Errore: ' + err.message, 'error');
+        }
+    });
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) close();
+    });
+}
+
+                function openExtraSlotModal(collaboratorId, services, onSuccess) {
+    const serviceOptions = `
+                <option value="">Tutti i servizi</option>
+                ${services.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                `;
+
+                const content = `
+                <div class="modal-header-premium" style="margin-bottom: 2rem; position: relative;">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                            <span class="material-icons-round">event_available</span>
+                        </div>
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.3rem; font-weight: 600; color: var(--text-primary);">Aggiungi Disponibilità</h2>
+                            <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); font-weight: 400;">Definisci un giorno o un periodo specifico</p>
+                        </div>
+                    </div>
+                    <button class="icon-btn close-modal" style="position: absolute; top: -0.5rem; right: -0.5rem; background: white; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid var(--glass-border); transition: all 0.2s;">
+                        <span class="material-icons-round" style="font-size: 20px; color: var(--text-secondary);">close</span>
+                    </button>
+                </div>
+
+                <form id="extra-slot-form" class="premium-form">
+                    <!-- Periodo -->
+                    <div style="background: var(--bg-secondary); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                        <h3 style="margin: 0 0 1rem 0; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="material-icons-round" style="font-size: 16px;">date_range</span>
+                            Periodo
+                        </h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Data Inizio</label>
+                                <input type="date" name="date" required value="${new Date().toISOString().split('T')[0]}"
+                                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 10px; font-size: 0.9rem; background: white; transition: all 0.2s; font-family: inherit;">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Data Fine <span style="font-weight: 400; color: var(--text-tertiary);">(Opzionale)</span></label>
+                                <input type="date" name="end_date"
+                                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 10px; font-size: 0.9rem; background: white; transition: all 0.2s; font-family: inherit;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Orario -->
+                    <div style="background: var(--bg-secondary); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                        <h3 style="margin: 0 0 1rem 0; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="material-icons-round" style="font-size: 16px;">schedule</span>
+                            Orario
+                        </h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Dalle</label>
+                                <input type="time" name="start_time" value="09:00" required
+                                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 10px; font-size: 0.9rem; background: white; transition: all 0.2s; font-family: inherit;">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Alle</label>
+                                <input type="time" name="end_time" value="18:00" required
+                                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 10px; font-size: 0.9rem; background: white; transition: all 0.2s; font-family: inherit;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Servizio -->
+                    <div style="background: var(--bg-secondary); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                        <h3 style="margin: 0 0 1rem 0; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="material-icons-round" style="font-size: 16px;">work_outline</span>
+                            Servizio
+                        </h3>
+                        <div class="form-group">
+                            <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Servizio Dedicato <span style="font-weight: 400; color: var(--text-tertiary);">(Opzionale)</span></label>
+                            <select name="service_id"
+                                style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 10px; font-size: 0.9rem; background: white; transition: all 0.2s; cursor: pointer; font-family: inherit;">
+                                ${serviceOptions}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 0.5rem;">
+                        <button type="submit" class="primary-btn" style="min-width: 160px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.875rem 2rem; border-radius: 12px; font-weight: 600; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: all 0.2s; border: none; color: white; cursor: pointer; font-size: 0.95rem;">
+                            <span style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span class="material-icons-round" style="font-size: 18px;">check</span>
+                                Salva Disponibilità
+                            </span>
+                        </button>
+                    </div>
+                </form>
+                `;
+
+                const overlay = document.createElement('div');
+                overlay.className = 'modal active glass-modal-overlay';
+                overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(12px);
+                display: flex; align-items: center; justify-content: center; z-index: 9999;
+                animation: fadeIn 0.3s ease;
+                `;
+
+                overlay.innerHTML = `
+                <div class="modal-content animate-scale-in" style="
+            background: white;
+            border-radius: 24px;
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 650px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            max-height: 90vh;
+            overflow-y: auto;
+        ">
+                    ${content}
+                </div>
+                `;
+
+                document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+
+    overlay.querySelectorAll('.close-modal').forEach(btn => btn.addEventListener('click', close));
+
+    overlay.querySelector('form').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                const formData = new FormData(e.target);
+
+        if (formData.get('start_time') >= formData.get('end_time')) {
+                    window.showAlert('L\'orario di fine deve essere dopo quello di inizio.', 'error');
+                return;
+        }
+
+                const data = {
+                    collaborator_id: collaboratorId,
+                date: formData.get('date'),
+                end_date: formData.get('end_date') || null,
+                start_time: formData.get('start_time'),
+                end_time: formData.get('end_time'),
+                service_id: formData.get('service_id') || null,
+                is_available: true
+        };
+
+                const btn = overlay.querySelector('button[type="submit"]');
+                btn.disabled = true;
+                btn.innerHTML = '<span class="loader small white"></span>';
+
+                try {
+                    await upsertAvailabilityOverride(data);
+                window.showAlert('Disponibilità salvata!', 'success');
+                close();
+                onSuccess();
+        } catch (err) {
+                    console.error(err);
+                btn.disabled = false;
+                btn.innerText = 'Salva Apertura';
+                window.showAlert('Errore: ' + err.message, 'error');
+        }
+    });
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) close();
+    });
+}

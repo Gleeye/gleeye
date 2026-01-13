@@ -1,0 +1,71 @@
+-- Ensure profiles exists (dependency)
+CREATE TABLE IF NOT EXISTS profiles (
+    id UUID PRIMARY KEY, -- Simplification for dependency
+    full_name TEXT,
+    email TEXT
+);
+
+-- Ensure services exists (dependency)
+CREATE TABLE IF NOT EXISTS services (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL
+);
+
+-- 1. Create availability_rules if not exists
+CREATE TABLE IF NOT EXISTS public.availability_rules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    collaborator_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL
+    -- UNIQUE constraint might exist or not, we won't force it here
+);
+
+-- 2. Add service_id to availability_rules
+DO $$ BEGIN
+    ALTER TABLE public.availability_rules 
+    ADD COLUMN service_id UUID REFERENCES public.services(id);
+EXCEPTION
+    WHEN duplicate_column THEN null;
+END $$;
+
+-- 3. Create collaborator_rest_days table
+CREATE TABLE IF NOT EXISTS public.collaborator_rest_days (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    collaborator_id UUID REFERENCES public.collaborators(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    repeat_annually BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- RLS
+ALTER TABLE public.collaborator_rest_days ENABLE ROW LEVEL SECURITY;
+
+-- Policies (Idempotent)
+DO $$ BEGIN
+    CREATE POLICY "Users can manage own rest days" ON public.collaborator_rest_days
+        FOR ALL
+        USING (
+            collaborator_id IN (
+                SELECT id FROM public.collaborators 
+                WHERE email = auth.jwt() ->> 'email'
+            )
+        );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE POLICY "Admins can manage all rest days" ON public.collaborator_rest_days
+        FOR ALL
+        USING (
+            EXISTS (
+                SELECT 1 FROM public.profiles 
+                WHERE id = auth.uid() AND role = 'admin'
+            )
+        );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;

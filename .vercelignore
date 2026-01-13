@@ -1,0 +1,16 @@
+supabase/
+tabelle_airtable/
+.venv/
+node_modules/
+*.py
+*.sql
+*.sh
+*.log
+scripts/
+analyze_*.py
+check_*.py
+debug_*.js
+import_*.py
+migrate_*.py
+schema_*.sql
+data_comparison_report.txt

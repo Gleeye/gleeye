@@ -1,0 +1,84 @@
+/* Tables */
+.table-container {
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--border-radius-lg);
+    padding: 2rem;
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    box-shadow: var(--shadow-soft);
+    position: relative;
+    overflow: hidden;
+}
+
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 0.5rem;
+    margin-top: -0.5rem;
+}
+
+th,
+td {
+    padding: 1rem 1.5rem;
+    text-align: left;
+}
+
+th {
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+}
+
+tbody tr {
+    background: rgba(255, 255, 255, 0.02);
+    transition: all 0.2s;
+    border-radius: 12px;
+}
+
+tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: scale(1.005);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.02);
+}
+
+td:first-child {
+    border-radius: 12px 0 0 12px;
+}
+
+td:last-child {
+    border-radius: 0 12px 12px 0;
+}
+
+/* Clickable Table Rows */
+.clickable-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.clickable-row:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 0.35rem 0.85rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
+}
+
+.status-active {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.status-pending {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
