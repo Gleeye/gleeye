@@ -19,7 +19,7 @@ export function initAuth() {
                 <div class="auth-blob blob-2"></div>
                 <div class="auth-card">
                     <div class="brand">
-                        <img src="logo_gleeye.png" alt="Gleeye Logo" class="brand-logo">
+                        <img src="logo_gleeye_new.png" alt="Gleeye Logo" class="brand-logo">
                     </div>
                     <h2>Bentornato</h2>
                     <p>Inserisci la tua email per ricevere un Magic Link di accesso.</p>
