@@ -142,9 +142,9 @@
 /* Separator */
 .nav-separator {
     height: 1px;
-    background: var(--glass-border);
-    margin: 1rem 1.25rem;
-    opacity: 0.6;
+    background: #e0e0e0;
+    margin: 1.5rem 1.25rem;
+    opacity: 1;
 }
 
 /* Subtle background gradient on hover */

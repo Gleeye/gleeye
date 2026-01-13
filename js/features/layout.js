@@ -234,44 +234,51 @@ export function exitImpersonation() {
 
 export function updateSidebarVisibility() {
     const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
-    const sidebar = document.getElementById('sidebar');
-    const navItems = sidebar.querySelectorAll('.nav-item');
-    const navGroups = sidebar.querySelectorAll('.nav-group');
+    const managementNav = sidebar.querySelector('#nav-management');
 
     console.log(`[Sidebar] Updating visibility for role: ${activeRole}`);
 
     if (activeRole === 'admin') {
-        // Show Everything
-        navItems.forEach(el => el.classList.remove('hidden'));
-        navGroups.forEach(el => el.classList.remove('hidden'));
+        // Show Management Section
+        if (managementNav) managementNav.classList.remove('hidden');
     } else {
-        // COLLABORATOR VIEW (or undefined)
-        // Hide everything first
-        navItems.forEach(el => el.classList.add('hidden'));
-        navGroups.forEach(el => el.classList.add('hidden'));
+        // COLLABORATOR VIEW
+        // Hide Management Section entirely
+        if (managementNav) managementNav.classList.add('hidden');
 
-        // Show only explicitly allowed items
-        // 1. "Prenotazioni" (Direct link)
-        const bookingLink = sidebar.querySelector('[data-target="booking"]');
-        if (bookingLink) bookingLink.classList.remove('hidden');
+        // Note: Booking and Personal section handling
+        // If we want collaborators to see "Prenotazioni" (Direct link) inside Management, 
+        // we might need to hide only specific parts of management, OR move Booking out. 
+        // Wait, the user said "Management views depend on role. Personal views are for everyone."
+        // But Collaborators usually need to see "Booking" too?
+        // The previous logic showed "Booking" link. 
+        // If "Booking" is inside #nav-management, it will be hidden.
+        // Let's refine: We hide the *Management* container, but maybe we need to clone the Booking link to Personal?
+        // OR: We just hide the children of #nav-management that are NOT allowed.
 
-        // 2. "Personale" Section (New)
-        const personaleToggle = sidebar.querySelector('#personale-menu-toggle');
-        const personaleSubmenu = sidebar.querySelector('#personale-menu-submenu');
-        if (personaleToggle) {
-            personaleToggle.parentElement.classList.remove('hidden'); // Show nav-group
-            personaleToggle.classList.remove('hidden');
+        // Better Approach for strict separation requested:
+        // Admin sees Management + Personal.
+        // Collab sees Personal ONLY? 
+        // Quote: "personale sono le viste che invece hanno tutti... ordini, prenotazioni... sono viste nello stesso gruppo e sono separate... a secondo del ruolo"
+        // So Collaborators might HAVE some Management views visible (like Booking?).
+        // Let's hide specific sections inside Management for now.
+
+        if (managementNav) {
+            // Hide everything in management first
+            const mgmtItems = managementNav.querySelectorAll('.nav-item, .nav-group');
+            mgmtItems.forEach(el => el.classList.add('hidden'));
+
+            // Explicitly show allowed items in Management for Collaborator
+            // 1. Prenotazioni
+            const bookingLink = managementNav.querySelector('[data-target="booking"]');
+            if (bookingLink) bookingLink.classList.remove('hidden');
+
+            // 2. Test Modulo (if requested)
+            const testLink = managementNav.querySelector('[data-target="booking-test"]');
+            if (testLink) testLink.classList.remove('hidden');
         }
-        if (personaleSubmenu) {
-            personaleSubmenu.classList.remove('hidden');
-            // Ensure sub-items are visible if parent is
-            const subItems = personaleSubmenu.querySelectorAll('.sub-item');
-            subItems.forEach(si => si.classList.remove('hidden'));
-        }
-
-        // 3. User User Profile is always visible (handled by layout structure, but explicit checks good)
-        // Note: The profile section at bottom is separate from nav-menu.
-
-        // If we want to hide "Ordini" (dashboard), we keep it hidden.
     }
+
+    // Personal Section is always visible by default structure
+
 }

@@ -1,56 +1,65 @@
 import { supabase } from '../modules/config.js?v=117';
 import { state } from '../modules/state.js?v=117';
 
-let currentDate = new Date();
+let currentDate = new Date(); // Represents the start of the week or current view date
 let eventsCache = [];
+let currentView = 'week'; // 'week', 'day'
 
 export async function renderAgenda(container) {
+    console.log("[Agenda] renderAgenda called. Container:", container);
+
     // Set Page Title
     const titleEl = document.getElementById('page-title');
-    if (titleEl) titleEl.textContent = 'Agenda Personale';
+    if (titleEl) titleEl.textContent = 'Agenda';
+
+    if (!container) {
+        console.error("[Agenda] Container not found!");
+        return;
+    }
 
     container.innerHTML = `
-        <div class="agenda-container animate-fade-in">
-            <!-- Toolbar -->
+        <div class="agenda-container animate-fade-in" id="agenda-view-wrapper">
+            <!-- Header / Toolbar -->
             <div class="agenda-toolbar">
                 <div class="calendar-nav">
-                    <button class="icon-btn" id="prev-month">
-                        <span class="material-icons-round">chevron_left</span>
-                    </button>
-                    <div class="current-month" id="current-month-label">
-                        ${formatMonth(currentDate)}
+                    <div class="nav-controls">
+                        <button class="icon-nav-btn" id="prev-period">
+                            <span class="material-icons-round">chevron_left</span>
+                        </button>
+                        <button class="icon-nav-btn" id="next-period">
+                            <span class="material-icons-round">chevron_right</span>
+                        </button>
                     </div>
-                    <button class="icon-btn" id="next-month">
-                        <span class="material-icons-round">chevron_right</span>
-                    </button>
-                    <button class="secondary-btn" id="today-btn" style="margin-left: 1rem;">
-                        Oggi
-                    </button>
+                    <h2 class="current-period-label" id="period-label">
+                        <!-- Date Range -->
+                    </h2>
+                    <button class="today-btn" id="today-btn">Oggi</button>
                 </div>
                 
                 <div class="actions">
+                     <div class="view-toggles">
+                        <button class="view-btn active" data-view="week">Settimana</button>
+                        <button class="view-btn" data-view="day">Giorno</button>
+                    </div>
                     <button class="primary-btn" onclick="window.location.hash = 'new-appointment'">
                         <span class="material-icons-round">add</span>
-                        Nuovo Appuntamento
+                        Nuovo
                     </button>
                 </div>
             </div>
 
-            <!-- Calendar View -->
-            <div class="calendar-wrapper">
-                <div class="calendar-header">
-                    <div class="weekday-label">Lun</div>
-                    <div class="weekday-label">Mar</div>
-                    <div class="weekday-label">Mer</div>
-                    <div class="weekday-label">Gio</div>
-                    <div class="weekday-label">Ven</div>
-                    <div class="weekday-label">Sab</div>
-                    <div class="weekday-label">Dom</div>
+            <!-- Timeline View -->
+            <div class="timeline-wrapper">
+                <div class="timeline-header" id="timeline-header">
+                    <div class="time-col-header"></div> <!-- Corner -->
+                    <!-- Header Columns (Days) -->
                 </div>
-                <div class="calendar-grid" id="calendar-grid">
-                    <!-- Days injected here -->
-                    <div class="loading-state">
-                        <span class="loader"></span>
+                <div class="timeline-body">
+                    <div class="time-gutter">
+                        <!-- Time labels (08:00, 09:00...) -->
+                    </div>
+                    <div class="events-grid" id="events-grid">
+                        <!-- Grid Lines & Events -->
                     </div>
                 </div>
             </div>
@@ -58,155 +67,207 @@ export async function renderAgenda(container) {
     `;
 
     // Bind Controls
-    document.getElementById('prev-month').onclick = () => changeMonth(-1);
-    document.getElementById('next-month').onclick = () => changeMonth(1);
+    document.getElementById('prev-period').onclick = () => changePeriod(-1);
+    document.getElementById('next-period').onclick = () => changePeriod(1);
     document.getElementById('today-btn').onclick = () => {
         currentDate = new Date();
-        updateCalendar();
+        updateView();
     };
 
-    // Initial Fetch & Render
+    // View Toggles
+    const viewBtns = container.querySelectorAll('.view-btn');
+    viewBtns.forEach(btn => {
+        btn.onclick = () => {
+            viewBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentView = btn.dataset.view;
+            updateView();
+        }
+    });
+
+    console.log("[Agenda] Initializing...");
     await fetchMyBookings();
-    renderCalendarGrid();
+    renderTimeline();
 }
 
 async function fetchMyBookings() {
     try {
-        const user = state.impersonatedCollaboratorId || state.profile?.id;
+        const userId = state.profile?.id;
+        const collabId = state.impersonatedCollaboratorId;
+        const user = collabId || userId;
+
+        console.log("[Agenda] Fetching for User/Collab ID:", user, { collabId, userId });
 
         // Fetch bookings where user is assigned
         let query = supabase
             .from('bookings')
             .select(`
                 *,
-                booking_items ( name ),
+                booking_items ( name, color, duration_minutes ),
                 booking_assignments!inner ( collaborator_id )
             `)
-            .eq('booking_assignments.collaborator_id', user);
+            .eq('booking_assignments.collaborator_id', user)
+            .order('start_time', { ascending: true });
 
         const { data, error } = await query;
-
-        if (error) throw error;
+        if (error) {
+            console.error("[Agenda] Supabase Error:", error);
+            throw error;
+        }
 
         eventsCache = data || [];
-        console.log("[Agenda] Fetched events:", eventsCache);
+        console.log("[Agenda] Successfully fetched events count:", eventsCache.length);
+        console.log("[Agenda] Events data:", eventsCache);
 
     } catch (err) {
-        console.error("[Agenda] Error fetching events:", err);
-        window.showAlert("Errore caricamento agenda", "error");
+        console.error("[Agenda] Critical fetch error:", err);
     }
 }
 
-function renderCalendarGrid() {
-    const grid = document.getElementById('calendar-grid');
-    const label = document.getElementById('current-month-label');
+function renderTimeline() {
+    const header = document.getElementById('timeline-header');
+    const grid = document.getElementById('events-grid');
+    const label = document.getElementById('period-label');
+    const gutter = document.querySelector('.time-gutter');
 
-    if (!grid || !label) return;
+    if (!header || !grid) return;
 
-    label.textContent = formatMonth(currentDate);
-    grid.innerHTML = '';
+    // 1. Determine Date Range
+    let startOfPeriod, endOfPeriod;
+    const today = new Date();
 
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
+    if (currentView === 'week') {
+        const day = currentDate.getDay();
+        const diff = currentDate.getDate() - day + (day === 0 ? -6 : 1);
+        startOfPeriod = new Date(currentDate);
+        startOfPeriod.setDate(diff);
+        endOfPeriod = new Date(startOfPeriod);
+        endOfPeriod.setDate(startOfPeriod.getDate() + 6);
 
-    // First day of the month
-    const firstDay = new Date(year, month, 1);
-    // Number of days in month
-    const lastDay = new Date(year, month + 1, 0);
-
-    // Adjust logic for Monday start (0=Sun, 1=Mon in JS getDay())
-    // We want Mon=0, Sun=6
-    let startDayIndex = firstDay.getDay() - 1;
-    if (startDayIndex < 0) startDayIndex = 6;
-
-    const totalDays = lastDay.getDate();
-
-    // Previous Month Fillers
-    const prevMonthLastDay = new Date(year, month, 0).getDate();
-    for (let i = 0; i < startDayIndex; i++) {
-        const dayNum = prevMonthLastDay - startDayIndex + i + 1;
-        const cell = createDayCell(dayNum, true);
-        grid.appendChild(cell);
+        label.textContent = `${formatDate(startOfPeriod)} - ${formatDate(endOfPeriod)}`;
+    } else {
+        startOfPeriod = new Date(currentDate);
+        endOfPeriod = new Date(currentDate);
+        label.textContent = formatDate(startOfPeriod, true);
     }
 
-    // Current Month Days
-    const today = new Date();
-    for (let i = 1; i <= totalDays; i++) {
-        const isToday = (i === today.getDate() && month === today.getMonth() && year === today.getFullYear());
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+    // 2. Render Headers
+    let headerHtml = `<div class="time-col-header"></div>`;
+    const days = [];
+    let loopDate = new Date(startOfPeriod);
 
-        // Find events for this day
+    while (loopDate <= endOfPeriod) {
+        days.push(new Date(loopDate));
+        const isToday = loopDate.toDateString() === today.toDateString();
+
+        headerHtml += `
+            <div class="day-header ${isToday ? 'today' : ''}">
+                <div class="day-name">${loopDate.toLocaleDateString('it-IT', { weekday: 'short' })}</div>
+                <div class="day-num">${loopDate.getDate()}</div>
+            </div>
+        `;
+        loopDate.setDate(loopDate.getDate() + 1);
+    }
+    header.innerHTML = headerHtml;
+
+    // 3. Render Time Grid Content
+    const startHour = 8;
+    const endHour = 20;
+    const totalHours = endHour - startHour;
+
+    // Gutter Labels
+    let gutterHtml = '';
+    for (let h = startHour; h <= endHour; h++) {
+        gutterHtml += `<div class="time-label"><span>${h}:00</span></div>`;
+    }
+    gutter.innerHTML = gutterHtml;
+
+
+    let gridHtml = '';
+
+    days.forEach((dayDate, index) => {
+        const dateStr = dayDate.toISOString().split('T')[0];
+        // Filter events for this day
         const dayEvents = eventsCache.filter(e => e.start_time.startsWith(dateStr));
 
-        const cell = createDayCell(i, false, isToday, dayEvents);
-        grid.appendChild(cell);
-    }
+        let eventsHtml = '';
+        dayEvents.forEach(ev => {
+            const start = new Date(ev.start_time);
+            const end = new Date(ev.end_time);
 
-    // Next Month Fillers (to fill grid, e.g. 42 cells total usually standard, or just fill row)
-    // Let's just fill the last row
-    const totalCells = startDayIndex + totalDays;
-    const remaining = 7 - (totalCells % 7);
-    if (remaining < 7) {
-        for (let i = 1; i <= remaining; i++) {
-            const cell = createDayCell(i, true);
-            grid.appendChild(cell);
-        }
-    }
-}
+            // Calc Top & Height
+            const startH = start.getHours() + start.getMinutes() / 60;
+            let endH = end.getHours() + end.getMinutes() / 60;
+            // Fix for events ending at the exact hour if not accounted for
+            if (endH === 0 && end.getDate() !== start.getDate()) endH = 24;
 
-function createDayCell(dayNum, isOtherMonth, isToday = false, events = []) {
-    const div = document.createElement('div');
-    div.className = `calendar-day ${isOtherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}`;
+            if (startH < startHour) return;
 
-    let html = `<div class="day-number">${dayNum}</div>`;
+            const topPercent = ((startH - startHour) / totalHours) * 100;
+            const heightPercent = ((endH - startH) / totalHours) * 100;
 
-    // Add Events
-    if (events.length > 0) {
-        html += `<div class="events-list" style="display:flex; flex-direction:column; gap:2px; margin-top:4px; overflow:hidden;">`;
-        events.forEach(ev => {
-            const time = new Date(ev.start_time).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-            const statusClass = `event-${ev.status}`;
-            const title = ev.booking_items?.name || 'Evento';
+            const statusColor = getStatusColor(ev.status);
 
-            html += `
-                <div class="agenda-event ${statusClass}" title="${time} - ${title}">
-                    <span style="font-size:0.7em; opacity:0.8;">${time}</span>
-                    <span>${title}</span>
+            eventsHtml += `
+                <div class="timeline-event" style="top: ${topPercent}%; height: ${heightPercent}%; background: ${statusColor};" 
+                     title="${ev.booking_items?.name}">
+                    <div class="event-time">${start.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</div>
+                    <div class="event-title">${ev.booking_items?.name}</div>
                 </div>
             `;
         });
-        html += `</div>`;
+
+        // Current Time Indicator (if Today)
+        let indicatorHtml = '';
+        if (dayDate.toDateString() === today.toDateString()) {
+            const now = new Date();
+            const nowH = now.getHours() + now.getMinutes() / 60;
+            if (nowH >= startHour && nowH <= endHour) {
+                const topP = ((nowH - startHour) / totalHours) * 100;
+                indicatorHtml = `<div class="current-time-line" style="top: ${topP}%"></div>`;
+            }
+        }
+
+        gridHtml += `
+            <div class="day-column" data-date="${dateStr}">
+                <div class="grid-lines">
+                    ${Array(totalHours).fill(0).map(() => `<div class="hour-cell"></div>`).join('')}
+                </div>
+                ${eventsHtml}
+                ${indicatorHtml}
+            </div>
+        `;
+    });
+
+    grid.innerHTML = gridHtml;
+
+    // Set column grid template based on day count
+    const cols = currentView === 'week' ? 7 : 1;
+    header.style.gridTemplateColumns = `50px repeat(${cols}, 1fr)`;
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+}
+
+function getStatusColor(status) {
+    if (status === 'confirmed') return 'var(--brand-blue)';
+    if (status === 'hold') return '#f59e0b';
+    if (status === 'cancelled') return '#ef4444';
+    return '#6b7280';
+}
+
+function changePeriod(delta) {
+    if (currentView === 'week') {
+        currentDate.setDate(currentDate.getDate() + (delta * 7));
+    } else {
+        currentDate.setDate(currentDate.getDate() + delta);
     }
-
-    div.innerHTML = html;
-
-    // interaction
-    if (!isOtherMonth) {
-        div.onclick = () => {
-            // Handle day click (maybe open a modal for that day?)
-            console.log("Clicked day", dayNum);
-        };
-    }
-
-    return div;
+    updateView();
 }
 
-function changeMonth(delta) {
-    currentDate.setMonth(currentDate.getMonth() + delta);
-    // Maybe refetch logic if we want to support range-based fetching
-    // For now we fetched everything (optimization: fetch by range)
-    // Let's refetch to be safe if range changes significantly? 
-    // Actually fetching ALL user bookings is risky if many. 
-    // Ideally we fetch by range. I'll stick to simple logic for MVP.
-    // Re-rendering is fast.
-    renderCalendarGrid();
+function updateView() {
+    renderTimeline();
 }
 
-async function updateCalendar() {
-    await fetchMyBookings(); // Refresh data
-    renderCalendarGrid();
-}
-
-function formatMonth(date) {
-    return date.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+function formatDate(date, full = false) {
+    if (full) return date.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+    return date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
 }

@@ -1,17 +1,17 @@
-import './utils/modal-utils.js?v=117';
-import { initAuth } from './features/auth.js?v=117';
-import { router } from './modules/router.js?v=117';
-import { InvoiceLogic } from './features/invoices.js?v=117';
-import { state } from './modules/state.js?v=117';
-import { initSettingsModals } from './features/settings.js?v=117';
-import { initCollaboratorModals } from './features/collaborators.js?v=117';
-import { initCollaboratorServiceModals } from './features/collaborator_services.js?v=117';
-import { initBankTransactionModals } from './features/bank_transactions.js?v=117';
-import { initPaymentModals } from './features/payments.js?v=117';
-import { initServiceModals } from './features/services.js?v=117';
-import { initLayout, renderSidebarProfile } from './features/layout.js?v=117';
-import { initNotifications } from './features/notifications.js?v=117';
-import { runOneTimeFix } from './fix_phantom_data.js?v=117';
+import './utils/modal-utils.js?v=119';
+import { initAuth } from './features/auth.js?v=119';
+import { router } from './modules/router.js?v=119';
+import { InvoiceLogic } from './features/invoices.js?v=119';
+import { state } from './modules/state.js?v=119';
+import { initSettingsModals } from './features/settings.js?v=119';
+import { initCollaboratorModals } from './features/collaborators.js?v=119';
+import { initCollaboratorServiceModals } from './features/collaborator_services.js?v=119';
+import { initBankTransactionModals } from './features/bank_transactions.js?v=119';
+import { initPaymentModals } from './features/payments.js?v=119';
+import { initServiceModals } from './features/services.js?v=119';
+import { initLayout, renderSidebarProfile } from './features/layout.js?v=119';
+import { initNotifications } from './features/notifications.js?v=119';
+import { runOneTimeFix } from './fix_phantom_data.js?v=119';
 // Utilities imported at top
 
 // Init Theme
