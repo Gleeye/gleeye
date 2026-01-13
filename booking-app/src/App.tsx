@@ -1,28 +1,19 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './lib/supabaseClient';
-import { Settings, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
-import BookingsHub from './features/admin/BookingsHub';
+import { Loader2 } from 'lucide-react';
 import { ToastProvider } from './components/ui/Toast';
 import BookingWizard from './features/user/BookingWizard';
 
 function App() {
-  const [, setSession] = useState<any>(null);
-  const [isAdmin, setIsAdmin] = useState(false); // Can access backend settings
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'user' | 'admin'>('user');
 
   useEffect(() => {
     // Initial check
     checkUser();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) {
-        checkPermissions(session.user);
-      } else {
-        setIsAdmin(false);
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      // Logic for session change handled by parent sync usually
     });
 
     // Listen for Session from Parent (Iframe mode)
@@ -32,12 +23,10 @@ function App() {
         const session = event.data.payload;
 
         // Set session in Supabase client
-        const { error } = await supabase.auth.setSession({
+        await supabase.auth.setSession({
           access_token: session.access_token,
           refresh_token: session.refresh_token,
         });
-
-        if (error) console.error("Error setting session", error);
       }
     };
 
@@ -51,11 +40,7 @@ function App() {
 
   async function checkUser() {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      if (session) {
-        await checkPermissions(session.user);
-      }
+      await supabase.auth.getSession();
     } catch (error) {
       console.error('Auth check error:', error);
     } finally {
@@ -63,54 +48,9 @@ function App() {
     }
   }
 
-  async function checkPermissions(user: any) {
-    if (!user) return;
-    console.log("Checking permissions for:", user.email);
-
-    try {
-      // 1. Check Profiles (standard role)
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (profile?.role === 'admin') {
-        console.log("User is admin via profile");
-        setIsAdmin(true);
-        setView('admin');
-        return;
-      }
-
-      // 2. Check Collaborators (tags/roles)
-      // Try matching by email if user_id link is not established
-      const { data: collaborator } = await supabase
-        .from('collaborators')
-        .select('role, tags')
-        .eq('email', user.email)
-        .maybeSingle(); // Use maybeSingle to avoid 406 if not found
-
-      if (collaborator) {
-        const tags = (collaborator.tags || '').toLowerCase();
-        const role = (collaborator.role || '').toLowerCase();
-
-        const allowedTags = ['partner', 'account', 'project manager'];
-        const hasTag = allowedTags.some(t => tags.includes(t));
-
-        if (hasTag || role === 'admin' || role === 'manager') {
-          console.log("User is admin via collaborator tags/role");
-          setIsAdmin(true);
-          setView('admin');
-        }
-      }
-    } catch (err) {
-      console.error("Permission check failed", err);
-    }
-  }
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
@@ -118,51 +58,10 @@ function App() {
 
   return (
     <ToastProvider>
-      <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
-        {/* Header / Top Bar */}
-        <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 transition-all">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2">
-              <img src="/logo_gleeye_new.png" alt="Gleeye" className="h-8 w-auto" />
-              <h1 className="text-xl font-light tracking-tighter text-slate-900">
-                Gleeye <span className="font-bold">Workspace</span>
-              </h1>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {isAdmin && (
-              <button
-                onClick={() => setView(view === 'admin' ? 'user' : 'admin')}
-                className={`px-4 py-2 rounded-xl transition-all border flex items-center gap-2 text-xs font-black uppercase tracking-widest ${view === 'admin'
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-md translate-y-[1px]'
-                  : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-600 hover:text-indigo-600'
-                  }`}
-                title={view === 'admin' ? "Vai alla prenotazione cliente" : "Gestione Backend"}
-              >
-                {view === 'admin' ? (
-                  <>
-                    <CalendarIcon className="w-4 h-4" />
-                    <span>Vista Cliente</span>
-                  </>
-                ) : (
-                  <>
-                    <Settings className="w-4 h-4" />
-                    <span>Configurazione</span>
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        </header>
-
+      <div className="bg-white font-sans text-slate-900">
         {/* Main Content */}
-        <main className={`p-4 md:p-8 animate-fade-in ${view === 'admin' ? 'max-w-full' : 'max-w-7xl mx-auto'}`}>
-          {view === 'admin' ? (
-            <BookingsHub />
-          ) : (
-            <BookingWizard />
-          )}
+        <main className="p-4 md:p-6 animate-fade-in max-w-7xl mx-auto">
+          <BookingWizard />
         </main>
       </div>
     </ToastProvider>

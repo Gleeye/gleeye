@@ -289,10 +289,10 @@ export default function BookingWizard() {
     if (step === 5) {
         return (
             <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center mt-10 animate-fade-in">
-                <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <CheckCircle className="w-8 h-8 text-green-600" />
+                <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <CheckCircle className="w-12 h-12 text-green-500" />
                 </div>
-                <h2 className="text-2xl font-bold mb-2">Prenotazione Inviata!</h2>
+                <h2 className="text-xl font-semibold text-slate-900 mb-3">Prenotazione Confermata!</h2>
                 <p className="text-slate-500 mb-6">
                     Grazie {customerForm.firstName}, abbiamo ricevuto la tua richiesta per
                     <strong> {selectedService?.name}</strong> con <strong>{selectedCollab?.first_name}</strong>.
@@ -375,7 +375,7 @@ export default function BookingWizard() {
                     {/* STEP 1: SERVICES */}
                     {step === 1 && (
                         <div className="space-y-4 animate-fade-in-up">
-                            <h2 className="text-3xl font-bold mb-8 text-slate-900 tracking-tight">Scegli un servizio</h2>
+                            <h2 className="text-xl font-semibold mb-6 text-slate-900 tracking-tight">Scegli un servizio</h2>
                             {/* Service List */}
                             <div className="grid grid-cols-1 gap-4">
                                 {loading ? <div className="p-12 text-center text-slate-400 animate-pulse">Caricamento servizi...</div> :
@@ -430,7 +430,7 @@ export default function BookingWizard() {
                             <button onClick={() => setStep(1)} className="text-slate-400 hover:text-indigo-600 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
                                 <ChevronLeft className="w-4 h-4" /> Indietro
                             </button>
-                            <h2 className="text-3xl font-bold mb-8 text-slate-900 tracking-tight">Disponibilità</h2>
+                            <h2 className="text-xl font-semibold mb-6 text-slate-900 tracking-tight">Disponibilità</h2>
 
                             {/* CALENDAR VIEW */}
                             <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-6 animate-fade-in-up">
@@ -577,11 +577,11 @@ export default function BookingWizard() {
 
                     {/* STEP 4: FORM */}
                     {step === 4 && (
-                        <div className="space-y-6 animate-fade-in-up">
+                        <div className="space-y-4 animate-fade-in-up">
                             <button onClick={() => setStep(3)} className="text-slate-400 hover:text-[#4e92d8] text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
                                 <ChevronLeft className="w-4 h-4" /> Indietro
                             </button>
-                            <h2 className="text-3xl font-bold mb-8 text-slate-900 tracking-tight">I tuoi dati</h2>
+                            <h2 className="text-xl font-semibold mb-6 text-slate-900 tracking-tight">I tuoi dati</h2>
 
                             <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
