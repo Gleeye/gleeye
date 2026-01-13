@@ -273,17 +273,17 @@ export default function BookingWizard() {
                     Grazie {customerForm.firstName}, abbiamo ricevuto la tua richiesta per
                     <strong> {selectedService?.name}</strong> con <strong>{selectedCollab?.first_name}</strong>.
                 </p>
-                <div className="bg-slate-50 rounded-lg p-4 text-left mb-6 text-sm">
-                    <div className="flex justify-between mb-2">
-                        <span className="text-slate-500">Data:</span>
-                        <span className="font-medium">{selectedSlot?.date}</span>
+                <div className="bg-slate-50/80 rounded-2xl p-6 text-left mb-8 border border-slate-100">
+                    <div className="flex justify-between mb-4 border-b border-slate-200 pb-2">
+                        <span className="text-slate-500 text-sm font-bold uppercase tracking-wider">Data</span>
+                        <span className="font-bold text-slate-800">{selectedSlot?.date}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-slate-500">Ora:</span>
-                        <span className="font-medium">{selectedSlot?.time}</span>
+                        <span className="text-slate-500 text-sm font-bold uppercase tracking-wider">Ora</span>
+                        <span className="font-bold text-slate-800">{selectedSlot?.time}</span>
                     </div>
                 </div>
-                <button onClick={() => window.location.reload()} className="w-full py-3 bg-slate-900 text-white rounded-xl font-medium">
+                <button onClick={() => window.location.reload()} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl">
                     Nuova Prenotazione
                 </button>
             </div>
@@ -296,9 +296,9 @@ export default function BookingWizard() {
         <div className="max-w-4xl mx-auto mt-6 px-4 pb-20">
             {/* Error Message */}
             {error && (
-                <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 flex items-center justify-between animate-fade-in text-sm font-medium">
+                <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl mb-6 flex items-center justify-between animate-fade-in-up text-sm font-medium shadow-sm">
                     <span>{error}</span>
-                    <button onClick={() => setError(null)} className="ml-4 hover:underline">Chiudi</button>
+                    <button onClick={() => setError(null)} className="ml-4 hover:underline opacity-70 hover:opacity-100">Chiudi</button>
                 </div>
             )}
 
@@ -329,20 +329,24 @@ export default function BookingWizard() {
                 </div>
             )}
             {/* Progress Bar */}
-            <div className="mb-8 flex items-center justify-between text-sm text-slate-500 max-w-2xl mx-auto">
-                <div className={step === 1 ? "text-blue-600 font-medium" : ""}>1. Servizio</div>
-                <div className="h-[1px] bg-slate-200 flex-1 mx-4"></div>
-                <div className={step === 3 ? "text-blue-600 font-medium" : ""}>2. Data & Ora</div>
-                <div className="h-[1px] bg-slate-200 flex-1 mx-4"></div>
-                <div className={step === 4 ? "text-blue-600 font-medium" : ""}>3. Dati Personali</div>
+            <div className="mb-10 flex items-center justify-between text-sm text-slate-500 max-w-2xl mx-auto">
+                <div className={`transition-colors duration-300 ${step === 1 ? "text-indigo-600 font-bold" : ""}`}>1. Servizio</div>
+                <div className="h-[2px] rounded-full bg-slate-100 flex-1 mx-4">
+                    <div className={`h-full bg-indigo-600 rounded-full transition-all duration-500 ease-out`} style={{ width: step >= 3 ? '100%' : '0%' }}></div>
+                </div>
+                <div className={`transition-colors duration-300 ${step === 3 ? "text-indigo-600 font-bold" : ""}`}>2. Data & Ora</div>
+                <div className="h-[2px] rounded-full bg-slate-100 flex-1 mx-4">
+                    <div className={`h-full bg-indigo-600 rounded-full transition-all duration-500 ease-out`} style={{ width: step >= 4 ? '100%' : '0%' }}></div>
+                </div>
+                <div className={`transition-colors duration-300 ${step === 4 ? "text-indigo-600 font-bold" : ""}`}>3. Dati Personali</div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 
                 {/* LEFT COLUMN: Sidebar Summary (Visible from Step 2) */}
                 <div className="md:col-span-1">
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sticky top-24">
-                        <h3 className="font-bold text-lg mb-4">Riepilogo</h3>
+                    <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg shadow-slate-200/50 border border-white/50 p-6 sticky top-24 transition-all duration-500">
+                        <h3 className="font-bold text-lg mb-4 text-slate-800 tracking-tight">Il tuo riepilogo</h3>
 
                         {!selectedService ? (
                             <p className="text-sm text-slate-400 italic">Seleziona un servizio per iniziare</p>
@@ -357,10 +361,10 @@ export default function BookingWizard() {
                                 </div>
 
                                 {selectedCollab && (
-                                    <div className="pt-4 border-t border-slate-100">
-                                        <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Esperto</div>
-                                        <div className="font-medium flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs text-blue-700">
+                                    <div className="pt-4 border-t border-slate-100/50">
+                                        <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1">Esperto</div>
+                                        <div className="font-medium flex items-center gap-3 text-slate-700">
+                                            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-xs font-bold text-indigo-600 ring-4 ring-white shadow-sm">
                                                 {selectedCollab.first_name[0]}
                                             </div>
                                             {selectedCollab.first_name} {selectedCollab.last_name}
@@ -369,10 +373,10 @@ export default function BookingWizard() {
                                 )}
 
                                 {selectedSlot && (
-                                    <div className="pt-4 border-t border-slate-100">
-                                        <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Data & Ora</div>
-                                        <div className="font-medium text-blue-600">
-                                            {selectedSlot.date} <br /> Ore {selectedSlot.time}
+                                    <div className="pt-4 border-t border-slate-100/50">
+                                        <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1">Quando</div>
+                                        <div className="font-medium text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg inline-block border border-indigo-100">
+                                            {selectedSlot.date} <span className="mx-1">•</span> {selectedSlot.time}
                                         </div>
                                     </div>
                                 )}
@@ -387,42 +391,50 @@ export default function BookingWizard() {
 
                     {/* STEP 1: SERVICES */}
                     {step === 1 && (
-                        <div className="space-y-4 animate-fade-in">
-                            <h2 className="text-2xl font-bold mb-6">Scegli un servizio</h2>
+                        <div className="space-y-4 animate-fade-in-up">
+                            <h2 className="text-3xl font-bold mb-8 text-slate-900 tracking-tight">Scegli un servizio</h2>
                             {/* Service List */}
-                            <div className="space-y-3">
-                                {loading ? <div className="p-8 text-center text-slate-400">Caricamento servizi...</div> :
+                            <div className="grid grid-cols-1 gap-4">
+                                {loading ? <div className="p-12 text-center text-slate-400 animate-pulse">Caricamento servizi...</div> :
                                     services.map(srv => (
                                         <div key={srv.id}
                                             onClick={() => setSelectedService(srv)}
                                             className={`
-                                                p-5 rounded-xl border cursor-pointer transition-all flex justify-between items-center group
+                                                p-6 rounded-2xl border transition-all duration-300 cursor-pointer group relative overflow-hidden
                                                 ${selectedService?.id === srv.id
-                                                    ? 'bg-blue-50 border-blue-500 shadow-md ring-1 ring-blue-500'
-                                                    : 'bg-white border-slate-200 hover:border-blue-400 hover:shadow-sm'}
+                                                    ? 'bg-white border-indigo-500 shadow-xl shadow-indigo-500/10 ring-1 ring-indigo-500 transform scale-[1.01]'
+                                                    : 'bg-white border-slate-100 shadow-sm hover:border-indigo-200 hover:shadow-lg hover:shadow-slate-200/50 hover:-translate-y-1'}
                                             `}>
-                                            <div>
-                                                <h3 className={`font-bold text-lg transition-colors ${selectedService?.id === srv.id ? 'text-blue-700' : 'group-hover:text-blue-600'}`}>{srv.name}</h3>
-                                                <p className="text-slate-500 text-sm mt-1 line-clamp-2">{srv.description || "Nessuna descrizione"}</p>
+                                            <div className="flex justify-between items-start relative z-10">
+                                                <div>
+                                                    <h3 className={`font-bold text-lg transition-colors ${selectedService?.id === srv.id ? 'text-indigo-700' : 'text-slate-800 group-hover:text-indigo-600'}`}>{srv.name}</h3>
+                                                    <p className="text-slate-500 text-sm mt-2 line-clamp-2 leading-relaxed">{srv.description || "Nessuna descrizione"}</p>
+                                                </div>
+                                                <div className="text-right pl-4">
+                                                    <div className="font-bold text-slate-900 text-lg">€{srv.price || ' -'}</div>
+                                                    <div className="text-xs font-medium text-slate-400 bg-slate-50 px-2 py-1 rounded-full mt-1 inline-block">{srv.duration || 60} min</div>
+                                                </div>
                                             </div>
-                                            <div className="text-right">
-                                                <div className="font-medium text-slate-900">€{srv.price || ' -'}</div>
-                                                <div className="text-xs text-slate-400">{srv.duration || 60}m</div>
-                                            </div>
+                                            {/* Selection Indicator */}
+                                            {selectedService?.id === srv.id && (
+                                                <div className="absolute top-0 right-0 p-3">
+                                                    <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                             </div>
 
                             {/* Continue Button Step 1 */}
-                            <div className="mt-8 flex justify-end">
+                            <div className="mt-10 flex justify-end">
                                 <button
                                     disabled={!selectedService}
                                     onClick={() => handleServiceSelect(selectedService)}
                                     className={`
-                                        px-8 py-3 rounded-xl font-semibold shadow-lg transition-all flex items-center gap-2
+                                        px-8 py-4 rounded-2xl font-bold shadow-xl transition-all flex items-center gap-2 transform active:scale-95
                                         ${selectedService
-                                            ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:shadow-blue-500/30 hover:scale-[1.02]'
-                                            : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'}
+                                            ? 'bg-slate-900 text-white hover:bg-indigo-600 hover:shadow-indigo-500/30'
+                                            : 'bg-slate-100 text-slate-300 cursor-not-allowed shadow-none'}
                                     `}
                                 >
                                     Continua <ChevronRight className="w-5 h-5" />
@@ -433,16 +445,18 @@ export default function BookingWizard() {
 
                     {/* STEP 3: DATE & TIME */}
                     {step === 3 && (
-                        <div className="space-y-4 animate-fade-in">
-                            <button onClick={() => setStep(1)} className="text-slate-500 hover:text-slate-800 text-sm flex items-center gap-1 mb-4">
+                        <div className="space-y-6 animate-fade-in-up">
+                            <button onClick={() => setStep(1)} className="text-slate-400 hover:text-indigo-600 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
                                 <ChevronLeft className="w-4 h-4" /> Indietro
                             </button>
-                            <h2 className="text-2xl font-bold mb-6">Disponibilità</h2>
+                            <h2 className="text-3xl font-bold mb-8 text-slate-900 tracking-tight">Disponibilità</h2>
 
                             {/* CALENDAR VIEW */}
-                            <div className="bg-white rounded-xl shadow-lg border border-slate-100 p-6 mb-8 animate-fade-in">
-                                <h3 className="text-xl font-bold mb-6 text-slate-800 flex items-center gap-2">
-                                    <CalendarIcon className="w-5 h-5 text-indigo-600" />
+                            <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 animate-fade-in-up">
+                                <h3 className="text-xl font-bold mb-8 text-slate-800 flex items-center gap-3">
+                                    <div className="p-2 bg-indigo-50 rounded-lg">
+                                        <CalendarIcon className="w-6 h-6 text-indigo-600" />
+                                    </div>
                                     Seleziona Data e Ora
                                 </h3>
 
@@ -482,7 +496,7 @@ export default function BookingWizard() {
                                             </div>
 
                                             {/* Days Grid */}
-                                            <div className="grid grid-cols-7 gap-1">
+                                            <div className="grid grid-cols-7 gap-y-2 gap-x-1">
                                                 {eachDayOfInterval({
                                                     start: startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 }),
                                                     end: endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 })
@@ -503,16 +517,16 @@ export default function BookingWizard() {
                                                             }}
                                                             disabled={!hasSlots}
                                                             className={`
-                                                                h-10 w-10 mx-auto rounded-full flex items-center justify-center text-sm transition-all
+                                                                h-10 w-10 mx-auto rounded-full flex flex-col items-center justify-center text-sm transition-all duration-300 relative group
                                                                 ${!isCurrentMonth ? 'text-slate-300' : 'text-slate-700'}
-                                                                ${hasSlots ? 'font-bold hover:bg-indigo-50 cursor-pointer' : 'opacity-40 cursor-default'}
-                                                                ${isSelected ? 'bg-indigo-600 text-white shadow-md hover:bg-indigo-700' : ''}
-                                                                ${hasSlots && !isSelected ? 'text-indigo-900 bg-indigo-50/50' : ''}
+                                                                ${hasSlots ? 'font-bold hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer' : 'opacity-30 cursor-default'}
+                                                                ${isSelected ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/40 hover:bg-indigo-700 hover:text-white transform scale-110 z-10' : ''}
+                                                                ${hasSlots && !isSelected ? 'text-slate-900 bg-white' : ''}
                                                             `}
                                                         >
-                                                            {format(day, 'd')}
+                                                            <span className="relative z-10">{format(day, 'd')}</span>
                                                             {hasSlots && !isSelected && (
-                                                                <div className="absolute w-1 h-1 bg-indigo-500 rounded-full mt-6"></div>
+                                                                <div className="absolute bottom-1 w-1 h-1 bg-indigo-500 rounded-full group-hover:scale-150 transition-transform"></div>
                                                             )}
                                                         </button>
                                                     );
@@ -522,22 +536,24 @@ export default function BookingWizard() {
 
                                         {/* RIGHT: Slots List */}
                                         <div className="w-full md:w-64 border-l border-slate-100 pl-0 md:pl-8">
-                                            <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">
+                                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
                                                 Orari Disponibili
                                             </h4>
                                             {!selectedDate ? (
-                                                <p className="text-sm text-slate-400 italic">Seleziona una data per vedere gli orari.</p>
+                                                <div className="h-48 flex items-center justify-center text-center">
+                                                    <p className="text-sm text-slate-400 italic">Seleziona un giorno<br />nel calendario.</p>
+                                                </div>
                                             ) : (
-                                                <div className="grid grid-cols-2 gap-3 h-64 overflow-y-auto content-start">
+                                                <div className="grid grid-cols-2 gap-3 h-64 overflow-y-auto content-start pr-2 custom-scrollbar">
                                                     {availabilityMap[selectedDate]?.map(slotObj => (
                                                         <button
                                                             key={slotObj.time}
                                                             onClick={() => setSelectedSlot({ date: selectedDate, ...slotObj })}
                                                             className={`
-                                                                py-2 px-3 rounded-lg text-sm font-medium border transition-all text-center
+                                                                py-2 px-3 rounded-lg text-sm font-medium border transition-all text-center duration-200
                                                                 ${selectedSlot?.date === selectedDate && selectedSlot?.time === slotObj.time
-                                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                                                    : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300 hover:bg-slate-50'}
+                                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20'
+                                                                    : 'bg-white text-slate-700 border-slate-100 hover:border-indigo-200 hover:text-indigo-700 hover:bg-indigo-50/50 hover:shadow-sm'}
                                                             `}
                                                         >
                                                             {slotObj.time}
@@ -555,10 +571,10 @@ export default function BookingWizard() {
                                         disabled={!selectedSlot}
                                         onClick={() => setStep(4)}
                                         className={`
-                                            px-8 py-3 rounded-xl font-semibold shadow-lg transition-all flex items-center gap-2
+                                            px-8 py-4 rounded-2xl font-bold shadow-xl transition-all flex items-center gap-2 transform active:scale-95
                                             ${selectedSlot
-                                                ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white hover:shadow-indigo-500/30 hover:scale-[1.02]'
-                                                : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'}
+                                                ? 'bg-slate-900 text-white hover:bg-indigo-600 hover:shadow-indigo-500/30'
+                                                : 'bg-slate-100 text-slate-300 cursor-not-allowed shadow-none'}
                                         `}
                                     >
                                         Continua <ChevronRight className="w-5 h-5" />
@@ -570,38 +586,40 @@ export default function BookingWizard() {
 
                     {/* STEP 4: FORM */}
                     {step === 4 && (
-                        <div className="space-y-4 animate-fade-in">
-                            <button onClick={() => setStep(3)} className="text-slate-500 hover:text-slate-800 text-sm flex items-center gap-1 mb-4">
+                        <div className="space-y-6 animate-fade-in-up">
+                            <button onClick={() => setStep(3)} className="text-slate-400 hover:text-indigo-600 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
                                 <ChevronLeft className="w-4 h-4" /> Indietro
                             </button>
-                            <h2 className="text-2xl font-bold mb-6">I tuoi dati</h2>
+                            <h2 className="text-3xl font-bold mb-8 text-slate-900 tracking-tight">I tuoi dati</h2>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium text-slate-700">Nome *</label>
-                                    <input type="text" className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        value={customerForm.firstName} onChange={e => setCustomerForm({ ...customerForm, firstName: e.target.value })} />
+                            <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8">
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Nome *</label>
+                                        <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
+                                            value={customerForm.firstName} onChange={e => setCustomerForm({ ...customerForm, firstName: e.target.value })} placeholder="Il tuo nome" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Cognome *</label>
+                                        <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
+                                            value={customerForm.lastName} onChange={e => setCustomerForm({ ...customerForm, lastName: e.target.value })} placeholder="Il tuo cognome" />
+                                    </div>
+                                    <div className="space-y-2 col-span-2">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Email *</label>
+                                        <input type="email" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
+                                            value={customerForm.email} onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })} placeholder="nome@azienda.com" />
+                                    </div>
+                                    <div className="space-y-2 col-span-2">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Note (Opzionale)</label>
+                                        <textarea className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium min-h-[120px] resize-y"
+                                            value={customerForm.notes} onChange={e => setCustomerForm({ ...customerForm, notes: e.target.value })} placeholder="Hai richieste particolari?"></textarea>
+                                    </div>
                                 </div>
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium text-slate-700">Cognome *</label>
-                                    <input type="text" className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        value={customerForm.lastName} onChange={e => setCustomerForm({ ...customerForm, lastName: e.target.value })} />
-                                </div>
-                                <div className="space-y-1 col-span-2">
-                                    <label className="text-sm font-medium text-slate-700">Email *</label>
-                                    <input type="email" className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        value={customerForm.email} onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })} />
-                                </div>
-                                <div className="space-y-1 col-span-2">
-                                    <label className="text-sm font-medium text-slate-700">Note aggiuntive</label>
-                                    <textarea className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none h-24"
-                                        value={customerForm.notes} onChange={e => setCustomerForm({ ...customerForm, notes: e.target.value })}></textarea>
-                                </div>
+
+                                <button onClick={submitBooking} disabled={loading} className="w-full mt-8 py-4 bg-slate-900 text-white rounded-xl font-bold text-lg hover:bg-indigo-600 hover:shadow-xl hover:shadow-indigo-500/30 transition-all flex items-center justify-center gap-3 transform active:scale-[0.99]">
+                                    {loading ? <span className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></span> : 'Conferma Prenotazione'}
+                                </button>
                             </div>
-
-                            <button onClick={submitBooking} disabled={loading} className="w-full mt-6 py-4 bg-slate-900 text-white rounded-xl font-bold text-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-2">
-                                {loading ? <span className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></span> : 'Conferma Prenotazione'}
-                            </button>
                         </div>
                     )}
 

@@ -75,6 +75,18 @@ export default function BookingCatalog() {
         }
     }
 
+    async function deleteItem(e: React.MouseEvent, id: string) {
+        e.stopPropagation();
+        if (!confirm('Sei sicuro di voler eliminare questo servizio?')) return;
+
+        const { error } = await supabase.from('booking_items').delete().eq('id', id);
+        if (error) {
+            alert('Errore durante l\'eliminazione del servizio');
+        } else {
+            fetchData();
+        }
+    }
+
     const toggleExpand = (id: string) => {
         setExpandedCats(prev => ({ ...prev, [id]: !prev[id] }));
     };
@@ -210,9 +222,18 @@ export default function BookingCatalog() {
                                         <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors text-slate-500">
                                             <Briefcase className="w-5 h-5" />
                                         </div>
-                                        <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-1 rounded">
-                                            {item.duration_minutes} min
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={(e) => deleteItem(e, item.id)}
+                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                title="Elimina Servizio"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                            <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-1 rounded">
+                                                {item.duration_minutes} min
+                                            </span>
+                                        </div>
                                     </div>
                                     <h3 className="font-bold text-slate-900 mb-1">{item.name}</h3>
                                     <p className="text-sm text-slate-500 line-clamp-2 min-h-[40px]">

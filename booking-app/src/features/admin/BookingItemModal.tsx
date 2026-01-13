@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import type { BookingCategory } from '../../types';
-import { X, Loader2, Clock, CreditCard, Eye, Home, Globe, LayoutGrid, Users, Settings, ShieldCheck, Calendar, AlertCircle } from 'lucide-react';
+import { X, Loader2, Clock, CreditCard, Eye, Home, Globe, LayoutGrid, Users, Settings, ShieldCheck, Calendar, AlertCircle, Trash2 } from 'lucide-react';
 import BookingCategorySelect from './BookingCategorySelect';
 import CollaboratorMultiSelect from './CollaboratorMultiSelect';
 import CustomSelect from './CustomSelect';
@@ -680,21 +680,47 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
                 </div>
 
                 {/* Footer */}
-                <div className="px-8 py-5 border-t border-slate-100 bg-white flex justify-end gap-4">
-                    <button
-                        onClick={handleClose}
-                        className="px-6 py-2.5 text-slate-600 font-bold hover:bg-slate-50 rounded-xl transition-colors"
-                    >
-                        Annulla
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={loading}
-                        className="px-8 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-200 transition-all flex items-center gap-2 shadow-lg hover:shadow-xl active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
-                    >
-                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                        Salva Modifiche
-                    </button>
+                <div className="px-8 py-5 border-t border-slate-100 bg-white flex justify-between items-center">
+                    <div>
+                        {editItem && (
+                            <button
+                                onClick={async () => {
+                                    if (confirm('Sei sicuro di voler eliminare questo servizio?')) {
+                                        setLoading(true);
+                                        const { error } = await supabase.from('booking_items').delete().eq('id', editItem.id);
+                                        if (error) {
+                                            showToast('Errore durante l\'eliminazione', 'error');
+                                            setLoading(false);
+                                        } else {
+                                            showToast('Servizio eliminato', 'success');
+                                            onSuccess();
+                                            handleClose();
+                                        }
+                                    }
+                                }}
+                                disabled={loading}
+                                className="px-4 py-2 text-red-600 font-bold hover:bg-red-50 rounded-xl transition-colors flex items-center gap-2"
+                            >
+                                <Trash2 className="w-4 h-4" /> Elimina
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex gap-4">
+                        <button
+                            onClick={handleClose}
+                            className="px-6 py-2.5 text-slate-600 font-bold hover:bg-slate-50 rounded-xl transition-colors"
+                        >
+                            Annulla
+                        </button>
+                        <button
+                            onClick={handleSubmit}
+                            disabled={loading}
+                            className="px-8 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-200 transition-all flex items-center gap-2 shadow-lg hover:shadow-xl active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                            Salva Modifiche
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
