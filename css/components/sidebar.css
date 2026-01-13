@@ -29,7 +29,7 @@
 .sidebar-header {
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--glass-border);
@@ -43,6 +43,7 @@
     justify-content: center;
     flex-direction: column;
     gap: 0.75rem;
+    align-items: center;
 }
 
 /* ==========================
@@ -69,11 +70,13 @@
 
 .sidebar.collapsed .brand {
     flex: 0;
+    width: 100%;
+    justify-content: center;
 }
 
 .sidebar.collapsed .brand-logo {
     height: 32px;
-    max-width: 40px;
+    max-width: 100%;
 }
 
 :root[data-theme='dark'] .brand-logo {
@@ -344,7 +347,7 @@
 }
 
 .sidebar.collapsed .sidebar-toggle {
-    transform: rotate(180deg);
+    transform: rotate(-180deg);
 }
 
 .sidebar-toggle:hover {
@@ -356,7 +359,7 @@
 }
 
 .sidebar.collapsed .sidebar-toggle:hover {
-    transform: rotate(180deg) scale(1.05);
+    transform: rotate(-180deg) scale(1.05);
 }
 
 
