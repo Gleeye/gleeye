@@ -324,6 +324,28 @@ window.impersonateCollaborator = async (collaboratorId) => {
     }
 };
 
+window.sendMagicLink = async (email) => {
+    if (!email) {
+        window.showAlert('Email non presente per questo collaboratore', 'error');
+        return;
+    }
+
+    if (await window.showConfirm(`Vuoi inviare un Magic Link di accesso a ${email}?`)) {
+        try {
+            const { supabase } = await import('../modules/config.js?v=115');
+            const { error } = await supabase.auth.signInWithOtp({
+                email,
+                options: { shouldCreateUser: true }
+            });
+            if (error) throw error;
+            window.showAlert('Magic Link inviato con successo!', 'success');
+        } catch (err) {
+            console.error('Error sending magic link:', err);
+            window.showAlert('Errore durante l\'invio: ' + err.message, 'error');
+        }
+    }
+};
+
 export function renderCollaboratorDetail(container) {
     const id = state.currentId;
     const c = state.collaborators.find(x => x.id == id);
@@ -394,6 +416,12 @@ export function renderCollaboratorDetail(container) {
                                     Vedi come
                                 </button>
                             ` : ''}
+
+                            <!-- Invia Magic Link Button -->
+                            <button class="secondary-btn small" onclick="sendMagicLink('${c.email}')" title="Invia invito" style="background: white; border: 1px solid var(--glass-border); padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span class="material-icons-round" style="font-size: 18px; color: var(--brand-blue);">magic_button</span>
+                                Invia Magic Link
+                            </button>
 
                             <button class="icon-btn" style="background: var(--bg-secondary); width: 42px; height: 42px;" onclick="openCollaboratorModal('${c.id}')" title="Modifica">
                                 <span class="material-icons-round" style="color: var(--text-primary);">edit</span>

@@ -6,23 +6,64 @@ export async function fetchProfile() {
     const user = authData?.user;
     if (!user) return null;
 
-    const { data: profile, error } = await supabase
+    let { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
 
+    if (!profile && !error) {
+        // Check if this user is a collaborator
+        const { data: collab } = await supabase
+            .from('collaborators')
+            .select('*')
+            .eq('email', user.email)
+            .maybeSingle();
+
+        if (collab) {
+            console.log("Creating profile for collaborator:", user.email);
+            const { data: newProfile, error: createError } = await supabase
+                .from('profiles')
+                .insert({
+                    id: user.id,
+                    email: user.email,
+                    role: 'user',
+                    full_name: collab.full_name,
+                    is_onboarded: true
+                })
+                .select()
+                .single();
+
+            if (!createError) {
+                profile = newProfile;
+                // Link collaborator to user_id if not already linked
+                if (!collab.user_id) {
+                    await supabase.from('collaborators').update({ user_id: user.id }).eq('id', collab.id);
+                }
+            }
+        } else {
+            console.log("Creating default user profile for:", user.email);
+            const { data: newProfile, error: createError } = await supabase
+                .from('profiles')
+                .insert({
+                    id: user.id,
+                    email: user.email,
+                    role: 'user',
+                    full_name: user.email.split('@')[0],
+                    is_onboarded: false
+                })
+                .select()
+                .single();
+            if (!createError) profile = newProfile;
+        }
+    }
+
     if (profile) {
         state.profile = profile;
         return profile;
     } else {
-        console.warn("Profile not found in database, using admin fallback.");
-        state.profile = {
-            full_name: user.email.split('@')[0],
-            role: 'admin',
-            is_onboarded: true
-        };
-        return state.profile;
+        console.warn("Profile not found and could not be created.");
+        return null;
     }
 }
 

@@ -171,7 +171,7 @@ async function handleLogin(e) {
     try {
         let result;
         if (state.authMode === 'magic') {
-            result = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+            result = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
             if (result.error) throw result.error;
             msg.textContent = 'Ti abbiamo inviato un Magic Link via email!';
             msg.classList.add('success');
