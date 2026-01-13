@@ -17,15 +17,14 @@ let isDropdownOpen = false;
  */
 export async function initNotifications() {
     // Only init if user is logged in
-    if (!state.user) {
-        console.log('Notifications: No user, skipping init');
+    if (!state.session) {
+        console.log('Notifications: No session, skipping init');
         return;
     }
 
     await fetchNotifications();
     subscribeToRealtime();
     renderNotificationBell();
-    setupEventListeners();
 }
 
 /**
