@@ -10,7 +10,7 @@ import {
     TrendingUp,
     Settings2,
     PlusCircle,
-    Smartphone
+    MonitorSmartphone
 } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -215,7 +215,7 @@ export default function BookingsHub() {
                         />
                         <ActionCard
                             onClick={() => window.open(window.location.protocol + '//' + window.location.host + window.location.pathname, '_blank')}
-                            icon={Smartphone}
+                            icon={MonitorSmartphone}
                             title="Test Modulo"
                             description="Anteprima esperienza cliente"
                             color="amber"
