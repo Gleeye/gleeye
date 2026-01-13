@@ -115,6 +115,7 @@ export default function BookingWizard() {
 
     async function fetchAvailability(service: any, candidatesList: any[]) {
         setLoading(true);
+        setAvailabilityMap({}); // Clear old data
         try {
             if (!service) return;
 
@@ -136,12 +137,13 @@ export default function BookingWizard() {
             const now = new Date();
 
             // Respect Min Notice (default 0)
-            const minNotice = Number(selectedService.min_notice_minutes) || 0;
+            const minNotice = Number(service.min_notice_minutes) || 0;
             const start = addMinutes(now, minNotice);
 
             // Round up to next clean interval based on duration (or 15 min minimum)
             // This prevents "random" slots like 11:15 for a 60m service (snaps to 12:00)
-            const grid = (selectedService.duration || 60) > 15 ? (selectedService.duration || 60) : 15;
+            const serviceDuration = service.duration_minutes || service.duration || 60;
+            const grid = serviceDuration > 15 ? serviceDuration : 15;
             const remainder = grid - (start.getMinutes() % grid);
             if (remainder < grid) {
                 start.setMinutes(start.getMinutes() + remainder);
@@ -156,11 +158,13 @@ export default function BookingWizard() {
             // 4. Prepare Context
             const ctx = await prepareAvailabilityContext(serviceObj, candidates, start, end);
             setDebugContext(ctx); // Set for UI inspection
-            console.log("AVILABILITY CTX:", ctx);
+            console.log("[BookingWizard] Search Start:", start.toISOString(), "End:", end.toISOString());
+            console.log("[BookingWizard] Candidates for service:", candidates.map(c => c.name));
+            console.log("[BookingWizard] Fetched Rules for candidates:", Object.keys(ctx.recurringRules));
 
             // 5. Calculate
             const slots = calculateAvailability(ctx);
-            console.log("CALCULATED SLOTS:", slots);
+            console.log("[BookingWizard] Total calculated slots:", slots.length);
 
             // 6. Map to UI
             const groupedArgs: Record<string, any[]> = {};

@@ -56,9 +56,11 @@ export function calculateAvailability(ctx: AvailabilityContext): Slot[] {
     let current = new Date(range.start);
     const endLimit = new Date(range.end);
 
+    console.log(`[AvailabilityEngine] Starting calculation: start=${current.toISOString()}, endLimit=${endLimit.toISOString()}, step=${step}`);
+
     while (addMinutes(current, durationPlusAfter) <= endLimit) {
         const slotStart = new Date(current);
-        const slotEnd = addMinutes(current, service.durationMinutes); // Note: Bookable time is duration
+        const slotEnd = addMinutes(current, service.durationMinutes);
 
         // Check window: [start - bufferBefore, end + bufferAfter]
         const checkStart = addMinutes(current, -(service.bufferBeforeMinutes || 0));
@@ -72,10 +74,15 @@ export function calculateAvailability(ctx: AvailabilityContext): Slot[] {
         // Apply Service Logic
         let isSlotValid = false;
 
+        const totalCandidates = candidates.length;
+        // Optimization: If totalCandidates is 0 (should not happen), invalid
+        if (totalCandidates === 0) break;
+
         if (service.logicType === 'OR') {
             isSlotValid = freeCollaborators.length > 0;
         } else if (service.logicType === 'AND') {
-            isSlotValid = freeCollaborators.length === candidates.length;
+            // Check if all candidates are free
+            isSlotValid = freeCollaborators.length === totalCandidates;
         } else if (service.logicType === 'TEAM_SIZE') {
             isSlotValid = freeCollaborators.length >= (service.requiredTeamSize || 1);
         }
