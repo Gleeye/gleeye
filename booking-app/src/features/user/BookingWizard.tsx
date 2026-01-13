@@ -3,7 +3,7 @@ import { addMinutes, format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, e
 import { it } from 'date-fns/locale';
 import { supabase } from '../../lib/supabaseClient';
 import { prepareAvailabilityContext, calculateAvailability } from '../../lib/availability';
-import { Calendar as CalendarIcon, CheckCircle, ChevronLeft, ChevronRight, Clock, Sparkles, MapPin } from 'lucide-react';
+import { Calendar as CalendarIcon, CheckCircle, ChevronLeft, ChevronRight, Clock, Sparkles } from 'lucide-react';
 
 export default function BookingWizard() {
     const [step, setStep] = useState(1);
