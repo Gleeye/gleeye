@@ -640,8 +640,23 @@ export default function BookingWizard() {
                                     </div>
                                     <div className="space-y-2 col-span-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Email *</label>
-                                        <input type="email" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
+                                        <input type="email" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium field-icon-email"
                                             value={customerForm.email} onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })} placeholder="nome@azienda.com" />
+                                    </div>
+                                    <div className="space-y-2 col-span-2 md:col-span-1">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Telefono *</label>
+                                        <input type="tel" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
+                                            value={customerForm.phone} onChange={e => setCustomerForm({ ...customerForm, phone: e.target.value })} placeholder="+39 333 1234567" />
+                                    </div>
+                                    <div className="space-y-2 col-span-2 md:col-span-1">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Azienda *</label>
+                                        <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
+                                            value={customerForm.company} onChange={e => setCustomerForm({ ...customerForm, company: e.target.value })} placeholder="nome azienda" />
+                                    </div>
+                                    <div className="space-y-2 col-span-2 md:col-span-1">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Ruolo (Opzionale)</label>
+                                        <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
+                                            value={customerForm.role} onChange={e => setCustomerForm({ ...customerForm, role: e.target.value })} placeholder="CEO, Manager, etc." />
                                     </div>
                                     <div className="space-y-2 col-span-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Note (Opzionale)</label>
@@ -650,7 +665,13 @@ export default function BookingWizard() {
                                     </div>
                                 </div>
 
-                                <button onClick={submitBooking} disabled={loading} className="w-full mt-8 py-4 bg-slate-900 text-white rounded-xl font-bold text-lg hover:bg-indigo-600 hover:shadow-xl hover:shadow-indigo-500/30 transition-all flex items-center justify-center gap-3 transform active:scale-[0.99]">
+                                <button
+                                    onClick={submitBooking}
+                                    disabled={loading || !customerForm.firstName || !customerForm.lastName || !customerForm.email || !customerForm.phone || !customerForm.company}
+                                    className={`
+                                        w-full mt-8 py-4 bg-slate-900 text-white rounded-xl font-bold text-lg hover:bg-indigo-600 hover:shadow-xl hover:shadow-indigo-500/30 transition-all flex items-center justify-center gap-3 transform active:scale-[0.99]
+                                        ${(!customerForm.firstName || !customerForm.lastName || !customerForm.email || !customerForm.phone || !customerForm.company) ? 'opacity-50 cursor-not-allowed hover:bg-slate-900 hover:shadow-none' : ''}
+                                    `}>
                                     {loading ? <span className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></span> : 'Conferma Prenotazione'}
                                 </button>
                             </div>
