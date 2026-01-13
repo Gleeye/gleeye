@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { addMinutes, format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, addMonths, subMonths } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { supabase } from '../../lib/supabaseClient';
@@ -22,14 +22,14 @@ export default function BookingWizard() {
         role: '',
         notes: ''
     });
-    const [bookingRef, setBookingRef] = useState<string | null>(null);
+    const [, setBookingRef] = useState<string | null>(null);
     const [debugContext, setDebugContext] = useState<any>(null); // DEBUG STATE
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Calendar State
     const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [availabilityMap, setAvailabilityMap] = useState<Record<string, string[]>>({});
+    const [availabilityMap, setAvailabilityMap] = useState<Record<string, any[]>>({});
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
     // Parse URL params on load
