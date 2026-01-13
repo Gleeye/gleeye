@@ -102,17 +102,24 @@ function handleNewNotification(notification) {
 function renderNotificationBell() {
     const headerActions = document.querySelector('.header-actions');
     if (!headerActions) {
-        console.warn('Header actions not found for notification bell');
+        console.warn('Header actions not found for notification bell, retrying in 500ms...');
+        setTimeout(renderNotificationBell, 500);
         return;
     }
 
-    // Check if already exists
-    if (document.getElementById('notification-bell')) return;
+    // Always ensure the container exists
+    let bellContainer = document.getElementById('notification-container-wrapper');
+    if (!bellContainer) {
+        bellContainer = document.createElement('div');
+        bellContainer.id = 'notification-container-wrapper';
+        bellContainer.className = 'notification-container';
 
-    const bellContainer = document.createElement('div');
-    bellContainer.className = 'notification-container';
+        // Prepended so it's the first icon in the list
+        headerActions.prepend(bellContainer);
+    }
+
     bellContainer.innerHTML = `
-        <button id="notification-bell" class="notification-bell" title="Notifiche">
+        <button id="notification-bell" class="notification-bell icon-btn" title="Notifiche">
             <span class="material-icons-round">notifications</span>
             <span id="notification-badge" class="notification-badge hidden">0</span>
         </button>
@@ -129,15 +136,8 @@ function renderNotificationBell() {
         </div>
     `;
 
-    // Insert before theme toggle
-    const themeToggle = document.getElementById('theme-toggle');
-    if (themeToggle) {
-        headerActions.insertBefore(bellContainer, themeToggle);
-    } else {
-        headerActions.appendChild(bellContainer);
-    }
-
     updateBadge();
+    setupEventListeners(); // Re-bind after innerHTML replace
 }
 
 /**
