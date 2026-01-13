@@ -210,7 +210,7 @@ export default function BookingWizard() {
                 booking_item_id: selectedService.id,
                 start_time: startDateTime.toISOString(),
                 end_time: endDateTime.toISOString(),
-                status: 'hold',
+                status: selectedService.requires_confirmation ? 'hold' : 'confirmed',
                 notes: customerForm.notes,
                 guest_info: {
                     first_name: customerForm.firstName,
