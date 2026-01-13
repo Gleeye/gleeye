@@ -97,8 +97,9 @@ export default function BookingWizard() {
                 }
 
                 // Auto-advance to Step 3 with ALL collaborators as candidates
-                fetchAvailability(service, collabs);
+                // Auto-advance to Step 3 with ALL collaborators as candidates
                 setStep(3);
+                await fetchAvailability(service, collabs);
             } else {
                 setError("Nessun coordinatore/esperto assegnato a questo servizio.");
             }
