@@ -25,7 +25,7 @@ export default function BookingsCalendar() {
     const { showToast } = useToast();
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [bookings, setBookings] = useState<Booking[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [, setLoading] = useState(false);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [statusFilter, setStatusFilter] = useState<'all' | 'hold' | 'confirmed' | 'cancelled'>('all');
     const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; bookingId: string | null }>({ isOpen: false, bookingId: null });
@@ -136,8 +136,8 @@ export default function BookingsCalendar() {
                                 key={filter.value}
                                 onClick={() => setStatusFilter(filter.value as any)}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${statusFilter === filter.value
-                                        ? 'bg-indigo-600 text-white shadow-md'
-                                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                                    ? 'bg-indigo-600 text-white shadow-md'
+                                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
                                     }`}
                             >
                                 {filter.label}
