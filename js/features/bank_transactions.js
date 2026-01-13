@@ -1,6 +1,6 @@
-import { state } from '../modules/state.js?v=116';
-import { formatAmount } from '../modules/utils.js?v=116';
-import { upsertBankTransaction, fetchBankTransactions } from '../modules/api.js?v=116';
+import { state } from '../modules/state.js?v=117';
+import { formatAmount } from '../modules/utils.js?v=117';
+import { upsertBankTransaction, fetchBankTransactions } from '../modules/api.js?v=117';
 
 export function renderBankTransactions(container) {
     const monthNames = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
@@ -604,7 +604,7 @@ export function initCategoryManagerModal() {
 
             try {
                 // Import dynamically to avoid circular dependencies if any
-                const { upsertTransactionCategory } = await import('../modules/api.js?v=116');
+                const { upsertTransactionCategory } = await import('../modules/api.js?v=117');
                 await upsertTransactionCategory(newCat);
 
                 nameInput.value = '';
@@ -665,7 +665,7 @@ function renderCategoryList() {
 window.deleteCategory = async (id) => {
     if (!await window.showConfirm("Sei sicuro? Eliminando questa categoria potresti perdere il riferimento nelle transazioni esistenti.", { type: 'danger' })) return;
     try {
-        const { deleteTransactionCategory } = await import('../modules/api.js?v=116');
+        const { deleteTransactionCategory } = await import('../modules/api.js?v=117');
         await deleteTransactionCategory(id);
         renderCategoryList();
     } catch (err) {

@@ -3,8 +3,8 @@
  * Handles real-time notifications via Supabase Realtime
  */
 
-import { supabase } from '../modules/config.js?v=116';
-import { state } from '../modules/state.js?v=116';
+import { supabase } from '../modules/config.js?v=117';
+import { state } from '../modules/state.js?v=117';
 
 // State
 let notifications = [];
@@ -16,12 +16,16 @@ let isDropdownOpen = false;
  * Initialize the notification system
  */
 export async function initNotifications() {
+    console.log('Notifications: Initializing...');
+
     // Only init if user is logged in
     if (!state.session) {
-        console.log('Notifications: No session, skipping init');
+        console.warn('Notifications: No session found during init, waiting 1s...');
+        setTimeout(initNotifications, 1000);
         return;
     }
 
+    console.log(`Notifications: User ${state.session.user.email} verified. Fetching history...`);
     await fetchNotifications();
     subscribeToRealtime();
     renderNotificationBell();
