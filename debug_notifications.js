@@ -6,29 +6,15 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-async function inspectServiceConfig() {
-    console.log("--- CONFIG SERVIZI E COLLABORATORI ---");
+async function check() {
+    const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
 
-    // Get all booking items
-    const { data: items } = await supabase.from('booking_items').select('id, name, assignment_logic');
-
-    for (const item of items || []) {
-        console.log(`\nServizio: ${item.name} (Logic: ${item.assignment_logic || 'OR'})`);
-
-        // Get linked collaborators
-        const { data: links } = await supabase
-            .from('booking_item_collaborators')
-            .select('collaborator_id, collaborators(id, full_name)')
-            .eq('booking_item_id', item.id);
-
-        if (links && links.length > 0) {
-            links.forEach(l => {
-                console.log(`  - ${l.collaborators?.full_name || 'N/A'} (${l.collaborator_id})`);
-            });
-        } else {
-            console.log("  ❌ NESSUN COLLABORATORE ASSEGNATO A QUESTO SERVIZIO!");
-        }
-    }
+    console.log("Latest notifications:", data?.length || 0);
+    data?.forEach(n => console.log(`- [${n.created_at}] ${n.title}: ${n.message}`));
 }
 
-inspectServiceConfig();
+check();
