@@ -1,13 +1,11 @@
-import { state } from '../modules/state.js?v=117';
+import { state } from '../modules/state.js?v=119';
 
 export function renderBooking(container) {
     const pageTitle = document.getElementById('page-title');
     if (pageTitle) pageTitle.textContent = 'Prenotazioni';
 
-    // Use localhost in dev, and the deployed Vercel URL in production
-    const BOOKING_APP_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:5173'
-        : 'https://gleeyebooking.vercel.app';
+    // Always use Vercel deployed URL (avoid local port conflicts)
+    const BOOKING_APP_URL = 'https://gleeyebooking.vercel.app';
 
     container.innerHTML = `
         <div class="animate-fade-in" style="height: calc(100vh - 80px); width: 100%; overflow: hidden; border-radius: 12px; background: white; box-shadow: var(--shadow-sm);">

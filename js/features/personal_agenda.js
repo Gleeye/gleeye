@@ -92,13 +92,39 @@ export async function renderAgenda(container) {
 
 async function fetchMyBookings() {
     try {
-        const userId = state.profile?.id;
-        const collabId = state.impersonatedCollaboratorId;
-        const user = collabId || userId;
+        const authUserId = state.profile?.id;
+        const impersonatedCollabId = state.impersonatedCollaboratorId;
 
-        console.log("[Agenda] Fetching for User/Collab ID:", user, { collabId, userId });
+        console.log("[Agenda] Auth User ID:", authUserId);
+        console.log("[Agenda] Impersonated Collab ID:", impersonatedCollabId);
 
-        // Fetch bookings where user is assigned
+        let collaboratorId = impersonatedCollabId;
+
+        // If not impersonating, find the collaborator record for this auth user
+        if (!collaboratorId && authUserId) {
+            const { data: collabRecord, error: collabError } = await supabase
+                .from('collaborators')
+                .select('id')
+                .eq('user_id', authUserId)
+                .single();
+
+            if (collabError) {
+                console.warn("[Agenda] No collaborator record found for user:", authUserId, collabError);
+                eventsCache = [];
+                return;
+            }
+
+            collaboratorId = collabRecord?.id;
+            console.log("[Agenda] Found collaborator ID:", collaboratorId);
+        }
+
+        if (!collaboratorId) {
+            console.warn("[Agenda] No collaborator ID available");
+            eventsCache = [];
+            return;
+        }
+
+        // Fetch bookings where this collaborator is assigned
         let query = supabase
             .from('bookings')
             .select(`
@@ -106,7 +132,7 @@ async function fetchMyBookings() {
                 booking_items ( name, color, duration_minutes ),
                 booking_assignments!inner ( collaborator_id )
             `)
-            .eq('booking_assignments.collaborator_id', user)
+            .eq('booking_assignments.collaborator_id', collaboratorId)
             .order('start_time', { ascending: true });
 
         const { data, error } = await query;

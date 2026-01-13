@@ -108,10 +108,15 @@ function activateDrillDown(categoryItem, submenu) {
         exitDrillDown();
     });
 
-    // Binds events to sub-items in the secondary layer (cloned items)
-    // Since we're using hashchange for routing, we don't strictly need to attach 
-    // click listeners if anchors have href="#page", but we need the router to 
-    // recognize them for the active state highlighting.
+    // Re-attach click handlers to cloned nav items to ensure they work
+    const clonedNavItems = submenuClone.querySelectorAll('.nav-item[data-target]');
+    clonedNavItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            // Let the default anchor behavior work (hash navigation)
+            // The router will pick it up via hashchange event
+            exitDrillDown();
+        });
+    });
 }
 
 function exitDrillDown() {
