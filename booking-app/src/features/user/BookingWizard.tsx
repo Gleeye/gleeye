@@ -352,100 +352,60 @@ export default function BookingWizard() {
                     )}
                 </div>
             )}
+
             {/* Progress Bar */}
-            <div className="mb-10 flex items-center justify-between text-sm text-slate-500 max-w-2xl mx-auto">
-                <div className={`transition-colors duration-300 ${step === 1 ? "text-indigo-600 font-bold" : ""}`}>1. Servizio</div>
-                <div className="h-[2px] rounded-full bg-slate-100 flex-1 mx-4">
-                    <div className={`h-full bg-indigo-600 rounded-full transition-all duration-500 ease-out`} style={{ width: step >= 3 ? '100%' : '0%' }}></div>
-                </div>
-                <div className={`transition-colors duration-300 ${step === 3 ? "text-indigo-600 font-bold" : ""}`}>2. Data & Ora</div>
-                <div className="h-[2px] rounded-full bg-slate-100 flex-1 mx-4">
-                    <div className={`h-full bg-indigo-600 rounded-full transition-all duration-500 ease-out`} style={{ width: step >= 4 ? '100%' : '0%' }}></div>
-                </div>
-                <div className={`transition-colors duration-300 ${step === 4 ? "text-indigo-600 font-bold" : ""}`}>3. Dati Personali</div>
+            <div className="max-w-lg mx-auto flex items-center justify-between mb-16 text-sm font-medium text-slate-400 relative">
+                {/* Progress Bar Background */}
+                <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 -z-10 rounded-full"></div>
+                {/* Active Progress */}
+                <div className="absolute top-1/2 left-0 h-1 bg-gradient-to-r from-[#4e92d8] to-[#614aa2] -z-10 rounded-full transition-all duration-500 ease-out"
+                    style={{ width: step === 1 ? '16%' : step === 2 ? '50%' : step === 3 ? '82%' : '100%' }}></div>
+
+                {/* Step 1 */}
+                <div className={`bg-white px-2 transition-colors duration-300 ${step >= 1 ? "text-[#4e92d8] font-bold" : ""}`}>1. Servizio</div>
+                {/* Step 2 */}
+                <div className={`bg-white px-2 transition-colors duration-300 ${step >= 3 ? "text-[#614aa2] font-bold" : ""}`}>2. Data & Ora</div>
+                {/* Step 3 */}
+                <div className={`bg-white px-2 transition-colors duration-300 ${step >= 4 ? "text-[#614aa2] font-bold" : ""}`}>3. Dati</div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-
-                {/* RIGHT COLUMN: Sidebar Summary (Visible from Step 2) */}
-                {/* RIGHT COLUMN: Sidebar Summary (Visible from Step 2) */}
-                <div className="md:col-span-1 md:col-start-3 md:row-start-1">
-                    <div className="sticky top-24">
-                        <div className="bg-white/80 backdrop-blur-2xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 p-6 relative overflow-hidden group transition-all duration-500 hover:shadow-[0_8px_30px_rgb(99,102,241,0.1)]">
-                            {/* Decorative top gradient */}
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-80"></div>
-
-                            <h3 className="font-bold text-xl mb-6 text-slate-800 tracking-tight flex items-center gap-2">
-                                <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
-                                    <Sparkles className="w-4 h-4 fill-indigo-200" />
-                                </span>
-                                La tua esperienza
-                            </h3>
-
-                            {!selectedService ? (
-                                <div className="text-center py-8 text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                                    <p className="text-sm italic">Seleziona un servizio<br />per iniziare</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-6 relative z-10">
-                                    {/* Service Block */}
-                                    <div className="group/service">
-                                        <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-2 flex items-center gap-1">
-                                            Servizio
-                                        </div>
-                                        <div className="font-bold text-slate-800 text-xl leading-tight mb-2">
-                                            {selectedService.name}
-                                        </div>
-                                        <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-100/80 px-3 py-1.5 rounded-full border border-slate-100">
-                                            <Clock className="w-3 h-3" />
-                                            {selectedService.duration || 60} min
-                                        </div>
-                                    </div>
-
-                                    {/* Date & Time Block */}
+            {/* HEADER / SUMMARY SECTION (Single Column) */}
+            <div className="max-w-3xl mx-auto mb-8">
+                {selectedService && (
+                    <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg shadow-slate-200/40 border border-slate-100 p-6 flex flex-col md:flex-row items-center justify-between gap-4 transition-all duration-500 hover:shadow-xl">
+                        <div className="flex items-center gap-4 w-full">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#4e92d8] to-[#614aa2] flex items-center justify-center shadow-lg shadow-blue-500/20 text-white">
+                                <Sparkles className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-800 tracking-tight">{selectedService.name}</h3>
+                                <div className="flex items-center gap-3 text-sm text-slate-500 mt-1">
+                                    <span className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
+                                        <Clock className="w-3 h-3 text-[#4e92d8]" /> {selectedService.duration || 60} min
+                                    </span>
                                     {selectedSlot && (
-                                        <div className="pt-6 relative">
-                                            {/* Connector Line */}
-                                            <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
-
-                                            <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-3 flex items-center gap-1">
-                                                Quando
-                                            </div>
-
-                                            <div className="flex items-start gap-4">
-                                                {/* Visual Date Badge */}
-                                                <div className="flex-shrink-0 bg-white border border-slate-100 rounded-xl shadow-sm overflow-hidden text-center w-14">
-                                                    <div className="bg-indigo-50 text-indigo-600 text-[10px] font-bold py-1 uppercase tracking-wider">
-                                                        {format(new Date(selectedSlot.start), 'MMM', { locale: it })}
-                                                    </div>
-                                                    <div className="text-xl font-bold text-slate-800 py-1">
-                                                        {format(new Date(selectedSlot.start), 'dd')}
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex flex-col justify-center h-14">
-                                                    <div className="text-sm font-medium text-slate-500 mb-0.5">Orario di inizio</div>
-                                                    <div className="text-lg font-bold text-indigo-600 flex items-center gap-1.5">
-                                                        {selectedSlot.time}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        <span className="flex items-center gap-1 text-[#614aa2] font-semibold">
+                                            <CalendarIcon className="w-3 h-3" />
+                                            {format(new Date(selectedSlot.start), 'd MMM, HH:mm', { locale: it })}
+                                        </span>
                                     )}
-
-                                    {/* Location Placeholder (Optional Future) */}
-                                    {/* <div className="flex items-center gap-2 text-xs text-slate-400 pt-2">
-                                        <MapPin className="w-3 h-3" /> Sede Principale
-                                    </div> */}
                                 </div>
-                            )}
+                            </div>
+                        </div>
+
+                        {/* Step Indicator (Compact) */}
+                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#4e92d8] whitespace-nowrap bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100/50">
+                            Step {step} di 3
                         </div>
                     </div>
-                </div>
+                )}
+            </div>
 
-                {/* LEFT COLUMN: Steps Content */}
-                <div className="md:col-span-2 md:col-start-1 md:row-start-1">
+            {/* MAIN CONTENT (Single Column) */}
+            <div className="max-w-3xl mx-auto">
 
+                {/* RIGHT COLUMN: Steps Content */}
+                <div className="lg:w-full">
                     {/* STEP 1: SERVICES */}
                     {step === 1 && (
                         <div className="space-y-4 animate-fade-in-up">
@@ -455,29 +415,27 @@ export default function BookingWizard() {
                                 {loading ? <div className="p-12 text-center text-slate-400 animate-pulse">Caricamento servizi...</div> :
                                     services.map(srv => (
                                         <div key={srv.id}
-                                            onClick={() => setSelectedService(srv)}
+                                            onClick={() => handleServiceSelect(srv)} // Use handleServiceSelect to trigger logic
                                             className={`
-                                                p-6 rounded-2xl border transition-all duration-300 cursor-pointer group relative overflow-hidden
+                                                p-6 rounded-2xl border cursor-pointer transition-all duration-300 relative overflow-hidden group hover:shadow-lg
                                                 ${selectedService?.id === srv.id
-                                                    ? 'bg-white border-indigo-500 shadow-xl shadow-indigo-500/10 ring-1 ring-indigo-500 transform scale-[1.01]'
-                                                    : 'bg-white border-slate-100 shadow-sm hover:border-indigo-200 hover:shadow-lg hover:shadow-slate-200/50 hover:-translate-y-1'}
-                                            `}>
-                                            <div className="flex justify-between items-start relative z-10">
+                                                    ? 'bg-white border-[#4e92d8] shadow-lg shadow-blue-500/10 ring-1 ring-[#4e92d8]'
+                                                    : 'bg-white border-slate-100 hover:border-[#4e92d8]/50'}
+                                            `}
+                                        >
+                                            <div className="flex items-center justify-between">
                                                 <div>
-                                                    <h3 className={`font-bold text-lg transition-colors ${selectedService?.id === srv.id ? 'text-indigo-700' : 'text-slate-800 group-hover:text-indigo-600'}`}>{srv.name}</h3>
-                                                    <p className="text-slate-500 text-sm mt-2 line-clamp-2 leading-relaxed">{srv.description || "Nessuna descrizione"}</p>
+                                                    <h3 className={`text-xl font-bold mb-1 group-hover:text-[#4e92d8] transition-colors ${selectedService?.id === srv.id ? 'text-[#4e92d8]' : 'text-slate-800'}`}>{srv.name}</h3>
+                                                    <div className="flex items-center gap-3 text-sm text-slate-500">
+                                                        <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-md">
+                                                            <Clock className="w-3 h-3" /> {srv.duration || 60} min
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                <div className="text-right pl-4">
-                                                    <div className="font-bold text-slate-900 text-lg">€{srv.price || ' -'}</div>
-                                                    <div className="text-xs font-medium text-slate-400 bg-slate-50 px-2 py-1 rounded-full mt-1 inline-block">{srv.duration || 60} min</div>
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${selectedService?.id === srv.id ? 'bg-gradient-to-r from-[#4e92d8] to-[#614aa2] text-white' : 'bg-slate-100 text-slate-300 group-hover:bg-blue-50 group-hover:text-[#4e92d8]'}`}>
+                                                    <ChevronRight className="w-5 h-5" />
                                                 </div>
                                             </div>
-                                            {/* Selection Indicator */}
-                                            {selectedService?.id === srv.id && (
-                                                <div className="absolute top-0 right-0 p-3">
-                                                    <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-                                                </div>
-                                            )}
                                         </div>
                                     ))}
                             </div>
@@ -488,9 +446,9 @@ export default function BookingWizard() {
                                     disabled={!selectedService}
                                     onClick={() => handleServiceSelect(selectedService)}
                                     className={`
-                                        px-8 py-4 rounded-2xl font-bold shadow-xl transition-all flex items-center gap-2 transform active:scale-95
+                                        px-8 py-4 rounded-xl font-bold shadow-xl transition-all flex items-center gap-2 transform active:scale-95
                                         ${selectedService
-                                            ? 'bg-slate-900 text-white hover:bg-indigo-600 hover:shadow-indigo-500/30'
+                                            ? 'bg-gradient-to-r from-[#4e92d8] to-[#614aa2] text-white hover:shadow-blue-500/30 hover:opacity-90'
                                             : 'bg-slate-100 text-slate-300 cursor-not-allowed shadow-none'}
                                     `}
                                 >
@@ -584,16 +542,16 @@ export default function BookingWizard() {
                                                             }}
                                                             disabled={!hasSlots}
                                                             className={`
-                                                                h-10 w-10 mx-auto rounded-full flex flex-col items-center justify-center text-sm transition-all duration-300 relative group
-                                                                ${!isCurrentMonth ? 'text-slate-300' : 'text-slate-700'}
-                                                                ${hasSlots ? 'font-bold hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer' : 'opacity-30 cursor-default'}
-                                                                ${isSelected ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/40 hover:bg-indigo-700 hover:text-white transform scale-110 z-10' : ''}
-                                                                ${hasSlots && !isSelected ? 'text-slate-900 bg-white' : ''}
-                                                            `}
+                                                                        h-10 w-10 mx-auto rounded-full flex flex-col items-center justify-center text-sm transition-all duration-300 relative group
+                                                                        ${!isCurrentMonth ? 'text-slate-300' : 'text-slate-700'}
+                                                                        ${hasSlots ? 'font-bold hover:bg-blue-50 hover:text-[#4e92d8] cursor-pointer' : 'opacity-30 cursor-default'}
+                                                                        ${isSelected ? 'bg-gradient-to-r from-[#4e92d8] to-[#614aa2] text-white shadow-lg shadow-blue-500/40 hover:opacity-90 transform scale-110 z-10' : ''}
+                                                                        ${hasSlots && !isSelected ? 'text-slate-900 bg-white' : ''}
+                                                                    `}
                                                         >
                                                             <span className="relative z-10">{format(day, 'd')}</span>
                                                             {hasSlots && !isSelected && (
-                                                                <div className="absolute bottom-1 w-1 h-1 bg-indigo-500 rounded-full group-hover:scale-150 transition-transform"></div>
+                                                                <div className="absolute bottom-1 w-1 h-1 bg-[#4e92d8] rounded-full group-hover:scale-150 transition-transform"></div>
                                                             )}
                                                         </button>
                                                     );
@@ -619,8 +577,8 @@ export default function BookingWizard() {
                                                             className={`
                                                                 py-2 px-3 rounded-lg text-sm font-medium border transition-all text-center duration-200
                                                                 ${selectedSlot?.date === selectedDate && selectedSlot?.time === slotObj.time
-                                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20'
-                                                                    : 'bg-white text-slate-700 border-slate-100 hover:border-indigo-200 hover:text-indigo-700 hover:bg-indigo-50/50 hover:shadow-sm'}
+                                                                    ? 'bg-gradient-to-r from-[#4e92d8] to-[#614aa2] text-white border-transparent shadow-md shadow-blue-500/20'
+                                                                    : 'bg-white text-slate-700 border-slate-100 hover:border-blue-200 hover:text-[#4e92d8] hover:bg-blue-50/50 hover:shadow-sm'}
                                                             `}
                                                         >
                                                             {slotObj.time}
@@ -638,9 +596,9 @@ export default function BookingWizard() {
                                         disabled={!selectedSlot}
                                         onClick={() => setStep(4)}
                                         className={`
-                                            px-8 py-4 rounded-2xl font-bold shadow-xl transition-all flex items-center gap-2 transform active:scale-95
+                                            px-8 py-4 rounded-xl font-bold shadow-xl transition-all flex items-center gap-2 transform active:scale-95
                                             ${selectedSlot
-                                                ? 'bg-slate-900 text-white hover:bg-indigo-600 hover:shadow-indigo-500/30'
+                                                ? 'bg-gradient-to-r from-[#4e92d8] to-[#614aa2] text-white hover:shadow-blue-500/30'
                                                 : 'bg-slate-100 text-slate-300 cursor-not-allowed shadow-none'}
                                         `}
                                     >
@@ -654,7 +612,7 @@ export default function BookingWizard() {
                     {/* STEP 4: FORM */}
                     {step === 4 && (
                         <div className="space-y-6 animate-fade-in-up">
-                            <button onClick={() => setStep(3)} className="text-slate-400 hover:text-indigo-600 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
+                            <button onClick={() => setStep(3)} className="text-slate-400 hover:text-[#4e92d8] text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
                                 <ChevronLeft className="w-4 h-4" /> Indietro
                             </button>
                             <h2 className="text-3xl font-bold mb-8 text-slate-900 tracking-tight">I tuoi dati</h2>
@@ -664,43 +622,43 @@ export default function BookingWizard() {
                                     {/* Row 1: Name & Surname */}
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Nome *</label>
-                                        <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
+                                        <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-[#4e92d8]/20 focus:border-[#4e92d8] outline-none transition-all font-medium"
                                             value={customerForm.firstName} onChange={e => setCustomerForm({ ...customerForm, firstName: e.target.value })} placeholder="Il tuo nome" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Cognome *</label>
-                                        <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
+                                        <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-[#4e92d8]/20 focus:border-[#4e92d8] outline-none transition-all font-medium"
                                             value={customerForm.lastName} onChange={e => setCustomerForm({ ...customerForm, lastName: e.target.value })} placeholder="Il tuo cognome" />
                                     </div>
 
                                     {/* Row 2: Email & Phone */}
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Email *</label>
-                                        <input type="email" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium field-icon-email"
+                                        <input type="email" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-[#4e92d8]/20 focus:border-[#4e92d8] outline-none transition-all font-medium field-icon-email"
                                             value={customerForm.email} onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })} placeholder="nome@azienda.com" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Telefono *</label>
-                                        <input type="tel" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
+                                        <input type="tel" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-[#4e92d8]/20 focus:border-[#4e92d8] outline-none transition-all font-medium"
                                             value={customerForm.phone} onChange={e => setCustomerForm({ ...customerForm, phone: e.target.value })} placeholder="+39 333 1234567" />
                                     </div>
 
                                     {/* Row 3: Company & Role */}
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Azienda *</label>
-                                        <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
+                                        <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-[#4e92d8]/20 focus:border-[#4e92d8] outline-none transition-all font-medium"
                                             value={customerForm.company} onChange={e => setCustomerForm({ ...customerForm, company: e.target.value })} placeholder="Nome azienda" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Ruolo (Opzionale)</label>
-                                        <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
+                                        <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-[#4e92d8]/20 focus:border-[#4e92d8] outline-none transition-all font-medium"
                                             value={customerForm.role} onChange={e => setCustomerForm({ ...customerForm, role: e.target.value })} placeholder="CEO, Manager, etc." />
                                     </div>
 
                                     {/* Row 4: Notes (Full Width) */}
                                     <div className="space-y-2 md:col-span-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Note (Opzionale)</label>
-                                        <textarea className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium min-h-[120px] resize-y"
+                                        <textarea className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-[#4e92d8]/20 focus:border-[#4e92d8] outline-none transition-all font-medium min-h-[120px] resize-y"
                                             value={customerForm.notes} onChange={e => setCustomerForm({ ...customerForm, notes: e.target.value })} placeholder="Hai richieste particolari?"></textarea>
                                     </div>
                                 </div>
@@ -709,8 +667,10 @@ export default function BookingWizard() {
                                     onClick={submitBooking}
                                     disabled={loading || !customerForm.firstName || !customerForm.lastName || !customerForm.email || !customerForm.phone || !customerForm.company}
                                     className={`
-                                        w-full mt-8 py-4 bg-slate-900 text-white rounded-xl font-bold text-lg hover:bg-indigo-600 hover:shadow-xl hover:shadow-indigo-500/30 transition-all flex items-center justify-center gap-3 transform active:scale-[0.99]
-                                        ${(!customerForm.firstName || !customerForm.lastName || !customerForm.email || !customerForm.phone || !customerForm.company) ? 'opacity-50 cursor-not-allowed hover:bg-slate-900 hover:shadow-none' : ''}
+                                        w-full mt-8 py-4 bg-slate-900 text-white rounded-xl font-bold text-lg hover:shadow-xl hover:shadow-blue-500/30 transition-all flex items-center justify-center gap-3 transform active:scale-[0.99]
+                                        ${(!customerForm.firstName || !customerForm.lastName || !customerForm.email || !customerForm.phone || !customerForm.company)
+                                            ? 'opacity-50 cursor-not-allowed hover:bg-slate-900 hover:shadow-none bg-slate-900'
+                                            : 'bg-gradient-to-r from-[#4e92d8] to-[#614aa2]'}
                                     `}>
                                     {loading ? <span className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></span> : 'Conferma Prenotazione'}
                                 </button>
