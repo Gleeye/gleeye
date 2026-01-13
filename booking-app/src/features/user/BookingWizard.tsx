@@ -354,7 +354,7 @@ export default function BookingWizard() {
             )}
 
             {/* Progress Bar */}
-            <div className="max-w-lg mx-auto flex items-center justify-between mb-16 text-sm font-medium text-slate-400 relative">
+            <div className="max-w-lg mx-auto flex items-center justify-between mb-8 text-sm font-medium text-slate-400 relative">
                 {/* Progress Bar Background */}
                 <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 -z-10 rounded-full"></div>
                 {/* Active Progress */}
@@ -433,8 +433,8 @@ export default function BookingWizard() {
                             <h2 className="text-3xl font-bold mb-8 text-slate-900 tracking-tight">Disponibilità</h2>
 
                             {/* CALENDAR VIEW */}
-                            <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 animate-fade-in-up">
-                                <h3 className="text-xl font-bold mb-8 text-slate-800 flex items-center gap-3">
+                            <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-6 animate-fade-in-up">
+                                <h3 className="text-lg font-bold mb-6 text-slate-800 flex items-center gap-3">
                                     <div className="p-2 bg-indigo-50 rounded-lg">
                                         <CalendarIcon className="w-6 h-6 text-indigo-600" />
                                     </div>
@@ -526,24 +526,24 @@ export default function BookingWizard() {
                                         </div>
 
                                         {/* RIGHT: Slots List */}
-                                        <div className="w-full md:w-72 border-l border-slate-100 pl-0 md:pl-8">
-                                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
+                                        <div className="w-full md:w-64 border-l border-slate-100 pl-0 md:pl-8">
+                                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
                                                 Orari Disponibili
                                             </h4>
                                             {!selectedDate ? (
-                                                <div className="h-48 flex items-center justify-center text-center">
+                                                <div className="h-40 flex items-center justify-center text-center">
                                                     <p className="text-sm text-slate-400 italic">Seleziona un giorno<br />nel calendario.</p>
                                                 </div>
                                             ) : (
-                                                <div className="grid grid-cols-1 gap-2 h-72 overflow-y-auto content-start pr-2 custom-scrollbar">
+                                                <div className="grid grid-cols-2 gap-2 max-h-[280px] overflow-y-auto content-start pr-2 custom-scrollbar">
                                                     {availabilityMap[selectedDate]?.map(slotObj => (
                                                         <button
                                                             key={slotObj.time}
                                                             onClick={() => setSelectedSlot({ date: selectedDate, ...slotObj })}
                                                             className={`
-                                                            py-3 px-4 rounded-xl text-sm font-bold border transition-all text-center duration-200 whitespace-nowrap
+                                                            py-2.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center duration-200 whitespace-nowrap
                                                             ${selectedSlot?.date === selectedDate && selectedSlot?.time === slotObj.time
-                                                                    ? 'bg-gradient-to-r from-[#4e92d8] to-[#614aa2] text-white border-transparent shadow-md shadow-blue-500/20 scale-[1.02]'
+                                                                    ? 'bg-gradient-to-r from-[#4e92d8] to-[#614aa2] text-white border-transparent shadow-md shadow-blue-500/20'
                                                                     : 'bg-white text-slate-700 border-slate-100 hover:border-[#4e92d8]/50 hover:text-[#4e92d8] hover:bg-blue-50/50 hover:shadow-sm'}
                                                         `}
                                                         >

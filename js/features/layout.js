@@ -255,7 +255,21 @@ export function updateSidebarVisibility() {
         const bookingLink = sidebar.querySelector('[data-target="booking"]');
         if (bookingLink) bookingLink.classList.remove('hidden');
 
-        // 2. User User Profile is always visible (handled by layout structure, but explicit checks good)
+        // 2. "Personale" Section (New)
+        const personaleToggle = sidebar.querySelector('#personale-menu-toggle');
+        const personaleSubmenu = sidebar.querySelector('#personale-menu-submenu');
+        if (personaleToggle) {
+            personaleToggle.parentElement.classList.remove('hidden'); // Show nav-group
+            personaleToggle.classList.remove('hidden');
+        }
+        if (personaleSubmenu) {
+            personaleSubmenu.classList.remove('hidden');
+            // Ensure sub-items are visible if parent is
+            const subItems = personaleSubmenu.querySelectorAll('.sub-item');
+            subItems.forEach(si => si.classList.remove('hidden'));
+        }
+
+        // 3. User User Profile is always visible (handled by layout structure, but explicit checks good)
         // Note: The profile section at bottom is separate from nav-menu.
 
         // If we want to hide "Ordini" (dashboard), we keep it hidden.
