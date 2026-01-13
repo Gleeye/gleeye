@@ -213,23 +213,21 @@ export default function BookingsHub() {
                             description="Turni, orari e chiusure"
                             color="emerald"
                         />
+                        <ActionCard
+                            onClick={() => window.open(window.location.protocol + '//' + window.location.host + window.location.pathname, '_blank')}
+                            icon={Smartphone}
+                            title="Test Modulo"
+                            description="Anteprima esperienza cliente"
+                            color="amber"
+                        />
                         {isAdmin && (
-                            <>
-                                <ActionCard
-                                    onClick={() => window.open(window.location.href.split('?')[0], '_blank')}
-                                    icon={Briefcase} // Placeholder icon, maybe use another one
-                                    title="Test Modulo"
-                                    description="Simula esperienza cliente"
-                                    color="amber"
-                                />
-                                <ActionCard
-                                    onClick={() => setActiveView('calendars')}
-                                    icon={Settings2}
-                                    title="Integrazioni"
-                                    description="Google Calendar e sincronizzazioni"
-                                    color="slate"
-                                />
-                            </>
+                            <ActionCard
+                                onClick={() => setActiveView('calendars')}
+                                icon={Settings2}
+                                title="Integrazioni"
+                                description="Google Calendar e sincronizzazioni"
+                                color="slate"
+                            />
                         )}
                     </div>
                 </div>
