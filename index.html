@@ -9,6 +9,7 @@
     <link rel="icon" type="image/png" href="logo_gleeye_new.png">
     <link rel="stylesheet" href="css/main.css?v=115">
     <link rel="stylesheet" href="css/design-system.css?v=115">
+    <link rel="stylesheet" href="css/components/notifications.css?v=115">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -85,7 +86,7 @@
 <body>
     <!-- App Shell: Auth and Modals will be injected by modules -->
 
-    <div id="app">
+    <div id="app" class="hidden">
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
@@ -226,11 +227,14 @@
                         <span class="material-icons-round">search</span>
                         <input type="text" id="global-search" placeholder="Cerca...">
                     </div>
-                    <button id="theme-toggle" class="icon-btn" title="Cambia Tema">
-                        <span class="material-icons-round">dark_mode</span>
-                    </button>
-                    <button class="icon-btn"><span class="material-icons-round">notifications</span></button>
-                    <button class="icon-btn"><span class="material-icons-round">help_outline</span></button>
+                    <div class="header-actions">
+                        <!-- Notification bell will be injected here by notifications.js -->
+                        <button id="theme-toggle" class="icon-btn" title="Cambia Tema">
+                            <span class="material-icons-round">dark_mode</span>
+                        </button>
+                        <button class="icon-btn" title="Aiuto"><span
+                                class="material-icons-round">help_outline</span></button>
+                    </div>
                 </div>
             </header>
 

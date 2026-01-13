@@ -17,7 +17,20 @@ import { renderBooking } from '../features/booking.js?v=115';
 import { renderUserProfile } from '../features/user_dashboard.js?v=115';
 
 export function router() {
-    const hash = window.location.hash.slice(1) || 'dashboard';
+    // Try to restore saved route on initial load (no hash but has saved route)
+    const savedRoute = sessionStorage.getItem('gleeye_current_route');
+    let hash = window.location.hash.slice(1);
+
+    // If no hash but we have a saved route, restore it
+    if (!hash && savedRoute) {
+        console.log(`[Router] Restoring saved route: ${savedRoute}`);
+        hash = savedRoute;
+        window.location.hash = savedRoute;
+        return; // The hash change will re-trigger router
+    }
+
+    // Default to dashboard if no hash
+    hash = hash || 'dashboard';
     const [page, id] = hash.split('/');
     console.log(`Router handling hash: #${hash} -> page: ${page}, id: ${id}`);
 
@@ -37,6 +50,9 @@ export function router() {
         window.location.hash = 'booking';
         return; // Stop here, the hash change will trigger router again
     }
+
+    // SAVE current route to sessionStorage for persistence across reloads
+    sessionStorage.setItem('gleeye_current_route', hash);
 
     render();
     updateActiveLink();

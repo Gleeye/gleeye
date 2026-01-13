@@ -10,6 +10,7 @@ import { initBankTransactionModals } from './features/bank_transactions.js?v=115
 import { initPaymentModals } from './features/payments.js?v=115';
 import { initServiceModals } from './features/services.js?v=115';
 import { initLayout, renderSidebarProfile } from './features/layout.js?v=115';
+import { initNotifications } from './features/notifications.js?v=115';
 import { runOneTimeFix } from './fix_phantom_data.js?v=115';
 // Utilities imported at top
 
@@ -58,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('app:ready', () => {
         console.log("App ready event received. Rendering profile and router.");
         renderSidebarProfile();
+        initNotifications();  // Initialize notifications after auth
         router();
         // setTimeout(() => runOneTimeFix(), 1000);
     });

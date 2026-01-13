@@ -2,6 +2,7 @@ import { supabase } from '../modules/config.js?v=115';
 import { state } from '../modules/state.js?v=115';
 import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js?v=115';
 import { showGlobalAlert } from '../modules/utils.js?v=115';
+import { updateSidebarVisibility } from './layout.js?v=115';
 
 // We need a way to call router() from here. 
 // Since router depends on render which depends on auth state, we might have a cycle.
@@ -103,10 +104,10 @@ async function handleSession(session) {
     const setPasswordContainer = document.getElementById('set-password-container');
     const appContainer = document.getElementById('app');
 
-    // Reset visibility
+    // Reset visibility - keep app hidden until fully ready
     if (authContainer) authContainer.classList.add('hidden');
     if (setPasswordContainer) setPasswordContainer.classList.add('hidden');
-    // if (appContainer) appContainer.classList.add('hidden'); // Allow app to stay visible (showing loader)
+    if (appContainer) appContainer.classList.add('hidden');
 
 
     if (session) {
@@ -119,6 +120,24 @@ async function handleSession(session) {
         } else {
             // Normal access: Show Dashboard
             console.log("Session valid, loading app data...");
+
+            // CRITICAL: Update sidebar visibility BEFORE showing app
+            // This prevents collaborators from seeing admin elements
+            updateSidebarVisibility();
+
+            // For collaborators: ensure we redirect to allowed page BEFORE showing app
+            const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
+            const allowedPagesForCollaborator = ['booking', 'profile'];
+            const currentHash = window.location.hash.slice(1) || 'dashboard';
+            const [currentPage] = currentHash.split('/');
+
+            if (activeRole !== 'admin' && !allowedPagesForCollaborator.includes(currentPage)) {
+                // Redirect BEFORE showing anything - no flash
+                console.log(`[Auth] Collaborator on restricted page '${currentPage}', redirecting to booking...`);
+                window.location.hash = 'booking';
+            }
+
+            // NOW show the app (with correct sidebar visibility already set)
             if (appContainer) appContainer.classList.remove('hidden');
 
             // Load initial data
@@ -258,6 +277,8 @@ async function handleSetPassword(e) {
 }
 
 async function handleLogout() {
+    // Clear saved route so next login starts fresh
+    sessionStorage.removeItem('gleeye_current_route');
     await supabase.auth.signOut();
     window.location.reload();
 }

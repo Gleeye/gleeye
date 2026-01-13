@@ -5,6 +5,12 @@
     align-items: center;
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .icon-btn {
     background: var(--card-bg);
     border: 1px solid var(--glass-border);
