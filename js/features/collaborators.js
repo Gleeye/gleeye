@@ -1,7 +1,7 @@
-import { state } from '../modules/state.js?v=210';
-import { formatAmount } from '../modules/utils.js?v=210';
-import { openDepartmentManager } from './settings.js?v=210';
-import { upsertCollaborator, fetchPayments, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js?v=BINGO';
+import { state } from '../modules/state.js?v=115';
+import { formatAmount } from '../modules/utils.js?v=115';
+import { openDepartmentManager } from './settings.js?v=115';
+import { upsertCollaborator, fetchPayments, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js?v=115';
 
 export function renderCollaborators(container) {
     const renderGrid = () => {

@@ -1,20 +1,20 @@
-import { state } from './state.js?v=210';
-import { renderDashboard } from '../features/dashboard.js?v=210';
-import { renderClients, renderClientDetail } from '../features/clients.js?v=210';
-import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=BINGO';
-import { renderContacts } from '../features/contacts.js?v=210';
-import { renderOrderDetail } from '../features/orders.js?v=210';
-import { renderInvoices, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from '../features/invoices.js?v=210';
-import { renderInvoicesDashboard } from '../features/dashboard.js?v=210';
-import { renderBankTransactions } from '../features/bank_transactions.js?v=210';
-import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=210';
-import { renderBankStatements } from '../features/bank_statements.js?v=210';
-import { renderServices } from '../features/services.js?v=210';
-import { renderCollaboratorServices } from '../features/collaborator_services.js?v=210';
-import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=210';
-import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=210';
-import { renderBooking } from '../features/booking.js?v=210';
-import { renderUserProfile } from '../features/user_dashboard.js?v=FIX11';
+import { state } from './state.js?v=115';
+import { renderDashboard } from '../features/dashboard.js?v=115';
+import { renderClients, renderClientDetail } from '../features/clients.js?v=115';
+import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=115';
+import { renderContacts } from '../features/contacts.js?v=115';
+import { renderOrderDetail } from '../features/orders.js?v=115';
+import { renderInvoices, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from '../features/invoices.js?v=115';
+import { renderInvoicesDashboard } from '../features/dashboard.js?v=115';
+import { renderBankTransactions } from '../features/bank_transactions.js?v=115';
+import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=115';
+import { renderBankStatements } from '../features/bank_statements.js?v=115';
+import { renderServices } from '../features/services.js?v=115';
+import { renderCollaboratorServices } from '../features/collaborator_services.js?v=115';
+import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=115';
+import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=115';
+import { renderBooking } from '../features/booking.js?v=115';
+import { renderUserProfile } from '../features/user_dashboard.js?v=115';
 
 export function router() {
     const hash = window.location.hash.slice(1) || 'dashboard';

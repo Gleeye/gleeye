@@ -122,12 +122,12 @@ function App() {
         {/* Header / Top Bar */}
         <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 transition-all">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
-              <CalendarIcon className="w-6 h-6 text-white" />
+            <div className="flex items-center gap-2">
+              <img src="/logo_gleeye_new.png" alt="Gleeye" className="h-8 w-auto" />
+              <h1 className="text-xl font-light tracking-tighter text-slate-900">
+                Gleeye <span className="font-bold">Workspace</span>
+              </h1>
             </div>
-            <h1 className="text-xl font-black tracking-tighter text-slate-900 uppercase">
-              {view === 'admin' ? 'Booking Management' : 'Booking Center'}
-            </h1>
           </div>
 
           <div className="flex items-center gap-3">

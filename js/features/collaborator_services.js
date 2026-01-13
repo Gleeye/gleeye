@@ -1,6 +1,6 @@
-import { state } from '../modules/state.js?v=210';
-import { formatAmount } from '../modules/utils.js?v=210';
-import { upsertCollaboratorService, deleteCollaboratorService } from '../modules/api.js?v=210';
+import { state } from '../modules/state.js?v=115';
+import { formatAmount } from '../modules/utils.js?v=115';
+import { upsertCollaboratorService, deleteCollaboratorService } from '../modules/api.js?v=115';
 
 export function renderCollaboratorServices(container) {
     const render = () => {
@@ -539,7 +539,7 @@ export function initCollaboratorServiceModals() {
     async function refreshPage() {
         // If in main registry
         if (state.currentPage === 'collaborator-services') {
-            const { fetchCollaboratorServices } = await import('../modules/api.js?v=210');
+            const { fetchCollaboratorServices } = await import('../modules/api.js?v=115');
             await fetchCollaboratorServices();
             renderCollaboratorServices(document.getElementById('content-area'));
             return;
@@ -552,8 +552,8 @@ export function initCollaboratorServiceModals() {
             const orderId = parts[parts.length - 1] || state.currentOrderId;
 
             if (orderId) {
-                const { fetchCollaboratorServices, fetchAssignments } = await import('../modules/api.js?v=210');
-                const { renderOrderDetail } = await import('./orders.js?v=210');
+                const { fetchCollaboratorServices, fetchAssignments } = await import('../modules/api.js?v=115');
+                const { renderOrderDetail } = await import('./orders.js?v=115');
 
                 await fetchCollaboratorServices();
                 await fetchAssignments();
