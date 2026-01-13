@@ -1,7 +1,7 @@
-import { supabase } from '../modules/config.js?v=210';
-import { state } from '../modules/state.js?v=210';
-import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js?v=210';
-import { showGlobalAlert } from '../modules/utils.js?v=210';
+import { supabase } from '../modules/config.js?v=115';
+import { state } from '../modules/state.js?v=115';
+import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js?v=115';
+import { showGlobalAlert } from '../modules/utils.js?v=115';
 
 // We need a way to call router() from here. 
 // Since router depends on render which depends on auth state, we might have a cycle.
@@ -46,7 +46,7 @@ export function initAuth() {
                 <div class="auth-blob blob-2"></div>
                 <div class="auth-card">
                     <div class="brand">
-                        <img src="logo_gleeye.png" alt="Gleeye Logo" class="brand-logo">
+                        <img src="logo_gleeye_new.png" alt="Gleeye Logo" class="brand-logo">
                     </div>
                     <h2>Imposta Password</h2>
                     <p>Completa il tuo primo accesso impostando una password sicura.</p>
