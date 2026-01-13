@@ -335,7 +335,10 @@ window.sendMagicLink = async (email) => {
             const { supabase } = await import('../modules/config.js?v=115');
             const { error } = await supabase.auth.signInWithOtp({
                 email,
-                options: { shouldCreateUser: true }
+                options: {
+                    shouldCreateUser: true,
+                    emailRedirectTo: window.location.origin
+                }
             });
             if (error) throw error;
             window.showAlert('Magic Link inviato con successo!', 'success');
