@@ -97,7 +97,7 @@ export default function BookingWizard() {
                 }
 
                 // Auto-advance to Step 3 with ALL collaborators as candidates
-                fetchAvailability(collabs);
+                fetchAvailability(service, collabs);
                 setStep(3);
             } else {
                 setError("Nessun coordinatore/esperto assegnato a questo servizio.");
@@ -113,19 +113,19 @@ export default function BookingWizard() {
 
 
 
-    async function fetchAvailability(candidatesList: any[]) {
+    async function fetchAvailability(service: any, candidatesList: any[]) {
         setLoading(true);
         try {
-            if (!selectedService) return;
+            if (!service) return;
 
             // 1. Prepare Service Object
             const serviceObj: any = { // detailed-type in availability.ts
-                id: selectedService.id,
-                durationMinutes: selectedService.duration_minutes || 60,
-                bufferAfterMinutes: selectedService.buffer_minutes || selectedService.buffer_after_minutes || 0,
-                bufferBeforeMinutes: selectedService.buffer_before_minutes || 0,
-                logicType: selectedService.assignment_logic || 'OR', // Use DB column
-                requiredTeamSize: selectedService.required_team_size || 1
+                id: service.id,
+                durationMinutes: service.duration_minutes || 60,
+                bufferAfterMinutes: service.buffer_minutes || service.buffer_after_minutes || 0,
+                bufferBeforeMinutes: service.buffer_before_minutes || 0,
+                logicType: service.assignment_logic || 'OR', // Use DB column
+                requiredTeamSize: service.required_team_size || 1
             };
 
             // 2. Prepare Candidates
@@ -149,7 +149,7 @@ export default function BookingWizard() {
             start.setSeconds(0, 0);
 
             // Respect Max Advance (default 60 days)
-            const maxAdvance = Number(selectedService.max_advance_days) || 60;
+            const maxAdvance = Number(service.max_advance_days) || 60;
             const end = new Date();
             end.setDate(end.getDate() + maxAdvance);
 
@@ -479,10 +479,20 @@ export default function BookingWizard() {
                                     Seleziona Data e Ora
                                 </h3>
 
-                                {/* Check if map is empty */}
-                                {Object.keys(availabilityMap).length === 0 ? (
-                                    <div className="text-center py-10 text-slate-400 italic">
-                                        Nessuna disponibilità trovata per i prossimi 60 giorni.
+                                {loading ? (
+                                    <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                                        <div className="w-12 h-12 border-4 border-indigo-600/20 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                                        <p className="text-slate-500 font-medium">Sincronizzazione calendari e disponibilità...</p>
+                                        <p className="text-xs text-slate-400 mt-2">Stiamo verificando gli slot liberi in tempo reale</p>
+                                    </div>
+                                ) : Object.keys(availabilityMap).length === 0 ? (
+                                    <div className="text-center py-20 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                                        <CalendarIcon className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                                        <h4 className="font-bold text-slate-800 mb-1">Nessuna disponibilità</h4>
+                                        <p className="text-sm text-slate-500">Non ci sono slot disponibili per i prossimi 60 giorni.</p>
+                                        <button onClick={() => setStep(1)} className="mt-6 text-indigo-600 font-bold hover:underline">
+                                            Cambia servizio
+                                        </button>
                                     </div>
                                 ) : (
                                     <div className="flex flex-col md:flex-row gap-8">
