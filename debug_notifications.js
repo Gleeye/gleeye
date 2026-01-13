@@ -6,29 +6,29 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-async function inspectLastBookings() {
-    console.log("--- ULTIME PRENOTAZIONI ---");
-    const { data: bookings } = await supabase
-        .from('bookings')
-        .select('id, created_at, guest_info')
-        .order('created_at', { ascending: false })
-        .limit(5);
+async function inspectServiceConfig() {
+    console.log("--- CONFIG SERVIZI E COLLABORATORI ---");
 
-    for (const b of bookings || []) {
-        const { data: assigns } = await supabase
-            .from('booking_assignments')
-            .select('collaborator_id')
-            .eq('booking_id', b.id);
+    // Get all booking items
+    const { data: items } = await supabase.from('booking_items').select('id, name, assignment_logic');
 
-        console.log(`Prenotazione: ${b.id}`);
-        console.log(`  - Creata: ${b.created_at}`);
-        console.log(`  - Ospite: ${b.guest_info?.first_name} ${b.guest_info?.last_name}`);
-        console.log(`  - Assegnazioni trovate: ${assigns?.length || 0}`);
-        if (assigns && assigns.length > 0) {
-            assigns.forEach(a => console.log(`    - Collaboratore ID: ${a.collaborator_id}`));
+    for (const item of items || []) {
+        console.log(`\nServizio: ${item.name} (Logic: ${item.assignment_logic || 'OR'})`);
+
+        // Get linked collaborators
+        const { data: links } = await supabase
+            .from('booking_item_collaborators')
+            .select('collaborator_id, collaborators(id, full_name)')
+            .eq('booking_item_id', item.id);
+
+        if (links && links.length > 0) {
+            links.forEach(l => {
+                console.log(`  - ${l.collaborators?.full_name || 'N/A'} (${l.collaborator_id})`);
+            });
+        } else {
+            console.log("  ❌ NESSUN COLLABORATORE ASSEGNATO A QUESTO SERVIZIO!");
         }
-        console.log("----------------------------");
     }
 }
 
-inspectLastBookings();
+inspectServiceConfig();

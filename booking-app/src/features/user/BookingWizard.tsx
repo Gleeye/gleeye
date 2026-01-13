@@ -83,7 +83,9 @@ export default function BookingWizard() {
 
             if (error) throw error;
 
+            console.log('[BookingWizard] Raw booking_item_collaborators response:', data);
             const collabs = data?.map((d: any) => d.collaborators).filter(Boolean) || [];
+            console.log('[BookingWizard] Parsed collaborators:', collabs.length, collabs);
             setCollaborators(collabs);
 
             if (collabs.length > 0) {
@@ -229,6 +231,10 @@ export default function BookingWizard() {
             if (error) throw error;
 
             // Also insert into booking_assignments for sync
+            console.log('[BookingWizard] Creating assignments...');
+            console.log('[BookingWizard] Assignment Logic:', selectedService.assignment_logic);
+            console.log('[BookingWizard] Collaborators available:', collaborators.length, collaborators.map(c => c.id));
+
             if (selectedService.assignment_logic === 'AND') {
                 // Assign ALL collaborators
                 const assignments = collaborators.map(c => ({
@@ -236,8 +242,14 @@ export default function BookingWizard() {
                     collaborator_id: c.id,
                     role_in_order: c.role || 'Collaborator'
                 }));
-                const { error: assignError } = await supabase.from('booking_assignments').insert(assignments);
-                if (assignError) console.error("Assignment Error:", assignError);
+                console.log('[BookingWizard] AND mode: inserting', assignments.length, 'assignments');
+                if (assignments.length > 0) {
+                    const { error: assignError } = await supabase.from('booking_assignments').insert(assignments);
+                    if (assignError) console.error("Assignment Error (AND):", assignError);
+                    else console.log('[BookingWizard] AND assignments created successfully');
+                } else {
+                    console.warn('[BookingWizard] No collaborators to assign (AND mode)');
+                }
 
             } else {
                 // OR Logic: Pick ONE collaborator automatically from the available ones
