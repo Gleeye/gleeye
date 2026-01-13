@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './lib/supabaseClient';
 import { Settings, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
-import AdminDashboard from './features/admin/AdminDashboard';
+import BookingsHub from './features/admin/BookingsHub';
 import { ToastProvider } from './components/ui/Toast';
 import BookingWizard from './features/user/BookingWizard';
 
@@ -78,6 +78,7 @@ function App() {
       if (profile?.role === 'admin') {
         console.log("User is admin via profile");
         setIsAdmin(true);
+        setView('admin');
         return;
       }
 
@@ -99,6 +100,7 @@ function App() {
         if (hasTag || role === 'admin' || role === 'manager') {
           console.log("User is admin via collaborator tags/role");
           setIsAdmin(true);
+          setView('admin');
         }
       }
     } catch (err) {
@@ -120,13 +122,11 @@ function App() {
         {/* Header / Top Bar */}
         <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 transition-all">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
-              {view === 'admin' ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                  Booking Backend
-                </>
-              ) : 'Prenotazione Servizi'}
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
+              <CalendarIcon className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-xl font-black tracking-tighter text-slate-900 uppercase">
+              {view === 'admin' ? 'Booking Management' : 'Booking Center'}
             </h1>
           </div>
 
@@ -134,21 +134,21 @@ function App() {
             {isAdmin && (
               <button
                 onClick={() => setView(view === 'admin' ? 'user' : 'admin')}
-                className={`p-2 rounded-lg transition-colors border flex items-center gap-2 text-sm font-medium ${view === 'admin'
-                  ? 'bg-slate-100 text-slate-700 border-slate-300 shadow-inner'
-                  : 'bg-white text-slate-500 border-transparent hover:bg-slate-50 hover:text-blue-600'
+                className={`px-4 py-2 rounded-xl transition-all border flex items-center gap-2 text-xs font-black uppercase tracking-widest ${view === 'admin'
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-md translate-y-[1px]'
+                  : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-600 hover:text-indigo-600'
                   }`}
-                title={view === 'admin' ? "Torna alla vista utente" : "Impostazioni Backend"}
+                title={view === 'admin' ? "Vai alla prenotazione cliente" : "Gestione Backend"}
               >
                 {view === 'admin' ? (
                   <>
-                    <CalendarIcon className="w-5 h-5" />
-                    <span className="hidden md:inline">Vista Utente</span>
+                    <CalendarIcon className="w-4 h-4" />
+                    <span>Vista Cliente</span>
                   </>
                 ) : (
                   <>
-                    <Settings className="w-5 h-5" />
-                    <span className="hidden md:inline">Configura</span>
+                    <Settings className="w-4 h-4" />
+                    <span>Configurazione</span>
                   </>
                 )}
               </button>
@@ -157,9 +157,9 @@ function App() {
         </header>
 
         {/* Main Content */}
-        <main className="p-4 md:p-8 max-w-7xl mx-auto animate-fade-in">
+        <main className={`p-4 md:p-8 animate-fade-in ${view === 'admin' ? 'max-w-full' : 'max-w-7xl mx-auto'}`}>
           {view === 'admin' ? (
-            <AdminDashboard />
+            <BookingsHub />
           ) : (
             <BookingWizard />
           )}
