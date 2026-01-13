@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { Calendar, Clock, Briefcase, ArrowLeft } from 'lucide-react';
+import { Calendar, Clock, Briefcase, ArrowLeft, CalendarDays } from 'lucide-react';
 import BookingCatalog from './BookingCatalog';
 import GoogleCalendarConfig from './GoogleCalendarConfig';
+import BookingsCalendar from './BookingsCalendar';
 
 export default function AdminDashboard() {
-    const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'availability' | 'calendars'>('dashboard');
+    const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'availability' | 'calendars' | 'bookings'>('dashboard');
     const [recentBookings, setRecentBookings] = useState<any[]>([]);
     const [loadingBookings, setLoadingBookings] = useState(false);
 
@@ -50,6 +51,20 @@ export default function AdminDashboard() {
         return <GoogleCalendarConfig onBack={() => setActiveView('dashboard')} />;
     }
 
+    if (activeView === 'bookings') {
+        return (
+            <div className="animate-fade-in h-full flex flex-col">
+                <button
+                    onClick={() => setActiveView('dashboard')}
+                    className="mb-4 flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-medium"
+                >
+                    <ArrowLeft className="w-4 h-4" /> Torna alla Dashboard
+                </button>
+                <BookingsCalendar />
+            </div>
+        );
+    }
+
     return (
         <div className="p-6 max-w-6xl mx-auto animate-fade-in">
             <div className="flex items-center justify-between mb-8">
@@ -60,6 +75,18 @@ export default function AdminDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Bookings Calendar Card */}
+                <div
+                    onClick={() => setActiveView('bookings')}
+                    className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group hover:border-indigo-200"
+                >
+                    <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-indigo-100 transition-colors">
+                        <CalendarDays className="w-6 h-6 text-indigo-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Calendario Prenotazioni</h3>
+                    <p className="text-slate-500 text-sm">Visualizza e gestisci tutte le prenotazioni in un calendario.</p>
+                </div>
+
                 {/* Services Card */}
                 <div
                     onClick={() => setActiveView('services')}
@@ -117,11 +144,11 @@ export default function AdminDashboard() {
                                     {b.booking_items?.name && <div className="text-xs text-blue-600 mt-1 bg-blue-50 inline-block px-1.5 py-0.5 rounded">{b.booking_items.name}</div>}
                                 </div>
                                 <div>
-                                    <span className={`px-2 py-1 rounded text-xs font-bold uppercase
-                                        ${b.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                                            b.status === 'hold' ? 'bg-amber-100 text-amber-700' :
-                                                'bg-slate-100 text-slate-600'}`}>
-                                        {b.status}
+                                    <span className={`px-2 py-1 rounded text-xs font-bold uppercase border
+                                        ${b.status === 'confirmed' ? 'bg-green-100 text-green-700 border-green-200' :
+                                            b.status === 'hold' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                                                'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                        {b.status === 'hold' ? 'In Attesa' : b.status === 'confirmed' ? 'Confermata' : 'Annullata'}
                                     </span>
                                 </div>
                             </div>
