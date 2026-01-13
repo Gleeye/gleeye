@@ -367,40 +367,40 @@ export default function BookingWizard() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 
-                {/* LEFT COLUMN: Sidebar Summary (Visible from Step 2) */}
-                <div className="md:col-span-1">
-                    <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg shadow-slate-200/50 border border-white/50 p-6 sticky top-24 transition-all duration-500">
-                        <h3 className="font-bold text-lg mb-4 text-slate-800 tracking-tight">Il tuo riepilogo</h3>
+                {/* RIGHT COLUMN: Sidebar Summary (Visible from Step 2) */}
+                <div className="md:col-span-1 md:col-start-3 md:row-start-1">
+                    <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100 p-6 sticky top-24 transition-all duration-500">
+                        <h3 className="font-bold text-lg mb-6 text-slate-800 tracking-tight flex items-center gap-2">
+                            <span className="w-1 h-6 bg-indigo-500 rounded-full"></span>
+                            Riepilogo
+                        </h3>
 
                         {!selectedService ? (
-                            <p className="text-sm text-slate-400 italic">Seleziona un servizio per iniziare</p>
+                            <p className="text-sm text-slate-400 italic">Seleziona un servizio</p>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                                 <div>
-                                    <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Servizio</div>
-                                    <div className="font-medium flex items-center gap-2">
+                                    <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-2">Servizio</div>
+                                    <div className="font-bold text-slate-800 text-lg leading-tight">
                                         {selectedService.name}
                                     </div>
-                                    <div className="text-sm text-slate-500 mt-1">{selectedService.duration || 60} min • {selectedService.price ? `€${selectedService.price}` : 'Prezzo Var.'}</div>
+                                    <div className="text-sm font-medium text-slate-500 mt-1 bg-slate-50 inline-block px-2 py-1 rounded-md">
+                                        ⏱ {selectedService.duration || 60} min
+                                    </div>
                                 </div>
 
-                                {selectedCollab && (
-                                    <div className="pt-4 border-t border-slate-100/50">
-                                        <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1">Esperto</div>
-                                        <div className="font-medium flex items-center gap-3 text-slate-700">
-                                            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-xs font-bold text-indigo-600 ring-4 ring-white shadow-sm">
-                                                {selectedCollab.first_name[0]}
-                                            </div>
-                                            {selectedCollab.first_name} {selectedCollab.last_name}
-                                        </div>
-                                    </div>
-                                )}
+                                {/* Removed Expert & Price as requested */}
 
                                 {selectedSlot && (
-                                    <div className="pt-4 border-t border-slate-100/50">
-                                        <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1">Quando</div>
-                                        <div className="font-medium text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg inline-block border border-indigo-100">
-                                            {selectedSlot.date} <span className="mx-1">•</span> {selectedSlot.time}
+                                    <div className="pt-6 border-t border-slate-100">
+                                        <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-2">Quando</div>
+                                        <div className="flex flex-col gap-1">
+                                            <div className="font-bold text-indigo-600 text-lg">
+                                                {format(new Date(selectedSlot.start), 'd MMMM yyyy', { locale: it })}
+                                            </div>
+                                            <div className="font-medium text-slate-600 bg-indigo-50 px-3 py-1 rounded-lg self-start border border-indigo-100/50">
+                                                ore {selectedSlot.time}
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -410,8 +410,8 @@ export default function BookingWizard() {
                     </div>
                 </div>
 
-                {/* RIGHT COLUMN: Steps Content */}
-                <div className="md:col-span-2">
+                {/* LEFT COLUMN: Steps Content */}
+                <div className="md:col-span-2 md:col-start-1 md:row-start-1">
 
                     {/* STEP 1: SERVICES */}
                     {step === 1 && (
@@ -627,7 +627,8 @@ export default function BookingWizard() {
                             <h2 className="text-3xl font-bold mb-8 text-slate-900 tracking-tight">I tuoi dati</h2>
 
                             <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8">
-                                <div className="grid grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Row 1: Name & Surname */}
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Nome *</label>
                                         <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
@@ -638,27 +639,33 @@ export default function BookingWizard() {
                                         <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
                                             value={customerForm.lastName} onChange={e => setCustomerForm({ ...customerForm, lastName: e.target.value })} placeholder="Il tuo cognome" />
                                     </div>
-                                    <div className="space-y-2 col-span-2">
+
+                                    {/* Row 2: Email & Phone */}
+                                    <div className="space-y-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Email *</label>
                                         <input type="email" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium field-icon-email"
                                             value={customerForm.email} onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })} placeholder="nome@azienda.com" />
                                     </div>
-                                    <div className="space-y-2 col-span-2 md:col-span-1">
+                                    <div className="space-y-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Telefono *</label>
                                         <input type="tel" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
                                             value={customerForm.phone} onChange={e => setCustomerForm({ ...customerForm, phone: e.target.value })} placeholder="+39 333 1234567" />
                                     </div>
-                                    <div className="space-y-2 col-span-2 md:col-span-1">
+
+                                    {/* Row 3: Company & Role */}
+                                    <div className="space-y-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Azienda *</label>
                                         <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
-                                            value={customerForm.company} onChange={e => setCustomerForm({ ...customerForm, company: e.target.value })} placeholder="nome azienda" />
+                                            value={customerForm.company} onChange={e => setCustomerForm({ ...customerForm, company: e.target.value })} placeholder="Nome azienda" />
                                     </div>
-                                    <div className="space-y-2 col-span-2 md:col-span-1">
+                                    <div className="space-y-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Ruolo (Opzionale)</label>
                                         <input type="text" className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
                                             value={customerForm.role} onChange={e => setCustomerForm({ ...customerForm, role: e.target.value })} placeholder="CEO, Manager, etc." />
                                     </div>
-                                    <div className="space-y-2 col-span-2">
+
+                                    {/* Row 4: Notes (Full Width) */}
+                                    <div className="space-y-2 md:col-span-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Note (Opzionale)</label>
                                         <textarea className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium min-h-[120px] resize-y"
                                             value={customerForm.notes} onChange={e => setCustomerForm({ ...customerForm, notes: e.target.value })} placeholder="Hai richieste particolari?"></textarea>
