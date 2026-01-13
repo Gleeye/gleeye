@@ -241,12 +241,19 @@ export default function BookingWizard() {
 
             } else {
                 // OR Logic: Pick ONE collaborator automatically from the available ones
-                const candidateId = selectedSlot.availableCollaborators?.[0] || collaborators[0]?.id;
+                // Fallback to the first collaborator of the service if slots don't have IDs
+                const candidateId = selectedSlot?.availableCollaborators?.[0] || collaborators[0]?.id;
 
-                await supabase.from('booking_assignments').insert({
-                    booking_id: bookingId,
-                    collaborator_id: candidateId
-                });
+                if (candidateId) {
+                    const { error: assignError } = await supabase.from('booking_assignments').insert({
+                        booking_id: bookingId,
+                        collaborator_id: candidateId,
+                        role_in_order: 'Collaborator'
+                    });
+                    if (assignError) console.error("Assignment Error (OR):", assignError);
+                } else {
+                    console.error("No candidate found for assignment");
+                }
             }
 
             setBookingRef(bookingId);
