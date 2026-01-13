@@ -1,6 +1,6 @@
-import { supabase } from '../modules/config.js?v=115';
-import { state } from '../modules/state.js?v=115';
-import { fetchDepartments, fetchTransactionCategories } from '../modules/api.js?v=115';
+import { supabase } from '../modules/config.js?v=116';
+import { state } from '../modules/state.js?v=116';
+import { fetchDepartments, fetchTransactionCategories } from '../modules/api.js?v=116';
 
 export function initSettingsModals() {
     if (!document.getElementById('dept-manager-modal')) {

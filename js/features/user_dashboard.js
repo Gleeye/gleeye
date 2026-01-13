@@ -1,7 +1,7 @@
-import { state } from '../modules/state.js?v=115';
-import { supabase } from '../modules/config.js?v=115';
-import { fetchCollaborators, upsertCollaborator, fetchAvailabilityRules, saveAvailabilityRules, fetchPayments, fetchRestDays, upsertRestDay, deleteRestDay, fetchCollaboratorServices, fetchCollaboratorSkills, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchBookingItemCollaborators, fetchGoogleAuth, deleteGoogleAuth, fetchSystemConfig, upsertGoogleAuth } from '../modules/api.js?v=115';
-import { formatAmount } from '../modules/utils.js?v=115';
+import { state } from '../modules/state.js?v=116';
+import { supabase } from '../modules/config.js?v=116';
+import { fetchCollaborators, upsertCollaborator, fetchAvailabilityRules, saveAvailabilityRules, fetchPayments, fetchRestDays, upsertRestDay, deleteRestDay, fetchCollaboratorServices, fetchCollaboratorSkills, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchBookingItemCollaborators, fetchGoogleAuth, deleteGoogleAuth, fetchSystemConfig, upsertGoogleAuth } from '../modules/api.js?v=116';
+import { formatAmount } from '../modules/utils.js?v=116';
 
 export async function renderUserProfile(container) {
     console.log("User Dashboard v999 loaded"); // Debug version

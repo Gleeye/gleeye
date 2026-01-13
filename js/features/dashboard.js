@@ -1,5 +1,5 @@
-import { state } from '../modules/state.js?v=115';
-import { formatAmount } from '../modules/utils.js?v=115';
+import { state } from '../modules/state.js?v=116';
+import { formatAmount } from '../modules/utils.js?v=116';
 
 export const DashboardData = {
     getStats: (year, passiveFilter = 'all') => {

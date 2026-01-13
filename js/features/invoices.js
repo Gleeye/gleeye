@@ -1,9 +1,9 @@
-import { state } from '../modules/state.js?v=115';
-import { formatAmount } from '../modules/utils.js?v=115';
-import { DashboardData } from './dashboard.js?v=115';
-import { showGlobalAlert } from '../modules/utils.js?v=115';
-import { supabase } from '../modules/config.js?v=115';
-import { fetchInvoices, fetchPassiveInvoices } from '../modules/api.js?v=115';
+import { state } from '../modules/state.js?v=116';
+import { formatAmount } from '../modules/utils.js?v=116';
+import { DashboardData } from './dashboard.js?v=116';
+import { showGlobalAlert } from '../modules/utils.js?v=116';
+import { supabase } from '../modules/config.js?v=116';
+import { fetchInvoices, fetchPassiveInvoices } from '../modules/api.js?v=116';
 
 // --- VIEW FUNCTIONS ---
 
