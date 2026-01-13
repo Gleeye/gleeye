@@ -13,7 +13,7 @@ export function renderBooking(container) {
         <div class="animate-fade-in" style="height: calc(100vh - 80px); width: 100%; overflow: hidden; border-radius: 12px; background: white; box-shadow: var(--shadow-sm);">
             <iframe 
                 id="booking-iframe"
-                src="${BOOKING_APP_URL}?c=${Date.now()}" 
+                src="${BOOKING_APP_URL}?mode=admin&c=${Date.now()}" 
                 style="width: 100%; height: 100%; border: none;"
                 title="Booking Module"
                 loading="lazy"

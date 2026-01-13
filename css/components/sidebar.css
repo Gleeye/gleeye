@@ -139,6 +139,14 @@
     overflow: hidden;
 }
 
+/* Separator */
+.nav-separator {
+    height: 1px;
+    background: var(--glass-border);
+    margin: 1rem 1.25rem;
+    opacity: 0.6;
+}
+
 /* Subtle background gradient on hover */
 .nav-item::before {
     content: '';

@@ -15,6 +15,7 @@ import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/
 import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=117';
 import { renderBooking } from '../features/booking.js?v=117';
 import { renderUserProfile } from '../features/user_dashboard.js?v=117';
+import { renderAgenda } from '../features/personal_agenda.js?v=117';
 
 export function router() {
     // Try to restore saved route on initial load (no hash but has saved route)
@@ -41,7 +42,7 @@ export function router() {
     const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
 
     // List of pages allowed for Collaborators
-    const allowedPagesForCollaborator = ['booking', 'profile'];
+    const allowedPagesForCollaborator = ['booking', 'profile', 'agenda', 'my-assignments'];
 
     if (activeRole !== 'admin' && !allowedPagesForCollaborator.includes(state.currentPage)) {
         console.warn(`[Router] Access denied for role '${activeRole}' to page '${state.currentPage}'. Redirecting...`);
@@ -72,6 +73,15 @@ function render() {
         case 'dashboard':
             if (pageTitle) pageTitle.textContent = 'Ordini';
             renderDashboard(contentArea);
+            break;
+        case 'agenda':
+            console.log("[Router] Rendering Agenda...");
+            if (pageTitle) pageTitle.textContent = 'Agenda Personale';
+            renderAgenda(contentArea);
+            break;
+        case 'my-assignments':
+            if (pageTitle) pageTitle.textContent = 'I Miei Incarichi';
+            renderPlaceholder(contentArea, 'I Miei Incarichi');
             break;
         case 'sales': // Clients list
             if (pageTitle) pageTitle.textContent = 'Anagrafica Clienti';

@@ -1,15 +1,24 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './lib/supabaseClient';
 import { Loader2 } from 'lucide-react';
+import BookingsHub from './features/admin/BookingsHub';
 import { ToastProvider } from './components/ui/Toast';
 import BookingWizard from './features/user/BookingWizard';
 
 function App() {
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<'user' | 'admin'>('user');
 
   useEffect(() => {
     // Initial check
     checkUser();
+
+    // Check for mode param (e.g. ?mode=admin)
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode');
+    if (mode === 'admin') {
+      setView('admin');
+    }
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
@@ -60,8 +69,12 @@ function App() {
     <ToastProvider>
       <div className="bg-white font-sans text-slate-900">
         {/* Main Content */}
-        <main className="p-4 md:p-6 animate-fade-in max-w-7xl mx-auto">
-          <BookingWizard />
+        <main className={`p-4 md:p-6 animate-fade-in ${view === 'admin' ? 'max-w-full' : 'max-w-7xl mx-auto'}`}>
+          {view === 'admin' ? (
+            <BookingsHub />
+          ) : (
+            <BookingWizard />
+          )}
         </main>
       </div>
     </ToastProvider>
