@@ -22,22 +22,29 @@ export function renderBooking(container) {
     `;
 
     // Cross-Origin Session Sync
-    setTimeout(() => {
+    setTimeout(async () => {
         const iframe = document.getElementById('booking-iframe');
         if (iframe) {
-            iframe.onload = () => {
-                const session = localStorage.getItem('sb-whpbetjyhpttinbxcffs-auth-token');
-                // Note: The key depends on Supabase client config. 
-                // Checking standard local storage key first.
-                // If using 'window.sb', we can get it directly.
-
+            iframe.onload = async () => {
                 let sessionData = null;
-                if (window.sb && window.sb.auth && window.sb.auth.session) {
-                    sessionData = window.sb.auth.session();
-                } else if (session) {
-                    try {
-                        sessionData = JSON.parse(session);
-                    } catch (e) { console.error('Error parsing session', e); }
+
+                // 1. Try to get session from global supabase client (v2 API)
+                if (window.sb && window.sb.auth) {
+                    const { data } = await window.sb.auth.getSession();
+                    sessionData = data?.session;
+                }
+
+                // 2. Fallback to localStorage if client fails
+                if (!sessionData) {
+                    const storageKey = 'sb-whpbetjyhpttinbxcffs-auth-token';
+                    const sessionStr = localStorage.getItem(storageKey);
+                    if (sessionStr) {
+                        try {
+                            sessionData = JSON.parse(sessionStr);
+                        } catch (e) {
+                            console.error('Error parsing session from storage', e);
+                        }
+                    }
                 }
 
                 if (sessionData) {
@@ -46,6 +53,8 @@ export function renderBooking(container) {
                         type: 'SUPABASE_SESSION',
                         payload: sessionData
                     }, BOOKING_APP_URL);
+                } else {
+                    console.warn("No session found to sync with Booking App");
                 }
             };
         }
