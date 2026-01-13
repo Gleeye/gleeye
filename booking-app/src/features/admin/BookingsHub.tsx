@@ -9,7 +9,8 @@ import {
     Clock4,
     TrendingUp,
     Settings2,
-    PlusCircle
+    PlusCircle,
+    Smartphone
 } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -28,12 +29,27 @@ export default function BookingsHub() {
     });
     const [todayBookings, setTodayBookings] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
+        checkAdmin();
         if (activeView === 'hub') {
             fetchHubData();
         }
     }, [activeView]);
+
+    async function checkAdmin() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.email === 'davide@gleeye.com' || session?.user?.email === 'davidegentile91@gmail.com') { // Temporary hardcheck until better role system or use same logic as main app
+            // Better: re-use the logic from main app or just check profile role
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', session.user.id)
+                .single();
+            if (profile?.role === 'admin') setIsAdmin(true);
+        }
+    }
 
     async function fetchHubData() {
         setLoading(true);
@@ -197,13 +213,24 @@ export default function BookingsHub() {
                             description="Turni, orari e chiusure"
                             color="emerald"
                         />
-                        <ActionCard
-                            onClick={() => setActiveView('calendars')}
-                            icon={Settings2}
-                            title="Integrazioni"
-                            description="Google Calendar e sincronizzazioni"
-                            color="slate"
-                        />
+                        {isAdmin && (
+                            <>
+                                <ActionCard
+                                    onClick={() => window.open(window.location.href.split('?')[0], '_blank')}
+                                    icon={Briefcase} // Placeholder icon, maybe use another one
+                                    title="Test Modulo"
+                                    description="Simula esperienza cliente"
+                                    color="amber"
+                                />
+                                <ActionCard
+                                    onClick={() => setActiveView('calendars')}
+                                    icon={Settings2}
+                                    title="Integrazioni"
+                                    description="Google Calendar e sincronizzazioni"
+                                    color="slate"
+                                />
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -287,6 +314,7 @@ function ActionCard({ onClick, icon: Icon, title, description, color }: any) {
         violet: 'hover:border-violet-200 hover:bg-violet-50/30 icon-bg:bg-violet-50 icon-text:text-violet-600',
         emerald: 'hover:border-emerald-200 hover:bg-emerald-50/30 icon-bg:bg-emerald-50 icon-text:text-emerald-600',
         slate: 'hover:border-slate-200 hover:bg-slate-50/30 icon-bg:bg-slate-50 icon-text:text-slate-600',
+        amber: 'hover:border-amber-200 hover:bg-amber-50/30 icon-bg:bg-amber-50 icon-text:text-amber-600',
     };
 
     const iconBg: any = {
@@ -294,6 +322,7 @@ function ActionCard({ onClick, icon: Icon, title, description, color }: any) {
         violet: 'bg-violet-50',
         emerald: 'bg-emerald-50',
         slate: 'bg-slate-50',
+        amber: 'bg-amber-50',
     };
 
     const iconColor: any = {
@@ -301,6 +330,7 @@ function ActionCard({ onClick, icon: Icon, title, description, color }: any) {
         violet: 'text-violet-600',
         emerald: 'text-emerald-600',
         slate: 'text-slate-600',
+        amber: 'text-amber-600',
     };
 
     return (
