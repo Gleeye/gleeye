@@ -240,16 +240,17 @@ input[type="radio"]:checked::before {
 
 .input-group .material-icons-round {
     position: absolute;
-    left: 1rem;
+    left: 1.1rem;
     top: 50%;
     transform: translateY(-50%);
     color: var(--text-secondary);
     font-size: 1.2rem;
     pointer-events: none;
+    z-index: 1;
 }
 
 .input-group input {
-    padding-left: 3rem;
+    padding-left: 3.5rem;
     font-size: 1rem;
 }
 
