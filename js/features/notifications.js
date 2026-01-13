@@ -36,6 +36,7 @@ export async function initNotifications() {
  */
 async function fetchNotifications() {
     try {
+        // 1. Fetch latest 50 notifications for the list
         const { data, error } = await supabase
             .from('notifications')
             .select('*')
@@ -43,12 +44,21 @@ async function fetchNotifications() {
             .limit(50);
 
         if (error) throw error;
-
         notifications = data || [];
-        unreadCount = notifications.filter(n => !n.is_read).length;
+
+        // 2. Fetch EXACT unread count from DB (more robust than filtering the limit)
+        const { count, error: countError } = await supabase
+            .from('notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('is_read', false);
+
+        if (countError) throw countError;
+        unreadCount = count || 0;
+
+        console.log(`Notifications: Fetched ${notifications.length} items, Unread count: ${unreadCount}`);
         updateBadge();
     } catch (err) {
-        console.error('Error fetching notifications:', err);
+        console.error('Notifications: Error fetching:', err);
     }
 }
 
@@ -62,21 +72,22 @@ function subscribeToRealtime() {
     }
 
     subscription = supabase
-        .channel('notifications-channel')
+        .channel(`notifications-${state.session.user.id}`)
         .on(
             'postgres_changes',
             {
                 event: 'INSERT',
                 schema: 'public',
-                table: 'notifications'
+                table: 'notifications',
+                filter: `user_id=eq.${state.session.user.id}`
             },
             (payload) => {
-                console.log('New notification received:', payload.new);
+                console.log('Notifications: New realtime notification:', payload.new);
                 handleNewNotification(payload.new);
             }
         )
         .subscribe((status) => {
-            console.log('Notification subscription status:', status);
+            console.log(`Notifications: Subscription status for ${state.session.user.id}:`, status);
         });
 }
 
@@ -84,9 +95,21 @@ function subscribeToRealtime() {
  * Handle incoming real-time notification
  */
 function handleNewNotification(notification) {
+    // Double check it's for us (though filter should handle it)
+    if (notification.user_id !== state.session.user.id) {
+        console.warn('Notifications: Received notification for different user:', notification.user_id);
+        return;
+    }
+
+    // Check if already in list (avoid duplicates)
+    if (notifications.some(n => n.id === notification.id)) return;
+
+    console.log('Notifications: Handling new valid notification');
     // Add to beginning of array
     notifications.unshift(notification);
-    unreadCount++;
+
+    // Recalculate unread count to be safe
+    unreadCount = notifications.filter(n => !n.is_read).length;
 
     updateBadge();
 
@@ -288,14 +311,12 @@ async function markAsRead(id) {
  * Mark all notifications as read
  */
 async function markAllAsRead() {
-    const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
-    if (unreadIds.length === 0) return;
-
     try {
         const { error } = await supabase
             .from('notifications')
             .update({ is_read: true })
-            .in('id', unreadIds);
+            .eq('user_id', state.session.user.id)
+            .eq('is_read', false);
 
         if (error) throw error;
 
@@ -304,8 +325,9 @@ async function markAllAsRead() {
         unreadCount = 0;
         updateBadge();
         renderNotificationList();
+        console.log('Notifications: All marked as read');
     } catch (err) {
-        console.error('Error marking all as read:', err);
+        console.error('Notifications: Error marking all as read:', err);
     }
 }
 
