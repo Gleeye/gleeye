@@ -115,14 +115,20 @@ export default function BookingsCalendar() {
     }
 
     async function handleDeleteBooking(id: string) {
-        const { error } = await supabase.from('bookings').delete().eq('id', id);
-        if (error) {
-            showToast('Errore durante l\'eliminazione', 'error');
-        } else {
-            showToast('Prenotazione eliminata', 'success');
-            fetchBookings();
+        try {
+            const { error } = await supabase.from('bookings').delete().eq('id', id);
+            if (error) {
+                showToast('Errore durante l\'eliminazione', 'error');
+            } else {
+                showToast('Prenotazione eliminata', 'success');
+                fetchBookings();
+            }
+        } catch (err) {
+            console.error('Delete error:', err);
+            showToast('Errore di sistema durante l\'eliminazione', 'error');
+        } finally {
+            setDeleteConfirm({ isOpen: false, bookingId: null });
         }
-        setDeleteConfirm({ isOpen: false, bookingId: null });
     }
 
     const getStatusLabel = (status: string) => {
@@ -337,7 +343,7 @@ export default function BookingsCalendar() {
                                                         ${getStatusColor(booking.status)}
                                                     `}
                                                     >
-                                                        {format(new Date(booking.start_time), 'HH:mm')} - {booking.guest_info.last_name}
+                                                        {format(new Date(booking.start_time), 'HH:mm')} - {booking.guest_info?.last_name || 'Cliente'}
                                                     </div>
                                                 ))}
                                                 {dayBookings.length > 3 && (
@@ -434,7 +440,7 @@ export default function BookingsCalendar() {
                                                                 />
                                                             </div>
                                                             <div className="text-[11px] font-bold truncate leading-tight">
-                                                                {booking.guest_info.first_name} {booking.guest_info.last_name}
+                                                                {booking.guest_info?.first_name} {booking.guest_info?.last_name}
                                                             </div>
                                                             {height > 50 && (
                                                                 <div className="text-[9px] font-medium opacity-70 mt-1 truncate">
@@ -538,6 +544,6 @@ export default function BookingsCalendar() {
                 onConfirm={() => deleteConfirm.bookingId && handleDeleteBooking(deleteConfirm.bookingId)}
                 onCancel={() => setDeleteConfirm({ isOpen: false, bookingId: null })}
             />
-        </div>
+        </div >
     );
 }
