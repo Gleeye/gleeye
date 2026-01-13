@@ -526,7 +526,7 @@ export default function BookingWizard() {
                                         </div>
 
                                         {/* RIGHT: Slots List */}
-                                        <div className="w-full md:w-64 border-l border-slate-100 pl-0 md:pl-8">
+                                        <div className="w-full md:w-72 border-l border-slate-100 pl-0 md:pl-8">
                                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
                                                 Orari Disponibili
                                             </h4>
@@ -535,19 +535,19 @@ export default function BookingWizard() {
                                                     <p className="text-sm text-slate-400 italic">Seleziona un giorno<br />nel calendario.</p>
                                                 </div>
                                             ) : (
-                                                <div className="grid grid-cols-2 gap-3 h-64 overflow-y-auto content-start pr-2 custom-scrollbar">
+                                                <div className="grid grid-cols-1 gap-2 h-72 overflow-y-auto content-start pr-2 custom-scrollbar">
                                                     {availabilityMap[selectedDate]?.map(slotObj => (
                                                         <button
                                                             key={slotObj.time}
                                                             onClick={() => setSelectedSlot({ date: selectedDate, ...slotObj })}
                                                             className={`
-                                                            py-2 px-3 rounded-lg text-sm font-medium border transition-all text-center duration-200
+                                                            py-3 px-4 rounded-xl text-sm font-bold border transition-all text-center duration-200 whitespace-nowrap
                                                             ${selectedSlot?.date === selectedDate && selectedSlot?.time === slotObj.time
-                                                                    ? 'bg-gradient-to-r from-[#4e92d8] to-[#614aa2] text-white border-transparent shadow-md shadow-blue-500/20'
-                                                                    : 'bg-white text-slate-700 border-slate-100 hover:border-blue-200 hover:text-[#4e92d8] hover:bg-blue-50/50 hover:shadow-sm'}
+                                                                    ? 'bg-gradient-to-r from-[#4e92d8] to-[#614aa2] text-white border-transparent shadow-md shadow-blue-500/20 scale-[1.02]'
+                                                                    : 'bg-white text-slate-700 border-slate-100 hover:border-[#4e92d8]/50 hover:text-[#4e92d8] hover:bg-blue-50/50 hover:shadow-sm'}
                                                         `}
                                                         >
-                                                            {slotObj.time} - {format(addMinutes(new Date(slotObj.start), selectedService?.duration || 60), 'HH:mm')}
+                                                            {slotObj.time} — {format(addMinutes(new Date(slotObj.start), selectedService?.duration || 60), 'HH:mm')}
                                                         </button>
                                                     ))}
                                                 </div>
