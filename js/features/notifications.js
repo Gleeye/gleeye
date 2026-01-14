@@ -3,8 +3,8 @@
  * Handles real-time notifications via Supabase Realtime
  */
 
-import { supabase } from '../modules/config.js?v=117';
-import { state } from '../modules/state.js?v=117';
+import { supabase } from '../modules/config.js?v=119';
+import { state } from '../modules/state.js?v=119';
 
 // State
 let notifications = [];

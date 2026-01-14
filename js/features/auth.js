@@ -1,8 +1,8 @@
-import { supabase } from '../modules/config.js?v=117';
-import { state } from '../modules/state.js?v=117';
-import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js?v=117';
-import { showGlobalAlert } from '../modules/utils.js?v=117';
-import { updateSidebarVisibility } from './layout.js?v=117';
+import { supabase } from '../modules/config.js?v=119';
+import { state } from '../modules/state.js?v=119';
+import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js?v=119';
+import { showGlobalAlert } from '../modules/utils.js?v=119';
+import { updateSidebarVisibility } from './layout.js?v=119';
 
 // We need a way to call router() from here. 
 // Since router depends on render which depends on auth state, we might have a cycle.
@@ -127,9 +127,11 @@ async function handleSession(session) {
 
             // For collaborators: ensure we redirect to allowed page BEFORE showing app
             const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
-            const allowedPagesForCollaborator = ['booking', 'profile'];
+            const allowedPagesForCollaborator = ['booking', 'profile', 'agenda', 'my-assignments'];
             const currentHash = window.location.hash.slice(1) || 'dashboard';
             const [currentPage] = currentHash.split('/');
+
+            console.log(`[Auth] User Role: ${activeRole}, Profile Role: ${state.profile?.role}, Current Page: ${currentPage}`);
 
             if (activeRole !== 'admin' && !allowedPagesForCollaborator.includes(currentPage)) {
                 // Redirect BEFORE showing anything - no flash

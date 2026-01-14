@@ -1,5 +1,5 @@
-import { supabase } from './config.js?v=117';
-import { state } from './state.js?v=117';
+import { supabase } from './config.js?v=119';
+import { state } from './state.js?v=119';
 
 export async function fetchProfile() {
     const { data: authData } = await supabase.auth.getUser();
@@ -58,11 +58,35 @@ export async function fetchProfile() {
         }
     }
 
+    // SUPER ADMIN RESCUE: If profile is still null, but it's YOU, force access.
+    if (!profile && user?.email === 'davide@gleeye.eu') {
+        console.warn("DEBUG: Profile not found for Super Admin. Creating ephemeral admin profile.");
+        profile = {
+            id: user.id,
+            email: user.email,
+            role: 'admin',
+            full_name: 'Davide Gentile', // Default name
+            is_onboarded: true
+        };
+    }
+
     if (profile) {
+        // EMERGENCY FALLBACK: Force admin for known users if role is missing
+        if (profile.email === 'davide@gleeye.eu' && !profile.role) {
+            console.warn("DEBUG: Role missing for admin user (davide@gleeye.eu), forcing 'admin'.");
+            profile.role = 'admin';
+        }
+
         state.profile = profile;
         return profile;
     } else {
         console.warn("Profile not found and could not be created.");
+        // DEBUG ALERT
+        if (error) {
+            window.alert(`DEBUG PROFILE ERROR:\nCode: ${error.code}\nMsg: ${error.message}\nHint: ${error.hint}`);
+        } else {
+            window.alert(`DEBUG PROFILE MISSING: No error, but no profile found for ID ${user.id}`);
+        }
         return null;
     }
 }
@@ -868,22 +892,22 @@ async function refreshCurrentPage() {
     if (!container) return;
 
     if (hash.includes('order-detail/')) {
-        const { renderOrderDetail } = await import('../features/orders.js?v=117');
+        const { renderOrderDetail } = await import('../features/orders.js?v=119');
         renderOrderDetail(container);
     } else if (hash.includes('payments')) {
-        const { renderPaymentsDashboard } = await import('../features/payments.js?v=117');
+        const { renderPaymentsDashboard } = await import('../features/payments.js?v=119');
         renderPaymentsDashboard(container);
     } else if (hash.includes('bank-transactions')) {
-        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=117');
+        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=119');
         renderBankTransactions(container);
     } else if (hash.includes('collaborator-services')) {
-        const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=117');
+        const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=119');
         renderCollaboratorServices(container);
     } else if (hash.includes('assignment-detail/')) {
-        const { renderAssignmentDetail } = await import('../features/assignments.js?v=117');
+        const { renderAssignmentDetail } = await import('../features/assignments.js?v=119');
         renderAssignmentDetail(container);
     } else if (hash.includes('collaborator-detail/')) {
-        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=117');
+        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=119');
         renderCollaboratorDetail(container);
     } else if (hash.includes('client-detail/')) {
     }

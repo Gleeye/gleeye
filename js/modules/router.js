@@ -44,6 +44,14 @@ export function router() {
     // List of pages allowed for Collaborators
     const allowedPagesForCollaborator = ['booking', 'profile', 'agenda', 'my-assignments'];
 
+    // Don't redirect if we are still fetching profile/auth - wait for it
+    if (state.isFetching && activeRole === 'collaborator') {
+        console.log("[Router] Still fetching profile, delaying access check...");
+        return;
+    }
+
+    console.log(`[Router] Routing to: ${state.currentPage}, Role: ${activeRole}`);
+
     if (activeRole !== 'admin' && !allowedPagesForCollaborator.includes(state.currentPage)) {
         console.warn(`[Router] Access denied for role '${activeRole}' to page '${state.currentPage}'. Redirecting...`);
         // Force redirect to a safe page
@@ -69,112 +77,126 @@ function render() {
     // Default Title Update
     if (pageTitle) pageTitle.textContent = state.currentPage.charAt(0).toUpperCase() + state.currentPage.slice(1);
 
-    switch (state.currentPage) {
-        case 'dashboard':
-            if (pageTitle) pageTitle.textContent = 'Ordini';
-            renderDashboard(contentArea);
-            break;
-        case 'agenda':
-            console.log("[Router] Rendering Agenda...");
-            if (pageTitle) pageTitle.textContent = 'Agenda Personale';
-            renderAgenda(contentArea);
-            break;
-        case 'my-assignments':
-            if (pageTitle) pageTitle.textContent = 'I Miei Incarichi';
-            renderPlaceholder(contentArea, 'I Miei Incarichi');
-            break;
-        case 'sales': // Clients list
-            if (pageTitle) pageTitle.textContent = 'Anagrafica Clienti';
-            renderClients(contentArea);
-            break;
-        case 'client-detail':
-            if (pageTitle) pageTitle.textContent = 'Dettaglio Cliente';
-            renderClientDetail(contentArea);
-            break;
-        case 'employees':
-            if (pageTitle) pageTitle.textContent = 'Collaboratori';
-            renderCollaborators(contentArea);
-            break;
-        case 'collaborator-detail':
-            if (pageTitle) pageTitle.textContent = 'Dettaglio Collaboratore';
-            renderCollaboratorDetail(contentArea);
-            break;
-        case 'contacts':
-            if (pageTitle) pageTitle.textContent = 'Anagrafica Referenti';
-            renderContacts(contentArea);
-            break;
-        case 'invoices': // Active Invoices List
-            if (pageTitle) pageTitle.textContent = 'Fatture Attive';
-            renderInvoices(contentArea);
-            break;
-        case 'invoices-dashboard':
-            if (pageTitle) pageTitle.textContent = 'Dashboard Fatturato';
-            renderInvoicesDashboard(contentArea);
-            break;
-        case 'passive-invoices-collab':
-            if (pageTitle) pageTitle.textContent = 'Fatture Collaboratori';
-            renderPassiveInvoicesCollab(contentArea);
-            break;
-        case 'passive-invoices-suppliers':
-            if (pageTitle) pageTitle.textContent = 'Fatture Fornitori';
-            renderPassiveInvoicesSuppliers(contentArea);
-            break;
-        case 'bank-transactions':
-            if (pageTitle) pageTitle.textContent = 'Registro Movimenti';
-            renderBankTransactions(contentArea);
-            break;
-        case 'bank-statements':
-            if (pageTitle) pageTitle.textContent = 'Estratti Conto';
-            renderBankStatements(contentArea);
-            break;
-        case 'invoices-archive':
-            if (pageTitle) pageTitle.textContent = 'Archivio Storico';
-            renderPlaceholder(contentArea, 'Archivio Storico');
-            break;
-        case 'settings':
-            if (pageTitle) pageTitle.textContent = 'Impostazioni';
-            renderPlaceholder(contentArea, 'Impostazioni Generali');
-            break;
-        case 'order-detail':
-            if (pageTitle) pageTitle.textContent = 'Dettaglio Commessa';
-            renderOrderDetail(contentArea);
-            break;
-        case 'suppliers':
-            state.currentPage = 'suppliers';
-            initSupplierModals();
-            renderSuppliers(contentArea);
-            break;
-        case 'services':
-            if (pageTitle) pageTitle.textContent = 'Catalogo Servizi';
-            renderServices(contentArea);
-            break;
-        case 'collaborator-services':
-            if (pageTitle) pageTitle.textContent = 'Servizi Collaboratori';
-            renderCollaboratorServices(contentArea);
-            break;
-        case 'assignment-detail':
-            if (pageTitle) pageTitle.textContent = 'Dettaglio Incarico';
-            renderAssignmentDetail(contentArea);
-            break;
-        case 'assignments':
-            if (pageTitle) pageTitle.textContent = 'Incarichi';
-            renderAssignmentsDashboard(contentArea);
-            break;
-        case 'payments':
-            if (pageTitle) pageTitle.textContent = 'Scadenziario Pagamenti';
-            initPaymentModals();
-            renderPaymentsDashboard(contentArea);
-            break;
-        case 'booking':
-            renderBooking(contentArea);
-            break;
-        case 'profile':
-            if (pageTitle) pageTitle.textContent = 'Il Mio Profilo';
-            renderUserProfile(contentArea);
-            break;
-        // ... Add other routes as needed
-        default:
-            contentArea.innerHTML = '<p style="padding:2rem;">Pagina non trovata o in costruzione.</p>';
+    try {
+        switch (state.currentPage) {
+            case 'dashboard':
+                if (pageTitle) pageTitle.textContent = 'Ordini';
+                renderDashboard(contentArea);
+                break;
+            case 'agenda':
+                console.log("[Router] Rendering Agenda...");
+                if (pageTitle) pageTitle.textContent = 'Agenda Personale';
+                renderAgenda(contentArea);
+                break;
+            case 'my-assignments':
+                if (pageTitle) pageTitle.textContent = 'I Miei Incarichi';
+                renderPlaceholder(contentArea, 'I Miei Incarichi');
+                break;
+            case 'sales': // Clients list
+                if (pageTitle) pageTitle.textContent = 'Anagrafica Clienti';
+                renderClients(contentArea);
+                break;
+            case 'client-detail':
+                if (pageTitle) pageTitle.textContent = 'Dettaglio Cliente';
+                renderClientDetail(contentArea);
+                break;
+            case 'employees':
+                if (pageTitle) pageTitle.textContent = 'Collaboratori';
+                renderCollaborators(contentArea);
+                break;
+            case 'collaborator-detail':
+                if (pageTitle) pageTitle.textContent = 'Dettaglio Collaboratore';
+                renderCollaboratorDetail(contentArea);
+                break;
+            case 'contacts':
+                if (pageTitle) pageTitle.textContent = 'Anagrafica Referenti';
+                renderContacts(contentArea);
+                break;
+            case 'invoices': // Active Invoices List
+                if (pageTitle) pageTitle.textContent = 'Fatture Attive';
+                renderInvoices(contentArea);
+                break;
+            case 'invoices-dashboard':
+                if (pageTitle) pageTitle.textContent = 'Dashboard Fatturato';
+                renderInvoicesDashboard(contentArea);
+                break;
+            case 'passive-invoices-collab':
+                if (pageTitle) pageTitle.textContent = 'Fatture Collaboratori';
+                renderPassiveInvoicesCollab(contentArea);
+                break;
+            case 'passive-invoices-suppliers':
+                if (pageTitle) pageTitle.textContent = 'Fatture Fornitori';
+                renderPassiveInvoicesSuppliers(contentArea);
+                break;
+            case 'bank-transactions':
+                if (pageTitle) pageTitle.textContent = 'Registro Movimenti';
+                renderBankTransactions(contentArea);
+                break;
+            case 'bank-statements':
+                if (pageTitle) pageTitle.textContent = 'Estratti Conto';
+                renderBankStatements(contentArea);
+                break;
+            case 'invoices-archive':
+                if (pageTitle) pageTitle.textContent = 'Archivio Storico';
+                renderPlaceholder(contentArea, 'Archivio Storico');
+                break;
+            case 'settings':
+                if (pageTitle) pageTitle.textContent = 'Impostazioni';
+                renderPlaceholder(contentArea, 'Impostazioni Generali');
+                break;
+            case 'order-detail':
+                if (pageTitle) pageTitle.textContent = 'Dettaglio Commessa';
+                renderOrderDetail(contentArea);
+                break;
+            case 'suppliers':
+                state.currentPage = 'suppliers';
+                initSupplierModals();
+                renderSuppliers(contentArea);
+                break;
+            case 'services':
+                if (pageTitle) pageTitle.textContent = 'Catalogo Servizi';
+                renderServices(contentArea);
+                break;
+            case 'collaborator-services':
+                if (pageTitle) pageTitle.textContent = 'Servizi Collaboratori';
+                renderCollaboratorServices(contentArea);
+                break;
+            case 'assignment-detail':
+                if (pageTitle) pageTitle.textContent = 'Dettaglio Incarico';
+                renderAssignmentDetail(contentArea);
+                break;
+            case 'assignments':
+                if (pageTitle) pageTitle.textContent = 'Incarichi';
+                renderAssignmentsDashboard(contentArea);
+                break;
+            case 'payments':
+                if (pageTitle) pageTitle.textContent = 'Scadenziario Pagamenti';
+                initPaymentModals();
+                renderPaymentsDashboard(contentArea);
+                break;
+            case 'booking':
+                renderBooking(contentArea);
+                break;
+            case 'profile':
+                if (pageTitle) pageTitle.textContent = 'Il Mio Profilo';
+                renderUserProfile(contentArea);
+                break;
+            // ... Add other routes as needed
+            default:
+                contentArea.innerHTML = '<p style="padding:2rem;">Pagina non trovata o in costruzione.</p>';
+        }
+    } catch (error) {
+        console.error(`[Router] Error rendering page ${state.currentPage}:`, error);
+        contentArea.innerHTML = `
+            <div style="padding: 2rem; color: red; text-align: center;">
+                <h3>Errore di Visualizzazione</h3>
+                <p>Si è verificato un errore durante il caricamento della pagina <strong>${state.currentPage}</strong>.</p>
+                <div style="background: #fff0f0; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: left; overflow: auto;">
+                    <code>${error.toString()}</code>
+                </div>
+                <button onclick="window.location.reload()" class="primary-btn">Ricarica Pagina</button>
+            </div>
+        `;
     }
 }
 

@@ -1,6 +1,6 @@
-import { state } from '../modules/state.js?v=117';
-import { supabase } from '../modules/config.js?v=117';
-import { fetchCollaborators } from '../modules/api.js?v=117';
+import { state } from '../modules/state.js?v=119';
+import { supabase } from '../modules/config.js?v=119';
+import { fetchCollaborators } from '../modules/api.js?v=119';
 
 export function initLayout() {
     // Sidebar Toggle Logic
@@ -54,6 +54,19 @@ function initDrillDownNavigation() {
                 activateDrillDown(newItem, submenu);
             } else {
                 console.warn('Submenu not found for:', submenuId);
+            }
+        });
+    });
+
+    // FORCE FIX: Ensure normal links work
+    const normalLinks = document.querySelectorAll('.nav-item[href^="#"]:not(.has-submenu)');
+    normalLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            const target = link.getAttribute('href');
+            console.log("Force clicking link:", target);
+            if (target) {
+                // Manually set hash to ensure navigation
+                window.location.hash = target;
             }
         });
     });
@@ -238,7 +251,9 @@ export function exitImpersonation() {
 }
 
 export function updateSidebarVisibility() {
+    const sidebar = document.getElementById('sidebar');
     const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
+    if (!sidebar) return;
     const managementNav = sidebar.querySelector('#nav-management');
 
     console.log(`[Sidebar] Updating visibility for role: ${activeRole}`);
