@@ -1,5 +1,5 @@
-import { supabase } from './config.js?v=119';
-import { state } from './state.js?v=119';
+import { supabase } from './config.js?v=121';
+import { state } from './state.js?v=121';
 
 export async function fetchProfile() {
     const { data: authData } = await supabase.auth.getUser();
@@ -892,22 +892,22 @@ async function refreshCurrentPage() {
     if (!container) return;
 
     if (hash.includes('order-detail/')) {
-        const { renderOrderDetail } = await import('../features/orders.js?v=119');
+        const { renderOrderDetail } = await import('../features/orders.js?v=121');
         renderOrderDetail(container);
     } else if (hash.includes('payments')) {
-        const { renderPaymentsDashboard } = await import('../features/payments.js?v=119');
+        const { renderPaymentsDashboard } = await import('../features/payments.js?v=121');
         renderPaymentsDashboard(container);
     } else if (hash.includes('bank-transactions')) {
-        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=119');
+        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=121');
         renderBankTransactions(container);
     } else if (hash.includes('collaborator-services')) {
-        const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=119');
+        const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=121');
         renderCollaboratorServices(container);
     } else if (hash.includes('assignment-detail/')) {
-        const { renderAssignmentDetail } = await import('../features/assignments.js?v=119');
+        const { renderAssignmentDetail } = await import('../features/assignments.js?v=121');
         renderAssignmentDetail(container);
     } else if (hash.includes('collaborator-detail/')) {
-        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=119');
+        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=121');
         renderCollaboratorDetail(container);
     } else if (hash.includes('client-detail/')) {
     }

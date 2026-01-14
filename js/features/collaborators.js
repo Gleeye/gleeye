@@ -1,7 +1,7 @@
-import { state } from '../modules/state.js?v=119';
-import { formatAmount } from '../modules/utils.js?v=119';
-import { openDepartmentManager } from './settings.js?v=119';
-import { upsertCollaborator, fetchPayments, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js?v=119';
+import { state } from '../modules/state.js?v=121';
+import { formatAmount } from '../modules/utils.js?v=121';
+import { openDepartmentManager } from './settings.js?v=121';
+import { upsertCollaborator, fetchPayments, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js?v=121';
 
 export function renderCollaborators(container) {
     const renderGrid = () => {
@@ -332,7 +332,7 @@ window.sendMagicLink = async (email) => {
 
     if (await window.showConfirm(`Vuoi inviare un Magic Link di accesso a ${email}?`)) {
         try {
-            const { supabase } = await import('../modules/config.js?v=119');
+            const { supabase } = await import('../modules/config.js?v=121');
             const { error } = await supabase.auth.signInWithOtp({
                 email,
                 options: {

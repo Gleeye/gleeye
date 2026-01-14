@@ -1,8 +1,8 @@
-import { supabase } from '../modules/config.js?v=119';
-import { state } from '../modules/state.js?v=119';
-import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js?v=119';
-import { showGlobalAlert } from '../modules/utils.js?v=119';
-import { updateSidebarVisibility } from './layout.js?v=119';
+import { supabase } from '../modules/config.js?v=121';
+import { state } from '../modules/state.js?v=121';
+import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js?v=121';
+import { showGlobalAlert } from '../modules/utils.js?v=121';
+import { updateSidebarVisibility } from './layout.js?v=121';
 
 // We need a way to call router() from here. 
 // Since router depends on render which depends on auth state, we might have a cycle.

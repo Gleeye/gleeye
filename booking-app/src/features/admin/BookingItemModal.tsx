@@ -240,12 +240,12 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
                             {editItem && (
                                 <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1 pr-3 border border-slate-200">
                                     <div className="bg-white px-2 py-1 rounded border border-slate-200 text-[10px] font-mono text-slate-500 select-all">
-                                        http://localhost:5173/?service_id={editItem.id}
+                                        {window.location.origin}/?service_id={editItem.id}
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            const url = `http://localhost:5173/?service_id=${editItem.id}`;
+                                            const url = `${window.location.origin}/?service_id=${editItem.id}`;
                                             navigator.clipboard.writeText(url);
                                             showToast('Link copiato!', 'success');
                                         }}

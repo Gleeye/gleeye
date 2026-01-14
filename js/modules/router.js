@@ -1,21 +1,22 @@
-import { state } from './state.js?v=119';
-import { renderDashboard } from '../features/dashboard.js?v=119';
-import { renderClients, renderClientDetail } from '../features/clients.js?v=119';
-import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=119';
-import { renderContacts } from '../features/contacts.js?v=119';
-import { renderOrderDetail } from '../features/orders.js?v=119';
-import { renderInvoices, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from '../features/invoices.js?v=119';
-import { renderInvoicesDashboard } from '../features/dashboard.js?v=119';
-import { renderBankTransactions } from '../features/bank_transactions.js?v=119';
-import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=119';
-import { renderBankStatements } from '../features/bank_statements.js?v=119';
-import { renderServices } from '../features/services.js?v=119';
-import { renderCollaboratorServices } from '../features/collaborator_services.js?v=119';
-import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=119';
-import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=119';
-import { renderBooking } from '../features/booking.js?v=119';
-import { renderUserProfile } from '../features/user_dashboard.js?v=119';
-import { renderAgenda } from '../features/personal_agenda.js?v=119';
+import { state } from './state.js?v=121';
+import { renderDashboard } from '../features/dashboard.js?v=121';
+import { renderClients, renderClientDetail } from '../features/clients.js?v=121';
+import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=121';
+import { renderContacts } from '../features/contacts.js?v=121';
+import { renderOrderDetail } from '../features/orders.js?v=121';
+import { renderInvoices, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from '../features/invoices.js?v=121';
+import { renderInvoicesDashboard } from '../features/dashboard.js?v=121';
+import { renderBankTransactions } from '../features/bank_transactions.js?v=121';
+import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=121';
+import { renderBankStatements } from '../features/bank_statements.js?v=121';
+import { renderServices } from '../features/services.js?v=121';
+import { renderCollaboratorServices } from '../features/collaborator_services.js?v=121';
+import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=121';
+import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=121';
+import { renderBooking } from '../features/booking.js?v=121';
+import { renderUserProfile } from '../features/user_dashboard.js?v=121';
+import { renderAgenda } from '../features/personal_agenda.js?v=121';
+import { renderNotificationCenter } from '../features/notifications.js?v=121';
 
 export function router() {
     // Try to restore saved route on initial load (no hash but has saved route)
@@ -180,6 +181,10 @@ function render() {
             case 'profile':
                 if (pageTitle) pageTitle.textContent = 'Il Mio Profilo';
                 renderUserProfile(contentArea);
+                break;
+            case 'notifications':
+                if (pageTitle) pageTitle.textContent = 'Centro Notifiche';
+                renderNotificationCenter(contentArea);
                 break;
             // ... Add other routes as needed
             default:
