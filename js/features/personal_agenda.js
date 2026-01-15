@@ -199,20 +199,46 @@ async function fetchMyBookings() {
 
         // If not impersonating, find the collaborator record for this auth user
         if (!collaboratorId && authUserId) {
-            const { data: collabRecord, error: collabError } = await supabase
+            // First try by user_id
+            let { data: collabRecord, error: collabError } = await supabase
                 .from('collaborators')
                 .select('id')
                 .eq('user_id', authUserId)
-                .single();
+                .maybeSingle();
 
-            if (collabError) {
-                console.warn("[Agenda] No collaborator record found for user:", authUserId, collabError);
-                eventsCache = [];
-                return;
+            // If not found by user_id, try by Email (Robust Fallback)
+            if (!collabRecord) {
+                const userEmail = state.profile?.email || state.session?.user?.email;
+                if (userEmail) {
+                    console.log("[Agenda] Fallback: Searching collaborator by email:", userEmail);
+                    const { data: emailMatch } = await supabase
+                        .from('collaborators')
+                        .select('id')
+                        .eq('email', userEmail)
+                        .maybeSingle();
+
+                    if (emailMatch) {
+                        collabRecord = emailMatch;
+                        // Self-Heal: Link user_id for future
+                        supabase.from('collaborators')
+                            .update({ user_id: authUserId })
+                            .eq('id', emailMatch.id)
+                            .then(({ error }) => {
+                                if (error) console.warn("Failed to auto-link user_id:", error);
+                                else console.log("Auto-linked user_id to collaborator");
+                            });
+                    }
+                }
             }
 
-            collaboratorId = collabRecord?.id;
-            console.log("[Agenda] Found collaborator ID:", collaboratorId);
+            if (!collabRecord) {
+                console.warn("[Agenda] No collaborator record found for user:", authUserId);
+                eventsCache = [];
+                // Do not return immediately, allow rendering empty agenda
+            } else {
+                collaboratorId = collabRecord.id;
+                console.log("[Agenda] Found collaborator ID:", collaboratorId);
+            }
         }
 
         currentCollaboratorId = collaboratorId;
