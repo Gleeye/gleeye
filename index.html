@@ -19,6 +19,12 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         window.addEventListener('error', function (event) {
+            // Ignore benign ResizeObserver error
+            if (event.message === 'ResizeObserver loop completed with undelivered notifications.') {
+                event.stopImmediatePropagation();
+                return;
+            }
+
             console.error("Global Error:", event.error);
             const errDiv = document.createElement('div');
             errDiv.style.position = 'fixed';
@@ -33,6 +39,13 @@
             document.body.appendChild(errDiv);
         });
         window.addEventListener('unhandledrejection', function (event) {
+            // Ignore benign ResizeObserver error
+            const msg = event.reason ? (event.reason.message || event.reason) : '';
+            if (msg === 'ResizeObserver loop completed with undelivered notifications.') {
+                event.stopImmediatePropagation();
+                return;
+            }
+
             console.error("Unhandled Rejection:", event.reason);
             const errDiv = document.createElement('div');
             errDiv.style.position = 'fixed';
