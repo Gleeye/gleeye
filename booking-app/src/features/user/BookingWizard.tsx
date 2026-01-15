@@ -44,7 +44,12 @@ export default function BookingWizard() {
         try {
             const { data, error } = await supabase
                 .from('booking_items')
-                .select('*')
+                .select(`
+                    *,
+                    category:category_id (
+                        name
+                    )
+                `)
                 .eq('is_active', true)
                 .order('name');
 
@@ -53,7 +58,8 @@ export default function BookingWizard() {
             // Map duration_minutes to duration for frontend compatibility if needed
             const mappedData = data?.map(item => ({
                 ...item,
-                duration: item.duration_minutes // Map for UI consistency
+                duration: item.duration_minutes, // Map for UI consistency
+                category_name: item.category?.name // Flatten category name
             })) || [];
 
             setServices(mappedData);
