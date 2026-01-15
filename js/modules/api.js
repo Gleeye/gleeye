@@ -950,7 +950,10 @@ export async function fetchAvailabilityRules(collaboratorId) {
 export async function saveAvailabilityRules(collaboratorId, rules) {
     console.log("Saving availability rules for:", collaboratorId, rules);
 
-    // 1. Delete Logic
+    // STRATEGY: Delete all existing rules for this collaborator and insert new ones.
+    // This avoids "duplicate key" errors when the frontend sends rules without IDs (treating them as new).
+
+    // 1. Delete Existing
     const { error: deleteError } = await supabase
         .from('availability_rules')
         .delete()
@@ -961,26 +964,34 @@ export async function saveAvailabilityRules(collaboratorId, rules) {
             console.warn("Table availability_rules missing. Skipping save.");
             return [];
         }
+        console.error("Error clearing old rules:", deleteError);
         throw deleteError;
     }
 
-    if (!rules || rules.length === 0) return [];
+    // 2. Insert New (if any)
+    if (rules && rules.length > 0) {
+        // Ensure every rule has the correct collaborator_id
+        const payload = rules.map(r => ({
+            collaborator_id: collaboratorId,
+            day_of_week: r.day_of_week,
+            start_time: r.start_time,
+            end_time: r.end_time,
+            service_id: r.service_id || null
+        }));
 
-    // 2. Insert Logic (No service_id in schema)
-    const payload = rules.map(r => ({
-        collaborator_id: collaboratorId,
-        day_of_week: r.day_of_week,
-        start_time: r.start_time,
-        end_time: r.end_time
-    }));
+        const { data, error: insertError } = await supabase
+            .from('availability_rules')
+            .insert(payload)
+            .select();
 
-    const { data, error: insertError } = await supabase
-        .from('availability_rules')
-        .insert(payload)
-        .select();
+        if (insertError) {
+            console.error("Error inserting new rules:", insertError);
+            throw insertError;
+        }
+        return data;
+    }
 
-    if (insertError) throw insertError;
-    return data;
+    return [];
 }
 
 // --- REST DAYS ---

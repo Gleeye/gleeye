@@ -125,9 +125,16 @@ function activateDrillDown(categoryItem, submenu) {
     const clonedNavItems = submenuClone.querySelectorAll('.nav-item[data-target]');
     clonedNavItems.forEach(item => {
         item.addEventListener('click', (e) => {
-            // Let the default anchor behavior work (hash navigation)
-            // The router will pick it up via hashchange event
-            exitDrillDown();
+            // Keep the drill-down open when navigating between sub-items
+            // The router will handle the view change via hashchange
+            console.log(`[DrillDown] Navigating to: ${item.getAttribute('href')}`);
+
+            // Add a slight delay for visual feedback if needed, but don't exit
+            setTimeout(() => {
+                // Update active state manually in the drill-down view
+                submenuClone.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+            }, 50);
         });
     });
 }

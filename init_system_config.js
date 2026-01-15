@@ -1,3 +1,4 @@
+
 // Quick script to create system_config table via Supabase client
 import { supabase } from './js/modules/config.js';
 
@@ -35,8 +36,7 @@ async function createSystemConfigTable() {
 
         INSERT INTO system_config (key, value, description, updated_at)
         VALUES 
-            ('google_client_id', '', 'Google OAuth Client ID for Calendar API', NOW()),
-            ('google_client_secret', '', 'Google OAuth Client Secret for Calendar API', NOW())
+            ('google_calendar', '{"client_id": "", "client_secret": ""}', 'Google Calendar Integration Configuration', NOW())
         ON CONFLICT (key) DO NOTHING;
     `;
 

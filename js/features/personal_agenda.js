@@ -1,151 +1,45 @@
 import { supabase } from '../modules/config.js?v=123';
 import { state } from '../modules/state.js?v=123';
+import { fetchAvailabilityRules, fetchRestDays, fetchAvailabilityOverrides } from '../modules/api.js?v=123';
+import { openAvailabilityModal, checkAndHandleGoogleCallback } from './availability_manager.js?v=123';
 
-let currentDate = new Date(); // Represents the start of the week or current view date
-let eventsCache = [];
-let currentView = 'week'; // 'week', 'day'
-let miniCalendarDate = new Date(); // Separate state for mini calendar
-
-let filters = {
-    bookings: true,
-    deadlines: true,
-    reminders: true
-};
+// ... (existing vars)
 
 export async function renderAgenda(container) {
-    console.log("[Agenda] renderAgenda called. Container:", container);
+    // ... (existing setup)
 
-    // Set Page Title
-    const titleEl = document.getElementById('page-title');
-    if (titleEl) titleEl.textContent = 'Agenda';
-
-    if (!container) {
-        console.error("[Agenda] Container not found!");
-        return;
-    }
-
-    container.innerHTML = `
-        <div class="agenda-container animate-fade-in" id="agenda-view-wrapper">
-            
-            <!-- SIDEBAR -->
-            <aside class="agenda-sidebar">
-                <div class="agenda-sidebar-header">
-                    <h2>Agenda</h2>
-                    <p>Overview Appuntamenti</p>
-                </div>
-
-                <!-- Mini Calendar -->
-                <div class="mini-calendar" id="mini-calendar">
-                    <!-- Rendered via JS -->
-                </div>
-
-                <!-- Filters -->
-                <div class="agenda-filters">
-                    <div class="filter-group-title">Filtri Calendario</div>
-                    
-                    <div class="filter-item active" data-filter="bookings" onclick="toggleFilter('bookings')">
-                        <div class="filter-checkbox" style="background: #0ea5e9; border-color: #0ea5e9;">
-                            <i class="material-icons-round">check</i>
-                        </div>
-                        <span>Prenotazioni</span>
-                    </div>
-
-                    <div class="filter-item active" data-filter="deadlines" onclick="toggleFilter('deadlines')">
-                        <div class="filter-checkbox" style="background: #f59e0b; border-color: #f59e0b;">
-                            <i class="material-icons-round">check</i>
-                        </div>
-                        <span>Scadenze</span>
-                    </div>
-
-                     <div class="filter-item" data-filter="reminders" onclick="toggleFilter('reminders')">
-                        <div class="filter-checkbox">
-                             <i class="material-icons-round">check</i>
-                        </div>
-                        <span>Promemoria</span>
-                    </div>
-                </div>
-
-                 <!-- Deal / Quick Actions -->
-                <div class="agenda-quick-add">
-                   <div class="filter-group-title">Azioni</div>
-                   <button class="quick-add-btn" onclick="alert('Funzione in arrivo!')">
-                        <span class="material-icons-round">add_circle_outline</span>
-                        Aggiungi Evento
-                   </button>
-                </div>
-            </aside>
-
-            <!-- MAIN CONTENT -->
-            <div class="agenda-main">
-                <!-- Toolbar -->
-                <div class="agenda-main-header">
-                    <div class="header-left">
-                        <h2 class="date-range-display" id="period-label">
-                            <!-- Date Range -->
-                        </h2>
-                    </div>
-
-                    <div class="header-actions">
-                         <div class="view-mode-toggle">
-                            <button class="mode-btn active" id="view-week" onclick="switchView('week')">Settimana</button>
-                            <button class="mode-btn" id="view-day" onclick="switchView('day')">Giorno</button>
-                        </div>
-
-                         <div class="calendar-nav-controls" style="display:flex; gap: 0.5rem">
-                            <button class="icon-nav-btn" id="prev-period">
-                                <span class="material-icons-round">chevron_left</span>
-                            </button>
-                            <button class="icon-nav-btn" id="next-period">
-                                <span class="material-icons-round">chevron_right</span>
-                            </button>
-                             <button class="today-btn" id="today-btn">Oggi</button>
-                        </div>
-                    </div>
-                </div>
-
-                 <!-- Timeline Grid -->
-                <div class="timeline-wrapper">
-                    <!-- Header Row (Days) -->
-                    <div class="timeline-header-row" id="timeline-header">
-                         <!-- Day Headers injected here -->
-                    </div>
-
-                    <!-- Scrollable Body -->
-                    <div class="timeline-body">
-                        <!-- Time Gutter -->
-                        <div class="time-gutter">
-                             <!-- 08:00, 09:00 ... -->
-                        </div>
-                        
-                        <!-- Main Grid -->
-                        <div class="main-grid" id="main-grid">
-                            <!-- Columns & Events -->
-                             <div class="grid-lines-layer">
-                                <!-- Horizontal Lines -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    // Bind Global Controls
-    window.toggleFilter = toggleFilter;
-    window.switchView = switchView;
-
-    // Bind Nav Controls
-    document.getElementById('prev-period').onclick = () => changePeriod(-1);
-    document.getElementById('next-period').onclick = () => changePeriod(1);
-    document.getElementById('today-btn').onclick = () => {
-        currentDate = new Date();
-        renderMiniCalendar();
-        updateView();
-    };
-
-    console.log("[Agenda] Initializing...");
+    // Initial Fetch & Render
     renderMiniCalendar();
     await fetchMyBookings();
+
+    // Check for Google OAuth Callback (now that we have ID)
+    if (currentCollaboratorId) {
+        const handled = await checkAndHandleGoogleCallback(currentCollaboratorId);
+        if (handled) {
+            // Re-open modal to show success state? 
+            // Or just let the toast notification do its job.
+            // Maybe refresh data if needed?
+        }
+    }
+
+    // Bind Actions
+    // ...
+
+    // Bind Actions
+    const btnManage = container.querySelector('#btn-manage-availability');
+    if (btnManage) {
+        btnManage.onclick = () => {
+            if (currentCollaboratorId) {
+                openAvailabilityModal(currentCollaboratorId, async () => {
+                    await fetchMyBookings();
+                    // renderTimeline is called inside fetchMyBookings generally, but let's be safe
+                });
+            } else {
+                window.showAlert('Profilo collaboratore non trovato', 'error');
+            }
+        };
+    }
+
     renderTimeline();
 }
 
@@ -179,14 +73,17 @@ async function fetchMyBookings() {
             console.log("[Agenda] Found collaborator ID:", collaboratorId);
         }
 
+        currentCollaboratorId = collaboratorId;
+
         if (!collaboratorId) {
             console.warn("[Agenda] No collaborator ID available");
             eventsCache = [];
+            availabilityCache = { rules: [], restDays: [], overrides: [] };
             return;
         }
 
-        // Fetch bookings using CORRECTED query (no 'color')
-        let query = supabase
+        // Fetch bookings and availability data in parallel
+        const bookingsQuery = supabase
             .from('bookings')
             .select(`
                 *,
@@ -196,14 +93,26 @@ async function fetchMyBookings() {
             .eq('booking_assignments.collaborator_id', collaboratorId)
             .order('start_time', { ascending: true });
 
-        const { data, error } = await query;
-        if (error) {
-            console.error("[Agenda] Supabase Error:", error);
-            throw error;
+        const [bookingsRes, rules, restDays, overrides] = await Promise.all([
+            bookingsQuery,
+            fetchAvailabilityRules(collaboratorId),
+            fetchRestDays(collaboratorId),
+            fetchAvailabilityOverrides(collaboratorId)
+        ]);
+
+        if (bookingsRes.error) {
+            console.error("[Agenda] Supabase Error:", bookingsRes.error);
+            throw bookingsRes.error;
         }
 
-        eventsCache = data || [];
-        console.log("[Agenda] Successfully fetched events count:", eventsCache.length);
+        eventsCache = bookingsRes.data || [];
+        availabilityCache = {
+            rules: rules || [],
+            restDays: restDays || [],
+            overrides: overrides || []
+        };
+
+        console.log("[Agenda] Fetched events:", eventsCache.length, "Rules:", availabilityCache.rules.length);
 
     } catch (err) {
         console.error("[Agenda] Critical fetch error:", err);
@@ -285,6 +194,62 @@ function renderTimeline() {
 
     days.forEach((dayDate) => {
         const dateStr = dayDate.toISOString().split('T')[0];
+        const dayId = dayDate.getDay();
+
+        // --- AVAILABILITY LOGIC ---
+        // 1. Check Rest Day
+        const isRest = availabilityCache.restDays.some(r => {
+            return dateStr >= r.start_date && dateStr <= r.end_date;
+        });
+
+        // 2. Check Overrides
+        const dayOverrides = availabilityCache.overrides.filter(o => o.date === dateStr);
+
+        // 3. Determine Active Slots
+        let activeSlots = [];
+        if (isRest) {
+            activeSlots = [];
+        } else if (dayOverrides.length > 0) {
+            activeSlots = dayOverrides;
+        } else {
+            activeSlots = availabilityCache.rules.filter(r => r.day_of_week === dayId);
+        }
+
+        // Render Availability Background
+        // We assume day-col has a grayish background, and we paint "Available" slots as white.
+        let availabilityHtml = '';
+
+        const parseTime = (t) => {
+            if (!t) return 0;
+            const [h, m] = t.split(':').map(Number);
+            return h + (m / 60);
+        };
+
+        if (!isRest) {
+            activeSlots.forEach(slot => {
+                const sH = parseTime(slot.start_time);
+                const eH = parseTime(slot.end_time);
+
+                // Clip to view range
+                if (eH <= startHour || sH >= endHour) return;
+                const effectiveStart = Math.max(sH, startHour);
+                const effectiveEnd = Math.min(eH, endHour);
+
+                const topPx = (effectiveStart - startHour) * 60;
+                const heightPx = (effectiveEnd - effectiveStart) * 60;
+
+                // Color based on service restriction? (Optional: if slot.service_id is set, maybe separate color)
+                const isDedicated = !!slot.service_id;
+                const borderStyle = isDedicated ? 'border-left: 3px solid #F59E0B;' : 'border-left: 3px solid #667eea;';
+                const bgStyle = isDedicated ? 'background: #fffbf0;' : 'background: #ffffff;';
+
+                availabilityHtml += `
+                    <div class="availability-slot" style="position: absolute; top: ${topPx}px; height: ${heightPx}px; left: 0; right: 0; ${bgStyle} ${borderStyle} z-index: 0; opacity: 1; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                        ${isDedicated ? '<div style="font-size:0.7rem; color:#d97706; padding:2px 4px; font-weight:500;">Dedicato</div>' : ''}
+                    </div>
+                `;
+            });
+        }
 
         // Filter events
         const dayEvents = eventsCache.filter(e => e.start_time.startsWith(dateStr));
@@ -296,7 +261,7 @@ function renderTimeline() {
                 const start = new Date(ev.start_time);
                 let end = new Date(ev.end_time);
 
-                // Fallback duration if end_time missing
+                // Fallback duration
                 if (!ev.end_time && ev.booking_items?.duration_minutes) {
                     end = new Date(start.getTime() + ev.booking_items.duration_minutes * 60000);
                 }
@@ -306,20 +271,19 @@ function renderTimeline() {
 
                 if (endH === 0 && end.getDate() !== start.getDate()) endH = 24;
 
-                if (startH < startHour) return; // Skip if before start
+                if (startH < startHour) return;
 
-                const topPx = (startH - startHour) * 60; // 60px per hour
+                const topPx = (startH - startHour) * 60;
                 const heightPx = (endH - startH) * 60;
 
                 const statusClass = `status-${ev.status}`;
 
-                // Create a persistent reference for onclick
                 const evtId = `evt_${ev.id.replace(/-/g, '_')}`;
                 window[evtId] = ev;
 
                 eventsHtml += `
                     <div class="agenda-event type-booking ${statusClass}" 
-                         style="top: ${topPx}px; height: ${heightPx}px;"
+                         style="top: ${topPx}px; height: ${heightPx}px; z-index: 10;"
                          onclick="openEventDetails(window['${evtId}'])">
                         <span class="event-time">${start.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
                         <div class="event-title">${ev.booking_items?.name || 'Prenotazione'}</div>
@@ -331,17 +295,36 @@ function renderTimeline() {
 
         // Current Time Indicator
         let nowHtml = '';
-        if (dayDate.toDateString() === today.toDateString()) {
-            const now = new Date();
+        const now = new Date();
+        if (dayDate.toDateString() === now.toDateString()) {
             const nowH = now.getHours() + now.getMinutes() / 60;
             if (nowH >= startHour && nowH <= endHour) {
                 const topPx = (nowH - startHour) * 60;
-                nowHtml = `<div class="now-line" style="top: ${topPx}px"></div>`;
+                nowHtml = `
+                    <div class="now-indicator" style="top: ${topPx}px; z-index: 20;">
+                         <div class="now-dot"></div>
+                         <div class="now-line"></div>
+                    </div>
+                `;
             }
         }
 
+        // Day Column Background
+        // If Rest Day -> Striped Gray
+        // If Normal Day -> Light Gray (defined in CSS, or inline here)
+        // We rely on .day-col styling, but we enforce specific background here if rest day
+
+        let colStyle = 'background-color: #f8fafc;'; // Default light gray
+        if (isRest) {
+            colStyle = `
+                background-color: #f1f5f9; 
+                background-image: repeating-linear-gradient(45deg, #e2e8f0 0, #e2e8f0 10px, #f1f5f9 10px, #f1f5f9 20px);
+            `;
+        }
+
         columnsHtml += `
-            <div class="day-events-col" data-date="${dateStr}">
+            <div class="day-col" data-date="${dateStr}" style="${colStyle} position: relative; border-right: 1px solid var(--glass-border); min-width: 150px;">
+                ${availabilityHtml}
                 ${eventsHtml}
                 ${nowHtml}
             </div>
