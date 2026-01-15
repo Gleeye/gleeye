@@ -414,13 +414,10 @@ export default function BookingWizard() {
                                 </div>
                             </div>
 
-                            {/* Change Service Button (only if not forced or hardcoded logic is flexible) */}
-                            {step > 1 && (
+                            {/* Change Service Button Removed by request */}
+                            {false && step > 1 && (
                                 <button
                                     onClick={() => {
-                                        // If we want to allow changing service, jump to step 1
-                                        // But if URL param is strict, we might want to prevent.
-                                        // For now, allow going back.
                                         setStep(1);
                                         setSelectedService(null);
                                         setSelectedSlot(null);
@@ -446,40 +443,38 @@ export default function BookingWizard() {
                             <div className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-[#4e92d8] to-[#614aa2] -z-10 -translate-y-1/2 rounded-full transition-all duration-500 ease-out"
                                 style={{ width: step === 1 ? '0%' : step === 3 ? '50%' : step === 4 ? '100%' : '0%' }}></div>
 
-                            {/* Step 1 Node */}
-                            <div className={`relative flex flex-col items-center group cursor-pointer ${step === 1 ? 'cursor-default' : ''}`}
-                                onClick={() => step > 1 && setStep(1)}>
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-300 z-10
-                                    ${step >= 1 ? 'bg-white border-[#4e92d8] text-[#4e92d8] shadow-sm' : 'bg-white border-slate-200 text-slate-300'}
-                                    ${step > 1 ? '!bg-[#4e92d8] !text-white !border-[#4e92d8]' : ''}
-                                `}>
-                                    {step > 1 ? <CheckCircle className="w-4 h-4" /> : '1'}
-                                </div>
-                                <span className={`absolute -bottom-6 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-colors duration-300
-                                    ${step >= 1 ? 'text-[#4e92d8]' : 'text-slate-300'}
-                                `}>Servizio</span>
-                            </div>
+                            {/* Step 1 Node - HIDDEN if preselected service (step started > 1 implicitly via URL) - Actually user said "non deve vedere lo step 1".
+                               If we are on step 3 (Date), we just show Date and Data.
+                               Let's Render only active relevant steps.
+                            */}
 
-                            {/* Step 2 Node (Labeled 2. Data & Ora = Step 3 in logic) */}
-                            <div className={`relative flex flex-col items-center ${step >= 3 ? 'cursor-pointer' : 'cursor-default'}`}
-                                onClick={() => step > 3 && setStep(3)}>
+                            {/* If we strictly follow "don't see step 1", we should remove it.
+                                But we need to maintain the index logic (step 1, 3, 4).
+                                Let's just visually HIDE Step 1 and center the others if desired, OR
+                                just disable interactions. But user said "non deve vedere".
+
+                                Let's try to just show Step 2 and 3 if we have a service.
+                             */}
+
+                            {/* Step 2 Node (Labeled 1. Data & Ora for the user since 1 is hidden) */}
+                            <div className={`relative flex flex-col items-center cursor-default`}>
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-300 z-10
                                      ${step >= 3 ? 'bg-white border-[#614aa2] text-[#614aa2] shadow-sm' : 'bg-white border-slate-200 text-slate-300'}
                                      ${step > 3 ? '!bg-[#614aa2] !text-white !border-[#614aa2]' : ''}
                                 `}>
-                                    {step > 3 ? <CheckCircle className="w-4 h-4" /> : '2'}
+                                    {step > 3 ? <CheckCircle className="w-4 h-4" /> : '1'}
                                 </div>
                                 <span className={`absolute -bottom-6 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-colors duration-300
                                      ${step >= 3 ? 'text-[#614aa2]' : 'text-slate-300'}
                                 `}>Data & Ora</span>
                             </div>
 
-                            {/* Step 3 Node (Labeled 3. Dati = Step 4 in logic) */}
+                            {/* Step 3 Node (Labeled 2. Dati) */}
                             <div className="relative flex flex-col items-center cursor-default">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-300 z-10
                                      ${step === 4 ? 'bg-white border-[#614aa2] text-[#614aa2] shadow-sm' : 'bg-white border-slate-200 text-slate-300'}
                                 `}>
-                                    3
+                                    2
                                 </div>
                                 <span className={`absolute -bottom-6 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-colors duration-300
                                      ${step === 4 ? 'text-[#614aa2]' : 'text-slate-300'}
