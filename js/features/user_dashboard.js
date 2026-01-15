@@ -48,9 +48,16 @@ export async function renderUserProfile(container) {
         <div class="animate-fade-in">
             <!-- Header -->
             <div style="margin-bottom: 2rem; display: flex; align-items: center; gap: 1.5rem;">
-                <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--brand-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 2.5rem; font-weight: 400; box-shadow: var(--shadow-premium);">
-                    ${myCollab.avatar_url ? `<img src="${myCollab.avatar_url}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : (myCollab.first_name?.[0] || 'U')}
+                <div id="avatar-container" style="position: relative; width: 80px; height: 80px; border-radius: 50%; background: var(--brand-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 2.5rem; font-weight: 400; box-shadow: var(--shadow-premium); cursor: pointer; overflow: hidden; group;">
+                    ${myCollab.avatar_url ? `<img id="my-avatar-img" src="${myCollab.avatar_url}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : `<span id="my-avatar-placeholder">${myCollab.first_name?.[0] || 'U'}</span>`}
+                    <div class="avatar-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s;">
+                        <span class="material-icons-round" style="font-size: 1.5rem; color: white;">photo_camera</span>
+                    </div>
+                    <input type="file" id="avatar-input" accept="image/*" hidden>
                 </div>
+                <style>
+                    #avatar-container:hover .avatar-overlay { opacity: 1 !important; }
+                </style>
                 <div>
                     <h1 style="margin: 0; font-size: 2rem;">Ciao, ${myCollab.first_name || 'Utente'}</h1>
                     <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary);">Gestisci il tuo profilo e le tue attività</p>
@@ -212,6 +219,75 @@ export async function renderUserProfile(container) {
                 btn.disabled = false;
             }
         });
+    }
+
+    // Photo Upload Logic
+    const avatarContainer = container.querySelector('#avatar-container');
+    const avatarInput = container.querySelector('#avatar-input');
+    if (avatarContainer && avatarInput) {
+        avatarContainer.onclick = () => avatarInput.click();
+        avatarInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Show preview or loader
+            const overlay = avatarContainer.querySelector('.avatar-overlay');
+            overlay.innerHTML = '<span class="material-icons-round rotating" style="font-size: 1.5rem; color: white;">sync</span>';
+            overlay.style.opacity = '1';
+
+            try {
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${myCollab.id}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+                const filePath = `avatars/${fileName}`;
+
+                // Upload to Storage
+                const { error: uploadError } = await supabase.storage
+                    .from('avatars')
+                    .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+                if (uploadError) throw uploadError;
+
+                // Get Public URL
+                const { data: { publicUrl } } = supabase.storage
+                    .from('avatars')
+                    .getPublicUrl(filePath);
+
+                // Update Database
+                await upsertCollaborator({
+                    ...myCollab,
+                    avatar_url: publicUrl
+                });
+
+                // Update UI immediately
+                myCollab.avatar_url = publicUrl;
+                const img = avatarContainer.querySelector('#my-avatar-img');
+                if (img) {
+                    img.src = publicUrl;
+                } else {
+                    avatarContainer.innerHTML = `
+                        <img id="my-avatar-img" src="${publicUrl}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">
+                        <div class="avatar-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s;">
+                            <span class="material-icons-round" style="font-size: 1.5rem; color: white;">photo_camera</span>
+                        </div>
+                        <input type="file" id="avatar-input" accept="image/*" hidden>
+                    `;
+                    // Re-bind since we innerHTMLed
+                    renderUserProfile(container);
+                }
+
+                window.showAlert('Foto profilo aggiornata!', 'success');
+
+                // Refresh sidebar/layout if needed
+                if (window.refreshSidebar) window.refreshSidebar();
+
+            } catch (err) {
+                console.error("Upload error:", err);
+                window.showAlert('Errore nel caricamento della foto: ' + err.message, 'error');
+            } finally {
+                overlay.innerHTML = '<span class="material-icons-round" style="font-size: 1.5rem; color: white;">photo_camera</span>';
+                overlay.style.opacity = '0';
+            }
+        };
     }
 
     // Impersonation Logic
