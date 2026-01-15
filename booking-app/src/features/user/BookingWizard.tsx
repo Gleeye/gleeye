@@ -23,7 +23,7 @@ export default function BookingWizard() {
         notes: ''
     });
     const [, setBookingRef] = useState<string | null>(null);
-    const [debugContext, setDebugContext] = useState<any>(null); // DEBUG STATE
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -158,7 +158,7 @@ export default function BookingWizard() {
 
             // 4. Prepare Context
             const ctx = await prepareAvailabilityContext(serviceObj, candidates, start, end);
-            setDebugContext(ctx); // Set for UI inspection
+
             console.log("[BookingWizard] Search Start:", start.toISOString(), "End:", end.toISOString());
             console.log("[BookingWizard] Candidates for service:", candidates.map(c => c.name));
             console.log("[BookingWizard] Fetched Rules for candidates:", Object.keys(ctx.recurringRules));
@@ -357,7 +357,7 @@ export default function BookingWizard() {
         );
     }
 
-    const debugServiceId = new URLSearchParams(window.location.search).get('service_id');
+
 
     return (
         <div className="max-w-4xl mx-auto mt-6 px-4 pb-20">
@@ -369,32 +369,7 @@ export default function BookingWizard() {
                 </div>
             )}
 
-            {/* Debug Info */}
-            {debugServiceId && (
-                <div className="bg-amber-50 text-amber-900 p-3 text-xs font-mono mb-6 rounded-lg border border-amber-200 shadow-sm overflow-auto max-h-60">
-                    <strong>DEBUG MODE v1.3 (Aligned):</strong> <br />
-                    Service: {selectedService ? selectedService.name : 'None'} ({selectedService?.duration} min) <br />
-                    Logic: {selectedService?.assignment_logic} (Required Team: {selectedService?.required_team_size}) <br />
-                    Grid Size: {(selectedService?.duration || 60) > 15 ? (selectedService?.duration || 60) : 15} min <br />
-                    {debugContext && (
-                        <div className="mt-2 pt-2 border-t border-amber-200">
-                            <strong>Availability Context:</strong><br />
-                            Calc Range: {format(debugContext.range.start, 'dd/MM HH:mm')} - {format(debugContext.range.end, 'dd/MM HH:mm')}<br />
-                            Rules Found: {Object.values(debugContext.recurringRules).flat().length}<br />
-                            Busy Slots: {Object.values(debugContext.busyTimes).flat().length}<br />
 
-                            <details className="cursor-pointer mt-1">
-                                <summary>Show Busy Details</summary>
-                                <pre>{JSON.stringify(debugContext.busyTimes, null, 2)}</pre>
-                            </details>
-                            <details className="cursor-pointer mt-1">
-                                <summary>Show Rules</summary>
-                                <pre>{JSON.stringify(debugContext.recurringRules, null, 2)}</pre>
-                            </details>
-                        </div>
-                    )}
-                </div>
-            )}
 
             {/* Progress Bar */}
             <div className="max-w-lg mx-auto flex items-center justify-between mb-8 text-sm font-medium text-slate-400 relative">
