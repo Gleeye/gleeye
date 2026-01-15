@@ -14,6 +14,15 @@ import { initNotifications } from './features/notifications.js?v=123';
 import { runOneTimeFix } from './fix_phantom_data.js?v=123';
 // Utilities imported at top
 
+// Suppress benign ResizeObserver error
+const resizeObserverLoopErr = 'ResizeObserver loop completed with undelivered notifications.';
+window.addEventListener('error', (e) => {
+    if (e.message === resizeObserverLoopErr) {
+        e.stopImmediatePropagation();
+        return;
+    }
+});
+
 // Init Theme
 function initThemeLogic() {
     const savedTheme = localStorage.getItem('theme') || 'light';
