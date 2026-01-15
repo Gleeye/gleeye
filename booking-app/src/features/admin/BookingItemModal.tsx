@@ -96,7 +96,7 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
                 setBufferAfter(editItem.buffer_after_minutes || 0);
                 setRequiresConfirmation(editItem.requires_confirmation || false);
                 setRecurrenceRule(editItem.recurrence_rule || 'none');
-                setLogicType(editItem.logic_type || 'OR');
+                setLogicType(editItem.assignment_logic || 'OR');
 
                 // Fetch assigned collaborators
                 fetchAssignments(editItem.id);
@@ -144,7 +144,7 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
                 buffer_after_minutes: bufferAfter,
                 requires_confirmation: requiresConfirmation,
                 recurrence_rule: recurrenceRule,
-                logic_type: logicType
+                assignment_logic: logicType
             };
 
             let itemData, itemError;

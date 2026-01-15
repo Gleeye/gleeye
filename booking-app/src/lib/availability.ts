@@ -95,6 +95,11 @@ export function calculateAvailability(ctx: AvailabilityContext): Slot[] {
             });
         }
 
+        // DEBUG: Log each slot decision for AND services
+        if (service.logicType === 'AND') {
+            console.log(`[AND Debug] ${format(slotStart, 'yyyy-MM-dd HH:mm')}: Free=${freeCollaborators.length}/${totalCandidates} (${freeCollaborators.map(c => c.name).join(', ')}) → ${isSlotValid ? 'VALID' : 'INVALID'}`);
+        }
+
         current = addMinutes(current, step);
     }
 
