@@ -22,8 +22,8 @@ export function initAuth() {
                     <div class="brand">
                         <img src="logo_gleeye_new.png" alt="Gleeye Logo" class="brand-logo">
                     </div>
-                    <h2>Bentornato</h2>
-                    <p>Inserisci la tua email per ricevere un Magic Link di accesso.</p>
+                    <h2>Accedi</h2>
+                    <p>Inserisci le tue credenziali per accedere.</p>
                     <form id="login-form">
                         <div class="input-group">
                             <span class="material-icons-round">email</span>
@@ -34,9 +34,6 @@ export function initAuth() {
                             <input type="password" id="login-password" placeholder="Password">
                         </div>
                         <button type="submit" id="login-btn" class="primary-btn">Accedi</button>
-                        <div class="auth-options">
-                            <a href="#" id="toggle-magic-link">Usa Magic Link</a>
-                        </div>
                     </form>
                     <div id="auth-message" class="auth-message"></div>
                 </div>
@@ -234,8 +231,8 @@ function toggleAuthMode(e) {
     } else {
         passwordGroup.classList.remove('hidden');
         document.getElementById('login-password').setAttribute('required', 'true');
-        title.textContent = 'Bentornato';
-        text.textContent = 'Inserisci la tua email per accedere.';
+        title.textContent = 'Accedi';
+        text.textContent = 'Inserisci le tue credenziali per accedere.';
         link.textContent = 'Usa Magic Link';
     }
 }

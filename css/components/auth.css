@@ -64,6 +64,16 @@
     font-size: 0.9rem;
 }
 
+.auth-card form {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.auth-card form button[type="submit"] {
+    align-self: flex-end;
+}
+
 .auth-options {
     margin-top: 1.5rem;
     font-size: 0.9rem;

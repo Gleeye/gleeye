@@ -246,12 +246,15 @@ input[type="radio"]:checked::before {
     color: var(--text-secondary);
     font-size: 1.2rem;
     pointer-events: none;
-    z-index: 1;
+    z-index: 10;
 }
 
 .input-group input {
     padding-left: 3.5rem;
     font-size: 1rem;
+    position: relative;
+    z-index: 1;
+    background: var(--input-bg);
 }
 
 /* Form Grid System */
