@@ -232,33 +232,46 @@ input[type="radio"]:checked::before {
     background: rgba(0, 0, 0, 0.05);
 }
 
-/* Auth Inputs */
+/* Auth Inputs Refactored */
 .input-group {
-    position: relative;
-    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
     background: var(--input-bg);
-    border-radius: 12px;
     border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    /* Più arrotondato per un look premium */
+    padding: 0 1.25rem;
+    margin-bottom: 1.25rem;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-group:focus-within {
+    border-color: var(--brand-blue);
+    background: var(--card-bg);
+    box-shadow: 0 0 0 4px rgba(var(--brand-blue-rgb), 0.15);
 }
 
 .input-group .material-icons-round {
-    position: absolute;
-    left: 1.1rem;
-    top: 50%;
-    transform: translateY(-50%);
     color: var(--text-secondary);
-    font-size: 1.2rem;
-    pointer-events: none;
-    z-index: 10;
+    font-size: 1.25rem;
+    margin-right: 1rem;
+    flex-shrink: 0;
 }
 
 .input-group input {
-    padding-left: 3rem;
+    flex: 1;
+    background: transparent !important;
+    border: none !important;
+    padding: 1rem 0 !important;
+    color: var(--text-primary);
     font-size: 1rem;
-    background: transparent;
-    border: none;
-    margin-left: 2.5rem;
-    width: calc(100% - 2.5rem);
+    outline: none !important;
+    box-shadow: none !important;
+    width: 100%;
+}
+
+.input-group input::placeholder {
+    color: rgba(255, 255, 255, 0.3);
 }
 
 /* Form Grid System */
