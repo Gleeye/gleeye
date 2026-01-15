@@ -189,11 +189,26 @@ export async function renderAgenda(container) {
 
 async function fetchMyBookings() {
     try {
-        const authUserId = state.profile?.id;
+        // 1. Ensure we have the Auth User
+        let authUserId = state.profile?.id;
+        let authEmail = state.profile?.email;
+
+        // DEBUG: Force fetch session if missing
+        if (!authUserId) {
+            console.log("[Agenda] state.profile missing, fetching user from Supabase...");
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                authUserId = user.id;
+                authEmail = user.email;
+                console.log("[Agenda] User fetched directly from Supabase:", authEmail);
+            } else {
+                console.error("[Agenda] No user session found even after direct fetch.");
+            }
+        }
+
         const impersonatedCollabId = state.impersonatedCollaboratorId;
 
-        console.log("[Agenda] Auth User ID:", authUserId);
-        console.log("[Agenda] Impersonated Collab ID:", impersonatedCollabId);
+        console.log("[Agenda] Fetching for:", { authUserId, authEmail, impersonatedCollabId });
 
         let collaboratorId = impersonatedCollabId;
 
@@ -202,7 +217,7 @@ async function fetchMyBookings() {
             // First try by user_id
             let { data: collabRecord, error: collabError } = await supabase
                 .from('collaborators')
-                .select('id')
+                .select('*')
                 .eq('user_id', authUserId)
                 .maybeSingle();
 
