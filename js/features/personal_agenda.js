@@ -3,10 +3,154 @@ import { state } from '../modules/state.js?v=123';
 import { fetchAvailabilityRules, fetchRestDays, fetchAvailabilityOverrides } from '../modules/api.js?v=123';
 import { openAvailabilityModal, checkAndHandleGoogleCallback } from './availability_manager.js?v=123';
 
-// ... (existing vars)
+let currentDate = new Date(); // Represents the start of the week or current view date
+let eventsCache = [];
+let availabilityCache = { rules: [], restDays: [], overrides: [] };
+let currentCollaboratorId = null;
+let currentView = 'week'; // 'week', 'day'
+let miniCalendarDate = new Date(); // Separate state for mini calendar
+
+let filters = {
+    bookings: true,
+    deadlines: true,
+    reminders: true
+};
 
 export async function renderAgenda(container) {
-    // ... (existing setup)
+    console.log("[Agenda] renderAgenda called. Container:", container);
+
+    // Set Page Title
+    const titleEl = document.getElementById('page-title');
+    if (titleEl) titleEl.textContent = 'Agenda';
+
+    if (!container) {
+        console.error("[Agenda] Container not found!");
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="agenda-container animate-fade-in" id="agenda-view-wrapper">
+            
+            <!-- SIDEBAR -->
+            <aside class="agenda-sidebar">
+                <div class="agenda-sidebar-header">
+                    <h2>Agenda</h2>
+                    <p>Overview Appuntamenti</p>
+                </div>
+
+                <!-- Mini Calendar -->
+                <div class="mini-calendar" id="mini-calendar">
+                    <!-- Rendered via JS -->
+                </div>
+
+                <!-- Filters -->
+                <div class="agenda-filters">
+                    <div class="filter-group-title">Filtri Calendario</div>
+                    
+                    <div class="filter-item active" data-filter="bookings" onclick="toggleFilter('bookings')">
+                        <div class="filter-checkbox" style="background: #0ea5e9; border-color: #0ea5e9;">
+                            <i class="material-icons-round">check</i>
+                        </div>
+                        <span>Prenotazioni</span>
+                    </div>
+
+                    <div class="filter-item active" data-filter="deadlines" onclick="toggleFilter('deadlines')">
+                        <div class="filter-checkbox" style="background: #f59e0b; border-color: #f59e0b;">
+                            <i class="material-icons-round">check</i>
+                        </div>
+                        <span>Scadenze</span>
+                    </div>
+
+                     <div class="filter-item" data-filter="reminders" onclick="toggleFilter('reminders')">
+                        <div class="filter-checkbox">
+                             <i class="material-icons-round">check</i>
+                        </div>
+                        <span>Promemoria</span>
+                    </div>
+                </div>
+
+                <div class="agenda-quick-add" style="margin-top: auto; padding-top: 2rem;">
+                   <div class="filter-group-title" style="margin-bottom: 1rem;">Azioni Rapide</div>
+                   
+                   <button class="quick-add-btn" id="btn-manage-availability" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.8rem; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; margin-bottom: 0.75rem;">
+                        <span class="material-icons-round" style="color: var(--brand-blue);">event_available</span>
+                        <span>Disponibilità</span>
+                   </button>
+
+                   <button class="quick-add-btn" onclick="window.showAlert('Funzione in arrivo', 'info')" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.8rem; background: var(--brand-blue); color: white; border: none; border-radius: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(var(--brand-blue-rgb, 78, 146, 216), 0.3);">
+                        <span class="material-icons-round">add</span>
+                        <span>Nuovo Evento</span>
+                   </button>
+                </div>
+            </aside>
+
+            <!-- MAIN CONTENT -->
+            <div class="agenda-main">
+                <!-- Toolbar -->
+                <div class="agenda-main-header">
+                    <div class="header-left">
+                        <h2 class="date-range-display" id="period-label">
+                            <!-- Date Range -->
+                        </h2>
+                    </div>
+
+                    <div class="header-actions">
+                         <div class="view-mode-toggle">
+                            <button class="mode-btn active" id="view-week" onclick="switchView('week')">Settimana</button>
+                            <button class="mode-btn" id="view-day" onclick="switchView('day')">Giorno</button>
+                        </div>
+
+                         <div class="calendar-nav-controls" style="display:flex; gap: 0.5rem">
+                            <button class="icon-nav-btn" id="prev-period">
+                                <span class="material-icons-round">chevron_left</span>
+                            </button>
+                            <button class="icon-nav-btn" id="next-period">
+                                <span class="material-icons-round">chevron_right</span>
+                            </button>
+                             <button class="today-btn" id="today-btn">Oggi</button>
+                        </div>
+                    </div>
+                </div>
+
+                 <!-- Timeline Grid -->
+                <div class="timeline-wrapper">
+                    <!-- Header Row (Days) -->
+                    <div class="timeline-header-row" id="timeline-header">
+                         <!-- Day Headers injected here -->
+                    </div>
+
+                    <!-- Scrollable Body -->
+                    <div class="timeline-body">
+                        <!-- Time Gutter -->
+                        <div class="time-gutter">
+                             <!-- 08:00, 09:00 ... -->
+                        </div>
+                        
+                        <!-- Main Grid -->
+                        <div class="main-grid" id="main-grid">
+                            <!-- Columns & Events -->
+                             <div class="grid-lines-layer">
+                                <!-- Horizontal Lines -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Bind Global Controls
+    window.toggleFilter = toggleFilter;
+    window.switchView = switchView;
+
+    // Bind Nav Controls
+    document.getElementById('prev-period').onclick = () => changePeriod(-1);
+    document.getElementById('next-period').onclick = () => changePeriod(1);
+    document.getElementById('today-btn').onclick = () => {
+        currentDate = new Date();
+        renderMiniCalendar();
+        updateView();
+    };
 
     // Initial Fetch & Render
     renderMiniCalendar();
@@ -16,14 +160,12 @@ export async function renderAgenda(container) {
     if (currentCollaboratorId) {
         const handled = await checkAndHandleGoogleCallback(currentCollaboratorId);
         if (handled) {
-            // Re-open modal to show success state? 
-            // Or just let the toast notification do its job.
-            // Maybe refresh data if needed?
+            // Success
         }
     }
 
     // Bind Actions
-    // ...
+
 
     // Bind Actions
     const btnManage = container.querySelector('#btn-manage-availability');
