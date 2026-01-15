@@ -240,26 +240,30 @@ export async function renderUserProfile(container) {
                 const fileName = `${myCollab.id}_${Math.random().toString(36).substring(2)}.${fileExt}`;
                 const filePath = `avatars/${fileName}`;
 
-                // Upload to Storage
+                // Upload to Storage (Using 'media' bucket which exists)
                 const { error: uploadError } = await supabase.storage
-                    .from('avatars')
+                    .from('media')
                     .upload(filePath, file, { cacheControl: '3600', upsert: true });
 
                 if (uploadError) throw uploadError;
 
                 // Get Public URL
                 const { data: { publicUrl } } = supabase.storage
-                    .from('avatars')
+                    .from('media')
                     .getPublicUrl(filePath);
 
-                // Update Database
-                await upsertCollaborator({
-                    ...myCollab,
-                    avatar_url: publicUrl
-                });
+                // Update Database (Both Collaborators and Profiles)
+                const updateData = { avatar_url: publicUrl };
 
-                // Update UI immediately
+                await Promise.all([
+                    upsertCollaborator({ ...myCollab, ...updateData }),
+                    supabase.from('profiles').update(updateData).eq('id', state.profile.id)
+                ]);
+
+                // Update local state and UI
                 myCollab.avatar_url = publicUrl;
+                if (state.profile) state.profile.avatar_url = publicUrl;
+
                 const img = avatarContainer.querySelector('#my-avatar-img');
                 if (img) {
                     img.src = publicUrl;
