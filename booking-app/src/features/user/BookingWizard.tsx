@@ -371,29 +371,124 @@ export default function BookingWizard() {
 
 
 
-            {/* Progress Bar */}
-            <div className="max-w-lg mx-auto flex items-center justify-between mb-8 text-sm font-medium text-slate-400 relative">
-                {/* Progress Bar Background */}
-                <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 -z-10 rounded-full"></div>
-                {/* Active Progress */}
-                <div className="absolute top-1/2 left-0 h-1 bg-gradient-to-r from-[#4e92d8] to-[#614aa2] -z-10 rounded-full transition-all duration-500 ease-out"
-                    style={{ width: step === 1 ? '16%' : step === 2 ? '50%' : step === 3 ? '82%' : '100%' }}></div>
-
-                {/* Step 1 */}
-                <div className={`bg-white px-2 transition-colors duration-300 ${step >= 1 ? "text-[#4e92d8] font-bold" : ""}`}>1. Servizio</div>
-                {/* Step 2 */}
-                <div className={`bg-white px-2 transition-colors duration-300 ${step >= 3 ? "text-[#614aa2] font-bold" : ""}`}>2. Data & Ora</div>
-                {/* Step 3 */}
-                <div className={`bg-white px-2 transition-colors duration-300 ${step >= 4 ? "text-[#614aa2] font-bold" : ""}`}>3. Dati</div>
-            </div>
-
-            {/* MAIN CONTENT (Single Column) */}
+            {/* MAIN CONTENT WRAPPER */}
             <div className="max-w-3xl mx-auto">
-                <div className="lg:w-full">
+
+                {/* SUMMARY HEADER (Moved to Top) */}
+                {selectedService && (
+                    <div className="mb-8 animate-fade-in-down">
+                        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg shadow-slate-200/40 border border-slate-100 p-6 flex flex-col md:flex-row items-center justify-between gap-4 transition-all duration-500 hover:shadow-xl">
+                            <div className="flex items-center gap-4 w-full">
+                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#4e92d8] to-[#614aa2] flex items-center justify-center shadow-lg shadow-blue-500/20 text-white shrink-0">
+                                    <Sparkles className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-slate-800 tracking-tight">{selectedService.name}</h3>
+                                    <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 mt-1">
+                                        {/* Duration */}
+                                        <span className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
+                                            <Clock className="w-3 h-3 text-[#4e92d8]" /> {selectedService.duration || 60} min
+                                        </span>
+                                        {/* Category (if any) */}
+                                        {selectedService.category_name && (
+                                            <span className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 uppercase text-xs font-semibold tracking-wider">
+                                                {selectedService.category_name}
+                                            </span>
+                                        )}
+                                        {/* Logic Type (Optional for User, maybe too technical? Keeping simple) */}
+
+                                        {/* Selected Date Indicator */}
+                                        {selectedSlot && (
+                                            <span className="flex items-center gap-1 text-[#614aa2] font-semibold border-l border-slate-200 pl-3 ml-1">
+                                                <CalendarIcon className="w-3 h-3" />
+                                                {format(new Date(selectedSlot.start), 'd MMM, HH:mm', { locale: it })}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Change Service Button (only if not forced or hardcoded logic is flexible) */}
+                            {step > 1 && (
+                                <button
+                                    onClick={() => {
+                                        // If we want to allow changing service, jump to step 1
+                                        // But if URL param is strict, we might want to prevent.
+                                        // For now, allow going back.
+                                        setStep(1);
+                                        setSelectedService(null);
+                                        setSelectedSlot(null);
+                                    }}
+                                    className="text-xs font-bold text-slate-400 hover:text-[#4e92d8] px-4 py-2 hover:bg-slate-50 rounded-lg transition-colors whitespace-nowrap"
+                                >
+                                    Cambia
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* PROGRESS STEPPER (Improved) */}
+                {/* Only show stepper if we are NOT on step 1 (selection) or if we are, but minimal? */}
+                {/* User requested "better step thing". Let's make it cleaner and strictly above content */}
+                {step < 5 && (
+                    <div className="mb-10 px-4">
+                        <div className="flex items-center justify-between relative max-w-lg mx-auto">
+                            {/* Line Background */}
+                            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-100 -z-10 -translate-y-1/2 rounded-full"></div>
+                            {/* Active Line */}
+                            <div className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-[#4e92d8] to-[#614aa2] -z-10 -translate-y-1/2 rounded-full transition-all duration-500 ease-out"
+                                style={{ width: step === 1 ? '0%' : step === 3 ? '50%' : step === 4 ? '100%' : '0%' }}></div>
+
+                            {/* Step 1 Node */}
+                            <div className={`relative flex flex-col items-center group cursor-pointer ${step === 1 ? 'cursor-default' : ''}`}
+                                onClick={() => step > 1 && setStep(1)}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-300 z-10
+                                    ${step >= 1 ? 'bg-white border-[#4e92d8] text-[#4e92d8] shadow-sm' : 'bg-white border-slate-200 text-slate-300'}
+                                    ${step > 1 ? '!bg-[#4e92d8] !text-white !border-[#4e92d8]' : ''}
+                                `}>
+                                    {step > 1 ? <CheckCircle className="w-4 h-4" /> : '1'}
+                                </div>
+                                <span className={`absolute -bottom-6 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-colors duration-300
+                                    ${step >= 1 ? 'text-[#4e92d8]' : 'text-slate-300'}
+                                `}>Servizio</span>
+                            </div>
+
+                            {/* Step 2 Node (Labeled 2. Data & Ora = Step 3 in logic) */}
+                            <div className={`relative flex flex-col items-center ${step >= 3 ? 'cursor-pointer' : 'cursor-default'}`}
+                                onClick={() => step > 3 && setStep(3)}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-300 z-10
+                                     ${step >= 3 ? 'bg-white border-[#614aa2] text-[#614aa2] shadow-sm' : 'bg-white border-slate-200 text-slate-300'}
+                                     ${step > 3 ? '!bg-[#614aa2] !text-white !border-[#614aa2]' : ''}
+                                `}>
+                                    {step > 3 ? <CheckCircle className="w-4 h-4" /> : '2'}
+                                </div>
+                                <span className={`absolute -bottom-6 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-colors duration-300
+                                     ${step >= 3 ? 'text-[#614aa2]' : 'text-slate-300'}
+                                `}>Data & Ora</span>
+                            </div>
+
+                            {/* Step 3 Node (Labeled 3. Dati = Step 4 in logic) */}
+                            <div className="relative flex flex-col items-center cursor-default">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-300 z-10
+                                     ${step === 4 ? 'bg-white border-[#614aa2] text-[#614aa2] shadow-sm' : 'bg-white border-slate-200 text-slate-300'}
+                                `}>
+                                    3
+                                </div>
+                                <span className={`absolute -bottom-6 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-colors duration-300
+                                     ${step === 4 ? 'text-[#614aa2]' : 'text-slate-300'}
+                                `}>Dati</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+
+                <div className="lg:w-full mt-10">
                     {/* STEP 1: SERVICES */}
                     {step === 1 && (
                         <div className="space-y-4 animate-fade-in-up">
-                            <h2 className="text-xl font-semibold mb-6 text-slate-900 tracking-tight">Scegli un servizio</h2>
+                            <h2 className="text-xl font-semibold mb-6 text-slate-900 tracking-tight text-center">Scegli il servizio</h2>
                             {/* Service List */}
                             <div className="grid grid-cols-1 gap-4">
                                 {loading ? <div className="p-12 text-center text-slate-400 animate-pulse">Caricamento servizi...</div> :
@@ -414,6 +509,7 @@ export default function BookingWizard() {
                                                         <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-md">
                                                             <Clock className="w-3 h-3" /> {srv.duration || 60} min
                                                         </span>
+                                                        {srv.category_name && <span className="text-xs uppercase font-bold tracking-wider text-slate-400 bg-slate-50 px-2 py-1 rounded">{srv.category_name}</span>}
                                                     </div>
                                                 </div>
                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${selectedService?.id === srv.id ? 'bg-gradient-to-r from-[#4e92d8] to-[#614aa2] text-white' : 'bg-slate-100 text-slate-300 group-hover:bg-blue-50 group-hover:text-[#4e92d8]'}`}>
@@ -445,10 +541,6 @@ export default function BookingWizard() {
                     {/* STEP 3: DATE & TIME */}
                     {step === 3 && (
                         <div className="space-y-6 animate-fade-in-up">
-                            <button onClick={() => setStep(1)} className="text-slate-400 hover:text-indigo-600 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
-                                <ChevronLeft className="w-4 h-4" /> Indietro
-                            </button>
-                            <h2 className="text-xl font-semibold mb-6 text-slate-900 tracking-tight">Disponibilità</h2>
 
                             {/* CALENDAR VIEW */}
                             <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-6 animate-fade-in-up">
@@ -596,6 +688,7 @@ export default function BookingWizard() {
                     {/* STEP 4: FORM */}
                     {step === 4 && (
                         <div className="space-y-4 animate-fade-in-up">
+                            {/* Back handled by stepper or top controls */}
                             <button onClick={() => setStep(3)} className="text-slate-400 hover:text-[#4e92d8] text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
                                 <ChevronLeft className="w-4 h-4" /> Indietro
                             </button>
@@ -664,37 +757,6 @@ export default function BookingWizard() {
                 </div>
             </div>
 
-            {/* FOOTER / SUMMARY SECTION (Moved Bottom) */}
-            <div className="max-w-3xl mx-auto mt-12 mb-8">
-                {selectedService && (
-                    <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg shadow-slate-200/40 border border-slate-100 p-6 flex flex-col md:flex-row items-center justify-between gap-4 transition-all duration-500 hover:shadow-xl">
-                        <div className="flex items-center gap-4 w-full">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#4e92d8] to-[#614aa2] flex items-center justify-center shadow-lg shadow-blue-500/20 text-white">
-                                <Sparkles className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-bold text-slate-800 tracking-tight">{selectedService.name}</h3>
-                                <div className="flex items-center gap-3 text-sm text-slate-500 mt-1">
-                                    <span className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
-                                        <Clock className="w-3 h-3 text-[#4e92d8]" /> {selectedService.duration || 60} min
-                                    </span>
-                                    {selectedSlot && (
-                                        <span className="flex items-center gap-1 text-[#614aa2] font-semibold">
-                                            <CalendarIcon className="w-3 h-3" />
-                                            {format(new Date(selectedSlot.start), 'd MMM, HH:mm', { locale: it })}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Step Indicator (Compact) */}
-                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#4e92d8] whitespace-nowrap bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100/50">
-                            Step {step} di 3
-                        </div>
-                    </div>
-                )}
-            </div>
         </div>
     );
 }
