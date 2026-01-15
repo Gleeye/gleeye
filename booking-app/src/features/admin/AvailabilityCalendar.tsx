@@ -49,7 +49,6 @@ export default function AvailabilityCalendar() {
     const [overrides, setOverrides] = useState<AvailabilityOverride[]>([]);
     const [activeDept, setActiveDept] = useState<string | 'all'>('all');
     const [activeCollab, setActiveCollab] = useState<string | 'all'>('all');
-    const [loading, setLoading] = useState(true);
     const [hoveredBlock, setHoveredBlock] = useState<string | null>(null);
 
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -62,7 +61,6 @@ export default function AvailabilityCalendar() {
     useEffect(() => { fetchData(); }, [currentDate]);
 
     async function fetchData() {
-        setLoading(true);
         try {
             const [{ data: deptData }, { data: collabData }, { data: rulesData }, { data: overridesData }] = await Promise.all([
                 supabase.from('departments').select('*').order('name'),
@@ -76,8 +74,6 @@ export default function AvailabilityCalendar() {
             if (overridesData) setOverrides(overridesData);
         } catch (err) {
             console.error('Error fetching availability data:', err);
-        } finally {
-            setLoading(false);
         }
     }
 
