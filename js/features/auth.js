@@ -22,7 +22,6 @@ export function initAuth() {
                     <div class="brand">
                         <img src="logo_gleeye_new.png" alt="Gleeye Logo" class="brand-logo">
                     </div>
-                    <h2>Accedi</h2>
                     <p>Inserisci le tue credenziali per accedere.</p>
                     <form id="login-form">
                         <div class="input-group">
