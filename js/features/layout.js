@@ -297,13 +297,19 @@ export function updateSidebarVisibility() {
                 if (managementLabel) managementLabel.classList.remove('hidden');
                 console.log(`[Sidebar] Non-admin mode: showing Prenotazioni link`);
             }
-
-            // "Test Modulo" (if present)
-            const testLink = managementNav.querySelector('[data-target="booking-test"]');
             if (testLink) testLink.classList.remove('hidden');
         }
     }
 
-    // Personal Section is always visible by default structure
+    // Handle Admin Section Visibility
+    const adminNav = sidebar.querySelector('#nav-admin');
+    if (adminNav) {
+        if (activeRole === 'admin') {
+            adminNav.classList.remove('hidden');
+        } else {
+            adminNav.classList.add('hidden');
+        }
+    }
 
+    // Personal Section is always visible by default structure
 }

@@ -1,7 +1,7 @@
 import { state } from '../modules/state.js?v=123';
 import { formatAmount } from '../modules/utils.js?v=123';
 import { openDepartmentManager } from './settings.js?v=123';
-import { upsertCollaborator, fetchPayments, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js?v=123';
+import { upsertCollaborator, fetchPayments, fetchAssignments, fetchPassiveInvoices, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js?v=123';
 
 export function renderCollaborators(container) {
     const renderGrid = () => {
@@ -9,19 +9,26 @@ export function renderCollaborators(container) {
             const matchesSearch = c.full_name.toLowerCase().includes(state.searchTerm.toLowerCase());
             const tags = Array.isArray(c.tags) ? c.tags : (typeof c.tags === 'string' ? c.tags.split(',') : []);
             const matchesDept = !state.selectedDepartment || tags.includes(state.selectedDepartment);
-            return matchesSearch && matchesDept;
+            // Filter by active status: show inactive only if toggle is on
+            const isActive = c.is_active !== false; // Default to true if not set
+            const matchesActive = state.showInactiveCollaborators || isActive;
+            return matchesSearch && matchesDept && matchesActive;
         }).sort((a, b) => {
             const nameA = (a.last_name || a.full_name.trim().split(' ').pop() || '').toLowerCase();
             const nameB = (b.last_name || b.full_name.trim().split(' ').pop() || '').toLowerCase();
             return nameA.localeCompare(nameB);
         });
 
-        const html = filtered.map(c => `
-        <div class="card collaborator-card" onclick="window.location.hash='collaborator-detail/${c.id}'" style="cursor:pointer; padding: 1.25rem; display: flex; flex-direction: column; align-items: start; text-align: left; gap: 0.75rem; position: relative; overflow: hidden; height: 100%;">
+        const html = filtered.map(c => {
+            const isInactive = c.is_active === false;
+            return `
+        <div class="card collaborator-card ${isInactive ? 'inactive' : ''}" onclick="window.location.hash='collaborator-detail/${c.id}'" style="cursor:pointer; padding: 1.25rem; display: flex; flex-direction: column; align-items: start; text-align: left; gap: 0.75rem; position: relative; overflow: hidden; height: 100%; ${isInactive ? 'opacity: 0.6;' : ''}">
+            
+            ${isInactive ? `<span style="position: absolute; top: 0.75rem; right: 0.75rem; background: var(--text-tertiary); color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; font-weight: 500;">INATTIVO</span>` : ''}
             
             <div style="display: flex; width: 100%; justify-content: space-between; align-items: flex-start;">
-                 <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--brand-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.4rem; font-weight: 400; box-shadow: var(--shadow-soft); flex-shrink: 0;">
-                    ${c.avatar_url ? `<img src="${c.avatar_url}" style="width:100%; height:100%; border-radius:50%; object-fit:cover; border: 2px solid white;">` : c.full_name[0]}
+                 <div style="width: 56px; height: 56px; border-radius: 50%; background: ${isInactive ? 'var(--text-tertiary)' : 'var(--brand-gradient)'}; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.4rem; font-weight: 400; box-shadow: var(--shadow-soft); flex-shrink: 0;">
+                    ${c.avatar_url ? `<img src="${c.avatar_url}" style="width:100%; height:100%; border-radius:50%; object-fit:cover; border: 2px solid white; ${isInactive ? 'filter: grayscale(100%);' : ''}">` : c.full_name[0]}
                 </div>
             </div>
             
@@ -31,18 +38,19 @@ export function renderCollaborators(container) {
                 
                 <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
                     ${(() => {
-                let tags = c.tags;
-                if (typeof tags === 'string') {
-                    try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
-                }
-                if (!Array.isArray(tags)) tags = [];
-                return tags.slice(0, 3).map(tag => `<span style="font-size: 0.75rem; color: var(--text-secondary); background: var(--bg-secondary); padding: 2px 8px; border-radius: 4px; font-weight: 500;">${tag}</span>`).join('');
-            })()}
+                    let tags = c.tags;
+                    if (typeof tags === 'string') {
+                        try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
+                    }
+                    if (!Array.isArray(tags)) tags = [];
+                    return tags.slice(0, 3).map(tag => `<span style="font-size: 0.75rem; color: var(--text-secondary); background: var(--bg-secondary); padding: 2px 8px; border-radius: 4px; font-weight: 500;">${tag}</span>`).join('');
+                })()}
                     ${(state.tags && state.tags.length > 3) ? `<span style="font-size: 0.75rem; color: var(--text-tertiary);">+${state.tags.length - 3}</span>` : ''}
                 </div>
             </div>
         </div>
-    `).join('');
+    `;
+        }).join('');
         return html;
     };
 
@@ -52,13 +60,20 @@ export function renderCollaborators(container) {
             <div class="section-header" style="display:block; margin-bottom: 2rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
                     <div style="display: flex; align-items: center; gap: 1rem;">
-                        <span style="font-size: 1.1rem; font-weight: 400; color: var(--text-primary);">Totale Membri</span>
-                        <span id="collab-count-badge" style="background: var(--brand-blue); color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.9rem; font-weight: 400;">${state.collaborators.length}</span>
+                        <span style="font-size: 1.1rem; font-weight: 400; color: var(--text-primary);">Membri Attivi</span>
+                        <span id="collab-count-badge" style="background: var(--brand-blue); color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.9rem; font-weight: 400;">${state.collaborators.filter(c => c.is_active !== false).length}</span>
                     </div>
-                    <button class="primary-btn" onclick="openCollaboratorModal()">
-                        <span class="material-icons-round">add</span>
-                        Nuovo
-                    </button>
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <button class="secondary-btn" id="toggle-inactive-btn" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border: 1px solid var(--glass-border); background: ${state.showInactiveCollaborators ? 'var(--bg-secondary)' : 'white'}; color: var(--text-secondary); border-radius: 8px;">
+                            <span class="material-icons-round" style="font-size: 1rem;">${state.showInactiveCollaborators ? 'visibility' : 'visibility_off'}</span>
+                            ${state.showInactiveCollaborators ? 'Nascondi Inattivi' : 'Mostra Inattivi'}
+                            ${!state.showInactiveCollaborators ? `<span style="background: var(--text-tertiary); color: white; padding: 1px 6px; border-radius: 8px; font-size: 0.75rem; margin-left: 0.25rem;">${state.collaborators.filter(c => c.is_active === false).length}</span>` : ''}
+                        </button>
+                        <button class="primary-btn" onclick="openCollaboratorModal()">
+                            <span class="material-icons-round">add</span>
+                            Nuovo
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="pills-container">
@@ -95,6 +110,17 @@ export function renderCollaborators(container) {
         if (deptBtn) {
             deptBtn.addEventListener('click', openDepartmentManager);
         }
+
+        // Toggle inactive collaborators button
+        const toggleInactiveBtn = container.querySelector('#toggle-inactive-btn');
+        if (toggleInactiveBtn) {
+            toggleInactiveBtn.addEventListener('click', () => {
+                state.showInactiveCollaborators = !state.showInactiveCollaborators;
+                // Re-render the entire view to update button state and grid
+                container.innerHTML = '';
+                renderCollaborators(container);
+            });
+        }
     }
 
     const grid = document.getElementById('collaborators-grid');
@@ -121,7 +147,9 @@ export function renderCollaborators(container) {
                 const matchesSearch = c.full_name.toLowerCase().includes(state.searchTerm.toLowerCase());
                 const tags = Array.isArray(c.tags) ? c.tags : (typeof c.tags === 'string' ? c.tags.split(',') : []);
                 const matchesDept = !state.selectedDepartment || tags.includes(state.selectedDepartment);
-                return matchesSearch && matchesDept;
+                const isActive = c.is_active !== false;
+                const matchesActive = state.showInactiveCollaborators || isActive;
+                return matchesSearch && matchesDept && matchesActive;
             }).length;
             countBadge.textContent = count;
         }
@@ -148,9 +176,29 @@ window.openCollaboratorModal = (collaboratorId = null) => {
 
         const title = document.getElementById('modal-title');
         const idInput = document.getElementById('collab-id');
+        const deleteBtn = document.getElementById('delete-collab-btn');
+
+        // Toggle elements
+        const hiddenInput = document.getElementById('collab-is-active');
+        const toggleEl = document.getElementById('collab-active-toggle');
+        const knob = toggleEl?.querySelector('.toggle-knob');
+        const label = document.getElementById('collab-active-label');
+
+        // Helper to set toggle state
+        const setToggleState = (isActive) => {
+            if (hiddenInput) hiddenInput.value = isActive ? 'true' : 'false';
+            if (toggleEl) toggleEl.style.background = isActive ? 'var(--brand-blue)' : '#ccc';
+            if (knob) knob.style.left = isActive ? '27px' : '3px';
+            if (label) label.textContent = isActive ? 'Attivo' : 'Inattivo';
+        };
 
         if (collaboratorId) {
             title.textContent = 'Modifica Collaboratore';
+            // Show delete button for existing collaborators
+            if (deleteBtn) {
+                deleteBtn.style.display = 'flex';
+                deleteBtn.dataset.collabId = collaboratorId;
+            }
             // Find collaborator logic needs to handle string IDs if passed from URL or onclick
             const c = state.collaborators.find(x => x.id == collaboratorId);
             if (c) {
@@ -170,6 +218,9 @@ window.openCollaboratorModal = (collaboratorId = null) => {
                 document.getElementById('collab-role').value = c.role || '';
                 document.getElementById('collab-vat-number').value = c.vat_number || '';
 
+                // Handle is_active - set visual state
+                setToggleState(c.is_active !== false);
+
                 // Handle Tags
                 let tags = c.tags;
                 if (typeof tags === 'string') {
@@ -177,13 +228,19 @@ window.openCollaboratorModal = (collaboratorId = null) => {
                 }
                 if (!Array.isArray(tags)) tags = [];
                 document.getElementById('collab-tags').value = JSON.stringify(tags);
-                document.getElementById('collab-tags-field').querySelector('span').textContent = tags.length ? tags.join(', ') : 'Seleziona...';
+                if (window.renderSelectedTags) window.renderSelectedTags(tags);
             }
         } else {
             title.textContent = 'Nuovo Collaboratore';
             idInput.value = '';
+            // Hide delete button for new collaborators
+            if (deleteBtn) {
+                deleteBtn.style.display = 'none';
+            }
+            // Default is_active to true for new collaborators
+            setToggleState(true);
             document.getElementById('collab-tags').value = '[]';
-            document.getElementById('collab-tags-field').querySelector('span').textContent = 'Seleziona...';
+            if (window.renderSelectedTags) window.renderSelectedTags([]);
         }
     }
 };
@@ -229,16 +286,44 @@ export function initCollaboratorModals() {
                                     <div class="form-group"><label>Ruolo *</label><input type="text" id="collab-role" required></div>
                                     <div class="form-group full-width">
                                         <label>Reparto *</label>
-                                        <div class="tag-input-container" onclick="openDeptSelector()"><div id="collab-tags-field" class="tag-field" tabindex="0"><span>Seleziona...</span></div></div>
+                                        <div id="dept-multiselect" class="dept-multiselect" style="position: relative;">
+                                            <div id="collab-tags-field" class="tag-field" tabindex="0" style="min-height: 42px; padding: 8px 12px; border: 1px solid var(--border-light); border-radius: 8px; cursor: pointer; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: white;">
+                                                <span class="placeholder" style="color: var(--text-tertiary);">Seleziona reparti...</span>
+                                            </div>
+                                            <div id="dept-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border-light); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; max-height: 250px; overflow-y: auto; margin-top: 4px;">
+                                                <!-- Options will be rendered here -->
+                                            </div>
+                                        </div>
                                         <input type="hidden" id="collab-tags">
                                     </div>
                                     <div class="form-group full-width"><label>P.IVA</label><input type="text" id="collab-vat-number"></div>
                                 </div>
                             </div>
+                            <div class="modal-section full-width">
+                                <div class="section-title"><span class="material-icons-round">toggle_on</span><h4>Stato</h4></div>
+                                <div class="form-grid">
+                                    <div class="form-group" style="display: flex; align-items: center; gap: 1rem;">
+                                        <div id="collab-active-toggle" class="active-toggle" style="width: 52px; height: 28px; border-radius: 14px; background: var(--brand-blue); cursor: pointer; position: relative; transition: background 0.3s; flex-shrink: 0;">
+                                            <div class="toggle-knob" style="width: 22px; height: 22px; border-radius: 50%; background: white; position: absolute; top: 3px; left: 27px; transition: left 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"></div>
+                                        </div>
+                                        <input type="hidden" id="collab-is-active" value="true">
+                                        <div>
+                                            <span id="collab-active-label" style="font-weight: 500; color: var(--text-primary);">Attivo</span>
+                                            <p style="margin: 0; font-size: 0.8rem; color: var(--text-tertiary);">Gli inattivi non appaiono nella lista</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-actions" style="margin-top:2rem; padding-top:1rem; border-top:1px solid #eee;">
-                            <button type="button" class="primary-btn secondary" id="cancel-collab-modal-btn">Annulla</button>
-                            <button type="submit" class="primary-btn">Salva</button>
+                        <div class="form-actions" style="margin-top:2rem; padding-top:1rem; border-top:1px solid #eee; display: flex; justify-content: space-between;">
+                            <button type="button" class="primary-btn danger" id="delete-collab-btn" style="display: none; background: #dc3545; border-color: #dc3545;">
+                                <span class="material-icons-round">delete</span>
+                                Elimina
+                            </button>
+                            <div style="display: flex; gap: 0.75rem; margin-left: auto;">
+                                <button type="button" class="primary-btn secondary" id="cancel-collab-modal-btn">Annulla</button>
+                                <button type="submit" class="primary-btn">Salva</button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -250,6 +335,28 @@ export function initCollaboratorModals() {
         document.getElementById('close-collab-modal-btn')?.addEventListener('click', close);
         document.getElementById('cancel-collab-modal-btn')?.addEventListener('click', close);
 
+        // Active toggle click handler
+        document.getElementById('collab-active-toggle')?.addEventListener('click', function () {
+            const hiddenInput = document.getElementById('collab-is-active');
+            const knob = this.querySelector('.toggle-knob');
+            const label = document.getElementById('collab-active-label');
+            const isCurrentlyActive = hiddenInput.value === 'true';
+
+            if (isCurrentlyActive) {
+                // Switch to inactive
+                hiddenInput.value = 'false';
+                this.style.background = '#ccc';
+                knob.style.left = '3px';
+                label.textContent = 'Inattivo';
+            } else {
+                // Switch to active
+                hiddenInput.value = 'true';
+                this.style.background = 'var(--brand-blue)';
+                knob.style.left = '27px';
+                label.textContent = 'Attivo';
+            }
+        });
+
         // Submit Logic
         document.getElementById('collaborator-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -258,17 +365,18 @@ export function initCollaboratorModals() {
                 first_name: document.getElementById('collab-first-name').value,
                 last_name: document.getElementById('collab-last-name').value,
                 birth_date: document.getElementById('collab-birth-date').value || null,
-                birth_place: document.getElementById('collab-birth-place').value,
-                fiscal_code: document.getElementById('collab-fiscal-code').value,
-                email: document.getElementById('collab-email').value,
-                phone: document.getElementById('collab-phone').value,
-                address: document.getElementById('collab-address').value,
-                pec: document.getElementById('collab-pec').value,
+                birth_place: document.getElementById('collab-birth-place').value || null,
+                fiscal_code: document.getElementById('collab-fiscal-code').value || null,
+                email: document.getElementById('collab-email').value || null, // null instead of empty string
+                phone: document.getElementById('collab-phone').value || null,
+                address: document.getElementById('collab-address').value || null,
+                pec: document.getElementById('collab-pec').value || null,
                 name: document.getElementById('collab-name').value,
                 role: document.getElementById('collab-role').value,
-                vat_number: document.getElementById('collab-vat-number').value,
+                vat_number: document.getElementById('collab-vat-number').value || null,
                 tags: JSON.parse(document.getElementById('collab-tags').value || '[]'),
-                full_name: `${document.getElementById('collab-first-name').value} ${document.getElementById('collab-last-name').value}`
+                full_name: `${document.getElementById('collab-first-name').value} ${document.getElementById('collab-last-name').value}`,
+                is_active: document.getElementById('collab-is-active').value === 'true'
             };
 
             try {
@@ -289,19 +397,140 @@ export function initCollaboratorModals() {
                 console.error(err);
             }
         });
+
+        // Delete button handler
+        document.getElementById('delete-collab-btn')?.addEventListener('click', async () => {
+            const collabId = document.getElementById('delete-collab-btn').dataset.collabId;
+            const c = state.collaborators.find(x => x.id == collabId);
+            if (!c) return;
+
+            if (await window.showConfirm(`Sei sicuro di voler eliminare ${c.full_name}? Questa azione è irreversibile.`)) {
+                try {
+                    const { deleteCollaborator } = await import('../modules/api.js?v=123');
+                    await deleteCollaborator(collabId);
+                    close();
+                    window.showAlert('Collaboratore eliminato con successo', 'success');
+                    // Navigate back to list
+                    window.location.hash = 'employees';
+                } catch (err) {
+                    window.showAlert('Errore durante l\'eliminazione: ' + err.message, 'error');
+                    console.error(err);
+                }
+            }
+        });
+
+        // Initialize department multiselect
+        window.initDeptMultiselect();
     }
 }
 
-// Ensure Department Selector Logic
-window.openDeptSelector = () => {
-    const current = JSON.parse(document.getElementById('collab-tags').value || '[]');
-    // Simple prompt for now, can be upgraded to department modal selector later
-    const newTags = prompt("Inserisci reparti separati da virgola (es. Design, Marketing):", current.join(', '));
-    if (newTags !== null) {
-        const tags = newTags.split(',').map(t => t.trim()).filter(Boolean);
-        document.getElementById('collab-tags').value = JSON.stringify(tags);
-        document.getElementById('collab-tags-field').querySelector('span').textContent = tags.length ? tags.join(', ') : 'Seleziona...';
+// Department Multi-Select Logic
+window.initDeptMultiselect = () => {
+    const field = document.getElementById('collab-tags-field');
+    const dropdown = document.getElementById('dept-dropdown');
+    const hiddenInput = document.getElementById('collab-tags');
+
+    if (!field || !dropdown) return;
+
+    // Toggle dropdown on click
+    field.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = dropdown.style.display !== 'none';
+
+        if (isOpen) {
+            dropdown.style.display = 'none';
+        } else {
+            renderDeptOptions();
+            dropdown.style.display = 'block';
+        }
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#dept-multiselect')) {
+            dropdown.style.display = 'none';
+        }
+    });
+
+    function renderDeptOptions() {
+        const selectedTags = JSON.parse(hiddenInput.value || '[]');
+        const departments = state.departments || [];
+
+        // If no departments in state, use unique tags from collaborators
+        let options = departments.map(d => d.name);
+        if (options.length === 0) {
+            const allTags = new Set();
+            state.collaborators.forEach(c => {
+                const tags = Array.isArray(c.tags) ? c.tags : (typeof c.tags === 'string' ? c.tags.split(',').map(t => t.trim()) : []);
+                tags.forEach(t => allTags.add(t));
+            });
+            options = Array.from(allTags).filter(Boolean).sort();
+        }
+
+        dropdown.innerHTML = options.map(opt => `
+            <label style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid var(--border-light);"
+                   onmouseover="this.style.background='var(--bg-secondary)'" 
+                   onmouseout="this.style.background='white'">
+                <input type="checkbox" value="${opt}" ${selectedTags.includes(opt) ? 'checked' : ''} 
+                       style="width: 16px; height: 16px; accent-color: var(--brand-blue);">
+                <span style="font-size: 0.95rem;">${opt}</span>
+            </label>
+        `).join('') || `<div style="padding: 14px; color: var(--text-tertiary); text-align: center;">Nessun reparto disponibile</div>`;
+
+        // Add listeners to checkboxes
+        dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', () => updateSelectedTags());
+        });
     }
+
+    function updateSelectedTags() {
+        const checked = Array.from(dropdown.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+        hiddenInput.value = JSON.stringify(checked);
+        renderSelectedTags(checked);
+    }
+
+    window.renderSelectedTags = (tags) => {
+        const placeholder = field.querySelector('.placeholder');
+
+        // Remove old tags but keep placeholder
+        field.querySelectorAll('.dept-tag').forEach(t => t.remove());
+
+        if (tags.length === 0) {
+            if (placeholder) placeholder.style.display = 'inline';
+            return;
+        }
+
+        if (placeholder) placeholder.style.display = 'none';
+
+        tags.forEach(tag => {
+            const tagEl = document.createElement('span');
+            tagEl.className = 'dept-tag';
+            tagEl.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: var(--brand-blue); color: white; border-radius: 20px; font-size: 0.85rem; font-weight: 500;';
+            tagEl.innerHTML = `${tag}<span class="remove-tag" data-tag="${tag}" style="cursor: pointer; margin-left: 4px; font-size: 1rem; opacity: 0.8;">&times;</span>`;
+            field.appendChild(tagEl);
+        });
+
+        // Add remove listeners
+        field.querySelectorAll('.remove-tag').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const tagToRemove = btn.dataset.tag;
+                const current = JSON.parse(hiddenInput.value || '[]');
+                const updated = current.filter(t => t !== tagToRemove);
+                hiddenInput.value = JSON.stringify(updated);
+                renderSelectedTags(updated);
+                // Update dropdown checkboxes if open
+                const cb = dropdown.querySelector(`input[value="${tagToRemove}"]`);
+                if (cb) cb.checked = false;
+            });
+        });
+    };
+};
+
+// Legacy function - now just opens the dropdown
+window.openDeptSelector = () => {
+    const field = document.getElementById('collab-tags-field');
+    if (field) field.click();
 };
 
 window.impersonateCollaborator = async (collaboratorId) => {
@@ -358,9 +587,9 @@ export function renderCollaboratorDetail(container) {
         return;
     }
 
-    // Ensure payments are loaded
-    if (!state.payments) {
-        fetchPayments().then(() => renderCollaboratorDetail(container));
+    // Ensure payments and other data are loaded
+    if (!state.payments || !state.assignments || !state.passiveInvoices) {
+        Promise.all([fetchPayments(), fetchAssignments(), fetchPassiveInvoices()]).then(() => renderCollaboratorDetail(container));
         return;
     }
 
@@ -368,236 +597,304 @@ export function renderCollaboratorDetail(container) {
         o.order_collaborators && o.order_collaborators.some(oc => oc.collaborators && oc.collaborators.id === c.id)
     );
     const collabInvoices = state.passiveInvoices.filter(i => i.collaborator_id === c.id);
-    // Filter payments for this collaborator
     const collabPayments = state.payments.filter(p => p.collaborator_id === c.id);
+    const collabAssignments = state.assignments ? state.assignments.filter(a => a.collaborator_id === c.id) : [];
 
+    // Calculations
     const totalInvoiced = collabInvoices.reduce((sum, inv) => sum + (parseFloat(inv.amount_tax_excluded) || 0), 0);
     const totalPaid = collabInvoices
         .filter(inv => inv.status === 'Pagato')
         .reduce((sum, inv) => sum + (parseFloat(inv.amount_tax_excluded) || 0), 0);
 
+    // Status color
+    const isActive = c.is_active !== false;
+    const statusColor = isActive ? '#10b981' : '#ef4444';
+    const statusText = isActive ? 'Attivo' : 'Inattivo';
+
+    // Initials & Avatar Color
+    const getInitials = (name) => name ? name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '??';
+    const getAvatarColor = (name) => {
+        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+        let hash = 0;
+        for (let i = 0; i < (name || '').length; i++) { hash = (name || '').charCodeAt(i) + ((hash << 5) - hash); }
+        return colors[Math.abs(hash) % colors.length];
+    };
+    const avatarColor = getAvatarColor(c.full_name);
+
+    // Tags
+    let tags = [];
+    if (Array.isArray(c.tags)) {
+        tags = c.tags;
+    } else if (typeof c.tags === 'string') {
+        try {
+            const parsed = JSON.parse(c.tags);
+            if (Array.isArray(parsed)) tags = parsed;
+            else tags = c.tags.split(',');
+        } catch (e) {
+            tags = c.tags.split(',');
+        }
+    }
+    tags = tags.map(t => t.trim()).filter(Boolean);
+
     container.innerHTML = `
-        <div class="animate-fade-in">
-            <button class="btn-link" onclick="window.location.hash='employees'" style="margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary);">
-                <span class="material-icons-round">arrow_back</span> Torna alla lista
-            </button>
-
-            <!-- Header Profile -->
-            <div class="glass-card" style="padding: 2.5rem; display: flex; gap: 2.5rem; align-items: flex-start; margin-bottom: 2rem;">
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
-                    <div style="width: 120px; height: 120px; border-radius: 50%; background: var(--brand-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 3rem; font-weight: 400; box-shadow: var(--shadow-premium);">
-                        ${c.avatar_url ? `<img src="${c.avatar_url}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : c.full_name[0]}
-                    </div>
-                     <!-- Soft Code/Shorthand Display -->
-                    ${c.name ? `<span style="font-size: 0.85rem; color: var(--text-tertiary); font-family: monospace; letter-spacing: 1px; background: rgba(0,0,0,0.05); padding: 2px 8px; border-radius: 4px;">${c.name}</span>` : ''}
-                </div>
-                
-                <div style="flex: 1;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div>
-                            <h1 style="margin: 0 0 0.5rem 0; font-size: 2.2rem; letter-spacing: -0.5px;">${c.full_name}</h1>
-                            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem;">
-                                <span style="font-size: 1rem; color: var(--brand-blue); font-weight: 400;">${c.role || '-'}</span>
-                                <div style="width: 4px; height: 4px; border-radius: 50%; background: var(--text-tertiary);"></div>
-                                ${(Array.isArray(c.tags) ? c.tags : (typeof c.tags === 'string' ? c.tags.split(',') : [])).map(t => `<span style="font-size: 0.85rem; color: var(--text-secondary); background: var(--bg-secondary); padding: 2px 10px; border-radius: 12px;">${t.trim ? t.trim() : t}</span>`).join('')}
-                            </div>
-                            
-                            <!-- Birth Info -->
-                             ${(c.birth_date || c.birth_place) ? `
-                                <div style="display: flex; gap: 0.5rem; align-items: center; color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
-                                    <span class="material-icons-round" style="font-size: 1rem;">cake</span>
-                                    <span>Nato il ${c.birth_date ? new Date(c.birth_date).toLocaleDateString() : '-'} ${c.birth_place ? 'a ' + c.birth_place : ''}</span>
-                                </div>
-                            ` : ''}
-                        </div>
-                        
-                        <div style="display: flex; gap: 0.5rem;">
-                            <!-- Impersonate Button (Admin Only) -->
-                            ${state.profile?.role === 'admin' ? `
-                                <button class="secondary-btn small" onclick="impersonateCollaborator('${c.id}')" title="Vedi come ${c.first_name}" style="background: white; border: 1px solid var(--glass-border); padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                                    <span class="material-icons-round" style="font-size: 18px; color: var(--brand-blue);">visibility</span>
-                                    Vedi come
-                                </button>
-                            ` : ''}
-
-                            <!-- Invia Magic Link Button -->
-                            <button class="secondary-btn small" onclick="sendMagicLink('${c.email}')" title="Invia invito" style="background: white; border: 1px solid var(--glass-border); padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                                <span class="material-icons-round" style="font-size: 18px; color: var(--brand-blue);">magic_button</span>
-                                Invia Magic Link
-                            </button>
-
-                            <button class="icon-btn" style="background: var(--bg-secondary); width: 42px; height: 42px;" onclick="openCollaboratorModal('${c.id}')" title="Modifica">
-                                <span class="material-icons-round" style="color: var(--text-primary);">edit</span>
-                            </button>
-                        </div>
+        <div class="animate-fade-in" style="max-width: 1400px; margin: 0 auto; padding: 1rem;">
+            
+            <!-- Header Section -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; background: var(--bg-secondary); padding: 1.5rem 2rem; border-radius: 16px; border: 1px solid var(--glass-border);">
+                <div style="display: flex; align-items: center; gap: 1.5rem;">
+                    <!-- Avatar -->
+                    <div style="width: 64px; height: 64px; border-radius: 18px; background: linear-gradient(135deg, ${avatarColor}, ${avatarColor}dd); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 16px ${avatarColor}40; font-size: 1.5rem; color: white; font-weight: 600;">
+                        ${c.avatar_url ? `<img src="${c.avatar_url}" style="width:100%; height:100%; border-radius:18px; object-fit:cover;">` : getInitials(c.full_name)}
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--glass-border);">
-                        <div>
-                            <span style="display: block; font-size: 0.75rem; font-weight: 400; color: var(--text-tertiary); margin-bottom: 0.4rem; letter-spacing: 0.5px;">CONTATTI</span>
-                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                                <a href="mailto:${c.email}" style="display: flex; gap: 0.6rem; align-items: center; color: var(--text-primary); text-decoration: none; font-weight: 500;">
-                                    <span class="material-icons-round" style="font-size: 1.1rem; color: var(--brand-blue);">email</span>
-                                    ${c.email || '-'}
-                                </a>
-                                <a href="tel:${c.phone}" style="display: flex; gap: 0.6rem; align-items: center; color: var(--text-primary); text-decoration: none; font-weight: 500;">
-                                    <span class="material-icons-round" style="font-size: 1.1rem; color: var(--brand-blue);">call</span>
-                                    ${c.phone || '-'}
-                                </a>
-                            </div>
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.4rem;">
+                             <h1 style="font-size: 2rem; font-weight: 700; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.02em;">${c.full_name}</h1>
+                             <span class="status-badge" style="display: inline-flex; align-items: center; gap: 4px; background: ${statusColor}15; color: ${statusColor}; border: 1px solid ${statusColor}30; font-size: 0.75rem; padding: 4px 10px; border-radius: 2rem; font-weight: 600;">
+                                <span style="width: 6px; height: 6px; border-radius: 50%; background: ${statusColor};"></span>
+                                ${statusText}
+                             </span>
                         </div>
+                        <div style="display: flex; align-items: center; gap: 1rem; color: var(--text-tertiary); font-size: 0.9rem;">
+                            <span style="display: flex; align-items: center; gap: 0.4rem; font-weight: 500;">
+                                ${c.role || 'Ruolo non definito'}
+                            </span>
+                            ${c.name ? `<span style="display: flex; align-items: center; gap: 0.4rem; padding: 2px 8px; background: rgba(0,0,0,0.05); border-radius: 6px; font-family: monospace; font-size: 0.8rem;">${c.name}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.75rem;">
+                    <button class="primary-btn secondary" onclick="window.history.back()" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
+                        <span class="material-icons-round">arrow_back</span> Indietro
+                    </button>
+                    ${state.profile?.role === 'admin' ? `
+                        <button class="primary-btn secondary" onclick="impersonateCollaborator('${c.id}')" title="Vedi come ${c.first_name || 'Utente'}" style="padding: 0.6rem; border-radius: 10px;">
+                            <span class="material-icons-round">visibility</span>
+                        </button>
+                    ` : ''}
+                    <button class="primary-btn secondary" onclick="sendMagicLink('${c.email || ''}')" title="Invia Magic Link" style="padding: 0.6rem 1.25rem; border-radius: 10px; display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="material-icons-round">auto_fix_high</span> Magic Link
+                    </button>
+                    <button class="primary-btn" onclick="openCollaboratorModal('${c.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
+                        <span class="material-icons-round">edit</span> Modifica
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Row -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
+                 <div class="glass-card" style="padding: 1.25rem;">
+                    <div style="color: var(--text-tertiary); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Totale Compenso</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-titles);">€ ${formatAmount(totalInvoiced)}</div>
+                </div>
+                <div class="glass-card" style="padding: 1.25rem;">
+                    <div style="color: var(--text-tertiary); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Saldato</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #10b981; font-family: var(--font-titles);">€ ${formatAmount(totalPaid)}</div>
+                </div>
+                <div class="glass-card" style="padding: 1.25rem;">
+                    <div style="color: var(--text-tertiary); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Da Saldare</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #f59e0b; font-family: var(--font-titles);">€ ${formatAmount(totalInvoiced - totalPaid)}</div>
+                </div>
+                <div class="glass-card" style="padding: 1.25rem;">
+                    <div style="color: var(--text-tertiary); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Commesse Attive</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--brand-blue); font-family: var(--font-titles);">${collabAssignments.filter(a => a.status !== 'Completed').length}</div>
+                </div>
+            </div>
+
+            <!-- Main Content Grid -->
+            <div style="display: grid; grid-template-columns: 320px 1fr; gap: 1.5rem; align-items: start;">
+                
+                <!-- Left Column: Profile Info -->
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    
+                    <!-- Contacts Card -->
+                     <div class="glass-card" style="padding: 1.25rem;">
+                        <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="material-icons-round" style="color: var(--brand-blue); font-size: 1.1rem;">badge</span> Dati Personali
+                        </h3>
                         
-                         <div>
-                            <span style="display: block; font-size: 0.75rem; font-weight: 400; color: var(--text-tertiary); margin-bottom: 0.4rem; letter-spacing: 0.5px;">INDIRIZZO</span>
-                            <div style="display: flex; gap: 0.6rem; align-items: flex-start; color: var(--text-primary); font-weight: 500;">
-                                <span class="material-icons-round" style="font-size: 1.1rem; color: var(--text-tertiary); margin-top: 1px;">place</span>
-                                <span>${c.address || '-'}</span>
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            ${tags.length > 0 ? `
+                                <div>
+                                    <div style="font-size: 0.7rem; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.4rem;">Reparti</div>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+                                        ${tags.map(t => `<span style="font-size: 0.75rem; color: var(--brand-blue); background: rgba(59, 130, 246, 0.1); padding: 2px 8px; border-radius: 6px; font-weight: 500;">${t}</span>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            <div>
+                                <div style="font-size: 0.7rem; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.4rem;">Contatti</div>
+                                <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                                    <a href="mailto:${c.email}" style="display: flex; gap: 0.6rem; align-items: center; color: var(--text-primary); text-decoration: none; font-size: 0.9rem;">
+                                        <span class="material-icons-round" style="font-size: 1rem; color: var(--text-tertiary);">email</span>
+                                        <span style="overflow: hidden; text-overflow: ellipsis;">${c.email || '-'}</span>
+                                    </a>
+                                    <a href="tel:${c.phone}" style="display: flex; gap: 0.6rem; align-items: center; color: var(--text-primary); text-decoration: none; font-size: 0.9rem;">
+                                        <span class="material-icons-round" style="font-size: 1rem; color: var(--text-tertiary);">call</span>
+                                        ${c.phone || '-'}
+                                    </a>
+                                    <div style="display: flex; gap: 0.6rem; align-items: center; color: var(--text-primary); font-size: 0.9rem;">
+                                        <span class="material-icons-round" style="font-size: 1rem; color: var(--text-tertiary);">place</span>
+                                        <span style="line-height: 1.3;">${c.address || '-'}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        <div>
-                            <span style="display: block; font-size: 0.75rem; font-weight: 400; color: var(--text-tertiary); margin-bottom: 0.4rem; letter-spacing: 0.5px;">DATI FISCALI</span>
-                            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                                <div style="display:flex; justify-content: space-between;">
-                                    <span style="color: var(--text-secondary); font-size: 0.85rem;">CF</span>
-                                    <span style="font-family: monospace; font-size: 0.9rem;">${c.fiscal_code || '-'}</span>
-                                </div>
-                                <div style="display:flex; justify-content: space-between;">
-                                    <span style="color: var(--text-secondary); font-size: 0.85rem;">P.IVA</span>
-                                    <span style="font-family: monospace; font-size: 0.9rem;">${c.vat_number || '-'}</span>
-                                </div>
+                    <!-- Fiscal Data Card -->
+                     <div class="glass-card" style="padding: 1.25rem;">
+                        <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="material-icons-round" style="color: var(--brand-blue); font-size: 1.1rem;">account_balance</span> Dati Fiscali
+                        </h3>
+                         <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+                             <div style="display: flex; justify-content: space-between; align-items: center;">
+                                 <span style="font-size: 0.8rem; color: var(--text-secondary);">P.IVA</span>
+                                 <span style="font-size: 0.85rem; font-weight: 500; font-family: monospace;">${c.vat_number || '-'}</span>
+                             </div>
+                             <div style="display: flex; justify-content: space-between; align-items: center;">
+                                 <span style="font-size: 0.8rem; color: var(--text-secondary);">Cod. Fiscale</span>
+                                 <span style="font-size: 0.85rem; font-weight: 500; font-family: monospace;">${c.fiscal_code || '-'}</span>
+                             </div>
+                             ${c.pec ? `
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                     <span style="font-size: 0.8rem; color: var(--text-secondary);">PEC</span>
+                                     <span style="font-size: 0.85rem; font-weight: 500;">${c.pec}</span>
+                                 </div>
+                             ` : ''}
+                         </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Activity Tabs -->
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    
+                    <!-- Tabs Navigation -->
+                    <div style="display: flex; gap: 2rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">
+                        <button class="tab-btn active" data-tab="assignments" id="btn-tab-assignments" style="padding: 0.5rem 0; background: none; border: none; font-size: 0.95rem; font-weight: 600; color: var(--brand-blue); cursor: pointer; border-bottom: 2px solid var(--brand-blue); transition: all 0.2s;">Incarichi (${collabAssignments.length})</button>
+                        <button class="tab-btn" data-tab="payments" id="btn-tab-payments" style="padding: 0.5rem 0; background: none; border: none; font-size: 0.95rem; font-weight: 500; color: var(--text-tertiary); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;">Pagamenti (${collabPayments.length})</button>
+                        <button class="tab-btn" data-tab="invoices" id="btn-tab-invoices" style="padding: 0.5rem 0; background: none; border: none; font-size: 0.95rem; font-weight: 500; color: var(--text-tertiary); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;">Fatture (${collabInvoices.length})</button>
+                        <button class="tab-btn" data-tab="availability" id="btn-tab-availability" style="padding: 0.5rem 0; background: none; border: none; font-size: 0.95rem; font-weight: 500; color: var(--text-tertiary); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;">Disponibilità</button>
+                    </div>
+
+                    <!-- Assignments Tab -->
+                    <div id="tab-assignments" class="tab-content">
+                        ${collabAssignments.length > 0 ? `
+                            <div class="glass-card" style="padding: 0; overflow: hidden;">
+                                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                                    <thead style="background: var(--bg-secondary); color: var(--text-tertiary); font-size: 0.75rem; text-transform: uppercase;">
+                                        <tr>
+                                            <th style="padding: 1rem;">Commessa</th>
+                                            <th style="padding: 1rem;">Ruolo/Servizio</th>
+                                            <th style="padding: 1rem;">Importo</th>
+                                            <th style="padding: 1rem;">Stato</th>
+                                            <th style="padding: 1rem;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody style="font-size: 0.9rem;">
+                                        ${collabAssignments.map(a => `
+                                            <tr style="border-bottom: 1px solid var(--glass-border); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='transparent'" onclick="window.location.hash='assignment-detail/${a.id}'">
+                                                <td style="padding: 1rem; font-weight: 500;">
+                                                    ${a.orders ? a.orders.order_number : (a.legacy_order_id || '-')}
+                                                    <div style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 400;">${a.orders?.clients?.business_name || '-'}</div>
+                                                </td>
+                                                <td style="padding: 1rem; color: var(--text-secondary);">${a.role || 'Collaboratore'}</td>
+                                                <td style="padding: 1rem; font-weight: 600;">${formatAmount(a.total_amount)}€</td>
+                                                <td style="padding: 1rem;">
+                                                    <span class="status-badge" style="background: ${a.status === 'Completed' ? '#10b98115' : '#3b82f615'}; color: ${a.status === 'Completed' ? '#10b981' : '#3b82f6'}; border: 1px solid ${a.status === 'Completed' ? '#10b98130' : '#3b82f630'}; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">${a.status || 'Active'}</span>
+                                                </td>
+                                                 <td style="padding: 1rem; text-align: right;"><span class="material-icons-round" style="font-size: 1.1rem; color: var(--text-tertiary);">chevron_right</span></td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
                             </div>
+                        ` : `<div style="text-align: center; padding: 3rem; background: var(--bg-secondary); border-radius: 12px; color: var(--text-tertiary); font-size: 0.9rem;">Nessun incarico presente</div>`}
+                    </div>
+
+                     <!-- Payments Tab -->
+                    <div id="tab-payments" class="tab-content hidden">
+                        ${collabPayments.length > 0 ? `
+                             <div class="glass-card" style="padding: 0; overflow: hidden;">
+                                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                                    <thead style="background: var(--bg-secondary); color: var(--text-tertiary); font-size: 0.75rem; text-transform: uppercase;">
+                                        <tr>
+                                            <th style="padding: 1rem;">Titolo</th>
+                                            <th style="padding: 1rem;">Scadenza</th>
+                                            <th style="padding: 1rem;">Importo</th>
+                                            <th style="padding: 1rem;">Stato</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody style="font-size: 0.9rem;">
+                                        ${collabPayments.map(p => `
+                                            <tr style="border-bottom: 1px solid var(--glass-border); transition: background 0.2s;">
+                                                <td style="padding: 1rem; font-weight: 500; color: var(--text-primary);">
+                                                    ${p.title || 'Pagamento'}
+                                                    <div style="font-size: 0.75rem; color: var(--text-tertiary);">Ord. ${p.orders?.order_number || '-'}</div>
+                                                </td>
+                                                <td style="padding: 1rem; color: var(--text-secondary);">${p.due_date ? new Date(p.due_date).toLocaleDateString() : '-'}</td>
+                                                <td style="padding: 1rem; font-weight: 600;">${formatAmount(p.amount)}€</td>
+                                                <td style="padding: 1rem;">
+                                                    <span class="status-badge" style="background: ${p.status === 'Saldato' || p.status === 'Pagato' ? '#10b98115' : '#f59e0b15'}; color: ${p.status === 'Saldato' || p.status === 'Pagato' ? '#10b981' : '#f59e0b'}; border: 1px solid ${p.status === 'Saldato' || p.status === 'Pagato' ? '#10b98130' : '#f59e0b30'}; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">${p.status}</span>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ` : `<div style="text-align: center; padding: 3rem; background: var(--bg-secondary); border-radius: 12px; color: var(--text-tertiary); font-size: 0.9rem;">Nessun pagamento registrato</div>`}
+                    </div>
+                    
+                    <!-- Invoices Tab -->
+                    <div id="tab-invoices" class="tab-content hidden">
+                        ${collabInvoices.length > 0 ? `
+                            <div class="glass-card" style="padding: 0; overflow: hidden;">
+                                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                                    <thead style="background: var(--bg-secondary); color: var(--text-tertiary); font-size: 0.75rem; text-transform: uppercase;">
+                                        <tr>
+                                            <th style="padding: 1rem;">Numero</th>
+                                            <th style="padding: 1rem;">Data Invio</th>
+                                            <th style="padding: 1rem;">Data Saldo</th>
+                                            <th style="padding: 1rem;">Importo</th>
+                                            <th style="padding: 1rem;">Stato</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody style="font-size: 0.9rem;">
+                                        ${collabInvoices.map(inv => `
+                                            <tr style="border-bottom: 1px solid var(--glass-border); transition: background 0.2s;">
+                                                <td style="padding: 1rem; font-weight: 500; color: var(--text-primary);">
+                                                    ${inv.invoice_number || '-'}
+                                                </td>
+                                                <td style="padding: 1rem; color: var(--text-secondary);">
+                                                    ${inv.issue_date ? new Date(inv.issue_date).toLocaleDateString() : '-'}
+                                                </td>
+                                                <td style="padding: 1rem; color: var(--text-secondary);">
+                                                    ${inv.payment_date ? new Date(inv.payment_date).toLocaleDateString() : '-'}
+                                                </td>
+                                                <td style="padding: 1rem; font-weight: 600;">€ ${formatAmount(inv.amount_tax_excluded || inv.amount)}</td>
+                                                <td style="padding: 1rem;">
+                                                    <span class="status-badge" style="background: ${inv.status === 'Approvata' || inv.status === 'Pagato' ? '#10b98115' : 'rgba(0,0,0,0.05)'}; color: ${inv.status === 'Approvata' || inv.status === 'Pagato' ? '#10b981' : 'var(--text-secondary)'}; border: 1px solid ${inv.status === 'Approvata' || inv.status === 'Pagato' ? '#10b98130' : 'var(--glass-border)'}; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">${inv.status || 'Bozza'}</span>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ` : `<div style="text-align: center; padding: 3rem; background: var(--bg-secondary); border-radius: 12px; color: var(--text-tertiary); font-size: 0.9rem;">Nessuna fattura presente</div>`}
+                    </div>
+
+                    <!-- Tab Content: Availability -->
+                    <div id="tab-availability" class="tab-content hidden">
+                        <div class="card-grid" style="grid-template-columns: 1fr; gap: 1.5rem;">
+                            <!-- Availability UI will be rendered here -->
+                            <div id="availability-loading" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Caricamento disponibilità...</div>
+                            <div id="availability-container" class="hidden"></div>
                         </div>
                     </div>
+
                 </div>
-            </div>
-
-            <!-- Tabs Controls -->
-            <div class="tabs-container" style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); display: flex; gap: 1.5rem;">
-                <button class="tab-btn active" data-tab="overview" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid var(--brand-blue); color: var(--brand-blue); font-weight: 400; cursor: pointer;">Panoramica</button>
-                <button class="tab-btn" data-tab="orders" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">Commesse (${collabOrders.length})</button>
-                <button class="tab-btn" data-tab="invoices" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">Fatture (${collabInvoices.length})</button>
-                <button class="tab-btn" data-tab="payments" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">Pagamenti (${collabPayments.length})</button>
-                <button class="tab-btn" data-tab="availability" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">Disponibilità</button>
-            </div>
-
-            <!-- Tab Content: Overview -->
-            <div id="tab-overview" class="tab-content">
-                <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 2rem;">
-                    <div class="stats-card">
-                        <div class="stats-header"><span>Totale Compenso</span></div>
-                        <div class="stats-value">€ ${formatAmount(totalInvoiced)}</div>
-                        <div class="stats-trend">Lordo</div>
-                    </div>
-                    <div class="stats-card">
-                        <div class="stats-header"><span>Pagato</span></div>
-                        <div class="stats-value">€ ${formatAmount(totalPaid)}</div>
-                        <div class="stats-trend trend-up">Saldato</div>
-                    </div>
-                     <div class="stats-card">
-                        <div class="stats-header"><span>Da Saldare</span></div>
-                        <div class="stats-value">€ ${formatAmount(totalInvoiced - totalPaid)}</div>
-                        <div class="stats-trend trend-down">Residuo</div>
-                    </div>
-                     <div class="stats-card">
-                        <div class="stats-header"><span>Attività</span></div>
-                        <div class="stats-value">${collabOrders.length}</div>
-                        <div class="stats-trend">Commesse</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tab Content: Orders -->
-            <div id="tab-orders" class="tab-content hidden">
-                 <div class="table-container">
-                    <table>
-                        <thead><tr><th>N. Ordine</th><th>Data</th><th>Ruolo</th><th>Stato</th></tr></thead>
-                        <tbody>
-                            ${collabOrders.length ? collabOrders.map(o => `
-                                <tr onclick="window.location.hash='order-detail/${o.id}'" style="cursor:pointer;">
-                                    <td>${o.order_number}</td>
-                                    <td>${new Date(o.order_date).toLocaleDateString()}</td>
-                                    <td>${o.order_collaborators.find(oc => oc.collaborators.id === c.id)?.role_in_order || '-'}</td>
-                                    <td><span class="status-badge">${o.status_works || 'In corso'}</span></td>
-                                </tr>
-                            `).join('') : '<tr><td colspan="4" style="text-align:center; padding:1rem;">Nessuna commessa attiva.</td></tr>'}
-                        </tbody>
-                    </table>
-                 </div>
-            </div>
-
-            <!-- Tab Content: Invoices -->
-            <div id="tab-invoices" class="tab-content hidden">
-                 <div class="section-header">
-                    <span>Storico Fatture</span>
-                    <!-- <button class="primary-btn small" onclick="openPassiveInvoiceModalV2()">+ Registra Fattura</button> -->
-                 </div>
-                 <div class="table-container">
-                    <table>
-                        <thead><tr><th>Numero</th><th>Data</th><th>Imponibile</th><th>Stato</th></tr></thead>
-                        <tbody>
-                            ${collabInvoices.length ? collabInvoices.map(i => `
-                                <tr>
-                                    <td>${i.invoice_number}</td>
-                                    <td>${new Date(i.issue_date).toLocaleDateString()}</td>
-                                    <td>€ ${formatAmount(i.amount_tax_excluded)}</td>
-                                    <td><span class="status-badge ${i.status === 'Pagato' ? 'status-active' : 'status-pending'}">${i.status}</span></td>
-                                </tr>
-                            `).join('') : '<tr><td colspan="4" style="text-align:center; padding:1rem;">Nessuna fattura registrata.</td></tr>'}
-                        </tbody>
-                    </table>
-                 </div>
-            </div>
-
-            <!-- Tab Content: Payments -->
-            <div id="tab-payments" class="tab-content hidden">
-                 <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="color: var(--text-secondary); font-weight: 500; font-size: 0.85rem;"><span style="display:flex; align-items:center; gap:4px;">Data <span class="material-icons-round" style="font-size:14px">arrow_downward</span></span></th>
-                                <th style="color: var(--text-secondary); font-weight: 500; font-size: 0.85rem;">Causale</th>
-                                <th style="color: var(--text-secondary); font-weight: 500; font-size: 0.85rem;">Incarico</th>
-                                <th style="color: var(--text-secondary); font-weight: 500; font-size: 0.85rem;">Cliente</th>
-                                <th style="color: var(--text-secondary); font-weight: 500; font-size: 0.85rem;">Titolo Commessa</th>
-                                <th style="color: var(--text-secondary); font-weight: 500; font-size: 0.85rem;">Importo</th>
-                                <th style="color: var(--text-secondary); font-weight: 500; font-size: 0.85rem;">Stato</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${collabPayments.length ? collabPayments.map(p => `
-                                <tr onclick="openPaymentModal('${p.id}')" style="cursor: pointer; transition: background 0.2s;">
-                                    <td style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">${new Date(p.due_date).toLocaleDateString()}</td>
-                                    <td><span style="font-size: 0.9rem; color: var(--text-primary);">${p.title || '-'}</span></td>
-                                    <td>
-                                        ${p.orders?.order_number ?
-            `<span style="border: 1px solid var(--glass-border); padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; color: var(--text-primary); background: white;">${p.orders.order_number}</span>`
-            : '-'
-        }
-                                    </td>
-                                    <td>
-                                        ${p.clients?.business_name ?
-            `<span style="border: 1px solid var(--glass-border); padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; color: var(--text-primary); background: white;">${p.clients.business_name}</span>`
-            : '-'
-        }
-                                    </td>
-                                    <td style="font-size: 0.9rem; color: var(--text-primary); max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.orders?.title || ''}">${p.orders?.title ? `"${p.orders.title}"` : '-'}</td>
-                                    <td style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">€ ${formatAmount(p.amount)}</td>
-                                    <td><span style="border: 1px solid var(--glass-border); padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; color: var(--text-secondary); background: white;">${p.status || 'To Do'}</span></td>
-                                </tr>
-                            `).join('') : '<tr><td colspan="7" style="text-align:center; padding:2rem; color: var(--text-tertiary);">Nessun pagamento trovato.</td></tr>'}
-                        </tbody>
-                    </table>
-                 </div>
-            </div>
-
-            <!-- Tab Content: Availability -->
-            <div id="tab-availability" class="tab-content hidden">
-                 <div class="card-grid" style="grid-template-columns: 1fr; gap: 1.5rem;">
-                    <!-- Availability UI will be rendered here -->
-                    <div id="availability-loading" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Caricamento disponibilità...</div>
-                    <div id="availability-container" class="hidden"></div>
-                 </div>
             </div>
         </div>
     `;
@@ -836,7 +1133,7 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, extr
     const renderExtraSlot = (slot) => {
         const startDate = new Date(slot.date).toLocaleDateString();
         const endDate = slot.end_date ? new Date(slot.end_date).toLocaleDateString() : null;
-        const dateDisplay = endDate ? `${startDate} - ${endDate}` : startDate;
+        const dateDisplay = endDate ? `${startDate} - ${endDate} ` : startDate;
 
         return `
             <div class="glass-card" style="padding: 1rem; display: flex; justify-content: space-between; align-items: center; background: white; border-left: 3px solid var(--brand-blue); border-radius: 12px; box-shadow: var(--shadow-soft);">
@@ -924,12 +1221,12 @@ function openExtraSlotModal(collaboratorId, services, onSuccess) {
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
                         <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Data Inizio</label>
-                        <input type="date" name="date" required value="${new Date().toISOString().split('T')[0]}" 
+                        <input type="date" name="date" required value="${new Date().toISOString().split('T')[0]}"
                             style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 10px; font-size: 0.9rem; background: white; transition: all 0.2s; font-family: inherit;">
                     </div>
                     <div class="form-group">
                         <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Data Fine <span style="font-weight: 400; color: var(--text-tertiary);">(Opzionale)</span></label>
-                        <input type="date" name="end_date" 
+                        <input type="date" name="end_date"
                             style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 10px; font-size: 0.9rem; background: white; transition: all 0.2s; font-family: inherit;">
                     </div>
                 </div>
@@ -963,13 +1260,13 @@ function openExtraSlotModal(collaboratorId, services, onSuccess) {
                 </h3>
                 <div class="form-group">
                     <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Servizio Dedicato <span style="font-weight: 400; color: var(--text-tertiary);">(Opzionale)</span></label>
-                    <select name="service_id" 
+                    <select name="service_id"
                         style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 10px; font-size: 0.9rem; background: white; transition: all 0.2s; cursor: pointer; font-family: inherit;">
                         ${serviceOptions}
                     </select>
                 </div>
             </div>
-            
+
             <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 0.5rem;">
                 <button type="submit" class="primary-btn" style="min-width: 160px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.875rem 2rem; border-radius: 12px; font-weight: 600; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: all 0.2s; border: none; color: white; cursor: pointer; font-size: 0.95rem;">
                     <span style="display: flex; align-items: center; gap: 0.5rem;">

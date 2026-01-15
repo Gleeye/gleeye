@@ -12,6 +12,7 @@ export const state = {
     departments: [],
     searchTerm: '',
     selectedDepartment: '',
+    showInactiveCollaborators: false, // Toggle to show inactive collaborators
     selectedTags: [], // For the multi-select component
     currentId: null,
     passiveInvoices: [], // New state for passive invoices

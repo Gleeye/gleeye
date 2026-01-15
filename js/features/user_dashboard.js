@@ -1,6 +1,6 @@
 import { state } from '../modules/state.js?v=123';
 import { supabase } from '../modules/config.js?v=123';
-import { fetchCollaborators, upsertCollaborator, fetchAvailabilityRules, saveAvailabilityRules, fetchPayments, fetchRestDays, upsertRestDay, deleteRestDay, fetchCollaboratorServices, fetchCollaboratorSkills, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchBookingItemCollaborators, fetchGoogleAuth, deleteGoogleAuth, fetchSystemConfig, upsertGoogleAuth } from '../modules/api.js?v=123';
+import { fetchCollaborators, upsertCollaborator, fetchAvailabilityRules, saveAvailabilityRules, fetchPayments, fetchRestDays, upsertRestDay, deleteRestDay, fetchCollaboratorServices, fetchCollaboratorSkills, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchBookingItemCollaborators, fetchGoogleAuth, deleteGoogleAuth, fetchSystemConfig, upsertGoogleAuth, fetchNotificationTypes, fetchUserNotificationPreferences, upsertUserNotificationPreference } from '../modules/api.js?v=123';
 import { formatAmount } from '../modules/utils.js?v=123';
 
 export async function renderUserProfile(container) {
@@ -82,6 +82,9 @@ export async function renderUserProfile(container) {
                 <button class="tab-btn" data-tab="availability" style="padding: 0.8rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">
                     Disponibilità
                 </button>
+                <button class="tab-btn" data-tab="notifications" style="padding: 0.8rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">
+                    Notifiche
+                </button>
             </div>
 
             <!-- Tab Content: Dashboard -->
@@ -144,6 +147,22 @@ export async function renderUserProfile(container) {
                     </div>
                 </div>
             </div>
+
+            <!-- Tab Content: Notifications -->
+            <div id="tab-notifications" class="tab-content hidden" style="padding: 0 1rem;">
+                <div class="glass-card" style="padding: 2rem; max-width: 800px;">
+                    <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="material-icons-round" style="color: var(--brand-blue);">notifications_active</span>
+                        Preferenze Notifiche
+                    </h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">
+                        Scegli quali notifiche ricevere e su quale canale.
+                    </p>
+                    <div id="notification-prefs-list">
+                        <div style="padding: 2rem; text-align: center;"><span class="loader"></span></div>
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 
@@ -171,6 +190,10 @@ export async function renderUserProfile(container) {
             if (tab.dataset.tab === 'availability') {
                 loadAvailability(myCollab.id);
                 initGoogleCalendar(myCollab.id);
+            }
+
+            if (tab.dataset.tab === 'notifications') {
+                loadNotificationPreferences();
             }
         });
     });
@@ -1171,3 +1194,133 @@ async function handleGoogleCallback(collaboratorId, code) {
         window.showAlert('Errore nel collegamento Google: ' + err.message, 'error');
     }
 }
+
+// --- NOTIFICATION PREFERENCES ---
+
+async function loadNotificationPreferences() {
+    const container = document.getElementById('notification-prefs-list');
+    if (!container) return;
+
+    container.innerHTML = '<div style="padding: 2rem; text-align: center;"><span class="loader"></span></div>';
+
+    try {
+        const session = state.session;
+        if (!session) {
+            container.innerHTML = '<p style="text-align:center; color:var(--text-tertiary);">Sessione non valida.</p>';
+            return;
+        }
+
+        const [types, userPrefs] = await Promise.all([
+            fetchNotificationTypes(),
+            fetchUserNotificationPreferences(session.user.id)
+        ]);
+
+        if (types.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:var(--text-tertiary);">Nessun tipo di notifica configurato.</p>';
+            return;
+        }
+
+        // Build a map of user preferences keyed by notification_type_id
+        const prefsMap = {};
+        userPrefs.forEach(pref => {
+            prefsMap[pref.notification_type_id] = pref;
+        });
+
+        // Group types by category
+        const grouped = {};
+        types.forEach(t => {
+            if (!grouped[t.category]) grouped[t.category] = [];
+            grouped[t.category].push(t);
+        });
+
+        const categoryLabels = {
+            'booking': 'Prenotazioni',
+            'payment': 'Pagamenti',
+            'invoice': 'Fatture',
+            'order': 'Ordini',
+            'general': 'Generali'
+        };
+
+        let html = '';
+        for (const category in grouped) {
+            html += `
+                <div style="margin-bottom: 2rem;">
+                    <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">
+                        ${categoryLabels[category] || category}
+                    </h4>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            `;
+
+            grouped[category].forEach(type => {
+                const pref = prefsMap[type.id];
+                const emailEnabled = pref ? pref.email_enabled : type.default_email;
+                const webEnabled = pref ? pref.web_enabled : type.default_web;
+
+                html += `
+                    <div class="notification-pref-row" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--glass-border);">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 500; color: var(--text-primary);">${type.label_it}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-tertiary);">${type.description || ''}</div>
+                        </div>
+                        <div style="display: flex; gap: 1.5rem; align-items: center;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;" title="Ricevi notifica in-app">
+                                <input type="checkbox" class="pref-toggle" data-type-id="${type.id}" data-channel="web" ${webEnabled ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--brand-blue);">
+                                <span class="material-icons-round" style="font-size: 1.2rem; color: var(--text-secondary);">notifications</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;" title="Ricevi email">
+                                <input type="checkbox" class="pref-toggle" data-type-id="${type.id}" data-channel="email" ${emailEnabled ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--brand-blue);">
+                                <span class="material-icons-round" style="font-size: 1.2rem; color: var(--text-secondary);">email</span>
+                            </label>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+
+        // Bind toggle handlers
+        container.querySelectorAll('.pref-toggle').forEach(toggle => {
+            toggle.addEventListener('change', async (e) => {
+                const typeId = e.target.dataset.typeId;
+                const channel = e.target.dataset.channel;
+                const enabled = e.target.checked;
+
+                // Find current prefs for this type
+                const row = e.target.closest('.notification-pref-row');
+                const webToggle = row.querySelector('[data-channel="web"]');
+                const emailToggle = row.querySelector('[data-channel="email"]');
+
+                const preference = {
+                    user_id: session.user.id,
+                    notification_type_id: typeId,
+                    web_enabled: webToggle.checked,
+                    email_enabled: emailToggle.checked,
+                    updated_at: new Date().toISOString()
+                };
+
+                try {
+                    await upsertUserNotificationPreference(preference);
+                    // Visual feedback (brief)
+                    e.target.style.outline = '2px solid var(--success-color)';
+                    setTimeout(() => e.target.style.outline = 'none', 500);
+                } catch (err) {
+                    console.error('Failed to save preference:', err);
+                    window.showAlert('Errore nel salvataggio preferenza.', 'error');
+                    // Revert toggle
+                    e.target.checked = !enabled;
+                }
+            });
+        });
+
+    } catch (err) {
+        console.error('Error loading notification preferences:', err);
+        container.innerHTML = `<p style="text-align:center; color:var(--error-color);">Errore: ${err.message}</p>`;
+    }
+}
+

@@ -307,9 +307,52 @@ export default function BookingWizard() {
                         <span className="font-bold text-slate-800">{selectedSlot?.time}</span>
                     </div>
                 </div>
-                <button onClick={() => window.location.reload()} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl">
-                    Nuova Prenotazione
-                </button>
+                <div className="flex flex-col gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {/* Google Calendar */}
+                        <a
+                            href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Prenotazione: ${selectedService?.name}`)}&details=${encodeURIComponent(`Prenotazione con Gleeye per ${selectedService?.name}.`)}&dates=${format(new Date(`${selectedSlot?.date}T${selectedSlot?.time}:00`), "yyyyMMdd'T'HHmmss")}/${format(addMinutes(new Date(`${selectedSlot?.date}T${selectedSlot?.time}:00`), selectedService?.duration || 60), "yyyyMMdd'T'HHmmss")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-white border border-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-all hover:shadow-sm"
+                        >
+                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12.0001 10.2V13.8L17.2001 16.6L18.0001 15.2L13.6001 12.8V10.2H12.0001ZM21.6001 7.4L13.2001 1.4C12.8001 1.1 12.4001 1 12.0001 1C11.5001 1 11.1001 1.1 10.7001 1.4L2.30005 7.4C1.70005 7.8 1.40005 8.5 1.50005 9.2L3.10005 20.2C3.20005 20.9 3.80005 21.4 4.50005 21.4H19.5001C20.2001 21.4 20.8001 20.9 20.9001 20.2L22.5001 9.2C22.6001 8.5 22.3001 7.8 21.6001 7.4ZM19.0001 19.4H5.00005L3.60005 9.8L12.0001 3.8L20.4001 9.8L19.0001 19.4Z" />
+                            </svg>
+                            Google
+                        </a>
+
+                        {/* Outlook Calendar */}
+                        <a
+                            href={`https://outlook.office.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(`Prenotazione: ${selectedService?.name}`)}&body=${encodeURIComponent(`Prenotazione con Gleeye per ${selectedService?.name}.`)}&startdt=${selectedSlot?.date}T${selectedSlot?.time}:00&enddt=${format(addMinutes(new Date(`${selectedSlot?.date}T${selectedSlot?.time}:00`), selectedService?.duration || 60), "yyyy-MM-dd'T'HH:mm:ss")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-white border border-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-all hover:shadow-sm"
+                        >
+                            <svg className="w-5 h-5 text-[#0078D4]" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M23,12L20.56,9.22L20.9,5.54L17.29,4.72L15.4,1.54L12,3L8.6,1.54L6.71,4.72L3.1,5.53L3.44,9.21L1,12L3.44,14.78L3.1,18.47L6.71,19.29L8.6,22.47L12,21L15.4,22.46L17.29,19.28L20.9,18.46L20.56,14.78L23,12M10,16.5V7.5L16,12L10,16.5Z" />
+                            </svg>
+                            Outlook
+                        </a>
+
+                        {/* Apple/iCal (Download .ics) */}
+                        <a
+                            href={`data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ASUMMARY:${encodeURIComponent(`Prenotazione: ${selectedService?.name}`)}%0ADJSTART:${format(new Date(`${selectedSlot?.date}T${selectedSlot?.time}:00`), "yyyyMMdd'T'HHmmss")}%0ADTEND:${format(addMinutes(new Date(`${selectedSlot?.date}T${selectedSlot?.time}:00`), selectedService?.duration || 60), "yyyyMMdd'T'HHmmss")}%0ADESCRIPTION:${encodeURIComponent(`Prenotazione con Gleeye per ${selectedService?.name}.`)}%0AEND:VEVENT%0AEND:VCALENDAR`}
+                            download="prenotazione.ics"
+                            className="bg-white border border-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-all hover:shadow-sm"
+                        >
+                            <svg className="w-5 h-5 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19,4H17V3A1,1 0 0,0 16,2A1,1 0 0,0 15,3V4H9V3A1,1 0 0,0 8,2A1,1 0 0,0 7,3V4H5A2,2 0 0,0 3,6V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V6A2,2 0 0,0 19,4M19,20H5V10H19V20M19,8H5V6H19V8M9,14H7V12H9V14M13,14H11V12H13V14M17,14H15V12H17V14M9,18H7V16H9V18M13,18H11V16H13V18M17,18H15V16H17V18Z" />
+                            </svg>
+                            Apple / iCal
+                        </a>
+                    </div>
+                </div>
+                <div className="mt-8 pt-6 border-t border-slate-100">
+                    <button onClick={() => window.location.reload()} className="w-full py-4 text-slate-500 font-medium hover:text-slate-700 transition-colors text-sm">
+                        Effettua un'altra prenotazione
+                    </button>
+                </div>
             </div>
         );
     }

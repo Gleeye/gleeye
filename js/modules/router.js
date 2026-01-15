@@ -17,6 +17,7 @@ import { renderBooking } from '../features/booking.js?v=123';
 import { renderUserProfile } from '../features/user_dashboard.js?v=123';
 import { renderAgenda } from '../features/personal_agenda.js?v=123';
 import { renderNotificationCenter } from '../features/notifications.js?v=123';
+import { renderAdminNotifications } from '../features/admin_notifications.js?v=123';
 
 export function router() {
     // Try to restore saved route on initial load (no hash but has saved route)
@@ -185,6 +186,10 @@ function render() {
             case 'notifications':
                 if (pageTitle) pageTitle.textContent = 'Centro Notifiche';
                 renderNotificationCenter(contentArea);
+                break;
+            case 'admin-notifications':
+                if (pageTitle) pageTitle.textContent = 'Impostazioni Notifiche';
+                renderAdminNotifications(contentArea);
                 break;
             // ... Add other routes as needed
             default:

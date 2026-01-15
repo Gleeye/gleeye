@@ -402,6 +402,24 @@ export async function upsertCollaborator(collaborator) {
     return data;
 }
 
+export async function deleteCollaborator(id) {
+    console.log("Deleting collaborator:", id);
+
+    const { error } = await supabase
+        .from('collaborators')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        console.error("Collaborator delete failed:", error);
+        throw error;
+    }
+
+    // Update local state
+    state.collaborators = state.collaborators.filter(c => c.id !== id);
+    return true;
+}
+
 
 export async function fetchBankTransactions() {
     console.log("Fetching bank transactions...");
@@ -1202,4 +1220,47 @@ export async function fetchAllSystemConfig() {
         return [];
     }
     return data || [];
+}
+
+// --- NOTIFICATION PREFERENCES ---
+
+export async function fetchNotificationTypes() {
+    const { data, error } = await supabase
+        .from('notification_types')
+        .select('*')
+        .eq('is_active', true)
+        .order('category', { ascending: true });
+
+    if (error) {
+        console.error('Failed to fetch notification types:', error);
+        return [];
+    }
+    return data || [];
+}
+
+export async function fetchUserNotificationPreferences(userId) {
+    const { data, error } = await supabase
+        .from('user_notification_preferences')
+        .select('*, notification_types(*)')
+        .eq('user_id', userId);
+
+    if (error) {
+        console.error('Failed to fetch user notification preferences:', error);
+        return [];
+    }
+    return data || [];
+}
+
+export async function upsertUserNotificationPreference(preference) {
+    const { data, error } = await supabase
+        .from('user_notification_preferences')
+        .upsert(preference, { onConflict: 'user_id,notification_type_id' })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Failed to upsert user notification preference:', error);
+        throw error;
+    }
+    return data;
 }
