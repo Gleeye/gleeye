@@ -236,6 +236,9 @@ input[type="radio"]:checked::before {
 .input-group {
     position: relative;
     margin-bottom: 1.25rem;
+    background: var(--input-bg);
+    border-radius: 12px;
+    border: 1px solid var(--glass-border);
 }
 
 .input-group .material-icons-round {
@@ -252,9 +255,8 @@ input[type="radio"]:checked::before {
 .input-group input {
     padding-left: 3.5rem;
     font-size: 1rem;
-    position: relative;
-    z-index: 1;
-    background: var(--input-bg);
+    background: transparent;
+    border: none;
 }
 
 /* Form Grid System */
