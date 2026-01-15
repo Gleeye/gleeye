@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isSameMonth, addDays, startOfDay, addHours, eachHourOfInterval } from 'date-fns';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, startOfDay, addHours, eachHourOfInterval } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Trash2, Filter, Layers, Users, Grid, List as ListIcon } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 
@@ -23,47 +22,57 @@ interface Booking {
     start_time: string;
     end_time: string;
     status: 'hold' | 'confirmed' | 'cancelled';
+    notes?: string;
     guest_info: {
         first_name: string;
         last_name: string;
         email: string;
+        phone?: string;
     };
     booking_items?: {
         name: string;
     };
+    booking_assignments?: { collaborator_id: string }[];
 }
+
+const STATUS_COLORS = {
+    hold: { bg: '#fef3c7', border: '#f59e0b', text: '#b45309' },
+    confirmed: { bg: '#dcfce7', border: '#22c55e', text: '#166534' },
+    cancelled: { bg: '#f1f5f9', border: '#94a3b8', text: '#64748b' }
+};
 
 export default function BookingsCalendar() {
     const { showToast } = useToast();
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
     const [services, setServices] = useState<Service[]>([]);
-    const [, setLoading] = useState(false);
-
-    // Filters
-    const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
     const [statusFilter, setStatusFilter] = useState<'all' | 'hold' | 'confirmed' | 'cancelled'>('all');
     const [activeCollab, setActiveCollab] = useState<string | 'all'>('all');
     const [activeService, setActiveService] = useState<string | 'all'>('all');
-
+    const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; bookingId: string | null }>({ isOpen: false, bookingId: null });
 
-    useEffect(() => {
-        fetchInitialData();
-    }, []);
+    const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+    const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
+    const today = new Date();
 
-    useEffect(() => {
-        fetchBookings();
-    }, [currentDate, statusFilter, activeCollab, activeService, viewMode]);
+    const hours = eachHourOfInterval({
+        start: startOfDay(new Date()),
+        end: addHours(startOfDay(new Date()), 23)
+    });
+
+    useEffect(() => { fetchInitialData(); }, []);
+    useEffect(() => { fetchBookings(); }, [currentDate, statusFilter, activeCollab, activeService]);
 
     async function fetchInitialData() {
         try {
-            const { data: collabData } = await supabase.from('collaborators').select('id, first_name, last_name, avatar_url').order('first_name');
+            const [{ data: collabData }, { data: serviceData }] = await Promise.all([
+                supabase.from('collaborators').select('id, first_name, last_name, avatar_url').order('first_name'),
+                supabase.from('booking_items').select('id, name').order('name')
+            ]);
             if (collabData) setCollaborators(collabData);
-
-            const { data: serviceData } = await supabase.from('booking_items').select('id, name').order('name');
             if (serviceData) setServices(serviceData);
         } catch (err) {
             console.error(err);
@@ -71,34 +80,15 @@ export default function BookingsCalendar() {
     }
 
     async function fetchBookings() {
-        setLoading(true);
-        let start, end;
-
-        if (viewMode === 'month') {
-            start = startOfMonth(currentDate);
-            end = endOfMonth(currentDate);
-        } else if (viewMode === 'week') {
-            start = startOfWeek(currentDate, { weekStartsOn: 1 });
-            end = endOfWeek(currentDate, { weekStartsOn: 1 });
-        } else {
-            start = startOfDay(currentDate);
-            end = addDays(start, 1);
-        }
-
         let query = supabase
             .from('bookings')
             .select('*, booking_items(name), booking_assignments(collaborator_id)')
-            .gte('start_time', start.toISOString())
-            .lte('start_time', end.toISOString())
+            .gte('start_time', weekStart.toISOString())
+            .lte('start_time', weekEnd.toISOString())
             .order('start_time', { ascending: true });
 
-        if (statusFilter !== 'all') {
-            query = query.eq('status', statusFilter);
-        }
-
-        if (activeService !== 'all') {
-            query = query.eq('booking_item_id', activeService);
-        }
+        if (statusFilter !== 'all') query = query.eq('status', statusFilter);
+        if (activeService !== 'all') query = query.eq('booking_item_id', activeService);
 
         const { data, error } = await query;
 
@@ -111,7 +101,6 @@ export default function BookingsCalendar() {
             }
             setBookings(filteredData as Booking[]);
         }
-        setLoading(false);
     }
 
     async function handleDeleteBooking(id: string) {
@@ -121,418 +110,321 @@ export default function BookingsCalendar() {
                 showToast('Errore durante l\'eliminazione', 'error');
             } else {
                 showToast('Prenotazione eliminata', 'success');
+                setSelectedBooking(null);
                 fetchBookings();
             }
         } catch (err) {
             console.error('Delete error:', err);
-            showToast('Errore di sistema durante l\'eliminazione', 'error');
+            showToast('Errore di sistema', 'error');
         } finally {
             setDeleteConfirm({ isOpen: false, bookingId: null });
         }
     }
 
-    const getStatusLabel = (status: string) => {
+    function getStatusLabel(status: string) {
         switch (status) {
             case 'hold': return 'In Attesa';
             case 'confirmed': return 'Confermata';
             case 'cancelled': return 'Annullata';
             default: return status;
         }
-    };
+    }
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'hold': return 'bg-amber-100 text-amber-700 border-amber-200';
-            case 'confirmed': return 'bg-green-100 text-green-700 border-green-200';
-            case 'cancelled': return 'bg-slate-100 text-slate-500 border-slate-200';
-            default: return 'bg-slate-100 text-slate-600 border-slate-200';
-        }
-    };
+    function getBookingsForDay(day: Date) {
+        return bookings.filter(b => isSameDay(new Date(b.start_time), day));
+    }
 
-    const bookingsByDate = bookings.reduce((acc, booking) => {
-        const dateKey = format(new Date(booking.start_time), 'yyyy-MM-dd');
-        if (!acc[dateKey]) acc[dateKey] = [];
-        acc[dateKey].push(booking);
-        return acc;
-    }, {} as Record<string, Booking[]>);
-
-    const daysInView = viewMode === 'month'
-        ? eachDayOfInterval({
-            start: startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 }),
-            end: endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 })
-        })
-        : eachDayOfInterval({
-            start: startOfWeek(currentDate, { weekStartsOn: 1 }),
-            end: endOfWeek(currentDate, { weekStartsOn: 1 })
-        });
-
-    const hours = eachHourOfInterval({
-        start: addHours(startOfDay(new Date()), 8),
-        end: addHours(startOfDay(new Date()), 20)
-    });
-
-    const selectedBookings = selectedDate
-        ? bookingsByDate[format(selectedDate, 'yyyy-MM-dd')] || []
-        : [];
+    function timeToPosition(date: Date): number {
+        const h = date.getHours() + date.getMinutes() / 60;
+        return h * 100; // 100px per hour
+    }
 
     return (
-        <div className="h-full flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-fade-in">
-            {/* Top Toolbar */}
-            <div className="px-6 py-4 border-b border-slate-200 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
-                        {[
-                            { id: 'month', label: 'Mese', icon: Grid },
-                            { id: 'week', label: 'Settimana', icon: Layers },
-                            { id: 'day', label: 'Giorno', icon: ListIcon }
-                        ].map(m => (
-                            <button
-                                key={m.id}
-                                onClick={() => setViewMode(m.id as any)}
-                                className={`px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${viewMode === m.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 font-medium'
-                                    }`}
-                            >
-                                <m.icon className="w-4 h-4" />
-                                {m.label}
-                            </button>
-                        ))}
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+            {/* Toolbar */}
+            <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', fontWeight: 500, color: '#1f2937', fontFamily: 'Outfit, system-ui, sans-serif' }}>
+                        {format(weekStart, 'd MMM', { locale: it })}
+                        <span style={{ color: '#9ca3af' }}>→</span>
+                        {format(weekEnd, 'd MMM yyyy', { locale: it })}
                     </div>
-
-                    <div className="h-6 w-[1px] bg-slate-200 hidden md:block"></div>
-
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => setCurrentDate(prev => subMonths(prev, 1))} className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><ChevronLeft className="w-5 h-5 text-slate-500" /></button>
-                        <span className="text-lg font-bold text-slate-900 min-w-[150px] text-center">
-                            {viewMode === 'month'
-                                ? format(currentDate, 'MMMM yyyy', { locale: it })
-                                : `Settimana ${format(currentDate, 'w', { locale: it })}`}
-                        </span>
-                        <button onClick={() => setCurrentDate(prev => addMonths(prev, 1))} className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><ChevronRight className="w-5 h-5 text-slate-500" /></button>
-                    </div>
+                    <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Calendario Prenotazioni</span>
                 </div>
-
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-2 rounded-xl">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">Servizio:</span>
-                        <select
-                            value={activeService}
-                            onChange={e => setActiveService(e.target.value)}
-                            className="text-sm font-bold text-slate-700 bg-transparent outline-none cursor-pointer"
-                        >
-                            <option value="all">Tutti i Servizi</option>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #e5e7eb', padding: '6px 12px', borderRadius: 6 }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase' }}>Servizio:</span>
+                        <select value={activeService} onChange={e => setActiveService(e.target.value)} style={{ fontSize: '0.85rem', fontWeight: 500, color: '#374151', background: 'transparent', border: 'none', outline: 'none', cursor: 'pointer' }}>
+                            <option value="all">Tutti</option>
                             {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>
+                    <button onClick={() => setCurrentDate(prev => subWeeks(prev, 1))} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb', background: '#fff', borderRadius: 6, color: '#6b7280', cursor: 'pointer' }}>
+                        <span className="material-icons-round" style={{ fontSize: 18 }}>chevron_left</span>
+                    </button>
+                    <button onClick={() => setCurrentDate(prev => addWeeks(prev, 1))} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb', background: '#fff', borderRadius: 6, color: '#6b7280', cursor: 'pointer' }}>
+                        <span className="material-icons-round" style={{ fontSize: 18 }}>chevron_right</span>
+                    </button>
+                    <button onClick={() => setCurrentDate(new Date())} style={{ height: 32, padding: '0 1rem', border: '1px solid #e5e7eb', background: '#fff', borderRadius: 6, fontSize: '0.85rem', fontWeight: 500, color: '#1f2937', cursor: 'pointer' }}>Oggi</button>
                 </div>
             </div>
 
             {/* Collaborator Filter Row */}
-            <div className="px-6 py-4 bg-slate-50/50 border-b border-slate-200 flex items-center gap-4 overflow-x-auto no-scrollbar">
-                <button
-                    onClick={() => setActiveCollab('all')}
-                    className={`flex flex-col items-center gap-1.5 min-w-[80px] group transition-all`}
-                >
-                    <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all ${activeCollab === 'all' ? 'border-indigo-600 bg-indigo-50 shadow-md ring-4 ring-indigo-50' : 'border-slate-200 bg-white group-hover:border-slate-300'
-                        }`}>
-                        <Users className={`w-6 h-6 ${activeCollab === 'all' ? 'text-indigo-600' : 'text-slate-400'}`} />
-                    </div>
-                    <span className={`text-[11px] font-bold uppercase tracking-tight ${activeCollab === 'all' ? 'text-indigo-600' : 'text-slate-500'}`}>Tutti</span>
+            <div style={{ padding: '0.5rem 1.5rem', background: '#fafafa', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', flexWrap: 'wrap' }}>
+                <button onClick={() => setActiveCollab('all')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 16, border: 'none', background: activeCollab === 'all' ? '#4f46e5' : '#fff', color: activeCollab === 'all' ? '#fff' : '#6b7280', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                    <span className="material-icons-round" style={{ fontSize: 14 }}>groups</span> Tutti
                 </button>
-                {collaborators.map(c => (
-                    <button
-                        key={c.id}
-                        onClick={() => setActiveCollab(c.id)}
-                        className={`flex flex-col items-center gap-1.5 min-w-[80px] group transition-all`}
-                    >
-                        <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 overflow-hidden transition-all ${activeCollab === c.id ? 'border-indigo-600 bg-indigo-50 shadow-md ring-4 ring-indigo-50' : 'border-slate-200 bg-white group-hover:border-slate-300'
-                            }`}>
+                {collaborators.map(c => {
+                    const isActive = activeCollab === c.id;
+                    return (
+                        <button key={c.id} onClick={() => setActiveCollab(c.id)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 16, border: 'none', background: isActive ? '#4f46e5' : '#fff', color: isActive ? '#fff' : '#6b7280', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                             {c.avatar_url ? (
-                                <img src={c.avatar_url} alt={`${c.first_name} ${c.last_name}`} className="w-full h-full object-cover" />
+                                <img src={c.avatar_url} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
                             ) : (
-                                <div className={`w-full h-full flex items-center justify-center font-bold text-lg ${activeCollab === c.id ? 'text-indigo-600' : 'text-slate-400'
-                                    }`}>
-                                    {c.first_name[0]}{c.last_name[0]}
-                                </div>
+                                <span style={{ width: 18, height: 18, borderRadius: '50%', background: isActive ? 'rgba(255,255,255,0.3)' : '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700 }}>{c.first_name[0]}</span>
                             )}
-                        </div>
-                        <span className={`text-[11px] font-bold uppercase tracking-tight truncate w-full text-center ${activeCollab === c.id ? 'text-indigo-600' : 'text-slate-500'
-                            }`}>
                             {c.first_name}
-                        </span>
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* Status Filters */}
+            <div style={{ padding: '0.5rem 1.5rem', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Stato:</span>
+                {[
+                    { value: 'all', label: 'Tutte' },
+                    { value: 'hold', label: 'In Attesa' },
+                    { value: 'confirmed', label: 'Confermate' },
+                    { value: 'cancelled', label: 'Annullate' }
+                ].map(f => (
+                    <button key={f.value} onClick={() => setStatusFilter(f.value as any)} style={{ padding: '4px 10px', borderRadius: 12, border: statusFilter === f.value ? 'none' : '1px solid #e5e7eb', background: statusFilter === f.value ? '#1f2937' : '#fff', color: statusFilter === f.value ? '#fff' : '#6b7280', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer' }}>
+                        {f.label}
                     </button>
                 ))}
             </div>
 
-            {/* Status Filters */}
-            <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-6">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    <Filter className="w-3 h-3" /> Filtro Stato
-                </div>
-                <div className="flex gap-2">
-                    {[
-                        { value: 'all', label: 'Tutte' },
-                        { value: 'hold', label: 'In Attesa' },
-                        { value: 'confirmed', label: 'Confermate' },
-                        { value: 'cancelled', label: 'Annullate' }
-                    ].map(f => (
-                        <button
-                            key={f.value}
-                            onClick={() => setStatusFilter(f.value as any)}
-                            className={`px-3 py-1 rounded-full text-xs font-bold border transition-all ${statusFilter === f.value
-                                ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
-                                : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
-                                }`}
-                        >
-                            {f.label}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            <div className="flex-1 flex overflow-hidden">
-                <div className="flex-1 overflow-auto bg-slate-50/30">
-                    {viewMode === 'month' ? (
-                        <div className="p-6">
-                            {/* Weekday Headers */}
-                            <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-t-xl overflow-hidden">
-                                {['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'].map(day => (
-                                    <div key={day} className="bg-slate-50 py-3 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                        {day}
-                                    </div>
-                                ))}
+            {/* Timeline */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                {/* Header Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #e5e7eb', background: '#fff', paddingLeft: 60 }}>
+                    {daysInWeek.map(day => {
+                        const isToday = isSameDay(day, today);
+                        const dayBookings = getBookingsForDay(day);
+                        return (
+                            <div key={day.toISOString()} style={{ textAlign: 'center', padding: '0.75rem 0.5rem', borderRight: '1px solid #f3f4f6' }}>
+                                <span style={{ display: 'block', fontSize: '0.7rem', textTransform: 'uppercase', color: isToday ? '#4f46e5' : '#9ca3af', fontWeight: 600, marginBottom: 2, letterSpacing: '0.03em' }}>{format(day, 'EEE', { locale: it }).toUpperCase()}</span>
+                                <span style={{ display: 'block', fontSize: '1.5rem', fontWeight: isToday ? 600 : 300, color: isToday ? '#4f46e5' : '#6b7280', lineHeight: 1 }}>{format(day, 'd')}</span>
+                                {dayBookings.length > 0 && (
+                                    <span style={{ display: 'inline-block', marginTop: 4, fontSize: '0.65rem', background: '#4f46e5', color: '#fff', padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>{dayBookings.length}</span>
+                                )}
                             </div>
-
-                            {/* Calendar Days */}
-                            <div className="grid grid-cols-7 gap-px bg-slate-200 border-x border-b border-slate-200 rounded-b-xl overflow-hidden shadow-sm">
-                                {daysInView.map(day => {
-                                    const dateKey = format(day, 'yyyy-MM-dd');
-                                    const dayBookings = bookingsByDate[dateKey] || [];
-                                    const isMonthCurr = isSameMonth(day, currentDate);
-                                    const isSelected = selectedDate && isSameDay(day, selectedDate);
-                                    const isToday = isSameDay(day, new Date());
-
-                                    return (
-                                        <button
-                                            key={dateKey}
-                                            onClick={() => setSelectedDate(day)}
-                                            className={`
-                                            min-h-[140px] p-3 text-left transition-all hover:bg-slate-50 relative group
-                                            ${isMonthCurr ? 'bg-white' : 'bg-slate-50/50 opacity-40'}
-                                            ${isSelected ? 'ring-2 ring-inset ring-indigo-500 z-10' : ''}
-                                        `}
-                                        >
-                                            <div className="flex items-center justify-between mb-2">
-                                                <span className={`
-                                                w-7 h-7 flex items-center justify-center rounded-full text-sm font-bold
-                                                ${isToday ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-700'}
-                                            `}>
-                                                    {format(day, 'd')}
-                                                </span>
-                                                {dayBookings.length > 0 && (
-                                                    <span className="text-[10px] font-bold text-slate-400">
-                                                        {dayBookings.length} app.
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="space-y-1.5 overflow-hidden">
-                                                {dayBookings.slice(0, 3).map(booking => (
-                                                    <div
-                                                        key={booking.id}
-                                                        className={`
-                                                        px-2 py-1 rounded text-[10px] font-bold truncate border shadow-sm transition-transform group-hover:scale-[1.02]
-                                                        ${getStatusColor(booking.status)}
-                                                    `}
-                                                    >
-                                                        {format(new Date(booking.start_time), 'HH:mm')} - {booking.guest_info?.last_name || 'Cliente'}
-                                                    </div>
-                                                ))}
-                                                {dayBookings.length > 3 && (
-                                                    <div className="text-[10px] text-indigo-600 font-bold pl-1 pt-1">
-                                                        + {dayBookings.length - 3} altri
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="flex h-full">
-                            {/* Time Grid (Week View) */}
-                            <div className="flex-1 flex flex-col min-w-[800px]">
-                                {/* Days Header */}
-                                <div className="flex border-b border-slate-200 ml-16 bg-white sticky top-0 z-20">
-                                    {eachDayOfInterval({
-                                        start: startOfWeek(currentDate, { weekStartsOn: 1 }),
-                                        end: endOfWeek(currentDate, { weekStartsOn: 1 })
-                                    }).map(day => (
-                                        <div key={day.toString()} className="flex-1 py-4 text-center border-r border-slate-100 last:border-r-0">
-                                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
-                                                {format(day, 'EEE', { locale: it })}
-                                            </div>
-                                            <div className={`
-                                            inline-flex w-9 h-9 items-center justify-center rounded-full font-bold text-lg
-                                            ${isSameDay(day, new Date()) ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-800'}
-                                        `}>
-                                                {format(day, 'd')}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Hours Grid */}
-                                <div className="flex-1 flex overflow-y-auto no-scrollbar">
-                                    {/* Time Labels */}
-                                    <div className="w-16 flex-shrink-0 bg-white border-r border-slate-200">
-                                        {hours.map(hour => (
-                                            <div key={hour.toString()} className="h-20 text-[11px] font-bold text-slate-400 flex justify-center pt-2">
-                                                {format(hour, 'HH:mm')}
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* Columns */}
-                                    <div className="flex-1 flex relative">
-                                        {eachDayOfInterval({
-                                            start: startOfWeek(currentDate, { weekStartsOn: 1 }),
-                                            end: endOfWeek(currentDate, { weekStartsOn: 1 })
-                                        }).map(day => (
-                                            <div key={day.toString()} className="flex-1 border-r border-slate-100 last:border-r-0 relative min-h-[1000px] bg-white group hover:bg-slate-50/30 transition-colors">
-                                                {/* Hour horizontal lines */}
-                                                {hours.map(hour => (
-                                                    <div key={hour.toString()} className="h-20 border-b border-slate-50 last:border-b-0"></div>
-                                                ))}
-
-                                                {/* Bookings strictly for this day */}
-                                                {bookings.filter(b => isSameDay(new Date(b.start_time), day)).map(booking => {
-                                                    const start = new Date(booking.start_time);
-                                                    const startHour = start.getHours() + start.getMinutes() / 60;
-                                                    const top = (startHour - 8) * 80; // 80px per hour, starting at 8:00
-                                                    const duration = (new Date(booking.end_time).getTime() - start.getTime()) / (1000 * 60 * 60);
-                                                    const height = Math.max(duration * 80, 4);
-
-                                                    if (startHour < 8 || startHour > 20) return null;
-
-                                                    return (
-                                                        <div
-                                                            key={booking.id}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setSelectedDate(day);
-                                                            }}
-                                                            className={`
-                                                            absolute left-1 right-1 rounded-lg border-l-4 p-2 overflow-hidden shadow-sm flex flex-col cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md z-10
-                                                            ${getStatusColor(booking.status)}
-                                                        `}
-                                                            style={{ top: `${top}px`, height: `${height}px` }}
-                                                        >
-                                                            <div className="flex justify-between gap-1 mb-0.5">
-                                                                <span className="text-[10px] font-bold opacity-80 uppercase">
-                                                                    {format(start, 'HH:mm')} - {format(new Date(booking.end_time), 'HH:mm')}
-                                                                </span>
-                                                                <Trash2
-                                                                    className="w-3 h-3 opacity-0 group-hover:opacity-40 hover:opacity-100 transition-opacity"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setDeleteConfirm({ isOpen: true, bookingId: booking.id });
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                            <div className="text-[11px] font-bold truncate leading-tight">
-                                                                {booking.guest_info?.first_name} {booking.guest_info?.last_name}
-                                                            </div>
-                                                            {height > 50 && (
-                                                                <div className="text-[9px] font-medium opacity-70 mt-1 truncate">
-                                                                    {booking.booking_items?.name}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                        );
+                    })}
                 </div>
 
-                {/* Sidebar: Selected Day Details */}
-                <div className="w-96 border-l border-slate-200 bg-slate-50 flex flex-col">
-                    <div className="p-6 border-b border-slate-200 bg-white">
-                        <h3 className="font-bold text-slate-900 text-lg">
-                            {selectedDate ? format(selectedDate, 'dd MMMM yyyy', { locale: it }) : 'Seleziona un giorno'}
-                        </h3>
-                        {selectedDate && (
-                            <p className="text-sm text-slate-500 mt-1">
-                                {selectedBookings.length} prenotazion{selectedBookings.length === 1 ? 'e' : 'i'}
-                            </p>
-                        )}
+                {/* Grid Body */}
+                <div style={{ flex: 1, display: 'flex', overflowY: 'auto' }}>
+                    {/* Time Gutter */}
+                    <div style={{ width: 60, flexShrink: 0, borderRight: '1px solid #e5e7eb', background: '#fff' }}>
+                        {hours.map(hour => (
+                            <div key={hour.toString()} style={{ height: 100, position: 'relative' }}>
+                                <span style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    right: 8,
+                                    transform: 'translateY(-50%)',
+                                    fontSize: '0.75rem',
+                                    color: '#9ca3af',
+                                    background: '#fff',
+                                    padding: '0 4px'
+                                }}>
+                                    {format(hour, 'HH:mm')}
+                                </span>
+                            </div>
+                        ))}
                     </div>
 
-                    <div className="flex-1 overflow-auto p-4">
-                        {!selectedDate ? (
-                            <div className="flex items-center justify-center h-full text-slate-400 text-sm text-center">
-                                Clicca su un giorno del calendario per vedere i dettagli
-                            </div>
-                        ) : selectedBookings.length === 0 ? (
-                            <div className="flex items-center justify-center h-full text-slate-400 text-sm text-center">
-                                Nessuna prenotazione per questo giorno
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {selectedBookings.map(booking => (
-                                    <div
-                                        key={booking.id}
-                                        className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-all group"
-                                    >
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div>
-                                                <div className="font-bold text-slate-900">
-                                                    {booking.guest_info?.first_name} {booking.guest_info?.last_name}
-                                                </div>
-                                                <div className="text-sm text-slate-500">
-                                                    {booking.guest_info?.email}
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={() => setDeleteConfirm({ isOpen: true, bookingId: booking.id })}
-                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                title="Elimina Prenotazione"
+                    {/* Main Grid */}
+                    <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', position: 'relative' }}>
+                        {/* Grid Lines */}
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', pointerEvents: 'none', zIndex: 0 }}>
+                            {hours.map(hour => (
+                                <div key={hour.toString()} style={{ height: 100, borderBottom: '1px solid rgba(0,0,0,0.04)', position: 'relative' }}>
+                                    <div style={{ position: 'absolute', top: 50, left: 0, right: 0, borderBottom: '1px dashed rgba(0,0,0,0.03)' }} />
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Day Columns */}
+                        {daysInWeek.map(day => {
+                            const dayBookings = getBookingsForDay(day);
+                            const isToday = isSameDay(day, today);
+
+                            let nowIndicator = null;
+                            if (isToday) {
+                                const now = new Date();
+                                const nowH = now.getHours() + now.getMinutes() / 60;
+                                const topPx = nowH * 100;
+                                nowIndicator = (
+                                    <div style={{ position: 'absolute', left: 0, right: 0, top: topPx, borderTop: '2px solid #ef4444', zIndex: 30, pointerEvents: 'none' }}>
+                                        <div style={{ position: 'absolute', left: -4, top: -5, width: 8, height: 8, background: '#ef4444', borderRadius: '50%' }} />
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div key={day.toISOString()} style={{ position: 'relative', borderRight: '1px solid #f3f4f6' }}>
+                                    {hours.map(hour => <div key={hour.toString()} style={{ height: 100 }} />)}
+
+                                    {/* Booking Cards */}
+                                    {dayBookings.map(booking => {
+                                        const start = new Date(booking.start_time);
+                                        const end = new Date(booking.end_time);
+                                        const top = timeToPosition(start);
+                                        const height = Math.max(timeToPosition(end) - top, 100);
+                                        const colors = STATUS_COLORS[booking.status] || STATUS_COLORS.hold;
+
+                                        // if (start.getHours() < 7 || start.getHours() > 21) return null; // Removed limit
+
+                                        return (
+                                            <div
+                                                key={booking.id}
+                                                onClick={() => setSelectedBooking(booking)}
+                                                style={{
+                                                    position: 'absolute',
+                                                    top,
+                                                    left: 4,
+                                                    right: 4,
+                                                    minHeight: height,
+                                                    height: 'auto',
+                                                    background: '#fff',
+                                                    borderLeft: `5px solid ${colors.border}`,
+                                                    borderRadius: 8,
+                                                    padding: '6px 10px',
+                                                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                                    cursor: 'pointer',
+                                                    zIndex: 20,
+                                                    transition: 'all 0.15s'
+                                                }}
                                             >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <div className="flex items-center gap-2 text-sm">
-                                                <span className="text-slate-500">Servizio:</span>
-                                                <span className="font-medium text-slate-700">
-                                                    {booking.booking_items?.name || 'N/D'}
-                                                </span>
+                                                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: colors.border, marginBottom: 2 }}>
+                                                    {format(start, 'HH:mm')} - {format(end, 'HH:mm')}
+                                                </div>
+                                                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1f2937', lineHeight: 1.2, wordBreak: 'break-word', marginBottom: 2 }}>
+                                                    {booking.booking_items?.name || 'Prenotazione'}
+                                                </div>
+                                                <div style={{ fontSize: '0.85rem', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {booking.guest_info?.first_name} {booking.guest_info?.last_name}
+                                                    {(booking.guest_info as any)?.company && ` - ${(booking.guest_info as any).company}`}
+                                                </div>
+                                                {height > 120 && (booking.guest_info as any)?.company && (
+                                                    <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {(booking.guest_info as any).company}
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="flex items-center gap-2 text-sm">
-                                                <span className="text-slate-500">Orario:</span>
-                                                <span className="font-medium text-slate-700">
-                                                    {format(new Date(booking.start_time), 'HH:mm')} - {format(new Date(booking.end_time), 'HH:mm')}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-sm">
-                                                <span className="text-slate-500">Stato:</span>
-                                                <span className={`px-2 py-1 rounded text-xs font-bold border ${getStatusColor(booking.status)}`}>
-                                                    {getStatusLabel(booking.status)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                                        );
+                                    })}
+                                    {nowIndicator}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
+
+            {/* Booking Detail Modal */}
+            {selectedBooking && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setSelectedBooking(null)}>
+                    <div style={{ background: '#fff', borderRadius: 12, maxWidth: 500, width: '90%', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+                        <div style={{ padding: '1.5rem', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600, color: '#1f2937' }}>Dettagli Prenotazione</h3>
+                            <button onClick={() => setSelectedBooking(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#9ca3af' }}>
+                                <span className="material-icons-round" style={{ fontSize: 20 }}>close</span>
+                            </button>
+                        </div>
+                        <div style={{ padding: '1.5rem' }}>
+                            {/* Service & Time */}
+                            <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: 8, borderLeft: `4px solid ${STATUS_COLORS[selectedBooking.status]?.border || '#6366f1'}`, marginBottom: '1.5rem' }}>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1f2937', marginBottom: 4 }}>{selectedBooking.booking_items?.name || 'Prenotazione'}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.9rem', color: '#6b7280' }}>
+                                    <span className="material-icons-round" style={{ fontSize: 16 }}>schedule</span>
+                                    {format(new Date(selectedBooking.start_time), 'HH:mm')} - {format(new Date(selectedBooking.end_time), 'HH:mm')}
+                                </div>
+                                <div style={{ fontSize: '0.9rem', color: '#6b7280', marginTop: 4 }}>
+                                    {format(new Date(selectedBooking.start_time), 'EEEE d MMMM yyyy', { locale: it })}
+                                </div>
+                            </div>
+
+                            {/* Client Info */}
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#9ca3af', marginBottom: 8, fontWeight: 600, letterSpacing: '0.05em' }}>Cliente</h4>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                    <div style={{ width: 44, height: 44, background: '#e0e7ff', color: '#4f46e5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '1rem' }}>
+                                        {selectedBooking.guest_info?.first_name?.[0]?.toUpperCase() || '?'}
+                                    </div>
+                                    <div>
+                                        <div style={{ fontWeight: 600, color: '#1f2937', fontSize: '1rem' }}>{selectedBooking.guest_info?.first_name} {selectedBooking.guest_info?.last_name}</div>
+                                        <div style={{ fontSize: '0.9rem', color: '#6b7280' }}>{selectedBooking.guest_info?.email}</div>
+                                        {selectedBooking.guest_info?.phone && <div style={{ fontSize: '0.9rem', color: '#6b7280' }}>{selectedBooking.guest_info?.phone}</div>}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Collaborators */}
+                            {selectedBooking.booking_assignments && selectedBooking.booking_assignments.length > 0 && (
+                                <div style={{ marginBottom: '1.5rem' }}>
+                                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#9ca3af', marginBottom: 8, fontWeight: 600, letterSpacing: '0.05em' }}>Collaboratori Assegnati</h4>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                        {selectedBooking.booking_assignments.map(assignment => {
+                                            const collab = collaborators.find(c => c.id === assignment.collaborator_id);
+                                            if (!collab) return null;
+                                            return (
+                                                <div key={assignment.collaborator_id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f3f4f6', padding: '6px 12px', borderRadius: 20 }}>
+                                                    {collab.avatar_url ? (
+                                                        <img src={collab.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+                                                    ) : (
+                                                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#4f46e5', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.75rem' }}>
+                                                            {collab.first_name[0]}{collab.last_name?.[0]}
+                                                        </div>
+                                                    )}
+                                                    <span style={{ fontWeight: 600, color: '#374151', fontSize: '0.9rem' }}>{collab.first_name} {collab.last_name}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Status */}
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#9ca3af', marginBottom: 8, fontWeight: 600, letterSpacing: '0.05em' }}>Stato</h4>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 600, padding: '6px 12px', borderRadius: 6, background: STATUS_COLORS[selectedBooking.status]?.bg, color: STATUS_COLORS[selectedBooking.status]?.text }}>
+                                    {getStatusLabel(selectedBooking.status)}
+                                </span>
+                            </div>
+
+                            {/* Notes */}
+                            {selectedBooking.notes && (
+                                <div style={{ marginBottom: '1.5rem' }}>
+                                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#9ca3af', marginBottom: 8, fontWeight: 600, letterSpacing: '0.05em' }}>Note</h4>
+                                    <p style={{ fontSize: '0.9rem', color: '#6b7280', background: '#f9fafb', padding: '0.75rem', borderRadius: 6, margin: 0 }}>{selectedBooking.notes}</p>
+                                </div>
+                            )}
+
+                            {/* Actions */}
+                            <div style={{ display: 'flex', gap: 12, marginTop: '1.5rem' }}>
+                                <button onClick={() => setSelectedBooking(null)} style={{ flex: 1, padding: '10px 16px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: '0.9rem', fontWeight: 500, cursor: 'pointer' }}>Chiudi</button>
+                                <button onClick={() => { setDeleteConfirm({ isOpen: true, bookingId: selectedBooking.id }); }} style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: '#fef2f2', color: '#dc2626', fontSize: '0.9rem', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span className="material-icons-round" style={{ fontSize: 16 }}>delete</span>
+                                    Elimina
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <ConfirmDialog
                 isOpen={deleteConfirm.isOpen}
@@ -544,6 +436,6 @@ export default function BookingsCalendar() {
                 onConfirm={() => deleteConfirm.bookingId && handleDeleteBooking(deleteConfirm.bookingId)}
                 onCancel={() => setDeleteConfirm({ isOpen: false, bookingId: null })}
             />
-        </div >
+        </div>
     );
 }

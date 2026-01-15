@@ -1,6 +1,6 @@
-import { state } from '../modules/state.js?v=121';
-import { supabase } from '../modules/config.js?v=121';
-import { fetchCollaborators } from '../modules/api.js?v=121';
+import { state } from '../modules/state.js?v=123';
+import { supabase } from '../modules/config.js?v=123';
+import { fetchCollaborators } from '../modules/api.js?v=123';
 
 export function initLayout() {
     // Sidebar Toggle Logic
@@ -147,10 +147,13 @@ export function renderSidebarProfile() {
     const roleEl = document.getElementById('user-role');
     const avatarEl = document.getElementById('user-avatar');
 
-    if (!profile || !session) return;
+    // Only require profile, session is optional (use profile.email as fallback)
+    if (!profile) {
+        console.warn('[Layout] renderSidebarProfile: No profile available yet');
+        return;
+    }
 
-    let displayProfile = profile;
-    let displayName = profile.full_name || session.user.email.split('@')[0];
+    let displayName = profile.full_name || session?.user?.email?.split('@')[0] || profile.email?.split('@')[0] || 'Utente';
     let displayRole = (profile.role || 'Guest');
     let displayAvatar = profile.avatar_url;
 
@@ -255,45 +258,40 @@ export function updateSidebarVisibility() {
     const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
     if (!sidebar) return;
     const managementNav = sidebar.querySelector('#nav-management');
+    const managementLabel = managementNav?.querySelector('.submenu-label');
 
     console.log(`[Sidebar] Updating visibility for role: ${activeRole}`);
 
-    if (activeRole === 'admin') {
-        // Show Management Section
-        if (managementNav) managementNav.classList.remove('hidden');
-    } else {
-        // COLLABORATOR VIEW
-        // Hide Management Section entirely
-        if (managementNav) managementNav.classList.add('hidden');
+    if (managementNav) {
+        // Always ensure the container is visible first, we'll manage children visibility
+        managementNav.classList.remove('hidden');
 
-        // Note: Booking and Personal section handling
-        // If we want collaborators to see "Prenotazioni" (Direct link) inside Management, 
-        // we might need to hide only specific parts of management, OR move Booking out. 
-        // Wait, the user said "Management views depend on role. Personal views are for everyone."
-        // But Collaborators usually need to see "Booking" too?
-        // The previous logic showed "Booking" link. 
-        // If "Booking" is inside #nav-management, it will be hidden.
-        // Let's refine: We hide the *Management* container, but maybe we need to clone the Booking link to Personal?
-        // OR: We just hide the children of #nav-management that are NOT allowed.
+        if (activeRole === 'admin') {
+            // Admin sees everything - ensure all items are visible
+            const allItems = managementNav.querySelectorAll('.nav-item, .nav-group');
+            allItems.forEach(el => el.classList.remove('hidden'));
+            if (managementLabel) managementLabel.classList.remove('hidden');
+            console.log(`[Sidebar] Admin mode: showing all ${allItems.length} items`);
+        } else {
+            // Non-Admins (Collaborators, Accounts, Project Managers)
 
-        // Better Approach for strict separation requested:
-        // Admin sees Management + Personal.
-        // Collab sees Personal ONLY? 
-        // Quote: "personale sono le viste che invece hanno tutti... ordini, prenotazioni... sono viste nello stesso gruppo e sono separate... a secondo del ruolo"
-        // So Collaborators might HAVE some Management views visible (like Booking?).
-        // Let's hide specific sections inside Management for now.
-
-        if (managementNav) {
-            // Hide everything in management first
+            // 1. Hide everything in management first
             const mgmtItems = managementNav.querySelectorAll('.nav-item, .nav-group');
             mgmtItems.forEach(el => el.classList.add('hidden'));
+            // Also hide the label initially
+            if (managementLabel) managementLabel.classList.add('hidden');
 
-            // Explicitly show allowed items in Management for Collaborator
-            // 1. Prenotazioni
+            // 2. Explicitly show allowed items
+            // "Prenotazioni" is allowed for everyone
             const bookingLink = managementNav.querySelector('[data-target="booking"]');
-            if (bookingLink) bookingLink.classList.remove('hidden');
+            if (bookingLink) {
+                bookingLink.classList.remove('hidden');
+                // Also show the label since we have at least one visible item
+                if (managementLabel) managementLabel.classList.remove('hidden');
+                console.log(`[Sidebar] Non-admin mode: showing Prenotazioni link`);
+            }
 
-            // 2. Test Modulo (if requested)
+            // "Test Modulo" (if present)
             const testLink = managementNav.querySelector('[data-target="booking-test"]');
             if (testLink) testLink.classList.remove('hidden');
         }

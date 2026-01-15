@@ -1,22 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import {
-    Clock,
-    Briefcase,
-    ArrowRight,
-    CalendarDays,
-    Users,
-    Clock4,
-    TrendingUp,
-    Settings2,
-    PlusCircle,
-    MonitorSmartphone
-} from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { it } from 'date-fns/locale';
 import BookingCatalog from './BookingCatalog';
 import GoogleCalendarConfig from './GoogleCalendarConfig';
 import BookingsCalendar from './BookingsCalendar';
+import AvailabilityCalendar from './AvailabilityCalendar';
 import BookingWizard from '../user/BookingWizard';
 
 export default function BookingsHub() {
@@ -33,15 +22,29 @@ export default function BookingsHub() {
 
     useEffect(() => {
         checkAdmin();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session) checkAdmin();
+        });
+
         if (activeView === 'hub') {
             fetchHubData();
         }
+
+        return () => {
+            subscription.unsubscribe();
+        };
     }, [activeView]);
 
     async function checkAdmin() {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user?.email === 'davide@gleeye.com' || session?.user?.email === 'davidegentile91@gmail.com') { // Temporary hardcheck until better role system or use same logic as main app
-            // Better: re-use the logic from main app or just check profile role
+        if (!session) return;
+
+        const isHardcodedAdmin = session.user.email === 'davide@gleeye.com' || session.user.email === 'davidegentile91@gmail.com';
+
+        if (isHardcodedAdmin) {
+            setIsAdmin(true);
+        } else {
             const { data: profile } = await supabase
                 .from('profiles')
                 .select('role')
@@ -57,7 +60,6 @@ export default function BookingsHub() {
             const today = startOfDay(new Date());
             const tomorrow = endOfDay(new Date());
 
-            // Today's bookings
             const { data: todayData } = await supabase
                 .from('bookings')
                 .select('*, booking_items(name), booking_assignments(collaborator_id)')
@@ -70,13 +72,11 @@ export default function BookingsHub() {
                 setStats(prev => ({ ...prev, todayCount: todayData.length }));
             }
 
-            // Pending (hold) bookings
             const { count: pendingCount } = await supabase
                 .from('bookings')
                 .select('*', { count: 'exact', head: true })
                 .eq('status', 'hold');
 
-            // Active collaborators
             const { count: staffCount } = await supabase
                 .from('collaborators')
                 .select('*', { count: 'exact', head: true });
@@ -94,9 +94,10 @@ export default function BookingsHub() {
         }
     }
 
+    // --- SUB-VIEWS ---
     if (activeView === 'services') {
         return (
-            <div className="animate-fade-in">
+            <div className="animate-fade-in" style={{ padding: '0 1.5rem 3rem', maxWidth: 1400, margin: '0 auto' }}>
                 <Header onBack={() => setActiveView('hub')} title="Catalogo Servizi" />
                 <BookingCatalog />
             </div>
@@ -107,20 +108,76 @@ export default function BookingsHub() {
         return <GoogleCalendarConfig onBack={() => setActiveView('hub')} />;
     }
 
-    if (activeView === 'bookings') {
+    if (activeView === 'availability') {
         return (
-            <div className="animate-fade-in h-screen flex flex-col -m-8">
-                <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+            <div className="animate-fade-in" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+                <div style={{
+                    background: 'white',
+                    borderBottom: '1px solid #e5e7eb',
+                    padding: '1rem 1.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                }}>
                     <button
                         onClick={() => setActiveView('hub')}
-                        className="flex items-center gap-2 text-slate-400 hover:text-slate-700 transition-all text-xs uppercase tracking-widest font-light"
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '0.9rem',
+                            color: '#6b7280',
+                            fontWeight: 500
+                        }}
                     >
-                        <ArrowRight className="w-3.5 h-3.5 rotate-180" /> Dashboard
+                        <span className="material-icons-round" style={{ fontSize: 18 }}>arrow_back</span>
+                        Dashboard
                     </button>
-                    <h2 className="text-base font-light text-slate-900">Calendario Operativo</h2>
-                    <div className="w-24"></div>
+                    <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#1f2937', margin: 0, fontFamily: 'Outfit, system-ui, sans-serif' }}>Disponibilità Team</h2>
+                    <div style={{ width: 100 }}></div>
                 </div>
-                <div className="flex-1 overflow-hidden">
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                    <AvailabilityCalendar />
+                </div>
+            </div>
+        );
+    }
+
+    if (activeView === 'bookings') {
+        return (
+            <div className="animate-fade-in" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+                <div style={{
+                    background: 'white',
+                    borderBottom: '1px solid #e5e7eb',
+                    padding: '1rem 1.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                }}>
+                    <button
+                        onClick={() => setActiveView('hub')}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '0.9rem',
+                            color: '#6b7280',
+                            fontWeight: 500
+                        }}
+                    >
+                        <span className="material-icons-round" style={{ fontSize: 18 }}>arrow_back</span>
+                        Dashboard
+                    </button>
+                    <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#1f2937', margin: 0, fontFamily: 'Outfit, system-ui, sans-serif' }}>Calendario Operativo</h2>
+                    <div style={{ width: 100 }}></div>
+                </div>
+                <div style={{ flex: 1, overflow: 'hidden' }}>
                     <BookingsCalendar />
                 </div>
             </div>
@@ -129,149 +186,147 @@ export default function BookingsHub() {
 
     if (activeView === 'new_booking') {
         return (
-            <div className="animate-fade-in max-w-3xl mx-auto">
+            <div className="animate-fade-in" style={{ padding: '0 1.5rem 3rem', maxWidth: 800, margin: '0 auto' }}>
                 <Header onBack={() => setActiveView('hub')} title="Nuova Prenotazione" />
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
                     <BookingWizard />
                 </div>
             </div>
         );
     }
 
+    // --- MAIN HUB ---
     return (
-        <div className="max-w-7xl mx-auto space-y-6 animate-fade-in pb-12">
-            {/* Hero Section */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
-                <div>
-                    <h2 className="text-2xl font-light text-slate-900 tracking-tight mb-1">Booking Hub</h2>
-                    <p className="text-sm text-slate-400 font-light">Centro di gestione prenotazioni</p>
+        <div className="animate-fade-in" style={{ maxWidth: 1400, margin: '0 auto', padding: '0 1.5rem 3rem' }}>
+
+            {/* Header - matching ERP style */}
+            <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <h2 style={{
+                        fontSize: '1.5rem',
+                        fontWeight: 700,
+                        margin: 0,
+                        color: '#1f2937',
+                        fontFamily: 'Outfit, system-ui, sans-serif'
+                    }}>Booking Hub</h2>
                 </div>
+                {/* Primary button matching ERP style exactly */}
                 <button
                     onClick={() => setActiveView('new_booking')}
-                    className="bg-gradient-to-r from-blue-500 to-violet-500 text-white px-5 py-2.5 rounded-xl font-light text-sm flex items-center gap-2 shadow-sm hover:shadow-md transition-all"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.75rem 1.5rem',
+                        borderRadius: 50,
+                        border: 'none',
+                        background: 'linear-gradient(90deg, #4f7df3 0%, #7c5ce0 50%, #9061d8 100%)',
+                        color: 'white',
+                        fontSize: '0.9rem',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        fontFamily: 'Outfit, system-ui, sans-serif',
+                        boxShadow: '0 4px 14px rgba(124, 92, 224, 0.35)',
+                        transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(124, 92, 224, 0.45)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'none';
+                        e.currentTarget.style.boxShadow = '0 4px 14px rgba(124, 92, 224, 0.35)';
+                    }}
                 >
-                    <PlusCircle className="w-4 h-4" />
+                    <span className="material-icons-round" style={{ fontSize: 18 }}>edit</span>
                     Nuova Prenotazione
                 </button>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <StatCard
-                    icon={CalendarDays}
-                    label="Oggi"
-                    value={stats.todayCount}
-                    color="blue"
-                    sublabel="appuntamenti"
-                />
-                <StatCard
-                    icon={Clock4}
-                    label="In Attesa"
-                    value={stats.pendingCount}
-                    color="amber"
-                    sublabel="da confermare"
-                />
-                <StatCard
-                    icon={TrendingUp}
-                    label="Crescita"
-                    value="+12%"
-                    color="emerald"
-                    sublabel="vs. scorsa settimana"
-                />
-                <StatCard
-                    icon={Users}
-                    label="Team"
-                    value={stats.activeStaff}
-                    color="slate"
-                    sublabel="collaboratori"
-                />
+            {/* Stats Grid - matching Funnel Commerciale cards style */}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1.25rem',
+                marginBottom: '2.5rem'
+            }}>
+                <StatCard icon="event_available" label="Oggi" value={stats.todayCount} color="#1976d2" bgColor="#e3f2fd" />
+                <StatCard icon="hourglass_empty" label="In Attesa" value={stats.pendingCount} color="#f59e0b" bgColor="#fef3c7" />
+                <StatCard icon="trending_up" label="Crescita" value="+12%" color="#388e3c" bgColor="#e8f5e9" />
+                <StatCard icon="groups" label="Team" value={stats.activeStaff} color="#6b7280" bgColor="#f3f4f6" />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Action Cards */}
-                <div className="lg:col-span-2 space-y-4">
-                    <h3 className="text-xs uppercase tracking-widest text-slate-400 font-light mb-4">Strumenti</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <ActionCard
-                            onClick={() => setActiveView('bookings')}
-                            icon={CalendarDays}
-                            title="Calendario"
-                            description="Griglia oraria e gestione appuntamenti"
-                            color="blue"
-                        />
-                        <ActionCard
-                            onClick={() => setActiveView('services')}
-                            icon={Briefcase}
-                            title="Servizi"
-                            description="Catalogo, durate e configurazioni"
-                            color="violet"
-                        />
-                        <ActionCard
-                            onClick={() => setActiveView('availability')}
-                            icon={Clock}
-                            title="Disponibilità"
-                            description="Turni, orari e chiusure"
-                            color="emerald"
-                        />
-                        <ActionCard
-                            onClick={() => window.open(window.location.protocol + '//' + window.location.host + window.location.pathname, '_blank')}
-                            icon={MonitorSmartphone}
-                            title="Test Modulo"
-                            description="Anteprima esperienza cliente"
-                            color="amber"
-                        />
-                        {isAdmin && (
-                            <ActionCard
-                                onClick={() => setActiveView('calendars')}
-                                icon={Settings2}
-                                title="Integrazioni"
-                                description="Google Calendar e sincronizzazioni"
-                                color="slate"
+            {/* Main Content Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+
+                {/* Tools Section */}
+                <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+                    <div style={{
+                        padding: '1.25rem 1.5rem',
+                        borderBottom: '1px solid #e5e7eb',
+                        background: '#f8f9fa'
+                    }}>
+                        <h3 style={{
+                            margin: 0,
+                            fontSize: '1.1rem',
+                            fontWeight: 700,
+                            fontFamily: 'Outfit, system-ui, sans-serif',
+                            color: '#1f2937'
+                        }}>Strumenti</h3>
+                    </div>
+                    <div style={{ padding: '1.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isAdmin ? 5 : 4}, 1fr)`, gap: '1rem' }}>
+                            <ToolCard onClick={() => setActiveView('bookings')} icon="calendar_month" label="Calendario" color="#1976d2" bgColor="#e3f2fd" />
+                            <ToolCard onClick={() => setActiveView('services')} icon="work" label="Servizi" color="#7c3aed" bgColor="#ede9fe" />
+                            <ToolCard onClick={() => setActiveView('availability')} icon="schedule" label="Disponibilità" color="#059669" bgColor="#d1fae5" />
+                            <ToolCard
+                                onClick={() => window.open(window.location.protocol + '//' + window.location.host + window.location.pathname, '_blank')}
+                                icon="devices"
+                                label="Test Modulo"
+                                color="#d97706"
+                                bgColor="#fef3c7"
                             />
-                        )}
+                            {isAdmin && (
+                                <ToolCard onClick={() => setActiveView('calendars')} icon="settings" label="Integrazioni" color="#6b7280" bgColor="#f3f4f6" />
+                            )}
+                        </div>
                     </div>
                 </div>
 
                 {/* Today's Timeline */}
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-                    <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between">
-                        <h3 className="text-sm font-light text-slate-900">Oggi</h3>
-                        <span className="text-[10px] font-light text-slate-400 uppercase tracking-widest">
-                            {format(new Date(), 'dd MMM', { locale: it })}
-                        </span>
+                <div className="glass-card" style={{ padding: 0, overflow: 'hidden', minHeight: 400 }}>
+                    <div style={{
+                        padding: '1.25rem 1.5rem',
+                        borderBottom: '1px solid #e5e7eb',
+                        background: '#f8f9fa',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                    }}>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, fontFamily: 'Outfit, system-ui, sans-serif', color: '#1f2937' }}>Oggi</h3>
+                        <span style={{
+                            fontSize: '0.7rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            color: '#9ca3af',
+                            fontWeight: 500
+                        }}>{format(new Date(), 'dd MMM yyyy', { locale: it })}</span>
                     </div>
-                    <div className="flex-1 overflow-auto p-5">
+
+                    <div style={{ padding: '1rem 1.5rem', maxHeight: 350, overflowY: 'auto' }}>
                         {loading ? (
-                            <div className="flex items-center justify-center h-40">
-                                <div className="w-5 h-5 border border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, color: '#9ca3af' }}>
+                                <span className="material-icons-round" style={{ fontSize: 24, animation: 'spin 1s linear infinite' }}>sync</span>
                             </div>
                         ) : todayBookings.length === 0 ? (
-                            <div className="text-center py-16">
-                                <CalendarDays className="w-8 h-8 text-slate-200 mx-auto mb-3" />
-                                <p className="text-slate-300 text-xs font-light">Nessun appuntamento</p>
+                            <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                                <span className="material-icons-round" style={{ fontSize: 48, color: '#d1d5db', marginBottom: '0.75rem' }}>event_busy</span>
+                                <p style={{ fontSize: '0.85rem', color: '#9ca3af', margin: 0 }}>Nessun appuntamento per oggi</p>
                             </div>
                         ) : (
-                            <div className="space-y-4">
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                 {todayBookings.map((b) => (
-                                    <div key={b.id} className="group">
-                                        <div className="flex items-start gap-3">
-                                            <div className="text-[10px] font-light text-slate-400 uppercase tracking-wider pt-1 w-12 flex-shrink-0">
-                                                {format(new Date(b.start_time), 'HH:mm')}
-                                            </div>
-                                            <div className="flex-1 bg-slate-50 rounded-xl p-3 group-hover:bg-blue-50 transition-colors border border-transparent group-hover:border-blue-100">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <div className={`w-1.5 h-1.5 rounded-full ${b.status === 'confirmed' ? 'bg-emerald-500' : 'bg-amber-400'
-                                                        }`}></div>
-                                                    <div className="text-sm font-light text-slate-900">
-                                                        {b.guest_info?.first_name} {b.guest_info?.last_name}
-                                                    </div>
-                                                </div>
-                                                <div className="text-[11px] text-slate-400 font-light">
-                                                    {b.booking_items?.name}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <BookingCard key={b.id} booking={b} />
                                 ))}
                             </div>
                         )}
@@ -282,84 +337,161 @@ export default function BookingsHub() {
     );
 }
 
-function StatCard({ icon: Icon, label, value, color, sublabel }: any) {
-    const colorClasses: any = {
-        blue: 'bg-blue-50 text-blue-600',
-        amber: 'bg-amber-50 text-amber-600',
-        emerald: 'bg-emerald-50 text-emerald-600',
-        slate: 'bg-slate-50 text-slate-600',
-    };
+// --- SUB-COMPONENTS matching ERP style ---
 
+function StatCard({ icon, label, value, color, bgColor }: { icon: string; label: string; value: number | string; color: string; bgColor: string }) {
     return (
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
-            <div className="flex items-center justify-between mb-4">
-                <div className={`p-2.5 rounded-xl ${colorClasses[color]}`}>
-                    <Icon className="w-4 h-4" strokeWidth={1.5} />
+        <div className="glass-card" style={{
+            padding: '1.5rem',
+            cursor: 'pointer',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            borderLeft: `4px solid ${color}`,
+            position: 'relative',
+            overflow: 'hidden'
+        }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9ca3af', fontWeight: 600, marginBottom: '0.5rem' }}>{label}</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 700, color: '#1f2937', lineHeight: 1, fontFamily: 'Outfit, system-ui, sans-serif' }}>{value}</div>
                 </div>
-            </div>
-            <div>
-                <div className="text-2xl font-light text-slate-900 mb-0.5">{value}</div>
-                <div className="text-xs font-light text-slate-900 mb-1">{label}</div>
-                <p className="text-[10px] text-slate-400 font-light">{sublabel}</p>
+                <div style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 12,
+                    background: bgColor,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: `0 4px 12px ${color}20`
+                }}>
+                    <span className="material-icons-round" style={{ color: color, fontSize: 24 }}>{icon}</span>
+                </div>
             </div>
         </div>
     );
 }
 
-function ActionCard({ onClick, icon: Icon, title, description, color }: any) {
-    const colorClasses: any = {
-        blue: 'hover:border-blue-200 hover:bg-blue-50/30 icon-bg:bg-blue-50 icon-text:text-blue-600',
-        violet: 'hover:border-violet-200 hover:bg-violet-50/30 icon-bg:bg-violet-50 icon-text:text-violet-600',
-        emerald: 'hover:border-emerald-200 hover:bg-emerald-50/30 icon-bg:bg-emerald-50 icon-text:text-emerald-600',
-        slate: 'hover:border-slate-200 hover:bg-slate-50/30 icon-bg:bg-slate-50 icon-text:text-slate-600',
-        amber: 'hover:border-amber-200 hover:bg-amber-50/30 icon-bg:bg-amber-50 icon-text:text-amber-600',
-    };
-
-    const iconBg: any = {
-        blue: 'bg-blue-50',
-        violet: 'bg-violet-50',
-        emerald: 'bg-emerald-50',
-        slate: 'bg-slate-50',
-        amber: 'bg-amber-50',
-    };
-
-    const iconColor: any = {
-        blue: 'text-blue-600',
-        violet: 'text-violet-600',
-        emerald: 'text-emerald-600',
-        slate: 'text-slate-600',
-        amber: 'text-amber-600',
-    };
-
+function ToolCard({ onClick, icon, label, color, bgColor }: { onClick: () => void; icon: string; label: string; color: string; bgColor: string }) {
     return (
         <button
             onClick={onClick}
-            className={`text-left p-5 rounded-2xl border border-slate-100 bg-white transition-all group flex flex-col h-full ${colorClasses[color]}`}
+            style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '1.25rem 0.75rem',
+                background: 'white',
+                border: '1px solid #e5e7eb',
+                borderRadius: 12,
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.background = bgColor;
+                e.currentTarget.style.borderColor = color;
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.08)';
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'white';
+                e.currentTarget.style.borderColor = '#e5e7eb';
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = 'none';
+            }}
         >
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-4 transition-all ${iconBg[color]} ${iconColor[color]}`}>
-                <Icon className="w-5 h-5" strokeWidth={1.5} />
+            <div style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: bgColor,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s'
+            }}>
+                <span className="material-icons-round" style={{ fontSize: 24, color: color }}>{icon}</span>
             </div>
-            <h4 className="text-base font-light text-slate-900 mb-1.5">{title}</h4>
-            <p className="text-xs text-slate-400 font-light leading-relaxed mb-4">{description}</p>
-            <div className="mt-auto flex items-center gap-1.5 text-[10px] font-light uppercase tracking-widest text-slate-300 group-hover:text-blue-500 transition-all">
-                Apri <ArrowRight className="w-3 h-3" />
-            </div>
+            <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#4b5563', fontFamily: 'Outfit, system-ui, sans-serif' }}>{label}</span>
         </button>
+    );
+}
+
+function BookingCard({ booking }: { booking: any }) {
+    const isConfirmed = booking.status === 'confirmed';
+
+    return (
+        <div className="glass-card clickable-card" style={{
+            padding: '1rem 1.25rem',
+            display: 'flex',
+            gap: '1rem',
+            alignItems: 'center',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+        }}>
+            {/* Time Badge */}
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0.5rem 0.65rem',
+                borderRadius: 12,
+                background: '#f8f9fa',
+                border: '1px solid #e5e7eb',
+                minWidth: 52
+            }}>
+                <div style={{ fontSize: '1.3rem', fontWeight: 700, lineHeight: 1, color: '#1f2937' }}>
+                    {format(new Date(booking.start_time), 'HH')}
+                </div>
+                <div style={{ fontSize: '0.7rem', fontWeight: 600, lineHeight: 1.2, color: '#6b7280', marginTop: 2 }}>
+                    :{format(new Date(booking.start_time), 'mm')}
+                </div>
+            </div>
+
+            {/* Content */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: '1rem', color: '#1f2937', marginBottom: '0.25rem' }}>
+                    {booking.guest_info?.first_name} {booking.guest_info?.last_name}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#9ca3af' }}>
+                    {booking.booking_items?.name}
+                </div>
+            </div>
+
+            {/* Status dot */}
+            <div style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: isConfirmed ? 'rgba(16, 185, 129, 0.6)' : 'rgba(245, 158, 11, 0.6)'
+            }}></div>
+        </div>
     );
 }
 
 function Header({ onBack, title }: { onBack: () => void; title: string }) {
     return (
-        <div className="flex items-center gap-4 mb-8">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', paddingTop: '1rem' }}>
             <button
                 onClick={onBack}
-                className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-slate-700 hover:border-slate-200 transition-all shadow-sm"
+                style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 12,
+                    border: '1px solid #e5e7eb',
+                    background: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                }}
             >
-                <ArrowRight className="w-4 h-4 rotate-180" strokeWidth={1.5} />
+                <span className="material-icons-round" style={{ fontSize: 20, color: '#6b7280' }}>arrow_back</span>
             </button>
             <div>
-                <h2 className="text-xl font-light text-slate-900 tracking-tight">{title}</h2>
-                <p className="text-xs text-slate-400 font-light">Torna alla dashboard</p>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0, color: '#1f2937', fontFamily: 'Outfit, system-ui, sans-serif' }}>{title}</h2>
             </div>
         </div>
     );

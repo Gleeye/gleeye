@@ -1,22 +1,22 @@
-import { state } from './state.js?v=121';
-import { renderDashboard } from '../features/dashboard.js?v=121';
-import { renderClients, renderClientDetail } from '../features/clients.js?v=121';
-import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=121';
-import { renderContacts } from '../features/contacts.js?v=121';
-import { renderOrderDetail } from '../features/orders.js?v=121';
-import { renderInvoices, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from '../features/invoices.js?v=121';
-import { renderInvoicesDashboard } from '../features/dashboard.js?v=121';
-import { renderBankTransactions } from '../features/bank_transactions.js?v=121';
-import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=121';
-import { renderBankStatements } from '../features/bank_statements.js?v=121';
-import { renderServices } from '../features/services.js?v=121';
-import { renderCollaboratorServices } from '../features/collaborator_services.js?v=121';
-import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=121';
-import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=121';
-import { renderBooking } from '../features/booking.js?v=121';
-import { renderUserProfile } from '../features/user_dashboard.js?v=121';
-import { renderAgenda } from '../features/personal_agenda.js?v=121';
-import { renderNotificationCenter } from '../features/notifications.js?v=121';
+import { state } from './state.js?v=123';
+import { renderDashboard } from '../features/dashboard.js?v=123';
+import { renderClients, renderClientDetail } from '../features/clients.js?v=123';
+import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=123';
+import { renderContacts } from '../features/contacts.js?v=123';
+import { renderOrderDetail } from '../features/orders.js?v=123';
+import { renderInvoices, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from '../features/invoices.js?v=123';
+import { renderInvoicesDashboard } from '../features/dashboard.js?v=123';
+import { renderBankTransactions } from '../features/bank_transactions.js?v=123';
+import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=123';
+import { renderBankStatements } from '../features/bank_statements.js?v=123';
+import { renderServices } from '../features/services.js?v=123';
+import { renderCollaboratorServices } from '../features/collaborator_services.js?v=123';
+import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=123';
+import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=123';
+import { renderBooking } from '../features/booking.js?v=123';
+import { renderUserProfile } from '../features/user_dashboard.js?v=123';
+import { renderAgenda } from '../features/personal_agenda.js?v=123';
+import { renderNotificationCenter } from '../features/notifications.js?v=123';
 
 export function router() {
     // Try to restore saved route on initial load (no hash but has saved route)

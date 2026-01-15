@@ -2,7 +2,7 @@
 
 /* Premium styling additions */
 @theme {
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-sans: 'Outfit', system-ui, sans-serif;
 
   --animate-fade-in-up: fade-in-up 0.5s ease-out forwards;
 

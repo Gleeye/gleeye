@@ -1,5 +1,5 @@
-import { supabase } from '../modules/config.js?v=121';
-import { state } from '../modules/state.js?v=121';
+import { supabase } from '../modules/config.js?v=123';
+import { state } from '../modules/state.js?v=123';
 
 let currentDate = new Date(); // Represents the start of the week or current view date
 let eventsCache = [];

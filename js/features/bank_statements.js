@@ -1,6 +1,6 @@
-import { supabase } from '../modules/config.js?v=121';
-import { renderModal, closeModal } from '../modules/utils.js?v=121';
-import { formatAmount } from '../modules/utils.js?v=121';
+import { supabase } from '../modules/config.js?v=123';
+import { renderModal, closeModal } from '../modules/utils.js?v=123';
+import { formatAmount } from '../modules/utils.js?v=123';
 
 let chartInstance = null;
 

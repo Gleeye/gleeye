@@ -1,6 +1,6 @@
-import { state } from '../modules/state.js?v=121';
-import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=121';
-import { upsertPayment, deletePayment, upsertBankTransaction, fetchPayments } from '../modules/api.js?v=121';
+import { state } from '../modules/state.js?v=123';
+import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=123';
+import { upsertPayment, deletePayment, upsertBankTransaction, fetchPayments } from '../modules/api.js?v=123';
 
 export function renderPaymentsDashboard(container) {
     // Ensure global assignment on load/render

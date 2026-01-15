@@ -1,7 +1,7 @@
-import { state } from '../modules/state.js?v=121';
-import { formatAmount } from '../modules/utils.js?v=121';
-import { openDepartmentManager } from './settings.js?v=121';
-import { upsertCollaborator, fetchPayments, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js?v=121';
+import { state } from '../modules/state.js?v=123';
+import { formatAmount } from '../modules/utils.js?v=123';
+import { openDepartmentManager } from './settings.js?v=123';
+import { upsertCollaborator, fetchPayments, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js?v=123';
 
 export function renderCollaborators(container) {
     const renderGrid = () => {
@@ -313,7 +313,7 @@ window.impersonateCollaborator = async (collaboratorId) => {
         state.impersonatedCollaboratorId = c.id;
 
         // Update Sidebar
-        import('./layout.js').then(({ updateSidebarVisibility, renderSidebarProfile }) => {
+        import('./layout.js?v=123').then(({ updateSidebarVisibility, renderSidebarProfile }) => {
             updateSidebarVisibility();
             renderSidebarProfile(); // Update avatar
 
@@ -332,7 +332,7 @@ window.sendMagicLink = async (email) => {
 
     if (await window.showConfirm(`Vuoi inviare un Magic Link di accesso a ${email}?`)) {
         try {
-            const { supabase } = await import('../modules/config.js?v=121');
+            const { supabase } = await import('../modules/config.js?v=123');
             const { error } = await supabase.auth.signInWithOtp({
                 email,
                 options: {
