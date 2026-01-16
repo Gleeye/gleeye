@@ -5,7 +5,7 @@ import { openAvailabilityModal, checkAndHandleGoogleCallback } from './availabil
 
 let currentDate = new Date(); // Represents the start of the week or current view date
 let eventsCache = [];
-let availabilityCache = { rules: [], restDays: [], overrides: [] };
+let availabilityCache = { rules: [], restDays: [], overrides: [], googleBusy: [] };
 let currentCollaboratorId = null;
 let currentView = 'week'; // 'week', 'day'
 let miniCalendarDate = new Date(); // Separate state for mini calendar
@@ -261,7 +261,7 @@ async function fetchMyBookings() {
         if (!collaboratorId) {
             console.warn("[Agenda] No collaborator ID available");
             eventsCache = [];
-            availabilityCache = { rules: [], restDays: [], overrides: [] };
+            availabilityCache = { rules: [], restDays: [], overrides: [], googleBusy: [] };
             return;
         }
 
@@ -292,13 +292,78 @@ async function fetchMyBookings() {
         availabilityCache = {
             rules: rules || [],
             restDays: restDays || [],
-            overrides: overrides || []
+            overrides: overrides || [],
+            googleBusy: []
         };
+
+        // Fetch Google Calendar busy slots (async, non-blocking for initial render)
+        fetchGoogleCalendarBusy(collaboratorId).then(busySlots => {
+            if (busySlots && busySlots.length > 0) {
+                availabilityCache.googleBusy = busySlots;
+                console.log('[Agenda] Google Calendar busy slots fetched:', busySlots.length);
+                renderTimeline(); // Re-render with calendar data
+            }
+        });
 
         console.log("[Agenda] Fetched events:", eventsCache.length, "Rules:", availabilityCache.rules.length);
 
     } catch (err) {
         console.error("[Agenda] Critical fetch error:", err);
+    }
+}
+
+// --- GOOGLE CALENDAR INTEGRATION ---
+
+async function fetchGoogleCalendarBusy(collaboratorId) {
+    try {
+        // Calculate date range based on current view
+        let timeMin, timeMax;
+
+        if (currentView === 'week') {
+            const day = currentDate.getDay();
+            const diff = currentDate.getDate() - day + (day === 0 ? -6 : 1);
+            const weekStart = new Date(currentDate);
+            weekStart.setDate(diff);
+            weekStart.setHours(0, 0, 0, 0);
+
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 7);
+            weekEnd.setHours(23, 59, 59, 999);
+
+            timeMin = weekStart.toISOString();
+            timeMax = weekEnd.toISOString();
+        } else {
+            const dayStart = new Date(currentDate);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(currentDate);
+            dayEnd.setHours(23, 59, 59, 999);
+
+            timeMin = dayStart.toISOString();
+            timeMax = dayEnd.toISOString();
+        }
+
+        console.log('[Agenda] Fetching Google Calendar busy for:', { collaboratorId, timeMin, timeMax });
+
+        const { data, error } = await supabase.functions.invoke('check-google-availability', {
+            body: { collaborator_id: collaboratorId, timeMin, timeMax }
+        });
+
+        if (error) {
+            console.warn('[Agenda] Google Calendar fetch error:', error.message);
+            return [];
+        }
+
+        if (data?.error) {
+            // Likely no Google connection - that's OK
+            console.log('[Agenda] Google Calendar not connected:', data.error);
+            return [];
+        }
+
+        return data?.busy || [];
+
+    } catch (err) {
+        console.warn('[Agenda] Google Calendar integration error:', err);
+        return [];
     }
 }
 
@@ -434,6 +499,54 @@ function renderTimeline() {
             });
         }
 
+        // --- GOOGLE CALENDAR BUSY OVERLAYS ---
+        let busyHtml = '';
+        const dayBusy = availabilityCache.googleBusy.filter(b => {
+            const busyStart = new Date(b.start);
+            return busyStart.toISOString().split('T')[0] === dateStr;
+        });
+
+        dayBusy.forEach(busySlot => {
+            const busyStart = new Date(busySlot.start);
+            const busyEnd = new Date(busySlot.end);
+
+            const bStartH = busyStart.getHours() + busyStart.getMinutes() / 60;
+            const bEndH = busyEnd.getHours() + busyEnd.getMinutes() / 60;
+
+            // Clip to view range
+            if (bEndH <= startHour || bStartH >= endHour) return;
+            const effectiveStart = Math.max(bStartH, startHour);
+            const effectiveEnd = Math.min(bEndH, endHour);
+
+            const topPx = (effectiveStart - startHour) * 60;
+            const heightPx = (effectiveEnd - effectiveStart) * 60;
+
+            busyHtml += `
+                <div class="google-busy-slot" style="
+                    position: absolute; 
+                    top: ${topPx}px; 
+                    height: ${heightPx}px; 
+                    left: 0; 
+                    right: 0; 
+                    background: repeating-linear-gradient(
+                        -45deg,
+                        rgba(251, 146, 60, 0.15),
+                        rgba(251, 146, 60, 0.15) 5px,
+                        rgba(251, 146, 60, 0.25) 5px,
+                        rgba(251, 146, 60, 0.25) 10px
+                    );
+                    border-left: 3px solid #f97316;
+                    z-index: 5;
+                    pointer-events: none;
+                ">
+                    <div style="font-size:0.65rem; color:#ea580c; padding:2px 4px; font-weight:600; background: rgba(255,255,255,0.8); display:inline-block; margin:2px;">
+                        <span class="material-icons-round" style="font-size:10px; vertical-align:middle;">event_busy</span>
+                        Calendario
+                    </div>
+                </div>
+            `;
+        });
+
         // Filter events
         const dayEvents = eventsCache.filter(e => e.start_time.startsWith(dateStr));
 
@@ -508,6 +621,7 @@ function renderTimeline() {
         columnsHtml += `
             <div class="day-col" data-date="${dateStr}" style="${colStyle} position: relative; border-right: 1px solid var(--glass-border); min-width: 150px;">
                 ${availabilityHtml}
+                ${busyHtml}
                 ${eventsHtml}
                 ${nowHtml}
             </div>
