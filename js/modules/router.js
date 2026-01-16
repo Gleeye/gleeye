@@ -15,7 +15,7 @@ import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/
 import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=123';
 import { renderBooking } from '../features/booking.js?v=123';
 import { renderUserProfile } from '../features/user_dashboard.js?v=123';
-import { renderAgenda } from '../features/personal_agenda.js?v=125';
+import { renderAgenda } from '../features/personal_agenda.js?v=126';
 import { renderNotificationCenter } from '../features/notifications.js?v=123';
 import { renderAdminNotifications } from '../features/admin_notifications.js?v=123';
 
