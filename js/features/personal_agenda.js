@@ -289,21 +289,35 @@ async function fetchMyBookings() {
         }
 
         eventsCache = bookingsRes.data || [];
+
+        // Preserve existing googleBusy if we have it (prevents race condition on double-render)
+        const existingGoogleBusy = availabilityCache.googleBusy || [];
+
         availabilityCache = {
             rules: rules || [],
             restDays: restDays || [],
             overrides: overrides || [],
-            googleBusy: []
+            googleBusy: existingGoogleBusy
         };
 
         // Fetch Google Calendar busy slots (async, non-blocking for initial render)
-        fetchGoogleCalendarBusy(collaboratorId).then(busySlots => {
-            if (busySlots && busySlots.length > 0) {
-                availabilityCache.googleBusy = busySlots;
-                console.log('[Agenda] Google Calendar busy slots fetched:', busySlots.length);
-                renderTimeline(); // Re-render with calendar data
-            }
-        });
+        // Only fetch if we don't already have data and no fetch is in progress
+        if (existingGoogleBusy.length === 0 && !window._googleBusyFetchInProgress) {
+            window._googleBusyFetchInProgress = true;
+            fetchGoogleCalendarBusy(collaboratorId).then(busySlots => {
+                window._googleBusyFetchInProgress = false;
+                if (busySlots && busySlots.length > 0) {
+                    availabilityCache.googleBusy = busySlots;
+                    console.log('[Agenda] Google Calendar busy slots fetched:', busySlots.length);
+                    renderTimeline(); // Re-render with calendar data
+                } else {
+                    console.log('[Agenda] No Google Calendar busy slots found');
+                }
+            }).catch(err => {
+                window._googleBusyFetchInProgress = false;
+                console.warn('[Agenda] Google Calendar fetch failed:', err);
+            });
+        }
 
         console.log("[Agenda] Fetched events:", eventsCache.length, "Rules:", availabilityCache.rules.length);
 
@@ -763,7 +777,12 @@ function changePeriod(delta) {
     } else {
         currentDate.setDate(currentDate.getDate() + delta);
     }
-    updateView();
+    // Reset google busy cache when changing period to fetch new data
+    availabilityCache.googleBusy = [];
+    window._googleBusyFetchInProgress = false;
+
+    // Re-fetch all data including calendar
+    fetchMyBookings().then(() => updateView());
     miniCalendarDate = new Date(currentDate);
     renderMiniCalendar();
 }
