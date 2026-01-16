@@ -250,51 +250,54 @@ serve(async (req) => {
 
             // 2. Send to Guest (if applicable)
             if (record.type === 'booking_new' && record.data?.guest_email) {
-                // Use template for guest email too? 
-                // Currently DB has only ONE template per type. Usually forcing a separate "guest_template" is better.
-                // For now, I'll stick to a hardcoded BETTER version for the guest, as specific requirement for "Add to Calendar" is key here.
-                // Or I could check if a "booking_confirmation_guest" type exists? No, keep it simple for now.
+                // Fetch Guest Template (if exists) -> NOW we use new columns
+                const { data: typeGuestData } = await supabase
+                    .from('notification_types')
+                    .select('email_subject_template_guest, email_body_template_guest, default_email_guest')
+                    .eq('key', record.type)
+                    .single();
 
-                const guestSubject = `Conferma Prenotazione: ${record.data.service_name}`;
-                // Simplified, cleaner Guest Body
-                const guestBody = `
-                    <p style="font-size: 16px;">Gentile <strong>${record.data.guest_name}</strong>,</p>
-                    <p>Ti confermiamo l'appuntamento per <strong>${record.data.service_name}</strong>.</p>
-                    <div style="margin: 24px 0; padding: 20px; background-color: #f7fafc; border-radius: 12px; border: 1px solid #edf2f7;">
-                        <div style="margin-bottom: 8px; color: #718096; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Data e Ora</div>
-                        <div style="font-size: 18px; color: #2d3748; font-weight: 500;">
-                            ${new Date(record.data.start_time).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
-                        </div>
-                        <div style="font-size: 16px; color: #4a5568;">
-                           dalle ${new Date(record.data.start_time).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} alle ${new Date(record.data.end_time).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                    </div>
-                `;
+                const guestEnabled = typeGuestData?.default_email_guest !== false; // Default true if null
 
-                // Helper to format dates for calendar links
-                const formatDateVEvent = (dateStr: string) => {
-                    return dateStr.replace(/[-:]/g, '').split('.')[0] + 'Z';
-                };
+                if (guestEnabled) {
+                    let guestSubject = fillTemplate(typeGuestData?.email_subject_template_guest, variables) || `Conferma Prenotazione: ${record.data.service_name}`;
 
-                const startTime = new Date(record.data.start_time).toISOString();
-                const endTime = new Date(record.data.end_time).toISOString();
+                    // Fallback Body if DB empty (Safety)
+                    let guestBodyRaw = typeGuestData?.email_body_template_guest;
+                    if (!guestBodyRaw) {
+                        guestBodyRaw = `<p>Gentile {{guest_name}}, conferma prenotazione per {{service_name}} il {{date}} alle {{start_time}}.</p>`;
+                    }
 
-                const googleLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(record.data.service_name)}&details=${encodeURIComponent('Prenotazione con Gleeye')}&dates=${formatDateVEvent(startTime)}/${formatDateVEvent(endTime)}`;
-                const outlookLink = `https://outlook.office.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(record.data.service_name)}&body=${encodeURIComponent('Prenotazione con Gleeye')}&startdt=${startTime}&enddt=${endTime}`;
+                    let guestBodyHtml = fillTemplate(guestBodyRaw, variables);
 
+                    // Add Calendar Links Logic if specific tag present or append? 
+                    // Usually user wants standard template + calendar links. 
+                    // Let's generate links first
+                    const formatDateVEvent = (dateStr: string) => {
+                        return dateStr.replace(/[-:]/g, '').split('.')[0] + 'Z';
+                    };
+                    const startTime = new Date(record.data.start_time).toISOString();
+                    const endTime = new Date(record.data.end_time).toISOString();
 
-                const guestHtml = getMasterTemplate(guestSubject, guestBody, '', '', {
-                    google: googleLink,
-                    outlook: outlookLink,
-                    ics: '#'
-                });
+                    const googleLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(record.data.service_name)}&details=${encodeURIComponent('Prenotazione con Gleeye')}&dates=${formatDateVEvent(startTime)}/${formatDateVEvent(endTime)}`;
+                    const outlookLink = `https://outlook.office.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(record.data.service_name)}&body=${encodeURIComponent('Prenotazione con Gleeye')}&startdt=${startTime}&enddt=${endTime}`;
 
-                console.log(`Sending confirmation to guest: ${record.data.guest_email}`);
-                await sendEmail({
-                    to: record.data.guest_email,
-                    subject: guestSubject,
-                    html: guestHtml
-                });
+                    // Send Email
+                    const guestFinalHtml = getMasterTemplate(guestSubject, guestBodyHtml, '', '', {
+                        google: googleLink,
+                        outlook: outlookLink,
+                        ics: '#'
+                    });
+
+                    console.log(`Sending confirmation to guest: ${record.data.guest_email}`);
+                    await sendEmail({
+                        to: record.data.guest_email,
+                        subject: guestSubject,
+                        html: guestFinalHtml
+                    });
+                } else {
+                    console.log('Guest email disabled by configuration.');
+                }
             }
 
             await updateStatus(record.id, 'sent', { sent_to: recipientEmail, sent_to_guest: record.data?.guest_email });

@@ -140,6 +140,8 @@ export async function renderAdminNotifications(container) {
     container.querySelector('#test-email-btn').addEventListener('click', sendTestEmail);
 }
 
+// --- RENDER LOGIC ---
+
 async function loadNotificationTypes(container) {
     const list = container.querySelector('#notification-types-list');
 
@@ -171,39 +173,89 @@ async function loadNotificationTypes(container) {
             grouped[t.category].push(t);
         });
 
-        let html = '';
+        let html = `
+            <style>
+                .notif-row {
+                    display: flex; justify-content: space-between; align-items: center; 
+                    padding: 1.25rem; background: var(--bg-secondary); border-radius: 16px; 
+                    border: 1px solid var(--glass-border); transition: all 0.2s; cursor: pointer;
+                }
+                .notif-row:hover {
+                    background: var(--card-bg);
+                    border-color: var(--brand-blue);
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-md);
+                }
+                .channel-icon {
+                    padding: 8px; border-radius: 50%; background: var(--glass-border); 
+                    color: var(--text-tertiary); transition: all 0.2s;
+                    display: flex; align-items: center; justify-content: center;
+                }
+                .channel-icon.active {
+                    background: rgba(78, 146, 216, 0.1); color: var(--brand-blue);
+                }
+                .channel-icon.active.web {
+                    background: rgba(139, 92, 246, 0.1); color: var(--brand-viola);
+                }
+                
+                /* Switch Toggle Style */
+                .modal-switch-container {
+                    display: flex; align-items: center; justify-content: space-between; 
+                    padding: 1rem; background: var(--bg-secondary); border-radius: 12px; margin-bottom: 0.75rem;
+                }
+                .modal-switch-label {
+                    display: flex; align-items: center; gap: 10px; font-weight: 500; color: var(--text-primary);
+                }
+                .switch {
+                    position: relative; display: inline-block; width: 44px; height: 24px;
+                }
+                .switch input { opacity: 0; width: 0; height: 0; }
+                .slider {
+                    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; 
+                    background-color: #ccc; transition: .4s; border-radius: 34px;
+                }
+                .slider:before {
+                    position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; 
+                    background-color: white; transition: .4s; border-radius: 50%;
+                }
+                input:checked + .slider { background-color: var(--brand-blue); }
+                input:checked + .slider:before { transform: translateX(20px); }
+            </style>
+        `;
+
         for (const category in grouped) {
             html += `
-                <div style="margin-bottom: 1.5rem;">
-                    <h4 style="margin: 0 0 0.75rem 0; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">
+                <div style="margin-bottom: 2rem;">
+                    <h4 style="margin: 0 0 1rem 0.5rem; font-size: 0.8rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1px;">
                         ${categoryLabels[category] || category}
                     </h4>
-                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <div style="display: flex; flex-direction: column; gap: 0.8rem;">
             `;
 
             grouped[category].forEach(type => {
                 html += `
-                    <div class="notification-type-row" data-id="${type.id}" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--glass-border);">
+                    <div class="notif-row" data-id="${type.id}">
                         <div style="flex: 1; min-width: 0;">
-                            <div style="font-weight: 500; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                            <div style="font-weight: 600; font-size: 1.05rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
                                 ${type.label_it}
-                                <span style="font-size: 0.7rem; padding: 2px 6px; background: var(--glass-border); border-radius: 4px; color: var(--text-tertiary);">${type.key}</span>
+                                ${!type.is_active ? '<span style="font-size: 0.7rem; padding: 2px 8px; background: var(--text-tertiary); color: white; border-radius: 10px;">INATTIVO</span>' : ''}
                             </div>
-                            <div style="font-size: 0.8rem; color: var(--text-tertiary);">${type.description || ''}</div>
+                            <div style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4;">
+                                ${type.description || 'Nessuna descrizione.'}
+                            </div>
+                            <code style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 6px; display: inline-block; background: var(--bg-primary); padding: 2px 6px; border-radius: 4px;">${type.key}</code>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 1rem;">
-                            <!-- Edit Button -->
-                            <button class="icon-btn edit-type-btn" data-id="${type.id}" title="Modifica Template">
-                                <span class="material-icons-round" style="font-size: 18px; color: var(--brand-blue);">edit</span>
-                            </button>
 
-                            <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--text-secondary);">
-                                <span title="Default Email">📧 ${type.default_email ? 'Sì' : 'No'}</span>
-                                <span title="Default Web">🔔 ${type.default_web ? 'Sì' : 'No'}</span>
+                        <!-- Status Icons -->
+                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-left: 1.5rem;">
+                            <div class="channel-icon ${type.default_email ? 'active' : ''}" title="Email ${type.default_email ? 'Attiva' : 'Disabilitata'}">
+                                <span class="material-icons-round">email</span>
                             </div>
-                            <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;" title="Attivo">
-                                <input type="checkbox" class="type-active-toggle" data-id="${type.id}" ${type.is_active ? 'checked' : ''} style="width: 16px; height: 16px; accent-color: var(--success-color);">
-                            </label>
+                            <div class="channel-icon ${type.default_web ? 'active web' : ''}" title="Notifica App ${type.default_web ? 'Attiva' : 'Disabilitata'}">
+                                <span class="material-icons-round">notifications_active</span>
+                            </div>
+                            <!-- Arrow -->
+                            <span class="material-icons-round" style="color: var(--glass-border); margin-left: 0.5rem;">chevron_right</span>
                         </div>
                     </div>
                 `;
@@ -217,28 +269,9 @@ async function loadNotificationTypes(container) {
 
         list.innerHTML = html;
 
-        // --- BINDINGS ---
-
-        // 1. Toggle Active
-        list.querySelectorAll('.type-active-toggle').forEach(toggle => {
-            toggle.addEventListener('change', async (e) => {
-                const id = e.target.dataset.id;
-                const isActive = e.target.checked;
-                try {
-                    const { error } = await supabase.from('notification_types').update({ is_active: isActive }).eq('id', id);
-                    if (error) throw error;
-                    window.showAlert(`Tipo di notifica ${isActive ? 'attivato' : 'disattivato'}`, 'success');
-                } catch (err) {
-                    console.error(err);
-                    window.showAlert('Errore: ' + err.message, 'error');
-                    e.target.checked = !isActive;
-                }
-            });
-        });
-
-        // 2. Edit Button
-        list.querySelectorAll('.edit-type-btn').forEach(btn => {
-            btn.addEventListener('click', () => openEditModal(btn.dataset.id, data));
+        // Click Handler (Row)
+        list.querySelectorAll('.notif-row').forEach(row => {
+            row.addEventListener('click', () => openEditModal(row.dataset.id, data));
         });
 
     } catch (err) {
@@ -247,7 +280,7 @@ async function loadNotificationTypes(container) {
     }
 }
 
-// --- EDIT MODAL LOGIC ---
+// --- EDIT MODAL LOGIC (ENHANCED) ---
 
 let currentEditId = null;
 
@@ -257,119 +290,266 @@ function openEditModal(id, allTypes) {
 
     currentEditId = id;
 
-    // Create modal if not exists
-    let modal = document.getElementById('edit-notification-modal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'edit-notification-modal';
-        modal.className = 'modal-overlay';
-        modal.innerHTML = `
-            <div class="modal-content animate-scale-in" style="max-width: 700px; width: 90%;">
-                <div class="modal-header">
-                    <h3 style="margin: 0;">Modifica Template Notifica</h3>
-                    <button class="close-modal-btn" style="background:none; border:none; cursor:pointer;">
-                        <span class="material-icons-round">close</span>
-                    </button>
+    // Remove existing if any
+    const existing = document.getElementById('edit-notification-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'edit-notification-modal';
+    modal.className = 'modal-overlay';
+    modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 9999;';
+
+    // Updated width to be much wider as requested
+    modal.innerHTML = `
+        <div class="modal-content animate-scale-in" style="background: white; width: 900px; max-width: 95%; border-radius: 24px; box-shadow: 0 25px 50px rgba(0,0,0,0.15); display: flex; flex-direction: column; max-height: 90vh; overflow: hidden;">
+            <!-- Header -->
+            <div style="padding: 1.5rem 2rem; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: #fff;">
+                <div>
+                    <h3 style="margin: 0; font-size: 1.4rem; font-weight: 700; color: var(--text-primary);">Configura Notifica</h3>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                         <span class="material-icons-round" style="font-size: 16px; color: var(--brand-blue);">info</span>
+                         <span style="color: var(--text-secondary); font-size: 0.95rem;">${type.label_it}</span>
+                         <code style="font-size: 0.75rem; background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px; color: var(--text-tertiary);">${type.key}</code>
+                    </div>
                 </div>
-                <div class="modal-body" style="padding: 1.5rem;">
-                    <div class="form-group">
-                        <label>Oggetto Email (Template)</label>
-                        <input type="text" id="edit-template-subject" placeholder="Es. Nuova prenotazione: {{guest_name}}">
-                        <p style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 4px;">Usa le variabili mostrate sotto.</p>
-                    </div>
-                    <div class="form-group" style="margin-top: 1rem;">
-                        <label>Corpo Email (HTML)</label>
-                        <textarea id="edit-template-body" style="width: 100%; min-height: 200px; font-family: monospace; font-size: 0.9rem;" placeholder="<p>Ciao {{guest_name}}...</p>"></textarea>
-                    </div>
-                    
-                    <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
-                        <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Variabili Disponibili</label>
-                        <div id="edit-variables-list" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem;">
-                            <!-- populated dynamically -->
+                <button class="close-modal-btn icon-btn" style="background: var(--bg-secondary); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; transition: background 0.2s;">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div style="padding: 0 2rem; background: var(--bg-primary); border-bottom: 1px solid var(--glass-border); display: flex; gap: 2rem;">
+                <button class="modal-tab-btn active" data-target="tab-general" style="padding: 1rem 0; background: none; border: none; border-bottom: 2px solid var(--brand-blue); color: var(--brand-blue); font-weight: 600; cursor: pointer;">Generale</button>
+                <button class="modal-tab-btn" data-target="tab-team" style="padding: 1rem 0; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); font-weight: 500; cursor: pointer;">Template Team</button>
+                <button class="modal-tab-btn" data-target="tab-guest" style="padding: 1rem 0; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); font-weight: 500; cursor: pointer;">Template Cliente</button>
+            </div>
+
+            <!-- Body (Scrollable) -->
+            <div style="padding: 2rem; overflow-y: auto; flex: 1; background: #fff;">
+                
+                <!-- TAB 1: GENERAL -->
+                <div id="tab-general" class="modal-tab-content">
+                    <div style="max-width: 600px;">
+                        <div class="modal-switch-container">
+                            <div class="modal-switch-label">
+                                <span class="material-icons-round" style="color: var(--success-color);">power_settings_new</span>
+                                <div>
+                                    <div style="font-size: 1rem;">Notifica Attiva</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-tertiary); font-weight: 400;">Abilita o disabilita questo tipo di notifica globalmente</div>
+                                </div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="edit-active" ${type.is_active ? 'checked' : ''}>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div style="margin-top: 2rem;">
+                            <h4 style="margin: 0 0 1rem 0.5rem; font-size: 0.8rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700;">Canali Disponibili</h4>
+                            
+                            <div class="modal-switch-container">
+                                <div class="modal-switch-label">
+                                    <span class="material-icons-round" style="color: #4e92d8;">email</span>
+                                    Canale Email (SMTP)
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="edit-email-enabled" ${type.default_email ? 'checked' : ''}>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="modal-switch-container">
+                                <div class="modal-switch-label">
+                                    <span class="material-icons-round" style="color: #8b5cf6;">notifications_active</span>
+                                    Canale Web / App
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="edit-web-enabled" ${type.default_web ? 'checked' : ''}>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer" style="padding: 1rem 1.5rem; border-top: 1px solid var(--glass-border); display: flex; justify-content: flex-end; gap: 1rem;">
-                    <button class="secondary-btn close-modal-btn">Annulla</button>
-                    <button class="primary-btn" id="save-template-btn">Salva Modifiche</button>
+
+                <!-- TAB 2: TEAM TEMPLATE -->
+                <div id="tab-team" class="modal-tab-content hidden" style="display: none;">
+                    <div class="info-box" style="background: #eff6ff; border: 1px solid #dbeafe; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; color: #1e40af; font-size: 0.9rem;">
+                        <span class="material-icons-round" style="font-size: 16px; vertical-align: middle;">info</span>
+                        Questa email viene inviata ai <strong>collaboratori</strong> o agli amministratori.
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label>Oggetto Email</label>
+                        <input type="text" id="edit-template-subject" value="${type.email_subject_template || ''}" placeholder="Es. Nuova prenotazione: {{guest_name}}">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Contenuto (HTML)</label>
+                        <textarea id="edit-template-body" style="min-height: 300px; font-family: monospace; font-size: 0.9rem; line-height: 1.6; padding: 1rem; border-radius: 12px; border: 1px solid var(--glass-border);" placeholder="<h1>Ciao...</h1>">${type.email_body_template || ''}</textarea>
+                    </div>
+
+                    <div style="margin-top: 1rem;">
+                        <span style="font-size: 0.8rem; color: var(--text-tertiary); display: block; margin-bottom: 0.5rem;">Variabili dinamiche:</span>
+                        <div class="variables-list" style="display: flex; flex-wrap: wrap; gap: 0.5rem;"></div>
+                    </div>
                 </div>
+
+                <!-- TAB 3: GUEST TEMPLATE -->
+                <div id="tab-guest" class="modal-tab-content hidden" style="display: none;">
+                    <div class="info-box" style="background: #fdf2f8; border: 1px solid #fce7f3; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; color: #be185d; font-size: 0.9rem;">
+                        <span class="material-icons-round" style="font-size: 16px; vertical-align: middle;">info</span>
+                        Questa email viene inviata al <strong>cliente finale</strong> (se applicabile).
+                        <div style="margin-top: 8px; display: flex; align-items: center; gap: 10px;">
+                            <label class="switch" style="transform: scale(0.8); margin: 0;">
+                                <input type="checkbox" id="edit-guest-enabled" ${type.default_email_guest !== false ? 'checked' : ''}>
+                                <span class="slider"></span>
+                            </label>
+                            <span style="font-size: 0.85rem; font-weight: 600;">Abilita invio al cliente</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label>Oggetto Email Cliente</label>
+                        <input type="text" id="edit-guest-subject" value="${type.email_subject_template_guest || ''}" placeholder="Es. Conferma Prenotazione">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Contenuto Cliente (HTML)</label>
+                        <textarea id="edit-guest-body" style="min-height: 300px; font-family: monospace; font-size: 0.9rem; line-height: 1.6; padding: 1rem; border-radius: 12px; border: 1px solid var(--glass-border);" placeholder="<p>Gentile {{guest_name}}...</p>">${type.email_body_template_guest || ''}</textarea>
+                    </div>
+                     <div style="margin-top: 1rem;">
+                        <span style="font-size: 0.8rem; color: var(--text-tertiary); display: block; margin-bottom: 0.5rem;">Variabili dinamiche:</span>
+                        <div class="variables-list-guest" style="display: flex; flex-wrap: wrap; gap: 0.5rem;"></div>
+                    </div>
+                </div>
+
             </div>
-        `;
-        document.body.appendChild(modal);
 
-        // Bind events
-        modal.querySelectorAll('.close-modal-btn').forEach(b => b.onclick = () => modal.remove());
-        modal.querySelector('#save-template-btn').onclick = saveTemplateChanges;
-    }
+            <!-- Footer -->
+            <div style="padding: 1.5rem 2rem; border-top: 1px solid var(--glass-border); display: flex; justify-content: flex-end; gap: 1rem; background: var(--glass-bg);">
+                <button class="secondary-btn close-modal-btn" style="padding: 0.8rem 1.5rem;">Annulla</button>
+                <button class="primary-btn" id="save-settings-btn" style="padding: 0.8rem 2.5rem; font-size: 1rem;">Salva Modifiche</button>
+            </div>
+        </div>
+    `;
 
-    // Populate Data
-    document.getElementById('edit-template-subject').value = type.email_subject_template || '';
-    document.getElementById('edit-template-body').value = type.email_body_template || '';
+    document.body.appendChild(modal);
 
-    // Populate Variables
-    const varList = document.getElementById('edit-variables-list');
-    varList.innerHTML = '';
-    const vars = type.variables_schema || [];
-    if (vars.length === 0) {
-        varList.innerHTML = '<span style="font-size: 0.8rem; color: var(--text-tertiary);">{nessuna variabile definita}</span>';
-    } else {
-        vars.forEach(v => {
-            const chip = document.createElement('span');
-            chip.style.cssText = 'font-size: 0.8rem; background: var(--glass-border); padding: 2px 8px; border-radius: 4px; font-family: monospace; cursor: pointer; user-select: all;';
-            chip.textContent = `{{${v}}}`;
-            chip.onclick = () => {
-                // Simple copy to clipboard or insert
-                navigator.clipboard.writeText(`{{${v}}}`);
-                window.showAlert('Variabile copiata!', 'success');
-            };
-            varList.appendChild(chip);
+    // --- LOGIC ---
+
+    // 1. TABS
+    const tabs = modal.querySelectorAll('.modal-tab-btn');
+    const sections = modal.querySelectorAll('.modal-tab-content');
+
+    tabs.forEach(tab => {
+        tab.onclick = () => {
+            // Remove active classes
+            tabs.forEach(t => {
+                t.style.borderBottomColor = 'transparent';
+                t.style.color = 'var(--text-secondary)';
+                t.classList.remove('active');
+            });
+            sections.forEach(s => s.style.display = 'none');
+
+            // Activate clicked
+            tab.style.borderBottomColor = 'var(--brand-blue)';
+            tab.style.color = 'var(--brand-blue)';
+            tab.classList.add('active');
+
+            const targetId = tab.dataset.target;
+            document.getElementById(targetId).style.display = 'block';
+        }
+    });
+
+    // 2. CLOSE
+    modal.querySelectorAll('.close-modal-btn').forEach(b => b.onclick = () => modal.remove());
+
+    // 3. VARIABLES
+    const renderVars = (containerClass) => {
+        const containers = modal.querySelectorAll(containerClass); // might be multiple? no just one usually per tab
+        containers.forEach(container => {
+            container.innerHTML = '';
+            const vars = type.variables_schema || [];
+            if (vars.length > 0) {
+                vars.forEach(v => {
+                    const chip = document.createElement('span');
+                    chip.style.cssText = 'font-size: 0.75rem; background: var(--bg-secondary); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--glass-border); font-family: monospace; cursor: pointer; transition: all 0.2s; color: var(--brand-blue);';
+                    chip.innerText = `{{${v}}}`;
+                    chip.onmouseover = () => chip.style.background = '#e0f2fe';
+                    chip.onmouseout = () => chip.style.background = 'var(--bg-secondary)';
+
+                    chip.onclick = () => {
+                        navigator.clipboard.writeText(`{{${v}}}`);
+                        const orig = chip.innerText;
+                        chip.innerText = 'Copiato!';
+                        setTimeout(() => chip.innerText = orig, 800);
+                    };
+                    container.appendChild(chip);
+                });
+            } else {
+                container.innerHTML = '<span style="font-size: 0.8rem; color: var(--text-tertiary);">- Nessuna variabile -</span>';
+            }
         });
-    }
+    };
+    renderVars('.variables-list');
+    renderVars('.variables-list-guest');
 
-    // Show
-    modal.style.display = 'flex';
+    // 4. SAVE
+    modal.querySelector('#save-settings-btn').onclick = () => saveNotificationTypeChanges(id);
 }
 
-async function saveTemplateChanges() {
+async function saveNotificationTypeChanges(id) {
+    const isActive = document.getElementById('edit-active').checked;
+    const emailEnabled = document.getElementById('edit-email-enabled').checked;
+    const webEnabled = document.getElementById('edit-web-enabled').checked;
+
+    // Team Template
     const subject = document.getElementById('edit-template-subject').value;
     const body = document.getElementById('edit-template-body').value;
-    const btn = document.getElementById('save-template-btn');
 
-    if (!currentEditId) return;
+    // Guest Template
+    const guestEnabled = document.getElementById('edit-guest-enabled').checked;
+    const guestSubject = document.getElementById('edit-guest-subject').value;
+    const guestBody = document.getElementById('edit-guest-body').value;
 
-    const originalText = btn.innerText;
-    btn.innerText = 'Salvataggio...';
+    const btn = document.getElementById('save-settings-btn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="loader small"></span>';
     btn.disabled = true;
 
     try {
         const { error } = await supabase
             .from('notification_types')
             .update({
+                is_active: isActive,
+                default_email: emailEnabled,
+                default_web: webEnabled,
+                default_email_guest: guestEnabled,
                 email_subject_template: subject,
-                email_body_template: body
+                email_body_template: body,
+                email_subject_template_guest: guestSubject,
+                email_body_template_guest: guestBody
             })
-            .eq('id', currentEditId);
+            .eq('id', id);
 
         if (error) throw error;
 
-        window.showAlert('Template aggiornato con successo!', 'success');
+        window.showAlert('Configurazione salvata con successo!', 'success');
         document.getElementById('edit-notification-modal').remove();
 
-        // Refresh list? Or just reload page context potentially? 
-        // For now, reload the section seems easiest or re-fetch
-        // But since we are creating the modal dynamically, destroying it is fine.
-
-        // Trigger a reload of the list to reflect updates if needed (though local list is stale now)
-        // A full page refresh or function re-call is safer to keep sync.
-        const container = document.querySelector('#admin-tab-types').closest('.animate-fade-in').parentNode;
-        // Hacky way to find container, better to dispatch event or just let user refresh manually or re-call loadNotificationTypes if exposed.
-        // For simplicity, we just close. The user can refresh if they want to see "latest" but UI doesn't show template text in list anyway.
+        // Refresh list
+        const list = document.getElementById('notification-types-list');
+        if (list) {
+            const container = list.closest('.animate-fade-in').parentNode;
+            loadNotificationTypes(container);
+        }
 
     } catch (err) {
         console.error(err);
         window.showAlert('Errore salvataggio: ' + err.message, 'error');
     } finally {
-        btn.innerText = originalText;
+        btn.innerHTML = originalText;
         btn.disabled = false;
     }
 }
