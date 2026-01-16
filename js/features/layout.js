@@ -297,7 +297,6 @@ export function updateSidebarVisibility() {
                 if (managementLabel) managementLabel.classList.remove('hidden');
                 console.log(`[Sidebar] Non-admin mode: showing Prenotazioni link`);
             }
-            if (testLink) testLink.classList.remove('hidden');
         }
     }
 
