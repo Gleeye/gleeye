@@ -233,26 +233,72 @@ export default function AvailabilityCalendar() {
 
     function getBlockLayout(blocks: AvailabilityRule[]) {
         if (blocks.length === 0) return [];
-        const sortedBlocks = [...blocks].sort((a, b) => timeToPosition(a.start_time) - timeToPosition(b.start_time));
-        const result: Array<{ block: AvailabilityRule; column: number; totalColumns: number }> = [];
+
+        // First, group blocks by collaborator
+        const byCollaborator = new Map<string, AvailabilityRule[]>();
+        blocks.forEach(block => {
+            const collabId = block.collaborator_id;
+            if (!byCollaborator.has(collabId)) {
+                byCollaborator.set(collabId, []);
+            }
+            byCollaborator.get(collabId)!.push(block);
+        });
+
+        // Determine column assignment based on overlapping collaborators
+        const collabIds = Array.from(byCollaborator.keys());
+        const collabColumn = new Map<string, number>();
+        const collabGroupSize = new Map<string, number>();
+
+        // Find overlapping groups of collaborators
         const processed = new Set<string>();
 
-        for (let i = 0; i < sortedBlocks.length; i++) {
-            if (processed.has(sortedBlocks[i].id)) continue;
-            const group: AvailabilityRule[] = [sortedBlocks[i]];
-            processed.add(sortedBlocks[i].id);
+        for (let i = 0; i < collabIds.length; i++) {
+            if (processed.has(collabIds[i])) continue;
 
-            for (let j = i + 1; j < sortedBlocks.length; j++) {
-                if (processed.has(sortedBlocks[j].id)) continue;
-                const overlapsWithGroup = group.some(g => {
-                    const gStart = timeToPosition(g.start_time), gEnd = timeToPosition(g.end_time);
-                    const bStart = timeToPosition(sortedBlocks[j].start_time), bEnd = timeToPosition(sortedBlocks[j].end_time);
-                    return !(bEnd <= gStart || bStart >= gEnd);
+            const group = [collabIds[i]];
+            processed.add(collabIds[i]);
+
+            // Find all collaborators that overlap with anyone in the group
+            for (let j = i + 1; j < collabIds.length; j++) {
+                if (processed.has(collabIds[j])) continue;
+
+                // Check if this collaborator overlaps with anyone in the group
+                const overlaps = group.some(groupCollabId => {
+                    const groupBlocks = byCollaborator.get(groupCollabId)!;
+                    const testBlocks = byCollaborator.get(collabIds[j])!;
+
+                    return groupBlocks.some(gBlock =>
+                        testBlocks.some(tBlock => {
+                            const gStart = timeToPosition(gBlock.start_time);
+                            const gEnd = timeToPosition(gBlock.end_time);
+                            const tStart = timeToPosition(tBlock.start_time);
+                            const tEnd = timeToPosition(tBlock.end_time);
+                            return !(tEnd <= gStart || tStart >= gEnd);
+                        })
+                    );
                 });
-                if (overlapsWithGroup) { group.push(sortedBlocks[j]); processed.add(sortedBlocks[j].id); }
+
+                if (overlaps) {
+                    group.push(collabIds[j]);
+                    processed.add(collabIds[j]);
+                }
             }
-            group.forEach((block, idx) => result.push({ block, column: idx, totalColumns: group.length }));
+
+            // Assign columns to this group
+            group.forEach((collabId, idx) => {
+                collabColumn.set(collabId, idx);
+                collabGroupSize.set(collabId, group.length);
+            });
         }
+
+        // Build result with correct column assignments
+        const result: Array<{ block: AvailabilityRule; column: number; totalColumns: number }> = [];
+        blocks.forEach(block => {
+            const column = collabColumn.get(block.collaborator_id) ?? 0;
+            const totalColumns = collabGroupSize.get(block.collaborator_id) ?? 1;
+            result.push({ block, column, totalColumns });
+        });
+
         return result;
     }
 
