@@ -88,6 +88,9 @@ export function renderBankTransactions(container) {
                     <button class="primary-btn" onclick="openBankTransactionModal()">
                         <span class="material-icons-round">add</span> Aggiungi Primo Movimento
                     </button>
+                     <button class="primary-btn secondary" onclick="openImportModal()" style="margin-top: 1rem;">
+                        <span class="material-icons-round">upload_file</span> Importa CSV
+                    </button>
                 </div>
             `;
         } else {
@@ -211,6 +214,10 @@ export function renderBankTransactions(container) {
                                         <button class="pill-filter ${y == year ? 'active' : ''}" style="padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 400;" onclick="window.setBankTransactionsYear(${y})">${y}</button>
                                     `).join('')}
                                 </div>
+                                <button class="primary-btn secondary" onclick="openImportModal()" style="border-radius: 12px; height: 42px; display: flex; align-items: center; gap: 0.5rem;">
+                                    <span class="material-icons-round">upload_file</span>
+                                    <span>Importa</span>
+                                </button>
                                 <button class="primary-btn" onclick="openBankTransactionModal()" style="border-radius: 12px; height: 42px;">
                                     <span class="material-icons-round">add</span>
                                 </button>
@@ -671,4 +678,361 @@ window.deleteCategory = async (id) => {
     } catch (err) {
         window.showAlert("Errore eliminazione: " + err.message, 'error');
     }
+};
+
+// --- IMPORT FUNCTIONALITY ---
+
+function parseCSV(text) {
+    const rows = [];
+    let currentRow = [];
+    let currentCell = '';
+    let insideQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (char === '"') {
+            if (insideQuotes && nextChar === '"') {
+                currentCell += '"';
+                i++;
+            } else {
+                insideQuotes = !insideQuotes;
+            }
+        } else if (char === ',' && !insideQuotes) {
+            currentRow.push(currentCell.trim());
+            currentCell = '';
+        } else if ((char === '\r' || char === '\n') && !insideQuotes) {
+            if (char === '\r' && nextChar === '\n') i++;
+            currentRow.push(currentCell.trim());
+            if (currentRow.some(cell => cell)) rows.push(currentRow);
+            currentRow = [];
+            currentCell = '';
+        } else {
+            currentCell += char;
+        }
+    }
+    if (currentCell || currentRow.length > 0) {
+        currentRow.push(currentCell.trim());
+        rows.push(currentRow);
+    }
+    return rows;
+}
+
+export function initImportModal() {
+    if (document.getElementById('import-transactions-modal')) return;
+
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="import-transactions-modal" class="modal">
+            <div class="modal-content" style="max-width: 900px; max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="modal-header">
+                    <h2>Importa Movimenti</h2>
+                    <button class="close-modal material-icons-round" onclick="document.getElementById('import-transactions-modal').classList.remove('active')">close</button>
+                </div>
+                
+                <div class="modal-body" style="flex: 1; overflow-y: auto; padding-bottom: 0;">
+                    <!-- STEP 1: UPLOAD -->
+                    <div id="import-step-upload" style="text-align: center; padding: 3rem 1rem;">
+                        <input type="file" id="import-file-input" accept=".csv, .xlsx, .xls" style="display: none;">
+                        <div style="margin-bottom: 2rem;">
+                            <span class="material-icons-round" style="font-size: 4rem; color: var(--text-tertiary);">upload_file</span>
+                            <h3 style="margin: 1rem 0 0.5rem; font-family: var(--font-titles);">Carica Excel o CSV</h3>
+                            <p style="color: var(--text-secondary);">Seleziona il file (.xlsx, .xls) dei movimenti (es. export banca)</p>
+                        </div>
+                        <button class="primary-btn" onclick="document.getElementById('import-file-input').click()">
+                            Scegli File
+                        </button>
+                    </div>
+
+                    <!-- STEP 2: REVIEW -->
+                    <div id="import-step-review" style="display: none;">
+                        <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                            <p style="margin: 0; color: var(--text-secondary);">Rivedi e conferma le transazioni prima di importarle.</p>
+                            <span id="import-stats" style="font-size: 0.85rem; font-weight: 500;"></span>
+                        </div>
+
+                        <div class="table-container" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--glass-border); border-radius: 12px;">
+                            <table class="data-table" style="font-size: 0.85rem;">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;">
+                                            <input type="checkbox" id="import-check-all" checked onchange="toggleImportAll(this)">
+                                        </th>
+                                        <th style="width: 100px;">Data</th>
+                                        <th>Descrizione</th>
+                                        <th style="width: 100px;">Importo</th>
+                                        <th style="width: 150px;">Categoria (Suggerita)</th>
+                                        <th style="width: 150px;">Controparte</th>
+                                        <th style="width: 40px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="import-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer" id="import-footer" style="padding: 1rem; border-top: 1px solid var(--glass-border); display: none; justify-content: flex-end; gap: 1rem;">
+                    <button class="primary-btn secondary" onclick="resetImport()">Indietro</button>
+                    <button class="primary-btn" onclick="confirmImport()">
+                        Conferma Importazione (<span id="import-count-btn">0</span>)
+                    </button>
+                </div>
+            </div>
+        </div>
+    `);
+
+    // File Input Handler
+    document.getElementById('import-file-input').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            if (file.name.toLowerCase().endsWith('.csv')) {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const csvData = parseCSV(evt.target.result);
+                    analyzeAndRenderImport(csvData);
+                };
+                reader.readAsText(file);
+            } else {
+                // EXCEL Handling
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data);
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+
+                // Get raw values (header: 1 returns array of arrays)
+                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
+                analyzeAndRenderImport(rows);
+            }
+        } catch (err) {
+            console.error(err);
+            window.showAlert("Errore lettura file: " + err.message, 'error');
+        }
+    });
+}
+
+let pendingImportRows = [];
+
+function analyzeAndRenderImport(rows) {
+    if (!rows || rows.length < 2) {
+        window.showAlert("Il file sembra vuoto o non valido.", 'error');
+        return;
+    }
+
+    console.log('[Import] Rows received:', rows.length, rows.slice(0, 3));
+
+    // Find headers row: look for a row that has SEPARATE cells containing 'data' and 'descrizione' (or 'importo'/'prezzo')
+    const headerRowIndex = rows.findIndex(r => {
+        if (!r || !Array.isArray(r)) return false;
+        const lowerCells = r.map(c => (c || '').toString().toLowerCase().trim());
+        const hasData = lowerCells.some(c => c === 'data' || c.includes('data'));
+        const hasDesc = lowerCells.some(c => c === 'descrizione' || c.includes('descrizione') || c.includes('causale'));
+        return hasData && hasDesc;
+    });
+
+    console.log('[Import] Header row index:', headerRowIndex);
+
+    if (headerRowIndex === -1) {
+        window.showAlert("Impossibile trovare l'intestazione. Assicurati che il file contenga colonne 'Data' e 'Descrizione'.", 'error');
+        return;
+    }
+
+    const headers = rows[headerRowIndex].map(h => h.toLowerCase().trim());
+    const idxDate = headers.indexOf('data');
+    const idxType = headers.indexOf('tipo movimento');
+    const idxCounterparty = headers.indexOf('azienda');
+    const idxDesc = headers.indexOf('descrizione');
+    const idxAmount = headers.indexOf('prezzo');
+    const idxCat = headers.indexOf('tipo uscita'); // User's custom category column
+
+    const dataRows = rows.slice(headerRowIndex + 1);
+    pendingImportRows = [];
+
+    dataRows.forEach((row, i) => {
+        if (!row[idxDate] && !row[idxDesc]) return;
+
+        // Parse Amount
+        let amountStr = row[idxAmount] || '0';
+        amountStr = amountStr.replace(/[€\s]/g, '').replace('.', '').replace(',', '.').trim();
+        const amount = parseFloat(amountStr) || 0;
+
+        // Parse Date (DD/MM/YYYY)
+        const dateParts = (row[idxDate] || '').split('/');
+        let isoDate = new Date().toISOString().split('T')[0];
+        if (dateParts.length === 3) {
+            isoDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+        }
+
+        // Parse Type
+        let type = 'uscita';
+        const typeRaw = (row[idxType] || '').toLowerCase();
+        if (typeRaw.includes('entrata')) type = 'entrata';
+
+        // Suggest Category
+        let suggestedCatId = '';
+        const catRaw = (row[idxCat] || '').toLowerCase();
+        // Exact/Partial match on name
+        const matchCat = state.transactionCategories.find(c => c.name.toLowerCase() === catRaw || (catRaw && c.name.toLowerCase().includes(catRaw)));
+        if (matchCat) suggestedCatId = matchCat.id;
+
+        // Suggest Counterparty
+        let suggestedCounterparty = row[idxCounterparty] || '';
+        let clientId = null;
+        let supplierId = null;
+        let collaboratorId = null;
+
+        // Try to match with DB entities
+        if (suggestedCounterparty) {
+            const cleanName = suggestedCounterparty.toLowerCase();
+            const client = state.clients.find(c => c.business_name.toLowerCase().includes(cleanName));
+            if (client) {
+                clientId = client.id;
+                type = 'entrata'; // Force entrata if client found? Maybe check type first.
+            } else {
+                const supplier = state.suppliers.find(s => s.name.toLowerCase().includes(cleanName));
+                if (supplier) {
+                    supplierId = supplier.id;
+                } else {
+                    const collab = state.collaborators.find(c => c.full_name.toLowerCase().includes(cleanName));
+                    if (collab) {
+                        collaboratorId = collab.id;
+                    }
+                }
+            }
+        }
+
+        pendingImportRows.push({
+            _id: i,
+            date: isoDate,
+            description: row[idxDesc] || '',
+            amount: amount,
+            type: type,
+            category_id: suggestedCatId,
+            counterparty_name: suggestedCounterparty,
+            client_id: clientId,
+            supplier_id: supplierId,
+            collaborator_id: collaboratorId,
+            selected: true
+        });
+    });
+
+    renderImportTable();
+
+    document.getElementById('import-step-upload').style.display = 'none';
+    document.getElementById('import-step-review').style.display = 'block';
+    document.getElementById('import-footer').style.display = 'flex';
+}
+
+function renderImportTable() {
+    const tbody = document.getElementById('import-table-body');
+    tbody.innerHTML = pendingImportRows.map(row => `
+        <tr class="${!row.selected ? 'opacity-50' : ''}">
+            <td>
+                <input type="checkbox" onchange="toggleImportRow(${row._id})" ${row.selected ? 'checked' : ''}>
+            </td>
+            <td>
+                <input type="date" value="${row.date}" onchange="updateImportRow(${row._id}, 'date', this.value)" style="width:100%; border:none; background:transparent;">
+            </td>
+            <td>
+                <input type="text" value="${row.description.replace(/"/g, '&quot;')}" onchange="updateImportRow(${row._id}, 'description', this.value)" style="width:100%; border:none; background:transparent;">
+            </td>
+            <td>
+                <input type="number" step="0.01" value="${row.amount}" onchange="updateImportRow(${row._id}, 'amount', parseFloat(this.value))" style="width:100%; border:none; background:transparent;">
+            </td>
+            <td>
+                <select onchange="updateImportRow(${row._id}, 'category_id', this.value)" style="width:100%; border:none; background:transparent;">
+                    <option value="">Seleziona...</option>
+                    ${state.transactionCategories.map(c => `<option value="${c.id}" ${c.id == row.category_id ? 'selected' : ''}>${c.name}</option>`).join('')}
+                </select>
+            </td>
+            <td>
+                <input type="text" value="${row.counterparty_name.replace(/"/g, '&quot;')}" onchange="updateImportRow(${row._id}, 'counterparty_name', this.value)" placeholder="Libera..." style="width:100%; border:none; background:transparent;">
+            </td>
+            <td>
+                <button class="icon-btn small danger" onclick="removeImportRow(${row._id})"><span class="material-icons-round">close</span></button>
+            </td>
+        </tr>
+    `).join('');
+
+    const count = pendingImportRows.filter(r => r.selected).length;
+    document.getElementById('import-count-btn').textContent = count;
+    document.getElementById('import-stats').textContent = `${count} di ${pendingImportRows.length} righe selezionate`;
+}
+
+window.toggleImportAll = (checkbox) => {
+    const val = checkbox.checked;
+    pendingImportRows.forEach(r => r.selected = val);
+    renderImportTable();
+};
+
+window.toggleImportRow = (id) => {
+    const row = pendingImportRows.find(r => r._id === id);
+    if (row) {
+        row.selected = !row.selected;
+        renderImportTable();
+    }
+};
+
+window.updateImportRow = (id, field, value) => {
+    const row = pendingImportRows.find(r => r._id === id);
+    if (row) row[field] = value;
+};
+
+window.removeImportRow = (id) => {
+    pendingImportRows = pendingImportRows.filter(r => r._id !== id);
+    renderImportTable();
+};
+
+window.resetImport = () => {
+    document.getElementById('import-file-input').value = '';
+    document.getElementById('import-step-upload').style.display = 'block';
+    document.getElementById('import-step-review').style.display = 'none';
+    document.getElementById('import-footer').style.display = 'none';
+    pendingImportRows = [];
+};
+
+window.confirmImport = async () => {
+    const toImport = pendingImportRows.filter(r => r.selected);
+    if (toImport.length === 0) return;
+
+    if (!confirm(`Confermi l'importazione di ${toImport.length} movimenti?`)) return;
+
+    try {
+        const { upsertBankTransaction } = await import('../modules/api.js?v=123');
+        let successCount = 0;
+
+        // Sequential import to avoid overwhelming DB/network
+        for (const row of toImport) {
+            const payload = {
+                date: row.date,
+                amount: row.amount,
+                description: row.description,
+                type: row.type,
+                category_id: row.category_id || null,
+                counterparty_name: row.counterparty_name,
+                client_id: row.client_id,
+                supplier_id: row.supplier_id,
+                collaborator_id: row.collaborator_id
+            };
+            await upsertBankTransaction(payload);
+            successCount++;
+        }
+
+        window.showAlert(`Importati ${successCount} movimenti con successo!`);
+        document.getElementById('import-transactions-modal').classList.remove('active');
+        if (state.currentPage === 'bank-transactions') {
+            const { renderBankTransactions } = await import('../features/bank_transactions.js?v=123');
+            renderBankTransactions(document.getElementById('content-area'));
+        }
+    } catch (err) {
+        window.showAlert("Errore durante l'importazione: " + err.message, 'error');
+    }
+};
+
+window.openImportModal = () => {
+    initImportModal();
+    document.getElementById('import-transactions-modal').classList.add('active');
+    resetImport();
 };
