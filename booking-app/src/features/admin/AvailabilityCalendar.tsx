@@ -35,6 +35,12 @@ interface AvailabilityOverride {
     end_time?: string;
 }
 
+interface GoogleBusy {
+    collaborator_id: string;
+    start: string;
+    end: string;
+}
+
 const COLLABORATOR_COLORS = [
     '#3b82f6', '#22c55e', '#f59e0b', '#ec4899', '#6366f1',
     '#f56565', '#48bb78', '#9f7aea', '#4299e1', '#ed8936',
@@ -47,6 +53,7 @@ export default function AvailabilityCalendar() {
     const [departments, setDepartments] = useState<Department[]>([]);
     const [rules, setRules] = useState<AvailabilityRule[]>([]);
     const [overrides, setOverrides] = useState<AvailabilityOverride[]>([]);
+    const [googleBusy, setGoogleBusy] = useState<GoogleBusy[]>([]);
     const [activeDept, setActiveDept] = useState<string | 'all'>('all');
     const [activeCollab, setActiveCollab] = useState<string | 'all'>('all');
     const [hoveredBlock, setHoveredBlock] = useState<string | null>(null);
@@ -69,12 +76,40 @@ export default function AvailabilityCalendar() {
                 supabase.from('availability_overrides').select('*').gte('date', format(weekStart, 'yyyy-MM-dd')).lte('date', format(weekEnd, 'yyyy-MM-dd'))
             ]);
             if (deptData) setDepartments(deptData);
-            if (collabData) setCollaborators(collabData);
+            if (collabData) {
+                setCollaborators(collabData);
+                // Fetch Google Calendar busy slots for all collaborators
+                fetchGoogleBusySlots(collabData);
+            }
             if (rulesData) setRules(rulesData);
             if (overridesData) setOverrides(overridesData);
         } catch (err) {
             console.error('Error fetching availability data:', err);
         }
+    }
+
+    async function fetchGoogleBusySlots(collabs: Collaborator[]) {
+        const timeMin = weekStart.toISOString();
+        const timeMax = weekEnd.toISOString();
+        const allBusy: GoogleBusy[] = [];
+
+        // Fetch in parallel for all collaborators
+        await Promise.all(collabs.map(async (collab) => {
+            try {
+                const { data, error } = await supabase.functions.invoke('check-google-availability', {
+                    body: { collaborator_id: collab.id, timeMin, timeMax }
+                });
+                if (!error && data?.busy) {
+                    data.busy.forEach((slot: { start: string; end: string }) => {
+                        allBusy.push({ collaborator_id: collab.id, start: slot.start, end: slot.end });
+                    });
+                }
+            } catch {
+                // Silently ignore - collaborator may not have Google connected
+            }
+        }));
+
+        setGoogleBusy(allBusy);
     }
 
     // Parse tags helper
@@ -104,16 +139,86 @@ export default function AvailabilityCalendar() {
         const dayRules = rules.filter(r => r.day_of_week === dayOfWeek);
         const dayOverrides = overrides.filter(o => o.date === dateStr);
         const filteredCollabIds = new Set(finalFilteredCollaborators.map(c => c.id));
-        let filteredRules = dayRules.filter(r => filteredCollabIds.has(r.collaborator_id));
+        const filteredRules = dayRules.filter(r => filteredCollabIds.has(r.collaborator_id));
 
-        return filteredRules.map(rule => {
+        // Get busy slots for this day
+        const dayBusy = googleBusy.filter(b => {
+            const busyDate = new Date(b.start).toISOString().split('T')[0];
+            return busyDate === dateStr;
+        });
+
+        const result: AvailabilityRule[] = [];
+
+        filteredRules.forEach(rule => {
             const override = dayOverrides.find(o => o.collaborator_id === rule.collaborator_id);
-            if (override && !override.is_available) return null;
+            if (override && !override.is_available) return;
+
+            let startTime = rule.start_time;
+            let endTime = rule.end_time;
             if (override && override.is_available && override.start_time && override.end_time) {
-                return { ...rule, start_time: override.start_time, end_time: override.end_time };
+                startTime = override.start_time;
+                endTime = override.end_time;
             }
-            return rule;
-        }).filter(Boolean) as AvailabilityRule[];
+
+            // Get busy intervals for this collaborator on this day
+            const collabBusy = dayBusy
+                .filter(b => b.collaborator_id === rule.collaborator_id)
+                .map(b => {
+                    const bStart = new Date(b.start);
+                    const bEnd = new Date(b.end);
+                    return {
+                        start: bStart.getHours() + bStart.getMinutes() / 60,
+                        end: bEnd.getHours() + bEnd.getMinutes() / 60
+                    };
+                });
+
+            // Parse rule times
+            const parseTime = (t: string) => {
+                const [h, m] = t.split(':').map(Number);
+                return h + m / 60;
+            };
+            const formatTime = (h: number) => {
+                const hours = Math.floor(h);
+                const mins = Math.round((h - hours) * 60);
+                return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+            };
+
+            // Subtract busy intervals
+            let freeIntervals = [{ start: parseTime(startTime), end: parseTime(endTime) }];
+
+            collabBusy.forEach(busy => {
+                const newIntervals: { start: number; end: number }[] = [];
+                freeIntervals.forEach(interval => {
+                    if (busy.end <= interval.start || busy.start >= interval.end) {
+                        newIntervals.push(interval);
+                    } else if (busy.start <= interval.start && busy.end >= interval.end) {
+                        // Completely covered - skip
+                    } else if (busy.start > interval.start && busy.end < interval.end) {
+                        newIntervals.push({ start: interval.start, end: busy.start });
+                        newIntervals.push({ start: busy.end, end: interval.end });
+                    } else if (busy.start <= interval.start && busy.end < interval.end) {
+                        newIntervals.push({ start: busy.end, end: interval.end });
+                    } else if (busy.start > interval.start && busy.end >= interval.end) {
+                        newIntervals.push({ start: interval.start, end: busy.start });
+                    }
+                });
+                freeIntervals = newIntervals;
+            });
+
+            // Create rule entries for each free interval
+            freeIntervals.forEach((interval, idx) => {
+                if (interval.end - interval.start > 0) {
+                    result.push({
+                        ...rule,
+                        id: `${rule.id}_${idx}`,
+                        start_time: formatTime(interval.start),
+                        end_time: formatTime(interval.end)
+                    });
+                }
+            });
+        });
+
+        return result;
     }
 
     function timeToPosition(timeStr: string): number {
