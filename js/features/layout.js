@@ -261,54 +261,86 @@ export function exitImpersonation() {
 }
 
 export function updateSidebarVisibility() {
+    const activeRole = state.impersonatedRole || state.profile?.role;
+    let userTags = state.profile?.tags || [];
+
+    // If impersonating, use the tags of the impersonated collaborator
+    if (state.impersonatedRole === 'collaborator' && state.impersonatedCollaboratorId) {
+        const c = state.collaborators?.find(x => x.id == state.impersonatedCollaboratorId);
+        if (c) {
+            let tags = c.tags;
+            if (typeof tags === 'string') {
+                try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
+            }
+            userTags = Array.isArray(tags) ? tags : [];
+        } else {
+            userTags = [];
+        }
+    }
+
+    const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
+
     const sidebar = document.getElementById('sidebar');
-    const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
     if (!sidebar) return;
+
+    const adminBtn = document.getElementById('admin-settings-btn');
     const managementNav = sidebar.querySelector('#nav-management');
     const managementLabel = managementNav?.querySelector('.submenu-label');
 
-    console.log(`[Sidebar] Updating visibility for role: ${activeRole}`);
+    // Section containers (subgroups) inside management
+    const accountingSection = document.querySelector('#accounting-toggle')?.closest('.nav-group');
+    const anagraficheSection = document.querySelector('#anagrafiche-menu-toggle')?.closest('.nav-group');
+    const tariffarioSection = document.querySelector('#tariffario-toggle')?.closest('.nav-group');
+
+    // Generic items inside managementNav (e.g. Booking, Ordini)
+    // We strictly control what is visible by default
+    const genericItems = managementNav ? managementNav.querySelectorAll('a[data-target="dashboard"], a[data-target="assignments"], a[data-target="booking"]') : [];
+
+    console.log(`[Sidebar] Updating visibility. Role: ${activeRole}, Privileged: ${isPrivilegedCollaborator}`);
 
     if (managementNav) {
-        // Always ensure the container is visible first, we'll manage children visibility
         managementNav.classList.remove('hidden');
 
         if (activeRole === 'admin') {
-            // Admin sees everything - ensure all items are visible
-            const allItems = managementNav.querySelectorAll('.nav-item, .nav-group');
-            allItems.forEach(el => el.classList.remove('hidden'));
+            // Full access
+            if (adminBtn) adminBtn.classList.remove('hidden');
+            [accountingSection, anagraficheSection, tariffarioSection].forEach(s => s?.classList.remove('hidden'));
+            genericItems.forEach(i => i.classList.remove('hidden'));
             if (managementLabel) managementLabel.classList.remove('hidden');
-            console.log(`[Sidebar] Admin mode: showing all ${allItems.length} items`);
+        } else if (isPrivilegedCollaborator) {
+            // Partner / Amministrazione access
+            if (adminBtn) adminBtn.classList.add('hidden');
+            [accountingSection, anagraficheSection, tariffarioSection].forEach(s => s?.classList.remove('hidden'));
+            genericItems.forEach(i => i.classList.remove('hidden'));
+            if (managementLabel) managementLabel.classList.remove('hidden');
         } else {
-            // Non-Admins (Collaborators, Accounts, Project Managers)
+            // Standard Collaborator
+            if (adminBtn) adminBtn.classList.add('hidden');
 
-            // 1. Hide everything in management first
-            const mgmtItems = managementNav.querySelectorAll('.nav-item, .nav-group');
-            mgmtItems.forEach(el => el.classList.add('hidden'));
-            // Also hide the label initially
-            if (managementLabel) managementLabel.classList.add('hidden');
+            // Hide sensitive sections
+            [accountingSection, anagraficheSection, tariffarioSection].forEach(s => s?.classList.add('hidden'));
 
-            // 2. Explicitly show allowed items
-            // "Prenotazioni" is allowed for everyone
-            const bookingLink = managementNav.querySelector('[data-target="booking"]');
-            if (bookingLink) {
-                bookingLink.classList.remove('hidden');
-                // Also show the label since we have at least one visible item
-                if (managementLabel) managementLabel.classList.remove('hidden');
-                console.log(`[Sidebar] Non-admin mode: showing Prenotazioni link`);
+            // Hide Ordini and Assignments global links for standard collaborators if desired, 
+            // OR keep them if they are allowed. 
+            // Based on previous user request, standard collabs usually only see Booking, Profile, Agenda.
+            // Let's hide Ordini/Incarichi from sidebar to keep it clean, as they use "I miei Incarichi"
+            managementNav.querySelectorAll('a[data-target="dashboard"], a[data-target="assignments"]').forEach(i => i.classList.add('hidden'));
+
+            // ENABLE Booking
+            const bookingLink = managementNav.querySelector('a[data-target="booking"]');
+            if (bookingLink) bookingLink.classList.remove('hidden');
+
+            // Manage label visibility
+            if (managementLabel) {
+                // Show label only if booking is visible
+                bookingLink ? managementLabel.classList.remove('hidden') : managementLabel.classList.add('hidden');
             }
         }
     }
 
-    // Handle Admin Section Visibility
+    // Handle Admin Section Visibility (if distinct)
     const adminNav = sidebar.querySelector('#nav-admin');
     if (adminNav) {
-        if (activeRole === 'admin') {
-            adminNav.classList.remove('hidden');
-        } else {
-            adminNav.classList.add('hidden');
-        }
+        activeRole === 'admin' ? adminNav.classList.remove('hidden') : adminNav.classList.add('hidden');
     }
-
-    // Personal Section is always visible by default structure
 }
