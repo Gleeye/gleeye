@@ -140,7 +140,13 @@ export function updateSidebarVisibility() {
         if (managementNav) {
             managementNav.classList.remove('hidden');
             [accountingSection, anagraficheSection, tariffarioSection].forEach(s => s?.classList.remove('hidden'));
-            genericItems.forEach(i => i.classList.remove('hidden'));
+
+            // Explicitly HIDE Ordini and Incarichi
+            managementNav.querySelectorAll('a[data-target="dashboard"], a[data-target="assignments"]').forEach(i => i.classList.add('hidden'));
+
+            // SHOW Booking
+            const bookingLink = managementNav.querySelector('a[data-target="booking"]');
+            if (bookingLink) bookingLink.classList.remove('hidden');
         }
     } else {
         // Standard user/collaborator access
@@ -217,7 +223,10 @@ async function handleSession(session) {
                     'bank-transactions', 'bank-statements', 'payments',
                     'sales', 'contacts', 'employees', 'suppliers',
                     'services', 'collaborator-services',
-                    'dashboard', 'assignments'
+                    'invoices-dashboard', 'invoices', 'passive-invoices-collab', 'passive-invoices-suppliers', 'invoices-archive',
+                    'bank-transactions', 'bank-statements', 'payments',
+                    'sales', 'contacts', 'employees', 'suppliers',
+                    'services', 'collaborator-services'
                 ];
             }
 
