@@ -195,6 +195,96 @@ function showConfirm(message, options = {}) {
     });
 }
 
+/**
+ * Show a custom prompt modal
+ * @param {string} message - The message to display
+ * @param {string} defaultValue - Initial value for the input
+ * @param {Object} options - Configuration options
+ * @returns {Promise<string|null>} Resolves to the value entered or null if cancelled
+ */
+function showPrompt(message, defaultValue = '', options = {}) {
+    console.log("[ModalUtils] showPrompt called:", { message, defaultValue });
+    initSystemModals();
+
+    const {
+        confirmText = 'Conferma',
+        cancelText = 'Annulla',
+        placeholder = 'Scrivi qui...'
+    } = options;
+
+    return new Promise((resolve) => {
+        const modalHTML = `
+            <div class="system-modal active" id="system-prompt-modal">
+                <div class="system-modal-content" style="max-width: 500px !important;">
+                    <div class="system-modal-icon" style="color: var(--brand-blue)">
+                        <span class="material-icons-round">edit</span>
+                    </div>
+                    <div class="system-modal-message" style="margin-bottom: 0.5rem;">${message}</div>
+                    <div style="width: 100%;">
+                        <input type="text" id="prompt-input" value="${defaultValue}" placeholder="${placeholder}" 
+                               style="width: 100%; padding: 0.75rem 1rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); font-size: 1rem; outline: none; transition: border-color 0.2s;">
+                    </div>
+                    <div class="system-modal-actions">
+                        <button class="primary-btn secondary" id="prompt-cancel-btn">${cancelText}</button>
+                        <button class="primary-btn" id="prompt-ok-btn">${confirmText}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        systemModalContainer.innerHTML = modalHTML;
+        systemModalContainer.classList.add('active');
+        const modal = document.getElementById('system-prompt-modal');
+        const okBtn = document.getElementById('prompt-ok-btn');
+        const cancelBtn = document.getElementById('prompt-cancel-btn');
+        const input = document.getElementById('prompt-input');
+
+        const closeModal = (result) => {
+            systemModalContainer.classList.remove('active');
+            modal.classList.remove('active');
+            setTimeout(() => {
+                systemModalContainer.innerHTML = '';
+                resolve(result);
+            }, 300);
+        };
+
+        const handleConfirm = () => closeModal(input.value);
+
+        okBtn.addEventListener('click', handleConfirm);
+        cancelBtn.addEventListener('click', () => closeModal(null));
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleConfirm();
+            }
+        });
+
+        // Close on backdrop click (counts as cancel)
+        systemModalContainer.addEventListener('click', (e) => {
+            if (e.target === systemModalContainer) {
+                closeModal(null);
+            }
+        });
+
+        // Close on Escape key (counts as cancel)
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                closeModal(null);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+
+        // Focus & select input
+        setTimeout(() => {
+            input.focus();
+            input.select();
+        }, 100);
+    });
+}
+
 // Export to global scope
 window.showAlert = showAlert;
 window.showConfirm = showConfirm;
+window.showPrompt = showPrompt;

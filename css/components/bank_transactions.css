@@ -194,3 +194,81 @@
     background: var(--brand-blue);
     border-radius: 3px;
 }
+
+/* Bank Transaction Modal Specifics */
+#bank-transaction-modal .modal-content {
+    max-width: 900px;
+    padding: 0;
+    background: rgba(255, 255, 255, 0.95);
+    background: var(--card-bg, #fff);
+}
+
+.bt-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+.bt-full-width {
+    grid-column: 1 / -1;
+}
+
+.bt-section-label {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.6rem;
+    display: block;
+}
+
+/* Invoice List in Modal */
+.bt-invoice-list-container {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--glass-border);
+    background: var(--bg-secondary, rgba(0, 0, 0, 0.02));
+}
+
+.bt-invoice-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 10px;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--glass-border);
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.bt-invoice-item:hover {
+    border-color: var(--brand-blue);
+    transform: translateX(2px);
+}
+
+.bt-invoice-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--brand-blue);
+}
+
+/* File Upload Box */
+.bt-file-upload {
+    border: 2px dashed var(--glass-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(0, 0, 0, 0.01);
+}
+
+.bt-file-upload:hover {
+    border-color: var(--brand-blue);
+    background: rgba(var(--brand-blue-rgb), 0.04);
+}

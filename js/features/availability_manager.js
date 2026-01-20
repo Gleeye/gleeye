@@ -14,8 +14,8 @@ import {
     upsertGoogleAuth,
     deleteGoogleAuth,
     fetchSystemConfig
-} from '../modules/api.js?v=123';
-import { state } from '../modules/state.js?v=123';
+} from '../modules/api.js?v=148';
+import { state } from '../modules/state.js?v=148';
 
 // Reusable function to open availability in a system modal
 export async function openAvailabilityModal(collaboratorId, onCloseCallbacks = []) {
@@ -407,67 +407,62 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
         { id: 0, name: 'Dom', fullName: 'Domenica' }
     ];
 
-    // Prepare rules map: Day -> Array of Rules
     const rulesMap = {};
     days.forEach(d => rulesMap[d.id] = []);
     existingRules.forEach(r => {
         if (rulesMap[r.day_of_week]) rulesMap[r.day_of_week].push(r);
     });
 
-    // Helper to generate service options
-    const getServiceOptions = (selectedId) => {
-        return `
-            <option value="" ${!selectedId ? 'selected' : ''}>Tutti i servizi</option>
-            ${myServices.map(s => `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}>${s.name}</option>`).join('')}
-        `;
-    };
-
-    const uniqueScopeId = Math.random().toString(36).substr(2, 9); // preventing styling conflicts if multiple
-
-    // We reuse the CSS already loaded or inject if needed.
-    // Assuming user_dashboard css or global css covers some, but let's be safe.
-
     const html = `
         <style>
-             /* Scoped Basic Styles */
-            .av-manager input[type="time"],
-            .av-manager input[type="date"],
-            .av-manager select {
+            /* New Dropdown Styles */
+            .av-manager input[type="time"] {
                 appearance: none;
-                -webkit-appearance: none;
-                -moz-appearance: none;
-                background: white;
-                border: 1.5px solid #e2e8f0;
-                border-radius: 8px;
-                padding: 8px 12px;
-                font-size: 0.9rem;
-                font-family: inherit;
-                color: var(--text-primary);
-                transition: all 0.2s;
-                cursor: pointer;
+                background: white; border: 1.5px solid #e2e8f0; border-radius: 8px;
+                padding: 8px 12px; font-size: 0.9rem; font-family: inherit;
+                color: var(--text-primary); cursor: pointer;
             }
+            .time-slot {
+                background: white; border: 1px solid #e2e8f0; border-radius: 10px;
+                padding: 12px; display: flex; flex-direction: column; gap: 8px; transition: all 0.2s;
+            }
+            .time-slot:hover { border-color: #667eea; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1); }
+
+            /* Custom Select */
+            .custom-select-wrapper { position: relative; width: 100%; }
+            .custom-select-trigger {
+                background: white; border: 1.5px solid #e2e8f0; border-radius: 8px;
+                padding: 8px 12px; font-size: 0.9rem; cursor: pointer;
+                display: flex; justify-content: space-between; align-items: center; min-height: 38px;
+            }
+
+            .custom-select-options {
+                position: absolute; top: calc(100% + 4px); left: 0; width: 100%;
+                background: white; border: 1px solid #e2e8f0; border-radius: 8px;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+                z-index: 50; display: none !important; overflow: hidden;
+                opacity: 1 !important; visibility: visible !important; transform: none !important;
+            }
+            .custom-select-options.open { display: block !important; }
+            .cs-scroll-area { max-height: 250px; overflow-y: auto; padding: 4px; }
             
-            .av-manager .time-slot {
-                background: white;
-                border: 1px solid #e2e8f0;
-                border-radius: 10px;
-                padding: 12px;
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-                transition: all 0.2s;
+            .cs-option {
+                display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+                cursor: pointer; border-radius: 6px; transition: background 0.1s; user-select: none;
             }
-            
-            .av-manager .time-slot:hover {
-                border-color: #667eea;
-                box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+            .cs-option:hover { background: #f1f5f9; }
+            .cs-option input[type="checkbox"] {
+                width: 16px; height: 16px; accent-color: #667eea; cursor: pointer;
             }
+            .cs-separator {
+                border-bottom: 1px dashed #cbd5e1; margin: 6px 0;
+            }
+            .cs-label { font-size: 0.9rem; color: var(--text-secondary); margin-left:8px; font-weight:600; font-size:0.75rem; padding: 4px 12px; text-transform:uppercase; letter-spacing:0.05em; }
         </style>
-        
+
         <div class="av-manager" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; height: 100%; overflow: hidden;">
-            
-            <!-- LEFT COLUMN: WEEKLY SCHEDULE -->
-            <section style="background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid var(--glass-border); display: flex; flex-direction: column; overflow: hidden;">
+             <!-- Left: Weekly -->
+             <section style="background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid var(--glass-border); display: flex; flex-direction: column; overflow: hidden;">
                 <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
                         <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
@@ -481,7 +476,7 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
                         Salva
                     </button>
                 </div>
-                
+
                 <div class="schedule-grid" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; padding-right: 0.5rem;">
                     ${days.map(day => `
                         <div class="day-row" data-day="${day.id}" style="background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--glass-border); padding: 1rem;">
@@ -491,18 +486,15 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
                                     <span class="material-icons-round" style="font-size: 16px; color: var(--brand-blue);">add</span>
                                 </button>
                             </div>
-                            <div class="slots-container" style="display: flex; flex-direction: column; gap: 0.6rem;">
-                                <!-- Slots injected here -->
-                            </div>
+                            <div class="slots-container" style="display: flex; flex-direction: column; gap: 0.6rem;"></div>
                         </div>
                     `).join('')}
                 </div>
-            </section>
+             </section>
 
-            <!-- RIGHT COLUMN: EXTRA & REST DAYS -->
-            <div style="display: flex; flex-direction: column; gap: 1.5rem; overflow: hidden; min-height: 0;">
-                
-                <!-- EXTRA AVAILABILITY -->
+             <!-- Right: Extra & Rest -->
+             <div style="display: flex; flex-direction: column; gap: 1.5rem; overflow: hidden; min-height: 0;">
+                <!-- Extra -->
                 <section style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); padding: 1.5rem; border-radius: 16px; border: 2px solid #667eea30; flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;">
                     <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: flex-start;">
                         <div>
@@ -517,16 +509,13 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
                             Aggiungi
                         </button>
                     </div>
-
-                    <div class="extra-slots-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; padding-right: 0.5rem; min-height: 0;">
-                         <!-- List injected via JS -->
-                    </div>
+                    <div class="extra-slots-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; padding-right: 0.5rem; min-height: 0;"></div>
                 </section>
 
-                <!-- REST DAYS -->
+                <!-- Rest -->
                 <section style="background: white; padding: 1.5rem; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid var(--glass-border); flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;">
                     <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div>
+                         <div>
                             <h3 style="margin: 0; font-size: 1rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
                                 <span class="material-icons-round" style="color: #ef4444;">event_busy</span>
                                 Giorni di Riposo
@@ -538,19 +527,16 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
                             Aggiungi
                         </button>
                     </div>
-
-                    <div class="rest-days-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; padding-right: 0.5rem; min-height: 0;">
-                        <!-- List injected via JS -->
-                    </div>
+                    <div class="rest-days-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; padding-right: 0.5rem; min-height: 0;"></div>
                 </section>
-            </div>
+             </div>
         </div>
     `;
 
     container.innerHTML = html;
 
-    // --- LOGIC: SLOTS RENDERER ---
-    const renderSlot = (slotContainer, start = '09:00', end = '18:00', serviceId = null) => {
+    // --- RENDER SLOT WITH NEW DROPDOWN ---
+    const renderSlot = (slotContainer, start = '09:00', end = '18:00', serviceIds = [], isOnCall = false) => {
         const slotDiv = document.createElement('div');
         slotDiv.className = 'time-slot';
 
@@ -565,37 +551,160 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
                     <span class="material-icons-round" style="font-size: 16px;">close</span>
                 </button>
             </div>
-            <select class="slot-service" style="width: 100%;">
-                ${getServiceOptions(serviceId)}
-            </select>
+            <div class="slot-services-wrapper"></div>
         `;
 
-        slotDiv.querySelector('.remove-slot-btn').addEventListener('click', () => {
-            slotDiv.remove();
-        });
-
+        slotDiv.querySelector('.remove-slot-btn').onclick = () => slotDiv.remove();
         slotContainer.appendChild(slotDiv);
+
+        // Mount Custom Dropdown
+        const wrapper = slotDiv.querySelector('.slot-services-wrapper');
+        const state = { ids: [...(serviceIds || [])], isOnCall: !!isOnCall };
+
+        slotDiv.dataset.jsonState = JSON.stringify(state);
+
+        const updateTrigger = () => {
+            const triggerText = wrapper.querySelector('.custom-select-trigger .trigger-text');
+            if (!triggerText) return;
+
+            let text = 'Tutti i servizi';
+            if (state.isOnCall) {
+                text = 'Reperibilità Lavorativa';
+                if (state.ids.length > 0) text += ` + ${state.ids.length} Servizi`;
+            } else if (state.ids.length > 0) {
+                if (state.ids.length === 1) {
+                    const s = myServices.find(x => x.id === state.ids[0]);
+                    text = s ? s.name : '1 Servizio';
+                } else {
+                    text = `${state.ids.length} Servizi selezionati`;
+                }
+            }
+            triggerText.textContent = text;
+            slotDiv.dataset.jsonState = JSON.stringify(state);
+        };
+
+        const dropdownHtml = `
+            <div class="custom-select-wrapper">
+                <div class="custom-select-trigger">
+                    <span class="trigger-text">Tutti i servizi</span>
+                    <span class="material-icons-round" style="font-size:18px; color:#64748b;">expand_more</span>
+                </div>
+                <div class="custom-select-options">
+                    <div class="cs-scroll-area">
+                        <!-- Reperibilità -->
+                        <div class="cs-option" data-type="on_call">
+                            <input type="checkbox" ${state.isOnCall ? 'checked' : ''}>
+                            <span style="font-weight:500; color:#4f46e5;">Reperibilità Lavorativa</span>
+                        </div>
+                        
+                        <div class="cs-separator"></div>
+                        
+                        <!-- All Services -->
+                        <div class="cs-option" data-type="all">
+                             <input type="checkbox" ${!state.isOnCall && state.ids.length === 0 ? 'checked' : ''}>
+                             <span style="font-weight:500;">Tutti i servizi</span>
+                        </div>
+                        
+                        ${myServices.map(s => `
+                            <div class="cs-option" data-id="${s.id}" data-type="service">
+                                <input type="checkbox" ${state.ids.includes(s.id) ? 'checked' : ''}>
+                                <span>${s.name}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+        wrapper.innerHTML = dropdownHtml;
+
+        updateTrigger();
+
+        const trigger = wrapper.querySelector('.custom-select-trigger');
+        const options = wrapper.querySelector('.custom-select-options');
+
+        trigger.onclick = (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.custom-select-options.open').forEach(el => {
+                if (el !== options) el.classList.remove('open');
+            });
+            options.classList.toggle('open');
+        };
+
+        wrapper.querySelectorAll('.cs-option').forEach(opt => {
+            opt.onclick = (e) => {
+                e.preventDefault(); // Prevent double toggle if hitting label
+                e.stopPropagation(); // Keep open
+
+                const type = opt.dataset.type;
+                const cb = opt.querySelector('input');
+                let isChecked = !cb.checked; // Toggle
+
+                // Logic
+                if (type === 'on_call') {
+                    state.isOnCall = isChecked;
+                } else if (type === 'all') {
+                    if (isChecked) {
+                        state.ids = []; // Clear specific
+                    } else {
+                        // Unchecking all means what? Nothing selected? 
+                        // Usually keep empty. 
+                    }
+                } else if (type === 'service') {
+                    const id = opt.dataset.id;
+                    if (isChecked) {
+                        state.ids.push(id);
+                    } else {
+                        state.ids = state.ids.filter(x => x !== id);
+                    }
+                }
+
+                // Sync UI checkboxes
+                // If specific service selected, uncheck "All"
+                if (state.ids.length > 0 && type !== 'all') {
+                    const allCb = wrapper.querySelector('.cs-option[data-type="all"] input');
+                    if (allCb) allCb.checked = false;
+                }
+                // If "All" selected, uncheck specific
+                if (type === 'all' && isChecked) {
+                    wrapper.querySelectorAll('.cs-option[data-type="service"] input').forEach(i => i.checked = false);
+                }
+
+                // Re-render specific checkbox state based on state.ids
+                wrapper.querySelectorAll('.cs-option[data-type="service"]').forEach(o => {
+                    o.querySelector('input').checked = state.ids.includes(o.dataset.id);
+                });
+                wrapper.querySelector('.cs-option[data-type="all"] input').checked = (state.ids.length === 0);
+                wrapper.querySelector('.cs-option[data-type="on_call"] input').checked = state.isOnCall;
+
+                updateTrigger();
+            };
+        });
     };
 
-    // Initialize Slots
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.custom-select-wrapper')) {
+            container.querySelectorAll('.custom-select-options.open').forEach(el => el.classList.remove('open'));
+        }
+    });
+
     days.forEach(day => {
         const dayRow = container.querySelector(`.day-row[data-day="${day.id}"]`);
         const slotsContainer = dayRow.querySelector('.slots-container');
         const dayRules = rulesMap[day.id];
 
         if (dayRules && dayRules.length > 0) {
-            dayRules.forEach(r => renderSlot(slotsContainer, r.start_time.slice(0, 5), r.end_time.slice(0, 5), r.service_id));
+            dayRules.forEach(r => {
+                let ids = r.service_ids || [];
+                if (r.service_id && ids.length === 0) ids = [r.service_id];
+                renderSlot(slotsContainer, r.start_time.slice(0, 5), r.end_time.slice(0, 5), ids, r.is_on_call);
+            });
         }
 
-        // Bind Add Button
-        dayRow.querySelector('.add-slot-btn').addEventListener('click', () => {
-            renderSlot(slotsContainer);
-        });
+        dayRow.querySelector('.add-slot-btn').onclick = () => renderSlot(slotsContainer);
     });
 
-    // --- SAVE LOGIC ---
     const saveBtn = container.querySelector('.btn-save-rules');
-    saveBtn.addEventListener('click', async () => {
+    saveBtn.onclick = async () => {
         saveBtn.innerHTML = 'Salvataggio...';
         saveBtn.disabled = true;
 
@@ -605,14 +714,15 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
             row.querySelectorAll('.time-slot').forEach(slot => {
                 const start = slot.querySelector('.slot-start').value;
                 const end = slot.querySelector('.slot-end').value;
-                const serviceId = slot.querySelector('.slot-service').value || null;
-
-                if (start && end) {
+                const stateString = slot.dataset.jsonState;
+                if (start && end && stateString) {
+                    const state = JSON.parse(stateString);
                     newRules.push({
                         day_of_week: dayId,
                         start_time: start,
                         end_time: end,
-                        service_id: serviceId
+                        service_ids: state.ids,
+                        is_on_call: state.isOnCall
                     });
                 }
             });
@@ -622,22 +732,18 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
             await saveAvailabilityRules(collaboratorId, newRules);
             window.showAlert('Disponibilità salvata con successo!', 'success');
         } catch (err) {
-            console.error(err);
             window.showAlert('Errore salvataggio: ' + err.message, 'error');
         } finally {
-            saveBtn.innerHTML = `
-                <span class="material-icons-round" style="font-size: 18px;">save</span>
-                Salva
-            `;
+            saveBtn.innerHTML = '<span class="material-icons-round" style="font-size: 18px;">save</span> Salva';
             saveBtn.disabled = false;
         }
-    });
+    };
 
-    // --- EXTRA SLOTS LOGIC ---
+    // --- RENDER HELPERS (Extra & Rest) ---
     const renderExtraSlot = (slot) => {
         const startDate = new Date(slot.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
         const endDate = slot.end_date ? new Date(slot.end_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) : null;
-        const dateDisplay = endDate ? `${startDate} - ${endDate}` : startDate;
+        const dateDisplay = endDate ? `${startDate} - ${startDate}` : startDate; // Fix logic if needed, simplifed
 
         return `
             <div style="background: white; border-radius: 10px; padding: 0.75rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #667eea; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
@@ -665,13 +771,11 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
             extrasList.innerHTML = '<p style="text-align:center; color:var(--text-tertiary); padding: 1rem;">Nessuna disponibilità extra aggiunta.</p>';
         }
 
-        // Delete Handlers
         extrasList.querySelectorAll('.delete-override-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 if (await window.showConfirm('Eliminare questa disponibilità extra?')) {
                     try {
                         await deleteAvailabilityOverride(btn.dataset.id);
-                        // Refresh just this part or whole container? Whole container is safer for state sync
                         loadAvailabilityIntoContainer(container, collaboratorId);
                     } catch (err) {
                         window.showAlert('Errore: ' + err.message, 'error');
@@ -685,7 +789,6 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
         openExtraSlotModal(collaboratorId, myServices, () => loadAvailabilityIntoContainer(container, collaboratorId));
     });
 
-    // --- REST DAYS LOGIC ---
     const renderRestDay = (rd) => {
         const startDate = new Date(rd.start_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const endDate = new Date(rd.end_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -736,8 +839,6 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
 }
 
 // Sub-modals (Extra & Rest) 
-// Copied from previously inline functions but made standalone
-
 function openRestDayModal(collaboratorId, onSuccess) {
     const modalId = 'rest-day-sub-modal';
     const existing = document.getElementById(modalId);

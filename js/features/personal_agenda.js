@@ -1,7 +1,7 @@
-import { supabase } from '../modules/config.js?v=123';
-import { state } from '../modules/state.js?v=123';
-import { fetchAvailabilityRules, fetchRestDays, fetchAvailabilityOverrides } from '../modules/api.js?v=123';
-import { openAvailabilityModal, checkAndHandleGoogleCallback } from './availability_manager.js?v=123';
+import { supabase } from '../modules/config.js?v=148';
+import { state } from '../modules/state.js?v=148';
+import { fetchAvailabilityRules, fetchRestDays, fetchAvailabilityOverrides } from '../modules/api.js?v=148';
+import { openAvailabilityModal, checkAndHandleGoogleCallback } from './availability_manager.js?v=148';
 
 let currentDate = new Date(); // Represents the start of the week or current view date
 let eventsCache = [];

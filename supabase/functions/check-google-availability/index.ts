@@ -15,76 +15,114 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { collaborator_id, timeMin, timeMax } = await req.json()
+    const { collaborator_id, collaborator_ids, timeMin, timeMax } = await req.json()
 
-    if (!collaborator_id || !timeMin || !timeMax) {
-      throw new Error('collaborator_id, timeMin, and timeMax are required')
+    if ((!collaborator_id && !collaborator_ids) || !timeMin || !timeMax) {
+      throw new Error('collaborator_id(s), timeMin, and timeMax are required')
     }
 
-    // 1. Get Google Auth for the collaborator
-    const { data: auth, error: authError } = await supabaseClient
+    const targetIds = collaborator_ids
+      ? (Array.isArray(collaborator_ids) ? collaborator_ids : [collaborator_ids]) as string[]
+      : [collaborator_id as string];
+
+    if (targetIds.length === 0) {
+      return new Response(JSON.stringify({ busy: [] }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
+    // 1. Get Google Auth for ALL collaborators
+    const { data: auths, error: authError } = await supabaseClient
       .from('collaborator_google_auth')
       .select('*')
-      .eq('collaborator_id', collaborator_id)
-      .single()
+      .in('collaborator_id', targetIds)
 
-    if (authError || !auth) throw new Error('Google connection not found for this collaborator')
+    if (authError) throw new Error(`Database error: ${authError.message}`)
 
-    let accessToken = auth.access_token
-
-    // 2. Check if token is expired and refresh if needed
-    if (new Date(auth.expires_at) <= new Date()) {
-      console.log('Token expired, refreshing...')
-      const refreshedAuth = await refreshGoogleToken(auth.refresh_token)
-      accessToken = refreshedAuth.access_token
-
-      // Update DB
-      const expiresAt = new Date()
-      expiresAt.setSeconds(expiresAt.getSeconds() + refreshedAuth.expires_in)
-
-      await supabaseClient
-        .from('collaborator_google_auth')
-        .update({
-          access_token: accessToken,
-          expires_at: expiresAt.toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('collaborator_id', collaborator_id)
-    }
-
-    // 3. Query FreeBusy
-    const calendarIds = Array.isArray(auth.selected_calendars) && auth.selected_calendars.length > 0
-      ? auth.selected_calendars
-      : ['primary']
-
-    const freeBusyResponse = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        timeMin,
-        timeMax,
-        items: calendarIds.map(id => ({ id }))
+    // If no auth records found for any requested ID
+    if (!auths || auths.length === 0) {
+      return new Response(JSON.stringify({ busy: [] }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
       })
-    })
-
-    const freeBusyData = await freeBusyResponse.json()
-
-    if (freeBusyData.error) throw new Error(`Google API error: ${freeBusyData.error.message}`)
-
-    // 4. Extract busy intervals
-    const busyIntervals = []
-    for (const calId in freeBusyData.calendars) {
-      const busy = freeBusyData.calendars[calId].busy || []
-      busyIntervals.push(...busy)
     }
 
-    // Sort and return
-    busyIntervals.sort((a: any, b: any) => new Date(a.start).getTime() - new Date(b.start).getTime())
+    // Helper function to process single user (refresh token + fetch busy)
+    const processUser = async (auth: any) => {
+      try {
+        let accessToken = auth.access_token
 
-    return new Response(JSON.stringify({ busy: busyIntervals }), {
+        // Check expiry & Refresh if needed
+        if (new Date(auth.expires_at) <= new Date()) {
+          console.log(`Token expired for ${auth.collaborator_id}, refreshing...`)
+          try {
+            const refreshedAuth = await refreshGoogleToken(auth.refresh_token, supabaseClient)
+            accessToken = refreshedAuth.access_token
+
+            // Update DB 
+            const expiresAt = new Date()
+            expiresAt.setSeconds(expiresAt.getSeconds() + refreshedAuth.expires_in)
+            await supabaseClient.from('collaborator_google_auth').update({
+              access_token: accessToken,
+              expires_at: expiresAt.toISOString(),
+              updated_at: new Date().toISOString()
+            }).eq('collaborator_id', auth.collaborator_id)
+
+          } catch (refreshErr) {
+            console.error(`Failed to refresh token for ${auth.collaborator_id}`, refreshErr)
+            return [] // Skip this user
+          }
+        }
+
+        // Query FreeBusy
+        const calendarIds = Array.isArray(auth.selected_calendars) && auth.selected_calendars.length > 0
+          ? auth.selected_calendars
+          : ['primary']
+
+        const freeBusyResponse = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            timeMin,
+            timeMax,
+            items: calendarIds.map((id: string) => ({ id }))
+          })
+        })
+
+        if (!freeBusyResponse.ok) {
+          const errTxt = await freeBusyResponse.text()
+          console.error(`Google API error for ${auth.collaborator_id}: ${freeBusyResponse.status}`, errTxt)
+          return []
+        }
+
+        const freeBusyData = await freeBusyResponse.json()
+
+        // Extract busy intervals
+        const userBusy: any[] = []
+        for (const calId in freeBusyData.calendars) {
+          const busy = freeBusyData.calendars[calId].busy || []
+          userBusy.push(...busy.map((b: any) => ({
+            ...b,
+            collaborator_id: auth.collaborator_id
+          })))
+        }
+        return userBusy
+
+      } catch (err) {
+        console.error(`Error processing collaborator ${auth.collaborator_id}`, err)
+        return []
+      }
+    }
+
+    // 2. Process all in parallel
+    const results = await Promise.all(auths.map(processUser));
+    const allBusy = results.flat().sort((a: any, b: any) => new Date(a.start).getTime() - new Date(b.start).getTime())
+
+    return new Response(JSON.stringify({ busy: allBusy }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
@@ -97,19 +135,13 @@ serve(async (req: Request) => {
   }
 })
 
-
-async function refreshGoogleToken(refreshToken: string) {
-  // Try to get credentials from database first, fallback to env vars
+// Helper for refresh token
+async function refreshGoogleToken(refreshToken: string, supabaseClient: any) {
   let clientId = Deno.env.get('GOOGLE_CLIENT_ID')
   let clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
 
   // Attempt to fetch from system_config table
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
     const { data: configData } = await supabaseClient
       .from('system_config')
       .select('key, value')

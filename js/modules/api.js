@@ -1,5 +1,5 @@
-import { supabase } from './config.js?v=123';
-import { state } from './state.js?v=123';
+import { supabase } from './config.js?v=148';
+import { state } from './state.js?v=148';
 
 export async function fetchProfile() {
     const { data: authData } = await supabase.auth.getUser();
@@ -8,9 +8,26 @@ export async function fetchProfile() {
 
     let { data: profile, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select(`
+            *,
+            collaborators!user_id (
+                id,
+                tags
+            )
+        `)
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
+
+    if (profile && profile.collaborators) {
+        // Flatten tags into the profile object for easier access
+        let tags = profile.collaborators.tags;
+        if (typeof tags === 'string') {
+            try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
+        }
+        profile.tags = Array.isArray(tags) ? tags : [];
+    } else {
+        profile.tags = [];
+    }
 
     if (!profile && !error) {
         // Check if this user is a collaborator
@@ -334,6 +351,9 @@ export async function fetchPassiveInvoices() {
 
     if (error) {
         console.error("Passive Invoices fetch failed:", error);
+        // Show visible alert for debugging
+        if (window.showGlobalAlert) window.showGlobalAlert("Errore caricamento fatture: " + error.message, 'error');
+        else alert("Errore caricamento fatture: " + error.message);
         return;
     }
     state.passiveInvoices = passiveInvoices || [];
@@ -421,9 +441,9 @@ export async function deleteCollaborator(id) {
 }
 
 
-export async function fetchBankTransactions() {
-    console.log("Fetching bank transactions...");
-    const { data, error } = await supabase
+export async function fetchBankTransactions(status = null) {
+    console.log("Fetching bank transactions...", status ? `(status: ${status})` : '');
+    let query = supabase
         .from('bank_transactions')
         .select(`
             *,
@@ -436,11 +456,56 @@ export async function fetchBankTransactions() {
         `)
         .order('date', { ascending: false });
 
+    if (status) {
+        query = query.eq('status', status);
+    }
+
+    const { data, error } = await query;
+
     if (error) {
         console.error("Bank transactions fetch failed:", error);
-        return;
+        return [];
     }
-    state.bankTransactions = data || [];
+
+    // Only update state.bankTransactions for 'posted' or no filter
+    if (!status || status === 'posted') {
+        state.bankTransactions = data || [];
+    }
+
+    return data || [];
+}
+
+export async function approveBankTransaction(txId, overrides = {}) {
+    const { data, error } = await supabase.rpc('approve_bank_transaction', {
+        p_tx_id: txId,
+        p_category_id: overrides.category_id || null,
+        p_client_id: overrides.client_id || null,
+        p_supplier_id: overrides.supplier_id || null,
+        p_collaborator_id: overrides.collaborator_id || null,
+        p_active_invoice_id: overrides.active_invoice_id || null,
+        p_passive_invoice_id: overrides.passive_invoice_id || null,
+        p_payment_id: overrides.payment_id || null,
+        p_note: overrides.note || null
+    });
+
+    if (error) {
+        console.error("Approve transaction failed:", error);
+        throw error;
+    }
+    return data;
+}
+
+export async function rejectBankTransaction(txId, note = null) {
+    const { data, error } = await supabase.rpc('reject_bank_transaction', {
+        p_tx_id: txId,
+        p_note: note
+    });
+
+    if (error) {
+        console.error("Reject transaction failed:", error);
+        throw error;
+    }
+    return data;
 }
 
 export async function fetchTransactionCategories() {
@@ -479,6 +544,18 @@ export async function upsertBankTransaction(transaction) {
         state.bankTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
     }
     return data;
+}
+
+export async function deleteBankTransaction(id) {
+    const { error } = await supabase
+        .from('bank_transactions')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        console.error("Error deleting bank transaction:", error);
+        throw error;
+    }
 }
 
 // --- TRANSACTION CATEGORIES ---
@@ -832,7 +909,7 @@ export async function fetchPayments() {
         .select(`
             *,
             transaction_id,
-            bank_transactions (description, date, amount),
+            bank_transactions!payments_transaction_id_fkey (description, date, amount),
             clients (business_name),
             collaborators (full_name),
             suppliers (name),
@@ -869,7 +946,7 @@ export async function upsertPayment(payment) {
         .select(`
             *,
             transaction_id,
-            bank_transactions (description, date, amount),
+            bank_transactions!payments_transaction_id_fkey (description, date, amount),
             clients (business_name),
             collaborators (full_name),
             suppliers (name),
@@ -910,22 +987,22 @@ async function refreshCurrentPage() {
     if (!container) return;
 
     if (hash.includes('order-detail/')) {
-        const { renderOrderDetail } = await import('../features/orders.js?v=123');
+        const { renderOrderDetail } = await import('../features/orders.js?v=148');
         renderOrderDetail(container);
     } else if (hash.includes('payments')) {
-        const { renderPaymentsDashboard } = await import('../features/payments.js?v=123');
+        const { renderPaymentsDashboard } = await import('../features/payments.js?v=148');
         renderPaymentsDashboard(container);
     } else if (hash.includes('bank-transactions')) {
-        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=123');
+        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=148');
         renderBankTransactions(container);
     } else if (hash.includes('collaborator-services')) {
-        const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=123');
+        const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=148');
         renderCollaboratorServices(container);
     } else if (hash.includes('assignment-detail/')) {
-        const { renderAssignmentDetail } = await import('../features/assignments.js?v=123');
+        const { renderAssignmentDetail } = await import('../features/assignments.js?v=148');
         renderAssignmentDetail(container);
     } else if (hash.includes('collaborator-detail/')) {
-        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=123');
+        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=148');
         renderCollaboratorDetail(container);
     } else if (hash.includes('client-detail/')) {
     }
@@ -994,7 +1071,11 @@ export async function saveAvailabilityRules(collaboratorId, rules) {
             day_of_week: r.day_of_week,
             start_time: r.start_time,
             end_time: r.end_time,
-            service_id: r.service_id || null
+            // New Multi-select Fields
+            service_ids: Array.isArray(r.service_ids) && r.service_ids.length > 0 ? r.service_ids : null,
+            is_on_call: r.is_on_call === true,
+            // Legacy / Back-compat (clear it to avoid confusion, or set if single service for some reason)
+            service_id: null
         }));
 
         const { data, error: insertError } = await supabase

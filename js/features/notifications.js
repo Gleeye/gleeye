@@ -3,8 +3,8 @@
  * Handles real-time notifications via Supabase Realtime
  */
 
-import { supabase } from '../modules/config.js?v=123';
-import { state } from '../modules/state.js?v=123';
+import { supabase } from '../modules/config.js?v=148';
+import { state } from '../modules/state.js?v=148';
 
 // State
 let notifications = [];
@@ -597,4 +597,85 @@ export function cleanupNotifications() {
 
     const toastContainer = document.getElementById('toast-container');
     if (toastContainer) toastContainer.remove();
+}
+
+/**
+ * Render Admin Notification Settings
+ */
+export function renderAdminNotifications(container) {
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="admin-notifications-settings">
+            <h3 style="margin-bottom: 1.5rem; color: var(--text-primary);">Configurazione Notifiche</h3>
+            
+            <div class="settings-card glass-card" style="padding: 1.5rem; margin-bottom: 2rem;">
+                <h4 style="margin-bottom: 1rem; color: var(--text-primary);">Canali di Notifica</h4>
+                
+                <div class="setting-row" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px solid var(--glass-border);">
+                    <div>
+                        <div style="font-weight: 500;">Email</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Ricevi notifiche importanti via email</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px solid var(--glass-border);">
+                    <div>
+                        <div style="font-weight: 500;">Push Browser</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Notifiche desktop quando l'app è aperta</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0;">
+                    <div>
+                        <div style="font-weight: 500;">Suoni</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Riproduci un suono all'arrivo di una notifica</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-card glass-card" style="padding: 1.5rem;">
+                <h4 style="margin-bottom: 1rem; color: var(--text-primary);">Eventi Notificati</h4>
+                
+                <div class="checkbox-group" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                    <label class="checkbox-container" style="display: flex; align-items: center; gap: 0.8rem; cursor: pointer;">
+                        <input type="checkbox" checked>
+                        <span class="checkmark"></span>
+                        <span style="color: var(--text-primary);">Nuove Prenotazioni</span>
+                    </label>
+                    <label class="checkbox-container" style="display: flex; align-items: center; gap: 0.8rem; cursor: pointer;">
+                        <input type="checkbox" checked>
+                        <span class="checkmark"></span>
+                        <span style="color: var(--text-primary);">Scadenza Pagamenti</span>
+                    </label>
+                    <label class="checkbox-container" style="display: flex; align-items: center; gap: 0.8rem; cursor: pointer;">
+                        <input type="checkbox" checked>
+                        <span class="checkmark"></span>
+                        <span style="color: var(--text-primary);">Nuovi Messaggi Chat</span>
+                    </label>
+                    <label class="checkbox-container" style="display: flex; align-items: center; gap: 0.8rem; cursor: pointer;">
+                        <input type="checkbox" checked>
+                        <span class="checkmark"></span>
+                        <span style="color: var(--text-primary);">Assegnazione Incarichi</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div style="margin-top: 2rem; text-align: right;">
+                <button class="primary-btn">Salva Modifiche</button>
+            </div>
+        </div>
+    `;
 }

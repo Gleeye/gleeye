@@ -1,7 +1,7 @@
-import { state } from '../modules/state.js?v=123';
-import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=123';
-import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment } from '../modules/api.js?v=123';
-import { openPaymentModal } from './payments.js?v=123';
+import { state } from '../modules/state.js?v=148';
+import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=148';
+import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment } from '../modules/api.js?v=148';
+import { openPaymentModal } from './payments.js?v=148';
 
 export async function renderAssignmentDetail(container) {
     const id = state.currentId;

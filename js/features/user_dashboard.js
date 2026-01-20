@@ -1,7 +1,9 @@
-import { state } from '../modules/state.js?v=123';
-import { supabase } from '../modules/config.js?v=123';
-import { fetchCollaborators, upsertCollaborator, fetchAvailabilityRules, saveAvailabilityRules, fetchPayments, fetchRestDays, upsertRestDay, deleteRestDay, fetchCollaboratorServices, fetchCollaboratorSkills, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchBookingItemCollaborators, fetchGoogleAuth, deleteGoogleAuth, fetchSystemConfig, upsertGoogleAuth, fetchNotificationTypes, fetchUserNotificationPreferences, upsertUserNotificationPreference } from '../modules/api.js?v=123';
-import { formatAmount } from '../modules/utils.js?v=123';
+import { state } from '../modules/state.js?v=148';
+import { supabase } from '../modules/config.js?v=148';
+import { fetchCollaborators, upsertCollaborator, fetchAvailabilityRules, saveAvailabilityRules, fetchPayments, fetchRestDays, upsertRestDay, deleteRestDay, fetchCollaboratorServices, fetchCollaboratorSkills, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchBookingItemCollaborators, fetchGoogleAuth, deleteGoogleAuth, fetchSystemConfig, upsertGoogleAuth, fetchNotificationTypes, fetchUserNotificationPreferences, upsertUserNotificationPreference } from '../modules/api.js?v=148';
+import { formatAmount } from '../modules/utils.js?v=148';
+import { loadAvailabilityIntoContainer } from './availability_manager.js?v=148';
+
 
 export async function renderUserProfile(container) {
     console.log("User Dashboard v999 loaded"); // Debug version
@@ -188,7 +190,8 @@ export async function renderUserProfile(container) {
             if (target) target.classList.remove('hidden');
 
             if (tab.dataset.tab === 'availability') {
-                loadAvailability(myCollab.id);
+                const availWrapper = document.getElementById('availability-wrapper');
+                loadAvailabilityIntoContainer(availWrapper, myCollab.id);
                 initGoogleCalendar(myCollab.id);
             }
 
@@ -201,7 +204,8 @@ export async function renderUserProfile(container) {
     // Initial Load for Active Tab
     const activeTab = container.querySelector('.tab-btn.active');
     if (activeTab && activeTab.dataset.tab === 'availability') {
-        loadAvailability(myCollab.id);
+        const availWrapper = document.getElementById('availability-wrapper');
+        loadAvailabilityIntoContainer(availWrapper, myCollab.id);
         initGoogleCalendar(myCollab.id);
     }
 
@@ -328,7 +332,7 @@ export async function renderUserProfile(container) {
             state.impersonatedRole = newRole;
 
             // Update UI
-            import('../features/layout.js?v=123').then(({ updateSidebarVisibility }) => {
+            import('../features/layout.js?v=148').then(({ updateSidebarVisibility }) => {
                 updateSidebarVisibility();
 
                 // If switching to collaborator and currently on a restricted page, redirect

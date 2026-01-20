@@ -1,8 +1,8 @@
-import { supabase } from '../modules/config.js?v=123';
-import { state } from '../modules/state.js?v=123';
-import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js?v=123';
-import { showGlobalAlert } from '../modules/utils.js?v=123';
-import { updateSidebarVisibility } from './layout.js?v=123';
+import { supabase } from '../modules/config.js?v=148';
+import { state } from '../modules/state.js?v=148';
+import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js?v=148';
+import { showGlobalAlert } from '../modules/utils.js?v=148';
+
 
 // We need a way to call router() from here. 
 // Since router depends on render which depends on auth state, we might have a cycle.
@@ -94,6 +94,76 @@ export async function checkSession() {
     });
 }
 
+// Moved and modified updateSidebarVisibility as per user instruction
+export function updateSidebarVisibility() {
+    const activeRole = state.impersonatedRole || state.profile?.role;
+    let userTags = state.profile?.tags || [];
+
+    // If impersonating, use the tags of the impersonated collaborator
+    if (state.impersonatedRole === 'collaborator' && state.impersonatedCollaboratorId) {
+        const c = state.collaborators.find(x => x.id == state.impersonatedCollaboratorId);
+        if (c) {
+            let tags = c.tags;
+            if (typeof tags === 'string') {
+                try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
+            }
+            userTags = Array.isArray(tags) ? tags : [];
+        } else {
+            userTags = [];
+        }
+    }
+
+    const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
+
+    const adminBtn = document.getElementById('admin-settings-btn');
+    const managementNav = document.getElementById('nav-management');
+
+    // Section containers (subgroups)
+    const accountingSection = document.querySelector('#accounting-toggle')?.closest('.nav-group');
+    const anagraficheSection = document.querySelector('#anagrafiche-menu-toggle')?.closest('.nav-group');
+    const tariffarioSection = document.querySelector('#tariffario-toggle')?.closest('.nav-group');
+
+    // Generic items inside managementNav
+    const genericItems = managementNav ? managementNav.querySelectorAll('a[data-target="dashboard"], a[data-target="assignments"], a[data-target="booking"]') : [];
+
+    if (activeRole === 'admin') {
+        // Full access
+        if (adminBtn) adminBtn.classList.remove('hidden');
+        if (managementNav) {
+            managementNav.classList.remove('hidden');
+            [accountingSection, anagraficheSection, tariffarioSection].forEach(s => s?.classList.remove('hidden'));
+            genericItems.forEach(i => i.classList.remove('hidden'));
+        }
+    } else if (isPrivilegedCollaborator) {
+        // Privileged collaborator access
+        if (adminBtn) adminBtn.classList.add('hidden'); // Admin settings still admin only
+        if (managementNav) {
+            managementNav.classList.remove('hidden');
+            [accountingSection, anagraficheSection, tariffarioSection].forEach(s => s?.classList.remove('hidden'));
+            genericItems.forEach(i => i.classList.remove('hidden'));
+        }
+    } else {
+        // Standard user/collaborator access
+        if (adminBtn) adminBtn.classList.add('hidden');
+        if (managementNav) {
+            // Standard collaborators don't see management section usually,
+            // but they might need 'booking' sidebar link if it's placed there.
+            // Let's keep it consistent: hide sections but keep 'booking' if it belongs there.
+            managementNav.classList.remove('hidden'); // Show container
+            [accountingSection, anagraficheSection, tariffarioSection].forEach(s => s?.classList.add('hidden'));
+
+            // Hide global Ordini/Incarichi
+            managementNav.querySelectorAll('a[data-target="dashboard"], a[data-target="assignments"]').forEach(i => i.classList.add('hidden'));
+
+            // Keep Booking visible
+            managementNav.querySelector('a[data-target="booking"]')?.classList.remove('hidden');
+
+            // If everything inside is hidden EXCEPT booking, maybe hide the label but keep booking? 
+            // For now, let's just use CSS hidden classes.
+        }
+    }
+}
+
 async function handleSession(session) {
     state.session = session;
     const authContainer = document.getElementById('auth-container');
@@ -122,12 +192,39 @@ async function handleSession(session) {
             updateSidebarVisibility();
 
             // For collaborators: ensure we redirect to allowed page BEFORE showing app
+            let userTags = state.profile?.tags || [];
+
+            // If impersonating, use the tags of the impersonated collaborator for permission check
+            if (state.impersonatedRole === 'collaborator' && state.impersonatedCollaboratorId) {
+                const c = state.collaborators.find(x => x.id == state.impersonatedCollaboratorId);
+                if (c) {
+                    let tags = c.tags;
+                    if (typeof tags === 'string') {
+                        try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
+                    }
+                    userTags = Array.isArray(tags) ? tags : [];
+                }
+            }
+
+            const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
             const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
-            const allowedPagesForCollaborator = ['booking', 'profile', 'agenda', 'my-assignments'];
+
+            let allowedPagesForCollaborator = ['booking', 'profile', 'agenda', 'my-assignments'];
+            if (isPrivilegedCollaborator) {
+                // Expand allowed pages for Partner/Amministrazione
+                allowedPagesForCollaborator = [...allowedPagesForCollaborator,
+                    'invoices-dashboard', 'invoices', 'passive-invoices-collab', 'passive-invoices-suppliers', 'invoices-archive',
+                    'bank-transactions', 'bank-statements', 'payments',
+                    'sales', 'contacts', 'employees', 'suppliers',
+                    'services', 'collaborator-services',
+                    'dashboard', 'assignments'
+                ];
+            }
+
             const currentHash = window.location.hash.slice(1) || 'dashboard';
             const [currentPage] = currentHash.split('/');
 
-            console.log(`[Auth] User Role: ${activeRole}, Profile Role: ${state.profile?.role}, Current Page: ${currentPage}`);
+            console.log(`[Auth] User Role: ${activeRole}, Profile Role: ${state.profile?.role}, Current Page: ${currentPage}, Privileged: ${isPrivilegedCollaborator}`);
 
             if (activeRole !== 'admin' && !allowedPagesForCollaborator.includes(currentPage)) {
                 // Redirect BEFORE showing anything - no flash
@@ -138,13 +235,23 @@ async function handleSession(session) {
             // NOW show the app (with correct sidebar visibility already set)
             if (appContainer) appContainer.classList.remove('hidden');
 
-            // Load initial data
+            // Fire app:ready immediately so UI is responsive
+            console.log("[Auth] Triggering app:ready (data will load in background)");
+            window.dispatchEvent(new Event('app:ready'));
+
+            // Load data progressively
             if (state.isFetching) return;
             state.isFetching = true;
 
-            const dataFetches = [
+            // 1. Critical Data for Dashboard (Orders & Assignments)
+            // Load these FIRST so the dashboard populates quickly
+            await Promise.all([fetchOrders(), fetchAssignments()]);
+            console.log("[Auth] Critical data loaded. Refreshing UI.");
+            window.dispatchEvent(new Event('data:loaded')); // Triggers re-render for Dashboard
+
+            // 2. Load the rest in background
+            const backgroundFetches = [
                 fetchClients(),
-                fetchOrders(),
                 fetchCollaborators(),
                 fetchAllProfiles(),
                 fetchInvoices(),
@@ -156,16 +263,19 @@ async function handleSession(session) {
                 fetchTransactionCategories(),
                 fetchServices(),
                 fetchCollaboratorServices(),
-                fetchAssignments(),
                 fetchPayments()
             ];
 
-            Promise.all(dataFetches.map(p => p.catch(e => console.error("Fetch error:", e))))
-                .then(() => {
-                    console.log("[Auth] All data fetched. Triggering app:ready");
-                    state.isFetching = false;
-                    window.dispatchEvent(new Event('app:ready'));
-                });
+            // When background data is ready, trigger another update
+            Promise.all(backgroundFetches).then(() => {
+                console.log("[Auth] All background data loaded");
+                state.isFetching = false;
+                window.dispatchEvent(new Event('data:loaded')); // Triggers re-render for Invoices/Others
+            }).catch(e => {
+                console.error("[Auth] Background fetch error:", e);
+                state.isFetching = false;
+            });
+
         }
     } else {
         console.log("No session found, showing login.");

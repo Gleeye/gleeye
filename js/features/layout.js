@@ -1,6 +1,6 @@
-import { state } from '../modules/state.js?v=123';
-import { supabase } from '../modules/config.js?v=123';
-import { fetchCollaborators } from '../modules/api.js?v=123';
+import { state } from '../modules/state.js?v=148';
+import { supabase } from '../modules/config.js?v=148';
+import { fetchCollaborators } from '../modules/api.js?v=148';
 
 export function initLayout() {
     // Sidebar Toggle Logic

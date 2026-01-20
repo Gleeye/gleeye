@@ -47,6 +47,8 @@ const COLLABORATOR_COLORS = [
     '#e53e3e', '#38a169', '#805ad5', '#d69e2e', '#dd6b20',
 ];
 
+const busyCache = new Map<string, GoogleBusy[]>();
+
 export default function AvailabilityCalendar() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -57,6 +59,7 @@ export default function AvailabilityCalendar() {
     const [activeDept, setActiveDept] = useState<string | 'all'>('all');
     const [activeCollab, setActiveCollab] = useState<string | 'all'>('all');
     const [hoveredBlock, setHoveredBlock] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
 
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
@@ -65,52 +68,79 @@ export default function AvailabilityCalendar() {
 
     const hours = eachHourOfInterval({ start: addHours(startOfDay(new Date()), 7), end: addHours(startOfDay(new Date()), 21) });
 
-    useEffect(() => { fetchData(); }, [currentDate]);
+    useEffect(() => {
+        let mounted = true;
 
-    async function fetchData() {
-        try {
-            const [{ data: deptData }, { data: collabData }, { data: rulesData }, { data: overridesData }] = await Promise.all([
-                supabase.from('departments').select('*').order('name'),
-                supabase.from('collaborators').select('id, first_name, last_name, avatar_url, role, tags').order('first_name'),
-                supabase.from('availability_rules').select('*'),
-                supabase.from('availability_overrides').select('*').gte('date', format(weekStart, 'yyyy-MM-dd')).lte('date', format(weekEnd, 'yyyy-MM-dd'))
-            ]);
-            if (deptData) setDepartments(deptData);
-            if (collabData) {
-                setCollaborators(collabData);
-                // Fetch Google Calendar busy slots for all collaborators
-                fetchGoogleBusySlots(collabData);
-            }
-            if (rulesData) setRules(rulesData);
-            if (overridesData) setOverrides(overridesData);
-        } catch (err) {
-            console.error('Error fetching availability data:', err);
-        }
-    }
+        async function load() {
+            if (mounted) setLoading(true);
 
-    async function fetchGoogleBusySlots(collabs: Collaborator[]) {
-        const timeMin = weekStart.toISOString();
-        const timeMax = weekEnd.toISOString();
-        const allBusy: GoogleBusy[] = [];
+            const cacheKey = weekStart.toISOString();
+            const hasCache = busyCache.has(cacheKey);
 
-        // Fetch in parallel for all collaborators
-        await Promise.all(collabs.map(async (collab) => {
             try {
-                const { data, error } = await supabase.functions.invoke('check-google-availability', {
-                    body: { collaborator_id: collab.id, timeMin, timeMax }
-                });
-                if (!error && data?.busy) {
-                    data.busy.forEach((slot: { start: string; end: string }) => {
-                        allBusy.push({ collaborator_id: collab.id, start: slot.start, end: slot.end });
-                    });
-                }
-            } catch {
-                // Silently ignore - collaborator may not have Google connected
-            }
-        }));
+                // Fetch core data first
+                const [{ data: deptData }, { data: collabData }, { data: rulesData }, { data: overridesData }] = await Promise.all([
+                    supabase.from('departments').select('*').order('name'),
+                    supabase.from('collaborators').select('id, first_name, last_name, avatar_url, role, tags').order('first_name'),
+                    supabase.from('availability_rules').select('*'),
+                    supabase.from('availability_overrides').select('*').gte('date', format(weekStart, 'yyyy-MM-dd')).lte('date', format(weekEnd, 'yyyy-MM-dd'))
+                ]);
 
-        setGoogleBusy(allBusy);
-    }
+                if (!mounted) return;
+
+                // Update Core State immediately
+                if (deptData) setDepartments(deptData);
+                if (collabData) setCollaborators(collabData);
+                if (rulesData) setRules(rulesData);
+                if (overridesData) setOverrides(overridesData);
+
+                // Use Cache immediately if available (Stale-While-Revalidate)
+                if (hasCache) {
+                    setGoogleBusy(busyCache.get(cacheKey)!);
+                    setLoading(false); // Stop loading UI as we have data to show
+                }
+
+                // Fetch Fresh Google Data (Background or Foreground)
+                let busySlots: GoogleBusy[] = [];
+                if (collabData && collabData.length > 0) {
+                    const timeMin = weekStart.toISOString();
+                    const timeMax = weekEnd.toISOString();
+                    const collaborator_ids = collabData.map(c => c.id);
+
+                    try {
+                        const { data, error } = await supabase.functions.invoke('check-google-availability', {
+                            body: { collaborator_ids, timeMin, timeMax }
+                        });
+
+                        if (!error && data?.busy) {
+                            busySlots = data.busy;
+                        }
+                    } catch (e) {
+                        console.warn('Google Calendar bulk fetch error', e);
+                    }
+                }
+
+                if (!mounted) return;
+
+                // Update Cache and State with fresh data
+                setGoogleBusy(busySlots);
+                busyCache.set(cacheKey, busySlots);
+
+                // If we didn't have cache, stop loading now
+                if (!hasCache) {
+                    setLoading(false);
+                }
+
+            } catch (err) {
+                console.error('Error fetching availability data:', err);
+                if (mounted) setLoading(false);
+            }
+        }
+
+        load();
+
+        return () => { mounted = false; };
+    }, [currentDate]);
 
     // Parse tags helper
     function getCollaboratorTags(c: Collaborator): string[] {
@@ -311,7 +341,13 @@ export default function AvailabilityCalendar() {
     });
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden', position: 'relative' }}>
+            {loading && (
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.7)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: 40, height: 40, border: '4px solid #f3f3f3', borderTop: '4px solid #4f46e5', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                    <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                </div>
+            )}
             {/* Toolbar */}
             <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>

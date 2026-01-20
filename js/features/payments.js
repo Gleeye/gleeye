@@ -1,6 +1,6 @@
-import { state } from '../modules/state.js?v=123';
-import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=123';
-import { upsertPayment, deletePayment, upsertBankTransaction, fetchPayments } from '../modules/api.js?v=123';
+import { state } from '../modules/state.js?v=148';
+import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=148';
+import { upsertPayment, deletePayment, upsertBankTransaction, fetchPayments } from '../modules/api.js?v=148';
 
 export function renderPaymentsDashboard(container) {
     // Ensure global assignment on load/render
@@ -276,6 +276,8 @@ export function initPaymentModals() {
 
     const existing = document.getElementById('payment-modal');
     if (existing) existing.remove();
+    const existingEdit = document.getElementById('payment-edit-modal');
+    if (existingEdit) existingEdit.remove();
 
     document.body.insertAdjacentHTML('beforeend', `
             <div id="payment-modal" class="modal">
@@ -459,19 +461,22 @@ export function initPaymentModals() {
         };
 
         try {
+            console.log("Saving payment updates...", updates);
             await upsertPayment(updates);
-            editModal.classList.remove('active');
-            openPaymentModal(p.id);
-            const container = document.getElementById('content-area');
-            if (document.location.hash.includes('payments')) renderPaymentsDashboard(container);
+            console.log("Payment updated successfully.");
 
-            // Force refresh if in order detail
-            if (document.location.hash.includes('orders/')) {
-                window.dispatchEvent(new HashChangeEvent("hashchange"));
-            }
+            // 1. Close edit sub-modal
+            editModal.classList.remove('active');
+
+            // 2. Refresh info modal content (underneath)
+            openPaymentModal(p.id);
+
+            // 3. Global background refresh
+            window.dispatchEvent(new HashChangeEvent("hashchange"));
 
             showGlobalAlert('Pagamento aggiornato');
         } catch (e) {
+            console.error("Error saving payment update:", e);
             showGlobalAlert('Errore aggiornamento', 'error');
         }
     });

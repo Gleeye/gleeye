@@ -1,31 +1,32 @@
-import { state } from './state.js?v=123';
-import { renderDashboard } from '../features/dashboard.js?v=123';
-import { renderClients, renderClientDetail } from '../features/clients.js?v=123';
-import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=123';
-import { renderContacts } from '../features/contacts.js?v=123';
-import { renderOrderDetail } from '../features/orders.js?v=123';
-import { renderInvoices, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from '../features/invoices.js?v=123';
-import { renderInvoicesDashboard } from '../features/dashboard.js?v=123';
-import { renderBankTransactions } from '../features/bank_transactions.js?v=123';
-import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=123';
-import { renderBankStatements } from '../features/bank_statements.js?v=123';
-import { renderServices } from '../features/services.js?v=123';
-import { renderCollaboratorServices } from '../features/collaborator_services.js?v=123';
-import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=123';
-import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=123';
-import { renderBooking } from '../features/booking.js?v=123';
-import { renderUserProfile } from '../features/user_dashboard.js?v=123';
-import { renderAgenda } from '../features/personal_agenda.js?v=127';
-import { renderNotificationCenter } from '../features/notifications.js?v=123';
-import { renderAdminNotifications } from '../features/admin_notifications.js?v=123';
+import { state } from './state.js?v=148';
+import { renderDashboard } from '../features/dashboard.js?v=148';
+import { renderClients, renderClientDetail } from '../features/clients.js?v=148';
+import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=148';
+import { renderContacts } from '../features/contacts.js?v=148';
+import { renderOrderDetail } from '../features/orders.js?v=148';
+import { renderActiveInvoicesSafe, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from '../features/invoices.js?v=148';
+import { renderRevenueDashboard } from '../features/revenue_dashboard.js?v=148';
+import { renderBankTransactions } from '../features/bank_transactions.js?v=148';
+import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=148';
+import { renderBankStatements } from '../features/bank_statements.js?v=148';
+import { renderServices } from '../features/services.js?v=148';
+import { renderCollaboratorServices } from '../features/collaborator_services.js?v=148';
+import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=148';
+import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=148';
+import { renderBooking } from '../features/booking.js?v=148';
+import { renderUserProfile } from '../features/user_dashboard.js?v=148';
+import { renderAgenda } from '../features/personal_agenda.js?v=148';
+import { renderNotificationCenter } from '../features/notifications.js?v=148';
+import { renderAdminNotifications } from '../features/admin_notifications.js?v=148';
+// Chat is loaded dynamically to avoid slowing down app startup
 
 export function router() {
     // Try to restore saved route on initial load (no hash but has saved route)
     const savedRoute = sessionStorage.getItem('gleeye_current_route');
     let hash = window.location.hash.slice(1);
 
-    // If no hash but we have a saved route, restore it
-    if (!hash && savedRoute) {
+    // If no hash but we have a saved route, restore it (unless it's chat)
+    if (!hash && savedRoute && savedRoute !== 'chat') {
         console.log(`[Router] Restoring saved route: ${savedRoute}`);
         hash = savedRoute;
         window.location.hash = savedRoute;
@@ -34,10 +35,15 @@ export function router() {
 
     // Default to dashboard if no hash
     hash = hash || 'dashboard';
-    const [page, id] = hash.split('/');
-    console.log(`Router handling hash: #${hash} -> page: ${page}, id: ${id}`);
+    const parts = hash.split('/');
+    const page = parts[0];
+    const subPage = parts[1];
+    const id = parts[2] || parts[1]; // Fallback for 2-level routes like 'order-detail/123' where subPage IS the id
+
+    console.log(`Router handling hash: #${hash} -> page: ${page}, sub: ${subPage}, id: ${id}`);
 
     state.currentPage = page;
+    state.currentSubPage = subPage;
     state.currentId = id || null;
 
     // --- ACCESS CONTROL / IMPERSONATION ---
@@ -116,11 +122,11 @@ function render() {
                 break;
             case 'invoices': // Active Invoices List
                 if (pageTitle) pageTitle.textContent = 'Fatture Attive';
-                renderInvoices(contentArea);
+                renderActiveInvoicesSafe(contentArea);
                 break;
             case 'invoices-dashboard':
                 if (pageTitle) pageTitle.textContent = 'Dashboard Fatturato';
-                renderInvoicesDashboard(contentArea);
+                renderRevenueDashboard(contentArea);
                 break;
             case 'passive-invoices-collab':
                 if (pageTitle) pageTitle.textContent = 'Fatture Collaboratori';
@@ -132,7 +138,7 @@ function render() {
                 break;
             case 'bank-transactions':
                 if (pageTitle) pageTitle.textContent = 'Registro Movimenti';
-                renderBankTransactions(contentArea);
+                renderBankTransactions(contentArea).catch(err => console.error('Error rendering bank transactions:', err));
                 break;
             case 'bank-statements':
                 if (pageTitle) pageTitle.textContent = 'Estratti Conto';
@@ -187,9 +193,43 @@ function render() {
                 if (pageTitle) pageTitle.textContent = 'Centro Notifiche';
                 renderNotificationCenter(contentArea);
                 break;
-            case 'admin-notifications':
-                if (pageTitle) pageTitle.textContent = 'Impostazioni Notifiche';
-                renderAdminNotifications(contentArea);
+            case 'admin':
+                if (pageTitle) pageTitle.textContent = 'Amministrazione';
+                import('../features/admin/admin-dashboard.js').then(module => {
+                    module.renderAdminDashboard(contentArea);
+                });
+                break;
+            case 'chat':
+                if (pageTitle) pageTitle.textContent = 'Chat Team';
+                contentArea.innerHTML = '<div class="loading-state"><span class="loader"></span></div>';
+                import('../features/chat/chat-ui.js').then(module => {
+                    module.renderChat(contentArea);
+                });
+                break;
+            case 'pm':
+                if (pageTitle) pageTitle.textContent = 'Project Management';
+                // Check if it's commessa detail route: #pm/commessa/:orderId
+                if (state.currentSubPage === 'commessa' && state.currentId) {
+                    if (pageTitle) pageTitle.textContent = 'Dettaglio Commessa';
+                    import('../features/pm/commessa_detail.js?v=148')
+                        .then(module => {
+                            module.renderCommessaDetail(contentArea, state.currentId);
+                        })
+                        .catch(err => {
+                            console.error("Failed to load commessa detail:", err);
+                            contentArea.innerHTML = `<div class="error-state">Errore caricamento: ${err.message}</div>`;
+                        });
+                } else {
+                    // Standard PM views
+                    import('../features/pm/index.js?v=148')
+                        .then(module => {
+                            module.renderPM(contentArea);
+                        })
+                        .catch(err => {
+                            console.error("Failed to load PM module:", err);
+                            contentArea.innerHTML = `<div class="error-state">Errore caricamento modulo PM: ${err.message}</div>`;
+                        });
+                }
                 break;
             // ... Add other routes as needed
             default:
@@ -223,8 +263,22 @@ function renderPlaceholder(container, message) {
 function updateActiveLink() {
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
-        if (item.dataset.target === state.currentPage) {
-            item.classList.add('active');
+
+        let target = item.dataset.target;
+
+        // Special match for PM module sub-pages
+        if (state.currentPage === 'pm') {
+            if (target === `pm-${state.currentSubPage}`) {
+                item.classList.add('active');
+            }
+        } else {
+            // Normal exact match
+            if (target === state.currentPage) {
+                item.classList.add('active');
+            }
         }
     });
+
+    // Also handle drill-down sub-items: check if parent should be active?
+    // Not strictly needed if sub-items are correctly targeted.
 }

@@ -1,6 +1,6 @@
-import { supabase } from '../modules/config.js?v=123';
-import { state } from '../modules/state.js?v=123';
-import { formatAmount } from '../modules/utils.js?v=123';
+import { supabase } from '../modules/config.js?v=148';
+import { state } from '../modules/state.js?v=148';
+import { formatAmount } from '../modules/utils.js?v=148';
 
 export async function renderSuppliers(container) {
     // Fetch data
@@ -163,28 +163,115 @@ export function initSupplierModals() {
     if (!document.getElementById('supplier-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
             <div id="supplier-modal" class="modal">
-                <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-content glass-card" style="max-width: 600px; max-height: 85vh; overflow-y: auto;">
                     <div class="modal-header">
                         <h2 id="supplier-modal-title">Nuovo Fornitore</h2>
                         <button class="close-modal material-icons-round" onclick="window.closeSupplierModal()">close</button>
                     </div>
-                    <form id="supplier-form">
+                    <form id="supplier-form" style="display: flex; flex-direction: column; gap: 1rem;">
                         <input type="hidden" id="supplier-id">
+                        
+                        <!-- Main Info -->
                         <div class="form-group">
-                            <label>Nome *</label>
-                            <input type="text" id="supplier-name" required>
+                            <label>Ragione Sociale / Nome *</label>
+                            <input type="text" id="supplier-name" required class="modal-input">
                         </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label>Partita IVA</label>
+                                <input type="text" id="supplier-vat" class="modal-input">
+                            </div>
+                            <div class="form-group">
+                                <label>Codice Fiscale</label>
+                                <input type="text" id="supplier-tax-code" class="modal-input">
+                            </div>
+                        </div>
+
+                        <!-- Fiscal Settings Header -->
+                        <div style="padding-bottom: 0.5rem; border-bottom: 1px solid var(--glass-border); margin-top: 0.5rem;">
+                            <h4 style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">Impostazioni Fiscali</h4>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label>Regime Fiscale</label>
+                                <select id="supplier-regime" class="modal-input">
+                                    <option value="ordinario">Ordinario</option>
+                                    <option value="forfettario">Forfettario</option>
+                                    <option value="minimi">Minimi</option>
+                                </select>
+                            </div>
+                             <div class="form-group">
+                                <label>Paese</label>
+                                <select id="supplier-country" class="modal-input">
+                                    <option value="IT">Italia</option>
+                                    <option value="UE">UE (Intra)</option>
+                                    <option value="EXTRA">Extra UE</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label>IVA Default %</label>
+                                <input type="number" id="supplier-vat-rate" value="22" class="modal-input">
+                            </div>
+                            <div class="form-group">
+                                <label>Cassa Prev. %</label>
+                                <input type="number" id="supplier-cassa-rate" value="0" step="0.01" class="modal-input">
+                            </div>
+                            <div class="form-group">
+                                <label>Ritenuta %</label>
+                                <input type="number" id="supplier-withholding-rate" value="0" step="0.01" class="modal-input">
+                            </div>
+                        </div>
+
+                        <!-- Address & Contact -->
+                        <div style="padding-bottom: 0.5rem; border-bottom: 1px solid var(--glass-border); margin-top: 0.5rem;">
+                            <h4 style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">Indirizzo & Contatti</h4>
+                        </div>
+
                         <div class="form-group">
-                            <label>Sito Web</label>
-                            <input type="url" id="supplier-website" placeholder="https://esempio.com">
+                            <label>Indirizzo</label>
+                            <input type="text" id="supplier-address" class="modal-input" placeholder="Via, Civico...">
                         </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label>Città</label>
+                                <input type="text" id="supplier-city" class="modal-input">
+                            </div>
+                             <div class="form-group">
+                                <label>CAP</label>
+                                <input type="text" id="supplier-zip" class="modal-input">
+                            </div>
+                            <!-- Province could be added -->
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                             <div class="form-group">
+                                <label>Sito Web</label>
+                                <input type="url" id="supplier-website" class="modal-input">
+                            </div>
+                            <div class="form-group">
+                                <label>Termini Pagam.</label>
+                                <input type="text" id="supplier-payment-terms" class="modal-input" placeholder="Es. 30gg d.f.">
+                            </div>
+                        </div>
+                         <div class="form-group">
+                            <label>IBAN</label>
+                            <input type="text" id="supplier-iban" class="modal-input">
+                        </div>
+
                         <div class="form-group">
                             <label>Note</label>
-                            <textarea id="supplier-notes" rows="3"></textarea>
+                            <textarea id="supplier-notes" rows="2" class="modal-input"></textarea>
                         </div>
-                        <div class="form-actions">
+
+                        <div class="form-actions" style="margin-top: 1rem;">
                             <button type="button" class="primary-btn secondary" onclick="window.closeSupplierModal()">Annulla</button>
-                            <button type="submit" class="primary-btn">Salva</button>
+                            <button type="submit" class="primary-btn">Salva Fornitore</button>
                         </div>
                     </form>
                 </div>
@@ -212,7 +299,21 @@ export function initSupplierModals() {
             const data = {
                 name: document.getElementById('supplier-name').value,
                 website: document.getElementById('supplier-website').value || null,
-                notes: document.getElementById('supplier-notes').value || null
+                notes: document.getElementById('supplier-notes').value || null,
+                // Fiscal
+                vat_number: document.getElementById('supplier-vat').value || null,
+                tax_code: document.getElementById('supplier-tax-code').value || null,
+                address: document.getElementById('supplier-address').value || null,
+                city: document.getElementById('supplier-city').value || null,
+                zip_code: document.getElementById('supplier-zip').value || null,
+                country: document.getElementById('supplier-country').value || 'IT',
+                // Settings
+                fiscal_regime: document.getElementById('supplier-regime').value,
+                default_vat_rate: parseFloat(document.getElementById('supplier-vat-rate').value) || 0,
+                cassa_previdenziale_rate: parseFloat(document.getElementById('supplier-cassa-rate').value) || 0,
+                withholding_tax_rate: parseFloat(document.getElementById('supplier-withholding-rate').value) || 0,
+                payment_terms: document.getElementById('supplier-payment-terms').value || null,
+                bank_iban: document.getElementById('supplier-iban').value || null
             };
 
             try {
@@ -249,10 +350,30 @@ window.openSupplierModal = (id = null) => {
             document.getElementById('supplier-name').value = supplier.name;
             document.getElementById('supplier-website').value = supplier.website || '';
             document.getElementById('supplier-notes').value = supplier.notes || '';
+
+            // Fiscal fields
+            document.getElementById('supplier-vat').value = supplier.vat_number || '';
+            document.getElementById('supplier-tax-code').value = supplier.tax_code || '';
+            document.getElementById('supplier-address').value = supplier.address || '';
+            document.getElementById('supplier-city').value = supplier.city || '';
+            document.getElementById('supplier-zip').value = supplier.zip_code || '';
+            document.getElementById('supplier-country').value = supplier.country || 'IT';
+
+            // Settings
+            document.getElementById('supplier-regime').value = supplier.fiscal_regime || 'ordinario';
+            document.getElementById('supplier-vat-rate').value = supplier.default_vat_rate ?? 22;
+            document.getElementById('supplier-cassa-rate').value = supplier.cassa_previdenziale_rate ?? 0;
+            document.getElementById('supplier-withholding-rate').value = supplier.withholding_tax_rate ?? 0;
+            document.getElementById('supplier-payment-terms').value = supplier.payment_terms || '';
+            document.getElementById('supplier-iban').value = supplier.bank_iban || '';
         }
     } else {
         document.getElementById('supplier-modal-title').textContent = 'Nuovo Fornitore';
         document.getElementById('supplier-id').value = '';
+        // Defaults
+        document.getElementById('supplier-country').value = 'IT';
+        document.getElementById('supplier-regime').value = 'ordinario';
+        document.getElementById('supplier-vat-rate').value = 22;
     }
 
     modal.classList.add('active');

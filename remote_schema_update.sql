@@ -1,64 +1,37 @@
--- 1. Create availability_rules if not exists
-CREATE TABLE IF NOT EXISTS public.availability_rules (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    collaborator_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-    day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL
-);
+-- 1. Add fields to passive_invoices if they don't exist
+ALTER TABLE public.passive_invoices 
+ADD COLUMN IF NOT EXISTS description TEXT,
+ADD COLUMN IF NOT EXISTS service_description TEXT,
+ADD COLUMN IF NOT EXISTS related_orders JSONB,
+ADD COLUMN IF NOT EXISTS tax_amount NUMERIC(15,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS amount_tax_included NUMERIC(15,2),
+ADD COLUMN IF NOT EXISTS amount_tax_excluded NUMERIC(15,2),
+ADD COLUMN IF NOT EXISTS vat_rate NUMERIC(5,2),
+ADD COLUMN IF NOT EXISTS vat_eligibility TEXT,
+ADD COLUMN IF NOT EXISTS attachment_url TEXT,
+ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Da Pagare',
+ADD COLUMN IF NOT EXISTS payment_date DATE,
+ADD COLUMN IF NOT EXISTS category TEXT,
+ADD COLUMN IF NOT EXISTS ritenuta NUMERIC(15,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS rivalsa_inps NUMERIC(15,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS stamp_duty NUMERIC(15,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS iva_attiva BOOLEAN DEFAULT false;
 
--- 2. Add service_id to availability_rules safely
-DO $$ BEGIN
-    ALTER TABLE public.availability_rules 
-    ADD COLUMN service_id UUID REFERENCES public.services(id);
-EXCEPTION
-    WHEN duplicate_column THEN null;
-END $$;
+-- 2. Add fields to suppliers table for fiscal data
+ALTER TABLE public.suppliers
+ADD COLUMN IF NOT EXISTS vat_number TEXT,
+ADD COLUMN IF NOT EXISTS tax_code TEXT,
+ADD COLUMN IF NOT EXISTS address TEXT,
+ADD COLUMN IF NOT EXISTS city TEXT,
+ADD COLUMN IF NOT EXISTS zip_code TEXT,
+ADD COLUMN IF NOT EXISTS province TEXT,
+ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'IT',
+ADD COLUMN IF NOT EXISTS fiscal_regime TEXT DEFAULT 'ordinario',
+ADD COLUMN IF NOT EXISTS default_vat_rate NUMERIC(5,2) DEFAULT 22,
+ADD COLUMN IF NOT EXISTS cassa_previdenziale_rate NUMERIC(5,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS withholding_tax_rate NUMERIC(5,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS payment_terms TEXT,
+ADD COLUMN IF NOT EXISTS bank_iban TEXT;
 
--- 3. Create collaborator_rest_days table
-CREATE TABLE IF NOT EXISTS public.collaborator_rest_days (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    collaborator_id UUID REFERENCES public.collaborators(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    repeat_annually BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- RLS
-ALTER TABLE public.collaborator_rest_days ENABLE ROW LEVEL SECURITY;
-
--- Policies
-DO $$ BEGIN
-    CREATE POLICY "Users can manage own rest days" ON public.collaborator_rest_days
-        FOR ALL
-        USING (
-            collaborator_id IN (
-                SELECT id FROM public.collaborators 
-                WHERE email = auth.jwt() ->> 'email'
-            )
-        );
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-    CREATE POLICY "Admins can manage all rest days" ON public.collaborator_rest_days
-        FOR ALL
-        USING (
-            EXISTS (
-                SELECT 1 FROM public.profiles 
-                WHERE id = auth.uid() AND role = 'admin'
-            )
-        );
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
-
--- Permissions
-GRANT ALL ON TABLE public.collaborator_rest_days TO postgres, anon, authenticated, service_role;
-GRANT ALL ON TABLE public.availability_rules TO postgres, anon, authenticated, service_role;
-
--- Reload Schema Cache
-NOTIFY pgrst, 'reload schema';
+-- 3. Force schema cache reload (crucial for PGRST204 error)
+NOTIFY pgrst, 'reload config';

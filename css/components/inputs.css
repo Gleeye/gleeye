@@ -1,4 +1,13 @@
 /* --- FORMS & INPUTS OVERHAUL --- */
+
+:root {
+    --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23697386' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+:root[data-theme='dark'] {
+    --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
 input:not([type="checkbox"]):not([type="radio"]):not(#global-search),
 select,
 textarea {
@@ -35,15 +44,22 @@ select:not(.modal-input):not(#pay-mode):not([id^="pay-"]) {
 */
 
 /* Explicitly show typical selects globally */
+/* Explicitly styled selects globally */
 select {
-    appearance: menulist;
-    -webkit-appearance: menulist;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
     opacity: 1;
     position: static;
     width: 100%;
     height: auto;
     pointer-events: auto;
     display: block;
+    background-image: var(--select-chevron);
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1.25rem;
+    padding-right: 2.5rem;
 }
 
 /* --- CUSTOM SELECT COMPONENT STYLES --- */
@@ -67,7 +83,7 @@ select {
     user-select: none;
 }
 
-.custom-select-trigger:after {
+.custom-select-container .custom-select-trigger:after {
     content: "expand_more";
     font-family: "Material Icons Round";
     font-size: 1.25rem;
@@ -429,20 +445,20 @@ input[type="radio"]:checked::before {
 div[id^="payment-config-container-"] select,
 div[id^="assignment-payment-config-container-"] select,
 .payment-config-edit select {
-    appearance: auto !important;
-    -webkit-appearance: menulist !important;
-    opacity: 1 !important;
-    position: static !important;
-    width: 100% !important;
-    height: auto !important;
-    pointer-events: auto !important;
     background: var(--input-bg);
     border: 1px solid var(--glass-border);
     border-radius: 12px;
-    padding: 0.75rem 1rem;
+    padding: 1rem 1.25rem;
+    padding-right: 2.5rem;
     color: var(--text-primary);
     cursor: pointer;
     font-size: 0.95rem;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: var(--select-chevron);
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1.25rem;
 }
 
 #passive-invoice-form select:focus,

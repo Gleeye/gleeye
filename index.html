@@ -7,10 +7,11 @@
     <title>Gleeye Workspace</title>
     <meta name="description" content="A premium enterprise resource planning solution for modern businesses.">
     <link rel="icon" type="image/png" href="logo_gleeye_new.png">
-    <link rel="stylesheet" href="css/main.css?v=123">
-    <link rel="stylesheet" href="css/design-system.css?v=123">
-    <link rel="stylesheet" href="css/components/notifications.css?v=123">
-    <link rel="stylesheet" href="css/components/agenda.css?v=123">
+    <link rel="stylesheet" href="css/main.css?v=149">
+    <link rel="stylesheet" href="css/design-system.css?v=149">
+    <link rel="stylesheet" href="css/components/notifications.css?v=149">
+    <link rel="stylesheet" href="css/components/agenda.css?v=149">
+    <!-- <link rel="stylesheet" href="css/components/chat.css?v=149"> -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -112,59 +113,22 @@
             </div>
 
             <nav class="nav-menu">
-                <!-- MANAGEMENT SECTION -->
-                <div id="nav-management">
+                <!-- AREA PERSONALE (Moved to Top, No Label) -->
+                <a href="#agenda" class="nav-item" data-target="agenda">
+                    <span class="material-icons-round">calendar_today</span>
+                    <span>Agenda</span>
+                </a>
+                <a href="#my-assignments" class="nav-item" data-target="my-assignments">
+                    <span class="material-icons-round">assignment</span>
+                    <span>I miei Incarichi</span>
+                </a>
+
+                <!-- ADMINISTRATION SECTION -->
+                <div id="nav-management"
+                    style="margin-top: 1rem; border-top: 1px solid var(--glass-border); padding-top: 1rem;">
                     <div class="submenu-label"
                         style="opacity: 0.5; padding: 0.5rem 1.25rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em;">
-                        GESTIONALE</div>
-
-                    <a href="#dashboard" class="nav-item active" data-target="dashboard">
-                        <span class="material-icons-round">shopping_cart</span>
-                        <span>Ordini</span>
-                    </a>
-                    <a href="#booking" class="nav-item" data-target="booking">
-                        <span class="material-icons-round">event_available</span>
-                        <span>Prenotazioni</span>
-                    </a>
-
-                    <div class="nav-group">
-                        <div class="nav-item has-submenu" id="anagrafiche-menu-toggle">
-                            <span class="material-icons-round">folder_shared</span>
-                            <span>Anagrafiche</span>
-                            <span class="material-icons-round expand-icon">expand_more</span>
-                        </div>
-                        <div class="submenu hidden" id="anagrafiche-menu-submenu">
-                            <a href="#sales" class="nav-item sub-item" data-target="sales">
-                                <span class="material-icons-round">business</span>
-                                <span>Clienti</span>
-                            </a>
-                            <a href="#contacts" class="nav-item sub-item" data-target="contacts">
-                                <span class="material-icons-round">contact_phone</span>
-                                <span>Referenti</span>
-                            </a>
-                            <a href="#employees" class="nav-item sub-item" data-target="employees">
-                                <span class="material-icons-round">badge</span>
-                                <span>Collaboratori</span>
-                            </a>
-                            <a href="#assignments" class="nav-item sub-item" data-target="assignments">
-                                <span class="material-icons-round">assignment_ind</span>
-                                <span>Incarichi</span>
-                            </a>
-                            <a href="#services" class="nav-item sub-item" data-target="services">
-                                <span class="material-icons-round">category</span>
-                                <span>Servizi</span>
-                            </a>
-                            <a href="#collaborator-services" class="nav-item sub-item"
-                                data-target="collaborator-services">
-                                <span class="material-icons-round">assignment</span>
-                                <span>Registro Servizi</span>
-                            </a>
-                            <a href="#suppliers" class="nav-item sub-item" data-target="suppliers">
-                                <span class="material-icons-round">local_shipping</span>
-                                <span>Fornitori</span>
-                            </a>
-                        </div>
-                    </div>
+                        AMMINISTRAZIONE</div>
 
                     <div class="nav-group">
                         <div class="nav-item has-submenu" id="accounting-toggle">
@@ -226,39 +190,92 @@
                             </details>
                         </div>
                     </div>
+
+                    <div class="nav-group">
+                        <div class="nav-item has-submenu" id="anagrafiche-menu-toggle">
+                            <span class="material-icons-round">folder_shared</span>
+                            <span>Anagrafiche</span>
+                            <span class="material-icons-round expand-icon">expand_more</span>
+                        </div>
+                        <div class="submenu hidden" id="anagrafiche-menu-submenu">
+                            <a href="#sales" class="nav-item sub-item" data-target="sales">
+                                <span class="material-icons-round">business</span>
+                                <span>Clienti</span>
+                            </a>
+                            <a href="#contacts" class="nav-item sub-item" data-target="contacts">
+                                <span class="material-icons-round">contact_phone</span>
+                                <span>Referenti</span>
+                            </a>
+                            <a href="#employees" class="nav-item sub-item" data-target="employees">
+                                <span class="material-icons-round">badge</span>
+                                <span>Collaboratori</span>
+                            </a>
+                            <a href="#suppliers" class="nav-item sub-item" data-target="suppliers">
+                                <span class="material-icons-round">local_shipping</span>
+                                <span>Fornitori</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="nav-group">
+                        <div class="nav-item has-submenu" id="tariffario-toggle">
+                            <span class="material-icons-round">price_change</span>
+                            <span>Tariffario</span>
+                            <span class="material-icons-round expand-icon">expand_more</span>
+                        </div>
+                        <div class="submenu hidden" id="tariffario-submenu">
+                            <a href="#services" class="nav-item sub-item" data-target="services">
+                                <span class="material-icons-round">category</span>
+                                <span>Servizi</span>
+                            </a>
+                            <a href="#collaborator-services" class="nav-item sub-item"
+                                data-target="collaborator-services">
+                                <span class="material-icons-round">assignment</span>
+                                <span>Registro Servizi</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <a href="#dashboard" class="nav-item active" data-target="dashboard">
+                        <span class="material-icons-round">shopping_cart</span>
+                        <span>Ordini</span>
+                    </a>
+
+                    <a href="#assignments" class="nav-item" data-target="assignments">
+                        <span class="material-icons-round">assignment_ind</span>
+                        <span>Incarichi</span>
+                    </a>
+
+                    <a href="#booking" class="nav-item" data-target="booking">
+                        <span class="material-icons-round">event_available</span>
+                        <span>Prenotazioni</span>
+                    </a>
+
                 </div>
 
-                <!-- Spacer pushes AREA PERSONALE to bottom -->
+                <!-- PROJECT MANAGEMENT SECTION (Hidden in public deploy) -->
+                <div id="nav-pm" class="hidden"
+                    style="margin-top: 1.5rem; border-top: 1px solid var(--glass-border); padding-top: 1rem;">
+                    <div class="submenu-label"
+                        style="opacity: 0.5; padding: 0.5rem 1.25rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em;">
+                        PROJECT MANAGEMENT</div>
+
+                    <a href="#pm/commesse" class="nav-item" data-target="pm-commesse">
+                        <span class="material-icons-round">folder_special</span>
+                        <span>Commesse</span>
+                    </a>
+                    <a href="#pm/interni" class="nav-item" data-target="pm-interni">
+                        <span class="material-icons-round">architecture</span>
+                        <span>Interni</span>
+                    </a>
+                    <a href="#pm/my-work" class="nav-item" data-target="pm-my-work">
+                        <span class="material-icons-round">check_circle</span>
+                        <span>My Work</span>
+                    </a>
+                </div>
+
+                <!-- Spacer -->
                 <div style="flex: 1;"></div>
-
-                <!-- AREA PERSONALE (Always visible) -->
-                <div id="nav-personal"
-                    style="padding-top: 1.5rem; margin-top: 1.5rem; border-top: 1px solid var(--glass-border);">
-                    <div class="submenu-label"
-                        style="opacity: 0.5; padding: 0.5rem 1.25rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em;">
-                        AREA PERSONALE</div>
-
-                    <a href="#agenda" class="nav-item" data-target="agenda">
-                        <span class="material-icons-round">calendar_today</span>
-                        <span>Agenda</span>
-                    </a>
-                    <a href="#my-assignments" class="nav-item" data-target="my-assignments">
-                        <span class="material-icons-round">assignment</span>
-                        <span>I miei Incarichi</span>
-                    </a>
-                </div>
-
-                <!-- ADMIN ONLY (Visible only to admins via JS) -->
-                <div id="nav-admin" class="admin-only"
-                    style="padding-top: 1rem; border-top: 1px solid var(--glass-border); margin-top: 1rem;">
-                    <div class="submenu-label"
-                        style="opacity: 0.5; padding: 0.5rem 1.25rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em;">
-                        AMMINISTRAZIONE</div>
-                    <a href="#admin-notifications" class="nav-item" data-target="admin-notifications">
-                        <span class="material-icons-round">settings_applications</span>
-                        <span>Impostazioni Notifiche</span>
-                    </a>
-                </div>
             </nav>
 
             <div class="user-profile">
@@ -284,6 +301,9 @@
                         <input type="text" id="global-search" placeholder="Cerca...">
                     </div>
                     <div class="header-actions">
+                        <button id="admin-settings-btn" class="icon-btn hidden" title="Impostazioni Amministratore">
+                            <span class="material-icons-round">admin_panel_settings</span>
+                        </button>
                         <button id="theme-toggle" class="icon-btn" title="Cambia Tema">
                             <span class="material-icons-round">dark_mode</span>
                         </button>
@@ -297,12 +317,14 @@
                 <div class="loading-state">
                     <span class="loader"></span>
                 </div>
+
+
             </div>
         </main>
     </div>
 
     <!-- Main JS Module -->
-    <script type="module" src="js/app.js?v=123"></script>
+    <script type="module" src="js/app.js?v=149"></script>
 </body>
 
 </html>

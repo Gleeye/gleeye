@@ -109,6 +109,18 @@
     overflow: hidden;
 }
 
+.glass-card.clickable-card {
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card.clickable-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-premium);
+    border-color: var(--brand-blue);
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(59, 130, 246, 0.05) 100%);
+}
+
 /* Fiscal Section Card */
 .fiscal-section-card {
     background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);

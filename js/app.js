@@ -1,17 +1,18 @@
-import './utils/modal-utils.js?v=123';
-import { initAuth } from './features/auth.js?v=123';
-import { router } from './modules/router.js?v=123';
-import { InvoiceLogic } from './features/invoices.js?v=123';
-import { state } from './modules/state.js?v=123';
-import { initSettingsModals } from './features/settings.js?v=123';
-import { initCollaboratorModals } from './features/collaborators.js?v=123';
-import { initCollaboratorServiceModals } from './features/collaborator_services.js?v=123';
-import { initBankTransactionModals } from './features/bank_transactions.js?v=123';
-import { initPaymentModals } from './features/payments.js?v=123';
-import { initServiceModals } from './features/services.js?v=123';
-import { initLayout, renderSidebarProfile } from './features/layout.js?v=123';
-import { initNotifications } from './features/notifications.js?v=123';
-import { runOneTimeFix } from './fix_phantom_data.js?v=123';
+import './utils/modal-utils.js?v=148';
+import { initAuth } from './features/auth.js?v=148';
+import { router } from './modules/router.js?v=148';
+import { InvoiceLogic } from './features/invoices.js?v=148';
+import { state } from './modules/state.js?v=148';
+import { initSettingsModals } from './features/settings.js?v=148';
+import { initCollaboratorModals } from './features/collaborators.js?v=148';
+import { initCollaboratorServiceModals } from './features/collaborator_services.js?v=148';
+import { initBankTransactionModals } from './features/bank_transactions.js?v=148';
+import { initPaymentModals } from './features/payments.js?v=148';
+import { initServiceModals } from './features/services.js?v=148';
+import { initLayout, renderSidebarProfile } from './features/layout.js?v=148';
+import { initNotifications } from './features/notifications.js?v=148';
+// Chat UI is loaded lazily when user navigates to #chat
+import { runOneTimeFix } from './fix_phantom_data.js?v=148';
 // Utilities imported at top
 
 // Suppress benign ResizeObserver error
@@ -59,6 +60,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Init Layout (Sidebar toggles) - run immediately since UI is visible
     initLayout();
 
+    // Admin Settings Button Listener
+    const adminBtn = document.getElementById('admin-settings-btn');
+    if (adminBtn) {
+        adminBtn.addEventListener('click', () => {
+            window.location.hash = 'admin';
+        });
+    }
+
     // Start Auth & Routing
     initAuth();
 
@@ -69,8 +78,15 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("App ready event received. Rendering profile and router.");
         renderSidebarProfile();
         initNotifications();  // Initialize notifications after auth
+        // Chat initializes lazily when user navigates to #chat
         router();
         // setTimeout(() => runOneTimeFix(), 1000);
+    });
+
+    // Refresh UI when data is loaded
+    window.addEventListener('data:loaded', () => {
+        console.log("Data loaded event received. Refreshing UI.");
+        router();
     });
 
     // Handle hash change

@@ -3,9 +3,9 @@
  * Manages global notification types and configuration
  */
 
-import { supabase } from '../modules/config.js?v=123';
-import { state } from '../modules/state.js?v=123';
-import { fetchAllSystemConfig, upsertSystemConfig } from '../modules/api.js?v=123';
+import { supabase } from '../modules/config.js?v=148';
+import { state } from '../modules/state.js?v=148';
+import { fetchAllSystemConfig, upsertSystemConfig } from '../modules/api.js?v=148';
 
 export async function renderAdminNotifications(container) {
     // Check admin access
