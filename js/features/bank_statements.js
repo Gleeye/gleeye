@@ -119,19 +119,22 @@ async function loadStatements() {
         return;
     }
 
+    // Filter out auto-generated Imports
+    const filteredData = data.filter(item => !item.name.startsWith('Import '));
+
     // Hide loading, show content
     document.getElementById('statements-loading').style.display = 'none';
     document.getElementById('statements-content').style.display = 'block';
 
     // Update KPIs
-    updateKPIs(data);
+    updateKPIs(filteredData);
 
     // Render chart (ascending for chronological chart)
-    const chartData = [...data].reverse();
+    const chartData = [...filteredData].reverse();
     renderChart(chartData);
 
     // Render table (descending - latest first)
-    renderTable(data);
+    renderTable(filteredData);
 }
 
 function updateKPIs(data) {
