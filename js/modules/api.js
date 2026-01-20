@@ -18,15 +18,17 @@ export async function fetchProfile() {
         .eq('id', user.id)
         .maybeSingle();
 
-    if (profile && profile.collaborators) {
-        // Flatten tags into the profile object for easier access
-        let tags = profile.collaborators.tags;
-        if (typeof tags === 'string') {
-            try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
+    if (profile) {
+        if (profile.collaborators) {
+            // Flatten tags into the profile object for easier access
+            let tags = profile.collaborators.tags;
+            if (typeof tags === 'string') {
+                try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
+            }
+            profile.tags = Array.isArray(tags) ? tags : [];
+        } else {
+            profile.tags = [];
         }
-        profile.tags = Array.isArray(tags) ? tags : [];
-    } else {
-        profile.tags = [];
     }
 
     if (!profile && !error) {
