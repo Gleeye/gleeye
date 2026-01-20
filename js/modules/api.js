@@ -6,26 +6,30 @@ export async function fetchProfile() {
     const user = authData?.user;
     if (!user) return null;
 
+    // 1. Fetch Profile (base)
     let { data: profile, error } = await supabase
         .from('profiles')
-        .select(`
-            *,
-            collaborators!user_id (
-                id,
-                tags
-            )
-        `)
+        .select('*')
         .eq('id', user.id)
         .maybeSingle();
 
+    // 2. Separate Fetch for Linked Collaborator (to get Tags)
+    // This avoids the "Could not find a relationship" embedding error
     if (profile) {
-        if (profile.collaborators) {
-            // Flatten tags into the profile object for easier access
-            let tags = profile.collaborators.tags;
+        const { data: linkedCollab } = await supabase
+            .from('collaborators')
+            .select('id, tags')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+        if (linkedCollab) {
+            let tags = linkedCollab.tags;
             if (typeof tags === 'string') {
                 try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
             }
             profile.tags = Array.isArray(tags) ? tags : [];
+            // Also store collaborator ID for reference
+            profile.collaborator_id = linkedCollab.id;
         } else {
             profile.tags = [];
         }
