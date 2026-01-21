@@ -3,6 +3,30 @@ import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=148';
 import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment } from '../modules/api.js?v=148';
 import { openPaymentModal } from './payments.js?v=148';
 
+// Helper functions
+function getStatusColor(status) {
+    const s = (status || '').toLowerCase();
+    if (s.includes('complet') || s.includes('terminato') || s.includes('chiuso')) return '#10b981';
+    if (s.includes('corso') || s.includes('lavo') || s.includes('progress')) return '#f59e0b';
+    if (s.includes('sospeso') || s.includes('hold')) return '#ef4444';
+    if (s.includes('attesa') || s.includes('wait')) return '#3b82f6';
+    return '#6366f1';
+}
+
+function getInitials(name) {
+    if (!name) return '??';
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+}
+
+function getAvatarColor(name) {
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+    let hash = 0;
+    for (let i = 0; i < (name || '').length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+}
+
 export async function renderAssignmentDetail(container) {
     const id = state.currentId;
     container.innerHTML = `
@@ -21,7 +45,7 @@ export async function renderAssignmentDetail(container) {
             return;
         }
 
-        // Ensure it's in global state for other functions to find it (like toggleAssignmentConfigEdit)
+        // Ensure it's in global state
         if (!state.assignments) state.assignments = [];
         const existingIdx = state.assignments.findIndex(a => a.id === assignment.id);
         if (existingIdx >= 0) {
@@ -30,136 +54,272 @@ export async function renderAssignmentDetail(container) {
             state.assignments.push(assignment);
         }
 
-        // Find associated services (linked via order_id and collaborator_id)
-        const linkedServices = state.collaboratorServices.filter(s =>
+        // Find associated services
+        const linkedServices = (state.collaboratorServices || []).filter(s =>
             (s.order_id === assignment.order_id || (s.legacy_order_id && assignment.orders && s.legacy_order_id === assignment.orders.order_number)) &&
             s.collaborator_id === assignment.collaborator_id
         );
 
         const totalCost = linkedServices.reduce((sum, s) => sum + (parseFloat(s.total_cost) || 0), 0);
         const totalRevenue = linkedServices.reduce((sum, s) => sum + (parseFloat(s.total_price) || 0), 0);
+        const budget = parseFloat(assignment.total_amount) || 0;
         const margin = totalRevenue - totalCost;
+        const marginPct = totalRevenue > 0 ? Math.round((margin / totalRevenue) * 100) : 0;
 
-        // Determine active tab (persist in state)
-        if (!state.activeAssignmentTab) state.activeAssignmentTab = 'info';
-        const activeTab = state.activeAssignmentTab;
+        // Linked payments
+        const linkedPayments = (state.payments || []).filter(p => p.assignment_id === assignment.id);
+        const totalPaid = linkedPayments.filter(p => p.status === 'Completato' || p.status === 'Done').reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+        const totalPending = linkedPayments.filter(p => p.status !== 'Completato' && p.status !== 'Done').reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+
+        const statusColor = getStatusColor(assignment.status);
+        const collabName = assignment.collaborators?.full_name || 'Collaboratore';
+        const orderNumber = assignment.orders?.order_number || 'Ordine';
+        const orderTitle = assignment.orders?.title || '';
+        const clientName = assignment.orders?.clients?.business_name || '';
 
         container.innerHTML = `
-            <div class="animate-fade-in" style="max-width: 1200px; margin: 0 auto; padding-bottom: 4rem;">
-                
-                <!-- Breadcrumbs/Back -->
-                <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
-                    <button class="btn-link" onclick="window.history.back()" style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary);">
-                        <span class="material-icons-round">arrow_back</span> Torna indietro
-                    </button>
+            <div class="animate-fade-in" style="max-width: 1400px; margin: 0 auto; padding: 1rem;">
+                <!-- Header Section -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; background: var(--bg-secondary); padding: 1.5rem 2rem; border-radius: 16px; border: 1px solid var(--glass-border);">
+                    <div style="display: flex; align-items: center; gap: 1.25rem;">
+                        <div style="width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, #8b5cf6, #6366f1); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 16px rgba(99, 102, 241, 0.2);">
+                            <span class="material-icons-round" style="color: white; font-size: 28px;">assignment</span>
+                        </div>
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.4rem;">
+                                 <h1 style="font-size: 1.75rem; font-weight: 700; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.02em;">Incarico ${assignment.legacy_id || id.substring(0, 8)}</h1>
+                                 <span class="status-badge" style="background: ${statusColor}15; color: ${statusColor}; border: 1px solid ${statusColor}30; font-size: 0.75rem; padding: 4px 12px; border-radius: 2rem; font-weight: 600; text-transform: uppercase;">${assignment.status || 'Attivo'}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 1rem; color: var(--text-tertiary); font-size: 0.85rem;">
+                                <span style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;" onclick="window.location.hash='#collaborator-detail/${assignment.collaborator_id}'">
+                                    <span class="material-icons-round" style="font-size: 1rem;">person</span> ${collabName}
+                                </span>
+                                <span style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;" onclick="window.location.hash='#order-detail/${assignment.order_id}'">
+                                    <span class="material-icons-round" style="font-size: 1rem;">shopping_bag</span> ${orderNumber} ${orderTitle ? `- ${orderTitle}` : ''}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div style="display: flex; gap: 0.75rem;">
-                        <button class="secondary-btn small">
+                        <button class="primary-btn secondary" onclick="window.history.back()" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
+                            <span class="material-icons-round">arrow_back</span> Indietro
+                        </button>
+                        <button class="primary-btn secondary" onclick="window.editAssignment('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
                             <span class="material-icons-round">edit</span> Modifica
                         </button>
-                        <button class="primary-btn small">
+                        <button class="primary-btn" style="padding: 0.6rem 1.25rem; border-radius: 10px; background: linear-gradient(135deg, #8b5cf6, #6366f1);">
                             <span class="material-icons-round">file_download</span> Lettera Incarico
                         </button>
                     </div>
                 </div>
 
-                <!-- Header Info -->
-                <div class="glass-card" style="padding: 2.5rem; margin-bottom: 2rem; position: relative; overflow: hidden;">
-                    <div style="position: absolute; top:0; left:0; width: 4px; height: 100%; background: var(--brand-blue);"></div>
-                    
-                    <div style="display: flex; gap: 2rem; align-items: flex-start;">
-                        <!-- Avatar / Icon -->
-                        <div style="width: 80px; height: 80px; border-radius: 1.5rem; background: var(--brand-blue-light); display: flex; align-items: center; justify-content: center; color: var(--brand-blue);">
-                            <span class="material-icons-round" style="font-size: 3rem;">assignment</span>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; align-items: start;">
+                    <!-- Column 1: Basic Info -->
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        <!-- Collaborator Card -->
+                        <div class="glass-card" style="padding: 1.25rem; cursor: pointer;" onclick="window.location.hash='#collaborator-detail/${assignment.collaborator_id}'">
+                            <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 500; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Collaboratore</div>
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <div style="width: 40px; height: 40px; border-radius: 50%; background: ${getAvatarColor(collabName)}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600;">${getInitials(collabName)}</div>
+                                <div>
+                                    <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary);">${collabName}</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-tertiary);">${assignment.collaborators?.role || 'Freelance'}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Order Link Card -->
+                        <div class="glass-card" style="padding: 1.25rem; cursor: pointer;" onclick="window.location.hash='#order-detail/${assignment.order_id}'">
+                            <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 500; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Ordine Collegato</div>
+                            <div style="font-size: 0.95rem; font-weight: 600; color: var(--brand-blue); margin-bottom: 0.2rem;">${orderNumber}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); opacity: 0.8;">${orderTitle}</div>
+                            ${clientName ? `<div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.4rem;">${clientName}</div>` : ''}
+                        </div>
+
+                        <!-- Quick Info -->
+                        <div class="glass-card" style="padding: 1.25rem;">
+                            <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 500; text-transform: uppercase; margin-bottom: 0.75rem; letter-spacing: 0.05em;">Informazioni</div>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-size: 0.8rem; color: var(--text-secondary);">Data Inizio</span>
+                                    <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">${assignment.start_date ? new Date(assignment.start_date).toLocaleDateString('it-IT') : '-'}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-size: 0.8rem; color: var(--text-secondary);">Termini Pagamento</span>
+                                    <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">${assignment.payment_terms || 'Da concordare'}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-size: 0.8rem; color: var(--text-secondary);">Stato</span>
+                                    <span style="display: flex; align-items: center; gap: 0.4rem;">
+                                        <span style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColor};"></span>
+                                        <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">${assignment.status || 'Attivo'}</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Services & Description -->
+                    <div class="glass-card" style="padding: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem;">
+                            <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0;">Servizi & Attività</h3>
+                            <span class="badge" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6; font-weight: 600;">${linkedServices.length}</span>
                         </div>
                         
-                        <div style="flex: 1;">
-                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
-                                <h1 style="font-family: var(--font-titles); font-weight: 400; font-size: 2.2rem; margin: 0;">Incarico ${assignment.legacy_id || id.substring(0, 8)}</h1>
-                                <span class="status-badge" style="background: var(--brand-blue-light); color: var(--brand-blue); border: 1px solid rgba(var(--brand-blue-rgb), 0.2);">${assignment.status || 'Attivo'}</span>
+                        ${linkedServices.length > 0 ? `
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem;">
+                                ${linkedServices.map(s => `
+                                    <div style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--glass-border);">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                            <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">${s.services?.name || s.legacy_service_name || s.name || 'Servizio'}</span>
+                                            <span style="font-size: 0.85rem; font-weight: 700; color: #ef4444;">${formatAmount(s.total_cost)}€</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-tertiary);">
+                                            <span>${s.quantity || s.hours || '-'} unità × ${formatAmount(s.unit_cost)}€</span>
+                                            <span>Ricavo: ${formatAmount(s.total_price)}€</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
                             </div>
-                            <div style="display: flex; align-items: center; gap: 2rem; color: var(--text-secondary);">
-                                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                    <span class="material-icons-round" style="font-size: 1.2rem; color: var(--brand-blue);">person</span>
-                                    <span style="font-weight: 400; color: var(--text-primary); cursor: pointer;" onclick="window.location.hash='#collaborator-detail/${assignment.collaborator_id}'">
-                                        ${assignment.collaborators?.full_name || 'Collaboratore'}
-                                    </span>
+                        ` : `
+                            <div style="text-align: center; padding: 2rem; color: var(--text-tertiary); font-size: 0.85rem;">
+                                <span class="material-icons-round" style="font-size: 2rem; opacity: 0.5; display: block; margin-bottom: 0.5rem;">construction</span>
+                                Nessun servizio collegato
+                            </div>
+                        `}
+
+                        <!-- Description -->
+                        <div style="border-top: 1px solid var(--glass-border); padding-top: 1.25rem; margin-top: 0.5rem;">
+                            <div style="font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 0.5rem;">Descrizione Attività</div>
+                            <p style="font-size: 0.85rem; line-height: 1.6; color: var(--text-secondary); margin: 0;">${assignment.description || 'Nessuna descrizione specifica per questo incarico.'}</p>
+                        </div>
+
+                        ${assignment.pm_notes ? `
+                            <div style="margin-top: 1.25rem; padding: 1rem; background: rgba(245, 158, 11, 0.05); border-radius: 10px; border: 1px dashed rgba(245, 158, 11, 0.3);">
+                                <div style="font-size: 0.7rem; font-weight: 600; color: #f59e0b; text-transform: uppercase; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.4rem;">
+                                    <span class="material-icons-round" style="font-size: 1rem;">sticky_note_2</span> Note PM
                                 </div>
-                                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                    <span class="material-icons-round" style="font-size: 1.2rem; color: var(--brand-blue);">shopping_bag</span>
-                                    <span style="font-weight: 400; color: var(--text-primary); cursor: pointer;" onclick="window.location.hash='#order-detail/${assignment.order_id}'">
-                                        ${assignment.orders?.order_number || 'Ordine'} - ${assignment.orders?.title || ''}
-                                    </span>
+                                <p style="font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary); margin: 0; font-style: italic;">${assignment.pm_notes}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Column 3: Economics & Payments -->
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        <!-- Budget Card -->
+                        <div class="glass-card" style="padding: 1.5rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), transparent); border: 2px solid rgba(139, 92, 246, 0.15);">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <div style="flex: 1;">
+                                    <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Budget Incarico</div>
+                                    <div style="font-size: 2rem; font-weight: 800; line-height: 1; color: #8b5cf6; font-family: var(--font-titles);">${formatAmount(budget)}€</div>
                                 </div>
                             </div>
                         </div>
 
-                        <div style="text-align: right;">
-                            <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 400; margin-bottom: 0.25rem;">Budget Incarico</div>
-                            <div style="font-size: 2.4rem; font-weight: 800; color: var(--text-primary);">${formatAmount(assignment.total_amount)}€</div>
+                        <!-- Margin Card -->
+                        <div class="glass-card" style="padding: 1.25rem; background: ${margin >= 0 ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), transparent)' : 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), transparent)'}; border: 2px solid ${margin >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'};">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <div style="flex: 1;">
+                                    <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Margine Gleeye</div>
+                                    <div style="font-size: 1.6rem; font-weight: 800; line-height: 1; color: ${margin >= 0 ? '#10b981' : '#ef4444'}; font-family: var(--font-titles);">${formatAmount(margin)}€</div>
+                                    <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 0.25rem;">su ${formatAmount(totalRevenue)}€ ricavo</div>
+                                </div>
+                                <!-- Circular Progress -->
+                                ${totalRevenue > 0 ? `
+                                    <div style="position: relative; width: 60px; height: 60px;">
+                                        <svg width="60" height="60" style="transform: rotate(-90deg);">
+                                            <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="5"></circle>
+                                            <circle cx="30" cy="30" r="26" fill="none" 
+                                                stroke="${marginPct >= 20 ? '#10b981' : marginPct >= 10 ? '#f59e0b' : '#ef4444'}" 
+                                                stroke-width="5" 
+                                                stroke-dasharray="${(Math.max(0, marginPct) / 100) * 163.3} 163.3"
+                                                stroke-linecap="round">
+                                            </circle>
+                                        </svg>
+                                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                                            <div style="font-size: 0.85rem; font-weight: 800; color: ${marginPct >= 20 ? '#10b981' : marginPct >= 10 ? '#f59e0b' : '#ef4444'};">${marginPct}%</div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
                         </div>
-                    </div>
-                </div>
 
-                <!-- KPI Cards Row -->
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
-                    <div class="glass-card" style="padding: 1.5rem;">
-                        <div style="color: var(--text-tertiary); font-size: 0.75rem; font-weight: 400; text-transform: uppercase; margin-bottom: 0.5rem;">Stato Lavori</div>
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div style="width: 10px; height: 10px; border-radius: 50%; background: #10b981;"></div>
-                            <div style="font-size: 1.25rem; font-weight: 400;">${assignment.status || 'Completato'}</div>
+                        <!-- Payments Collapsible -->
+                        <div class="glass-card" style="padding: 1rem; background: var(--bg-tertiary); cursor: pointer;" onclick="const d = this.querySelector('.payments-details'); d.style.display = d.style.display === 'none' ? 'block' : 'none';">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.85rem;"><span class="material-icons-round" style="font-size: 1rem; color: var(--text-secondary);">payments</span> Pagamenti</div>
+                                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                    <div style="font-size: 0.6rem; padding: 2px 5px; border-radius: 4px; background: rgba(16, 185, 129, 0.1); color: #10b981; font-weight: 700;">${linkedPayments.filter(p => p.status === 'Completato' || p.status === 'Done').length} ✓</div>
+                                    <div style="font-size: 0.6rem; padding: 2px 5px; border-radius: 4px; background: rgba(245, 158, 11, 0.1); color: #f59e0b; font-weight: 700;">${linkedPayments.filter(p => p.status !== 'Completato' && p.status !== 'Done').length} ⏳</div>
+                                    <span class="material-icons-round" style="font-size: 1.1rem; color: var(--text-tertiary);">expand_more</span>
+                                </div>
+                            </div>
+
+                            <div class="payments-summary" style="display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.5rem; border-top: 1px solid var(--glass-border); padding-top: 0.5rem;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.65rem; align-items: center;">
+                                    <span style="color: var(--text-tertiary); text-transform: uppercase; font-weight: 500;">Pagato</span>
+                                    <span style="font-weight: 700; color: #10b981;">${formatAmount(totalPaid)}€</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.65rem; align-items: center;">
+                                    <span style="color: var(--text-tertiary); text-transform: uppercase; font-weight: 500;">In Attesa</span>
+                                    <span style="font-weight: 700; color: #f59e0b;">${formatAmount(totalPending)}€</span>
+                                </div>
+                            </div>
+
+                            <div class="payments-details" style="display: none; margin-top: 1rem; border-top: 1px solid var(--glass-border); padding-top: 1rem;" onclick="event.stopPropagation();">
+                                ${linkedPayments.length > 0 ? linkedPayments.map(p => `
+                                    <div style="padding: 0.6rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer; margin-bottom: 0.5rem;" onclick="window.openPaymentModal('${p.id}')">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem;">
+                                            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">${p.title || 'Pagamento'}</span>
+                                            <span style="font-size: 0.8rem; font-weight: 700; color: #ef4444;">${formatAmount(p.amount)}€</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-tertiary);">
+                                            <span>${p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT') : '-'}</span>
+                                            <span class="status-badge" style="padding: 2px 6px; font-size: 0.6rem; border-radius: 4px; background: ${(p.status === 'Completato' || p.status === 'Done') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)'}; color: ${(p.status === 'Completato' || p.status === 'Done') ? '#10b981' : '#f59e0b'}; border: none;">${p.status}</span>
+                                        </div>
+                                    </div>
+                                `).join('') : '<div style="font-size: 0.7rem; color: var(--text-tertiary); text-align: center; padding: 1rem;">Nessun pagamento</div>'}
+                                
+                                <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+                                    <button onclick="window.openManualAssignmentPaymentModal('${assignment.id}', '${assignment.collaborator_id}')" style="flex: 1; border: none; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.75rem; font-weight: 500; padding: 0.6rem; border-radius: 8px; cursor: pointer; border: 1px solid var(--glass-border);">
+                                        <span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle;">add</span> Manuale
+                                    </button>
+                                    <button onclick="window.generateAssignmentPayments('${assignment.id}')" style="flex: 1; border: none; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; font-size: 0.75rem; font-weight: 500; padding: 0.6rem; border-radius: 8px; cursor: pointer;">
+                                        <span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle;">auto_fix_high</span> Genera
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="glass-card" style="padding: 1.5rem;">
-                        <div style="color: var(--text-tertiary); font-size: 0.75rem; font-weight: 400; text-transform: uppercase; margin-bottom: 0.5rem;">Pagamento</div>
-                        <div style="font-size: 0.9rem; font-weight: 400; line-height: 1.2;">${assignment.payment_terms || 'Da concordare'}</div>
-                    </div>
-                     <div class="glass-card" style="padding: 1.5rem;">
-                        <div style="color: var(--text-tertiary); font-size: 0.75rem; font-weight: 400; text-transform: uppercase; margin-bottom: 0.5rem;">Margine Gleeye</div>
-                        <div style="font-size: 1.25rem; font-weight: 400; color: #10b981;">${formatAmount(margin)}€</div>
-                        <div style="font-size: 0.75rem; color: var(--text-tertiary);">su ${formatAmount(totalRevenue)}€ ricavo</div>
-                    </div>
-                    <div class="glass-card" style="padding: 1.5rem;">
-                        <div style="color: var(--text-tertiary); font-size: 0.75rem; font-weight: 400; text-transform: uppercase; margin-bottom: 0.5rem;">Start Date</div>
-                        <div style="font-size: 1.25rem; font-weight: 400;">${assignment.start_date ? new Date(assignment.start_date).toLocaleDateString() : '-'}</div>
-                    </div>
-                </div>
 
-                <!-- Tabs Section -->
-                <div class="glass-card" style="padding: 0;">
-                    <div style="display: flex; border-bottom: 1px solid var(--glass-border); padding: 0 1.5rem;">
-                        <button class="assignment-tab ${activeTab === 'info' ? 'active' : ''}" data-tab="info">Dati Incarico</button>
-                        <button class="assignment-tab ${activeTab === 'services' ? 'active' : ''}" data-tab="services">Servizi e Costi</button>
-                        <button class="assignment-tab ${activeTab === 'payments' ? 'active' : ''}" data-tab="payments">Piano Pagamenti</button>
-                        <button class="assignment-tab ${activeTab === 'docs' ? 'active' : ''}" data-tab="docs">Documenti</button>
-                    </div>
-
-                    <div id="assignment-tab-content" style="padding: 2.5rem;">
-                        <!-- Content will be injected here -->
-                        ${activeTab === 'info' ? renderAssignmentInfo(assignment) :
-                activeTab === 'services' ? renderAssignmentServices(linkedServices) :
-                    activeTab === 'payments' ? renderAssignmentPaymentPlan(assignment) :
-                        renderAssignmentDocs(assignment)}
+                        <!-- Documents Card -->
+                        <div class="glass-card" style="padding: 1rem;">
+                            <div style="font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 0.75rem;">Documenti</div>
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem; background: var(--bg-secondary); border-radius: 8px; cursor: pointer; border: 1px solid var(--glass-border);" onclick="window.open('${assignment.drive_link || '#'}', '_blank')">
+                                    <div style="width: 32px; height: 32px; border-radius: 8px; background: #4285F4; display: flex; align-items: center; justify-content: center; color: white;">
+                                        <span class="material-icons-round" style="font-size: 1rem;">folder</span>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 0.8rem; font-weight: 600;">Google Drive</div>
+                                        <div style="font-size: 0.65rem; color: var(--text-tertiary);">Materiali incarico</div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem; background: var(--bg-secondary); border-radius: 8px; opacity: 0.6; border: 1px solid var(--glass-border);">
+                                    <div style="width: 32px; height: 32px; border-radius: 8px; background: #DB4437; display: flex; align-items: center; justify-content: center; color: white;">
+                                        <span class="material-icons-round" style="font-size: 1rem;">description</span>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 0.8rem; font-weight: 600;">Lettera Incarico</div>
+                                        <div style="font-size: 0.65rem; color: var(--text-tertiary);">Non generata</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
-
-        // Add event listeners for tabs
-        const tabs = container.querySelectorAll('.assignment-tab');
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const tabId = tab.dataset.tab;
-                state.activeAssignmentTab = tabId;
-                tabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-
-                const content = container.querySelector('#assignment-tab-content');
-                if (tabId === 'info') content.innerHTML = renderAssignmentInfo(assignment);
-                if (tabId === 'services') content.innerHTML = renderAssignmentServices(linkedServices);
-                if (tabId === 'payments') content.innerHTML = renderAssignmentPaymentPlan(assignment);
-                if (tabId === 'docs') content.innerHTML = renderAssignmentDocs(assignment);
-            });
-        });
 
     } catch (error) {
         console.error(error);
