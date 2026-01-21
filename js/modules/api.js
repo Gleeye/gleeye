@@ -1072,7 +1072,7 @@ export async function saveAvailabilityRules(collaboratorId, rules) {
     // 2. Insert New (if any)
     if (rules && rules.length > 0) {
         // Ensure every rule has the correct collaborator_id
-        const payload = rules.map(r => ({
+        let payload = rules.map(r => ({
             collaborator_id: collaboratorId,
             day_of_week: r.day_of_week,
             start_time: r.start_time,
@@ -1083,6 +1083,15 @@ export async function saveAvailabilityRules(collaboratorId, rules) {
             // Legacy / Back-compat (clear it to avoid confusion, or set if single service for some reason)
             service_id: null
         }));
+
+        // Deduplicate payload: keep the last entry for any (day_of_week, start_time) tuple
+        // This handles cases where the user accidentally added duplicate slots in the UI
+        const uniqueMap = new Map();
+        payload.forEach(item => {
+            const key = `${item.day_of_week}-${item.start_time}`;
+            uniqueMap.set(key, item);
+        });
+        payload = Array.from(uniqueMap.values());
 
         const { data, error: insertError } = await supabase
             .from('availability_rules')

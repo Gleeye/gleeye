@@ -1,0 +1,152 @@
+/* Custom Select - Glassmorphism Style */
+
+.custom-select-wrapper {
+    position: relative;
+    user-select: none;
+    width: 100%;
+}
+
+.custom-select-wrapper select {
+    display: none;
+    /* Hide original select */
+}
+
+/* The Trigger (Visible Input area) */
+.custom-select-trigger {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 400;
+    color: var(--text-primary);
+    background: var(--input-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 38px;
+}
+
+.custom-select-trigger:hover {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: var(--brand-blue);
+    box-shadow: 0 0 0 2px rgba(78, 146, 216, 0.1);
+}
+
+.custom-select-wrapper.open .custom-select-trigger {
+    border-color: var(--brand-blue);
+    box-shadow: 0 0 0 2px rgba(78, 146, 216, 0.2);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+/* Arrow Icon */
+.custom-select-arrow {
+    font-family: 'Material Icons Round';
+    font-size: 1.2rem;
+    color: var(--text-tertiary);
+    transition: transform 0.3s ease;
+    margin-left: 0.5rem;
+}
+
+.custom-select-wrapper.open .custom-select-arrow {
+    transform: rotate(180deg);
+    color: var(--brand-blue);
+}
+
+/* Options Container */
+.custom-options {
+    position: absolute;
+    display: block;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    /* Use card bg which usually handles dark/light well */
+    border: 1px solid var(--glass-border);
+    border-top: none;
+    border-bottom-left-radius: var(--border-radius-sm);
+    border-bottom-right-radius: var(--border-radius-sm);
+    box-shadow: var(--shadow-premium);
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(-10px);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+/* Scrollbar refinement for options */
+.custom-options::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-options::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-options::-webkit-scrollbar-thumb {
+    background: var(--text-tertiary);
+    /* decent fallback */
+    border-radius: 3px;
+    opacity: 0.5;
+}
+
+.custom-select-wrapper.open .custom-options {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: all;
+    transform: translateY(0);
+}
+
+/* Search Box inside dropdown (optional future proofing) */
+.custom-select-search {
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.custom-select-search input {
+    width: 100%;
+    padding: 0.4rem;
+    border: 1px solid var(--glass-border);
+    border-radius: 4px;
+    font-size: 0.85rem;
+    outline: none;
+}
+
+/* Individual Option */
+.custom-option {
+    position: relative;
+    display: block;
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 400;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.1s ease;
+}
+
+.custom-option:hover {
+    background: rgba(78, 146, 216, 0.05);
+    /* Brand Blue Tint */
+    color: var(--brand-blue);
+}
+
+.custom-option.selected {
+    background: rgba(78, 146, 216, 0.1);
+    color: var(--brand-blue);
+    font-weight: 500;
+}
+
+.custom-option.selected::after {
+    content: 'check';
+    font-family: 'Material Icons Round';
+    position: absolute;
+    right: 1rem;
+    font-size: 1rem;
+    color: var(--brand-blue);
+}

@@ -231,7 +231,7 @@ export async function renderBankTransactions(container) {
                     <span class="material-icons-round" style="font-size: 20px;">warning</span> ${pendingTransactions.length} Movimenti da Riconciliare
                 </h3>
                 <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                     ${pendingTransactions.map(t => renderRow(t, true)).join('')}
+                     ${pendingTransactions.map(t => renderRow(t, true, monthShort)).join('')}
                 </div>
             </div>`;
     }
@@ -326,9 +326,20 @@ export async function renderBankTransactions(container) {
                 </div>
             </div>
 
-            <!-- Arrow -->
-            <div style="margin-left: 1.5rem; color: #d1d5db; flex-shrink: 0;">
-                <span class="material-icons-round" style="font-size: 24px;">chevron_right</span>
+            <!-- Arrow or Actions -->
+            <div style="margin-left: 1.5rem; flex-shrink: 0;">
+                ${isPending ? `
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="icon-btn success" onclick="event.stopPropagation(); handleApproveTx('${t.id}')" title="Approva" style="width: 32px; height: 32px; background: #dcfce7; color: #16a34a;">
+                            <span class="material-icons-round" style="font-size: 18px;">check</span>
+                        </button>
+                        <button class="icon-btn danger" onclick="event.stopPropagation(); handleRejectTx('${t.id}')" title="Scarta" style="width: 32px; height: 32px; background: #fee2e2; color: #dc2626;">
+                            <span class="material-icons-round" style="font-size: 18px;">close</span>
+                        </button>
+                    </div>
+                ` : `
+                    <span class="material-icons-round" style="font-size: 24px; color: #d1d5db;">chevron_right</span>
+                `}
             </div>
         </div>
         `;
@@ -337,6 +348,28 @@ export async function renderBankTransactions(container) {
     // Attach Handlers
     window.setBankTransactionsYear = (y) => { state.bankTransactionsYear = y; renderBankTransactions(container); };
     window.setBankTransactionsType = (t) => { state.bankTransactionsType = t; renderBankTransactions(container); };
+
+    // Approve/Reject Handlers
+    window.handleApproveTx = async (id) => {
+        try {
+            await approveBankTransaction(id);
+            window.showAlert('Movimento approvato!', 'success');
+            await renderBankTransactions(container);
+        } catch (e) {
+            window.showAlert('Errore approvazione: ' + e.message, 'error');
+        }
+    };
+
+    window.handleRejectTx = async (id) => {
+        if (!confirm("Sei sicuro di voler scartare questo movimento?")) return;
+        try {
+            await rejectBankTransaction(id);
+            window.showAlert('Movimento scartato.', 'success');
+            await renderBankTransactions(container);
+        } catch (e) {
+            window.showAlert('Errore scarto: ' + e.message, 'error');
+        }
+    };
 }
 
 /**

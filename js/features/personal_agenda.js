@@ -895,3 +895,6 @@ function openEventDetails(event) {
         if (m) m.remove();
     };
 }
+
+// Ensure function is globally available for inline onclick handlers
+window.openEventDetails = openEventDetails;

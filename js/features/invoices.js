@@ -1,5 +1,6 @@
 import { state } from '../modules/state.js?v=148';
 import { formatAmount } from '../modules/utils.js?v=148';
+import { CustomSelect } from '../components/CustomSelect.js?v=149';
 import { DashboardData } from './dashboard.js?v=148';
 import { showGlobalAlert } from '../modules/utils.js?v=148';
 import { supabase } from '../modules/config.js?v=148';
@@ -665,6 +666,11 @@ export function initInvoiceModals() {
         // Passive form submit
         const passiveForm = document.getElementById('passive-invoice-form');
         if (passiveForm) passiveForm.addEventListener('submit', handleSavePassiveInvoice);
+        // Initialize Custom Select for Collaborator
+        const collabSelect = document.getElementById('pinv-collaborator');
+        if (collabSelect) {
+            state.customCollabSelect = new CustomSelect(collabSelect);
+        }
     }
 
     // Assign global functions
@@ -898,6 +904,8 @@ async function populateCollaboratorDropdown() {
     const collaborators = state.collaborators || [];
     select.innerHTML = '<option value="">Seleziona collaboratore...</option>' +
         collaborators.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('');
+
+    if (state.customCollabSelect) state.customCollabSelect.refresh();
 }
 
 async function populateSupplierDropdown() {
