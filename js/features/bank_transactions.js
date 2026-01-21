@@ -352,7 +352,16 @@ export async function renderBankTransactions(container) {
     // Approve/Reject Handlers
     window.handleApproveTx = async (id) => {
         try {
-            await approveBankTransaction(id);
+            // Find the transaction object to check for pre-calculated matches
+            const t = state.bankTransactions.find(x => x.id == id) || pendingTransactions.find(x => x.id == id);
+
+            const overrides = {};
+            if (t) {
+                if (t.active_invoice_match) overrides.active_invoice_id = t.active_invoice_match.id;
+                else if (t.passive_invoice_match) overrides.passive_invoice_id = t.passive_invoice_match.id;
+            }
+
+            await approveBankTransaction(id, overrides);
             window.showAlert('Movimento approvato!', 'success');
             await renderBankTransactions(container);
         } catch (e) {

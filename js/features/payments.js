@@ -20,8 +20,8 @@ export function renderPaymentsDashboard(container) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // Filter: Status To-Do (default)
-        let items = state.payments.filter(p => p.status === 'To Do' || p.status === 'In attesa');
+        // Filter: Status not completed (show all pending states)
+        let items = state.payments.filter(p => p.status !== 'Completato' && p.status !== 'Done');
 
         // Filter by Type (Entrate vs Uscite)
         if (state.paymentsFilterType === 'entrate') {
@@ -31,7 +31,7 @@ export function renderPaymentsDashboard(container) {
         }
 
         // Calculate Overview Metrics
-        const allToDo = state.payments.filter(p => p.status === 'To Do' || p.status === 'In attesa');
+        const allToDo = state.payments.filter(p => p.status !== 'Completato' && p.status !== 'Done');
         const entrateTotal = allToDo.filter(p => p.payment_type === 'Cliente').reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
         const usciteTotal = allToDo.filter(p => p.payment_type !== 'Cliente').reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
         const nettoTotal = entrateTotal - usciteTotal;
@@ -414,8 +414,10 @@ export function initPaymentModals() {
                          <div class="flex-column" style="gap: 0.5rem;">
                              <label class="text-caption">Stato</label>
                              <select id="pme-status" style="padding: 0.85rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); width: 100%;">
-                                 <option value="To Do">Da Fare</option>
-                                 <option value="Done">Completato</option>
+                                 <option value="Da Fare">Da Fare</option>
+                                 <option value="Invito Inviato">Invito Inviato</option>
+                                 <option value="In Attesa">In Attesa</option>
+                                 <option value="Completato">Completato</option>
                              </select>
                          </div>
                     </div>
@@ -573,8 +575,33 @@ export function openPaymentModal(id) {
             actionDiv.innerHTML = `<button class="primary-btn" style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 8px;"><span class="material-icons-round" style="font-size: 1rem;">add</span> Emetti Fattura</button>`;
         }
     } else {
-        if (p.passive_invoices?.id || p.passive_invoice_id) {
+        // Passive payment flow
+        if (p.passive_invoices?.id || p.passive_invoice_id || p.invoice_id) {
+            // Invoice linked - show badge
             actionDiv.innerHTML = `<button class="badge badge-warning" style="cursor: pointer; border: 1px solid rgba(245, 158, 11, 0.2);"><span class="material-icons-round text-small">receipt_long</span> Fattura ${p.passive_invoices?.invoice_number || ''}</button>`;
+        } else if (p.status === 'Da Fare' || p.status === 'To Do' || !p.status) {
+            // No invite sent yet - show "Invia Invito" button
+            actionDiv.innerHTML = `<button class="primary-btn" id="btn-send-invite" style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 8px; background: #f59e0b;"><span class="material-icons-round" style="font-size: 1rem;">send</span> Invia Invito a Fatturare</button>`;
+            setTimeout(() => {
+                const inviteBtn = document.getElementById('btn-send-invite');
+                if (inviteBtn) {
+                    inviteBtn.addEventListener('click', async () => {
+                        try {
+                            const { supabase } = await import('../modules/config.js?v=148');
+                            await supabase.rpc('send_payment_invite', { p_payment_id: p.id });
+                            // Refresh payments and reopen modal
+                            await fetchPayments();
+                            openPaymentModal(p.id);
+                            showGlobalAlert('Invito inviato al collaboratore!', 'success');
+                        } catch (e) {
+                            showGlobalAlert('Errore invio invito: ' + e.message, 'error');
+                        }
+                    });
+                }
+            }, 0);
+        } else if (p.status === 'Invito Inviato') {
+            // Waiting for collaborator to send invoice
+            actionDiv.innerHTML = `<button class="badge" style="background: #fef3c7; color: #b45309; cursor: default; border: 1px solid rgba(245, 158, 11, 0.2);"><span class="material-icons-round text-small">hourglass_top</span> In attesa fattura</button>`;
         } else {
             actionDiv.innerHTML = `<button class="primary-btn" style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 8px;"><span class="material-icons-round" style="font-size: 1rem;">upload</span> Registra Fattura</button>`;
         }
@@ -585,7 +612,18 @@ export function openPaymentModal(id) {
     document.getElementById('info-date').textContent = p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }) : 'Nessuna data';
     document.getElementById('info-mode').textContent = p.payment_mode || 'Rata';
     document.getElementById('info-type').textContent = p.payment_type || '-';
-    document.getElementById('info-status').textContent = p.status === 'Done' ? 'Completato' : 'In attesa / Da fare';
+    // Status badge with color
+    const statusEl = document.getElementById('info-status');
+    const statusMap = {
+        'Da Fare': { label: 'Da Fare', color: '#6b7280' },
+        'Invito Inviato': { label: 'Invito Inviato', color: '#f59e0b' },
+        'In Attesa': { label: 'In Attesa', color: '#3b82f6' },
+        'Completato': { label: 'Completato', color: '#22c55e' },
+        'Done': { label: 'Completato', color: '#22c55e' },
+        'To Do': { label: 'Da Fare', color: '#6b7280' }
+    };
+    const statusInfo = statusMap[p.status] || { label: p.status || 'N/A', color: '#6b7280' };
+    statusEl.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 0.4rem;"><span style="width: 8px; height: 8px; border-radius: 50%; background: ${statusInfo.color};"></span>${statusInfo.label}</span>`;
 
     // Details Content
     document.getElementById('det-order-num').textContent = p.orders?.order_number || 'N/A';
