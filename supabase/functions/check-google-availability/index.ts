@@ -138,12 +138,33 @@ serve(async (req: Request) => {
 
 // Helper for refresh token
 async function refreshGoogleToken(refreshToken: string, supabaseClient: any) {
-  // Simplification: Use Env Vars directly to avoid DB bottleneck/crashes
-  const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
-  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
+  // First try to fetch from system_config table (Admin Panel settings)
+  let clientId: string | undefined
+  let clientSecret: string | undefined
+
+  try {
+    const { data: configData } = await supabaseClient
+      .from('system_config')
+      .select('key, value')
+      .in('key', ['google_client_id', 'google_client_secret'])
+
+    if (configData && configData.length > 0) {
+      const clientIdConfig = configData.find((c: any) => c.key === 'google_client_id')
+      const clientSecretConfig = configData.find((c: any) => c.key === 'google_client_secret')
+
+      if (clientIdConfig?.value) clientId = clientIdConfig.value
+      if (clientSecretConfig?.value) clientSecret = clientSecretConfig.value
+    }
+  } catch (dbErr) {
+    console.warn('Could not fetch credentials from database:', dbErr)
+  }
+
+  // Fallback to env vars if not found in DB
+  if (!clientId) clientId = Deno.env.get('GOOGLE_CLIENT_ID')
+  if (!clientSecret) clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
 
   if (!clientId || !clientSecret) {
-    throw new Error('Missing Google Credentials in Env Vars')
+    throw new Error('Missing Google Credentials - check Admin Panel or Env Vars')
   }
 
   const response = await fetch('https://oauth2.googleapis.com/token', {
