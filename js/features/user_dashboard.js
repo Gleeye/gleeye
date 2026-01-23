@@ -118,6 +118,20 @@ export async function renderUserProfile(container) {
                             
                             <div class="form-group"><label>Codice Fiscale</label><input type="text" id="my-fiscal-code" value="${myCollab.fiscal_code || ''}"></div>
                             <div class="form-group"><label>P.IVA</label><input type="text" id="my-vat" value="${myCollab.vat_number || ''}"></div>
+                            
+                            <div class="form-group full-width" style="grid-column: 1/-1;">
+                                <label>Fuso Orario</label>
+                                <select id="my-timezone" style="width: 100%; padding: 0.8rem; border: 1px solid var(--glass-border); border-radius: 8px; background: white;">
+                                    <option value="Europe/Rome">Europe/Rome (GMT+1/GMT+2)</option>
+                                    <option value="Europe/London">Europe/London (GMT+0/GMT+1)</option>
+                                    <option value="America/New_York">America/New_York (GMT-5/GMT-4)</option>
+                                    <option value="America/Los_Angeles">America/Los_Angeles (GMT-8/GMT-7)</option>
+                                    <option value="Asia/Tokyo">Asia/Tokyo (GMT+9)</option>
+                                    <option value="Asia/Dubai">Asia/Dubai (GMT+4)</option>
+                                    <option value="Australia/Sydney">Australia/Sydney (GMT+10/GMT+11)</option>
+                                    <option value="UTC">UTC (GMT+0)</option>
+                                </select>
+                            </div>
                         </div>
                         
                         <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
@@ -167,6 +181,17 @@ export async function renderUserProfile(container) {
             </div>
         </div>
     `;
+
+    // Initialize Timezone Select
+    setTimeout(() => {
+        const tzSelect = document.getElementById('my-timezone');
+        if (tzSelect && state.profile?.timezone) {
+            tzSelect.value = state.profile.timezone;
+        } else if (tzSelect) {
+            // Default check
+            tzSelect.value = 'Europe/Rome';
+        }
+    }, 0);
 
     // Tabs Logic
     const tabs = container.querySelectorAll('.tab-btn');
@@ -234,8 +259,23 @@ export async function renderUserProfile(container) {
                 tags: myCollab.tags
             };
 
+            const timezone = document.getElementById('my-timezone').value;
+
             try {
+                // Update Collaborators Table
                 await upsertCollaborator(updates);
+
+                // Update Profiles Table (Timezone)
+                if (timezone) {
+                    const { error: tzError } = await supabase
+                        .from('profiles')
+                        .update({ timezone: timezone })
+                        .eq('id', state.profile.id); // Use profile ID (Auth ID)
+
+                    if (tzError) throw tzError;
+                    state.profile.timezone = timezone; // Update local state
+                }
+
                 window.showAlert('Profilo aggiornato con successo!', 'success');
                 // Could refresh state here
             } catch (err) {

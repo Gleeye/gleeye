@@ -104,9 +104,8 @@ export async function renderAgenda(container) {
                     </div>
 
                 <div class="header-actions">
-                     <button class="action-btn" id="btn-manage-availability" style="margin-right: 0.5rem; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: white; border: 1px solid var(--glass-border); border-radius: 8px; font-weight: 500; cursor: pointer;">
-                        <span class="material-icons-round" style="color: var(--brand-blue); font-size: 18px;">event_available</span>
-                        <span>Disponibilità</span>
+                     <button class="icon-nav-btn" id="btn-manage-availability" title="Modifica Disponibilità" style="margin-right: 0.5rem;">
+                        <span class="material-icons-round" style="color: var(--brand-blue);">event_available</span>
                      </button>
 
                      <div class="view-mode-toggle">
