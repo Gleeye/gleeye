@@ -333,14 +333,13 @@ export function updateSidebarVisibility() {
             // Let's hide Ordini/Incarichi from sidebar to keep it clean, as they use "I miei Incarichi"
             managementNav.querySelectorAll('a[data-target="dashboard"], a[data-target="assignments"]').forEach(i => i.classList.add('hidden'));
 
-            // ENABLE Booking
+            // HIDE Booking for standard users (unless Project Manager or specialized roll which is handled above or elsewhere)
             const bookingLink = managementNav.querySelector('a[data-target="booking"]');
-            if (bookingLink) bookingLink.classList.remove('hidden');
+            if (bookingLink) bookingLink.classList.add('hidden');
 
             // Manage label visibility
             if (managementLabel) {
-                // Show label only if booking is visible
-                bookingLink ? managementLabel.classList.remove('hidden') : managementLabel.classList.add('hidden');
+                managementLabel.classList.add('hidden');
             }
         }
     }
