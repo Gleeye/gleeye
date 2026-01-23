@@ -84,10 +84,7 @@ export async function renderAgenda(container) {
                 <div class="agenda-quick-add" style="margin-top: auto; padding-top: 2rem;">
                    <div class="filter-group-title" style="margin-bottom: 1rem;">Azioni Rapide</div>
                    
-                   <button class="quick-add-btn" id="btn-manage-availability" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.8rem; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; margin-bottom: 0.75rem;">
-                        <span class="material-icons-round" style="color: var(--brand-blue);">event_available</span>
-                        <span>Disponibilità</span>
-                   </button>
+
 
                    <button class="quick-add-btn" onclick="window.showAlert('Funzione in arrivo', 'info')" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.8rem; background: var(--brand-blue); color: white; border: none; border-radius: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(var(--brand-blue-rgb, 78, 146, 216), 0.3);">
                         <span class="material-icons-round">add</span>
@@ -106,22 +103,27 @@ export async function renderAgenda(container) {
                         </h2>
                     </div>
 
-                    <div class="header-actions">
-                         <div class="view-mode-toggle">
-                            <button class="mode-btn active" id="view-week" onclick="switchView('week')">Settimana</button>
-                            <button class="mode-btn" id="view-day" onclick="switchView('day')">Giorno</button>
-                        </div>
+                <div class="header-actions">
+                     <button class="action-btn" id="btn-manage-availability" style="margin-right: 0.5rem; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: white; border: 1px solid var(--glass-border); border-radius: 8px; font-weight: 500; cursor: pointer;">
+                        <span class="material-icons-round" style="color: var(--brand-blue); font-size: 18px;">event_available</span>
+                        <span>Disponibilità</span>
+                     </button>
 
-                         <div class="calendar-nav-controls" style="display:flex; gap: 0.5rem">
-                            <button class="icon-nav-btn" id="prev-period">
-                                <span class="material-icons-round">chevron_left</span>
-                            </button>
-                            <button class="icon-nav-btn" id="next-period">
-                                <span class="material-icons-round">chevron_right</span>
-                            </button>
-                             <button class="today-btn" id="today-btn">Oggi</button>
-                        </div>
+                     <div class="view-mode-toggle">
+                        <button class="mode-btn active" id="view-week" onclick="switchView('week')">Settimana</button>
+                        <button class="mode-btn" id="view-day" onclick="switchView('day')">Giorno</button>
                     </div>
+
+                     <div class="calendar-nav-controls" style="display:flex; gap: 0.5rem">
+                        <button class="icon-nav-btn" id="prev-period">
+                            <span class="material-icons-round">chevron_left</span>
+                        </button>
+                        <button class="icon-nav-btn" id="next-period">
+                            <span class="material-icons-round">chevron_right</span>
+                        </button>
+                         <button class="today-btn" id="today-btn">Oggi</button>
+                    </div>
+                </div>
                 </div>
 
                  <!-- Timeline Grid -->
@@ -580,7 +582,15 @@ function renderTimeline() {
                 const bStart = new Date(b.start).getTime();
                 const bEnd = new Date(b.end).getTime();
                 const isMatch = bStart < dayEndMs && bEnd > dayStartMs;
-                if (isMatch) console.log(`[Agenda]   -> Match Found: ${b.start} to ${b.end} (Start: ${bStart}, DayStart: ${dayStartMs})`);
+
+                // Verbose Debugging for first few checks
+                if (availabilityCache.googleBusy.length < 5 || isMatch) {
+                    console.log(`[Agenda Debug] Comparing Slot: ${b.start} -> ${b.end}`);
+                    console.log(`[Agenda Debug]   Slot Start: ${bStart}, End: ${bEnd}`);
+                    console.log(`[Agenda Debug]   Day  Start: ${dayStartMs}, End: ${dayEndMs}`);
+                    console.log(`[Agenda Debug]   Match: ${isMatch} (bStart < dayEndMs: ${bStart < dayEndMs}, bEnd > dayStartMs: ${bEnd > dayStartMs})`);
+                }
+
                 return isMatch;
             }).map(b => {
                 const bStart = new Date(b.start).getTime();
