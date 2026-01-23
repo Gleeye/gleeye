@@ -301,13 +301,22 @@ async function fetchMyBookings() {
         };
 
         // Fetch Google Calendar busy slots (async, non-blocking for initial render)
-        // Only fetch if we don't already have data and no fetch is in progress
+        // Reset in-progress flag if it's stale (e.g. > 10s old)
+        if (window._googleBusyFetchStart && (Date.now() - window._googleBusyFetchStart > 10000)) {
+            window._googleBusyFetchInProgress = false;
+        }
+
         console.log('[Agenda] Google fetch check:', { existingLen: existingGoogleBusy.length, inProgress: window._googleBusyFetchInProgress, collaboratorId });
+
         if (existingGoogleBusy.length === 0 && !window._googleBusyFetchInProgress) {
             window._googleBusyFetchInProgress = true;
+            window._googleBusyFetchStart = Date.now();
+
             fetchGoogleCalendarBusy(collaboratorId).then(busySlots => {
                 window._googleBusyFetchInProgress = false;
+                window._googleBusyFetchStart = null;
                 console.log('[Agenda] Google Calendar API returned:', busySlots);
+
                 if (busySlots && busySlots.length > 0) {
                     // Check for Auth Error
                     if (busySlots[0]?.error === 'AUTH_ERROR') {
@@ -315,7 +324,6 @@ async function fetchMyBookings() {
                         window.showGlobalAlert('Autorizzazione Google scaduta. Ricollega il calendario dal tuo profilo.', 'error');
                         return;
                     }
-
                     availabilityCache.googleBusy = busySlots;
                     console.log('[Agenda] Google Calendar busy slots fetched:', busySlots.length);
                     renderTimeline(); // Re-render with calendar data
@@ -324,12 +332,11 @@ async function fetchMyBookings() {
                 }
             }).catch(err => {
                 window._googleBusyFetchInProgress = false;
+                window._googleBusyFetchStart = null;
                 console.warn('[Agenda] Google Calendar fetch failed:', err);
-                // Show warning to user so they know sync is down
-                if (window.showGlobalAlert) {
-                    window.showGlobalAlert('Errore sincronizzazione Google Calendar. Riprova più tardi.', 'warning');
-                }
             });
+        } else if (existingGoogleBusy.length > 0) {
+            availabilityCache.googleBusy = existingGoogleBusy;
         }
 
         console.log("[Agenda] Fetched events:", eventsCache.length, "Rules:", availabilityCache.rules.length);
@@ -791,6 +798,7 @@ function changePeriod(delta) {
     // Reset google busy cache when changing period to fetch new data
     availabilityCache.googleBusy = [];
     window._googleBusyFetchInProgress = false;
+    window._googleBusyFetchStart = null;
 
     // Re-fetch all data including calendar
     fetchMyBookings().then(() => updateView());
