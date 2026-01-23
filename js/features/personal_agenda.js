@@ -351,6 +351,9 @@ async function fetchMyBookings() {
                 window._googleBusyFetchStart = null;
                 console.log('[Agenda] Google Calendar API returned:', busySlots);
 
+                console.log('[Agenda] Raw Busy Response:', busySlots);
+                console.log('[Agenda] Fetch Range:', { timeMin, timeMax });
+
                 if (busySlots && busySlots.length > 0) {
                     // Check for Auth Error
                     if (busySlots[0]?.error === 'AUTH_ERROR') {
