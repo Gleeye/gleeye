@@ -584,12 +584,12 @@ function renderTimeline() {
                 const isMatch = bStart < dayEndMs && bEnd > dayStartMs;
 
                 // Verbose Debugging for first few checks
-                if (availabilityCache.googleBusy.length < 5 || isMatch) {
-                    console.log(`[Agenda Debug] Comparing Slot: ${b.start} -> ${b.end}`);
-                    console.log(`[Agenda Debug]   Slot Start: ${bStart}, End: ${bEnd}`);
-                    console.log(`[Agenda Debug]   Day  Start: ${dayStartMs}, End: ${dayEndMs}`);
-                    console.log(`[Agenda Debug]   Match: ${isMatch} (bStart < dayEndMs: ${bStart < dayEndMs}, bEnd > dayStartMs: ${bEnd > dayStartMs})`);
-                }
+                // if (availabilityCache.googleBusy.length < 5 || isMatch) {
+                //    console.log(`[Agenda Debug] Comparing Slot: ${b.start} -> ${b.end}`);
+                //    console.log(`[Agenda Debug]   Slot Start: ${bStart}, End: ${bEnd}`);
+                //    console.log(`[Agenda Debug]   Day  Start: ${dayStartMs}, End: ${dayEndMs}`);
+                //    console.log(`[Agenda Debug]   Match: ${isMatch} (bStart < dayEndMs: ${bStart < dayEndMs}, bEnd > dayStartMs: ${bEnd > dayStartMs})`);
+                // }
 
                 return isMatch;
             }).map(b => {
