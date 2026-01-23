@@ -1,4 +1,6 @@
 import { addMinutes, areIntervalsOverlapping, isWithinInterval, startOfDay, format } from 'date-fns';
+import { toZonedTime, customToDate } from 'date-fns-tz'; // Renamed imports for clarity if needed, checking docs
+import { fromZonedTime } from 'date-fns-tz';
 import { supabase } from './supabaseClient';
 
 // --- Types ---
@@ -8,6 +10,7 @@ export type Slot = TimeRange & { availableCollaborators: string[] };
 interface Collaborator {
     id: string;
     name: string;
+    timezone?: string; // Default to 'Europe/Rome' if missing
 }
 
 interface Service {
@@ -37,22 +40,22 @@ export interface AvailabilityContext {
     candidates: Collaborator[];
     range: TimeRange;
 
-    // Data Maps (Pre-fetched)
-    recurringRules: Record<string, AvailabilityRule[]>; // collabId -> rules
-    overrides: Record<string, AvailabilityOverride[]>;  // collabId -> overrides
-    busyTimes: Record<string, TimeRange[]>;             // collabId -> [Internal Bookings + External Events]
+    // Data Maps
+    recurringRules: Record<string, AvailabilityRule[]>;
+    overrides: Record<string, AvailabilityOverride[]>;
+    busyTimes: Record<string, TimeRange[]>;
+    timezones: Record<string, string>; // collabId -> timezone
 }
 
 // --- Main Engine ---
 export function calculateAvailability(ctx: AvailabilityContext): Slot[] {
     const { service, candidates, range } = ctx;
-    // Step matches service duration to create meaningful blocks
     const step = service.durationMinutes > 0 ? service.durationMinutes : 15;
     const durationPlusAfter = service.durationMinutes + (service.bufferAfterMinutes || 0);
 
     const possibleSlots: Slot[] = [];
 
-    // Iterate strictly by 'step' within the requested range
+    // Iterate strictly by 'step' within the requested range (Range is in UTC/Client Time)
     let current = new Date(range.start);
     const endLimit = new Date(range.end);
 
@@ -73,15 +76,12 @@ export function calculateAvailability(ctx: AvailabilityContext): Slot[] {
 
         // Apply Service Logic
         let isSlotValid = false;
-
         const totalCandidates = candidates.length;
-        // Optimization: If totalCandidates is 0 (should not happen), invalid
         if (totalCandidates === 0) break;
 
         if (service.logicType === 'OR') {
             isSlotValid = freeCollaborators.length > 0;
         } else if (service.logicType === 'AND') {
-            // Check if all candidates are free
             isSlotValid = freeCollaborators.length === totalCandidates;
         } else if (service.logicType === 'TEAM_SIZE') {
             isSlotValid = freeCollaborators.length >= (service.requiredTeamSize || 1);
@@ -95,11 +95,6 @@ export function calculateAvailability(ctx: AvailabilityContext): Slot[] {
             });
         }
 
-        // DEBUG: Log each slot decision for AND services
-        if (service.logicType === 'AND') {
-            console.log(`[AND Debug] ${format(slotStart, 'yyyy-MM-dd HH:mm')}: Free=${freeCollaborators.length}/${totalCandidates} (${freeCollaborators.map(c => c.name).join(', ')}) → ${isSlotValid ? 'VALID' : 'INVALID'}`);
-        }
-
         current = addMinutes(current, step);
     }
 
@@ -108,66 +103,74 @@ export function calculateAvailability(ctx: AvailabilityContext): Slot[] {
 
 // --- Helper: Single Collaborator Check ---
 function isCollaboratorAvailable(collabId: string, interval: TimeRange, ctx: AvailabilityContext): boolean {
-    // 1. Check Busy Times (Bookings + External)
-    // If ANY busy time overlaps with the interval, they are NOT available.
+    const timezone = ctx.timezones[collabId] || 'Europe/Rome';
+
+    // 1. Check Busy Times (Stored in UTC in DB/Memory)
+    // Busy times are absolute timestamps, so simple overlap check works regardless of IZ
     const busyList = ctx.busyTimes[collabId] || [];
     const isBusy = busyList.some(busy => areIntervalsOverlapping(busy, interval));
     if (isBusy) return false;
 
-    // 2. Check Positive Availability (Rules / Overrides)
-    // Must be covered by at least one "Available Block"
+    // 2. Check Positive Availability (Rules are in Collab's Timezone)
+    // We need to determine "What day is it for the collaborator?" at the start of the interval.
 
-    const dayDate = startOfDay(interval.start);
-    // Use local date string formatting to match override keys which are date-strings
-    const dateStr = format(dayDate, 'yyyy-MM-dd');
-    const dayOfWeek = dayDate.getDay();
+    // Convert the interval start to the collaborator's timezone to find the day/date
+    const intervalStartInTz = toZonedTime(interval.start, timezone);
+    const dateStr = format(intervalStartInTz, 'yyyy-MM-dd');
+    const dayOfWeek = intervalStartInTz.getDay();
 
     // A. Check for specific Date Override
     const override = ctx.overrides[collabId]?.find(o => o.dateStr === dateStr);
 
     if (override) {
-        if (!override.isAvailable) return false; // Explicitly blocked entire day
-        // If available, check if interval fits in specific override ranges (if defined)
-        // If no ranges defined but isAvailable=true, assume whole day? usually ranges are required.
-        // For MVP assume override replaces recurring.
-        return checkRanges(interval, override.ranges || []);
+        if (!override.isAvailable) return false;
+        // Check ranges (assumed absolute/UTC already converted during prep? No, overrides usually just date. 
+        // We will assume overrides ranges are also in Collab Time if defined, but current schema looks generic)
+        // For MVP overrides replace recurring rules logic.
+        // If overrides has specific ranges, we'd need to convert them too. 
+        // Assuming override just opens the whole day for now if ranges undefined.
+        if (!override.ranges || override.ranges.length === 0) return true;
+        return checkRanges(interval, override.ranges);
     }
 
     // B. Fallback to Recurring Rules
-    // Use loose equality for dayOfWeek in case of string/number mismatch from DB
     const rules = ctx.recurringRules[collabId]?.filter(r => r.dayOfWeek == dayOfWeek);
-    if (!rules || rules.length === 0) return false; // No rule = Not working
+    if (!rules || rules.length === 0) return false;
 
-    // Convert rules to absolute TimeRanges for that specific day
-    const dailyRanges = rules.map(r => convertRuleToRange(r, dayDate));
+    // Convert rules (e.g. "09:00" in Tokyo) to Absolute UTC Ranges for the specific day
+    const dailyRanges = rules.map(r => convertRuleToRange(r, dateStr, timezone));
 
     return checkRanges(interval, dailyRanges);
 }
 
 function checkRanges(needed: TimeRange, available: TimeRange[]): boolean {
-    // The 'needed' interval must be fully contained within AT LEAST ONE of the 'available' ranges.
-    // (Assuming continuous block needed. If split allowed, logic implies intersection.)
     return available.some(avail =>
         isWithinInterval(needed.start, avail) && isWithinInterval(needed.end, avail)
     );
 }
 
-function convertRuleToRange(rule: AvailabilityRule, date: Date): TimeRange {
-    const [startH, startM] = rule.startTimeStr.split(':').map(Number);
-    const [endH, endM] = rule.endTimeStr.split(':').map(Number);
+/**
+ * Converts a rule like "09:00 - 17:00" on "2026-01-20" in "Asia/Tokyo"
+ * into an absolute UTC TimeRange.
+ */
+function convertRuleToRange(rule: AvailabilityRule, dateStr: string, timezone: string): TimeRange {
+    // Construct string like "2026-01-20T09:00:00"
+    // Then interpret it in the specific timezone
+    const [startH, startM] = rule.startTimeStr.split(':');
+    const [endH, endM] = rule.endTimeStr.split(':');
 
-    const start = new Date(date);
-    start.setHours(startH, startM, 0, 0);
+    // Create ISO-like strings without Z
+    const startIso = `${dateStr}T${startH.padStart(2, '0')}:${startM.padStart(2, '0')}:00`;
+    const endIso = `${dateStr}T${endH.padStart(2, '0')}:${endM.padStart(2, '0')}:00`;
 
-    const end = new Date(date);
-    end.setHours(endH, endM, 0, 0);
+    // Convert to Absolute Date (UTC) treating the string as being in 'timezone'
+    const start = fromZonedTime(startIso, timezone);
+    const end = fromZonedTime(endIso, timezone);
 
     return { start, end };
 }
 
-/**
- * Orchestrator: Fetches all data and prepares the context for calculation
- */
+// --- Orchestrator ---
 export async function prepareAvailabilityContext(
     service: Service,
     candidates: Collaborator[],
@@ -175,6 +178,21 @@ export async function prepareAvailabilityContext(
     end: Date
 ): Promise<AvailabilityContext> {
     const collabIds = candidates.map(c => c.id);
+
+    // 0. Fetch Timezones (if not already on candidates, but we should fetch from profiles to be sure)
+    const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, timezone')
+        .in('id', collabIds);
+
+    const timezones: Record<string, string> = {};
+    profilesData?.forEach(p => {
+        timezones[p.id] = p.timezone || 'Europe/Rome';
+    });
+    // Fallback for missing profiles
+    candidates.forEach(c => {
+        if (!timezones[c.id]) timezones[c.id] = c.timezone || 'Europe/Rome';
+    });
 
     // 1. Fetch Recurring Rules
     const { data: rulesData } = await supabase
@@ -204,10 +222,24 @@ export async function prepareAvailabilityContext(
     (overridesData || []).forEach(o => {
         if (!overrides[o.collaborator_id]) overrides[o.collaborator_id] = [];
 
-        const dayDate = new Date(o.date);
+        // For Overrides with manual times, we assume the inputs are also in Collab Timezone for now
+        // But handling overrides specific hours + timezone matching needs care. 
+        // We'll treat date string as stable.
+        const tz = timezones[o.collaborator_id] || 'Europe/Rome';
         let ranges: TimeRange[] = [];
+
         if (o.is_available && o.start_time && o.end_time) {
-            ranges = [convertTimesToRange(o.start_time, o.end_time, dayDate)];
+            const [sH, sM] = o.start_time.split(':');
+            const [eH, eM] = o.end_time.split(':');
+            const dateStr = o.date;
+
+            const startIso = `${dateStr}T${sH.padStart(2, '0')}:${sM.padStart(2, '0')}:00`;
+            const endIso = `${dateStr}T${eH.padStart(2, '0')}:${eM.padStart(2, '0')}:00`;
+
+            ranges = [{
+                start: fromZonedTime(startIso, tz),
+                end: fromZonedTime(endIso, tz)
+            }];
         }
 
         overrides[o.collaborator_id].push({
@@ -217,9 +249,8 @@ export async function prepareAvailabilityContext(
         });
     });
 
-    // 3. Fetch Busy Times (Google + Internal)
+    // 3. Fetch Busy Times (UTC)
     const busyTimes: Record<string, TimeRange[]> = {};
-
     await Promise.all(collabIds.map(async (id) => {
         const [internal, external] = await Promise.all([
             fetchInternalBusyTimes(id, start, end),
@@ -234,19 +265,11 @@ export async function prepareAvailabilityContext(
         range: { start, end },
         recurringRules,
         overrides,
-        busyTimes
+        busyTimes,
+        timezones
     };
 }
 
-function convertTimesToRange(startStr: string, endStr: string, date: Date): TimeRange {
-    const [sH, sM] = startStr.split(':').map(Number);
-    const [eH, eM] = endStr.split(':').map(Number);
-    const start = new Date(date);
-    start.setHours(sH, sM, 0, 0);
-    const end = new Date(date);
-    end.setHours(eH, eM, 0, 0);
-    return { start, end };
-}
 
 /**
  * Fetches busy slots from the Google Calendar Edge Function
