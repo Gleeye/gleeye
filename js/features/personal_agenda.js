@@ -359,11 +359,19 @@ async function fetchMyBookings() {
                         window.showGlobalAlert('Autorizzazione Google scaduta. Ricollega il calendario dal tuo profilo.', 'error');
                         return;
                     }
+                    // Check for API Error
+                    if (busySlots[0]?.error === 'API_ERROR') {
+                        console.warn('[Agenda] Google API Error:', busySlots[0]);
+                        updateSyncStatus('error', 'Errore Google');
+                        return;
+                    }
+
                     availabilityCache.googleBusy = busySlots;
                     updateSyncStatus('success', 'Sincronizzato');
                     console.log('[Agenda] Google Calendar busy slots fetched:', busySlots.length);
                     renderTimeline(); // Re-render with calendar data
                 } else {
+                    // Start of buffer logic - maybe retry with wider range if needed in future
                     updateSyncStatus('success', 'Nessun evento');
                     console.log('[Agenda] No Google Calendar busy slots found or empty array');
                 }

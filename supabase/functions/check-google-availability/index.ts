@@ -97,7 +97,7 @@ serve(async (req: Request) => {
         if (!freeBusyResponse.ok) {
           const errTxt = await freeBusyResponse.text()
           console.error(`Google API error for ${auth.collaborator_id}: ${freeBusyResponse.status}`, errTxt)
-          return []
+          return [{ error: 'API_ERROR', details: `${freeBusyResponse.status} - ${errTxt}` }]
         }
 
         const freeBusyData = await freeBusyResponse.json()
