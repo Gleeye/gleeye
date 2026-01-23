@@ -150,7 +150,9 @@ function render() {
                 break;
             case 'settings':
                 if (pageTitle) pageTitle.textContent = 'Impostazioni';
-                renderPlaceholder(contentArea, 'Impostazioni Generali');
+                import('../features/settings.js?v=148').then(module => {
+                    module.renderSettings(contentArea);
+                });
                 break;
             case 'order-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Commessa';
