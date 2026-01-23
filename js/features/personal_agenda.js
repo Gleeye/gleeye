@@ -349,10 +349,7 @@ async function fetchMyBookings() {
 
                 window._googleBusyFetchInProgress = false;
                 window._googleBusyFetchStart = null;
-                console.log('[Agenda] Google Calendar API returned:', busySlots);
-
                 console.log('[Agenda] Raw Busy Response:', busySlots);
-                console.log('[Agenda] Fetch Range:', { timeMin, timeMax });
 
                 if (busySlots && busySlots.length > 0) {
                     // Check for Auth Error
@@ -384,7 +381,9 @@ async function fetchMyBookings() {
                     window._googleBusyFetchStart = null;
                     updateSyncStatus('error', 'Errore Rete');
                 }
-                console.warn('[Agenda] Google Calendar fetch failed:', err);
+                console.error('[Agenda] Google Calendar fetch failed DETAILS:', err);
+                console.error('[Agenda] Error Name:', err?.name);
+                console.error('[Agenda] Error Message:', err?.message);
             });
         } else if (existingGoogleBusy.length > 0) {
             availabilityCache.googleBusy = existingGoogleBusy;
@@ -448,7 +447,10 @@ async function fetchGoogleCalendarBusy(collaboratorId) {
         return data?.busy || [];
 
     } catch (err) {
-        console.warn('[Agenda] Google Calendar integration error:', err);
+        console.error('[Agenda] Google Calendar integration error DETAILS:', err);
+        console.error('[Agenda] Error Name:', err?.name);
+        console.error('[Agenda] Error Message:', err?.message);
+        console.error('[Agenda] Error Stack:', err?.stack);
         return [];
     }
 }
