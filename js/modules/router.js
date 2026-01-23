@@ -49,8 +49,8 @@ export function router() {
     // --- ACCESS CONTROL / IMPERSONATION ---
     const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
 
-    // List of pages allowed for Collaborators
-    const allowedPagesForCollaborator = ['booking', 'profile', 'agenda', 'my-assignments'];
+    // List of pages allowed for Collaborators (standard - no special tags)
+    const allowedPagesForCollaborator = ['profile', 'agenda', 'my-assignments'];
 
     // Don't redirect if we are still fetching profile/auth - wait for it
     if (state.isFetching && activeRole === 'collaborator') {
@@ -62,9 +62,9 @@ export function router() {
 
     if (activeRole !== 'admin' && !allowedPagesForCollaborator.includes(state.currentPage)) {
         console.warn(`[Router] Access denied for role '${activeRole}' to page '${state.currentPage}'. Redirecting...`);
-        // Force redirect to a safe page
-        state.currentPage = 'booking';
-        window.location.hash = 'booking';
+        // Force redirect to a safe page - Agenda is the default for standard collaborators
+        state.currentPage = 'agenda';
+        window.location.hash = 'agenda';
         return; // Stop here, the hash change will trigger router again
     }
 
