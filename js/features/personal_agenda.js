@@ -9,6 +9,7 @@ let availabilityCache = { rules: [], restDays: [], overrides: [], googleBusy: []
 let currentCollaboratorId = null;
 let currentView = 'week'; // 'week', 'day'
 let miniCalendarDate = new Date(); // Separate state for mini calendar
+let currentGoogleFetchId = 0; // Track latest Google fetch to prevent race conditions
 
 let filters = {
     bookings: true,
@@ -38,9 +39,20 @@ export async function renderAgenda(container) {
                     <p>Overview Appuntamenti</p>
                 </div>
 
-                <!-- Mini Calendar -->
                 <div class="mini-calendar" id="mini-calendar">
                     <!-- Rendered via JS -->
+                </div>
+
+                <!-- Google Sync Status -->
+                <div class="sync-status-card" style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--glass-border); display: flex; align-items: center; gap: 0.75rem;">
+                    <div id="sync-status-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #9ca3af; transition: background 0.3s;"></div>
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">Google Calendar</div>
+                        <div id="sync-status-text" style="font-size: 0.75rem; color: var(--text-secondary);">In attesa...</div>
+                    </div>
+                     <button onclick="window.location.reload()" style="background:none; border:none; cursor:pointer; color:var(--text-tertiary);" title="Ricarica Pagina">
+                        <span class="material-icons-round" style="font-size:16px;">refresh</span>
+                    </button>
                 </div>
 
                 <!-- Filters -->
@@ -148,8 +160,12 @@ export async function renderAgenda(container) {
     document.getElementById('next-period').onclick = () => changePeriod(1);
     document.getElementById('today-btn').onclick = () => {
         currentDate = new Date();
+        // Reset Google Cache logic
+        availabilityCache.googleBusy = [];
+        window._googleBusyFetchInProgress = false;
+
         renderMiniCalendar();
-        updateView();
+        fetchMyBookings().then(() => updateView());
     };
 
     // Initial Fetch & Render
@@ -248,6 +264,8 @@ async function fetchMyBookings() {
 
             if (!collabRecord) {
                 console.warn("[Agenda] No collaborator record found for user:", authUserId);
+                updateSyncStatus('error', 'Profilo non trovato');
+                window.showGlobalAlert('Nessun profilo collaboratore associato a questo utente.', 'error');
                 eventsCache = [];
                 // Do not return immediately, allow rendering empty agenda
             } else {
@@ -257,6 +275,13 @@ async function fetchMyBookings() {
         }
 
         currentCollaboratorId = collaboratorId;
+
+        // Debug Indicator
+        if (collaboratorId) {
+            console.log(`[Agenda] Active Collaborator ID: ${collaboratorId}`);
+        } else {
+            updateSyncStatus('error', 'Nessun ID');
+        }
 
         if (!collaboratorId) {
             console.warn("[Agenda] No collaborator ID available");
@@ -311,8 +336,17 @@ async function fetchMyBookings() {
         if (existingGoogleBusy.length === 0 && !window._googleBusyFetchInProgress) {
             window._googleBusyFetchInProgress = true;
             window._googleBusyFetchStart = Date.now();
+            updateSyncStatus('syncing', 'Sincronizzazione...');
+
+            const fetchId = ++currentGoogleFetchId;
 
             fetchGoogleCalendarBusy(collaboratorId).then(busySlots => {
+                // Check if this fetch is stale (superseded by a newer one)
+                if (fetchId !== currentGoogleFetchId) {
+                    console.log('[Agenda] Stale fetch ignored:', fetchId, 'Current:', currentGoogleFetchId);
+                    return;
+                }
+
                 window._googleBusyFetchInProgress = false;
                 window._googleBusyFetchStart = null;
                 console.log('[Agenda] Google Calendar API returned:', busySlots);
@@ -321,22 +355,29 @@ async function fetchMyBookings() {
                     // Check for Auth Error
                     if (busySlots[0]?.error === 'AUTH_ERROR') {
                         console.warn('[Agenda] Auth Error detected:', busySlots[0]);
+                        updateSyncStatus('error', 'Errore Autenticazione');
                         window.showGlobalAlert('Autorizzazione Google scaduta. Ricollega il calendario dal tuo profilo.', 'error');
                         return;
                     }
                     availabilityCache.googleBusy = busySlots;
+                    updateSyncStatus('success', 'Sincronizzato');
                     console.log('[Agenda] Google Calendar busy slots fetched:', busySlots.length);
                     renderTimeline(); // Re-render with calendar data
                 } else {
+                    updateSyncStatus('success', 'Nessun evento');
                     console.log('[Agenda] No Google Calendar busy slots found or empty array');
                 }
             }).catch(err => {
-                window._googleBusyFetchInProgress = false;
-                window._googleBusyFetchStart = null;
+                if (fetchId === currentGoogleFetchId) {
+                    window._googleBusyFetchInProgress = false;
+                    window._googleBusyFetchStart = null;
+                    updateSyncStatus('error', 'Errore Rete');
+                }
                 console.warn('[Agenda] Google Calendar fetch failed:', err);
             });
         } else if (existingGoogleBusy.length > 0) {
             availabilityCache.googleBusy = existingGoogleBusy;
+            updateSyncStatus('success', 'Cache utilizzata');
         }
 
         console.log("[Agenda] Fetched events:", eventsCache.length, "Rules:", availabilityCache.rules.length);
@@ -797,7 +838,13 @@ function renderMiniCalendar() {
             const diff = currentDate.getDate() - day + (day === 0 ? -6 : 1);
             currentDate.setDate(diff);
         }
-        updateView();
+
+        // Reset Google Cache & Fetch
+        availabilityCache.googleBusy = [];
+        window._googleBusyFetchInProgress = false;
+
+        fetchMyBookings().then(() => updateView());
+
         // Sync mini cal date 
         miniCalendarDate = new Date(currentDate);
         renderMiniCalendar();
@@ -946,4 +993,25 @@ function openEventDetails(event) {
 }
 
 // Ensure function is globally available for inline onclick handlers
+// Ensure function is globally available for inline onclick handlers
 window.openEventDetails = openEventDetails;
+
+function updateSyncStatus(status, text) {
+    const dot = document.getElementById('sync-status-dot');
+    const label = document.getElementById('sync-status-text');
+    if (!dot || !label) return;
+
+    label.textContent = text;
+
+    // Reset classes
+    dot.style.background = '#9ca3af'; // gray default
+
+    if (status === 'syncing') {
+        dot.style.background = '#fbbf24'; // yellow
+        // Add pulse animation if desired
+    } else if (status === 'success') {
+        dot.style.background = '#22c55e'; // green
+    } else if (status === 'error') {
+        dot.style.background = '#ef4444'; // red
+    }
+}

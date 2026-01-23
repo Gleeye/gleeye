@@ -71,7 +71,8 @@ serve(async (req: Request) => {
 
           } catch (refreshErr) {
             console.error(`Failed to refresh token for ${auth.collaborator_id}`, refreshErr)
-            return [] // Skip this user
+            // Return a special error marker so the client knows auth is broken
+            return [{ error: 'AUTH_ERROR', collaborator_id: auth.collaborator_id }]
           }
         }
 
