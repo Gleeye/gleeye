@@ -309,6 +309,13 @@ async function fetchMyBookings() {
                 window._googleBusyFetchInProgress = false;
                 console.log('[Agenda] Google Calendar API returned:', busySlots);
                 if (busySlots && busySlots.length > 0) {
+                    // Check for Auth Error
+                    if (busySlots[0]?.error === 'AUTH_ERROR') {
+                        console.warn('[Agenda] Auth Error detected:', busySlots[0]);
+                        window.showGlobalAlert('Autorizzazione Google scaduta. Ricollega il calendario dal tuo profilo.', 'error');
+                        return;
+                    }
+
                     availabilityCache.googleBusy = busySlots;
                     console.log('[Agenda] Google Calendar busy slots fetched:', busySlots.length);
                     renderTimeline(); // Re-render with calendar data
