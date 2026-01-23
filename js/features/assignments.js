@@ -1,7 +1,8 @@
 import { state } from '../modules/state.js?v=148';
 import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=148';
-import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment } from '../modules/api.js?v=148';
+import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment, deleteAssignment } from '../modules/api.js?v=148';
 import { openPaymentModal } from './payments.js?v=148';
+import { CustomSelect } from '../components/CustomSelect.js?v=148';
 
 // Helper functions
 function getStatusColor(status) {
@@ -54,11 +55,31 @@ export async function renderAssignmentDetail(container) {
             state.assignments.push(assignment);
         }
 
+        // Fetch collaborator services if not loaded
+        if (!state.collaboratorServices || state.collaboratorServices.length === 0) {
+            console.log('DEBUG: collaboratorServices missing or empty, fetching...');
+            const { fetchCollaboratorServices } = await import('../modules/api.js?v=148');
+            await fetchCollaboratorServices();
+        }
+
+        console.log('DEBUG: Current Assignment ID:', assignment.id);
+        console.log('DEBUG: Mapping logic - Order ID:', assignment.order_id, 'Legacy Order ID:', assignment.orders?.order_number, 'Collaborator ID:', assignment.collaborator_id);
+
         // Find associated services
-        const linkedServices = (state.collaboratorServices || []).filter(s =>
-            (s.order_id === assignment.order_id || (s.legacy_order_id && assignment.orders && s.legacy_order_id === assignment.orders.order_number)) &&
-            s.collaborator_id === assignment.collaborator_id
-        );
+        const linkedServices = (state.collaboratorServices || []).filter(s => {
+            const matchOrder = s.order_id === assignment.order_id;
+            const matchLegacyOrder = s.legacy_order_id && assignment.orders && s.legacy_order_id === assignment.orders.order_number;
+            const matchCollaborator = s.collaborator_id === assignment.collaborator_id;
+
+            if (matchOrder || matchLegacyOrder || matchCollaborator) {
+                console.log(`DEBUG: Checking service ${s.name} (${s.id}): OrderMatch=${matchOrder}, LegacyOrderMatch=${matchLegacyOrder}, CollabMatch=${matchCollaborator}`);
+            }
+
+            return (matchOrder || matchLegacyOrder) && matchCollaborator;
+        });
+
+        console.log('DEBUG: Linked Services Count:', linkedServices.length);
+        console.log('DEBUG: Linked Services:', linkedServices);
 
         const totalCost = linkedServices.reduce((sum, s) => sum + (parseFloat(s.total_cost) || 0), 0);
         const totalRevenue = linkedServices.reduce((sum, s) => sum + (parseFloat(s.total_price) || 0), 0);
@@ -88,7 +109,13 @@ export async function renderAssignmentDetail(container) {
                         <div>
                             <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.4rem;">
                                  <h1 style="font-size: 1.75rem; font-weight: 700; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.02em;">Incarico ${assignment.legacy_id || id.substring(0, 8)}</h1>
-                                 <span class="status-badge" style="background: ${statusColor}15; color: ${statusColor}; border: 1px solid ${statusColor}30; font-size: 0.75rem; padding: 4px 12px; border-radius: 2rem; font-weight: 600; text-transform: uppercase;">${assignment.status || 'Attivo'}</span>
+                                 <div class="assignment-status-wrapper" style="min-width: 150px;">
+                                    <select id="assignment-status-select" onchange="window.handleAssignmentStatusChange('${assignment.id}', this.value)">
+                                        ${['Attivo', 'In Corso', 'Sospeso', 'Completato', 'Annullato'].map(s => `
+                                            <option value="${s}" ${assignment.status === s ? 'selected' : ''}>${s}</option>
+                                        `).join('')}
+                                    </select>
+                                 </div>
                             </div>
                             <div style="display: flex; align-items: center; gap: 1rem; color: var(--text-tertiary); font-size: 0.85rem;">
                                 <span style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;" onclick="window.location.hash='#collaborator-detail/${assignment.collaborator_id}'">
@@ -104,6 +131,9 @@ export async function renderAssignmentDetail(container) {
                     <div style="display: flex; gap: 0.75rem;">
                         <button class="primary-btn secondary" onclick="window.history.back()" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
                             <span class="material-icons-round">arrow_back</span> Indietro
+                        </button>
+                        <button class="primary-btn secondary" onclick="window.deleteAssignment('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px; color: #ef4444; border-color: rgba(239, 68, 68, 0.2);">
+                            <span class="material-icons-round">delete</span> Elimina
                         </button>
                         <button class="primary-btn secondary" onclick="window.editAssignment('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
                             <span class="material-icons-round">edit</span> Modifica
@@ -177,7 +207,6 @@ export async function renderAssignmentDetail(container) {
                                         </div>
                                         <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-tertiary);">
                                             <span>${s.quantity || s.hours || '-'} unità × ${formatAmount(s.unit_cost)}€</span>
-                                            <span>Ricavo: ${formatAmount(s.total_price)}€</span>
                                         </div>
                                     </div>
                                 `).join('')}
@@ -214,34 +243,6 @@ export async function renderAssignmentDetail(container) {
                                     <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Budget Incarico</div>
                                     <div style="font-size: 2rem; font-weight: 800; line-height: 1; color: #8b5cf6; font-family: var(--font-titles);">${formatAmount(budget)}€</div>
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- Margin Card -->
-                        <div class="glass-card" style="padding: 1.25rem; background: ${margin >= 0 ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), transparent)' : 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), transparent)'}; border: 2px solid ${margin >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'};">
-                            <div style="display: flex; align-items: center; justify-content: space-between;">
-                                <div style="flex: 1;">
-                                    <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Margine Gleeye</div>
-                                    <div style="font-size: 1.6rem; font-weight: 800; line-height: 1; color: ${margin >= 0 ? '#10b981' : '#ef4444'}; font-family: var(--font-titles);">${formatAmount(margin)}€</div>
-                                    <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 0.25rem;">su ${formatAmount(totalRevenue)}€ ricavo</div>
-                                </div>
-                                <!-- Circular Progress -->
-                                ${totalRevenue > 0 ? `
-                                    <div style="position: relative; width: 60px; height: 60px;">
-                                        <svg width="60" height="60" style="transform: rotate(-90deg);">
-                                            <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="5"></circle>
-                                            <circle cx="30" cy="30" r="26" fill="none" 
-                                                stroke="${marginPct >= 20 ? '#10b981' : marginPct >= 10 ? '#f59e0b' : '#ef4444'}" 
-                                                stroke-width="5" 
-                                                stroke-dasharray="${(Math.max(0, marginPct) / 100) * 163.3} 163.3"
-                                                stroke-linecap="round">
-                                            </circle>
-                                        </svg>
-                                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
-                                            <div style="font-size: 0.85rem; font-weight: 800; color: ${marginPct >= 20 ? '#10b981' : marginPct >= 10 ? '#f59e0b' : '#ef4444'};">${marginPct}%</div>
-                                        </div>
-                                    </div>
-                                ` : ''}
                             </div>
                         </div>
 
@@ -320,6 +321,10 @@ export async function renderAssignmentDetail(container) {
                 </div>
             </div>
         `;
+
+        // Initialize custom selects
+        const statusSelect = container.querySelector('#assignment-status-select');
+        if (statusSelect) new CustomSelect(statusSelect);
 
     } catch (error) {
         console.error(error);
@@ -628,9 +633,15 @@ window.toggleAssignmentConfigEdit = (assignmentId, isEdit) => {
     if (container && assignment) {
         container.innerHTML = renderAssignmentPaymentConfigUI(assignment);
 
-        // If we just enabled edit mode, trigger visibility check manually
+        // If we just enabled edit mode, trigger visibility check and init custom selects
         if (isEdit) {
-            setTimeout(() => window.updateAssignmentPaymentFieldsVisibility(assignmentId), 0);
+            setTimeout(() => {
+                window.updateAssignmentPaymentFieldsVisibility(assignmentId);
+
+                // Initialize custom selects for the edit form
+                const selects = container.querySelectorAll('select');
+                selects.forEach(s => new CustomSelect(s));
+            }, 0);
         }
     }
 };
@@ -1084,3 +1095,63 @@ window.migrateLegacyAssignments = async (auto = false) => {
         showGlobalAlert('Errore migrazione. Vedi console.', 'error');
     }
 };
+
+// --- NEW INTERACTIVE FUNCTIONS ---
+
+window.deleteAssignment = async (id) => {
+    const confirmed = await window.showConfirm('Sei sicuro di voler eliminare questo incarico? L\'azione è irreversibile.', 'Elimina Incarico');
+    if (!confirmed) return;
+
+    try {
+        await deleteAssignment(id);
+
+        // --- REACTIVE STATE UPDATE ---
+        if (state.assignments) {
+            state.assignments = state.assignments.filter(a => a.id !== id);
+        }
+
+        showGlobalAlert('Incarico eliminato con successo', 'success');
+
+        // --- SMART NAVIGATION ---
+        // Instead of hardcoding #assignments, we go back to the previous context
+        // (which could be the order detail or the assignments list)
+        if (window.history.length > 1) {
+            window.history.back();
+        } else {
+            window.location.hash = '#assignments';
+        }
+    } catch (e) {
+        console.error('Delete failed:', e);
+        showGlobalAlert('Errore durante l\'eliminazione', 'error');
+    }
+};
+
+window.handleAssignmentStatusChange = async (id, newStatus) => {
+    try {
+        const updated = await upsertAssignment({ id, status: newStatus });
+
+        // --- REACTIVE STATE UPDATE ---
+        if (state.assignments) {
+            const index = state.assignments.findIndex(a => a.id === id);
+            if (index !== -1) {
+                state.assignments[index] = { ...state.assignments[index], ...updated };
+            }
+        }
+
+        showGlobalAlert(`Stato aggiornato a ${newStatus}`, 'success');
+
+        // Refresh the current detail view if we are on it
+        const container = document.getElementById('main-content');
+        if (container && window.location.hash.includes(`assignment-detail/${id}`)) {
+            // Re-render the detail page with the updated state
+            // Note: renderAssignmentDetail uses fetchAssignmentDetail, which will get fresh data
+            await renderAssignmentDetail(container);
+        }
+    } catch (e) {
+        console.error('Status update failed:', e);
+        showGlobalAlert('Errore nell\'aggiornamento dello stato', 'error');
+    }
+};
+
+// Global listener to close status selector when clicking outside
+// (Note: CustomSelect handles its own closing, this was for the manual menu)

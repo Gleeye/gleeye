@@ -124,4 +124,31 @@ export const showGlobalAlert = (message, type = 'success') => {
     }, 3000);
 };
 
+export const showConfirm = (message, title = 'Conferma') => {
+    return new Promise((resolve) => {
+        const modalId = `confirm-modal-${Date.now()}`;
+        const content = `
+            <div style="padding: 0.5rem;">
+                <h3 style="margin: 0 0 1rem 0; font-family: var(--font-titles);">${title}</h3>
+                <p style="margin: 0 0 2rem 0; color: var(--text-secondary); line-height: 1.5;">${message}</p>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                    <button class="primary-btn secondary small" id="confirm-cancel-${modalId}" style="min-width: 100px;">Annulla</button>
+                    <button class="primary-btn small" id="confirm-ok-${modalId}" style="min-width: 100px; background: linear-gradient(135deg, #8b5cf6, #6366f1);">Conferma</button>
+                </div>
+            </div>
+        `;
+
+        renderModal(modalId, content);
+
+        const cleanup = (result) => {
+            closeModal(modalId);
+            resolve(result);
+        };
+
+        document.getElementById(`confirm-cancel-${modalId}`).onclick = () => cleanup(false);
+        document.getElementById(`confirm-ok-${modalId}`).onclick = () => cleanup(true);
+    });
+};
+
 window.showGlobalAlert = showGlobalAlert;
+window.showConfirm = showConfirm;

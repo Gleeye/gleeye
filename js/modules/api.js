@@ -818,6 +818,15 @@ export async function fetchAssignmentDetail(id) {
     return data;
 }
 
+export async function deleteAssignment(id) {
+    const { error } = await supabase
+        .from('assignments')
+        .delete()
+        .eq('id', id);
+    if (error) throw error;
+    return true;
+}
+
 export async function upsertAssignment(assignmentData) {
     console.log("Upserting assignment:", assignmentData);
 
