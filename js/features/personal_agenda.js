@@ -474,8 +474,11 @@ function renderTimeline() {
         const diff = currentDate.getDate() - day + (day === 0 ? -6 : 1);
         startOfPeriod = new Date(currentDate);
         startOfPeriod.setDate(diff);
+        startOfPeriod.setHours(0, 0, 0, 0);
+
         endOfPeriod = new Date(startOfPeriod);
         endOfPeriod.setDate(startOfPeriod.getDate() + 6);
+        endOfPeriod.setHours(23, 59, 59, 999);
 
         label.innerHTML = `
             ${formatDate(startOfPeriod)} <span class="date-arrow">&rarr;</span> ${formatDate(endOfPeriod)}
@@ -483,7 +486,9 @@ function renderTimeline() {
         `;
     } else {
         startOfPeriod = new Date(currentDate);
+        startOfPeriod.setHours(0, 0, 0, 0);
         endOfPeriod = new Date(currentDate);
+        endOfPeriod.setHours(23, 59, 59, 999);
         label.textContent = formatDate(startOfPeriod, true);
     }
 
@@ -569,16 +574,20 @@ function renderTimeline() {
             // Get busy intervals - Precise Timestamp Overlap Logic
             const dayStartMs = dayDate.getTime();
             const dayEndMs = dayStartMs + 86400000;
+            console.log(`[Agenda] Day column: ${dayDate.toLocaleDateString()} (StartMs: ${dayStartMs})`);
 
             const dayBusy = availabilityCache.googleBusy.filter(b => {
                 const bStart = new Date(b.start).getTime();
                 const bEnd = new Date(b.end).getTime();
-                return bStart < dayEndMs && bEnd > dayStartMs;
+                const isMatch = bStart < dayEndMs && bEnd > dayStartMs;
+                if (isMatch) console.log(`[Agenda]   -> Match Found: ${b.start} to ${b.end} (Start: ${bStart}, DayStart: ${dayStartMs})`);
+                return isMatch;
             }).map(b => {
                 const bStart = new Date(b.start).getTime();
                 const bEnd = new Date(b.end).getTime();
                 let startH = (bStart - dayStartMs) / 3600000;
                 let endH = (bEnd - dayStartMs) / 3600000;
+                console.log(`[Agenda]   -> Calculated Hours: ${startH.toFixed(2)} to ${endH.toFixed(2)}`);
 
                 if (startH < 0) startH = 0;
                 if (endH > 24) endH = 24;
