@@ -318,6 +318,10 @@ async function fetchMyBookings() {
             }).catch(err => {
                 window._googleBusyFetchInProgress = false;
                 console.warn('[Agenda] Google Calendar fetch failed:', err);
+                // Show warning to user so they know sync is down
+                if (window.showGlobalAlert) {
+                    window.showGlobalAlert('Errore sincronizzazione Google Calendar. Riprova più tardi.', 'warning');
+                }
             });
         }
 
