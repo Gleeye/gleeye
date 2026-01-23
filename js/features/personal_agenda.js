@@ -302,16 +302,18 @@ async function fetchMyBookings() {
 
         // Fetch Google Calendar busy slots (async, non-blocking for initial render)
         // Only fetch if we don't already have data and no fetch is in progress
+        console.log('[Agenda] Google fetch check:', { existingLen: existingGoogleBusy.length, inProgress: window._googleBusyFetchInProgress, collaboratorId });
         if (existingGoogleBusy.length === 0 && !window._googleBusyFetchInProgress) {
             window._googleBusyFetchInProgress = true;
             fetchGoogleCalendarBusy(collaboratorId).then(busySlots => {
                 window._googleBusyFetchInProgress = false;
+                console.log('[Agenda] Google Calendar API returned:', busySlots);
                 if (busySlots && busySlots.length > 0) {
                     availabilityCache.googleBusy = busySlots;
                     console.log('[Agenda] Google Calendar busy slots fetched:', busySlots.length);
                     renderTimeline(); // Re-render with calendar data
                 } else {
-                    console.log('[Agenda] No Google Calendar busy slots found');
+                    console.log('[Agenda] No Google Calendar busy slots found or empty array');
                 }
             }).catch(err => {
                 window._googleBusyFetchInProgress = false;
