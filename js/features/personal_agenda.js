@@ -455,7 +455,11 @@ function renderTimeline() {
     let columnsHtml = '';
 
     days.forEach((dayDate) => {
-        const dateStr = dayDate.toISOString().split('T')[0];
+        // Fix: Use local date formatting to avoid UTC off-by-one errors
+        const y = dayDate.getFullYear();
+        const m = String(dayDate.getMonth() + 1).padStart(2, '0');
+        const d = String(dayDate.getDate()).padStart(2, '0');
+        const dateStr = `${y}-${m}-${d}`;
         const dayId = dayDate.getDay();
 
         // --- AVAILABILITY LOGIC ---
@@ -488,17 +492,23 @@ function renderTimeline() {
         };
 
         if (!isRest) {
-            // Get busy intervals for this day
+            // Get busy intervals - Precise Timestamp Overlap Logic
+            const dayStartMs = dayDate.getTime();
+            const dayEndMs = dayStartMs + 86400000;
+
             const dayBusy = availabilityCache.googleBusy.filter(b => {
-                const busyStart = new Date(b.start);
-                return busyStart.toISOString().split('T')[0] === dateStr;
+                const bStart = new Date(b.start).getTime();
+                const bEnd = new Date(b.end).getTime();
+                return bStart < dayEndMs && bEnd > dayStartMs;
             }).map(b => {
-                const busyStart = new Date(b.start);
-                const busyEnd = new Date(b.end);
-                return {
-                    start: busyStart.getHours() + busyStart.getMinutes() / 60,
-                    end: busyEnd.getHours() + busyEnd.getMinutes() / 60
-                };
+                const bStart = new Date(b.start).getTime();
+                const bEnd = new Date(b.end).getTime();
+                let startH = (bStart - dayStartMs) / 3600000;
+                let endH = (bEnd - dayStartMs) / 3600000;
+
+                if (startH < 0) startH = 0;
+                if (endH > 24) endH = 24;
+                return { start: startH, end: endH };
             });
 
             activeSlots.forEach(slot => {
