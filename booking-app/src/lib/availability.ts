@@ -1,14 +1,13 @@
 import { format } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
 import { supabase } from './supabaseClient';
-import {
+import type {
     AvailabilityContext,
     AvailabilityRule,
     AvailabilityOverride,
     TimeRange,
     Service,
-    Collaborator,
-    convertRuleToRange
+    Collaborator
 } from './availability_logic';
 
 // Re-export everything from logic so consumers don't break

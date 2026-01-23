@@ -33,7 +33,7 @@ export async function renderAgenda(container) {
         <div class="agenda-container animate-fade-in" id="agenda-view-wrapper">
             
             <!-- SIDEBAR -->
-            <aside class="agenda-sidebar">
+            <aside class="agenda-sidebar" style="overflow-y: auto !important; height: 100% !important; min-height: 0 !important;">
                 <div class="agenda-sidebar-header">
                     <h2>Agenda</h2>
                     <p>Overview Appuntamenti</p>
@@ -124,7 +124,6 @@ export async function renderAgenda(container) {
                     </div>
                 </div>
                 </div>
-
                  <!-- Timeline Grid -->
                 <div class="timeline-wrapper">
                     <!-- Header Row (Days) -->

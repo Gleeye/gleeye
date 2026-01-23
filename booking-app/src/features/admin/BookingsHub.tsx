@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { format, startOfDay, endOfDay } from 'date-fns';
-import { it } from 'date-fns/locale';
+import { format } from 'date-fns';
 import BookingCatalog from './BookingCatalog';
 import GoogleCalendarConfig from './GoogleCalendarConfig';
 import BookingsCalendar from './BookingsCalendar';
@@ -57,19 +56,18 @@ export default function BookingsHub() {
     async function fetchHubData() {
         setLoading(true);
         try {
-            const today = startOfDay(new Date());
-            const tomorrow = endOfDay(new Date());
+            const now = new Date();
 
-            const { data: todayData } = await supabase
+            const { data: upcomingData } = await supabase
                 .from('bookings')
                 .select('*, booking_items(name), booking_assignments(collaborator_id)')
-                .gte('start_time', today.toISOString())
-                .lte('start_time', tomorrow.toISOString())
-                .order('start_time', { ascending: true });
+                .gte('start_time', now.toISOString())
+                .order('start_time', { ascending: true })
+                .limit(20);
 
-            if (todayData) {
-                setTodayBookings(todayData);
-                setStats(prev => ({ ...prev, todayCount: todayData.length }));
+            if (upcomingData) {
+                setTodayBookings(upcomingData);
+                setStats(prev => ({ ...prev, todayCount: upcomingData.length }));
             }
 
             const { count: pendingCount } = await supabase
@@ -303,14 +301,14 @@ export default function BookingsHub() {
                         justifyContent: 'space-between',
                         alignItems: 'center'
                     }}>
-                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, fontFamily: 'Outfit, system-ui, sans-serif', color: '#1f2937' }}>Oggi</h3>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, fontFamily: 'Outfit, system-ui, sans-serif', color: '#1f2937' }}>Prossimi</h3>
                         <span style={{
                             fontSize: '0.7rem',
                             textTransform: 'uppercase',
                             letterSpacing: '0.05em',
                             color: '#9ca3af',
                             fontWeight: 500
-                        }}>{format(new Date(), 'dd MMM yyyy', { locale: it })}</span>
+                        }}>Appuntamenti</span>
                     </div>
 
                     <div style={{ padding: '1rem 1.5rem', maxHeight: 350, overflowY: 'auto' }}>
@@ -441,20 +439,23 @@ function BookingCard({ booking }: { booking: any }) {
                 border: '1px solid #e5e7eb',
                 minWidth: 52
             }}>
-                <div style={{ fontSize: '1.3rem', fontWeight: 700, lineHeight: 1, color: '#1f2937' }}>
-                    {format(new Date(booking.start_time), 'HH')}
+                <div style={{ fontSize: '1rem', fontWeight: 700, lineHeight: 1, color: '#1f2937' }}>
+                    {format(new Date(booking.start_time), 'dd/MM')}
                 </div>
-                <div style={{ fontSize: '0.7rem', fontWeight: 600, lineHeight: 1.2, color: '#6b7280', marginTop: 2 }}>
-                    :{format(new Date(booking.start_time), 'mm')}
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, lineHeight: 1.2, color: '#6b7280', marginTop: 2 }}>
+                    {format(new Date(booking.start_time), 'HH:mm')}
                 </div>
             </div>
 
             {/* Content */}
             <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: '1rem', color: '#1f2937', marginBottom: '0.25rem' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1f2937', marginBottom: '0.1rem' }}>
+                    {booking.guest_info?.company || 'Privato'}
+                </div>
+                <div style={{ fontWeight: 500, fontSize: '0.85rem', color: '#4b5563', marginBottom: '0.25rem' }}>
                     {booking.guest_info?.first_name} {booking.guest_info?.last_name}
                 </div>
-                <div style={{ fontSize: '0.85rem', color: '#9ca3af' }}>
+                <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>
                     {booking.booking_items?.name}
                 </div>
             </div>
