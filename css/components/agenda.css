@@ -370,6 +370,8 @@
     border-bottom: 1px solid var(--glass-border);
     width: 60px;
     flex-shrink: 0;
+    margin-bottom: 12px;
+    /* Offset for translateY(-50%) of the first label */
 }
 
 .time-slot-label {
