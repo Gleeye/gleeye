@@ -107,9 +107,9 @@ export async function renderAgenda(container) {
                      </button>
 
                      <div class="view-mode-toggle">
-                        <button class="mode-btn" id="view-month" onclick="switchView('month')">Mese</button>
-                        <button class="mode-btn active" id="view-week" onclick="switchView('week')">Settimana</button>
                         <button class="mode-btn" id="view-day" onclick="switchView('day')">Giorno</button>
+                        <button class="mode-btn active" id="view-week" onclick="switchView('week')">Settimana</button>
+                        <button class="mode-btn" id="view-month" onclick="switchView('month')">Mese</button>
                     </div>
 
                      <div class="calendar-nav-controls" style="display:flex; gap: 0.5rem">
@@ -1136,10 +1136,24 @@ function renderMonthlyView() {
         const dDate = new Date(y, m, d);
         const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         const isToday = dDate.toDateString() === todayStr;
-        
+
+        // Check availability
+        const dayId = dDate.getDay();
+        const isRest = availabilityCache.restDays.some(r => dateStr >= r.start_date && dateStr <= r.end_date);
+        const dayOverrides = availabilityCache.overrides.filter(o => o.date === dateStr);
+        let activeSlots = [];
+        if (!isRest) {
+            if (dayOverrides.length > 0) {
+                activeSlots = dayOverrides.filter(o => o.is_available);
+            } else {
+                activeSlots = availabilityCache.rules.filter(r => r.day_of_week === dayId);
+            }
+        }
+        const isAvailable = activeSlots.length > 0;
+
         // Filter events for this day
         const dayEvents = eventsCache.filter(e => e.start_time.startsWith(dateStr));
-        
+
         let eventsHtml = '';
         if (filters.bookings) {
             dayEvents.forEach(ev => {
@@ -1155,8 +1169,11 @@ function renderMonthlyView() {
         }
 
         daysHtml += `
-            <div class="monthly-day-box ${isToday ? 'today' : ''}">
-                <div class="monthly-day-num">${d}</div>
+            <div class="monthly-day-box ${isToday ? 'today' : ''} ${isAvailable ? 'has-availability' : ''}">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div class="monthly-day-num">${d}</div>
+                    ${isAvailable ? '<div class="availability-indicator" title="Disponibile"></div>' : ''}
+                </div>
                 <div class="monthly-day-events">
                     ${eventsHtml}
                 </div>
