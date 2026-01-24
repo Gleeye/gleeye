@@ -107,6 +107,7 @@ export async function renderAgenda(container) {
                      </button>
 
                      <div class="view-mode-toggle">
+                        <button class="mode-btn" id="view-month" onclick="switchView('month')">Mese</button>
                         <button class="mode-btn active" id="view-week" onclick="switchView('week')">Settimana</button>
                         <button class="mode-btn" id="view-day" onclick="switchView('day')">Giorno</button>
                     </div>
@@ -419,7 +420,12 @@ async function fetchGoogleCalendarBusy(collaboratorId) {
         // Calculate date range based on current view
         let timeMin, timeMax;
 
-        if (currentView === 'week') {
+        if (currentView === 'month') {
+            const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+            const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+            timeMin = firstDay.toISOString();
+            timeMax = lastDay.toISOString();
+        } else if (currentView === 'week') {
             const day = currentDate.getDay();
             const diff = currentDate.getDate() - day + (day === 0 ? -6 : 1);
             const weekStart = new Date(currentDate);
@@ -437,7 +443,6 @@ async function fetchGoogleCalendarBusy(collaboratorId) {
             dayStart.setHours(0, 0, 0, 0);
             const dayEnd = new Date(currentDate);
             dayEnd.setHours(23, 59, 59, 999);
-
             timeMin = dayStart.toISOString();
             timeMax = dayEnd.toISOString();
         }
@@ -471,6 +476,27 @@ async function fetchGoogleCalendarBusy(collaboratorId) {
 }
 
 function renderTimeline() {
+    if (currentView === 'month') {
+        renderMonthlyView();
+        return;
+    }
+
+    // Show normal timeline elements
+    const timelineWrapper = document.querySelector('.timeline-wrapper');
+    if (timelineWrapper) {
+        timelineWrapper.innerHTML = `
+            <div class="timeline-scroll-container">
+                <div class="time-gutter"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header-row" id="timeline-header"></div>
+                    <div class="main-grid" id="main-grid">
+                        <div class="grid-lines-layer"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     const header = document.getElementById('timeline-header');
     const grid = document.getElementById('main-grid');
     const label = document.getElementById('period-label');
@@ -905,7 +931,9 @@ function renderMiniCalendar() {
 // --- UTILS ---
 
 function changePeriod(delta) {
-    if (currentView === 'week') {
+    if (currentView === 'month') {
+        currentDate.setMonth(currentDate.getMonth() + delta);
+    } else if (currentView === 'week') {
         currentDate.setDate(currentDate.getDate() + (delta * 7));
     } else {
         currentDate.setDate(currentDate.getDate() + delta);
@@ -924,7 +952,8 @@ function changePeriod(delta) {
 function updateView() {
     renderTimeline();
     document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(currentView === 'week' ? 'view-week' : 'view-day').classList.add('active');
+    const activeBtn = document.getElementById('view-' + currentView);
+    if (activeBtn) activeBtn.classList.add('active');
 }
 
 function switchView(view) {
@@ -1067,4 +1096,99 @@ function updateSyncStatus(status, text) {
     } else if (status === 'error') {
         dot.style.background = '#ef4444'; // red
     }
+}
+
+function renderMonthlyView() {
+    const timelineWrapper = document.querySelector('.timeline-wrapper');
+    const label = document.getElementById('period-label');
+    if (!timelineWrapper || !label) return;
+
+    // 1. Determine Month Range
+    const y = currentDate.getFullYear();
+    const m = currentDate.getMonth();
+    const firstDay = new Date(y, m, 1);
+    const lastDay = new Date(y, m + 1, 0);
+
+    // Label
+    const monthName = firstDay.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+    label.innerHTML = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+
+    // Determine start day index (Monday = 0)
+    let startDayIdx = firstDay.getDay() - 1;
+    if (startDayIdx < 0) startDayIdx = 6;
+
+    // 2. Prepare HTML
+    let daysHtml = '';
+
+    // Previous month filler
+    const prevMonthLastDay = new Date(y, m, 0).getDate();
+    for (let i = 0; i < startDayIdx; i++) {
+        const dNum = prevMonthLastDay - startDayIdx + i + 1;
+        daysHtml += `<div class="monthly-day-box other-month">
+            <div class="monthly-day-num">${dNum}</div>
+        </div>`;
+    }
+
+    const todayStr = new Date().toDateString();
+
+    // Current month days
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+        const dDate = new Date(y, m, d);
+        const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const isToday = dDate.toDateString() === todayStr;
+        
+        // Filter events for this day
+        const dayEvents = eventsCache.filter(e => e.start_time.startsWith(dateStr));
+        
+        let eventsHtml = '';
+        if (filters.bookings) {
+            dayEvents.forEach(ev => {
+                const statusClass = `status-${ev.status}`;
+                const evtId = `evt_month_${ev.id.replace(/-/g, '_')}`;
+                window[evtId] = ev;
+                eventsHtml += `
+                    <div class="monthly-event-dot type-booking ${statusClass}" onclick="openEventDetails(window['${evtId}'])">
+                        ${ev.booking_items?.name || 'Prenotazione'}
+                    </div>
+                `;
+            });
+        }
+
+        daysHtml += `
+            <div class="monthly-day-box ${isToday ? 'today' : ''}">
+                <div class="monthly-day-num">${d}</div>
+                <div class="monthly-day-events">
+                    ${eventsHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    // Next month filler
+    const totalCells = startDayIdx + lastDay.getDate();
+    const nextMonthDays = 42 - totalCells; // 6 rows
+    if (nextMonthDays > 0) {
+        for (let i = 1; i <= nextMonthDays; i++) {
+            daysHtml += `<div class="monthly-day-box other-month">
+                <div class="monthly-day-num">${i}</div>
+            </div>`;
+        }
+    }
+
+    timelineWrapper.innerHTML = `
+        <div class="monthly-view-wrapper animate-fade-in">
+            <div class="monthly-header">
+                <div class="monthly-header-day">Lun</div>
+                <div class="monthly-header-day">Mar</div>
+                <div class="monthly-header-day">Mer</div>
+                <div class="monthly-header-day">Gio</div>
+                <div class="monthly-header-day">Ven</div>
+                <div class="monthly-header-day">Sab</div>
+                <div class="monthly-header-day">Dom</div>
+            </div>
+            <div class="monthly-grid">
+                ${daysHtml}
+            </div>
+        </div>
+    `;
 }
