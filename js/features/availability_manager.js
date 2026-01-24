@@ -337,7 +337,6 @@ export async function loadAvailabilityIntoContainer(container, collaboratorId) {
     container.innerHTML = '<div style="padding:2rem; text-align:center;"><span class="loader"></span></div>';
 
     try {
-        console.log("[AvailabilityManager] Loading data for:", collaboratorId);
         const [rules, restDays, _, skills, extraSlots, bookingAssignments] = await Promise.all([
             fetchAvailabilityRules(collaboratorId),
             fetchRestDays(collaboratorId),
@@ -346,6 +345,8 @@ export async function loadAvailabilityIntoContainer(container, collaboratorId) {
             fetchAvailabilityOverrides(collaboratorId),
             fetchBookingItemCollaborators(collaboratorId)
         ]);
+
+        console.log("[AvailabilityManager] Extra Slots Fetched:", extraSlots.length);
 
         // Synthesize Services List
         // 1. Services from Active Orders (Historical/Current)
@@ -368,8 +369,8 @@ export async function loadAvailabilityIntoContainer(container, collaboratorId) {
             name: ba.booking_items?.name || 'Servizio Booking'
         }));
 
-        // Merge and Deduplicate
-        const allServices = [...bookingServices, ...skillServices, ...orderServices];
+        // Merge and Deduplicate - ONLY Booking Services
+        const allServices = [...bookingServices];
         const uniqueServices = [];
         const seen = new Set();
 
@@ -744,7 +745,7 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
     const renderExtraSlot = (slot) => {
         const startDate = new Date(slot.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
         const endDate = slot.end_date ? new Date(slot.end_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) : null;
-        const dateDisplay = endDate ? `${startDate} - ${startDate}` : startDate; // Fix logic if needed, simplifed
+        const dateDisplay = endDate ? `${startDate} - ${endDate}` : startDate;
 
         return `
             <div style="background: white; border-radius: 10px; padding: 0.75rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #667eea; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
@@ -754,7 +755,7 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
                     </div>
                     <div style="font-size: 0.75rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         <span>${slot.start_time.slice(0, 5)} - ${slot.end_time.slice(0, 5)}</span>
-                        <span style="color: #667eea;">• ${slot.services?.name || 'Tutti i servizi'}</span>
+                        <span style="color: #667eea;">• ${slot.booking_items?.name || 'Tutti i servizi'}</span>
                     </div>
                 </div>
                 <button class="icon-btn delete-override-btn" data-id="${slot.id}" title="Elimina" style="background: var(--bg-secondary); border-radius: 6px; width: 28px; height: 28px; flex-shrink: 0;">
@@ -988,10 +989,14 @@ function openExtraSlotModal(collaboratorId, services, onSuccess) {
                 </h3>
                 <div class="form-group">
                     <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Servizio Dedicato <span style="font-weight: 400; color: var(--text-tertiary);">(Opzionale)</span></label>
-                    <select name="service_id"
-                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 10px; font-size: 0.9rem; background: white; transition: all 0.2s; cursor: pointer; font-family: inherit;">
-                        ${serviceOptions}
-                    </select>
+                    <div class="custom-select-wrapper">
+                        <select name="service_id"
+                            style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; background: white; transition: all 0.2s; cursor: pointer; font-family: inherit; appearance: none;">
+                            <option value="">Tutti i servizi</option>
+                            ${services.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                        </select>
+                        <span class="material-icons-round" style="position: absolute; right: 12px; top: 38px; pointer-events: none; color: #64748b;">expand_more</span>
+                    </div>
                 </div>
             </div>
 
@@ -1026,7 +1031,8 @@ function openExtraSlotModal(collaboratorId, services, onSuccess) {
             end_time: formData.get('end_time'),
             date: formData.get('date'),
             end_date: formData.get('end_date') || null,
-            service_id: formData.get('service_id') || null
+            booking_item_id: formData.get('service_id') || null,
+            is_available: true
         };
 
         const btn = overlay.querySelector('button[type="submit"]');

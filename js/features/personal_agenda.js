@@ -191,7 +191,7 @@ export async function renderAgenda(container) {
             if (currentCollaboratorId) {
                 openAvailabilityModal(currentCollaboratorId, async () => {
                     await fetchMyBookings();
-                    // renderTimeline is called inside fetchMyBookings generally, but let's be safe
+                    renderTimeline();
                 });
             } else {
                 window.showAlert('Profilo collaboratore non trovato', 'error');
@@ -401,6 +401,9 @@ async function fetchMyBookings() {
         }
 
         console.log("[Agenda] Fetched events:", eventsCache.length, "Rules:", availabilityCache.rules.length);
+
+        // Render immediately with SQL data, then Google will re-render when ready
+        renderTimeline();
 
     } catch (err) {
         console.error("[Agenda] Critical fetch error:", err);
@@ -661,7 +664,7 @@ function renderTimeline() {
                     freeIntervals = newIntervals;
                 });
 
-                const isDedicated = !!slot.service_id;
+                const isDedicated = !!slot.service_id || !!slot.booking_item_id || (Array.isArray(slot.service_ids) && slot.service_ids.length > 0);
                 const borderStyle = isDedicated ? 'border-left: 3px solid #F59E0B;' : 'border-left: 3px solid #667eea;';
                 const bgStyle = isDedicated ? 'background: #fffbf0;' : 'background: #ffffff;';
 

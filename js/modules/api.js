@@ -1169,7 +1169,7 @@ export async function deleteRestDay(id) {
 export async function fetchAvailabilityOverrides(collaboratorId) {
     const { data, error } = await supabase
         .from('availability_overrides')
-        .select('*')
+        .select('*, booking_items(name)')
         .eq('collaborator_id', collaboratorId)
         .eq('is_available', true)
         .order('date', { ascending: true });
