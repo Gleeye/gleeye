@@ -372,8 +372,8 @@
 }
 
 .time-slot-label:first-child {
-    margin-top: 90px;
-    /* Offset for sticky header height - adjusted for alignment */
+    margin-top: 96px;
+    /* Measured header height to align 0:00 with the start of the grid */
 }
 
 .time-slot-label span {
