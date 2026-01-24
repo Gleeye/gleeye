@@ -381,6 +381,7 @@
     align-items: flex-start;
     /* Label at top of line */
     justify-content: center;
+    flex-shrink: 0;
     font-size: 0.75rem;
     color: var(--text-tertiary);
     transform: translateY(-50%);
