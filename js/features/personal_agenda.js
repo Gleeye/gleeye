@@ -315,8 +315,10 @@ async function fetchMyBookings() {
             bookingsQuery,
             fetchAvailabilityRules(collaboratorId),
             fetchRestDays(collaboratorId),
-            fetchAvailabilityOverrides(collaboratorId)
+            supabase.from('availability_overrides').select('*, booking_items(name)').eq('collaborator_id', collaboratorId)
         ]);
+
+        const overridesData = overrides.data || [];
 
         if (bookingsRes.error) {
             console.error("[Agenda] Supabase Error:", bookingsRes.error);
@@ -331,7 +333,7 @@ async function fetchMyBookings() {
         availabilityCache = {
             rules: rules || [],
             restDays: restDays || [],
-            overrides: overrides || [],
+            overrides: overridesData,
             googleBusy: existingGoogleBusy
         };
 
@@ -565,10 +567,13 @@ function renderTimeline() {
 
         // 3. Determine Active Slots
         let activeSlots = [];
+        const hasSpecificOverrides = dayOverrides.length > 0;
+
         if (isRest) {
             activeSlots = [];
-        } else if (dayOverrides.length > 0) {
-            activeSlots = dayOverrides;
+        } else if (hasSpecificOverrides) {
+            // ONLY use the overrides that are marked as available
+            activeSlots = dayOverrides.filter(o => o.is_available);
         } else {
             activeSlots = availabilityCache.rules.filter(r => r.day_of_week === dayId);
         }
@@ -667,14 +672,15 @@ function renderTimeline() {
                 const isDedicated = !!slot.service_id || !!slot.booking_item_id || (Array.isArray(slot.service_ids) && slot.service_ids.length > 0);
                 const borderStyle = isDedicated ? 'border-left: 3px solid #F59E0B;' : 'border-left: 3px solid #667eea;';
                 const bgStyle = isDedicated ? 'background: #fffbf0;' : 'background: #ffffff;';
+                const serviceName = slot.booking_items?.name || (Array.isArray(slot.service_ids) && slot.service_ids.length > 0 ? "Servizi Multipli" : "");
 
                 freeIntervals.forEach(interval => {
                     const topPx = (interval.start - startHour) * 60;
                     const heightPx = (interval.end - interval.start) * 60;
                     if (heightPx > 0) {
                         availabilityHtml += `
-                    <div class="availability-slot" style="position: absolute; top: ${topPx}px; height: ${heightPx}px; left: 0; right: 0; ${bgStyle} ${borderStyle} z-index: 0; opacity: 1; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
-                        ${isDedicated ? '<div style="font-size:0.7rem; color:#d97706; padding:2px 4px; font-weight:500;">Dedicato</div>' : ''}
+                    <div class="availability-slot" style="position: absolute; top: ${topPx}px; height: ${heightPx}px; left: 0; right: 0; ${bgStyle} ${borderStyle} z-index: 1; opacity: 1; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; padding: 4px; overflow: hidden;" title="${serviceName || 'Disponibile'}">
+                        ${serviceName ? `<div style="font-size:0.65rem; color:${isDedicated ? '#b45309' : '#4f46e5'}; font-weight:600; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${serviceName}</div>` : ''}
                     </div>
                 `;
                     }
@@ -745,11 +751,11 @@ function renderTimeline() {
         // If Normal Day -> Light Gray (defined in CSS, or inline here)
         // We rely on .day-col styling, but we enforce specific background here if rest day
 
-        let colStyle = 'background-color: #f8fafc;'; // Default light gray
+        let colStyle = 'background-color: #f1f5f9;'; // Darker gray for better contrast with white slots
         if (isRest) {
             colStyle = `
-                background-color: #f1f5f9; 
-                background-image: repeating-linear-gradient(45deg, #e2e8f0 0, #e2e8f0 10px, #f1f5f9 10px, #f1f5f9 20px);
+                background-color: #e2e8f0; 
+                background-image: repeating-linear-gradient(45deg, #cbd5e1 0, #cbd5e1 10px, #e2e8f0 10px, #e2e8f0 20px);
             `;
         }
 
