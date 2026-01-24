@@ -760,7 +760,7 @@ function renderTimeline() {
         }
 
         columnsHtml += `
-            <div class="day-col" data-date="${dateStr}" style="${colStyle} position: relative; border-right: 1px solid var(--glass-border); min-width: 150px;">
+            <div class="day-col" data-date="${dateStr}" style="${colStyle} position: relative; border-right: 1px solid var(--glass-border); min-width: 170px;">
                 ${availabilityHtml}
                 ${eventsHtml}
                 ${nowHtml}
@@ -769,8 +769,9 @@ function renderTimeline() {
     });
 
     // Reconstruct Main Grid
+    // Important: .grid-lines-layer must not occupy a grid cell
     grid.innerHTML = `
-        <div class="grid-lines-layer">${gridLinesHtml}</div>
+        <div class="grid-lines-layer" style="grid-column: 1 / -1; width: 100%; border-right: 1px solid var(--glass-border);">${gridLinesHtml}</div>
         ${columnsHtml}
     `;
 

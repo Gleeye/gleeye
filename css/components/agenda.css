@@ -343,6 +343,8 @@
     flex: 1;
     display: flex;
     overflow: auto;
+    scrollbar-gutter: stable;
+    /* Keeps space for scrollbar even if not present, ensuring alignment */
 }
 
 .time-gutter {
@@ -402,7 +404,8 @@
     text-align: center;
     padding: 1.5rem 0.5rem;
     border-right: 1px solid var(--glass-border);
-    /* min-width set via grid definition */
+    min-width: 170px;
+    box-sizing: border-box;
 }
 
 .day-col-header:last-child {
@@ -439,10 +442,9 @@
 .main-grid {
     flex: 1;
     display: grid;
-    /* Cols set via JS */
     position: relative;
-    /* Define height based on 24 hours * 60px per hour */
     min-height: calc(24 * 60px);
+    width: 100%;
 }
 
 /* Grid Lines */
