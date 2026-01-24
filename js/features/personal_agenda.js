@@ -43,18 +43,8 @@ export async function renderAgenda(container) {
                     <!-- Rendered via JS -->
                 </div>
 
-                <!-- Google Sync Status -->
-                <div class="sync-status-card" style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--glass-border); display: flex; align-items: center; gap: 0.75rem;">
-                    <div id="sync-status-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #9ca3af; transition: background 0.3s;"></div>
-                    <div style="flex: 1;">
-                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">Google Calendar</div>
-                        <div id="sync-status-text" style="font-size: 0.75rem; color: var(--text-secondary);">In attesa...</div>
-                    </div>
-                     <button onclick="window.location.reload()" style="background:none; border:none; cursor:pointer; color:var(--text-tertiary);" title="Ricarica Pagina">
-                        <span class="material-icons-round" style="font-size:16px;">refresh</span>
-                    </button>
-                </div>
-
+                <!-- Google Sync Status Removed from here -->
+                
                 <!-- Filters -->
                 <div class="agenda-filters">
                     <div class="filter-group-title">Filtri Calendario</div>
@@ -104,8 +94,16 @@ export async function renderAgenda(container) {
                     </div>
 
                 <div class="header-actions">
-                     <button class="icon-nav-btn" id="btn-manage-availability" title="Modifica Disponibilità" style="margin-right: 0.5rem;">
+                     
+                     <!-- Google Sync Indicator -->
+                     <div id="google-sync-indicator" class="sync-indicator hidden" title="Google Calendar: In attesa..." style="display: flex; align-items: center; gap: 6px; margin-right: 12px; padding: 4px 8px; border-radius: 12px; background: rgba(255,255,255,0.5); border: 1px solid var(--glass-border); transition: all 0.2s;">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg" alt="GCal" style="width: 14px; height: 14px;">
+                        <span id="sync-status-dot-header" style="width: 6px; height: 6px; border-radius: 50%; background: #9ca3af;"></span>
+                     </div>
+
+                     <button class="icon-nav-btn" id="btn-manage-availability" title="Modifica Disponibilità" style="margin-right: 0.5rem; width: auto; padding: 0 12px; gap: 6px;">
                         <span class="material-icons-round" style="color: var(--brand-blue);">event_available</span>
+                        <span style="font-size: 0.85rem; font-weight: 500; color: var(--text-secondary);">Disponibilità</span>
                      </button>
 
                      <div class="view-mode-toggle">
@@ -1027,18 +1025,21 @@ function openEventDetails(event) {
 window.openEventDetails = openEventDetails;
 
 function updateSyncStatus(status, text) {
-    const dot = document.getElementById('sync-status-dot');
-    const label = document.getElementById('sync-status-text');
-    if (!dot || !label) return;
+    const container = document.getElementById('google-sync-indicator');
+    const dot = document.getElementById('sync-status-dot-header');
 
-    label.textContent = text;
+    if (!container || !dot) return;
 
-    // Reset classes
+    container.classList.remove('hidden');
+    container.title = `Google Calendar: ${text}`;
+
+    // Reset styles
     dot.style.background = '#9ca3af'; // gray default
+    dot.classList.remove('animate-pulse');
 
     if (status === 'syncing') {
         dot.style.background = '#fbbf24'; // yellow
-        // Add pulse animation if desired
+        dot.classList.add('animate-pulse');
     } else if (status === 'success') {
         dot.style.background = '#22c55e'; // green
     } else if (status === 'error') {
