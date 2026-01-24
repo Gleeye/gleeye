@@ -1047,14 +1047,14 @@ function renderGoogleCalendarStatus(container, auth, collaboratorId) {
         container.innerHTML = `
             <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
                 <div style="display: flex; align-items: center; gap: 1rem;">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_\"Calendar\"_icon_%282020%29.svg" style="width: 32px; height: 32px;" alt="Google Calendar">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg" style="width: 32px; height: 32px;" alt="Google Calendar">
                     <div>
                         <div style="font-weight: 600; font-size: 0.95rem;">Non collegato</div>
                         <div style="font-size: 0.8rem; color: var(--text-tertiary);">Collega il tuo account per sincronizzare gli impegni.</div>
                     </div>
                 </div>
                 <button id="connect-google-btn" class="primary-btn" style="background: white; color: var(--text-primary); border: 1px solid var(--glass-border); display: flex; align-items: center; gap: 8px;">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_\"Calendar\"_icon_%282020%29.svg" style="width: 18px; height: 18px;">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg" style="width: 18px; height: 18px;">
                     Collega Google
                 </button>
             </div>
@@ -1066,7 +1066,7 @@ function renderGoogleCalendarStatus(container, auth, collaboratorId) {
             <div style="background: #E8F0FE; padding: 1.5rem; border-radius: 12px; border-left: 4px solid #4285F4;">
                 <div style="display: flex; align-items: center; justify-content: space-between;">
                     <div style="display: flex; align-items: center; gap: 1rem;">
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_\"Calendar\"_icon_%282020%29.svg" style="width: 32px; height: 32px;">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg" style="width: 32px; height: 32px;">
                         <div>
                             <div style="font-weight: 600; color: #1967D2;">Account Collegato</div>
                             <div style="font-size: 0.8rem; color: #4285F4;">${selectedCount > 0 ? `${selectedCount} calendar${selectedCount > 1 ? 'i' : 'io'} in sincro` : 'Nessun calendario selezionato'}</div>
