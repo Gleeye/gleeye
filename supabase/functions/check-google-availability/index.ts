@@ -43,7 +43,7 @@ Deno.serve(async (req: Request) => {
 
     // If no auth records found for any requested ID
     if (!auths || auths.length === 0) {
-      return new Response(JSON.stringify({ busy: [] }), {
+      return new Response(JSON.stringify({ busy: [], error: 'NOT_CONNECTED' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       })
