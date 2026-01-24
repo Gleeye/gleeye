@@ -332,9 +332,57 @@
 /* Timeline Grid */
 .timeline-wrapper {
     flex: 1;
+    overflow: hidden;
+}
+
+/* New Combined Scroll Container */
+.timeline-scroll-container {
+    flex: 1;
+    display: flex;
+    overflow: auto;
+}
+
+.time-gutter {
+    width: 60px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--glass-border);
+    background: var(--card-bg);
+    position: sticky;
+    left: 0;
+    z-index: 10;
+}
+
+.time-slot-label {
+    height: 60px;
+    /* 1 Hour */
+    display: flex;
+    align-items: flex-start;
+    /* Label at top of line */
+    justify-content: center;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    transform: translateY(-50%);
+    /* Center on line */
+    padding-top: 4px;
+}
+
+.time-slot-label:first-child {
+    margin-top: 74px;
+    /* Offset for sticky header height */
+}
+
+.time-slot-label span {
+    background: var(--card-bg);
+    padding: 0 4px;
+    z-index: 2;
+}
+
+.timeline-content {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    min-width: max-content;
+    /* Allow horizontal scroll if needed */
 }
 
 .timeline-header-row {
@@ -342,18 +390,17 @@
     /* Columns set via JS */
     border-bottom: 1px solid var(--glass-border);
     background: var(--card-bg);
-    /* Clean white/dark */
-    padding-left: 60px;
-    /* Space for Gutter */
-    overflow-x: hidden;
-    /* Allow JS scroll */
+    position: sticky;
+    top: 0;
+    z-index: 5;
 }
 
 .day-col-header {
     text-align: center;
     padding: 1.5rem 0.5rem;
     border-right: 1px solid var(--glass-border);
-    /* Subtle separator */
+    min-width: 120px;
+    /* Ensure columns have min width */
 }
 
 .day-col-header:last-child {
@@ -384,44 +431,6 @@
     font-weight: 300;
     color: var(--text-secondary);
     line-height: 1;
-}
-
-
-/* Scrollable Grid Body */
-.timeline-body {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: auto;
-    /* Enable horizontal scroll */
-    position: relative;
-    display: flex;
-}
-
-.time-gutter {
-    width: 60px;
-    flex-shrink: 0;
-    border-right: 1px solid var(--glass-border);
-    background: var(--card-bg);
-}
-
-.time-slot-label {
-    height: 60px;
-    /* 1 Hour */
-    display: flex;
-    align-items: flex-start;
-    /* Label at top of line */
-    justify-content: center;
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
-    transform: translateY(-50%);
-    /* Center on line */
-    padding-top: 4px;
-}
-
-.time-slot-label span {
-    background: var(--card-bg);
-    padding: 0 4px;
-    z-index: 2;
 }
 
 

@@ -124,23 +124,26 @@ export async function renderAgenda(container) {
                 </div>
                  <!-- Timeline Grid -->
                 <div class="timeline-wrapper">
-                    <!-- Header Row (Days) -->
-                    <div class="timeline-header-row" id="timeline-header">
-                         <!-- Day Headers injected here -->
-                    </div>
-
-                    <!-- Scrollable Body -->
-                    <div class="timeline-body">
-                        <!-- Time Gutter -->
+                    <!-- Combined Scrollable Container -->
+                    <div class="timeline-scroll-container">
+                        <!-- Time Gutter (Sticky Left) -->
                         <div class="time-gutter">
-                             <!-- 08:00, 09:00 ... -->
+                             <!-- 00:00, 01:00 ... -->
                         </div>
                         
-                        <!-- Main Grid -->
-                        <div class="main-grid" id="main-grid">
-                            <!-- Columns & Events -->
-                             <div class="grid-lines-layer">
-                                <!-- Horizontal Lines -->
+                        <!-- Main Content (Header + Grid) -->
+                        <div class="timeline-content">
+                            <!-- Header Row (Days) - Sticky Top -->
+                            <div class="timeline-header-row" id="timeline-header">
+                                 <!-- Day Headers injected here -->
+                            </div>
+
+                            <!-- Main Grid -->
+                            <div class="main-grid" id="main-grid">
+                                <!-- Columns & Events -->
+                                 <div class="grid-lines-layer">
+                                    <!-- Horizontal Lines -->
+                                </div>
                             </div>
                         </div>
                     </div>
