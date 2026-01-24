@@ -345,6 +345,8 @@
     /* Clean white/dark */
     padding-left: 60px;
     /* Space for Gutter */
+    overflow-x: hidden;
+    /* Allow JS scroll */
 }
 
 .day-col-header {
@@ -389,6 +391,8 @@
 .timeline-body {
     flex: 1;
     overflow-y: auto;
+    overflow-x: auto;
+    /* Enable horizontal scroll */
     position: relative;
     display: flex;
 }

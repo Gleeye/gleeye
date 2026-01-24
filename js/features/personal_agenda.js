@@ -196,6 +196,15 @@ export async function renderAgenda(container) {
         };
     }
 
+    // Sync Scroll Header with Body
+    const tBody = container.querySelector('.timeline-body');
+    const tHeader = container.querySelector('#timeline-header');
+    if (tBody && tHeader) {
+        tBody.addEventListener('scroll', () => {
+            tHeader.scrollLeft = tBody.scrollLeft;
+        });
+    }
+
     renderTimeline();
 }
 
@@ -513,8 +522,8 @@ function renderTimeline() {
     header.innerHTML = headerHtml;
 
     // 3. Render Gutter & Grid Lines
-    const startHour = 7;
-    const endHour = 22; // Extended range
+    const startHour = 0;
+    const endHour = 24; // Full day range
     const totalHours = endHour - startHour;
 
     let gutterHtml = '';
