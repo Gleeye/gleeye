@@ -6,9 +6,15 @@ CREATE TABLE IF NOT EXISTS public.availability_overrides (
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     service_id UUID REFERENCES public.services(id), -- Optional: specific service for this slot
-    is_available BOOLEAN DEFAULT TRUE, -- Future proofing, though we use rest_days for unavailable
+    is_available BOOLEAN DEFAULT TRUE,
+    is_on_call BOOLEAN DEFAULT false,
+    service_ids UUID[] DEFAULT NULL,
     created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Ensure columns exist if table was already created
+ALTER TABLE public.availability_overrides ADD COLUMN IF NOT EXISTS is_on_call BOOLEAN DEFAULT false;
+ALTER TABLE public.availability_overrides ADD COLUMN IF NOT EXISTS service_ids UUID[] DEFAULT NULL;
 
 -- RLS
 ALTER TABLE public.availability_overrides ENABLE ROW LEVEL SECURITY;

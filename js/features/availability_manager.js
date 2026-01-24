@@ -446,7 +446,12 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
                 opacity: 1 !important; visibility: visible !important; transform: none !important;
             }
             .custom-select-options.open { display: block !important; }
-            .cs-scroll-area { max-height: 250px; overflow-y: auto; padding: 4px; }
+            .custom-select-options.open-top { 
+                top: auto !important; 
+                bottom: calc(100% + 4px) !important; 
+                box-shadow: 0 -10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+            }
+            .cs-scroll-area { max-height: 200px; overflow-y: auto; padding: 4px; }
             
             .cs-option {
                 display: flex; align-items: center; gap: 10px; padding: 8px 12px;
@@ -629,6 +634,16 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
             document.querySelectorAll('.custom-select-options.open').forEach(el => {
                 if (el !== options) el.classList.remove('open');
             });
+
+            // Smart Position Check
+            const rect = trigger.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            if (spaceBelow < 250) { // If less than 250px below, open top
+                options.classList.add('open-top');
+            } else {
+                options.classList.remove('open-top');
+            }
+
             options.classList.toggle('open');
         };
 
@@ -747,6 +762,21 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
         const endDate = slot.end_date ? new Date(slot.end_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) : null;
         const dateDisplay = endDate ? `${startDate} - ${endDate}` : startDate;
 
+        let servicesText = 'Tutti i servizi';
+        if (slot.is_on_call) {
+            servicesText = 'Reperibilità';
+            if (slot.service_ids && slot.service_ids.length > 0) servicesText += ` + ${slot.service_ids.length} Servizi`;
+        } else if (slot.service_ids && slot.service_ids.length > 0) {
+            if (slot.service_ids.length === 1) {
+                const s = myServices.find(x => x.id === slot.service_ids[0]);
+                servicesText = s ? s.name : (slot.booking_items?.name || '1 Servizio');
+            } else {
+                servicesText = `${slot.service_ids.length} Servizi`;
+            }
+        } else if (slot.booking_items) { // Fallback for old single relation
+            servicesText = slot.booking_items.name;
+        }
+
         return `
             <div style="background: white; border-radius: 10px; padding: 0.75rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #667eea; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                 <div style="flex: 1; min-width: 0;">
@@ -755,7 +785,7 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
                     </div>
                     <div style="font-size: 0.75rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         <span>${slot.start_time.slice(0, 5)} - ${slot.end_time.slice(0, 5)}</span>
-                        <span style="color: #667eea;">• ${slot.booking_items?.name || 'Tutti i servizi'}</span>
+                        <span style="color: #667eea;">• ${servicesText}</span>
                     </div>
                 </div>
                 <button class="icon-btn delete-override-btn" data-id="${slot.id}" title="Elimina" style="background: var(--bg-secondary); border-radius: 6px; width: 28px; height: 28px; flex-shrink: 0;">
@@ -928,80 +958,73 @@ function openExtraSlotModal(collaboratorId, services, onSuccess) {
     if (existing) existing.remove();
 
     const content = `
-        <div class="modal-header-premium" style="margin-bottom: 2rem; position: relative;">
+        <div class="modal-header-premium" style="margin-bottom: 0.75rem; position: relative;">
             <div style="display: flex; align-items: center; gap: 1rem;">
-                <div style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                    <span class="material-icons-round">event_available</span>
+                <div style="width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); flex-shrink: 0;">
+                    <span class="material-icons-round" style="font-size: 20px;">event_available</span>
                 </div>
                 <div>
-                    <h2 style="margin: 0; font-size: 1.3rem; font-weight: 600; color: var(--text-primary);">Aggiungi Disponibilità</h2>
-                    <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); font-weight: 400;">Definisci un giorno o un periodo specifico</p>
+                    <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600; color: var(--text-primary);">Aggiungi Disponibilità</h2>
+                    <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary); font-weight: 400;">Definisci un giorno o un periodo specifico</p>
                 </div>
             </div>
-            <button class="icon-btn close-sub-modal" style="position: absolute; top: -0.5rem; right: -0.5rem; background: white; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid var(--glass-border); transition: all 0.2s;">
-                <span class="material-icons-round" style="font-size: 20px; color: var(--text-secondary);">close</span>
+            <button class="icon-btn close-sub-modal" style="position: absolute; top: -0.25rem; right: -0.25rem; background: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid var(--glass-border); transition: all 0.2s;">
+                <span class="material-icons-round" style="font-size: 18px; color: var(--text-secondary);">close</span>
             </button>
         </div>
 
         <form id="extra-slot-form" class="premium-form">
-            <div style="background: var(--bg-secondary); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
-                <h3 style="margin: 0 0 1rem 0; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.5rem;">
+            <div style="background: var(--bg-secondary); border-radius: 16px; padding: 0.85rem 1rem; margin-bottom: 0.6rem;">
+                <h3 style="margin: 0 0 0.6rem 0; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.5rem;">
                     <span class="material-icons-round" style="font-size: 16px;">date_range</span>
                     Periodo
                 </h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
-                        <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Data Inizio</label>
+                        <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.4rem; display: block;">Data Inizio</label>
                         <input type="date" name="date" required value="${new Date().toISOString().split('T')[0]}"
                             style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 10px; font-size: 0.9rem; background: white; transition: all 0.2s; font-family: inherit;">
                     </div>
                     <div class="form-group">
-                        <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Data Fine <span style="font-weight: 400; color: var(--text-tertiary);">(Opzionale)</span></label>
+                        <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.4rem; display: block;">Data Fine <span style="font-weight: 400; color: var(--text-tertiary);">(Opzionale)</span></label>
                         <input type="date" name="end_date"
                             style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 10px; font-size: 0.9rem; background: white; transition: all 0.2s; font-family: inherit;">
                     </div>
                 </div>
             </div>
 
-            <div style="background: var(--bg-secondary); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
-                <h3 style="margin: 0 0 1rem 0; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.5rem;">
+            <div style="background: var(--bg-secondary); border-radius: 16px; padding: 0.85rem 1rem; margin-bottom: 0.6rem;">
+                <h3 style="margin: 0 0 0.6rem 0; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.5rem;">
                     <span class="material-icons-round" style="font-size: 16px;">schedule</span>
                     Orario
                 </h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
-                        <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Dalle</label>
+                        <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.4rem; display: block;">Dalle</label>
                         <input type="time" name="start_time" value="09:00" required
                             style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 10px; font-size: 0.9rem; background: white; transition: all 0.2s; font-family: inherit;">
                     </div>
                     <div class="form-group">
-                        <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Alle</label>
+                        <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.4rem; display: block;">Alle</label>
                         <input type="time" name="end_time" value="18:00" required
                             style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 10px; font-size: 0.9rem; background: white; transition: all 0.2s; font-family: inherit;">
                     </div>
                 </div>
             </div>
 
-            <div style="background: var(--bg-secondary); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
-                <h3 style="margin: 0 0 1rem 0; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.5rem;">
+            <div style="background: var(--bg-secondary); border-radius: 16px; padding: 0.85rem 1rem; margin-bottom: 1.5rem;">
+                <h3 style="margin: 0 0 0.6rem 0; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.5rem;">
                     <span class="material-icons-round" style="font-size: 16px;">work_outline</span>
                     Servizio
                 </h3>
-                <div class="form-group">
-                    <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Servizio Dedicato <span style="font-weight: 400; color: var(--text-tertiary);">(Opzionale)</span></label>
-                    <div class="custom-select-wrapper">
-                        <select name="service_id"
-                            style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; background: white; transition: all 0.2s; cursor: pointer; font-family: inherit; appearance: none;">
-                            <option value="">Tutti i servizi</option>
-                            ${services.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
-                        </select>
-                        <span class="material-icons-round" style="position: absolute; right: 12px; top: 38px; pointer-events: none; color: #64748b;">expand_more</span>
+                    <div class="form-group">
+                        <label style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.4rem; display: block;">Servizio Dedicato <span style="font-weight: 400; color: var(--text-tertiary);">(Opzionale)</span></label>
+                        <div id="extra-services-wrapper"></div>
                     </div>
-                </div>
             </div>
 
-            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 0.5rem;">
-                <button type="submit" class="primary-btn" style="min-width: 160px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.875rem 2rem; border-radius: 12px; font-weight: 600; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: all 0.2s; border: none; color: white; cursor: pointer; font-size: 0.95rem;">
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding: 0.5rem 0 3rem 0;">
+                <button type="submit" class="primary-btn" style="min-width: 160px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.75rem 1.5rem; border-radius: 10px; font-weight: 600; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: all 0.2s; border: none; color: white; cursor: pointer; font-size: 0.9rem;">
                     <span style="display: flex; align-items: center; gap: 0.5rem;">
                         <span class="material-icons-round" style="font-size: 18px;">check</span>
                         Salva Disponibilità
@@ -1021,17 +1044,137 @@ function openExtraSlotModal(collaboratorId, services, onSuccess) {
     const close = () => overlay.remove();
     overlay.querySelector('.close-sub-modal').addEventListener('click', close);
 
+    // --- Custom Select Logic ---
+    const wrapper = overlay.querySelector('#extra-services-wrapper');
+    const state = { ids: [], isOnCall: false };
+
+    // Function to render/update dropdown
+    const updateDropdown = () => {
+        let text = 'Tutti i servizi';
+        if (state.isOnCall) {
+            text = 'Reperibilità Lavorativa';
+            if (state.ids.length > 0) text += ` + ${state.ids.length} Servizi`;
+        } else if (state.ids.length > 0) {
+            if (state.ids.length === 1) {
+                const s = services.find(x => x.id === state.ids[0]);
+                text = s ? s.name : '1 Servizio';
+            } else {
+                text = `${state.ids.length} Servizi selezionati`;
+            }
+        }
+
+        wrapper.innerHTML = `
+            <div class="custom-select-wrapper">
+                <div class="custom-select-trigger" style="padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 10px; background: white; justify-content: space-between; display: flex; align-items: center; cursor: pointer;">
+                    <span class="trigger-text" style="font-size: 0.9rem; color: var(--text-primary);">${text}</span>
+                    <span class="material-icons-round" style="font-size:18px; color:#64748b;">expand_more</span>
+                </div>
+                <div class="custom-select-options">
+                    <div class="cs-scroll-area">
+                        <div class="cs-option" data-type="on_call" style="padding: 10px 12px;">
+                            <input type="checkbox" ${state.isOnCall ? 'checked' : ''}>
+                            <span style="font-weight:500; color:#4f46e5; margin-left: 8px;">Reperibilità Lavorativa</span>
+                        </div>
+                        <div class="cs-separator"></div>
+                        <div class="cs-option" data-type="all" style="padding: 10px 12px;">
+                             <input type="checkbox" ${!state.isOnCall && state.ids.length === 0 ? 'checked' : ''}>
+                             <span style="font-weight:500; margin-left: 8px;">Tutti i servizi</span>
+                        </div>
+                        ${services.map(s => `
+                            <div class="cs-option" data-id="${s.id}" data-type="service" style="padding: 10px 12px;">
+                                <input type="checkbox" ${state.ids.includes(s.id) ? 'checked' : ''}>
+                                <span style="margin-left: 8px;">${s.name}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Bind events
+        const trigger = wrapper.querySelector('.custom-select-trigger');
+        const options = wrapper.querySelector('.custom-select-options');
+
+        trigger.onclick = (e) => {
+            e.stopPropagation();
+
+            // Smart Position Check
+            const rect = trigger.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            if (spaceBelow < 220) {
+                options.classList.add('open-top');
+            } else {
+                options.classList.remove('open-top');
+            }
+
+            options.classList.toggle('open');
+        };
+
+        wrapper.querySelectorAll('.cs-option').forEach(opt => {
+            opt.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const type = opt.dataset.type;
+                const cb = opt.querySelector('input');
+                let isChecked = !cb.checked; // Toggle
+
+                if (type === 'on_call') {
+                    state.isOnCall = isChecked;
+                } else if (type === 'all') {
+                    if (isChecked) state.ids = [];
+                } else if (type === 'service') {
+                    const id = opt.dataset.id;
+                    if (isChecked) state.ids.push(id);
+                    else state.ids = state.ids.filter(x => x !== id);
+                }
+
+                if (state.ids.length > 0 && type !== 'all') {
+                    state.isOnCall = (type === 'on_call' ? isChecked : state.isOnCall); // Keep on_call as is or update
+                }
+
+                // Re-render to reflect state
+                updateDropdown();
+                // Keep open
+                wrapper.querySelector('.custom-select-options').classList.add('open');
+            };
+        });
+    };
+
+    // Initial Render
+    updateDropdown();
+
+    // Close on outside click
+    const outsideClick = (e) => {
+        if (!wrapper.contains(e.target)) {
+            const openOpts = wrapper.querySelector('.custom-select-options.open');
+            if (openOpts) openOpts.classList.remove('open');
+        }
+    };
+    document.addEventListener('click', outsideClick);
+
+    // Cleanup listener on close
+    const originalClose = close;
+    const cleanupClose = () => {
+        document.removeEventListener('click', outsideClick);
+        originalClose();
+    };
+    overlay.querySelector('.close-sub-modal').onclick = cleanupClose;
+    overlay.onclick = (e) => { if (e.target === overlay) cleanupClose(); };
+
     overlay.querySelector('form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
 
+        // Map state to DB fields
         const data = {
             collaborator_id: collaboratorId,
             start_time: formData.get('start_time'),
             end_time: formData.get('end_time'),
             date: formData.get('date'),
             end_date: formData.get('end_date') || null,
-            booking_item_id: formData.get('service_id') || null,
+            service_ids: state.ids, // Multi-select array
+            is_on_call: state.isOnCall, // Boolean
             is_available: true
         };
 
@@ -1043,7 +1186,7 @@ function openExtraSlotModal(collaboratorId, services, onSuccess) {
         try {
             await upsertAvailabilityOverride(data);
             window.showAlert('Disponibilità extra aggiunta!', 'success');
-            close();
+            cleanupClose(); // Use cleanupClose to remove listeners
             onSuccess();
         } catch (err) {
             console.error(err);
@@ -1051,9 +1194,5 @@ function openExtraSlotModal(collaboratorId, services, onSuccess) {
             btn.innerHTML = originalText;
             window.showAlert('Errore: ' + err.message, 'error');
         }
-    });
-
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) close();
     });
 }
