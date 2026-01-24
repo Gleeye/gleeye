@@ -330,8 +330,11 @@
 
 
 /* Timeline Grid */
+/* Timeline Grid */
 .timeline-wrapper {
     flex: 1;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
 }
 
@@ -381,8 +384,8 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    min-width: max-content;
-    /* Allow horizontal scroll if needed */
+    min-width: 0;
+    /* Allow shrinking */
 }
 
 .timeline-header-row {
@@ -399,8 +402,7 @@
     text-align: center;
     padding: 1.5rem 0.5rem;
     border-right: 1px solid var(--glass-border);
-    min-width: 120px;
-    /* Ensure columns have min width */
+    /* min-width set via grid definition */
 }
 
 .day-col-header:last-child {
@@ -439,6 +441,8 @@
     display: grid;
     /* Cols set via JS */
     position: relative;
+    /* Define height based on 24 hours * 60px per hour */
+    min-height: calc(24 * 60px);
 }
 
 /* Grid Lines */
