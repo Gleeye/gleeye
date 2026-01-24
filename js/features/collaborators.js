@@ -553,7 +553,6 @@ window.impersonateCollaborator = async (collaboratorId) => {
     }
 };
 
-
 window.sendMagicLink = async (email) => {
     if (!email) {
         window.showAlert('Email non presente per questo collaboratore', 'error');
@@ -562,26 +561,22 @@ window.sendMagicLink = async (email) => {
 
     if (await window.showConfirm(`Vuoi inviare un Magic Link di accesso a ${email}?`)) {
         try {
-            window.showLoadingSpinner ? window.showLoadingSpinner() : null;
             const { supabase } = await import('../modules/config.js?v=148');
-
-            const { data, error } = await supabase.functions.invoke('send-magic-link', {
-                body: { email }
+            const { error } = await supabase.auth.signInWithOtp({
+                email,
+                options: {
+                    shouldCreateUser: true,
+                    emailRedirectTo: window.location.origin
+                }
             });
-
             if (error) throw error;
-            if (data && data.error) throw new Error(data.error);
-
             window.showAlert('Magic Link inviato con successo!', 'success');
         } catch (err) {
             console.error('Error sending magic link:', err);
             window.showAlert('Errore durante l\'invio: ' + err.message, 'error');
-        } finally {
-            window.hideLoadingSpinner ? window.hideLoadingSpinner() : null;
         }
     }
 };
-
 
 export function renderCollaboratorDetail(container) {
     const id = state.currentId;

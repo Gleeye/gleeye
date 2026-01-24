@@ -199,7 +199,14 @@ export async function renderAgenda(container) {
         };
     }
 
-
+    // Sync Scroll Header with Body
+    const tBody = container.querySelector('.timeline-body');
+    const tHeader = container.querySelector('#timeline-header');
+    if (tBody && tHeader) {
+        tBody.addEventListener('scroll', () => {
+            tHeader.scrollLeft = tBody.scrollLeft;
+        });
+    }
 
     renderTimeline();
 }
@@ -329,61 +336,68 @@ async function fetchMyBookings() {
         };
 
         // Fetch Google Calendar busy slots (async, non-blocking for initial render)
+        // Reset in-progress flag if it's stale (e.g. > 10s old)
         if (window._googleBusyFetchStart && (Date.now() - window._googleBusyFetchStart > 10000)) {
             window._googleBusyFetchInProgress = false;
         }
 
-        // 1. Always verify connection status to update UI correctly
-        const { data: auth, error: authError } = await supabase.from('collaborator_google_auth').select('id').eq('collaborator_id', collaboratorId).maybeSingle();
+        console.log('[Agenda] Google fetch check:', { existingLen: existingGoogleBusy.length, inProgress: window._googleBusyFetchInProgress, collaboratorId });
 
-        if (!auth) {
-            console.log('[Agenda] Google Calendar not connected for collaborator:', collaboratorId);
-            availabilityCache.googleBusy = [];
-            window._googleBusyFetchInProgress = false;
-            window._googleBusyFetchStart = null;
-            updateSyncStatus('disconnected', 'Account non collegato');
-        } else {
-            console.log('[Agenda] Google Calendar connected. Checking cache...', { existingLen: existingGoogleBusy.length, inProgress: window._googleBusyFetchInProgress });
+        if (existingGoogleBusy.length === 0 && !window._googleBusyFetchInProgress) {
+            window._googleBusyFetchInProgress = true;
+            window._googleBusyFetchStart = Date.now();
+            updateSyncStatus('syncing', 'Sincronizzazione...');
 
-            if (existingGoogleBusy.length > 0) {
-                updateSyncStatus('success', 'Sincronizzato');
-            } else if (!window._googleBusyFetchInProgress) {
-                window._googleBusyFetchInProgress = true;
-                window._googleBusyFetchStart = Date.now();
-                updateSyncStatus('syncing', 'Sincronizzazione...');
+            const fetchId = ++currentGoogleFetchId;
 
-                const fetchId = ++currentGoogleFetchId;
+            fetchGoogleCalendarBusy(collaboratorId).then(busySlots => {
+                // Check if this fetch is stale (superseded by a newer one)
+                if (fetchId !== currentGoogleFetchId) {
+                    console.log('[Agenda] Stale fetch ignored:', fetchId, 'Current:', currentGoogleFetchId);
+                    return;
+                }
 
-                fetchGoogleCalendarBusy(collaboratorId).then(busySlots => {
-                    if (fetchId !== currentGoogleFetchId) return;
+                window._googleBusyFetchInProgress = false;
+                window._googleBusyFetchStart = null;
+                console.log('[Agenda] Raw Busy Response:', busySlots);
 
+                if (busySlots && busySlots.length > 0) {
+                    // Check for Auth Error
+                    if (busySlots[0]?.error === 'AUTH_ERROR') {
+                        console.warn('[Agenda] Auth Error detected:', busySlots[0]);
+                        updateSyncStatus('error', 'Errore Autenticazione');
+                        window.showGlobalAlert('Autorizzazione Google scaduta. Ricollega il calendario dal tuo profilo.', 'error');
+                        return;
+                    }
+                    // Check for API Error
+                    if (busySlots[0]?.error === 'API_ERROR') {
+                        console.warn('[Agenda] Google API Error:', busySlots[0]);
+                        updateSyncStatus('error', 'Errore Google');
+                        return;
+                    }
+
+                    availabilityCache.googleBusy = busySlots;
+                    updateSyncStatus('success', 'Sincronizzato');
+                    console.log('[Agenda] Google Calendar busy slots fetched:', busySlots.length);
+                    renderTimeline(); // Re-render with calendar data
+                } else {
+                    // Start of buffer logic - maybe retry with wider range if needed in future
+                    updateSyncStatus('success', 'Nessun evento');
+                    console.log('[Agenda] No Google Calendar busy slots found or empty array');
+                }
+            }).catch(err => {
+                if (fetchId === currentGoogleFetchId) {
                     window._googleBusyFetchInProgress = false;
                     window._googleBusyFetchStart = null;
-
-                    if (busySlots && busySlots.length > 0) {
-                        if (busySlots[0]?.error === 'AUTH_ERROR') {
-                            updateSyncStatus('error', 'Errore Autenticazione');
-                            window.showGlobalAlert('Autorizzazione Google scaduta.', 'error');
-                            return;
-                        }
-                        if (busySlots[0]?.error === 'NOT_CONNECTED') {
-                            updateSyncStatus('disconnected', 'Non collegato');
-                            return;
-                        }
-
-                        availabilityCache.googleBusy = busySlots;
-                        updateSyncStatus('success', 'Sincronizzato');
-                        renderTimeline();
-                    } else {
-                        updateSyncStatus('success', 'Nessun evento');
-                    }
-                }).catch(err => {
-                    if (fetchId === currentGoogleFetchId) {
-                        window._googleBusyFetchInProgress = false;
-                        updateSyncStatus('error', 'Errore Rete');
-                    }
-                });
-            }
+                    updateSyncStatus('error', 'Errore Rete');
+                }
+                console.error('[Agenda] Google Calendar fetch failed DETAILS:', err);
+                console.error('[Agenda] Error Name:', err?.name);
+                console.error('[Agenda] Error Message:', err?.message);
+            });
+        } else if (existingGoogleBusy.length > 0) {
+            availabilityCache.googleBusy = existingGoogleBusy;
+            updateSyncStatus('success', 'Cache utilizzata');
         }
 
         console.log("[Agenda] Fetched events:", eventsCache.length, "Rules:", availabilityCache.rules.length);
@@ -431,13 +445,13 @@ async function fetchGoogleCalendarBusy(collaboratorId) {
 
         if (error) {
             console.warn('[Agenda] Google Calendar fetch error:', error.message);
-            return [{ error: 'FETCH_ERROR', details: error.message }];
+            return [];
         }
 
         if (data?.error) {
-            // Likely no Google connection or other error
-            console.log('[Agenda] Google Calendar fetch error/status:', data.error);
-            return [{ error: data.error }];
+            // Likely no Google connection - that's OK
+            console.log('[Agenda] Google Calendar not connected:', data.error);
+            return [];
         }
 
         return data?.busy || [];
@@ -753,10 +767,8 @@ function renderTimeline() {
 
     // CSS Grid Cols
     const cols = currentView === 'week' ? 7 : 1;
-    // Fix: Use minmax so they fill 1fr but scroll if container is too small
-    const colDef = `repeat(${cols}, minmax(130px, 1fr))`;
-    header.style.gridTemplateColumns = colDef;
-    grid.style.gridTemplateColumns = colDef;
+    header.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 }
 
 // --- MINI CALENDAR ---
@@ -1030,20 +1042,12 @@ function updateSyncStatus(status, text) {
 
     if (!container || !dot) return;
 
-    console.log(`[Agenda] updateSyncStatus: ${status} (${text})`);
+    container.classList.remove('hidden');
+    container.title = `Google Calendar: ${text}`;
 
     // Reset styles
     dot.style.background = '#9ca3af'; // gray default
     dot.classList.remove('animate-pulse');
-
-    if (status === 'disconnected') {
-        container.classList.add('hidden');
-        return;
-    }
-
-    // Reveal and update if not disconnected
-    container.classList.remove('hidden');
-    container.title = `Google Calendar: ${text}`;
 
     if (status === 'syncing') {
         dot.style.background = '#fbbf24'; // yellow
