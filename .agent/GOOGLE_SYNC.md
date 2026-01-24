@@ -31,8 +31,21 @@ Per aggiornare la funzione in produzione:
 supabase functions deploy check-google-availability --no-verify-jwt
 ```
 
-## 6. Risoluzione Problemi (401 Unauthorized)
-Se la sincronizzazione fallisce con 401:
-1. Verificare che i record in `system_config` siano presenti e corretti.
-2. Controllare che il record `collaborator_google_auth` per l'utente non sia stato revocato lato Google.
-3. Assicurarsi che il deploy sia stato fatto con `--no-verify-jwt`.
+## 6. Risoluzione Problemi (401 o Redirect URI Mismatch)
+Se la sincronizzazione fallisce dopo il cambio dominio, segui questa checklist:
+
+### A. Google Cloud Console (Urgente)
+Verificare le credenziali OAuth 2.0 su [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
+
+1.  **Origini JavaScript autorizzate**: Aggiungere il nuovo dominio (es. `https://prenotazioni.gleeye.com`) **SENZA** slash finale.
+2.  **URI di reindirizzamento autorizzati**: Aggiungere l'URL esatto inviato dall'app. L'app Gleeye rimuove lo slash finale.
+    -   Esempio corretto: `https://prenotazioni.gleeye.com`
+    -   Esempio errato: `https://prenotazioni.gleeye.com/` (lo slash fa fallire la corrispondenza).
+3.  **Authorized Domains**: Nello "OAuth Consent Screen", assicurarsi che il nuovo dominio sia aggiunto alla lista dei domini autorizzati.
+
+### B. Verifica Client ID
+Controllare che il Client ID salvato in **Admin → Calendari Esterni** (tabella `system_config`) sia esattamente quello corrispondente alle credenziali modificate. Spesso si modifica un progetto Google ma l'app ne usa un altro salvato in precedenza.
+
+### C. Redirect URI in DB? No.
+Il `redirect_uri` non è salvato nel DB ma viene generato dinamicamente dall'app come `window.location.origin + window.location.pathname`. Se il dominio è cambiato su Vercel, l'app manderà il nuovo dominio automaticamente.
+
