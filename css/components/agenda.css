@@ -355,6 +355,21 @@
     position: sticky;
     left: 0;
     z-index: 10;
+    display: flex;
+    flex-direction: column;
+}
+
+.time-gutter-header {
+    height: 96px;
+    /* Match the date header height exactly */
+    position: sticky;
+    top: 0;
+    z-index: 11;
+    background: var(--card-bg);
+    border-right: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--glass-border);
+    width: 60px;
+    flex-shrink: 0;
 }
 
 .time-slot-label {
@@ -372,8 +387,7 @@
 }
 
 .time-slot-label:first-child {
-    margin-top: 96px;
-    /* Measured header height to align 0:00 with the start of the grid */
+    margin-top: 0;
 }
 
 .time-slot-label span {

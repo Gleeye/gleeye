@@ -566,7 +566,7 @@ function renderTimeline() {
         gutterHtml += `<div class="time-slot-label"><span>${h}:00</span></div>`;
         gridLinesHtml += `<div class="grid-line-hour"></div>`;
     }
-    gutter.innerHTML = gutterHtml;
+    gutter.innerHTML = '<div class="time-gutter-header"></div>' + gutterHtml;
 
     if (bgLayer) bgLayer.innerHTML = gridLinesHtml;
 
