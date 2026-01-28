@@ -745,12 +745,12 @@ export function renderCollaboratorDetail(container) {
                                         <div style="font-size: 0.9rem; font-weight: 500;">${c.last_name || '-'}</div>
                                     </div>
                                     <div>
-                                        <div style="font-size: 0.7rem; color: var(--text-tertiary);">Data di Nascita</div>
-                                        <div style="font-size: 0.9rem; font-weight: 500;">${c.birth_date ? new Date(c.birth_date).toLocaleDateString('it-IT') : '-'}</div>
-                                    </div>
-                                    <div>
                                         <div style="font-size: 0.7rem; color: var(--text-tertiary);">Luogo di Nascita</div>
                                         <div style="font-size: 0.9rem; font-weight: 500;">${c.birth_place || '-'}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 0.7rem; color: var(--text-tertiary);">Data di Nascita</div>
+                                        <div style="font-size: 0.9rem; font-weight: 500;">${c.birth_date ? new Date(c.birth_date).toLocaleDateString('it-IT') : '-'}</div>
                                     </div>
                                 </div>
                             </div>
@@ -775,9 +775,9 @@ export function renderCollaboratorDetail(container) {
                                         <span class="material-icons-round" style="font-size: 1rem; color: var(--text-tertiary);">call</span>
                                         ${c.phone || '-'}
                                     </a>
-                                    <div style="display: flex; gap: 0.6rem; align-items: center; color: var(--text-primary); font-size: 0.9rem;">
-                                        <span class="material-icons-round" style="font-size: 1rem; color: var(--text-tertiary);">place</span>
-                                        <span style="line-height: 1.3;">${c.address || '-'}</span>
+                                    <div style="display: flex; gap: 0.6rem; align-items: flex-start; color: var(--text-primary); font-size: 0.9rem;">
+                                        <span class="material-icons-round" style="font-size: 1rem; color: var(--text-tertiary); margin-top: 2px;">place</span>
+                                        <span style="line-height: 1.3;">${[c.address, c.city, c.province ? `(${c.province})` : null, c.cap].filter(Boolean).join(', ') || '-'}</span>
                                     </div>
                                 </div>
                             </div>
