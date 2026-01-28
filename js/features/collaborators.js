@@ -725,7 +725,6 @@ export function renderCollaboratorDetail(container) {
                 
                 <!-- Left Column: Profile Info -->
                 <div style="display: flex; flex-direction: column; gap: 1rem;">
-                    
                     <!-- Contacts Card -->
                      <div class="glass-card" style="padding: 1.25rem;">
                         <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -733,6 +732,29 @@ export function renderCollaboratorDetail(container) {
                         </h3>
                         
                         <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            <!-- Anagrafica -->
+                            <div>
+                                <div style="font-size: 0.7rem; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.03em;">Anagrafica</div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem;">
+                                    <div>
+                                        <div style="font-size: 0.7rem; color: var(--text-tertiary);">Nome</div>
+                                        <div style="font-size: 0.9rem; font-weight: 500;">${c.first_name || '-'}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 0.7rem; color: var(--text-tertiary);">Cognome</div>
+                                        <div style="font-size: 0.9rem; font-weight: 500;">${c.last_name || '-'}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 0.7rem; color: var(--text-tertiary);">Data di Nascita</div>
+                                        <div style="font-size: 0.9rem; font-weight: 500;">${c.birth_date ? new Date(c.birth_date).toLocaleDateString('it-IT') : '-'}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 0.7rem; color: var(--text-tertiary);">Luogo di Nascita</div>
+                                        <div style="font-size: 0.9rem; font-weight: 500;">${c.birth_place || '-'}</div>
+                                    </div>
+                                </div>
+                            </div>
+
                             ${tags.length > 0 ? `
                                 <div>
                                     <div style="font-size: 0.7rem; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.4rem;">Reparti</div>
@@ -765,16 +787,16 @@ export function renderCollaboratorDetail(container) {
                     <!-- Fiscal Data Card -->
                      <div class="glass-card" style="padding: 1.25rem;">
                         <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                            <span class="material-icons-round" style="color: var(--brand-blue); font-size: 1.1rem;">account_balance</span> Dati Fiscali
+                            <span class="material-icons-round" style="color: var(--brand-blue); font-size: 1.1rem;">account_balance</span> Dati Fiscali & Bancari
                         </h3>
                          <div style="display: flex; flex-direction: column; gap: 0.8rem;">
                              <div style="display: flex; justify-content: space-between; align-items: center;">
-                                 <span style="font-size: 0.8rem; color: var(--text-secondary);">P.IVA</span>
-                                 <span style="font-size: 0.85rem; font-weight: 500; font-family: monospace;">${c.vat_number || '-'}</span>
-                             </div>
-                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                  <span style="font-size: 0.8rem; color: var(--text-secondary);">Cod. Fiscale</span>
                                  <span style="font-size: 0.85rem; font-weight: 500; font-family: monospace;">${c.fiscal_code || '-'}</span>
+                             </div>
+                             <div style="display: flex; justify-content: space-between; align-items: center;">
+                                 <span style="font-size: 0.8rem; color: var(--text-secondary);">P.IVA</span>
+                                 <span style="font-size: 0.85rem; font-weight: 500; font-family: monospace;">${c.vat_number || '-'}</span>
                              </div>
                              ${c.pec ? `
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -782,6 +804,17 @@ export function renderCollaboratorDetail(container) {
                                      <span style="font-size: 0.85rem; font-weight: 500;">${c.pec}</span>
                                  </div>
                              ` : ''}
+                             
+                             <div style="border-top: 1px dashed var(--glass-border); margin: 0.3rem 0;"></div>
+                             
+                             <div style="display: flex; justify-content: space-between; align-items: center;">
+                                 <span style="font-size: 0.8rem; color: var(--text-secondary);">Banca</span>
+                                 <span style="font-size: 0.85rem; font-weight: 500;">${c.bank_name || '-'}</span>
+                             </div>
+                             <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                 <span style="font-size: 0.8rem; color: var(--text-secondary);">IBAN</span>
+                                 <span style="font-size: 0.8rem; font-weight: 500; font-family: monospace; letter-spacing: 0.03em; word-break: break-all;">${c.iban || '-'}</span>
+                             </div>
                          </div>
                     </div>
 
@@ -789,21 +822,21 @@ export function renderCollaboratorDetail(container) {
                     ${['admin', 'partner', 'account'].includes(state.profile?.role) || (state.profile?.tags && state.profile.tags.includes('Amministrazione')) ? `
                          <div class="glass-card" style="padding: 1.25rem;">
                             <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                                <span class="material-icons-round" style="color: var(--brand-blue); font-size: 1.1rem;">folder_shared</span> Documenti Personali
+                                <span class="material-icons-round" style="color: var(--brand-blue); font-size: 1.1rem;">folder_shared</span> Documenti
                             </h3>
-                            <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
                                 ${[
-                { label: "Carta d'Identità (Fronte)", url: c.document_id_front_url },
-                { label: "Carta d'Identità (Retro)", url: c.document_id_back_url },
-                { label: "Tessera Sanitaria (Fronte)", url: c.document_health_card_url },
-                { label: "Tessera Sanitaria (Retro)", url: c.document_health_card_back_url }
+                { label: "CI Fronte", url: c.document_id_front_url },
+                { label: "CI Retro", url: c.document_id_back_url },
+                { label: "TS Fronte", url: c.document_health_card_url },
+                { label: "TS Retro", url: c.document_health_card_back_url }
             ].map(doc => `
-                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--glass-border);">
-                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                            <span class="material-icons-round" style="font-size: 1rem; color: ${doc.url ? '#10b981' : '#94a3b8'};">${doc.url ? 'check_circle' : 'radio_button_unchecked'}</span>
-                                            <span style="font-size: 0.85rem; color: ${doc.url ? 'var(--text-primary)' : 'var(--text-tertiary)'};">${doc.label}</span>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.65rem; background: ${doc.url ? '#f0fdf4' : '#f8fafc'}; border: 1px solid ${doc.url ? '#bbf7d0' : '#e2e8f0'}; border-radius: 8px;">
+                                        <div style="display: flex; align-items: center; gap: 0.35rem;">
+                                            <span class="material-icons-round" style="font-size: 0.85rem; color: ${doc.url ? '#10b981' : '#94a3b8'};">${doc.url ? 'check_circle' : 'radio_button_unchecked'}</span>
+                                            <span style="font-size: 0.75rem; font-weight: 500; color: ${doc.url ? 'var(--text-primary)' : 'var(--text-tertiary)'};">${doc.label}</span>
                                         </div>
-                                        ${doc.url ? `<button onclick="window.openSignedUrl ? window.openSignedUrl('${doc.url}') : window.open('${doc.url}', '_blank')" style="background: none; border: none; cursor: pointer; color: var(--brand-blue); display: flex; align-items: center;"><span class="material-icons-round" style="font-size: 1.1rem;">visibility</span></button>` : ''}
+                                        ${doc.url ? `<button onclick="window.openSignedUrl('${doc.url}')" style="background: none; border: none; cursor: pointer; color: var(--brand-blue); display: flex; align-items: center; padding: 2px;"><span class="material-icons-round" style="font-size: 0.95rem;">visibility</span></button>` : ''}
                                     </div>
                                 `).join('')}
                             </div>
