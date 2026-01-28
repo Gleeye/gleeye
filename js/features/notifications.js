@@ -3,8 +3,8 @@
  * Handles real-time notifications via Supabase Realtime
  */
 
-import { supabase } from '../modules/config.js?v=148';
-import { state } from '../modules/state.js?v=148';
+import { supabase } from '../modules/config.js?v=149';
+import { state } from '../modules/state.js?v=149';
 
 // State
 let notifications = [];
@@ -234,34 +234,29 @@ function closeDropdown() {
 }
 
 /**
- * Render the notification list
+ * Render the notification list in dropdown
  */
 function renderNotificationList() {
     const list = document.getElementById('notification-list');
     if (!list) return;
 
-    if (notifications.length === 0) {
-        list.innerHTML = '<div class="notification-empty">Nessuna notifica</div>';
-        return;
+    // Priority: show unread first, then recent read ones
+    const unreadNotifs = notifications.filter(n => !n.is_read);
+    const readNotifs = notifications.filter(n => n.is_read);
+
+    // Dropdown shows: all unread (up to 5) + recent read to fill 5 slots
+    let itemsToShow = [...unreadNotifs.slice(0, 5)];
+    if (itemsToShow.length < 5) {
+        itemsToShow = [...itemsToShow, ...readNotifs.slice(0, 5 - itemsToShow.length)];
     }
 
-    // For dropdown, show only UNREAD (or recent) and limit to 5
-    // But user asked for "only the latest notifications to see", implying unread or very recent.
-    // "le ultime notifiche da vedere poi il resto voglio un centro notifiche"
-
-    // Filter: Show unread first, then read, but limit to 5 total for dropdown
-    const dropdownItems = notifications
-        .slice(0, 5);
-    // Or prefer unread? notifications.filter(n => !n.is_read).slice(0, 5) 
-    // Let's show mixed but limited to 5.
-
-    // Actually user says: "me ne segnala 4 da leggere le leggo, ricarico" -> persistence bug.
-    // "voglio vedere solo le ultime notifiche da vedere" -> "only the latest to read".
-
-    const itemsToShow = dropdownItems;
-
     if (itemsToShow.length === 0) {
-        list.innerHTML = '<div class="notification-empty">Nessuna notifica recente</div>';
+        list.innerHTML = `
+            <div class="notification-empty">
+                <span class="material-icons-round">notifications_none</span>
+                <p>Nessuna notifica</p>
+            </div>
+        `;
         return;
     }
 
@@ -275,7 +270,7 @@ function renderNotificationList() {
                 <div class="notification-message">${escapeHtml(n.message || '')}</div>
                 <div class="notification-time">${formatTime(n.created_at)}</div>
             </div>
-            ${!n.is_read ? '<div class="notification-unread-dot"></div>' : ''}
+            ${!n.is_read ? '<div class="notification-unread-indicator"></div>' : ''}
         </div>
     `).join('');
 
@@ -335,11 +330,19 @@ async function markAsRead(id) {
  */
 async function markAllAsRead() {
     try {
+        // Get IDs of all unread notifications in our local state
+        const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
+
+        if (unreadIds.length === 0) {
+            console.log('Notifications: No unread notifications to mark');
+            return;
+        }
+
+        // Update by explicit IDs - this is more robust than filtering by user_id
         const { error } = await supabase
             .from('notifications')
             .update({ is_read: true })
-            .eq('user_id', state.session.user.id)
-            .eq('is_read', false);
+            .in('id', unreadIds);
 
         if (error) throw error;
 
@@ -348,7 +351,7 @@ async function markAllAsRead() {
         unreadCount = 0;
         updateBadge();
         renderNotificationList();
-        console.log('Notifications: All marked as read');
+        console.log(`Notifications: Marked ${unreadIds.length} as read`);
     } catch (err) {
         console.error('Notifications: Error marking all as read:', err);
     }
@@ -475,16 +478,17 @@ export function renderNotificationCenter(container) {
     let filter = 'all'; // 'all', 'unread'
 
     container.innerHTML = `
-        <div class="notification-center-container fade-in">
+        <div class="notification-center-container">
             <div class="notification-center-header">
-                <h2>Centro Notifiche</h2>
+                <h2>Notifiche</h2>
                 <div class="notification-controls">
                     <div class="filter-tabs">
                         <button class="filter-tab active" data-filter="all">Tutte</button>
-                        <button class="filter-tab" data-filter="unread">Da Leggere</button>
+                        <button class="filter-tab" data-filter="unread">Da leggere</button>
                     </div>
                     <button id="center-mark-all" class="secondary-btn small">
-                        <span class="material-icons-round">done_all</span> Segna tutte come lette
+                        <span class="material-icons-round">done_all</span>
+                        Segna tutte come lette
                     </button>
                 </div>
             </div>
@@ -498,6 +502,62 @@ export function renderNotificationCenter(container) {
     const listContainer = container.querySelector('#notification-center-list');
     const tabs = container.querySelectorAll('.filter-tab');
 
+    // Helper to group notifications by date
+    const groupByDate = (items) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        const groups = {
+            today: [],
+            yesterday: [],
+            earlier: []
+        };
+
+        items.forEach(n => {
+            const nDate = new Date(n.created_at);
+            nDate.setHours(0, 0, 0, 0);
+
+            if (nDate.getTime() === today.getTime()) {
+                groups.today.push(n);
+            } else if (nDate.getTime() === yesterday.getTime()) {
+                groups.yesterday.push(n);
+            } else {
+                groups.earlier.push(n);
+            }
+        });
+
+        return groups;
+    };
+
+    // Render a single notification item
+    const renderItem = (n) => `
+        <div class="nc-item ${n.is_read ? 'read' : 'unread'}" data-id="${n.id}">
+            <div class="nc-item-icon ${getIconClass(n.type)}">
+                <span class="material-icons-round">${getIcon(n.type)}</span>
+            </div>
+            <div class="nc-item-content">
+                <div class="nc-header">
+                    <span class="nc-title">${escapeHtml(n.title)}</span>
+                    <span class="nc-time">${formatTime(n.created_at)}</span>
+                </div>
+                <div class="nc-message">${escapeHtml(n.message || '')}</div>
+                ${n.data && n.type === 'booking_new' ? `
+                    <div class="nc-actions">
+                        <button class="text-btn small" onclick="window.location.hash='#booking'">Vedi Prenotazione</button>
+                    </div>
+                ` : ''}
+            </div>
+            ${!n.is_read ? `
+                <button class="icon-btn small nc-read-btn" title="Segna come letta">
+                    <span class="material-icons-round">check_circle_outline</span>
+                </button>
+            ` : ''}
+        </div>
+    `;
+
     // Render function for the list
     const renderList = () => {
         let items = notifications;
@@ -508,45 +568,48 @@ export function renderNotificationCenter(container) {
         if (items.length === 0) {
             listContainer.innerHTML = `
                 <div class="empty-state">
-                    <span class="material-icons-round">notifications_off</span>
-                    <h3>Nessuna notifica</h3>
-                    <p>Non hai notifiche in questa lista.</p>
+                    <span class="material-icons-round">notifications_none</span>
+                    <h3>${filter === 'unread' ? 'Tutto letto!' : 'Nessuna notifica'}</h3>
+                    <p>${filter === 'unread' ? 'Non hai notifiche da leggere.' : 'Le tue notifiche appariranno qui.'}</p>
                 </div>
             `;
             return;
         }
 
-        listContainer.innerHTML = items.map(n => `
-            <div class="nc-item ${n.is_read ? 'read' : 'unread'}" data-id="${n.id}">
-                <div class="nc-item-icon ${getIconClass(n.type)}">
-                    <span class="material-icons-round">${getIcon(n.type)}</span>
+        const groups = groupByDate(items);
+        let html = '';
+
+        if (groups.today.length > 0) {
+            html += `
+                <div class="nc-date-section">
+                    <div class="nc-date-header">Oggi</div>
+                    ${groups.today.map(renderItem).join('')}
                 </div>
-                <div class="nc-item-content">
-                    <div class="nc-header">
-                        <span class="nc-title">${escapeHtml(n.title)}</span>
-                        <span class="nc-time">${formatTime(n.created_at)}</span>
-                    </div>
-                    <div class="nc-message">${escapeHtml(n.message || '')}</div>
-                    ${n.data && n.type === 'booking_new' ? `
-                        <div class="nc-actions">
-                            <button class="text-btn small" onclick="window.location.hash='#booking'">Vedi Prenotazione</button>
-                        </div>
-                    ` : ''}
+            `;
+        }
+
+        if (groups.yesterday.length > 0) {
+            html += `
+                <div class="nc-date-section">
+                    <div class="nc-date-header">Ieri</div>
+                    ${groups.yesterday.map(renderItem).join('')}
                 </div>
-                ${!n.is_read ? `
-                    <button class="icon-btn small nc-read-btn" title="Segna come letta">
-                        <span class="material-icons-round">check_circle_outline</span>
-                    </button>
-                ` : ''}
-            </div>
-        `).join('');
+            `;
+        }
+
+        if (groups.earlier.length > 0) {
+            html += `
+                <div class="nc-date-section">
+                    <div class="nc-date-header">Precedenti</div>
+                    ${groups.earlier.map(renderItem).join('')}
+                </div>
+            `;
+        }
+
+        listContainer.innerHTML = html;
 
         // Attach events
         listContainer.querySelectorAll('.nc-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                // If clicked button, don't trigger main click if handled
-            });
-
             const readBtn = item.querySelector('.nc-read-btn');
             if (readBtn) {
                 readBtn.addEventListener('click', (e) => {
@@ -554,6 +617,16 @@ export function renderNotificationCenter(container) {
                     markAsRead(item.dataset.id).then(() => renderList());
                 });
             }
+
+            // Clicking the item itself also marks as read
+            item.addEventListener('click', (e) => {
+                if (e.target.closest('.nc-read-btn') || e.target.closest('.text-btn')) return;
+                const id = item.dataset.id;
+                const notif = notifications.find(n => n.id === id);
+                if (notif && !notif.is_read) {
+                    markAsRead(id).then(() => renderList());
+                }
+            });
         });
     };
 
