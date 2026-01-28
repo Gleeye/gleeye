@@ -330,6 +330,7 @@ export function initCollaboratorModals() {
                                             <div id="dept-multiselect" class="dept-multiselect" style="position: relative;">
                                                 <div id="collab-tags-field" class="tag-field" tabindex="0" style="min-height: 42px; padding: 8px 12px; border: 1px solid var(--border-light); border-radius: 8px; cursor: pointer; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: white;">
                                                     <span class="placeholder" style="color: var(--text-tertiary);">Seleziona reparti...</span>
+                                                    <span class="add-dept-btn" style="display: none; width: 24px; height: 24px; border-radius: 50%; background: var(--bg-secondary); color: var(--brand-blue); font-size: 1.1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: auto;">+</span>
                                                 </div>
                                                 <div id="dept-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border-light); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; max-height: 250px; overflow-y: auto; margin-top: 4px;">
                                                 </div>
@@ -559,8 +560,15 @@ window.initDeptMultiselect = () => {
         tags.forEach(tag => {
             const tagEl = document.createElement('span');
             tagEl.className = 'dept-tag';
-            tagEl.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: var(--brand-blue); color: white; border-radius: 20px; font-size: 0.85rem; font-weight: 500;';
+            tagEl.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: var(--brand-blue); color: white; border-radius: 20px; font-size: 0.85rem; font-weight: 500; cursor: pointer;';
             tagEl.innerHTML = `${tag}<span class="remove-tag" data-tag="${tag}" style="cursor: pointer; margin-left: 4px; font-size: 1rem; opacity: 0.8;">&times;</span>`;
+            // Click on tag (not on X) should open dropdown
+            tagEl.addEventListener('click', (e) => {
+                if (!e.target.classList.contains('remove-tag')) {
+                    // Trigger field click to open dropdown
+                    field.click();
+                }
+            });
             field.appendChild(tagEl);
         });
 
