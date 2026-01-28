@@ -146,6 +146,17 @@ function exitDrillDown() {
     }
 }
 
+// Helper to format names properly (Title Case)
+const formatName = (str) => {
+    if (!str) return 'Utente';
+    // Handle emails or dot/underscore separators
+    const clean = str.split('@')[0].replace(/[._]/g, ' ');
+    return clean.split(' ')
+        .filter(Boolean)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+};
+
 export function renderSidebarProfile() {
     const profile = state.profile;
     const session = state.session;
@@ -160,28 +171,91 @@ export function renderSidebarProfile() {
         return;
     }
 
-    let displayName = profile.full_name || session?.user?.email?.split('@')[0] || profile.email?.split('@')[0] || 'Utente';
-    let displayRole = (profile.role || 'Guest');
-    let displayAvatar = profile.avatar_url;
+    // --- 1. Determine Display Name ---
+    let displayName = formatName(profile.full_name || session?.user?.email);
 
-    // Check Impersonation
-    if (state.impersonatedCollaboratorId) {
+    // --- 2. Determine Role & Avatar Configuration ---
+    let userTags = profile.tags || [];
+    if (typeof userTags === 'string') {
+        try { userTags = JSON.parse(userTags); } catch (e) { userTags = userTags.split(','); }
+    }
+    userTags = Array.isArray(userTags) ? userTags : [];
+
+    // Role Definition Map (Priority Order)
+    const roleConfig = {
+        label: 'Collaborator',
+        icon: 'person',
+        style: 'color: var(--text-secondary); background: var(--bg-secondary); border: 1px solid var(--border-light);'
+    };
+
+    // Determine highest priority role
+    const isImpersonating = !!state.impersonatedCollaboratorId;
+    let computedRole = profile.role || 'user';
+    let computedAvatar = profile.avatar_url;
+
+    // Override if impersonating
+    if (isImpersonating) {
         const impersonatedUser = state.collaborators?.find(c => c.id === state.impersonatedCollaboratorId);
         if (impersonatedUser) {
-            displayName = impersonatedUser.full_name;
-            displayRole = 'Vedi come: ' + (impersonatedUser.role || 'Collaborator');
-            displayAvatar = impersonatedUser.avatar_url;
+            displayName = formatName(impersonatedUser.full_name);
+            computedRole = impersonatedUser.role || 'collaborator';
+            computedAvatar = impersonatedUser.avatar_url;
+
+            // Extract tags for impersonated user
+            let iTags = impersonatedUser.tags || [];
+            if (typeof iTags === 'string') {
+                try { iTags = JSON.parse(iTags); } catch (e) { iTags = iTags.split(','); }
+            }
+            userTags = Array.isArray(iTags) ? iTags : [];
         }
     }
 
+    // Logic to resolve Role Badge
+    if (computedRole === 'admin') {
+        roleConfig.label = 'Admin';
+        roleConfig.icon = 'verified_user';
+        roleConfig.style = 'color: #2563EB; background: #EFF6FF; border: 1px solid #BFDBFE;'; // Blue
+    } else if (userTags.includes('Partner')) {
+        roleConfig.label = 'Partner';
+        roleConfig.icon = 'stars';
+        roleConfig.style = 'color: #7C3AED; background: #F5F3FF; border: 1px solid #DDD6FE;'; // Violet
+    } else if (userTags.includes('Project Manager')) {
+        roleConfig.label = 'Project Manager';
+        roleConfig.icon = 'work'; // or architecture
+        roleConfig.style = 'color: #475569; background: #F8FAFC; border: 1px solid #E2E8F0;'; // Slate
+    } else if (userTags.includes('Account')) {
+        roleConfig.label = 'Account';
+        roleConfig.icon = 'manage_accounts';
+        roleConfig.style = 'color: #EA580C; background: #FFF7ED; border: 1px solid #FFEDD5;'; // Orange
+    } else if (userTags.includes('Amministrazione')) {
+        roleConfig.label = 'Amministrazione';
+        roleConfig.icon = 'analytics';
+        roleConfig.style = 'color: #059669; background: #ECFDF5; border: 1px solid #A7F3D0;'; // Emerald
+    } else {
+        // Fallback for standard collaborator
+        roleConfig.label = 'Collaborator';
+        roleConfig.icon = 'person';
+        // Neutral style already set as default
+    }
+
+    // --- 3. Render ---
     if (nameEl) nameEl.textContent = displayName;
-    if (roleEl) roleEl.textContent = displayRole.charAt(0).toUpperCase() + displayRole.slice(1);
+
+    if (roleEl) {
+        // Render Role Badge
+        roleEl.innerHTML = `
+            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; ${roleConfig.style}">
+                <span class="material-icons-round" style="font-size: 14px;">${roleConfig.icon}</span>
+                ${roleConfig.label}
+            </span>
+        `;
+    }
 
     if (avatarEl) {
-        if (displayAvatar) {
-            avatarEl.innerHTML = `<img src="${displayAvatar}" alt="Avatar">`;
+        if (computedAvatar) {
+            avatarEl.innerHTML = `<img src="${computedAvatar}" alt="Avatar">`;
         } else {
-            const initial = displayName[0].toUpperCase();
+            const initial = displayName ? displayName[0].toUpperCase() : 'U';
             avatarEl.textContent = initial;
             avatarEl.style.background = 'var(--brand-gradient)';
             avatarEl.style.color = 'white';
