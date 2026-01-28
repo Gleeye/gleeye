@@ -159,30 +159,35 @@ export async function renderUserProfile(container) {
                                 <span class="material-icons-round" style="color: var(--brand-blue); background: #eff6ff; padding: 6px; border-radius: 8px;">person</span>
                                 Anagrafica
                             </h4>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem;">
                                 <div class="modern-form-group">
-                                    <label class="modern-label">Nome</label>
-                                    <input type="text" class="modern-input" id="my-first-name" value="${myCollab.first_name || ''}" required>
+                                    <label class="modern-label"><span class="material-icons-round" style="font-size:14px; vertical-align:middle; color:var(--text-tertiary);">badge</span> Nome</label>
+                                    <input type="text" class="modern-input" id="my-first-name" value="${myCollab.first_name || ''}" required placeholder="Il tuo nome">
                                 </div>
                                 <div class="modern-form-group">
-                                    <label class="modern-label">Cognome</label>
-                                    <input type="text" class="modern-input" id="my-last-name" value="${myCollab.last_name || ''}" required>
+                                    <label class="modern-label"><span class="material-icons-round" style="font-size:14px; vertical-align:middle; color:var(--text-tertiary);">badge</span> Cognome</label>
+                                    <input type="text" class="modern-input" id="my-last-name" value="${myCollab.last_name || ''}" required placeholder="Il tuo cognome">
                                 </div>
                                 <div class="modern-form-group">
-                                    <label class="modern-label">Data di Nascita</label>
+                                    <label class="modern-label"><span class="material-icons-round" style="font-size:14px; vertical-align:middle; color:var(--text-tertiary);">cake</span> Data di Nascita</label>
                                     <input type="date" class="modern-input" id="my-birth-date" value="${myCollab.birth_date || ''}">
                                 </div>
                                 <div class="modern-form-group">
-                                    <label class="modern-label">Luogo di Nascita</label>
+                                    <label class="modern-label"><span class="material-icons-round" style="font-size:14px; vertical-align:middle; color:var(--text-tertiary);">place</span> Luogo di Nascita</label>
                                     <input type="text" class="modern-input" id="my-birth-place" value="${myCollab.birth_place || ''}" placeholder="Es. Roma (RM)">
                                 </div>
+                            </div>
+                             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-top: 1.5rem;">
                                 <div class="modern-form-group">
-                                    <label class="modern-label">Email</label>
-                                    <input type="email" class="modern-input" value="${myCollab.email || ''}" disabled style="opacity: 0.7; cursor: not-allowed; background: #f1f5f9;">
+                                    <label class="modern-label"><span class="material-icons-round" style="font-size:14px; vertical-align:middle; color:var(--text-tertiary);">email</span> Email</label>
+                                    <div style="position:relative;">
+                                        <input type="email" class="modern-input" value="${myCollab.email || ''}" disabled style="opacity: 0.7; cursor: not-allowed; background: #f8fafc; padding-left: 2.5rem;">
+                                        <span class="material-icons-round" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:18px;">lock</span>
+                                    </div>
                                 </div>
                                 <div class="modern-form-group">
-                                    <label class="modern-label">Telefono</label>
-                                    <input type="text" class="modern-input" id="my-phone" value="${myCollab.phone || ''}">
+                                    <label class="modern-label"><span class="material-icons-round" style="font-size:14px; vertical-align:middle; color:var(--text-tertiary);">smartphone</span> Telefono</label>
+                                    <input type="text" class="modern-input" id="my-phone" value="${myCollab.phone || ''}" placeholder="+39 ...">
                                 </div>
                             </div>
                         </div>
@@ -193,8 +198,8 @@ export async function renderUserProfile(container) {
                                 <span class="material-icons-round" style="color: var(--brand-blue); background: #eff6ff; padding: 6px; border-radius: 8px;">home</span>
                                 Residenza
                             </h4>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
-                                <div class="modern-form-group" style="grid-column: 1/-1;">
+                            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1.5rem;">
+                                <div class="modern-form-group">
                                     <label class="modern-label">Indirizzo</label>
                                     <input type="text" class="modern-input" id="my-address" value="${myCollab.address || ''}" placeholder="Via/Piazza, Civico">
                                 </div>
@@ -203,12 +208,14 @@ export async function renderUserProfile(container) {
                                     <input type="text" class="modern-input" id="my-address-city" value="${myCollab.address_city || ''}">
                                 </div>
                                 <div class="modern-form-group">
-                                    <label class="modern-label">Provincia</label>
-                                    <input type="text" class="modern-input" id="my-address-province" value="${myCollab.address_province || ''}" maxlength="2" style="text-transform: uppercase;" placeholder="RM">
-                                </div>
-                                <div class="modern-form-group">
                                     <label class="modern-label">CAP</label>
-                                    <input type="text" class="modern-input" id="my-address-cap" value="${myCollab.address_cap || ''}" maxlength="5">
+                                    <input type="text" class="modern-input" id="my-address-cap" value="${myCollab.address_cap || ''}" maxlength="5" style="text-align:center;">
+                                </div>
+                            </div>
+                             <div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-top: 1.5rem;">
+                                <div class="modern-form-group" style="max-width: 200px;">
+                                    <label class="modern-label">Provincia</label>
+                                    <input type="text" class="modern-input" id="my-address-province" value="${myCollab.address_province || ''}" maxlength="2" style="text-transform: uppercase; text-align:center;" placeholder="RM">
                                 </div>
                             </div>
                         </div>
@@ -219,26 +226,35 @@ export async function renderUserProfile(container) {
                                 <span class="material-icons-round" style="color: var(--brand-blue); background: #eff6ff; padding: 6px; border-radius: 8px;">account_balance_wallet</span>
                                 Dati Fiscali & Bancari
                             </h4>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                                 <div class="modern-form-group">
-                                    <label class="modern-label">Codice Fiscale</label>
-                                    <input type="text" class="modern-input" id="my-fiscal-code" value="${myCollab.fiscal_code || ''}" style="text-transform: uppercase;">
+                                    <label class="modern-label"><span class="material-icons-round" style="font-size:14px; vertical-align:middle; color:var(--text-tertiary);">fingerprint</span> Codice Fiscale</label>
+                                    <input type="text" class="modern-input" id="my-fiscal-code" value="${myCollab.fiscal_code || ''}" style="text-transform: uppercase; font-family:monospace; letter-spacing:1px;">
                                 </div>
                                 <div class="modern-form-group">
-                                    <label class="modern-label">P.IVA</label>
-                                    <input type="text" class="modern-input" id="my-vat" value="${myCollab.vat_number || ''}">
+                                    <label class="modern-label"><span class="material-icons-round" style="font-size:14px; vertical-align:middle; color:var(--text-tertiary);">business</span> P.IVA</label>
+                                    <input type="text" class="modern-input" id="my-vat" value="${myCollab.vat_number || ''}" placeholder="Opzionale">
                                 </div>
-                                <div class="modern-form-group" style="grid-column: 1/-1;">
-                                    <label class="modern-label">PEC</label>
-                                    <input type="email" class="modern-input" id="my-pec" value="${myCollab.pec || ''}">
-                                </div>
-                                <div class="modern-form-group" style="grid-column: 1/-1;">
-                                    <label class="modern-label">Banca</label>
-                                    <input type="text" class="modern-input" id="my-bank-name" value="${myCollab.bank_name || ''}">
-                                </div>
-                                <div class="modern-form-group" style="grid-column: 1/-1;">
-                                    <label class="modern-label">IBAN</label>
-                                    <input type="text" class="modern-input" id="my-iban" value="${myCollab.iban || ''}" style="font-family: monospace; letter-spacing: 1px;">
+                            </div>
+                            <div class="modern-form-group" style="margin-top:1.5rem;">
+                                <label class="modern-label"><span class="material-icons-round" style="font-size:14px; vertical-align:middle; color:var(--text-tertiary);">alternate_email</span> PEC</label>
+                                <input type="email" class="modern-input" id="my-pec" value="${myCollab.pec || ''}">
+                            </div>
+                            
+                            <div style="background: #f8fafc; border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; border: 1px solid #e2e8f0;">
+                                <h5 style="margin:0 0 1rem 0; color:var(--text-secondary); font-size:0.9rem;">Coordinate Bancarie</h5>
+                                <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+                                    <div class="modern-form-group">
+                                        <label class="modern-label">Nome Banca</label>
+                                        <input type="text" class="modern-input" id="my-bank-name" value="${myCollab.bank_name || ''}" style="background:white;">
+                                    </div>
+                                    <div class="modern-form-group">
+                                        <label class="modern-label">IBAN</label>
+                                        <div style="position:relative;">
+                                            <input type="text" class="modern-input" id="my-iban" value="${myCollab.iban || ''}" style="font-family: monospace; letter-spacing: 1.5px; background:white; padding-left: 2.8rem; font-weight:600; color:#334155;">
+                                            <span class="material-icons-round" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#64748b;">credit_card</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
