@@ -256,36 +256,44 @@ export async function renderUserProfile(container) {
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
                                 <!-- Helper to create dropzone -->
                                 ${(() => {
-            const renderDropzone = (id, label, currentUrl, field) => `
-                                        <div class="upload-zone ${currentUrl ? 'has-file' : ''}" data-target="${id}">
-                                            <input type="file" id="${id}" hidden accept="image/*,.pdf">
-                                            <div class="doc-status-badge">
-                                                ${currentUrl ? '<span style="display:flex;align-items:center;gap:4px;"><span class="material-icons-round" style="font-size:14px;">check</span> CARICATO</span>' : 'MANCANTE'}
-                                            </div>
-                                            
-                                            <div style="margin-bottom: 1rem; transition: transform 0.2s;">
-                                                <span class="material-icons-round" style="font-size: 3rem; color: ${currentUrl ? '#10B981' : '#94a3b8'};">
-                                                    ${currentUrl ? 'description' : 'cloud_upload'}
-                                                </span>
-                                            </div>
-                                            
-                                            <h5 style="margin: 0; font-size: 1rem; color: var(--text-primary);">${label}</h5>
-                                            
-                                            <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">
-                                                ${currentUrl
-                    ? `<a href="#" onclick="event.stopPropagation(); window.openSignedUrl('${currentUrl}', '${label}'); return false;" style="color: var(--brand-blue); font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">Verified • Visualizza <span class="material-icons-round" style="font-size: 14px;">open_in_new</span></a>`
-                    : 'Trascina o clicca per caricare'
+            // NEW RENDER LOGIC
+            const renderCard = (id, label, currentUrl, fieldKey) => {
+                const hasFile = !!currentUrl;
+                if (hasFile) {
+                    return `
+                                                <div class="upload-zone has-file" id="zone-${id}" style="cursor: default; background: #f0fdf4; border: 2px solid #10B981;">
+                                                    <div class="doc-status-badge" style="background: #d1fae5; color: #059669;">
+                                                        <span style="display:flex;align-items:center;gap:4px;"><span class="material-icons-round" style="font-size:14px;">check_circle</span> CARICATO</span>
+                                                    </div>
+                                                    <div style="margin-bottom: 1rem;"><span class="material-icons-round" style="font-size: 3rem; color: #10B981;">description</span></div>
+                                                    <h5 style="margin: 0 0 0.2rem 0; font-size: 1rem; color: var(--text-primary);">${label}</h5>
+                                                    <div style="display:flex; gap: 0.5rem; justify-content: center;">
+                                                        <button type="button" class="secondary-btn small btn-doc-action" data-action="view" data-path="${currentUrl}" style="background:white; border:1px solid #cbd5e1; padding:0.4rem 0.8rem;">Vedi</button>
+                                                        <button type="button" class="secondary-btn small btn-doc-action" data-action="delete" data-field="${fieldKey}" style="background:white; border:1px solid #cbd5e1; color:#ef4444; padding:0.4rem 0.8rem;">Elimina</button>
+                                                        <button type="button" class="secondary-btn small btn-doc-action" data-action="replace" data-target="${id}" style="background:white; border:1px solid #cbd5e1; padding:0.4rem 0.8rem;">Sostituisci</button>
+                                                    </div>
+                                                    <input type="file" id="${id}" hidden accept="image/*,.pdf,.heic">
+                                                </div>
+                                            `;
+                } else {
+                    return `
+                                                <div class="upload-zone" id="zone-${id}" data-target="${id}">
+                                                    <input type="file" id="${id}" hidden accept="image/*,.pdf,.heic">
+                                                    <div class="doc-status-badge">MANCANTE</div>
+                                                    <div style="margin-bottom: 1rem;"><span class="material-icons-round" style="font-size: 3rem; color: #94a3b8;">cloud_upload</span></div>
+                                                    <h5 style="margin: 0; font-size: 1rem; color: var(--text-primary);">${label}</h5>
+                                                    <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">Trascina o clicca per caricare</div>
+                                                </div>
+                                            `;
                 }
-                                            </div>
-                                            
-                                            <button type="button" class="upload-doc-btn" data-target="${id}" style="display:none;"></button>
-                                        </div>
-                                    `;
+            };
             return `
-                                        ${renderDropzone('upload-doc-id-front', "Carta d'Identità (Fronte)", myCollab.document_id_front_url)}
-                                        ${renderDropzone('upload-doc-id-back', "Carta d'Identità (Retro)", myCollab.document_id_back_url)}
-                                        ${renderDropzone('upload-doc-health', "Tessera Sanitaria", myCollab.document_health_card_url)}
+                                        ${renderCard('upload-doc-id-front', "Carta d'Identità (Fronte)", myCollab.document_id_front_url, 'document_id_front_url')}
+                                        ${renderCard('upload-doc-id-back', "Carta d'Identità (Retro)", myCollab.document_id_back_url, 'document_id_back_url')}
+                                        ${renderCard('upload-doc-health', "Tessera Sanitaria (Fronte)", myCollab.document_health_card_url, 'document_health_card_url')}
+                                        ${renderCard('upload-doc-health-back', "Tessera Sanitaria (Retro)", myCollab.document_health_card_back_url, 'document_health_card_back_url')}
                                     `;
+
         })()}
                             </div>
                         </div>
@@ -557,8 +565,9 @@ export async function renderUserProfile(container) {
         };
     }
 
-    // --- Document Upload Logic (Drag & Drop) ---
-    window.openSignedUrl = async (path, title) => {
+    // --- Document Upload Logic (New Actions) ---
+    // Defined separately to be accessible or just scoped here since rendered HTML uses data attributes
+    const openSignedDoc = async (path) => {
         try {
             const { data, error } = await supabase.storage
                 .from('secure_collaborator_documents')
@@ -572,19 +581,47 @@ export async function renderUserProfile(container) {
         }
     };
 
+    // Make it global if needed by older inline code, though we removed inline onclicks
+    window.openSignedUrl = openSignedDoc;
+
+    // Safe Confirm Helper
+    const confirmAction = async (msg) => {
+        if (window.showConfirm) return await window.showConfirm(msg);
+        return confirm(msg);
+    };
+
+    const deleteDoc = async (field, docName) => {
+        if (!await confirmAction(`Sei sicuro di voler eliminare ${docName || 'questo documento'}?`)) return;
+
+        try {
+            const updateData = { [field]: null };
+            await upsertCollaborator({ ...myCollab, ...updateData });
+
+            window.showAlert('Documento eliminato.', 'success');
+            renderUserProfile(container);
+        } catch (err) {
+            console.error(err);
+            window.showAlert('Errore eliminazione: ' + err.message, 'error');
+        }
+    };
+
     const docInputs = [
-        { id: 'upload-doc-id-front', field: 'document_id_front_url', type: 'id_front' },
-        { id: 'upload-doc-id-back', field: 'document_id_back_url', type: 'id_back' },
-        { id: 'upload-doc-health', field: 'document_health_card_url', type: 'health_card' }
+        { id: 'upload-doc-id-front', field: 'document_id_front_url', type: 'id_front', label: "Carta d'Identità (Fronte)" },
+        { id: 'upload-doc-id-back', field: 'document_id_back_url', type: 'id_back', label: "Carta d'Identità (Retro)" },
+        { id: 'upload-doc-health', field: 'document_health_card_url', type: 'health_card', label: "Tessera Sanitaria (Fronte)" },
+        { id: 'upload-doc-health-back', field: 'document_health_card_back_url', type: 'health_card_back', label: "Tessera Sanitaria (Retro)" }
     ];
 
     const processingUpload = async (file, docConfig, zoneElement) => {
         if (!file) return;
 
-        // UI Loading State
+        // UI Loading State (Simplified for just the zone or notification)
+        // If zone has complex HTML (card), replacing innerHTML is tricky if we want to preserve layout?
+        // But we re-render profile on success anyway.
+        // Let's just show a global spinner or modify the zone temporarily.
         const originalContent = zoneElement.innerHTML;
         zoneElement.innerHTML = `
-            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; min-height: 150px;">
                 <span class="material-icons-round rotating" style="font-size: 3rem; color: var(--brand-blue);">sync</span>
                 <p style="margin-top:1rem; color:var(--brand-blue); font-weight:500;">Caricamento...</p>
             </div>
@@ -598,10 +635,7 @@ export async function renderUserProfile(container) {
 
             const { error: uploadError } = await supabase.storage
                 .from('secure_collaborator_documents')
-                .upload(filePath, file, {
-                    cacheControl: '3600',
-                    upsert: true
-                });
+                .upload(filePath, file, { cacheControl: '3600', upsert: true });
 
             if (uploadError) throw uploadError;
 
@@ -609,62 +643,87 @@ export async function renderUserProfile(container) {
             const updateData = { [docConfig.field]: filePath };
             await upsertCollaborator({ ...myCollab, ...updateData });
 
-            // Success Feedback
             window.showAlert('Documento caricato con successo!', 'success');
-
-            // Re-render to show updated state (green checkmark etc.)
-            // We use renderUserProfile with current container to refresh the view
             renderUserProfile(container);
 
         } catch (err) {
             console.error("Doc upload error:", err);
             window.showAlert('Errore upload: ' + err.message, 'error');
-            // Restore original UI on error
-            zoneElement.innerHTML = originalContent;
-            zoneElement.style.pointerEvents = 'auto';
-            // Re-attach listeners for the restored content? 
-            // Actually, since we replaced innerHTML, we broke references to the input inside.
-            // It's safer to just re-render the whole profile to reset state cleanly.
+            // Restore? Render profile is safer.
             renderUserProfile(container);
         }
     };
 
     docInputs.forEach(doc => {
         const input = document.getElementById(doc.id);
-        const zone = container.querySelector(`[data-target="${doc.id}"]`);
+        const zone = container.querySelector(`[data-target="${doc.id}"]`); // logic for empty state
+        // If "has-file", the ID is `zone-${doc.id}`? No, HTML template uses `id="zone-${id}"` for both?
+        // Let's check HTML again.
+        // Yes: `<div class="upload-zone ..." id="zone-${id}" ...>`
 
-        if (!input || !zone) return;
+        const zoneElement = document.getElementById(`zone-${doc.id}`);
 
-        // Click on Zone triggers input
-        zone.addEventListener('click', () => input.click());
+        if (!input || !zoneElement) return;
 
-        // File Input Change
+        // Attach Action Listeners (Delegation inside the zone)
+        zoneElement.addEventListener('click', (e) => {
+            const target = e.target.closest('button');
+
+            if (target && target.dataset.action) {
+                e.stopPropagation();
+                const action = target.dataset.action;
+
+                if (action === 'view') {
+                    openSignedDoc(target.dataset.path);
+                } else if (action === 'delete') {
+                    // data-field was set to doc.fieldKey (db column)
+                    deleteDoc(target.dataset.field, doc.label);
+                } else if (action === 'replace') {
+                    input.click();
+                }
+            } else {
+                // If clicking the zone itself (and not a button)
+                // If it is empty state, we want to trigger upload.
+                // If it is 'has-file', we do nothing or maybe just nothing.
+                if (!zoneElement.classList.contains('has-file')) {
+                    input.click();
+                }
+            }
+        });
+
+        // Input Change
         input.addEventListener('change', (e) => {
             const file = e.target.files[0];
-            processingUpload(file, doc, zone);
+            processingUpload(file, doc, zoneElement);
         });
 
-        // Drag & Drop Events
-        zone.addEventListener('dragover', (e) => {
+        // Drag & Drop
+        zoneElement.addEventListener('dragover', (e) => {
             e.preventDefault();
-            zone.style.borderColor = 'var(--brand-blue)';
-            zone.style.backgroundColor = '#f0f9ff';
+            if (!zoneElement.classList.contains('has-file')) {
+                zoneElement.style.borderColor = 'var(--brand-blue)';
+                zoneElement.style.backgroundColor = '#f0f9ff';
+            }
         });
 
-        zone.addEventListener('dragleave', (e) => {
+        zoneElement.addEventListener('dragleave', (e) => {
             e.preventDefault();
-            zone.style.borderColor = '#cbd5e1';
-            zone.style.backgroundColor = 'white';
+            if (!zoneElement.classList.contains('has-file')) {
+                zoneElement.style.borderColor = '#cbd5e1'; // default
+                zoneElement.style.backgroundColor = 'white'; // default
+            } // If has-file, we leave it as is (green border)
         });
 
-        zone.addEventListener('drop', (e) => {
+        zoneElement.addEventListener('drop', (e) => {
             e.preventDefault();
-            zone.style.borderColor = '#cbd5e1';
-            zone.style.backgroundColor = 'white';
+            if (!zoneElement.classList.contains('has-file')) {
+                zoneElement.style.borderColor = '#cbd5e1';
+                zoneElement.style.backgroundColor = 'white';
+            }
 
             const file = e.dataTransfer.files[0];
             if (file) {
-                processingUpload(file, doc, zone);
+                processingUpload(file, doc, zoneElement);
             }
         });
     });
