@@ -16,7 +16,7 @@ import { renderPaymentsDashboard, initPaymentModals } from '../features/payments
 import { renderBooking } from '../features/booking.js?v=148';
 import { renderUserProfile } from '../features/user_dashboard.js?v=152';
 import { renderAgenda } from '../features/personal_agenda.js?v=160';
-import { renderNotificationCenter } from '../features/notifications.js?v=149';
+import { renderNotificationCenter } from '../features/notifications.js?v=148';
 import { renderAdminNotifications } from '../features/admin_notifications.js?v=148';
 // Chat is loaded dynamically to avoid slowing down app startup
 

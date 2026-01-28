@@ -10,7 +10,7 @@ import { initBankTransactionModals } from './features/bank_transactions.js?v=148
 import { initPaymentModals } from './features/payments.js?v=148';
 import { initServiceModals } from './features/services.js?v=148';
 import { initLayout, renderSidebarProfile } from './features/layout.js?v=151';
-import { initNotifications } from './features/notifications.js?v=149';
+import { initNotifications } from './features/notifications.js?v=148';
 // Chat UI is loaded lazily when user navigates to #chat
 import { runOneTimeFix } from './fix_phantom_data.js?v=148';
 // Utilities imported at top
