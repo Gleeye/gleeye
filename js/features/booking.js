@@ -47,11 +47,15 @@ export function renderBooking(container) {
                 }
 
                 if (sessionData) {
-                    console.log("Sending session to Booking App...", sessionData);
-                    iframe.contentWindow.postMessage({
-                        type: 'SUPABASE_SESSION',
-                        payload: sessionData
-                    }, BOOKING_APP_URL);
+                    if (iframe.contentWindow) {
+                        console.log("Sending session to Booking App...", sessionData);
+                        iframe.contentWindow.postMessage({
+                            type: 'SUPABASE_SESSION',
+                            payload: sessionData
+                        }, BOOKING_APP_URL);
+                    } else {
+                        console.warn("Booking Iframe contentWindow is null, skipping sync.");
+                    }
                 } else {
                     console.warn("No session found to sync with Booking App");
                 }

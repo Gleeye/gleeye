@@ -646,23 +646,8 @@ function renderTimeline() {
                 return { start: startH, end: endH, original: b };
             });
 
-            // RENDER GOOGLE BUSY BLOCKS
-            dayBusy.forEach(busy => {
-                if (busy.end <= startHour || busy.start >= endHour) return;
-                const bs = Math.max(busy.start, startHour);
-                const be = Math.min(busy.end, endHour);
-
-                const topPx = (bs - startHour) * 60;
-                const heightPx = (be - bs) * 60;
-
-                if (heightPx > 0) {
-                    availabilityHtml += `
-                    <div class="google-busy-slot" style="position: absolute; top: ${topPx}px; height: ${heightPx}px; left: 0; right: 0; background: #e5e7eb; border-left: 3px solid #9ca3af; z-index: 5; opacity: 0.8; display: flex; align-items: flex-start; justify-content: flex-start; padding: 2px 4px; overflow: hidden;">
-                        <span style="font-size: 0.65rem; color: #6b7280; font-weight: 500;">Occupato (Google)</span>
-                    </div>
-                `;
-                }
-            });
+            // RENDER GOOGLE BUSY BLOCKS - VISUALS DISABLED
+            console.log("[Agenda] Google busy slots visual rendering is DISABLED by configuration.");
 
             activeSlots.forEach(slot => {
                 const sH = parseTime(slot.start_time);

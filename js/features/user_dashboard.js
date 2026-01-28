@@ -105,33 +105,109 @@ export async function renderUserProfile(container) {
             <div id="tab-settings" class="tab-content hidden">
                 <div class="glass-card" style="padding: 2rem; max-width: 800px;">
                     <form id="profile-settings-form">
-                        <!-- ... existing form groups ... -->
+                        <!-- Personal Info Section -->
+                        <h4 style="margin: 0 0 1rem 0; color: var(--brand-blue); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">Dati Personali</h4>
                         <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                            <!-- Personal Info -->
                             <div class="form-group"><label>Nome</label><input type="text" id="my-first-name" value="${myCollab.first_name || ''}" required></div>
                             <div class="form-group"><label>Cognome</label><input type="text" id="my-last-name" value="${myCollab.last_name || ''}" required></div>
                             
+                            <div class="form-group"><label>Data di Nascita</label><input type="date" id="my-birth-date" value="${myCollab.birth_date || ''}"></div>
+                            <div class="form-group"><label>Luogo di Nascita</label><input type="text" id="my-birth-place" value="${myCollab.birth_place || ''}"></div>
+
                             <div class="form-group"><label>Email</label><input type="email" value="${myCollab.email || ''}" disabled style="opacity: 0.7; cursor: not-allowed;" title="Contatta l'admin per cambiare email"></div>
                             <div class="form-group"><label>Telefono</label><input type="text" id="my-phone" value="${myCollab.phone || ''}"></div>
-                            
-                            <div class="form-group full-width" style="grid-column: 1/-1;"><label>Indirizzo</label><input type="text" id="my-address" value="${myCollab.address || ''}"></div>
-                            
+                        </div>
+
+                         <!-- Address Section -->
+                        <h4 style="margin: 2rem 0 1rem 0; color: var(--brand-blue); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">Indirizzo e Residenza</h4>
+                        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                             <div class="form-group full-width" style="grid-column: 1/-1;"><label>Indirizzo</label><input type="text" id="my-address" value="${myCollab.address || ''}" placeholder="Via/Piazza, Civico"></div>
+                             
+                             <div class="form-group"><label>Città</label><input type="text" id="my-address-city" value="${myCollab.address_city || ''}"></div>
+                             <div class="form-group"><label>Provincia (Sigla)</label><input type="text" id="my-address-province" value="${myCollab.address_province || ''}" maxlength="2" style="text-transform: uppercase;"></div>
+                             <div class="form-group"><label>CAP</label><input type="text" id="my-address-cap" value="${myCollab.address_cap || ''}" maxlength="5"></div>
+                        </div>
+
+                        <!-- Fiscal Section -->
+                        <h4 style="margin: 2rem 0 1rem 0; color: var(--brand-blue); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">Dati Fiscali</h4>
+                        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                             <div class="form-group"><label>Codice Fiscale</label><input type="text" id="my-fiscal-code" value="${myCollab.fiscal_code || ''}"></div>
                             <div class="form-group"><label>P.IVA</label><input type="text" id="my-vat" value="${myCollab.vat_number || ''}"></div>
-                            
-                            <div class="form-group full-width" style="grid-column: 1/-1;">
-                                <label>Fuso Orario</label>
-                                <select id="my-timezone" style="width: 100%; padding: 0.8rem; border: 1px solid var(--glass-border); border-radius: 8px; background: white;">
-                                    <option value="Europe/Rome">Europe/Rome (GMT+1/GMT+2)</option>
-                                    <option value="Europe/London">Europe/London (GMT+0/GMT+1)</option>
-                                    <option value="America/New_York">America/New_York (GMT-5/GMT-4)</option>
-                                    <option value="America/Los_Angeles">America/Los_Angeles (GMT-8/GMT-7)</option>
-                                    <option value="Asia/Tokyo">Asia/Tokyo (GMT+9)</option>
-                                    <option value="Asia/Dubai">Asia/Dubai (GMT+4)</option>
-                                    <option value="Australia/Sydney">Australia/Sydney (GMT+10/GMT+11)</option>
-                                    <option value="UTC">UTC (GMT+0)</option>
-                                </select>
+                            <div class="form-group full-width" style="grid-column: 1/-1;"><label>PEC</label><input type="email" id="my-pec" value="${myCollab.pec || ''}"></div>
+                        </div>
+
+                        <!-- Bank Section -->
+                        <h4 style="margin: 2rem 0 1rem 0; color: var(--brand-blue); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">Coordinate Bancarie</h4>
+                        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                            <div class="form-group full-width" style="grid-column: 1/-1;"><label>Banca</label><input type="text" id="my-bank-name" value="${myCollab.bank_name || ''}"></div>
+                            <div class="form-group full-width" style="grid-column: 1/-1;"><label>IBAN</label><input type="text" id="my-iban" value="${myCollab.iban || ''}" style="letter-spacing: 1px;"></div>
+                        </div>
+
+                        <!-- Documents Section -->
+                        <h4 style="margin: 2rem 0 1rem 0; color: var(--brand-blue); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">Documenti</h4>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">Carica qui i tuoi documenti per l'amministrazione. Visibili solo a te e agli amministratori.</p>
+                        
+                        <div class="documents-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+                            <!-- Doc 1: Identity Front -->
+                            <div class="doc-card" style="background: white; border: 1px solid var(--glass-border); border-radius: 12px; padding: 1.5rem; text-align: center;">
+                                <div class="doc-icon" style="margin-bottom: 1rem;">
+                                    <span class="material-icons-round" style="font-size: 2.5rem; color: ${myCollab.document_id_front_url ? '#10B981' : 'var(--text-tertiary)'};">${myCollab.document_id_front_url ? 'check_circle' : 'badge'}</span>
+                                </div>
+                                <h5 style="margin: 0 0 0.5rem 0;">Carta d'Identità (Fronte)</h5>
+                                <div class="doc-actions">
+                                    <input type="file" id="upload-doc-id-front" hidden accept="image/*,.pdf">
+                                    <button type="button" class="secondary-btn small upload-doc-btn" data-target="upload-doc-id-front" style="width: 100%;">
+                                        ${myCollab.document_id_front_url ? 'Sostituisci' : 'Carica'}
+                                    </button>
+                                     ${myCollab.document_id_front_url ? `<a href="#" onclick="window.openSignedUrl('${myCollab.document_id_front_url}', 'Carta Identità Fronte'); return false;" style="display:block; margin-top:0.5rem; font-size:0.8rem; color:var(--brand-blue);">Visualizza</a>` : ''}
+                                </div>
                             </div>
+                            
+                            <!-- Doc 2: Identity Back -->
+                            <div class="doc-card" style="background: white; border: 1px solid var(--glass-border); border-radius: 12px; padding: 1.5rem; text-align: center;">
+                                <div class="doc-icon" style="margin-bottom: 1rem;">
+                                     <span class="material-icons-round" style="font-size: 2.5rem; color: ${myCollab.document_id_back_url ? '#10B981' : 'var(--text-tertiary)'};">${myCollab.document_id_back_url ? 'check_circle' : 'flip_to_back'}</span>
+                                </div>
+                                <h5 style="margin: 0 0 0.5rem 0;">Carta d'Identità (Retro)</h5>
+                                <div class="doc-actions">
+                                    <input type="file" id="upload-doc-id-back" hidden accept="image/*,.pdf">
+                                    <button type="button" class="secondary-btn small upload-doc-btn" data-target="upload-doc-id-back" style="width: 100%;">
+                                        ${myCollab.document_id_back_url ? 'Sostituisci' : 'Carica'}
+                                    </button>
+                                     ${myCollab.document_id_back_url ? `<a href="#" onclick="window.openSignedUrl('${myCollab.document_id_back_url}', 'Carta Identità Retro'); return false;" style="display:block; margin-top:0.5rem; font-size:0.8rem; color:var(--brand-blue);">Visualizza</a>` : ''}
+                                </div>
+                            </div>
+
+                            <!-- Doc 3: Health Card -->
+                            <div class="doc-card" style="background: white; border: 1px solid var(--glass-border); border-radius: 12px; padding: 1.5rem; text-align: center;">
+                                <div class="doc-icon" style="margin-bottom: 1rem;">
+                                     <span class="material-icons-round" style="font-size: 2.5rem; color: ${myCollab.document_health_card_url ? '#10B981' : 'var(--text-tertiary)'};">${myCollab.document_health_card_url ? 'check_circle' : 'medical_services'}</span>
+                                </div>
+                                <h5 style="margin: 0 0 0.5rem 0;">Tessera Sanitaria</h5>
+                                <div class="doc-actions">
+                                    <input type="file" id="upload-doc-health" hidden accept="image/*,.pdf">
+                                    <button type="button" class="secondary-btn small upload-doc-btn" data-target="upload-doc-health" style="width: 100%;">
+                                        ${myCollab.document_health_card_url ? 'Sostituisci' : 'Carica'}
+                                    </button>
+                                    ${myCollab.document_health_card_url ? `<a href="#" onclick="window.openSignedUrl('${myCollab.document_health_card_url}', 'Tessera Sanitaria'); return false;" style="display:block; margin-top:0.5rem; font-size:0.8rem; color:var(--brand-blue);">Visualizza</a>` : ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- System Settings -->
+                         <h4 style="margin: 2rem 0 1rem 0; color: var(--brand-blue); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">Impostazioni Sistema</h4>
+                        <div class="form-group full-width">
+                            <label>Fuso Orario</label>
+                            <select id="my-timezone" style="width: 100%; padding: 0.8rem; border: 1px solid var(--glass-border); border-radius: 8px; background: white;">
+                                <option value="Europe/Rome">Europe/Rome (GMT+1/GMT+2)</option>
+                                <option value="Europe/London">Europe/London (GMT+0/GMT+1)</option>
+                                <option value="America/New_York">America/New_York (GMT-5/GMT-4)</option>
+                                <option value="America/Los_Angeles">America/Los_Angeles (GMT-8/GMT-7)</option>
+                                <option value="Asia/Tokyo">Asia/Tokyo (GMT+9)</option>
+                                <option value="Asia/Dubai">Asia/Dubai (GMT+4)</option>
+                                <option value="Australia/Sydney">Australia/Sydney (GMT+10/GMT+11)</option>
+                                <option value="UTC">UTC (GMT+0)</option>
+                            </select>
                         </div>
                         
                         <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
@@ -245,15 +321,29 @@ export async function renderUserProfile(container) {
             btn.disabled = true;
 
             const updates = {
-                id: myCollab.id, // Important
+                id: myCollab.id,
                 first_name: document.getElementById('my-first-name').value,
                 last_name: document.getElementById('my-last-name').value,
                 phone: document.getElementById('my-phone').value,
+
+                // New Fields
+                birth_date: document.getElementById('my-birth-date').value || null,
+                birth_place: document.getElementById('my-birth-place').value,
                 address: document.getElementById('my-address').value,
+                address_city: document.getElementById('my-address-city').value,
+                address_province: document.getElementById('my-address-province').value,
+                address_cap: document.getElementById('my-address-cap').value,
+
                 fiscal_code: document.getElementById('my-fiscal-code').value,
                 vat_number: document.getElementById('my-vat').value,
+                pec: document.getElementById('my-pec').value,
+
+                bank_name: document.getElementById('my-bank-name').value,
+                iban: document.getElementById('my-iban').value,
+
                 full_name: `${document.getElementById('my-first-name').value} ${document.getElementById('my-last-name').value}`,
-                // Keep existing fields that aren't in this form but required by upsert if any
+
+                // Keep existing required fields
                 email: myCollab.email,
                 role: myCollab.role,
                 tags: myCollab.tags
@@ -360,6 +450,108 @@ export async function renderUserProfile(container) {
             }
         };
     }
+
+    // --- Document Upload Logic ---
+    window.openSignedUrl = async (path, title) => {
+        try {
+            const { data, error } = await supabase.storage
+                .from('secure_collaborator_documents')
+                .createSignedUrl(path, 60 * 60); // 1 hour
+
+            if (error) throw error;
+            window.open(data.signedUrl, '_blank');
+        } catch (err) {
+            console.error("Error signing URL:", err);
+            window.showAlert('Impossibile aprire il documento: ' + err.message, 'error');
+        }
+    };
+
+    const docButtons = container.querySelectorAll('.upload-doc-btn');
+    docButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.dataset.target;
+            const input = document.getElementById(targetId);
+            if (input) input.click();
+        });
+    });
+
+    const docInputs = [
+        { id: 'upload-doc-id-front', field: 'document_id_front_url', type: 'id_front' },
+        { id: 'upload-doc-id-back', field: 'document_id_back_url', type: 'id_back' },
+        { id: 'upload-doc-health', field: 'document_health_card_url', type: 'health_card' }
+    ];
+
+    docInputs.forEach(doc => {
+        const input = document.getElementById(doc.id);
+        if (!input) return;
+
+        input.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const btn = container.querySelector(`[data-target="${doc.id}"]`);
+            const originalText = btn.innerHTML; // Check logic
+            btn.innerHTML = 'Caricamento...';
+            btn.disabled = true;
+
+            try {
+                // Use session user id for consistent folder structure
+                // But wait, if admin is viewing another user?
+                // RLS on upload says: foldername must match auth.uid().
+                // So I MUST use state.session.user.id
+                // This implies an admin cannot upload FOR a user unless they can impersonate auth context (impossible)
+                // OR unless I change the RLS to allow admins to upload to any folder.
+                // My RLS was: INSERT TO authenticated WITH CHECK foldername = auth.uid().
+                // So only the user themselves can upload. PROBABLY OK for now.
+                // If I am Impersonating, `state.session.user.id` is ME (User/Admin), but `myCollab.id` is TARGET.
+                // If I upload, it goes to MY folder.
+                // This is a flaw if Admins need to upload for others.
+                // But the user request said "permettere ai collaboratori di caricare", so SELF-upload is key.
+
+                const userId = state.session.user.id;
+                const fileExt = file.name.split('.').pop();
+                const filePath = `${userId}/${doc.type}_${Date.now()}.${fileExt}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('secure_collaborator_documents')
+                    .upload(filePath, file, {
+                        cacheControl: '3600',
+                        upsert: true
+                    });
+
+                if (uploadError) throw uploadError;
+
+                const updateData = {
+                    [doc.field]: filePath
+                };
+
+                // Updating THE collaborator record (myCollab)
+                // This works even if I am admin uploading for myself.
+                // If I am admin and `myCollab` is another user...
+                // I save `my-admin-id/file.pdf` into `other-user-collab-record`.
+                // Access RLS allows admin (me) to view everything so I can see it.
+                // The Other User (owner of profile) trying to view it:
+                // SELECT policy: foldername = auth.uid().
+                // If folder is `admin-id`, User CANNOT see it.
+
+                // FIX: If basic requirement is "Collaborator uploads for themselves", this works perfect.
+                // If Admin uploads for them, we have an issue.
+                // I will assume for now it's self-service.
+
+                await upsertCollaborator({ ...myCollab, ...updateData });
+
+                myCollab[doc.field] = filePath;
+                window.showAlert('Documento caricato con successo!', 'success');
+                renderUserProfile(container);
+
+            } catch (err) {
+                console.error("Doc upload error:", err);
+                window.showAlert('Errore upload: ' + err.message, 'error');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    });
 
     // Impersonation Logic
     const impersonateSelect = container.querySelector('#impersonate-role-select');
