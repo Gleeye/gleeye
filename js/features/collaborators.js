@@ -231,10 +231,15 @@ window.openCollaboratorModal = (collaboratorId = null) => {
                 document.getElementById('collab-phone').value = c.phone || '';
                 document.getElementById('collab-pec').value = c.pec || '';
                 document.getElementById('collab-address').value = c.address || '';
+                document.getElementById('collab-city').value = c.city || '';
+                document.getElementById('collab-province').value = c.province || '';
+                document.getElementById('collab-cap').value = c.cap || '';
 
                 document.getElementById('collab-name').value = c.name || '';
                 document.getElementById('collab-role').value = c.role || '';
                 document.getElementById('collab-vat-number').value = c.vat_number || '';
+                document.getElementById('collab-bank-name').value = c.bank_name || '';
+                document.getElementById('collab-iban').value = c.iban || '';
 
                 // Handle is_active - set visual state
                 setToggleState(c.is_active !== false);
@@ -277,57 +282,83 @@ export function initCollaboratorModals() {
                     </div>
                     <form id="collaborator-form">
                         <input type="hidden" id="collab-id">
-                        <div class="modal-sections">
-                            <div class="modal-section">
-                                <div class="section-title"><span class="material-icons-round">person</span><h4>Dati Anagrafici</h4></div>
-                                <div class="form-grid">
-                                    <div class="form-group"><label>Nome *</label><input type="text" id="collab-first-name" required></div>
-                                    <div class="form-group"><label>Cognome *</label><input type="text" id="collab-last-name" required></div>
-                                    <div class="form-group"><label>Data di Nascita</label><input type="date" id="collab-birth-date"></div>
-                                    <div class="form-group"><label>Luogo di Nascita</label><input type="text" id="collab-birth-place"></div>
-                                    <div class="form-group full-width"><label>Codice Fiscale</label><input type="text" id="collab-fiscal-code"></div>
-                                </div>
-                            </div>
-                             <div class="modal-section">
-                                <div class="section-title"><span class="material-icons-round">contact_page</span><h4>Recapiti</h4></div>
-                                <div class="form-grid">
-                                    <div class="form-group"><label>Email</label><input type="email" id="collab-email"></div>
-                                    <div class="form-group"><label>Telefono</label><input type="text" id="collab-phone"></div>
-                                    <div class="form-group full-width"><label>Indirizzo</label><input type="text" id="collab-address" placeholder="Via, Città, CAP..."></div>
-                                    <div class="form-group full-width"><label>PEC</label><input type="text" id="collab-pec"></div>
-                                </div>
-                            </div>
-                             <div class="modal-section full-width">
-                                <div class="section-title"><span class="material-icons-round">work</span><h4>Dati Professionali</h4></div>
-                                <div class="form-grid">
-                                    <div class="form-group"><label>Codice *</label><input type="text" id="collab-name" required placeholder="Codice Univoco/Shorthand"></div>
-                                    <div class="form-group"><label>Ruolo *</label><input type="text" id="collab-role" required></div>
-                                    <div class="form-group full-width">
-                                        <label>Reparto *</label>
-                                        <div id="dept-multiselect" class="dept-multiselect" style="position: relative;">
-                                            <div id="collab-tags-field" class="tag-field" tabindex="0" style="min-height: 42px; padding: 8px 12px; border: 1px solid var(--border-light); border-radius: 8px; cursor: pointer; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: white;">
-                                                <span class="placeholder" style="color: var(--text-tertiary);">Seleziona reparti...</span>
-                                            </div>
-                                            <div id="dept-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border-light); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; max-height: 250px; overflow-y: auto; margin-top: 4px;">
-                                                <!-- Options will be rendered here -->
-                                            </div>
-                                        </div>
-                                        <input type="hidden" id="collab-tags">
+                        <div class="modal-sections" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                            <!-- Left Column -->
+                            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                                <!-- Anagrafica -->
+                                <div class="modal-section">
+                                    <div class="section-title"><span class="material-icons-round">person</span><h4>Anagrafica</h4></div>
+                                    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                                        <div class="form-group"><label>Nome *</label><input type="text" id="collab-first-name" required></div>
+                                        <div class="form-group"><label>Cognome *</label><input type="text" id="collab-last-name" required></div>
+                                        <div class="form-group"><label>Luogo di Nascita</label><input type="text" id="collab-birth-place"></div>
+                                        <div class="form-group"><label>Data di Nascita</label><input type="date" id="collab-birth-date"></div>
                                     </div>
-                                    <div class="form-group full-width"><label>P.IVA</label><input type="text" id="collab-vat-number"></div>
+                                </div>
+                                <!-- Contatti -->
+                                <div class="modal-section">
+                                    <div class="section-title"><span class="material-icons-round">contact_page</span><h4>Contatti</h4></div>
+                                    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                                        <div class="form-group"><label>Email</label><input type="email" id="collab-email"></div>
+                                        <div class="form-group"><label>Telefono</label><input type="text" id="collab-phone"></div>
+                                        <div class="form-group full-width"><label>PEC</label><input type="text" id="collab-pec"></div>
+                                    </div>
+                                </div>
+                                <!-- Residenza -->
+                                <div class="modal-section">
+                                    <div class="section-title"><span class="material-icons-round">home</span><h4>Residenza</h4></div>
+                                    <div class="form-grid" style="grid-template-columns: 1fr;">
+                                        <div class="form-group"><label>Indirizzo</label><input type="text" id="collab-address" placeholder="Via/Piazza e numero civico"></div>
+                                    </div>
+                                    <div class="form-grid" style="grid-template-columns: 2fr 1fr 80px; margin-top: 0.5rem;">
+                                        <div class="form-group"><label>Città</label><input type="text" id="collab-city"></div>
+                                        <div class="form-group"><label>Prov.</label><input type="text" id="collab-province" maxlength="2" style="text-transform: uppercase;"></div>
+                                        <div class="form-group"><label>CAP</label><input type="text" id="collab-cap" maxlength="5"></div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="modal-section full-width">
-                                <div class="section-title"><span class="material-icons-round">toggle_on</span><h4>Stato</h4></div>
-                                <div class="form-grid">
-                                    <div class="form-group" style="display: flex; align-items: center; gap: 1rem;">
+                            <!-- Right Column -->
+                            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                                <!-- Professionali -->
+                                <div class="modal-section">
+                                    <div class="section-title"><span class="material-icons-round">work</span><h4>Dati Professionali</h4></div>
+                                    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                                        <div class="form-group"><label>Codice *</label><input type="text" id="collab-name" required placeholder="Shorthand"></div>
+                                        <div class="form-group"><label>Ruolo *</label><input type="text" id="collab-role" required></div>
+                                        <div class="form-group full-width">
+                                            <label>Reparto *</label>
+                                            <div id="dept-multiselect" class="dept-multiselect" style="position: relative;">
+                                                <div id="collab-tags-field" class="tag-field" tabindex="0" style="min-height: 42px; padding: 8px 12px; border: 1px solid var(--border-light); border-radius: 8px; cursor: pointer; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: white;">
+                                                    <span class="placeholder" style="color: var(--text-tertiary);">Seleziona reparti...</span>
+                                                </div>
+                                                <div id="dept-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border-light); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; max-height: 250px; overflow-y: auto; margin-top: 4px;">
+                                                </div>
+                                            </div>
+                                            <input type="hidden" id="collab-tags">
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Fiscali & Bancari -->
+                                <div class="modal-section">
+                                    <div class="section-title"><span class="material-icons-round">account_balance</span><h4>Fiscali & Bancari</h4></div>
+                                    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                                        <div class="form-group"><label>Cod. Fiscale</label><input type="text" id="collab-fiscal-code" style="text-transform: uppercase;"></div>
+                                        <div class="form-group"><label>P.IVA</label><input type="text" id="collab-vat-number"></div>
+                                        <div class="form-group"><label>Banca</label><input type="text" id="collab-bank-name"></div>
+                                        <div class="form-group full-width"><label>IBAN</label><input type="text" id="collab-iban" style="font-family: monospace; letter-spacing: 0.05em;"></div>
+                                    </div>
+                                </div>
+                                <!-- Stato -->
+                                <div class="modal-section">
+                                    <div class="section-title"><span class="material-icons-round">toggle_on</span><h4>Stato</h4></div>
+                                    <div class="form-group" style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
                                         <div id="collab-active-toggle" class="active-toggle" style="width: 52px; height: 28px; border-radius: 14px; background: var(--brand-blue); cursor: pointer; position: relative; transition: background 0.3s; flex-shrink: 0;">
                                             <div class="toggle-knob" style="width: 22px; height: 22px; border-radius: 50%; background: white; position: absolute; top: 3px; left: 27px; transition: left 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"></div>
                                         </div>
                                         <input type="hidden" id="collab-is-active" value="true">
                                         <div>
                                             <span id="collab-active-label" style="font-weight: 500; color: var(--text-primary);">Attivo</span>
-                                            <p style="margin: 0; font-size: 0.8rem; color: var(--text-tertiary);">Gli inattivi non appaiono nella lista</p>
+                                            <p style="margin: 0; font-size: 0.75rem; color: var(--text-tertiary);">Gli inattivi non appaiono nella lista</p>
                                         </div>
                                     </div>
                                 </div>
@@ -385,13 +416,18 @@ export function initCollaboratorModals() {
                 birth_date: document.getElementById('collab-birth-date').value || null,
                 birth_place: document.getElementById('collab-birth-place').value || null,
                 fiscal_code: document.getElementById('collab-fiscal-code').value || null,
-                email: document.getElementById('collab-email').value || null, // null instead of empty string
+                email: document.getElementById('collab-email').value || null,
                 phone: document.getElementById('collab-phone').value || null,
                 address: document.getElementById('collab-address').value || null,
+                city: document.getElementById('collab-city').value || null,
+                province: document.getElementById('collab-province').value || null,
+                cap: document.getElementById('collab-cap').value || null,
                 pec: document.getElementById('collab-pec').value || null,
                 name: document.getElementById('collab-name').value,
                 role: document.getElementById('collab-role').value,
                 vat_number: document.getElementById('collab-vat-number').value || null,
+                bank_name: document.getElementById('collab-bank-name').value || null,
+                iban: document.getElementById('collab-iban').value || null,
                 tags: JSON.parse(document.getElementById('collab-tags').value || '[]'),
                 full_name: `${document.getElementById('collab-first-name').value} ${document.getElementById('collab-last-name').value}`,
                 is_active: document.getElementById('collab-is-active').value === 'true'
