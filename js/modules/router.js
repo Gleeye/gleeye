@@ -14,7 +14,7 @@ import { renderCollaboratorServices } from '../features/collaborator_services.js
 import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=148';
 import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=148';
 import { renderBooking } from '../features/booking.js?v=148';
-import { renderUserProfile } from '../features/user_dashboard.js?v=149';
+import { renderUserProfile } from '../features/user_dashboard.js?v=152';
 import { renderAgenda } from '../features/personal_agenda.js?v=160';
 import { renderNotificationCenter } from '../features/notifications.js?v=148';
 import { renderAdminNotifications } from '../features/admin_notifications.js?v=148';

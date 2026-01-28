@@ -281,26 +281,26 @@ export async function renderUserProfile(container) {
                     return `
                                                 <div class="upload-zone has-file" id="zone-${id}" style="cursor: default; background: #fff; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 12px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.5rem;">
                                                     
-                                                    <span class="material-icons-round" style="color: #059669; font-size: 22px;">check_circle</span>
-                                                    <h5 style="margin: 0; font-size: 0.85rem; color: var(--text-primary); font-weight: 600; line-height: 1.3;">${label}</h5>
-                                                    <div style="font-size: 0.7rem; color: #059669; font-weight: 500;">Caricato</div>
+                                                    <span class="material-icons-round" style="color: #059669; font-size: 20px !important;">check_circle</span>
+                                                    <h5 style="margin: 0; font-size: 0.8rem; color: var(--text-primary); font-weight: 600; line-height: 1.3;">${label}</h5>
+                                                    <div style="font-size: 0.65rem; color: #059669; font-weight: 600;">File OK</div>
 
-                                                    <div style="display:flex; gap: 0.25rem; margin-top: 0.5rem;">
-                                                        <button type="button" class="icon-btn-doc-clean" data-action="view" data-path="${currentUrl}" title="Vedi"><span class="material-icons-round">visibility</span></button>
-                                                        <button type="button" class="icon-btn-doc-clean" data-action="replace" data-target="${id}" title="Sostituisci"><span class="material-icons-round">sync_alt</span></button>
-                                                        <button type="button" class="icon-btn-doc-clean danger" data-action="delete" data-field="${fieldKey}" title="Elimina"><span class="material-icons-round">delete</span></button>
+                                                    <div style="display:flex; gap: 0.25rem; margin-top: 0.25rem;">
+                                                        <button type="button" class="icon-btn-doc-v2" data-action="view" data-path="${currentUrl}" title="Vedi"><span class="material-icons-round" style="font-size: 16px !important;">visibility</span></button>
+                                                        <button type="button" class="icon-btn-doc-v2" data-action="replace" data-target="${id}" title="Sostituisci"><span class="material-icons-round" style="font-size: 16px !important;">sync_alt</span></button>
+                                                        <button type="button" class="icon-btn-doc-v2 danger" data-action="delete" data-field="${fieldKey}" title="Elimina"><span class="material-icons-round" style="font-size: 16px !important;">delete</span></button>
                                                     </div>
                                                     <input type="file" id="${id}" hidden accept="image/*,.pdf,.heic">
                                                 </div>
                                                 <style>
-                                                    .icon-btn-doc-clean {
-                                                        width: 28px; height: 28px; border-radius: 6px; border: none;
+                                                    .icon-btn-doc-v2 {
+                                                        width: 24px; height: 24px; border-radius: 6px; border: none;
                                                         background: transparent; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center;
                                                         transition: all 0.15s;
                                                     }
-                                                    .icon-btn-doc-clean:hover { color: var(--brand-blue); }
-                                                    .icon-btn-doc-clean.danger:hover { color: #ef4444; }
-                                                    .icon-btn-doc-clean span { font-size: 16px; }
+                                                    .icon-btn-doc-v2:hover { color: var(--brand-blue); background: #f1f5f9; }
+                                                    .icon-btn-doc-v2.danger:hover { color: #ef4444; background: #fef2f2; }
+                                                    .icon-btn-doc-v2 span { font-size: 16px !important; }
                                                 </style>
                                             `;
                 } else {
@@ -308,9 +308,9 @@ export async function renderUserProfile(container) {
                                                 <div class="upload-zone" id="zone-${id}" data-target="${id}" style="cursor: pointer; background: #f8fafc; border: 1px dashed #cbd5e1; padding: 1rem; border-radius: 12px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.5rem; transition: all 0.2s;">
                                                     <input type="file" id="${id}" hidden accept="image/*,.pdf,.heic">
                                                     
-                                                    <span class="material-icons-round" style="color: #94a3b8; font-size: 22px;">cloud_upload</span>
-                                                    <h5 style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; line-height: 1.3;">${label}</h5>
-                                                    <div style="font-size: 0.7rem; color: var(--text-tertiary);">Clicca per caricare</div>
+                                                    <span class="material-icons-round" style="color: #94a3b8; font-size: 20px !important;">cloud_upload</span>
+                                                    <h5 style="margin: 0; font-size: 0.8rem; color: var(--text-secondary); font-weight: 500; line-height: 1.3;">${label}</h5>
+                                                    <div style="font-size: 0.65rem; color: var(--text-tertiary);">Clicca per caricare</div>
                                                 </div>
                                             `;
                 }
