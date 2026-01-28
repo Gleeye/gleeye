@@ -767,6 +767,31 @@ export function renderCollaboratorDetail(container) {
                              ` : ''}
                          </div>
                     </div>
+
+                    <!-- Documents Card (Admin/Partner/Account/Amministrazione only) -->
+                    ${['admin', 'partner', 'account'].includes(state.profile?.role) || (state.profile?.tags && state.profile.tags.includes('Amministrazione')) ? `
+                         <div class="glass-card" style="padding: 1.25rem;">
+                            <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span class="material-icons-round" style="color: var(--brand-blue); font-size: 1.1rem;">folder_shared</span> Documenti Personali
+                            </h3>
+                            <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                                ${[
+                { label: "Carta d'Identità (Fronte)", url: c.document_id_front_url },
+                { label: "Carta d'Identità (Retro)", url: c.document_id_back_url },
+                { label: "Tessera Sanitaria (Fronte)", url: c.document_health_card_url },
+                { label: "Tessera Sanitaria (Retro)", url: c.document_health_card_back_url }
+            ].map(doc => `
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--glass-border);">
+                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                            <span class="material-icons-round" style="font-size: 1rem; color: ${doc.url ? '#10b981' : '#94a3b8'};">${doc.url ? 'check_circle' : 'radio_button_unchecked'}</span>
+                                            <span style="font-size: 0.85rem; color: ${doc.url ? 'var(--text-primary)' : 'var(--text-tertiary)'};">${doc.label}</span>
+                                        </div>
+                                        ${doc.url ? `<button onclick="window.open('${doc.url}', '_blank')" style="background: none; border: none; cursor: pointer; color: var(--brand-blue); display: flex; align-items: center;"><span class="material-icons-round" style="font-size: 1.1rem;">visibility</span></button>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
 
                 <!-- Right Column: Activity Tabs -->
