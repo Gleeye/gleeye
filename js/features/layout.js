@@ -257,30 +257,28 @@ export function renderSidebarProfile() {
     // --- 5. Render Roles (Multi-badge) ---
     if (roleEl) {
         if (roleObjects.length > 0) {
-            // Container with flex-wrap
+            // Container with flex-row, align center
             const badgesHtml = roleObjects.map((role, index) => {
                 const isPrimary = index === 0;
-                // Primary gets full style. Secondary gets muted/smaller style.
 
                 if (isPrimary) {
+                    // Primary: Badge with Text + Icon
                     return `
-                    <div style="width: 100%; margin-bottom: 4px;">
-                        <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; ${role.style}">
+                        <span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; white-space: nowrap; ${role.style}">
                             <span class="material-icons-round" style="font-size: 14px;">${role.icon}</span>
                             ${role.label}
-                        </span>
-                    </div>`;
+                        </span>`;
                 } else {
-                    // Secondary: Smaller chips
+                    // Secondary: Icon ONLY, circular/square based on style
                     return `
-                    <span style="display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border-radius: 4px; font-size: 0.6rem; font-weight: 500; background: #fff; border: 1px solid #e2e8f0; color: #64748b; margin-right: 4px; margin-bottom: 4px;" title="${role.label}">
-                         <span class="material-icons-round" style="font-size: 12px;">${role.icon}</span>
-                        ${role.label}
-                    </span>`;
+                        <span style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; ${role.style} padding: 0;" title="${role.label}">
+                             <span class="material-icons-round" style="font-size: 14px;">${role.icon}</span>
+                        </span>`;
                 }
             }).join('');
 
-            roleEl.innerHTML = `<div style="display: flex; flex-wrap: wrap; margin-top: 2px;">${badgesHtml}</div>`;
+            // Flex container, single row (wrap only if needed)
+            roleEl.innerHTML = `<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px;">${badgesHtml}</div>`;
         } else {
             // Should rarely happen due to fallback
             roleEl.innerHTML = `<span style="font-size: 0.75rem; color: var(--text-tertiary);">---</span>`;
