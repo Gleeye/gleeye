@@ -271,7 +271,7 @@ export async function renderUserProfile(container) {
                                 Carica i documenti necessari. I file sono protetti e visibili solo all'amministrazione.
                             </p>
                             
-                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1rem;">
                                 <!-- Helper to create dropzone -->
                                 ${(() => {
             // NEW RENDER LOGIC
@@ -279,40 +279,54 @@ export async function renderUserProfile(container) {
                 const hasFile = !!currentUrl;
                 if (hasFile) {
                     return `
-                                                <div class="upload-zone has-file" id="zone-${id}" style="cursor: default; background: #f0fdf4; border: 2px solid #10B981; position:relative; aspect-ratio: 16/9; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                                                    <div style="position:absolute; top: 0.8rem; right: 0.8rem; width: 10px; height: 10px; background: #10B981; border-radius: 50%;"></div>
+                                                <div class="upload-zone has-file" id="zone-${id}" style="cursor: default; background: #fff; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 80px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                                                     
-                                                    <span class="material-icons-round" style="font-size: 2.5rem; color: #10B981; margin-bottom: 0.5rem;">description</span>
-                                                    <h5 style="margin: 0; font-size: 0.95rem; color: var(--text-primary); text-align: center;">${label}</h5>
-                                                    
-                                                    <div style="display:flex; gap: 0.5rem; margin-top: 1rem;">
+                                                    <div style="display:flex; align-items:center; gap: 1rem;">
+                                                        <div style="width: 42px; height: 42px; background: #d1fae5; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                            <span class="material-icons-round" style="color: #059669; font-size: 24px;">check_circle</span>
+                                                        </div>
+                                                        <div>
+                                                            <h5 style="margin: 0; font-size: 0.95rem; color: var(--text-primary); font-weight: 600;">${label}</h5>
+                                                            <div style="font-size: 0.75rem; color: #059669; font-weight: 500;">Caricato</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div style="display:flex; gap: 0.5rem; flex-shrink: 0;">
                                                         <button type="button" class="icon-btn-doc" data-action="view" data-path="${currentUrl}" title="Vedi"><span class="material-icons-round">visibility</span></button>
-                                                        <button type="button" class="icon-btn-doc danger" data-action="delete" data-field="${fieldKey}" title="Elimina"><span class="material-icons-round">delete</span></button>
                                                         <button type="button" class="icon-btn-doc" data-action="replace" data-target="${id}" title="Sostituisci"><span class="material-icons-round">sync_alt</span></button>
+                                                        <button type="button" class="icon-btn-doc danger" data-action="delete" data-field="${fieldKey}" title="Elimina"><span class="material-icons-round">delete</span></button>
                                                     </div>
                                                     <input type="file" id="${id}" hidden accept="image/*,.pdf,.heic">
                                                 </div>
                                                 <style>
                                                     .icon-btn-doc {
-                                                        width: 32px; height: 32px; border-radius: 8px; border: 1px solid #cbd5e1;
-                                                        background: white; color: #475569; cursor: pointer; display: flex; align-items: center; justify-content: center;
+                                                        width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0;
+                                                        background: #f8fafc; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center;
                                                         transition: all 0.2s;
                                                     }
-                                                    .icon-btn-doc:hover { transform: translateY(-2px); border-color: var(--brand-blue); color: var(--brand-blue); }
-                                                    .icon-btn-doc.danger:hover { border-color: #ef4444; color: #ef4444; }
+                                                    .icon-btn-doc:hover { background: white; border-color: var(--brand-blue); color: var(--brand-blue); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+                                                    .icon-btn-doc.danger:hover { border-color: #ef4444; color: #ef4444; background: #fef2f2; }
                                                     .icon-btn-doc span { font-size: 18px; }
                                                 </style>
                                             `;
                 } else {
                     return `
-                                                <div class="upload-zone" id="zone-${id}" data-target="${id}" style="aspect-ratio: 16/9; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;">
+                                                <div class="upload-zone" id="zone-${id}" data-target="${id}" style="cursor: pointer; background: #f8fafc; border: 1px dashed #cbd5e1; padding: 1rem; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 80px; transition: all 0.2s;">
                                                     <input type="file" id="${id}" hidden accept="image/*,.pdf,.heic">
                                                     
-                                                    <div style="margin-bottom: 0.5rem; width: 48px; height: 48px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                                        <span class="material-icons-round" style="font-size: 24px; color: #94a3b8;">cloud_upload</span>
+                                                    <div style="display:flex; align-items:center; gap: 1rem;">
+                                                        <div style="width: 42px; height: 42px; background: #e2e8f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                            <span class="material-icons-round" style="color: #64748b; font-size: 24px;">cloud_upload</span>
+                                                        </div>
+                                                        <div>
+                                                            <h5 style="margin: 0; font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">${label}</h5>
+                                                            <div style="font-size: 0.75rem; color: var(--text-tertiary);">Clicca per caricare</div>
+                                                        </div>
                                                     </div>
-                                                    <h5 style="margin: 0; font-size: 0.95rem; color: var(--text-primary); text-align: center;">${label}</h5>
-                                                    <div style="margin-top: 0.25rem; font-size: 0.75rem; color: var(--text-tertiary);">Trascina o clicca</div>
+                                                    
+                                                     <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; color: #94a3b8;">
+                                                        <span class="material-icons-round">add</span>
+                                                    </div>
                                                 </div>
                                             `;
                 }
