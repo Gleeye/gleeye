@@ -598,7 +598,17 @@ export async function renderUserProfile(container) {
             await upsertCollaborator({ ...myCollab, ...updateData });
 
             window.showAlert('Documento eliminato.', 'success');
-            renderUserProfile(container);
+
+            // Capture active tab
+            const activeTab = container.querySelector('.tab-btn.active')?.dataset.tab;
+
+            await renderUserProfile(container);
+
+            // Restore active tab
+            if (activeTab) {
+                const tabBtn = container.querySelector(`.tab-btn[data-tab="${activeTab}"]`);
+                if (tabBtn) tabBtn.click();
+            }
         } catch (err) {
             console.error(err);
             window.showAlert('Errore eliminazione: ' + err.message, 'error');
@@ -644,7 +654,17 @@ export async function renderUserProfile(container) {
             await upsertCollaborator({ ...myCollab, ...updateData });
 
             window.showAlert('Documento caricato con successo!', 'success');
-            renderUserProfile(container);
+
+            // Capture active tab
+            const activeTab = container.querySelector('.tab-btn.active')?.dataset.tab;
+
+            await renderUserProfile(container);
+
+            // Restore active tab
+            if (activeTab) {
+                const tabBtn = container.querySelector(`.tab-btn[data-tab="${activeTab}"]`);
+                if (tabBtn) tabBtn.click();
+            }
 
         } catch (err) {
             console.error("Doc upload error:", err);
