@@ -157,6 +157,37 @@ const formatName = (str) => {
         .join(' ');
 };
 
+// Role Priority Configuration
+const ROLE_PRIORITY = {
+    'Partner': 100,
+    'Amministrazione': 90,
+    'Account': 80,
+    'Project Manager': 70,
+    'Collaborator': 10
+};
+
+const getRoleConfig = (roleTag) => {
+    // Normalize string to match keys
+    const tag = Object.keys(ROLE_PRIORITY).find(k => k.toLowerCase() === roleTag?.toLowerCase()) || roleTag;
+
+    switch (tag) {
+        case 'Partner':
+            return { label: 'PARTNER', icon: 'stars', style: 'color: #7C3AED; background: #F5F3FF; border: 1px solid #DDD6FE;', priority: 100 };
+        case 'Amministrazione':
+            return { label: 'AMMINISTRAZIONE', icon: 'analytics', style: 'color: #059669; background: #ECFDF5; border: 1px solid #A7F3D0;', priority: 90 };
+        case 'Account':
+            return { label: 'ACCOUNT', icon: 'manage_accounts', style: 'color: #EA580C; background: #FFF7ED; border: 1px solid #FFEDD5;', priority: 80 };
+        case 'Project Manager':
+            return { label: 'PROJECT MANAGER', icon: 'work', style: 'color: #475569; background: #F8FAFC; border: 1px solid #E2E8F0;', priority: 70 };
+        case 'Collaborator':
+        case 'Collaboratore':
+            return { label: 'COLLABORATORE', icon: 'person', style: 'color: #64748b; background: #f1f5f9; border: 1px solid #e2e8f0;', priority: 10 };
+        default:
+            // Generic fallback for unknown tags
+            return { label: tag.toUpperCase(), icon: 'label', style: 'color: #64748b; background: #f1f5f9; border: 1px solid #e2e8f0;', priority: 0 };
+    }
+};
+
 export function renderSidebarProfile() {
     const profile = state.profile;
     const session = state.session;
@@ -165,95 +196,101 @@ export function renderSidebarProfile() {
     const roleEl = document.getElementById('user-role');
     const avatarEl = document.getElementById('user-avatar');
 
-    // Only require profile, session is optional (use profile.email as fallback)
-    if (!profile) {
-        console.warn('[Layout] renderSidebarProfile: No profile available yet');
-        return;
-    }
+    if (!profile) return;
 
-    // --- 1. Determine Display Name ---
+    // --- 1. Display Name ---
     let displayName = formatName(profile.full_name || session?.user?.email);
 
-    // --- 2. Determine Role & Avatar Configuration ---
-    let userTags = profile.tags || [];
-    if (typeof userTags === 'string') {
-        try { userTags = JSON.parse(userTags); } catch (e) { userTags = userTags.split(','); }
-    }
-    userTags = Array.isArray(userTags) ? userTags : [];
+    // --- 2. Data Extraction (Impersonation aware) ---
+    // Is this user a Technical Admin? (System Level)
+    let isTechAdmin = profile.role === 'admin';
+    let userTags = [];
+    let displayAvatar = profile.avatar_url;
 
-    // Role Definition Map (Priority Order)
-    const roleConfig = {
-        label: 'Collaborator',
-        icon: 'person',
-        style: 'color: var(--text-secondary); background: var(--bg-secondary); border: 1px solid var(--border-light);'
-    };
-
-    // Determine highest priority role
-    const isImpersonating = !!state.impersonatedCollaboratorId;
-    let computedRole = profile.role || 'user';
-    let computedAvatar = profile.avatar_url;
-
-    // Override if impersonating
-    if (isImpersonating) {
+    // Handle Impersonation
+    if (state.impersonatedCollaboratorId) {
         const impersonatedUser = state.collaborators?.find(c => c.id === state.impersonatedCollaboratorId);
         if (impersonatedUser) {
             displayName = formatName(impersonatedUser.full_name);
-            computedRole = impersonatedUser.role || 'collaborator';
-            computedAvatar = impersonatedUser.avatar_url;
+            // In impersonation, we show the imp's tech role (usually none) and tags
+            isTechAdmin = impersonatedUser.role === 'admin';
+            displayAvatar = impersonatedUser.avatar_url;
 
-            // Extract tags for impersonated user
+            // Extract tags
             let iTags = impersonatedUser.tags || [];
             if (typeof iTags === 'string') {
                 try { iTags = JSON.parse(iTags); } catch (e) { iTags = iTags.split(','); }
             }
             userTags = Array.isArray(iTags) ? iTags : [];
         }
-    }
-
-    // Logic to resolve Role Badge
-    if (computedRole === 'admin') {
-        roleConfig.label = 'Admin';
-        roleConfig.icon = 'verified_user';
-        roleConfig.style = 'color: #2563EB; background: #EFF6FF; border: 1px solid #BFDBFE;'; // Blue
-    } else if (userTags.includes('Partner')) {
-        roleConfig.label = 'Partner';
-        roleConfig.icon = 'stars';
-        roleConfig.style = 'color: #7C3AED; background: #F5F3FF; border: 1px solid #DDD6FE;'; // Violet
-    } else if (userTags.includes('Project Manager')) {
-        roleConfig.label = 'Project Manager';
-        roleConfig.icon = 'work'; // or architecture
-        roleConfig.style = 'color: #475569; background: #F8FAFC; border: 1px solid #E2E8F0;'; // Slate
-    } else if (userTags.includes('Account')) {
-        roleConfig.label = 'Account';
-        roleConfig.icon = 'manage_accounts';
-        roleConfig.style = 'color: #EA580C; background: #FFF7ED; border: 1px solid #FFEDD5;'; // Orange
-    } else if (userTags.includes('Amministrazione')) {
-        roleConfig.label = 'Amministrazione';
-        roleConfig.icon = 'analytics';
-        roleConfig.style = 'color: #059669; background: #ECFDF5; border: 1px solid #A7F3D0;'; // Emerald
     } else {
-        // Fallback for standard collaborator
-        roleConfig.label = 'Collaborator';
-        roleConfig.icon = 'person';
-        // Neutral style already set as default
+        // Normal profile tokens
+        let rawTags = profile.tags || [];
+        if (typeof rawTags === 'string') {
+            try { rawTags = JSON.parse(rawTags); } catch (e) { rawTags = rawTags.split(','); }
+        }
+        userTags = Array.isArray(rawTags) ? rawTags : [];
     }
 
-    // --- 3. Render ---
-    if (nameEl) nameEl.textContent = displayName;
+    // --- 3. Role Sorting & Logic ---
+    // If user has no tags but is just a basic user, assume 'Collaborator' unless they are Tech Admin
+    if (userTags.length === 0 && !isTechAdmin) {
+        userTags.push('Collaborator');
+    }
 
+    // Map tags to configs
+    const roleObjects = userTags.map(tag => getRoleConfig(tag.trim()));
+
+    // Sort by priority DESC
+    roleObjects.sort((a, b) => b.priority - a.priority);
+
+    // --- 4. Render Name & Tech Admin Badge ---
+    if (nameEl) {
+        // Tech Admin Badge (Shield) next to name if applicable
+        const adminBadge = isTechAdmin
+            ? `<span title="Technical Admin" style="display: inline-flex; vertical-align: middle; margin-left: 6px; color: #2563EB; background: #EFF6FF; border-radius: 4px; padding: 2px;"><span class="material-icons-round" style="font-size: 14px;">verified_user</span></span>`
+            : '';
+
+        nameEl.innerHTML = `${displayName}${adminBadge}`;
+    }
+
+    // --- 5. Render Roles (Multi-badge) ---
     if (roleEl) {
-        // Render Role Badge
-        roleEl.innerHTML = `
-            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; ${roleConfig.style}">
-                <span class="material-icons-round" style="font-size: 14px;">${roleConfig.icon}</span>
-                ${roleConfig.label}
-            </span>
-        `;
+        if (roleObjects.length > 0) {
+            // Container with flex-wrap
+            const badgesHtml = roleObjects.map((role, index) => {
+                const isPrimary = index === 0;
+                // Primary gets full style. Secondary gets muted/smaller style.
+
+                if (isPrimary) {
+                    return `
+                    <div style="width: 100%; margin-bottom: 4px;">
+                        <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; ${role.style}">
+                            <span class="material-icons-round" style="font-size: 14px;">${role.icon}</span>
+                            ${role.label}
+                        </span>
+                    </div>`;
+                } else {
+                    // Secondary: Smaller chips
+                    return `
+                    <span style="display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border-radius: 4px; font-size: 0.6rem; font-weight: 500; background: #fff; border: 1px solid #e2e8f0; color: #64748b; margin-right: 4px; margin-bottom: 4px;" title="${role.label}">
+                         <span class="material-icons-round" style="font-size: 12px;">${role.icon}</span>
+                        ${role.label}
+                    </span>`;
+                }
+            }).join('');
+
+            roleEl.innerHTML = `<div style="display: flex; flex-wrap: wrap; margin-top: 2px;">${badgesHtml}</div>`;
+        } else {
+            // Should rarely happen due to fallback
+            roleEl.innerHTML = `<span style="font-size: 0.75rem; color: var(--text-tertiary);">---</span>`;
+        }
     }
 
+    // --- 6. Avatar ---
     if (avatarEl) {
-        if (computedAvatar) {
-            avatarEl.innerHTML = `<img src="${computedAvatar}" alt="Avatar">`;
+        if (displayAvatar) {
+            avatarEl.innerHTML = `<img src="${displayAvatar}" alt="Avatar">`;
         } else {
             const initial = displayName ? displayName[0].toUpperCase() : 'U';
             avatarEl.textContent = initial;
@@ -264,58 +301,32 @@ export function renderSidebarProfile() {
 
     // Inject Exit Button if Impersonating
     const existingExitBtn = document.getElementById('exit-impersonation-btn');
-    if (existingExitBtn) existingExitBtn.remove(); // clear old if exists
+    if (existingExitBtn) existingExitBtn.remove();
 
     if (state.impersonatedCollaboratorId) {
         const sidebar = document.getElementById('sidebar');
-        // Insert a sticky button at bottom or distinct place
         const exitBtn = document.createElement('button');
         exitBtn.id = 'exit-impersonation-btn';
         exitBtn.className = 'secondary-btn full-width';
         exitBtn.style.cssText = `
-            margin: 1rem; 
-            background: #FFF3E0; 
-            color: #E65100; 
-            border: 1px solid #FFCC80;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 0.9rem;
+            margin: 1rem; background: #FFF3E0; color: #E65100; border: 1px solid #FFCC80;
+            display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem;
         `;
         exitBtn.innerHTML = '<span class="material-icons-round">visibility_off</span> Esci dalla vista';
+        exitBtn.onclick = () => exitImpersonation();
 
-        exitBtn.onclick = () => {
-            exitImpersonation();
-        };
-
-        // Append before profile section
         const profileSection = sidebar.querySelector('.user-profile');
-        if (profileSection) {
-            profileSection.parentNode.insertBefore(exitBtn, profileSection);
-        }
+        if (profileSection) profileSection.parentNode.insertBefore(exitBtn, profileSection);
     }
 
-    // Attach click listener for User Panel (My Collaborator Profile)
+    // Attach click listener
     const userProfileEl = document.querySelector('.user-profile .user-info');
     const userAvatarEl = document.querySelector('.user-profile .avatar');
+    const handleProfileClick = async () => { window.location.hash = 'profile'; };
 
-    const handleProfileClick = async () => {
-        // Just navigate to profile, logic inside renderUserProfile handles who to show
-        window.location.hash = 'profile';
-    };
+    if (userProfileEl) { userProfileEl.onclick = handleProfileClick; userProfileEl.style.cursor = 'pointer'; }
+    if (userAvatarEl) { userAvatarEl.onclick = handleProfileClick; userAvatarEl.style.cursor = 'pointer'; }
 
-    if (userProfileEl) {
-        userProfileEl.onclick = handleProfileClick;
-        userProfileEl.style.cursor = 'pointer';
-    }
-
-    if (userAvatarEl) {
-        userAvatarEl.onclick = handleProfileClick;
-        userAvatarEl.style.cursor = 'pointer';
-    }
-
-    // Update Sidebar Appearance based on Role
     updateSidebarVisibility();
 }
 
