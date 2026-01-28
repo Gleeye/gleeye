@@ -103,119 +103,225 @@ export async function renderUserProfile(container) {
 
             <!-- Tab Content: Settings -->
             <div id="tab-settings" class="tab-content hidden">
-                <div class="glass-card" style="padding: 2rem; max-width: 800px;">
-                    <form id="profile-settings-form">
-                        <!-- Personal Info Section -->
-                        <h4 style="margin: 0 0 1rem 0; color: var(--brand-blue); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">Dati Personali</h4>
-                        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                            <div class="form-group"><label>Nome</label><input type="text" id="my-first-name" value="${myCollab.first_name || ''}" required></div>
-                            <div class="form-group"><label>Cognome</label><input type="text" id="my-last-name" value="${myCollab.last_name || ''}" required></div>
+                <div class="glass-card" style="padding: 0; max-width: 1000px; overflow: hidden; background: linear-gradient(145deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6)); border: 1px solid var(--glass-border);">
+                    
+                    <!-- Form Header -->
+                    <div style="padding: 2rem; background: linear-gradient(to right, rgba(239, 246, 255, 0.5), transparent); border-bottom: 1px solid var(--glass-border);">
+                        <h2 style="margin: 0; font-size: 1.5rem; color: var(--brand-blue);">Dati & Impostazioni</h2>
+                        <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.95rem;">Gestisci le tue informazioni personali, fiscali e i documenti necessari.</p>
+                    </div>
+
+                    <form id="profile-settings-form" style="padding: 2rem;">
+                        <style>
+                            .modern-form-group { position: relative; margin-bottom: 0.5rem; }
+                            .modern-label { 
+                                display: block; font-size: 0.75rem; font-weight: 600; 
+                                text-transform: uppercase; letter-spacing: 0.05em; 
+                                color: var(--text-tertiary); margin-bottom: 0.5rem; 
+                            }
+                            .modern-input { 
+                                width: 100%; padding: 0.9rem 1rem; 
+                                background: white; border: 1px solid #e2e8f0; 
+                                border-radius: 12px; font-size: 0.95rem; color: var(--text-primary);
+                                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                            }
+                            .modern-input:focus { 
+                                outline: none; border-color: var(--brand-blue); 
+                                box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); 
+                                transform: translateY(-1px);
+                            }
+                            .settings-section { margin-bottom: 3rem; animation: slideIn 0.3s ease-out; }
+                            .settings-section-title { 
+                                font-size: 1.1rem; font-weight: 600; color: var(--text-primary); 
+                                margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;
+                            }
+                            .upload-zone {
+                                background: white; border: 2px dashed #cbd5e1; border-radius: 16px;
+                                padding: 2rem; text-align: center; cursor: pointer;
+                                transition: all 0.2s ease; position: relative;
+                            }
+                            .upload-zone:hover { border-color: var(--brand-blue); background: #f8fafc; transform: translateY(-2px); }
+                            .upload-zone.has-file { border-style: solid; border-color: #10B981; background: #ecfdf5; }
                             
-                            <div class="form-group"><label>Data di Nascita</label><input type="date" id="my-birth-date" value="${myCollab.birth_date || ''}"></div>
-                            <div class="form-group"><label>Luogo di Nascita</label><input type="text" id="my-birth-place" value="${myCollab.birth_place || ''}"></div>
+                            .doc-status-badge {
+                                position: absolute; top: 1rem; right: 1rem;
+                                padding: 0.25rem 0.75rem; border-radius: 20px;
+                                font-size: 0.75rem; font-weight: 600;
+                                background: #e2e8f0; color: #64748b;
+                            }
+                            .upload-zone.has-file .doc-status-badge { background: #d1fae5; color: #059669; }
+                        </style>
 
-                            <div class="form-group"><label>Email</label><input type="email" value="${myCollab.email || ''}" disabled style="opacity: 0.7; cursor: not-allowed;" title="Contatta l'admin per cambiare email"></div>
-                            <div class="form-group"><label>Telefono</label><input type="text" id="my-phone" value="${myCollab.phone || ''}"></div>
-                        </div>
-
-                         <!-- Address Section -->
-                        <h4 style="margin: 2rem 0 1rem 0; color: var(--brand-blue); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">Indirizzo e Residenza</h4>
-                        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                             <div class="form-group full-width" style="grid-column: 1/-1;"><label>Indirizzo</label><input type="text" id="my-address" value="${myCollab.address || ''}" placeholder="Via/Piazza, Civico"></div>
-                             
-                             <div class="form-group"><label>Città</label><input type="text" id="my-address-city" value="${myCollab.address_city || ''}"></div>
-                             <div class="form-group"><label>Provincia (Sigla)</label><input type="text" id="my-address-province" value="${myCollab.address_province || ''}" maxlength="2" style="text-transform: uppercase;"></div>
-                             <div class="form-group"><label>CAP</label><input type="text" id="my-address-cap" value="${myCollab.address_cap || ''}" maxlength="5"></div>
-                        </div>
-
-                        <!-- Fiscal Section -->
-                        <h4 style="margin: 2rem 0 1rem 0; color: var(--brand-blue); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">Dati Fiscali</h4>
-                        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                            <div class="form-group"><label>Codice Fiscale</label><input type="text" id="my-fiscal-code" value="${myCollab.fiscal_code || ''}"></div>
-                            <div class="form-group"><label>P.IVA</label><input type="text" id="my-vat" value="${myCollab.vat_number || ''}"></div>
-                            <div class="form-group full-width" style="grid-column: 1/-1;"><label>PEC</label><input type="email" id="my-pec" value="${myCollab.pec || ''}"></div>
-                        </div>
-
-                        <!-- Bank Section -->
-                        <h4 style="margin: 2rem 0 1rem 0; color: var(--brand-blue); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">Coordinate Bancarie</h4>
-                        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                            <div class="form-group full-width" style="grid-column: 1/-1;"><label>Banca</label><input type="text" id="my-bank-name" value="${myCollab.bank_name || ''}"></div>
-                            <div class="form-group full-width" style="grid-column: 1/-1;"><label>IBAN</label><input type="text" id="my-iban" value="${myCollab.iban || ''}" style="letter-spacing: 1px;"></div>
-                        </div>
-
-                        <!-- Documents Section -->
-                        <h4 style="margin: 2rem 0 1rem 0; color: var(--brand-blue); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">Documenti</h4>
-                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">Carica qui i tuoi documenti per l'amministrazione. Visibili solo a te e agli amministratori.</p>
-                        
-                        <div class="documents-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
-                            <!-- Doc 1: Identity Front -->
-                            <div class="doc-card" style="background: white; border: 1px solid var(--glass-border); border-radius: 12px; padding: 1.5rem; text-align: center;">
-                                <div class="doc-icon" style="margin-bottom: 1rem;">
-                                    <span class="material-icons-round" style="font-size: 2.5rem; color: ${myCollab.document_id_front_url ? '#10B981' : 'var(--text-tertiary)'};">${myCollab.document_id_front_url ? 'check_circle' : 'badge'}</span>
+                        <!-- Personal Info -->
+                        <div class="settings-section">
+                            <h4 class="settings-section-title">
+                                <span class="material-icons-round" style="color: var(--brand-blue); background: #eff6ff; padding: 6px; border-radius: 8px;">person</span>
+                                Anagrafica
+                            </h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+                                <div class="modern-form-group">
+                                    <label class="modern-label">Nome</label>
+                                    <input type="text" class="modern-input" id="my-first-name" value="${myCollab.first_name || ''}" required>
                                 </div>
-                                <h5 style="margin: 0 0 0.5rem 0;">Carta d'Identità (Fronte)</h5>
-                                <div class="doc-actions">
-                                    <input type="file" id="upload-doc-id-front" hidden accept="image/*,.pdf">
-                                    <button type="button" class="secondary-btn small upload-doc-btn" data-target="upload-doc-id-front" style="width: 100%;">
-                                        ${myCollab.document_id_front_url ? 'Sostituisci' : 'Carica'}
-                                    </button>
-                                     ${myCollab.document_id_front_url ? `<a href="#" onclick="window.openSignedUrl('${myCollab.document_id_front_url}', 'Carta Identità Fronte'); return false;" style="display:block; margin-top:0.5rem; font-size:0.8rem; color:var(--brand-blue);">Visualizza</a>` : ''}
+                                <div class="modern-form-group">
+                                    <label class="modern-label">Cognome</label>
+                                    <input type="text" class="modern-input" id="my-last-name" value="${myCollab.last_name || ''}" required>
+                                </div>
+                                <div class="modern-form-group">
+                                    <label class="modern-label">Data di Nascita</label>
+                                    <input type="date" class="modern-input" id="my-birth-date" value="${myCollab.birth_date || ''}">
+                                </div>
+                                <div class="modern-form-group">
+                                    <label class="modern-label">Luogo di Nascita</label>
+                                    <input type="text" class="modern-input" id="my-birth-place" value="${myCollab.birth_place || ''}" placeholder="Es. Roma (RM)">
+                                </div>
+                                <div class="modern-form-group">
+                                    <label class="modern-label">Email</label>
+                                    <input type="email" class="modern-input" value="${myCollab.email || ''}" disabled style="opacity: 0.7; cursor: not-allowed; background: #f1f5f9;">
+                                </div>
+                                <div class="modern-form-group">
+                                    <label class="modern-label">Telefono</label>
+                                    <input type="text" class="modern-input" id="my-phone" value="${myCollab.phone || ''}">
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Address -->
+                        <div class="settings-section">
+                            <h4 class="settings-section-title">
+                                <span class="material-icons-round" style="color: var(--brand-blue); background: #eff6ff; padding: 6px; border-radius: 8px;">home</span>
+                                Residenza
+                            </h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+                                <div class="modern-form-group" style="grid-column: 1/-1;">
+                                    <label class="modern-label">Indirizzo</label>
+                                    <input type="text" class="modern-input" id="my-address" value="${myCollab.address || ''}" placeholder="Via/Piazza, Civico">
+                                </div>
+                                <div class="modern-form-group">
+                                    <label class="modern-label">Città</label>
+                                    <input type="text" class="modern-input" id="my-address-city" value="${myCollab.address_city || ''}">
+                                </div>
+                                <div class="modern-form-group">
+                                    <label class="modern-label">Provincia</label>
+                                    <input type="text" class="modern-input" id="my-address-province" value="${myCollab.address_province || ''}" maxlength="2" style="text-transform: uppercase;" placeholder="RM">
+                                </div>
+                                <div class="modern-form-group">
+                                    <label class="modern-label">CAP</label>
+                                    <input type="text" class="modern-input" id="my-address-cap" value="${myCollab.address_cap || ''}" maxlength="5">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fiscal & Bank -->
+                        <div class="settings-section">
+                            <h4 class="settings-section-title">
+                                <span class="material-icons-round" style="color: var(--brand-blue); background: #eff6ff; padding: 6px; border-radius: 8px;">account_balance_wallet</span>
+                                Dati Fiscali & Bancari
+                            </h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                                <div class="modern-form-group">
+                                    <label class="modern-label">Codice Fiscale</label>
+                                    <input type="text" class="modern-input" id="my-fiscal-code" value="${myCollab.fiscal_code || ''}" style="text-transform: uppercase;">
+                                </div>
+                                <div class="modern-form-group">
+                                    <label class="modern-label">P.IVA</label>
+                                    <input type="text" class="modern-input" id="my-vat" value="${myCollab.vat_number || ''}">
+                                </div>
+                                <div class="modern-form-group" style="grid-column: 1/-1;">
+                                    <label class="modern-label">PEC</label>
+                                    <input type="email" class="modern-input" id="my-pec" value="${myCollab.pec || ''}">
+                                </div>
+                                <div class="modern-form-group" style="grid-column: 1/-1;">
+                                    <label class="modern-label">Banca</label>
+                                    <input type="text" class="modern-input" id="my-bank-name" value="${myCollab.bank_name || ''}">
+                                </div>
+                                <div class="modern-form-group" style="grid-column: 1/-1;">
+                                    <label class="modern-label">IBAN</label>
+                                    <input type="text" class="modern-input" id="my-iban" value="${myCollab.iban || ''}" style="font-family: monospace; letter-spacing: 1px;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Documents -->
+                        <div class="settings-section">
+                            <h4 class="settings-section-title">
+                                <span class="material-icons-round" style="color: var(--brand-blue); background: #eff6ff; padding: 6px; border-radius: 8px;">folder_shared</span>
+                                Documenti Personali
+                            </h4>
+                            <p style="margin: -1rem 0 1.5rem 0; color: var(--text-secondary); font-size: 0.9rem;">
+                                Carica i documenti necessari. I file sono protetti e visibili solo all'amministrazione.
+                            </p>
                             
-                            <!-- Doc 2: Identity Back -->
-                            <div class="doc-card" style="background: white; border: 1px solid var(--glass-border); border-radius: 12px; padding: 1.5rem; text-align: center;">
-                                <div class="doc-icon" style="margin-bottom: 1rem;">
-                                     <span class="material-icons-round" style="font-size: 2.5rem; color: ${myCollab.document_id_back_url ? '#10B981' : 'var(--text-tertiary)'};">${myCollab.document_id_back_url ? 'check_circle' : 'flip_to_back'}</span>
-                                </div>
-                                <h5 style="margin: 0 0 0.5rem 0;">Carta d'Identità (Retro)</h5>
-                                <div class="doc-actions">
-                                    <input type="file" id="upload-doc-id-back" hidden accept="image/*,.pdf">
-                                    <button type="button" class="secondary-btn small upload-doc-btn" data-target="upload-doc-id-back" style="width: 100%;">
-                                        ${myCollab.document_id_back_url ? 'Sostituisci' : 'Carica'}
-                                    </button>
-                                     ${myCollab.document_id_back_url ? `<a href="#" onclick="window.openSignedUrl('${myCollab.document_id_back_url}', 'Carta Identità Retro'); return false;" style="display:block; margin-top:0.5rem; font-size:0.8rem; color:var(--brand-blue);">Visualizza</a>` : ''}
-                                </div>
-                            </div>
-
-                            <!-- Doc 3: Health Card -->
-                            <div class="doc-card" style="background: white; border: 1px solid var(--glass-border); border-radius: 12px; padding: 1.5rem; text-align: center;">
-                                <div class="doc-icon" style="margin-bottom: 1rem;">
-                                     <span class="material-icons-round" style="font-size: 2.5rem; color: ${myCollab.document_health_card_url ? '#10B981' : 'var(--text-tertiary)'};">${myCollab.document_health_card_url ? 'check_circle' : 'medical_services'}</span>
-                                </div>
-                                <h5 style="margin: 0 0 0.5rem 0;">Tessera Sanitaria</h5>
-                                <div class="doc-actions">
-                                    <input type="file" id="upload-doc-health" hidden accept="image/*,.pdf">
-                                    <button type="button" class="secondary-btn small upload-doc-btn" data-target="upload-doc-health" style="width: 100%;">
-                                        ${myCollab.document_health_card_url ? 'Sostituisci' : 'Carica'}
-                                    </button>
-                                    ${myCollab.document_health_card_url ? `<a href="#" onclick="window.openSignedUrl('${myCollab.document_health_card_url}', 'Tessera Sanitaria'); return false;" style="display:block; margin-top:0.5rem; font-size:0.8rem; color:var(--brand-blue);">Visualizza</a>` : ''}
-                                </div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+                                <!-- Helper to create dropzone -->
+                                ${(() => {
+            const renderDropzone = (id, label, currentUrl, field) => `
+                                        <div class="upload-zone ${currentUrl ? 'has-file' : ''}" data-target="${id}">
+                                            <input type="file" id="${id}" hidden accept="image/*,.pdf">
+                                            <div class="doc-status-badge">
+                                                ${currentUrl ? '<span style="display:flex;align-items:center;gap:4px;"><span class="material-icons-round" style="font-size:14px;">check</span> CARICATO</span>' : 'MANCANTE'}
+                                            </div>
+                                            
+                                            <div style="margin-bottom: 1rem; transition: transform 0.2s;">
+                                                <span class="material-icons-round" style="font-size: 3rem; color: ${currentUrl ? '#10B981' : '#94a3b8'};">
+                                                    ${currentUrl ? 'description' : 'cloud_upload'}
+                                                </span>
+                                            </div>
+                                            
+                                            <h5 style="margin: 0; font-size: 1rem; color: var(--text-primary);">${label}</h5>
+                                            
+                                            <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">
+                                                ${currentUrl
+                    ? `<a href="#" onclick="event.stopPropagation(); window.openSignedUrl('${currentUrl}', '${label}'); return false;" style="color: var(--brand-blue); font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">Verified • Visualizza <span class="material-icons-round" style="font-size: 14px;">open_in_new</span></a>`
+                    : 'Trascina o clicca per caricare'
+                }
+                                            </div>
+                                            
+                                            <button type="button" class="upload-doc-btn" data-target="${id}" style="display:none;"></button>
+                                        </div>
+                                    `;
+            return `
+                                        ${renderDropzone('upload-doc-id-front', "Carta d'Identità (Fronte)", myCollab.document_id_front_url)}
+                                        ${renderDropzone('upload-doc-id-back', "Carta d'Identità (Retro)", myCollab.document_id_back_url)}
+                                        ${renderDropzone('upload-doc-health', "Tessera Sanitaria", myCollab.document_health_card_url)}
+                                    `;
+        })()}
                             </div>
                         </div>
 
-                        <!-- System Settings -->
-                         <h4 style="margin: 2rem 0 1rem 0; color: var(--brand-blue); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">Impostazioni Sistema</h4>
-                        <div class="form-group full-width">
-                            <label>Fuso Orario</label>
-                            <select id="my-timezone" style="width: 100%; padding: 0.8rem; border: 1px solid var(--glass-border); border-radius: 8px; background: white;">
-                                <option value="Europe/Rome">Europe/Rome (GMT+1/GMT+2)</option>
-                                <option value="Europe/London">Europe/London (GMT+0/GMT+1)</option>
-                                <option value="America/New_York">America/New_York (GMT-5/GMT-4)</option>
-                                <option value="America/Los_Angeles">America/Los_Angeles (GMT-8/GMT-7)</option>
-                                <option value="Asia/Tokyo">Asia/Tokyo (GMT+9)</option>
-                                <option value="Asia/Dubai">Asia/Dubai (GMT+4)</option>
-                                <option value="Australia/Sydney">Australia/Sydney (GMT+10/GMT+11)</option>
-                                <option value="UTC">UTC (GMT+0)</option>
-                            </select>
+                         <!-- System -->
+                        <div class="settings-section" style="margin-bottom: 0;">
+                            <h4 class="settings-section-title">
+                                <span class="material-icons-round" style="color: var(--text-secondary); background: #f1f5f9; padding: 6px; border-radius: 8px;">settings</span>
+                                Sistema
+                            </h4>
+                            <div class="modern-form-group">
+                                <label class="modern-label">Fuso Orario</label>
+                                <div style="position: relative;">
+                                    <select id="my-timezone" class="modern-input" style="appearance: none; cursor: pointer;">
+                                        <option value="Europe/Rome">Europe/Rome (GMT+1/GMT+2)</option>
+                                        <option value="Europe/London">Europe/London (GMT+0/GMT+1)</option>
+                                        <option value="America/New_York">America/New_York (GMT-5/GMT-4)</option>
+                                        <option value="America/Los_Angeles">America/Los_Angeles (GMT-8/GMT-7)</option>
+                                        <option value="Asia/Tokyo">Asia/Tokyo (GMT+9)</option>
+                                        <option value="Asia/Dubai">Asia/Dubai (GMT+4)</option>
+                                        <option value="Australia/Sydney">Australia/Sydney (GMT+10/GMT+11)</option>
+                                        <option value="UTC">UTC (GMT+0)</option>
+                                    </select>
+                                    <span class="material-icons-round" style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-secondary);">expand_more</span>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
-                            <button type="submit" class="primary-btn">Salva Modifiche</button>
+                        <!-- Floating Save Bar (Visible when changes made? For now permanent) -->
+                        <div style="position: sticky; bottom: -2rem; margin: 0 -2rem -2rem -2rem; padding: 1.5rem; background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); border-top: 1px solid var(--glass-border); display: flex; justify-content: flex-end; align-items: center; gap: 1rem;">
+                            <span style="font-size: 0.85rem; color: var(--text-tertiary);">Le modifiche vengono salvate automaticamente? No, clicca Salva.</span>
+                            <button type="submit" class="primary-btn" style="padding: 0.8rem 2.5rem; font-size: 1rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);">
+                                Salva Modifiche
+                            </button>
                         </div>
                     </form>
-
-                    <!-- Settings Form ends here -->
                 </div>
             </div>
 
@@ -451,7 +557,7 @@ export async function renderUserProfile(container) {
         };
     }
 
-    // --- Document Upload Logic ---
+    // --- Document Upload Logic (Drag & Drop) ---
     window.openSignedUrl = async (path, title) => {
         try {
             const { data, error } = await supabase.storage
@@ -466,89 +572,99 @@ export async function renderUserProfile(container) {
         }
     };
 
-    const docButtons = container.querySelectorAll('.upload-doc-btn');
-    docButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const targetId = btn.dataset.target;
-            const input = document.getElementById(targetId);
-            if (input) input.click();
-        });
-    });
-
     const docInputs = [
         { id: 'upload-doc-id-front', field: 'document_id_front_url', type: 'id_front' },
         { id: 'upload-doc-id-back', field: 'document_id_back_url', type: 'id_back' },
         { id: 'upload-doc-health', field: 'document_health_card_url', type: 'health_card' }
     ];
 
+    const processingUpload = async (file, docConfig, zoneElement) => {
+        if (!file) return;
+
+        // UI Loading State
+        const originalContent = zoneElement.innerHTML;
+        zoneElement.innerHTML = `
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;">
+                <span class="material-icons-round rotating" style="font-size: 3rem; color: var(--brand-blue);">sync</span>
+                <p style="margin-top:1rem; color:var(--brand-blue); font-weight:500;">Caricamento...</p>
+            </div>
+        `;
+        zoneElement.style.pointerEvents = 'none';
+
+        try {
+            const userId = state.session.user.id;
+            const fileExt = file.name.split('.').pop();
+            const filePath = `${userId}/${docConfig.type}_${Date.now()}.${fileExt}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('secure_collaborator_documents')
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: true
+                });
+
+            if (uploadError) throw uploadError;
+
+            // Update Database
+            const updateData = { [docConfig.field]: filePath };
+            await upsertCollaborator({ ...myCollab, ...updateData });
+
+            // Success Feedback
+            window.showAlert('Documento caricato con successo!', 'success');
+
+            // Re-render to show updated state (green checkmark etc.)
+            // We use renderUserProfile with current container to refresh the view
+            renderUserProfile(container);
+
+        } catch (err) {
+            console.error("Doc upload error:", err);
+            window.showAlert('Errore upload: ' + err.message, 'error');
+            // Restore original UI on error
+            zoneElement.innerHTML = originalContent;
+            zoneElement.style.pointerEvents = 'auto';
+            // Re-attach listeners for the restored content? 
+            // Actually, since we replaced innerHTML, we broke references to the input inside.
+            // It's safer to just re-render the whole profile to reset state cleanly.
+            renderUserProfile(container);
+        }
+    };
+
     docInputs.forEach(doc => {
         const input = document.getElementById(doc.id);
-        if (!input) return;
+        const zone = container.querySelector(`[data-target="${doc.id}"]`);
 
-        input.addEventListener('change', async (e) => {
+        if (!input || !zone) return;
+
+        // Click on Zone triggers input
+        zone.addEventListener('click', () => input.click());
+
+        // File Input Change
+        input.addEventListener('change', (e) => {
             const file = e.target.files[0];
-            if (!file) return;
+            processingUpload(file, doc, zone);
+        });
 
-            const btn = container.querySelector(`[data-target="${doc.id}"]`);
-            const originalText = btn.innerHTML; // Check logic
-            btn.innerHTML = 'Caricamento...';
-            btn.disabled = true;
+        // Drag & Drop Events
+        zone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            zone.style.borderColor = 'var(--brand-blue)';
+            zone.style.backgroundColor = '#f0f9ff';
+        });
 
-            try {
-                // Use session user id for consistent folder structure
-                // But wait, if admin is viewing another user?
-                // RLS on upload says: foldername must match auth.uid().
-                // So I MUST use state.session.user.id
-                // This implies an admin cannot upload FOR a user unless they can impersonate auth context (impossible)
-                // OR unless I change the RLS to allow admins to upload to any folder.
-                // My RLS was: INSERT TO authenticated WITH CHECK foldername = auth.uid().
-                // So only the user themselves can upload. PROBABLY OK for now.
-                // If I am Impersonating, `state.session.user.id` is ME (User/Admin), but `myCollab.id` is TARGET.
-                // If I upload, it goes to MY folder.
-                // This is a flaw if Admins need to upload for others.
-                // But the user request said "permettere ai collaboratori di caricare", so SELF-upload is key.
+        zone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            zone.style.borderColor = '#cbd5e1';
+            zone.style.backgroundColor = 'white';
+        });
 
-                const userId = state.session.user.id;
-                const fileExt = file.name.split('.').pop();
-                const filePath = `${userId}/${doc.type}_${Date.now()}.${fileExt}`;
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zone.style.borderColor = '#cbd5e1';
+            zone.style.backgroundColor = 'white';
 
-                const { error: uploadError } = await supabase.storage
-                    .from('secure_collaborator_documents')
-                    .upload(filePath, file, {
-                        cacheControl: '3600',
-                        upsert: true
-                    });
-
-                if (uploadError) throw uploadError;
-
-                const updateData = {
-                    [doc.field]: filePath
-                };
-
-                // Updating THE collaborator record (myCollab)
-                // This works even if I am admin uploading for myself.
-                // If I am admin and `myCollab` is another user...
-                // I save `my-admin-id/file.pdf` into `other-user-collab-record`.
-                // Access RLS allows admin (me) to view everything so I can see it.
-                // The Other User (owner of profile) trying to view it:
-                // SELECT policy: foldername = auth.uid().
-                // If folder is `admin-id`, User CANNOT see it.
-
-                // FIX: If basic requirement is "Collaborator uploads for themselves", this works perfect.
-                // If Admin uploads for them, we have an issue.
-                // I will assume for now it's self-service.
-
-                await upsertCollaborator({ ...myCollab, ...updateData });
-
-                myCollab[doc.field] = filePath;
-                window.showAlert('Documento caricato con successo!', 'success');
-                renderUserProfile(container);
-
-            } catch (err) {
-                console.error("Doc upload error:", err);
-                window.showAlert('Errore upload: ' + err.message, 'error');
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                processingUpload(file, doc, zone);
             }
         });
     });
