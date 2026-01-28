@@ -281,7 +281,7 @@ export async function renderUserProfile(container) {
                     return `
                                                 <div class="upload-zone has-file" id="zone-${id}" style="cursor: default; background: #fff; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 12px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.5rem;">
                                                     
-                                                    <span class="material-icons-round" style="color: #059669; font-size: 28px;">check_circle</span>
+                                                    <span class="material-icons-round" style="color: #059669; font-size: 22px;">check_circle</span>
                                                     <h5 style="margin: 0; font-size: 0.85rem; color: var(--text-primary); font-weight: 600; line-height: 1.3;">${label}</h5>
                                                     <div style="font-size: 0.7rem; color: #059669; font-weight: 500;">Caricato</div>
 
@@ -300,7 +300,7 @@ export async function renderUserProfile(container) {
                                                     }
                                                     .icon-btn-doc-clean:hover { color: var(--brand-blue); }
                                                     .icon-btn-doc-clean.danger:hover { color: #ef4444; }
-                                                    .icon-btn-doc-clean span { font-size: 18px; }
+                                                    .icon-btn-doc-clean span { font-size: 16px; }
                                                 </style>
                                             `;
                 } else {
@@ -308,7 +308,7 @@ export async function renderUserProfile(container) {
                                                 <div class="upload-zone" id="zone-${id}" data-target="${id}" style="cursor: pointer; background: #f8fafc; border: 1px dashed #cbd5e1; padding: 1rem; border-radius: 12px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.5rem; transition: all 0.2s;">
                                                     <input type="file" id="${id}" hidden accept="image/*,.pdf,.heic">
                                                     
-                                                    <span class="material-icons-round" style="color: #94a3b8; font-size: 28px;">cloud_upload</span>
+                                                    <span class="material-icons-round" style="color: #94a3b8; font-size: 22px;">cloud_upload</span>
                                                     <h5 style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; line-height: 1.3;">${label}</h5>
                                                     <div style="font-size: 0.7rem; color: var(--text-tertiary);">Clicca per caricare</div>
                                                 </div>
