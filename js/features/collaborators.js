@@ -3,6 +3,23 @@ import { formatAmount } from '../modules/utils.js?v=148';
 import { openDepartmentManager } from './settings.js?v=148';
 import { upsertCollaborator, fetchPayments, fetchAssignments, fetchPassiveInvoices, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js?v=148';
 import { loadAvailabilityIntoContainer } from './availability_manager.js?v=148';
+import { supabase } from '../modules/config.js?v=148';
+
+// Global signed URL opener for secure documents (if not already defined elsewhere)
+if (!window.openSignedUrl) {
+    window.openSignedUrl = async (path) => {
+        try {
+            const { data, error } = await supabase.storage
+                .from('secure_collaborator_documents')
+                .createSignedUrl(path, 60 * 60); // 1 hour
+            if (error) throw error;
+            window.open(data.signedUrl, '_blank');
+        } catch (err) {
+            console.error("Error signing URL:", err);
+            window.showAlert?.('Impossibile aprire il documento: ' + err.message, 'error');
+        }
+    };
+}
 
 export function renderCollaborators(container) {
     const renderGrid = () => {
@@ -786,7 +803,7 @@ export function renderCollaboratorDetail(container) {
                                             <span class="material-icons-round" style="font-size: 1rem; color: ${doc.url ? '#10b981' : '#94a3b8'};">${doc.url ? 'check_circle' : 'radio_button_unchecked'}</span>
                                             <span style="font-size: 0.85rem; color: ${doc.url ? 'var(--text-primary)' : 'var(--text-tertiary)'};">${doc.label}</span>
                                         </div>
-                                        ${doc.url ? `<button onclick="window.open('${doc.url}', '_blank')" style="background: none; border: none; cursor: pointer; color: var(--brand-blue); display: flex; align-items: center;"><span class="material-icons-round" style="font-size: 1.1rem;">visibility</span></button>` : ''}
+                                        ${doc.url ? `<button onclick="window.openSignedUrl ? window.openSignedUrl('${doc.url}') : window.open('${doc.url}', '_blank')" style="background: none; border: none; cursor: pointer; color: var(--brand-blue); display: flex; align-items: center;"><span class="material-icons-round" style="font-size: 1.1rem;">visibility</span></button>` : ''}
                                     </div>
                                 `).join('')}
                             </div>
