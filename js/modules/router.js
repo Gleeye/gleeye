@@ -197,7 +197,7 @@ function render() {
                 break;
             case 'admin':
                 if (pageTitle) pageTitle.textContent = 'Amministrazione';
-                import('../features/admin/admin-dashboard.js').then(module => {
+                import('../features/admin/admin-dashboard.js?v=153').then(module => {
                     module.renderAdminDashboard(contentArea);
                 });
                 break;

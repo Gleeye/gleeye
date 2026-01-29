@@ -671,6 +671,62 @@
 }
 
 /* ========================================
+   Notification Center Buttons
+   ======================================== */
+
+/* Mark All as Read Button */
+.notification-center-container .secondary-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.notification-center-container .secondary-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.notification-center-container .secondary-btn .material-icons-round {
+    font-size: 16px;
+}
+
+.notification-center-container .secondary-btn.small {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+/* Action Link Button (Vedi Prenotazione) */
+.nc-actions .text-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background: rgba(var(--primary-rgb, 59, 130, 246), 0.08);
+    color: var(--primary);
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.nc-actions .text-btn:hover {
+    background: rgba(var(--primary-rgb, 59, 130, 246), 0.15);
+}
+
+/* ========================================
    Responsive
    ======================================== */
 @media (max-width: 600px) {

@@ -2,6 +2,7 @@
 // js/features/admin/admin-dashboard.js
 import { state } from '../../modules/state.js?v=148';
 import { renderAdminNotifications } from '../notifications.js?v=148';
+import { renderNotificationLogs } from './notification_logs.js?v=148';
 
 export function renderAdminDashboard(container) {
     const activeRole = state.impersonatedRole || state.profile?.role;
@@ -44,6 +45,16 @@ export function renderAdminDashboard(container) {
                         <span style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
                             <span class="material-icons-round">science</span>
                             Laboratorio
+                        </span>
+                    </button>
+                    <button class="tab-btn" data-tab="logs" style="
+                        flex: 1; padding: 1rem; border: none; background: none; 
+                        border-bottom: 2px solid transparent; color: var(--text-secondary); 
+                        font-weight: 500; cursor: pointer; transition: all 0.2s;
+                    ">
+                        <span style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <span class="material-icons-round">list_alt</span>
+                            Log Notifiche
                         </span>
                     </button>
                 </div>
@@ -90,6 +101,12 @@ export function renderAdminDashboard(container) {
                     
                     <!-- Notifications Settings will be injected here -->
                     <div id="admin-notifications-container"></div>
+
+                </div>
+
+                <!-- Tab Content: Logs -->
+                <div id="tab-logs" class="tab-content hidden" style="padding: 2rem;">
+                    <div id="admin-logs-container">Loading logs...</div>
                 </div>
 
                 <!-- Tab Content: Labs -->
@@ -156,6 +173,12 @@ export function renderAdminDashboard(container) {
             // Show content
             const targetId = `tab-${tab.dataset.tab}`;
             container.querySelector(`#${targetId}`).classList.remove('hidden');
+
+            // Render logs if logs tab is active
+            if (tab.dataset.tab === 'logs') {
+                const logsContainer = container.querySelector('#admin-logs-container');
+                renderNotificationLogs(logsContainer);
+            }
         });
     });
 
