@@ -5,6 +5,7 @@ import { it } from 'date-fns/locale';
 
 interface Collaborator {
     id: string;
+    user_id?: string;
     first_name: string;
     last_name: string;
     avatar_url?: string;
@@ -58,6 +59,7 @@ export default function AvailabilityCalendar() {
     const [googleBusy, setGoogleBusy] = useState<GoogleBusy[]>([]);
     const [activeDept, setActiveDept] = useState<string | 'all'>('all');
     const [activeCollab, setActiveCollab] = useState<string | 'all'>('all');
+    const [timezones, setTimezones] = useState<Record<string, string>>({});
     const [hoveredBlock, setHoveredBlock] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -81,7 +83,7 @@ export default function AvailabilityCalendar() {
                 // Fetch core data first
                 const [{ data: deptData }, { data: collabData }, { data: rulesData }, { data: overridesData }] = await Promise.all([
                     supabase.from('departments').select('*').order('name'),
-                    supabase.from('collaborators').select('id, first_name, last_name, avatar_url, role, tags').order('first_name'),
+                    supabase.from('collaborators').select('id, user_id, first_name, last_name, avatar_url, role, tags').order('first_name'),
                     supabase.from('availability_rules').select('*'),
                     supabase.from('availability_overrides').select('*').gte('date', format(weekStart, 'yyyy-MM-dd')).lte('date', format(weekEnd, 'yyyy-MM-dd'))
                 ]);
@@ -90,7 +92,22 @@ export default function AvailabilityCalendar() {
 
                 // Update Core State immediately
                 if (deptData) setDepartments(deptData);
-                if (collabData) setCollaborators(collabData);
+                if (collabData) {
+                    setCollaborators(collabData);
+                    // Fetch Timezones
+                    const userIds = collabData.map(c => c.user_id).filter(Boolean);
+                    if (userIds.length > 0) {
+                        const { data: profiles } = await supabase.from('profiles').select('id, timezone').in('id', userIds);
+                        if (profiles) {
+                            const tzMap: Record<string, string> = {};
+                            collabData.forEach(c => {
+                                const p = profiles.find(x => x.id === c.user_id);
+                                if (p && p.timezone) tzMap[c.id] = p.timezone;
+                            });
+                            setTimezones(tzMap);
+                        }
+                    }
+                }
                 if (rulesData) setRules(rulesData);
                 if (overridesData) setOverrides(overridesData);
 
@@ -247,15 +264,82 @@ export default function AvailabilityCalendar() {
                 freeIntervals = newIntervals;
             });
 
+            // Helper to convert normalized hours (e.g. 9.5) to Viewer TZ
+            const convertToLocal = (h: number) => {
+                const collabTz = timezones[rule.collaborator_id];
+                const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+                if (!collabTz || collabTz === viewerTz) return h;
+
+                try {
+                    // 1. Construct Date in Collab TZ
+                    const hours = Math.floor(h);
+                    const minutes = Math.round((h - hours) * 60);
+
+                    const now = new Date();
+                    const d = new Date(now);
+                    d.setHours(hours, minutes, 0, 0);
+
+                    // 2. Find offset difference
+                    // Wall time in CollabTZ: HH:MM. We need to find real timestamp.
+                    const getParts = (ts: Date, tz: string) => new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(ts);
+
+                    // Simple offset approximation
+                    // This creates a date where "computer local time" matches the source HH:MM.
+                    // We need to shift it so that "Wall Time in CollabTZ" matches HH:MM.
+                    // ... Actually, `AvailabilityManager` logic was:
+                    // Guess = Date with target HH:MM in Local.
+                    // Check Guess in SourceTZ. Diff. Shift.
+
+                    const guess = new Date(d);
+
+                    const getRoughMinutes = (dt: Date, tz: string) => {
+                        const p = getParts(dt, tz);
+                        let _h = parseInt(p.find(x => x.type === 'hour')!.value);
+                        if (_h === 24) _h = 0;
+                        let _m = parseInt(p.find(x => x.type === 'minute')!.value);
+                        return _h * 60 + _m;
+                    };
+
+                    const currentMins = getRoughMinutes(guess, collabTz);
+                    const targetMins = hours * 60 + minutes;
+                    let diff = currentMins - targetMins;
+
+                    if (diff > 720) diff -= 1440;
+                    if (diff < -720) diff += 1440;
+
+                    guess.setMinutes(guess.getMinutes() - diff);
+
+                    // Now `guess` is the timestamp where it is HH:MM in CollabTZ.
+                    // We just want to display it in ViewerTZ (which is just .getHours()/.getMinutes() of `guess` in browser local).
+
+                    return guess.getHours() + guess.getMinutes() / 60;
+
+                } catch (e) {
+                    return h;
+                }
+            };
+
             // Create rule entries for each free interval
             freeIntervals.forEach((interval, idx) => {
                 if (interval.end - interval.start > 0) {
-                    result.push({
-                        ...rule,
-                        id: `${rule.id}_${idx}`,
-                        start_time: formatTime(interval.start),
-                        end_time: formatTime(interval.end)
-                    });
+                    // CONVERT TO LOCAL TIME HERE
+                    const localStart = convertToLocal(interval.start);
+                    const localEnd = convertToLocal(interval.end);
+
+                    // Check bounds (07:00 - 21:00 view range is handled by CSS/Rendering later? 
+                    // No, `timeToPosition` assumes 7-21 range.
+                    // If local time is outside range, it might render off-screen or negative.
+                    // The UI handles overlapping, so offscreen is fine.)
+
+                    if (localEnd > localStart) { // Ensure validity after conversion (wrapping handled simply)
+                        result.push({
+                            ...rule,
+                            id: `${rule.id}_${idx}`,
+                            start_time: formatTime(localStart),
+                            end_time: formatTime(localEnd)
+                        });
+                    }
                 }
             });
         });
