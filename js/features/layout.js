@@ -127,7 +127,12 @@ function activateDrillDown(categoryItem, submenu) {
         item.addEventListener('click', (e) => {
             // Keep the drill-down open when navigating between sub-items
             // The router will handle the view change via hashchange
-            console.log(`[DrillDown] Navigating to: ${item.getAttribute('href')}`);
+            const targetHash = item.getAttribute('href');
+            console.log(`[DrillDown] Navigating to: ${targetHash}`);
+
+            if (targetHash) {
+                window.location.hash = targetHash;
+            }
 
             // Add a slight delay for visual feedback if needed, but don't exit
             setTimeout(() => {
