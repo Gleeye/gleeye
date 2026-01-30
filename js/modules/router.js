@@ -49,8 +49,31 @@ export function router() {
     // --- ACCESS CONTROL / IMPERSONATION ---
     const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
 
+    // Parse Tags for Privileged Access (Partner / Amministrazione)
+    let userTags = [];
+    if (state.impersonatedRole === 'collaborator' && state.impersonatedCollaboratorId) {
+        // Use impersonated user tags
+        const c = state.collaborators?.find(x => x.id == state.impersonatedCollaboratorId);
+        if (c) {
+            let tags = c.tags;
+            if (typeof tags === 'string') {
+                try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
+            }
+            userTags = Array.isArray(tags) ? tags : [];
+        }
+    } else {
+        // Use real user tags
+        let tags = state.profile?.tags;
+        if (typeof tags === 'string') {
+            try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
+        }
+        userTags = Array.isArray(tags) ? tags : [];
+    }
+
+    const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
+
     // List of pages allowed for Collaborators (standard - no special tags)
-    const allowedPagesForCollaborator = ['profile', 'agenda', 'my-assignments'];
+    const allowedPagesForCollaborator = ['profile', 'agenda', 'my-assignments', 'booking']; // Added booking just in case
 
     // Don't redirect if we are still fetching profile/auth - wait for it
     if (state.isFetching && activeRole === 'collaborator') {
@@ -58,9 +81,10 @@ export function router() {
         return;
     }
 
-    console.log(`[Router] Routing to: ${state.currentPage}, Role: ${activeRole}`);
+    console.log(`[Router] Routing to: ${state.currentPage}, Role: ${activeRole}, Privileged: ${isPrivilegedCollaborator}`);
 
-    if (activeRole !== 'admin' && !allowedPagesForCollaborator.includes(state.currentPage)) {
+    // Allow if Admin OR Privileged OR Page is Allowed
+    if (activeRole !== 'admin' && !isPrivilegedCollaborator && !allowedPagesForCollaborator.includes(state.currentPage)) {
         console.warn(`[Router] Access denied for role '${activeRole}' to page '${state.currentPage}'. Redirecting...`);
         // Force redirect to a safe page - Agenda is the default for standard collaborators
         state.currentPage = 'agenda';
