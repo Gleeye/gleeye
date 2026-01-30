@@ -17,7 +17,7 @@ import {
 } from '../modules/api.js?v=148';
 import { state } from '../modules/state.js?v=148';
 import { supabase } from '../modules/config.js?v=148';
-import { supabase } from '../modules/config.js?v=148';
+
 
 // Reusable function to open availability in a system modal
 export async function openAvailabilityModal(collaboratorId, onCloseCallbacks = []) {
