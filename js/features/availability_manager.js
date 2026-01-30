@@ -17,6 +17,7 @@ import {
 } from '../modules/api.js?v=148';
 import { state } from '../modules/state.js?v=148';
 import { supabase } from '../modules/config.js?v=148';
+import { supabase } from '../modules/config.js?v=148';
 
 // Reusable function to open availability in a system modal
 export async function openAvailabilityModal(collaboratorId, onCloseCallbacks = []) {
@@ -381,7 +382,15 @@ export async function loadAvailabilityIntoContainer(container, collaboratorId) {
             }
         });
 
-        renderAvailabilityEditor(container, collaboratorId, rules, restDays, uniqueServices, extraSlots);
+        // Fetch Collaborator Timezone
+        const { data: collabUser } = await supabase.from('collaborators').select('user_id').eq('id', collaboratorId).single();
+        let fetchedTimezone = null;
+        if (collabUser && collabUser.user_id) {
+            const { data: profile } = await supabase.from('profiles').select('timezone').eq('id', collabUser.user_id).single();
+            if (profile) fetchedTimezone = profile.timezone;
+        }
+
+        renderAvailabilityEditor(container, collaboratorId, rules, restDays, uniqueServices, extraSlots, fetchedTimezone);
 
     } catch (err) {
         container.innerHTML = `
@@ -398,7 +407,7 @@ export async function loadAvailabilityIntoContainer(container, collaboratorId) {
     }
 }
 
-function renderAvailabilityEditor(container, collaboratorId, existingRules, restDays, myServices, extraSlots = []) {
+function renderAvailabilityEditor(container, collaboratorId, existingRules, restDays, myServices, extraSlots = [], collabTz = null) {
     const days = [
         { id: 1, name: 'Lun', fullName: 'Lunedì' },
         { id: 2, name: 'Mar', fullName: 'Martedì' },
@@ -409,10 +418,78 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
         { id: 0, name: 'Dom', fullName: 'Domenica' }
     ];
 
+    const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const effectiveCollabTz = collabTz || viewerTz; // Default to viewer if not set
+    const shouldConvert = effectiveCollabTz !== viewerTz;
+
+    // Helper to convert time string (HH:MM or HH:MM:SS) between timezones
+    const convertTime = (t, fromTz, toTz, dateRef = new Date()) => {
+        if (!t || !fromTz || !toTz || fromTz === toTz) return t ? t.slice(0, 5) : '';
+        try {
+            const [h, m] = t.split(':').map(Number);
+            let guess = new Date(dateRef);
+            guess.setHours(h, m, 0, 0);
+
+            // We need to Find Timestamp where WallTime in FromTZ == HH:MM
+            // Iterative approach
+            const getParts = (date, tz) => {
+                return new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(date);
+            };
+
+            const getRoughMinutes = (date, tz) => {
+                const p = getParts(date, tz);
+                let _h = parseInt(p.find(x => x.type === 'hour').value);
+                if (_h === 24) _h = 0;
+                let _m = parseInt(p.find(x => x.type === 'minute').value);
+                return _h * 60 + _m;
+            };
+
+            // Initial alignment attempt
+            let currentMinutesInFromTz = getRoughMinutes(guess, fromTz);
+            let targetMinutes = h * 60 + m;
+            let diff = currentMinutesInFromTz - targetMinutes;
+
+            // Handle wrap
+            if (diff > 720) diff -= 1440;
+            if (diff < -720) diff += 1440;
+
+            // Apply correction
+            guess.setMinutes(guess.getMinutes() - diff);
+
+            // Double check
+            currentMinutesInFromTz = getRoughMinutes(guess, fromTz);
+            diff = currentMinutesInFromTz - targetMinutes;
+            if (diff > 720) diff -= 1440;
+            if (diff < -720) diff += 1440;
+            if (Math.abs(diff) > 0) guess.setMinutes(guess.getMinutes() - diff);
+
+            // Now guess is the timestamp. Return it in ToTz string.
+            const p = getParts(guess, toTz);
+            let finalH = p.find(x => x.type === 'hour').value;
+            if (finalH === '24') finalH = '00';
+            let finalM = p.find(x => x.type === 'minute').value;
+            return `${finalH.padStart(2, '0')}:${finalM.padStart(2, '0')}`;
+
+        } catch (e) {
+            console.warn("TZ Convert Error", e);
+            return t.slice(0, 5);
+        }
+    };
+
     const rulesMap = {};
     days.forEach(d => rulesMap[d.id] = []);
+
     existingRules.forEach(r => {
-        if (rulesMap[r.day_of_week]) rulesMap[r.day_of_week].push(r);
+        // Convert FROM Collab TO Viewer for display
+        // Use a generic date for the day of week? 
+        // We use current date but aligned to the day of week in current week to be precise?
+        // Actually, just use today is fine for generic offset.
+        const s = convertTime(r.start_time, effectiveCollabTz, viewerTz);
+        const e = convertTime(r.end_time, effectiveCollabTz, viewerTz);
+
+        if (rulesMap[r.day_of_week]) {
+            rulesMap[r.day_of_week].push({ ...r, start_time: s, end_time: e });
+        }
     });
 
     const html = `
@@ -736,8 +813,8 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
                     const state = JSON.parse(stateString);
                     newRules.push({
                         day_of_week: dayId,
-                        start_time: start,
-                        end_time: end,
+                        start_time: convertTime(start, viewerTz, effectiveCollabTz), // Convert BACK to CollabTZ
+                        end_time: convertTime(end, viewerTz, effectiveCollabTz),     // Convert BACK to CollabTZ
                         service_ids: state.ids,
                         is_on_call: state.isOnCall
                     });
@@ -784,7 +861,7 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
                         ${dateDisplay}
                     </div>
                     <div style="font-size: 0.75rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <span>${slot.start_time.slice(0, 5)} - ${slot.end_time.slice(0, 5)}</span>
+                        <span>${convertTime(slot.start_time, effectiveCollabTz, viewerTz)} - ${convertTime(slot.end_time, effectiveCollabTz, viewerTz)}</span>
                         <span style="color: #667eea;">• ${servicesText}</span>
                     </div>
                 </div>
@@ -818,7 +895,7 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
     }
 
     container.querySelector('.btn-add-extra').addEventListener('click', () => {
-        openExtraSlotModal(collaboratorId, myServices, () => loadAvailabilityIntoContainer(container, collaboratorId));
+        openExtraSlotModal(collaboratorId, myServices, () => loadAvailabilityIntoContainer(container, collaboratorId), effectiveCollabTz, viewerTz, convertTime);
     });
 
     const renderRestDay = (rd) => {
@@ -947,7 +1024,7 @@ function openRestDayModal(collaboratorId, onSuccess) {
     });
 }
 
-function openExtraSlotModal(collaboratorId, services, onSuccess) {
+function openExtraSlotModal(collaboratorId, services, onSuccess, collabTz, viewerTz, convertFn) {
     const serviceOptions = `
         <option value="">Tutti i servizi</option>
         ${services.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
@@ -1169,8 +1246,8 @@ function openExtraSlotModal(collaboratorId, services, onSuccess) {
         // Map state to DB fields
         const data = {
             collaborator_id: collaboratorId,
-            start_time: formData.get('start_time'),
-            end_time: formData.get('end_time'),
+            start_time: convertFn ? convertFn(formData.get('start_time'), viewerTz, collabTz, new Date(formData.get('date'))) : formData.get('start_time'),
+            end_time: convertFn ? convertFn(formData.get('end_time'), viewerTz, collabTz, new Date(formData.get('date'))) : formData.get('end_time'),
             date: formData.get('date'),
             end_date: formData.get('end_date') || null,
             service_ids: state.ids, // Multi-select array

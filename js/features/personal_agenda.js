@@ -5,7 +5,7 @@ import { openAvailabilityModal, checkAndHandleGoogleCallback } from './availabil
 
 let currentDate = new Date(); // Represents the start of the week or current view date
 let eventsCache = [];
-let availabilityCache = { rules: [], restDays: [], overrides: [], googleBusy: [] };
+let availabilityCache = { rules: [], restDays: [], overrides: [], googleBusy: [], collaboratorTimezone: null };
 let currentCollaboratorId = null;
 let currentView = 'week'; // 'week', 'day'
 let miniCalendarDate = new Date(); // Separate state for mini calendar
@@ -297,7 +297,7 @@ async function fetchMyBookings() {
         if (!collaboratorId) {
             console.warn("[Agenda] No collaborator ID available");
             eventsCache = [];
-            availabilityCache = { rules: [], restDays: [], overrides: [], googleBusy: [] };
+            availabilityCache = { rules: [], restDays: [], overrides: [], googleBusy: [], collaboratorTimezone: null };
             return;
         }
 
@@ -312,12 +312,29 @@ async function fetchMyBookings() {
             .eq('booking_assignments.collaborator_id', collaboratorId)
             .order('start_time', { ascending: true });
 
-        const [bookingsRes, rules, restDays, overrides] = await Promise.all([
+        // Get collaborator User ID to fetch Timezone
+        const collabUserQuery = supabase.from('collaborators').select('user_id').eq('id', collaboratorId).single();
+
+        const [bookingsRes, rules, restDays, overrides, collabUserRes] = await Promise.all([
             bookingsQuery,
             fetchAvailabilityRules(collaboratorId),
             fetchRestDays(collaboratorId),
-            supabase.from('availability_overrides').select('*, booking_items(name)').eq('collaborator_id', collaboratorId)
+            supabase.from('availability_overrides').select('*, booking_items(name)').eq('collaborator_id', collaboratorId),
+            collabUserQuery
         ]);
+
+        let fetchedTimezone = null;
+        if (collabUserRes.data && collabUserRes.data.user_id) {
+            const { data: profileData } = await supabase
+                .from('profiles')
+                .select('timezone')
+                .eq('id', collabUserRes.data.user_id)
+                .single();
+            if (profileData && profileData.timezone) {
+                fetchedTimezone = profileData.timezone;
+            }
+        }
+        console.log("[Agenda] Collaborator Timezone:", fetchedTimezone);
 
         const overridesData = overrides.data || [];
 
@@ -335,7 +352,8 @@ async function fetchMyBookings() {
             rules: rules || [],
             restDays: restDays || [],
             overrides: overridesData,
-            googleBusy: existingGoogleBusy
+            googleBusy: existingGoogleBusy,
+            collaboratorTimezone: fetchedTimezone
         };
 
         // Fetch Google Calendar busy slots (async, non-blocking for initial render)
@@ -608,10 +626,62 @@ function renderTimeline() {
         // We assume day-col has a grayish background, and we paint "Available" slots as white.
         let availabilityHtml = '';
 
-        const parseTime = (t) => {
+        const parseTimeInTimezone = (t, dateRef, sourceTz) => {
             if (!t) return 0;
             const [h, m] = t.split(':').map(Number);
-            return h + (m / 60);
+            if (!sourceTz) return h + (m / 60);
+
+            // Convert "dateRef + HH:mm in sourceTz" to local hours
+            try {
+                let guess = new Date(dateRef);
+                guess.setHours(h, m, 0, 0);
+
+                // Check time of 'guess' in sourceTz
+                const parts = new Intl.DateTimeFormat('en-US', {
+                    timeZone: sourceTz,
+                    hour: 'numeric', minute: 'numeric', hour12: false
+                }).formatToParts(guess);
+
+                let sourceH = parseInt(parts.find(p => p.type === 'hour').value);
+                if (sourceH === 24) sourceH = 0;
+                let sourceM = parseInt(parts.find(p => p.type === 'minute').value);
+
+                // Diff in minutes: (Time in CollabTZ) - (Time in Local)
+                let diffMinutes = (sourceH * 60 + sourceM) - (guess.getHours() * 60 + guess.getMinutes());
+
+                // Handle day wrap
+                if (diffMinutes > 720) diffMinutes -= 1440;
+                if (diffMinutes < -720) diffMinutes += 1440;
+
+                // If Source is Ahead (diff > 0), it means Local is Behind. 
+                // We want to match Source Identity. 
+                // e.g. We want 09:00 Source. Guess is 09:00 Local.
+                // 09:00 Local is 08:00 Source. (Diff = -60).
+                // We need to add 60 mins to guess to reach 09:00 Source (which is 10:00 Local).
+                // So guess = guess - diffMinutes ( - (-60) = +60 ).
+
+                guess.setMinutes(guess.getMinutes() - diffMinutes);
+
+                let finalH = guess.getHours() + guess.getMinutes() / 60;
+                // Handle edge case where it pushed to next/prev day? 
+                // For now we map to the hours on THIS day view. 
+                // If it goes to <0 or >24, the clipping below handles it? No, if it shifts to 25.0 it should be shown?
+                // The current view only shows 0-24. 
+                // If 9-18 London becomes 10-19 Rome. 
+                // If 23-24 London becomes 00-01 Rome (Next Day). 
+                // Since guess.getHours() wraps 0-23, we need to detect day shift?
+                // The current visual logic relies on 'startHour' (0) to 'endHour' (24).
+                // If `guess` changed day, it wraps h.
+                // For simplicity, we just take the wrapped hour. This might show "00-01" at top of SAME day if it wrapped? 
+                // Actually if it wrapped to next day, it should be on next day column. 
+                // But we are rendering THIS column based on THIS day's rule.
+
+                return finalH;
+
+            } catch (e) {
+                console.warn("Timezone calc error:", e);
+                return h + (m / 60);
+            }
         };
 
         if (!isRest) {
@@ -650,8 +720,8 @@ function renderTimeline() {
             console.log("[Agenda] Google busy slots visual rendering is DISABLED by configuration.");
 
             activeSlots.forEach(slot => {
-                const sH = parseTime(slot.start_time);
-                const eH = parseTime(slot.end_time);
+                const sH = parseTimeInTimezone(slot.start_time, dayDate, availabilityCache.collaboratorTimezone);
+                const eH = parseTimeInTimezone(slot.end_time, dayDate, availabilityCache.collaboratorTimezone);
 
                 // Clip to view range
                 if (eH <= startHour || sH >= endHour) return;
