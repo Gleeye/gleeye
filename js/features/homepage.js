@@ -2,7 +2,7 @@ import { state } from '../modules/state.js?v=151';
 import { supabase } from '../modules/config.js?v=151';
 import { formatAmount } from '../modules/utils.js?v=151';
 
-import { fetchAvailabilityRules } from '../modules/api.js?v=151';
+import { fetchAvailabilityRules, fetchAvailabilityOverrides } from '../modules/api.js?v=151';
 
 // We reuse fetchMyBookings but we might need a tighter scoped fetch for "Today"
 // Actually fetchMyBookings stores in `eventsCache` (not exported) or `window`?
@@ -273,17 +273,19 @@ export async function renderHomepage(container) {
         }
 
         try {
-            // Parallel Fetch: Events + Availability
-            const [events, rules] = await Promise.all([
+            // Parallel Fetch: Events + Availability + Google + Overrides
+            const [events, rules, googleBusy, overrides] = await Promise.all([
                 fetchDateEvents(myCollab.id, targetDate),
-                fetchAvailabilityRules(myCollab.id)
+                fetchAvailabilityRules(myCollab.id),
+                fetchGoogleCalendarBusy(myCollab.id, targetDate),
+                fetchAvailabilityOverrides(myCollab.id) // from api.js
             ]);
 
             // Filter rules for specific day of week
             const dayId = targetDate.getDay(); // 0-6
             const dayRules = rules.filter(r => r.day_of_week === dayId);
 
-            renderTimeline(timelineArea, events, targetDate, dayRules);
+            renderTimeline(timelineArea, events, targetDate, dayRules, googleBusy, overrides);
         } catch (e) {
             console.error(e);
             timelineArea.innerHTML = `<div style="color:red; text-align:center;">Errore caricamento</div>`;
@@ -322,163 +324,233 @@ export async function renderHomepage(container) {
     }
 }
 
-function renderTimeline(container, events, date = new Date(), availabilityRules = []) {
-    // Range Config
-    const startHour = 7;
-    const endHour = 22;
+// --- GOOGLE & AVAILABILITY HELPERS ---
+
+async function fetchGoogleCalendarBusy(collaboratorId, date) {
+    const start = new Date(date); start.setHours(0, 0, 0, 0);
+    const end = new Date(date); end.setHours(23, 59, 59, 999);
+
+    // Call existing cloud function
+    try {
+        const { data, error } = await supabase.functions.invoke('check-google-availability', {
+            body: {
+                collaborator_id: collaboratorId,
+                timeMin: start.toISOString(),
+                timeMax: end.toISOString()
+            }
+        });
+        if (error || data?.error) return [];
+        return data?.busy || [];
+    } catch (e) {
+        console.warn("Google Fetch Error:", e);
+        return [];
+    }
+}
+
+// --- MAIN RENDER LOGIC ---
+
+function renderTimeline(container, events, date = new Date(), availabilityRules = [], googleBusy = [], overrides = []) {
+    // 1. Range Config: Full Day 00:00 - 24:00 (user request)
+    const startHour = 0;
+    const endHour = 24;
     const isToday = new Date().toDateString() === date.toDateString();
+
+    // 2. Prepare Data
     const eventsSafe = events || [];
 
-    // Generate Hours Cols
+    // 3. Layout Constants
+    // We want the whole day to be scrollable but clearly readable.
+    // 00-06 is night (condensed?), 07-20 work (expanded?), 21-23 night.
+    // For simplicity, consistent width.
+    const colWidth = 100; // px per hour
+    const totalWidth = (endHour - startHour) * colWidth;
+    const pixelsPerMinute = colWidth / 60;
+    const viewStartM = startHour * 60;
+
+    // 4. Generate Track (Background Pattern = Default Busy/Closed)
+    // We use a CSS repeating gradient for the "closed" look.
     let html = '';
-    for (let h = startHour; h <= endHour; h++) {
+    for (let h = startHour; h < endHour; h++) {
         html += `
-            <div class="timeline-hour-col" data-hour="${h}">
+            <div class="timeline-hour-col" data-hour="${h}" style="width: ${colWidth}px; min-width: ${colWidth}px;">
                 <div class="timeline-hour-label">${h}:00</div>
             </div>
         `;
     }
 
-    // Main Container
     container.innerHTML = `
-        <div class="timeline-track" style="display: flex; position: relative; min-width: max-content; padding-left: 2rem; background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 10px, #f1f5f9 10px, #f1f5f9 20px);">
+        <div class="timeline-track" style="
+            display: flex; 
+            position: relative; 
+            width: ${totalWidth}px; 
+            min-width: ${totalWidth}px; 
+            padding-left: 0; 
+            background: repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 10px, #e2e8f0 10px, #e2e8f0 20px);
+        ">
             ${html}
         </div>
     `;
     const track = container.querySelector('.timeline-track');
-    track.style.gap = '0';
 
-    // Layout Constants
-    const colWidth = 120; // Matches CSS
-    const viewStartM = startHour * 60;
-    const pixelsPerMinute = colWidth / 60;
-
+    // OVERLAY Container for all Blocks
     const overlay = document.createElement('div');
     overlay.className = 'timeline-overlay';
     overlay.style.position = 'absolute';
     overlay.style.top = '0';
-    overlay.style.left = '32px'; // Matches padding-left 2rem
+    overlay.style.left = '0';
     overlay.style.height = '100%';
     overlay.style.width = '100%';
     overlay.style.pointerEvents = 'none';
 
-    // 0. Render Availability (White Blocks)
-    // We cover the "striped" background with "white" where available.
-    availabilityRules.forEach(rule => {
-        if (!rule.start_time || !rule.end_time) return;
+    // A. RENDER AVAILABILITY (White Blocks over Gray Background)
+    // Rules + Overrides (Extra specific slots for this date)
 
-        const [sh, sm] = rule.start_time.split(':').map(Number);
-        const [eh, em] = rule.end_time.split(':').map(Number);
+    // Merge Rules and Overrides into a "Open Slots" list
+    let openSlots = [];
 
-        const startM = (sh * 60) + sm;
-        const endM = (eh * 60) + em;
-
-        if (endM < viewStartM) return;
-
-        let displayStartM = Math.max(startM, viewStartM);
-        let durationM = endM - displayStartM;
-
-        const left = (displayStartM - viewStartM) * pixelsPerMinute;
-        const width = durationM * pixelsPerMinute;
-
-        const availEl = document.createElement('div');
-        availEl.style.position = 'absolute';
-        availEl.style.left = `${left}px`;
-        availEl.style.width = `${width}px`;
-        availEl.style.height = '100%';
-        availEl.style.background = 'var(--bg-main)'; // Current theme bg (white/dark)
-        // availEl.style.borderLeft = '1px dashed var(--glass-border)';
-        // availEl.style.borderRight = '1px dashed var(--glass-border)';
-        availEl.style.zIndex = '0'; // Behind events
-
-        overlay.appendChild(availEl);
+    // 1. Weekly Rules
+    availabilityRules.forEach(r => {
+        if (!r.start_time || !r.end_time) return;
+        const [sh, sm] = r.start_time.split(':').map(Number);
+        const [eh, em] = r.end_time.split(':').map(Number);
+        const sM = (sh * 60) + sm;
+        const eM = (eh * 60) + em;
+        openSlots.push({ start: sM, end: eM, source: 'rule' });
     });
 
-    // 1. Render Events
+    // 2. Extra Overrides (Specific Date) - Assuming they are ALREADY filtered for this date in fetch
+    overrides.forEach(o => {
+        if (new Date(o.date).toDateString() !== date.toDateString()) return;
+        const [sh, sm] = o.start_time.split(':').map(Number);
+        const [eh, em] = o.end_time.split(':').map(Number);
+        const sM = (sh * 60) + sm;
+        const eM = (eh * 60) + em;
+        openSlots.push({ start: sM, end: eM, source: 'override' });
+    });
+
+    // Render Open Slots (White)
+    openSlots.forEach(slot => {
+        const left = slot.start * pixelsPerMinute;
+        const width = (slot.end - slot.start) * pixelsPerMinute;
+
+        const block = document.createElement('div');
+        block.style.position = 'absolute';
+        block.style.left = `${left}px`;
+        block.style.width = `${width}px`;
+        block.style.height = '100%';
+        block.style.background = 'var(--bg-main)'; // White
+        block.style.borderLeft = '1px solid var(--glass-border)';
+        block.style.borderRight = '1px solid var(--glass-border)';
+        block.style.zIndex = '1';
+        overlay.appendChild(block);
+    });
+
+    // B. GOOGLE BUSY (Gray Blocks ON TOP of White) - "Eats" availability
+    googleBusy.forEach(busy => {
+        const startD = new Date(busy.start);
+        const endD = new Date(busy.end);
+
+        // Normalize to minutes in THIS day view
+        // Clamp to 00:00 - 24:00 of selected day
+        const viewStartD = new Date(date).setHours(0, 0, 0, 0);
+        const viewEndD = new Date(date).setHours(23, 59, 59, 999);
+
+        const effectiveStart = Math.max(startD.getTime(), viewStartD);
+        const effectiveEnd = Math.min(endD.getTime(), viewEndD);
+
+        if (effectiveEnd <= effectiveStart) return;
+
+        const startM = (effectiveStart - viewStartD) / 60000;
+        const durationM = (effectiveEnd - effectiveStart) / 60000;
+
+        const left = startM * pixelsPerMinute;
+        const width = durationM * pixelsPerMinute;
+
+        const block = document.createElement('div');
+        block.className = 'google-busy-slot';
+        block.style.position = 'absolute';
+        block.style.left = `${left}px`;
+        block.style.width = `${width}px`;
+        block.style.height = '100%';
+        block.style.background = 'repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 10px, #cbd5e1 10px, #cbd5e1 20px)'; // Darker gray hatch
+        block.style.opacity = '0.7';
+        block.style.zIndex = '2'; // Above Open Slots
+        block.title = "Impegno Google Calendar";
+        overlay.appendChild(block);
+    });
+
+    // C. INTERNAL EVENTS (Colorful Cards)
     eventsSafe.forEach(ev => {
-        const startH = ev.start.getHours();
-        const startM = ev.start.getMinutes();
+        const startTotalM = (ev.start.getHours() * 60) + ev.start.getMinutes();
+        const durationM = (ev.end - ev.start) / (1000 * 60);
 
-        let startTotalM = (startH * 60) + startM;
-
-        // Skip if ends before view starts
-        if (ev.end < new Date(date).setHours(startHour, 0, 0, 0)) return;
-
-        let displayStartM = Math.max(startTotalM, viewStartM);
-        let durationM = (ev.end - ev.start) / (1000 * 60);
-
-        // Crop duration if clipped at start
-        if (startTotalM < viewStartM) {
-            const diff = viewStartM - startTotalM;
-            durationM -= diff;
-        }
-
-        const left = (displayStartM - viewStartM) * pixelsPerMinute;
+        const left = startTotalM * pixelsPerMinute;
         const width = durationM * pixelsPerMinute;
 
         const el = document.createElement('div');
         el.className = `timeline-event-card ${ev.end < new Date() ? 'past' : ''}`;
         el.style.left = `${left}px`;
-        el.style.width = `${Math.max(width - 4, 4)}px`; // -4 for gap
+        el.style.width = `${Math.max(width - 2, 4)}px`;
+        el.style.zIndex = '10'; // Top
         el.style.pointerEvents = 'auto';
 
-        // Custom Color
-        if (ev.color) {
-            el.style.background = ev.color;
-            el.style.boxShadow = `0 4px 12px ${ev.color}40`; // 40 hex = 25% alpha approx
+        // Custom Color Logic (User Request: Appts=Purple, Bookings=Blue)
+        let bgColor = '#3b82f6'; // Default Blue (Booking)
+
+        if (ev.type === 'appointment') {
+            // Use type color if exists, else generic Purple
+            bgColor = ev.color || '#a855f7';
+        } else if (ev.type === 'booking') {
+            bgColor = '#3b82f6';
         }
+
+        el.style.background = bgColor;
+        el.style.boxShadow = `0 4px 12px ${bgColor}40`;
 
         el.innerHTML = `
-            <div style="font-weight: 700; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.title}</div>
-            <div style="font-size: 0.75rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.client}</div>
+            <div style="font-weight: 700; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8rem;">${ev.title}</div>
+            <div style="font-size: 0.7rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.client}</div>
         `;
-
-        if (ev.type === 'appointment' && !ev.color) {
-            // Default Fallback
-            el.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-        }
 
         overlay.appendChild(el);
     });
 
-    // 2. Render "Now" Line (Only if Today)
+    // D. "NOW" LINE
     let scrollTargetLeft = 0;
-
     if (isToday) {
         const now = new Date();
-        const currentH = now.getHours();
-        const currentM = now.getMinutes();
+        const currentM = (now.getHours() * 60) + now.getMinutes();
+        const left = currentM * pixelsPerMinute;
 
-        // Only show if within view range
-        if (currentH >= startHour && currentH <= endHour) {
-            const currentTotalM = (currentH * 60) + currentM;
-            const left = (currentTotalM - viewStartM) * pixelsPerMinute;
+        const nowLine = document.createElement('div');
+        nowLine.className = 'timeline-now-line';
+        nowLine.style.position = 'absolute';
+        nowLine.style.left = `${left}px`;
+        nowLine.style.top = '0';
+        nowLine.style.height = '100%';
+        nowLine.style.width = '2px';
+        nowLine.style.backgroundColor = '#ec4899';
+        nowLine.style.zIndex = '50';
+        nowLine.style.boxShadow = '0 0 8px rgba(236, 72, 153, 0.6)';
 
-            const nowLine = document.createElement('div');
-            nowLine.className = 'timeline-now-line';
-            nowLine.style.position = 'absolute';
-            nowLine.style.left = `${left}px`;
-            nowLine.style.top = '0';
-            nowLine.style.height = '100%';
-            nowLine.style.width = '2px';
-            nowLine.style.backgroundColor = '#ec4899'; // Pink/Red
-            nowLine.style.zIndex = '50';
-            nowLine.style.boxShadow = '0 0 8px rgba(236, 72, 153, 0.6)';
+        const nowDot = document.createElement('div');
+        nowDot.style.position = 'absolute';
+        nowDot.style.top = '-4px';
+        nowDot.style.left = '-3px';
+        nowDot.style.width = '8px';
+        nowDot.style.height = '8px';
+        nowDot.style.borderRadius = '50%';
+        nowDot.style.backgroundColor = '#ec4899';
+        nowLine.appendChild(nowDot);
 
-            const nowDot = document.createElement('div');
-            nowDot.style.position = 'absolute';
-            nowDot.style.top = '-4px'; // on top of header area
-            nowDot.style.left = '-3px';
-            nowDot.style.width = '8px';
-            nowDot.style.height = '8px';
-            nowDot.style.borderRadius = '50%';
-            nowDot.style.backgroundColor = '#ec4899';
-            nowLine.appendChild(nowDot);
+        overlay.appendChild(nowLine);
 
-            overlay.appendChild(nowLine);
-
-            scrollTargetLeft = Math.max(0, left - (container.clientWidth / 2));
-        }
+        // Auto Scroll to Now - Center
+        scrollTargetLeft = Math.max(0, left - (container.clientWidth / 2));
+    } else {
+        // If tomorrow, scroll to first event or 08:00
+        const firstEventM = openSlots.length > 0 ? openSlots[0].start : 8 * 60;
+        scrollTargetLeft = Math.max(0, (firstEventM * pixelsPerMinute) - 100);
     }
 
     track.appendChild(overlay);
