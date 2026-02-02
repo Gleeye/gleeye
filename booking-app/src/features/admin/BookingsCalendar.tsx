@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, startOfDay, addHours, eachHourOfInterval, startOfMonth, endOfMonth, isSameMonth, addMonths, subMonths, getDay } from 'date-fns';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, startOfDay, addHours, eachHourOfInterval, startOfMonth, endOfMonth, isSameMonth, addMonths, subMonths } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useToast } from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import BookingDetailsModal from './BookingDetailsModal';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter, Search, MoreVertical, Clock, User, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, Search, User, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface Collaborator {
     id: string;
@@ -115,7 +115,6 @@ export default function BookingsCalendar() {
     // Data State
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-    const [services, setServices] = useState<Service[]>([]);
 
     // Filter State
     const [statusFilters, setStatusFilters] = useState({ hold: true, confirmed: true, cancelled: false });
@@ -147,12 +146,13 @@ export default function BookingsCalendar() {
 
     async function fetchInitialData() {
         try {
-            const [{ data: collabData }, { data: serviceData }] = await Promise.all([
-                supabase.from('collaborators').select('id, first_name, last_name, avatar_url').eq('is_active', true).order('first_name'),
-                supabase.from('booking_items').select('id, name').order('name')
-            ]);
+            const { data: collabData } = await supabase
+                .from('collaborators')
+                .select('id, first_name, last_name, avatar_url')
+                .eq('is_active', true)
+                .order('first_name');
+
             if (collabData) setCollaborators(collabData);
-            if (serviceData) setServices(serviceData);
         } catch (err) {
             console.error(err);
         }
