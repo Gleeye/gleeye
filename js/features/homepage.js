@@ -735,6 +735,18 @@ window.setHpFilter = function (filter, btn) {
 function renderMyActivities(container, timers, tasks, events, filter = 'task') {
     if (!container) return;
 
+    // Data Safety & Counts
+    const safeTimers = timers || [];
+    const safeTasks = tasks || [];
+    const safeEvents = events || [];
+
+    // Update Tab Counts (Live)
+    // We assume the buttons exist in the DOM relative to the container parent
+    // But since we redraw the specific list container, we might need to look up.
+    // Actually, simpler: let's re-inject the TABS + LIST every time to keep counts fresh if we wanted, 
+    // OR just update the text content if we can find them.
+    // For now, let's just render the list content robustly.
+
     // Filter Logic
     const showTimers = filter === 'timer'; // Attività
     const showEvents = filter === 'event'; // Appuntamenti (Agenda)
@@ -747,13 +759,12 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
     try {
         // 1. ACTIVE TIMERS (Attività)
         if (showTimers) {
-            if (timers && timers.length > 0) {
-                timers.forEach(t => {
+            if (safeTimers.length > 0) {
+                safeTimers.forEach(t => {
                     hasContent = true;
                     // Handle Orders
                     let title = 'Senza Commessa';
                     if (t.orders) {
-                        // Check for array just in case
                         const ord = Array.isArray(t.orders) ? t.orders[0] : t.orders;
                         if (ord) title = `#${ord.order_number || '?'} - ${ord.title || '...'}`;
                     }
@@ -771,19 +782,37 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                     `;
                 });
             }
-            if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessuna attività in corso.</div>`;
+            if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessun timer attivo.</div>`;
         }
 
-        // 2. UPCOMING APPOINTMENTS (Agenda)
+        // 2. EVENTS (Agenda) - Show ALL for today
         if (showEvents) {
-            const upcomingEvents = (events || []).filter(e => e.end > now);
-            if (upcomingEvents.length > 0) {
-                upcomingEvents.forEach(evt => {
+            if (safeEvents.length > 0) {
+                // Sort by time
+                safeEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
+
+                safeEvents.forEach(evt => {
                     hasContent = true;
-                    const timeStr = evt.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const startDate = new Date(evt.start);
+                    const endDate = new Date(evt.end);
+                    const timeStr = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                    // Visual style for past/current/future
+                    const isPast = endDate < now;
+                    const isNow = startDate <= now && endDate > now;
+
+                    let opacity = '1';
+                    let border = '1px solid rgba(255, 255, 255, 0.1)';
+                    let bg = 'transparent';
+
+                    if (isPast) opacity = '0.5';
+                    if (isNow) {
+                        border = '1px solid #3b82f6';
+                        bg = 'rgba(59, 130, 246, 0.1)';
+                    }
 
                     html += `
-                        <div style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.75rem 0; display: flex; gap: 0.75rem; align-items: center; cursor: pointer;" onclick="openHomepageEventDetails(window['evt_hp_${evt.id.replace(/-/g, '_')}'])">
+                        <div style="background: ${bg}; border-bottom: ${border}; opacity: ${opacity}; padding: 0.75rem 0; display: flex; gap: 0.75rem; align-items: center; cursor: pointer;" onclick="openHomepageEventDetails(window['evt_hp_${evt.id.replace(/-/g, '_')}'])">
                             <div style="display: flex; flex-direction: column; align-items: center; width: 45px; flex-shrink: 0;">
                                 <span style="font-size: 0.8rem; font-weight: 600; color: white;">${timeStr}</span>
                             </div>
@@ -795,29 +824,30 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                     `;
                 });
             }
-            if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessun appuntamento in programma.</div>`;
+            if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessun appuntamento oggi.</div>`;
         }
 
         // 3. TASKS
         if (showTasks) {
-            if (tasks && tasks.length > 0) {
-                // Defensive Sort
-                tasks.sort((a, b) => {
+            if (safeTasks.length > 0) {
+                // Sort by Due Date
+                safeTasks.sort((a, b) => {
                     const da = a.due_date ? new Date(a.due_date) : new Date('9999-12-31');
                     const db = b.due_date ? new Date(b.due_date) : new Date('9999-12-31');
                     return da - db;
                 });
 
-                tasks.forEach(t => {
+                safeTasks.forEach(t => {
                     hasContent = true;
                     // Correctly access nested Order fields
-                    let fullTitle = 'No Commessa';
+                    let fullTitle = 'Generico';
                     if (t.orders) {
                         const ord = Array.isArray(t.orders) ? t.orders[0] : t.orders;
                         if (ord) fullTitle = `#${ord.order_number} - ${ord.title}`;
                     }
 
                     const isLate = t.due_date && new Date(t.due_date) < new Date();
+                    const dateStr = t.due_date ? new Date(t.due_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : '';
 
                     html += `
                         <div style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.75rem 0; display: flex; gap: 0.75rem; align-items: flex-start;">
@@ -825,11 +855,11 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                                 <input type="checkbox" style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer; border-radius: 4px;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completato">
                             </div>
                             <div style="flex: 1; min-width: 0;">
-                                 <div style="font-size: 0.75rem; color: #cbd5e1; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600;">
+                                 <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">
                                     ${fullTitle}
-                                    ${isLate ? `<span style="color: #f87171; margin-left:6px;">!</span>` : ''}
                                 </div>
-                                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.8); line-height: 1.3;">${t.title}</div>
+                                <div style="font-weight: 500; font-size: 0.9rem; color: white; line-height: 1.3;">${t.title}</div>
+                                ${isLate ? `<div style="font-size: 0.7rem; color: #f87171; margin-top: 2px;">Scaduto: ${dateStr}</div>` : ''}
                             </div>
                         </div>
                     `;
@@ -839,6 +869,20 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
         }
 
         container.innerHTML = html;
+
+        // Try to update Tab Counts if buttons exist in parent
+        // This is a bit of a hack to avoid re-rendering the whole header, but effective.
+        try {
+            const card = container.closest('.glass-card');
+            if (card) {
+                const tabs = card.querySelectorAll('.tab-btn');
+                if (tabs.length === 3) {
+                    tabs[0].textContent = `Task (${safeTasks.length})`;
+                    tabs[1].textContent = `Appuntamenti (${safeEvents.length})`;
+                    tabs[2].textContent = `Attività (${safeTimers.length})`;
+                }
+            }
+        } catch (e) {/* ignore */ }
 
     } catch (e) {
         console.error("Render Activities Error:", e);
