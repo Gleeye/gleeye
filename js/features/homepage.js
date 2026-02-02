@@ -168,7 +168,9 @@ export async function renderHomepage(container) {
         activeTimers = timers || [];
 
         // 2. TASKS (From PM Items)
-        // Standard syntax without aliases.
+        // Use user_ref (Auth ID) for assignment check.
+        const targetUserId = myCollab.user_id || state.session?.user?.id;
+
         const { data: pmTasks, error: pmError } = await supabase
             .from('pm_items')
             .select(`
@@ -177,9 +179,9 @@ export async function renderHomepage(container) {
                     ref_ordine,
                     orders (order_number, title)
                 ),
-                pm_item_assignees!inner(user_ref, collaborator_ref)
+                pm_item_assignees!inner(user_ref)
             `)
-            .or(`user_ref.eq.${state.profile?.id},collaborator_ref.eq.${myId}`, { foreignTable: 'pm_item_assignees' })
+            .eq('pm_item_assignees.user_ref', targetUserId)
             .neq('status', 'done')
             .neq('status', 'completed');
 
@@ -189,7 +191,6 @@ export async function renderHomepage(container) {
             // Robustly extract order
             let ord = null;
             if (t.pm_spaces) {
-                // If pm_spaces is array (shouldn't be for one-to-one, but safety first)
                 const space = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
                 if (space && space.orders) {
                     ord = Array.isArray(space.orders) ? space.orders[0] : space.orders;
