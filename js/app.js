@@ -46,6 +46,7 @@ function initThemeLogic() {
 
 // Bootstrapper
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('Gleeye Workspace v289 Initializing...');
     initThemeLogic();
 
     // Init Feature Modals
