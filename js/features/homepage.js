@@ -2,8 +2,8 @@ import { state } from '../modules/state.js?v=151';
 import { supabase } from '../modules/config.js?v=151';
 import { formatAmount } from '../modules/utils.js?v=151';
 
-import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators } from '../modules/api.js?v=151';
-import { fetchAppointment } from '../modules/pm_api.js?v=151';
+import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments } from '../modules/api.js?v=151';
+import { fetchAppointment, upsertAssignment } from '../modules/pm_api.js?v=151';
 
 // We reuse fetchMyBookings but we might need a tighter scoped fetch for "Today"
 // Actually fetchMyBookings stores in `eventsCache` (not exported) or `window`?
@@ -167,40 +167,55 @@ export async function renderHomepage(container) {
                 </div>
             </div>
 
-            <!-- Top Grid: Timeline + Next Up -->
-            <div class="dashboard-grid">
-                
-                <!-- Daily Timeline -->
-                <div class="dashboard-widget timeline-widget">
-                    <div class="widget-header">
-                        <h3 class="widget-title" id="timeline-title">Orario di Oggi</h3>
-                        <div class="timeline-controls">
-                            <button class="timeline-btn active" id="btn-today">Oggi</button>
-                            <button class="timeline-btn" id="btn-tomorrow">Domani</button>
-                        </div>
+            <!-- Top Grid: Timeline + My Activities -->
+            <div style="height: 100%; display: flex; gap: 1.5rem; overflow: hidden;">
+                <!-- LEFT: TIMELINE (Main) -->
+                <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                    <!-- HEADER (Date Nav) -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex: 0 0 auto;">
+                         <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-titles);">Oggi</h2>
+                         <div style="display: flex; gap: 0.5rem;">
+                             <button class="icon-btn" onclick="changeHomepageDate(-1)"><span class="material-icons-round">chevron_left</span></button>
+                             <button class="btn btn-secondary" onclick="resetHomepageDate()">Oggi</button>
+                             <button class="icon-btn" onclick="changeHomepageDate(1)"><span class="material-icons-round">chevron_right</span></button>
+                         </div>
                     </div>
-                    <div class="timeline-scroll-area" id="home-timeline-area">
-                        <div style="padding: 2rem; width: 100%; text-align: center; color: var(--text-tertiary);">
-                            <span class="loader small"></span> Caricamento impegni...
-                        </div>
+
+                    <!-- TIMELINE WRAPPER -->
+                    <div id="hp-timeline-wrapper" style="flex: 1; position: relative; background: white; border-radius: 16px; border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm); overflow: hidden;">
+                        <!-- Rendered by JS -->
                     </div>
                 </div>
 
-                <!-- Next Up Widget -->
-                <div class="dashboard-widget next-up-widget" id="home-next-up">
-                    <div class="next-up-content">
-                        <span style="opacity: 0.7;">Prossimo Impegno</span>
-                        <div style="text-align: center; padding: 2rem;">
-                            <span class="loader small"></span>
+                <!-- RIGHT: MY ACTIVITIES (Side Panel) -->
+                <div style="width: 320px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 1rem;">
+                    <!-- "MY ACTIVITIES" CARD -->
+                    <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; flex: 1; overflow: hidden; background: #1e293b; color: white;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7;">Attività & Task</span>
+                             <span class="material-icons-round" style="opacity: 0.5; font-size: 1.2rem;">list_alt</span>
                         </div>
+
+                        <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; padding-right: 4px;" id="hp-activities-list">
+                            <!-- Content Injected Below -->
+                        </div>
+
+                        <button class="btn btn-primary" style="width: 100%; justify-content: center; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);" onclick="window.location.hash='agenda'">
+                            Vedi Agenda
+                        </button>
+                    </div>
+
+                    <!-- STATS / QUOTES (Optional Filler) -->
+                     <div class="glass-card" style="padding: 1.5rem; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; min-height: 120px;">
+                        <div style="font-size: 2rem; font-weight: 700;">${myTasks.length}</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8;">Task Aperti</div>
                     </div>
                 </div>
-
             </div>
 
             <!-- Bottom Grid -->
             <div class="bottom-grid">
-                
+
                 <!-- Recent Projects -->
                 <div class="dashboard-widget">
                     <div class="widget-header">
@@ -261,68 +276,59 @@ export async function renderHomepage(container) {
     `;
 
     // --- Interaction Logic ---
-    const btnToday = container.querySelector('#btn-today');
-    const btnTomorrow = container.querySelector('#btn-tomorrow');
-    const timelineTitle = container.querySelector('#timeline-title');
-    const timelineArea = container.querySelector('#home-timeline-area');
+    // Store current date for timeline navigation
+    window.homepageCurrentDate = new Date();
+    window.homepageCollaboratorId = myCollab.id;
 
-    const loadTimeline = async (dateMode) => { // 'today' or 'tomorrow'
-        timelineArea.innerHTML = `<div style="padding: 2rem; width: 100%; text-align: center; color: var(--text-tertiary);"><span class="loader small"></span> Caricamento...</div>`;
+    // Function to update timeline and header date
+    window.updateHomepageTimeline = async (date) => {
+        const timelineWrapper = document.getElementById('hp-timeline-wrapper');
+        const headerDate = container.querySelector('.homepage-header h1').nextElementSibling; // The <p> tag
+        const headerTitle = container.querySelector('.homepage-header h1');
 
-        const targetDate = new Date(); // Start with NOW
-        if (dateMode === 'tomorrow') {
-            targetDate.setDate(targetDate.getDate() + 1); // Move to tomorrow
-            timelineTitle.textContent = "Orario di Domani";
-            btnToday.classList.remove('active');
-            btnTomorrow.classList.add('active');
-        } else {
-            timelineTitle.textContent = "Orario di Oggi";
-            btnToday.classList.add('active');
-            btnTomorrow.classList.remove('active');
-        }
+        // Update header date
+        headerDate.innerHTML = `Ecco cosa c'è in programma per ${date.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}.`;
+        headerTitle.textContent = `Buongiorno, ${firstName}!`; // Reset if it changed
+
+        timelineWrapper.innerHTML = `<div style="padding: 2rem; width: 100%; text-align: center; color: var(--text-tertiary);"><span class="loader small"></span> Caricamento...</div>`;
 
         try {
             // Parallel Fetch: Events + Availability + Google + Overrides
             const [events, rules, googleBusy, overrides] = await Promise.all([
-                fetchDateEvents(myCollab.id, targetDate),
-                fetchAvailabilityRules(myCollab.id),
-                fetchGoogleCalendarBusy(myCollab.id, targetDate),
-                fetchAvailabilityOverrides(myCollab.id) // from api.js
+                fetchDateEvents(window.homepageCollaboratorId, date),
+                fetchAvailabilityRules(window.homepageCollaboratorId),
+                fetchGoogleCalendarBusy(window.homepageCollaboratorId, date),
+                fetchAvailabilityOverrides(window.homepageCollaboratorId) // from api.js
             ]);
 
             // Filter rules for specific day of week
-            const dayId = targetDate.getDay(); // 0-6
+            const dayId = date.getDay(); // 0-6
             const dayRules = rules.filter(r => r.day_of_week === dayId);
 
-            renderTimeline(timelineArea, events, targetDate, dayRules, googleBusy, overrides);
+            renderTimeline(timelineWrapper, events, date, dayRules, googleBusy, overrides);
         } catch (e) {
             console.error(e);
-            timelineArea.innerHTML = `<div style="color:red; text-align:center;">Errore caricamento</div>`;
+            timelineWrapper.innerHTML = `<div style="color:red; text-align:center;">Errore caricamento</div>`;
         }
     };
 
-    btnToday.onclick = () => loadTimeline('today');
-    btnTomorrow.onclick = () => loadTimeline('tomorrow');
+    window.changeHomepageDate = (offset) => {
+        window.homepageCurrentDate.setDate(window.homepageCurrentDate.getDate() + offset);
+        window.updateHomepageTimeline(window.homepageCurrentDate);
+    };
+
+    window.resetHomepageDate = () => {
+        window.homepageCurrentDate = new Date();
+        window.updateHomepageTimeline(window.homepageCurrentDate);
+    };
 
     // --- Initial Load ---
     try {
         // 1. Timeline (Default Today)
-        loadTimeline('today');
+        window.updateHomepageTimeline(window.homepageCurrentDate);
 
-        // 2. Next Up (Always dynamic from NOW)
-        const todayEvents = await fetchDateEvents(myCollab.id, new Date());
-
-        // Find immediate next event
-        let nextEvent = todayEvents.find(e => e.end > new Date());
-
-        // If nothing today, check tomorrow?
-        if (!nextEvent) {
-            const tom = new Date(); tom.setDate(tom.getDate() + 1);
-            const tomEvents = await fetchDateEvents(myCollab.id, tom);
-            if (tomEvents.length > 0) nextEvent = tomEvents[0];
-        }
-
-        renderNextUp(container.querySelector('#home-next-up'), nextEvent);
+        // 2. Render My Activities
+        renderMyActivities(document.getElementById('hp-activities-list'), activeTimers, myTasks, nextEvent);
 
         // 3. Load Projects
         const projects = await fetchRecentProjects();
@@ -382,16 +388,16 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
     for (let h = startHour; h < endHour; h++) {
         html += `
             <div class="timeline-hour-col" data-hour="${h}" style="
-                width: ${colWidth}px; 
-                min-width: ${colWidth}px; 
-                border-left: 1px solid var(--glass-border); 
+                width: ${colWidth}px;
+                min-width: ${colWidth}px;
+                border-left: 1px solid var(--glass-border);
                 position: relative;
             ">
                 <div class="timeline-hour-label" style="
-                    position: absolute; 
-                    top: 8px; 
-                    left: 8px; 
-                    font-size: 0.75rem; 
+                    position: absolute;
+                    top: 8px;
+                    left: 8px;
+                    font-size: 0.75rem;
                     color: var(--text-tertiary);
                     font-weight: 500;
                 ">${h}:00</div>
@@ -401,11 +407,11 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
 
     container.innerHTML = `
         <div class="timeline-track" style="
-            display: flex; 
-            position: relative; 
-            width: ${totalWidth}px; 
-            min-width: ${totalWidth}px; 
-            padding-left: 0; 
+            display: flex;
+            position: relative;
+            width: ${totalWidth}px;
+            min-width: ${totalWidth}px;
+            padding-left: 0;
             background: white;
             height: 100%;
         ">
@@ -641,46 +647,100 @@ window.closeHomepageEventModal = function (id) {
     if (el) el.remove();
 };
 
-function renderNextUp(container, next) {
-    const now = new Date();
-    // Find first event that hasn't ended yet
+function renderMyActivities(container, timers, tasks, nextEvent) {
+    if (!container) return;
 
-    if (!next) {
-        container.innerHTML = `
-             <div class="next-up-content">
-                <span style="opacity: 0.7;">Prossimo Impegno</span>
-                <div style="text-align: center; padding: 2rem;">
-                    <span class="material-icons-round" style="font-size: 3rem; opacity: 0.5;">done_all</span>
-                    <p style="margin-top: 1rem;">Nessun impegno in arrivo</p>
+    let html = '';
+
+    // 1. ACTIVE TIMERS (Top Priority)
+    timers.forEach(t => {
+        const title = t.orders ? `#${t.orders.order_number} ${t.orders.title}` : 'Senza Commessa';
+        html += `
+            <div style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: center;">
+                <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">
+                    <span class="material-icons-round" style="font-size: 18px;">play_arrow</span>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 0.75rem; color: #6ee7b7; font-weight: 600; text-transform: uppercase;">In Corso</div>
+                    <div style="font-weight: 500; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${title}">${title}</div>
+                    <div style="font-size: 0.8rem; color: rgba(255,255,255,0.7);">${t.description || 'Attività...'}</div>
                 </div>
             </div>
         `;
+    });
+
+    // 2. NEXT APPOINTMENT
+    if (nextEvent) {
+        html += `
+            <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: center; cursor: pointer;" onclick="openHomepageEventDetails(window['evt_hp_${nextEvent.id.replace(/-/g, '_')}'])">
+                <div style="width: 32px; height: 32px; background: rgba(59, 130, 246, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #60a5fa;">
+                    <span class="material-icons-round" style="font-size: 18px;">event</span>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                         <div style="font-size: 0.75rem; color: #93c5fd; font-weight: 600;">${nextEvent.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                         ${nextEvent.status === 'confermato' ? '<span style="width: 6px; height: 6px; background: #4ade80; border-radius: 50%;"></span>' : ''}
+                    </div>
+                    <div style="font-weight: 500; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nextEvent.title}</div>
+                     <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nextEvent.client || ''}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    // 3. TASKS
+    if (tasks.length > 0) {
+        tasks.sort((a, b) => new Date(a.due_date || '9999-12-31') - new Date(b.due_date || '9999-12-31')); // Sort by due date
+
+        tasks.slice(0, 5).forEach(t => { // Limit to 5
+            const orderRef = t.orders ? `#${t.orders.order_number}` : '';
+            const isLate = t.due_date && new Date(t.due_date) < new Date();
+
+            html += `
+                <div style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.5rem 0; display: flex; gap: 0.75rem; align-items: flex-start;">
+                    <div style="padding-top: 2px;">
+                        <input type="checkbox" style="width: 16px; height: 16px; accent-color: #10b981; cursor: pointer;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completato">
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 500; font-size: 0.85rem; color: white; line-height: 1.3;">${t.title}</div>
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 2px; display: flex; align-items: center; gap: 6px;">
+                            <span>${orderRef}</span>
+                            ${isLate ? `<span style="color: #f87171; display:flex; align-items:center; gap:2px;"><span class="material-icons-round" style="font-size:10px;">warning</span> Scaduto</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 1rem;">Nessun task attivo</div>`;
+    }
+
+    container.innerHTML = html;
+}
+
+// Helper for Task Completion
+window.quickCompleteTask = async function (id, checkbox) {
+    if (!confirm("Completare questo task?")) {
+        checkbox.checked = false;
         return;
     }
 
-    container.innerHTML = `
-        <div class="next-up-content">
-            <div style="display: flex; justify-content: space-between; align-items: start;">
-                <span style="opacity: 0.7; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;">In Arrivo</span>
-                <span class="meeting-time-badge">${next.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-            
-            <div>
-                <div class="meeting-title">${next.title}</div>
-                <div style="opacity: 0.8; margin-top: 0.5rem;">${next.client || 'Nessun dettaglio'}</div>
-            </div>
+    // Optimistic UI
+    const row = checkbox.closest('div[style*="background"]');
+    if (row) row.style.opacity = '0.3';
 
-            <div style="margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                <span class="material-icons-round" style="font-size: 1rem;">schedule</span>
-                <span style="font-size: 0.9rem;">${Math.round((next.end - next.start) / (1000 * 60))} min</span>
-            </div>
-
-            <button class="join-btn" onclick="window.location.hash='agenda'">
-                Vedi in Agenda
-            </button>
-        </div>
-    `;
-}
+    try {
+        await upsertAssignment({ id: id, status: 'completed' });
+        // Refresh? For now just hide
+        if (row) row.remove();
+        // Update stats counter?
+    } catch (e) {
+        console.error("Task completion failed", e);
+        checkbox.checked = false;
+        if (row) row.style.opacity = '1';
+        alert("Errore nel completamento task.");
+    }
+};
 
 function renderProjects(container, projects) {
     if (!projects.length) {
