@@ -148,6 +148,42 @@ export async function renderHomepage(container) {
     }
 
     const firstName = myCollab.first_name || 'Utente';
+    const myId = myCollab.id;
+
+    // --- FETCH DATA FOR "MY ACTIVITIES" ---
+    let myTasks = [], activeTimers = [], nextEvent = null;
+
+    try {
+        // 1. TIMERS (Active)
+        const { data: timers } = await supabase
+            .from('activity_logs')
+            .select(`
+                *,
+                orders (id, order_number, title)
+            `)
+            .eq('collaborator_id', myId)
+            .is('end_time', null);
+        activeTimers = timers || [];
+
+        // 2. TASKS (Assignments)
+        if (!state.assignments || state.assignments.length === 0) {
+            await fetchAssignments();
+        }
+        // Filter: Assigned to me AND Not Completed
+        myTasks = (state.assignments || []).filter(t =>
+            (t.assignee_id === myId || (t.collaborators && t.collaborators.id === myId)) &&
+            t.status !== 'completed' && t.status !== 'closed'
+        );
+
+        // 3. EVENTS (Today/Upcoming)
+        const events = await fetchDateEvents(myId, new Date());
+        const now = new Date();
+        // Find next event today
+        nextEvent = events.find(e => e.end > now);
+
+    } catch (err) {
+        console.error("Error fetching My Activities data:", err);
+    }
 
     // Skeleton
     container.innerHTML = `
