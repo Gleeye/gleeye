@@ -244,7 +244,7 @@ export async function renderHomepage(container) {
             </div>
 
             <!-- Top Grid: Timeline + My Activities -->
-            <div style="height: 550px; display: flex; gap: 2rem; margin-top: 1rem;">
+            <div style="height: 380px; display: flex; gap: 2rem; margin-top: 1rem;">
                 <!-- LEFT: TIMELINE (Main) -->
                 <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
                     <!-- HEADER (Date Nav) -->
@@ -891,13 +891,13 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                     }
 
                     html += `
-                        <div style="background: ${bg}; border-bottom: ${border}; opacity: ${opacity}; padding: 0.75rem 0; display: flex; gap: 0.75rem; align-items: center; cursor: pointer;" onclick="openHomepageEventDetails(window['evt_hp_${evt.id.replace(/-/g, '_')}'])">
-                            <div style="display: flex; flex-direction: column; align-items: center; width: 45px; flex-shrink: 0;">
-                                <span style="font-size: 0.8rem; font-weight: 600; color: white;">${timeStr}</span>
+                        <div style="background: ${bg}; border-bottom: ${border}; opacity: ${opacity}; padding: 0.5rem 0; display: flex; gap: 0.75rem; align-items: center; cursor: pointer;" onclick="openHomepageEventDetails(window['evt_hp_${evt.id.replace(/-/g, '_')}'])">
+                            <div style="display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0;">
+                                <span style="font-size: 0.75rem; font-weight: 600; color: white;">${timeStr}</span>
                             </div>
                             <div style="flex: 1; min-width: 0;">
-                                <div style="font-weight: 600; font-size: 0.9rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.title}</div>
-                                <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6);">${evt.client || ''}</div>
+                                <div style="font-weight: 600; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.title}</div>
+                                <div style="font-size: 0.7rem; color: rgba(255,255,255,0.6);">${evt.client || ''}</div>
                             </div>
                         </div>
                     `;
@@ -929,16 +929,16 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                     const dateStr = t.due_date ? new Date(t.due_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : '';
 
                     html += `
-                        <div style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.75rem 0; display: flex; gap: 0.75rem; align-items: flex-start;">
-                             <div style="padding-top: 2px;">
-                                <input type="checkbox" style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer; border-radius: 4px;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completato">
-                            </div>
+                        <div style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.5rem 0; display: flex; gap: 0.75rem; align-items: center; justify-content: space-between;">
                             <div style="flex: 1; min-width: 0;">
-                                 <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">
+                                 <div style="font-size: 0.7rem; color: #94a3b8; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">
                                     ${fullTitle}
                                 </div>
-                                <div style="font-weight: 500; font-size: 0.9rem; color: white; line-height: 1.3;">${t.title}</div>
-                                ${isLate ? `<div style="font-size: 0.7rem; color: #f87171; margin-top: 2px;">Scaduto: ${dateStr}</div>` : ''}
+                                <div style="font-weight: 500; font-size: 0.85rem; color: white; line-height: 1.2;">${t.title}</div>
+                                ${isLate ? `<div style="font-size: 0.65rem; color: #f87171; margin-top: 1px;">Scaduto: ${dateStr}</div>` : ''}
+                            </div>
+                             <div style="padding-left: 8px;">
+                                <input type="checkbox" style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer; border-radius: 4px;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completato">
                             </div>
                         </div>
                     `;
@@ -971,10 +971,7 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
 
 // Helper for Task Completion
 window.quickCompleteTask = async function (id, checkbox) {
-    if (!confirm("Completare questo task?")) {
-        checkbox.checked = false;
-        return;
-    }
+    // NO CONFIRM - Instant Action
 
     // Optimistic UI
     const row = checkbox.closest('div[style*="background"]');
