@@ -165,15 +165,36 @@ export async function renderHomepage(container) {
             .is('end_time', null);
         activeTimers = timers || [];
 
-        // 2. TASKS (Assignments)
-        if (!state.assignments || state.assignments.length === 0) {
-            await fetchAssignments();
-        }
-        // Filter: Assigned to me AND Not Completed
-        myTasks = (state.assignments || []).filter(t =>
-            (t.assignee_id === myId || (t.collaborators && t.collaborators.id === myId)) &&
-            t.status !== 'completed' && t.status !== 'closed'
-        );
+        // 2. TASKS (From PM Items)
+        // User said "created locally in commesse", so it's pm_items.
+        // We need items assigned to ME or created by ME? User said "assigned to me".
+        // Status: we need to check what status means. usually 'status' column.
+
+        const { data: pmTasks, error: pmError } = await supabase
+            .from('pm_items')
+            .select(`
+                *,
+                pm_spaces (
+                    ref_ordine,
+                    orders (order_number, title)
+                ),
+                pm_item_assignees!inner(user_ref, collaborator_ref)
+            `)
+            .or(`user_ref.eq.${state.profile?.id},collaborator_ref.eq.${myId}`, { foreignTable: 'pm_item_assignees' })
+            .neq('status', 'done')
+            .neq('status', 'completed'); // Check actual status values in DB. usually 'todo', 'doing', 'done'
+
+        if (pmError) console.error("PM Tasks fetch error:", pmError);
+
+        // Map PM Items to unified Task structure
+        myTasks = (pmTasks || []).map(t => ({
+            id: t.id,
+            title: t.title,
+            status: t.status,
+            due_date: t.due_date,
+            orders: t.pm_spaces?.orders, // Link via Space -> Order
+            type: 'pm_task'
+        }));
 
         // 3. EVENTS (Today/Upcoming)
         const events = await fetchDateEvents(myId, new Date());
