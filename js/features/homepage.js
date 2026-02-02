@@ -207,14 +207,16 @@ export async function renderHomepage(container) {
                     status: t.status,
                     due_date: t.due_date,
                     orders: ord,
+                    // Use actual item_type from DB if available, else default to 'task'
+                    // Lowercase comparison to be safe
+                    raw_type: t.item_type || 'task',
                     type: 'pm_task',
                     role: myRole
                 };
-            })
-            // Filter: Only show tasks where I am explicitly assigned (not just watching/tagged)
-            // Assuming 'assignee' is the standard role for executors. 
-            // Also including 'owner' or undefined/null just in case legacy data has no role.
-            .filter(t => t.role === 'assignee' || t.role === 'owner' || !t.role);
+            });
+        // Removed strict role filter. 
+        // The inner join on pm_item_assignees.user_ref ensures we only fetch items assigned to the user.
+        // If they are assigned (even as PM), they should see it.
 
         // 3. EVENTS (Today/Upcoming)
         events = await fetchDateEvents(myId, new Date());
