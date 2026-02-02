@@ -68,7 +68,7 @@ export default function BookingCategoryModal({ isOpen, onClose, onSuccess, categ
     const availableParents = categories.filter(c => !editCategory || c.id !== editCategory.id);
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200">
                 <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                     <h3 className="font-bold text-lg text-slate-800">

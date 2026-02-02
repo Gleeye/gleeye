@@ -2,7 +2,7 @@
 -- Goal: Allow admins and privileged collaborators (Partner/Amministrazione) to read other users' documents.
 
 -- 1. Enable RLS on storage.objects (if not already, usually is)
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
 -- 2. Drop existing restrictive policies for this bucket to avoid conflicts
 -- Note: Policy names might vary, dropping by pattern or exact name if known.

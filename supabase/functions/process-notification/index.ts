@@ -225,6 +225,8 @@ serve(async (req) => {
             }
         }
 
+
+
         // Fallback recipient
         if (!recipientEmail) {
             console.log('No recipient email found for user_id:', record.user_id);

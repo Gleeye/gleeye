@@ -1,9 +1,9 @@
-import { state } from '../modules/state.js?v=148';
-import { formatAmount } from '../modules/utils.js?v=148';
-import { openDepartmentManager } from './settings.js?v=148';
-import { upsertCollaborator, fetchPayments, fetchAssignments, fetchPassiveInvoices, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js?v=148';
-import { loadAvailabilityIntoContainer } from './availability_manager.js?v=148';
-import { supabase } from '../modules/config.js?v=148';
+import { state } from '../modules/state.js?v=151';
+import { formatAmount } from '../modules/utils.js?v=151';
+import { openDepartmentManager } from './settings.js?v=151';
+import { upsertCollaborator, fetchPayments, fetchAssignments, fetchPassiveInvoices, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js?v=151';
+import { loadAvailabilityIntoContainer } from './availability_manager.js?v=151';
+import { supabase } from '../modules/config.js?v=151';
 
 // Global signed URL opener for secure documents (if not already defined elsewhere)
 if (!window.openSignedUrl) {
@@ -461,7 +461,7 @@ export function initCollaboratorModals() {
 
             if (await window.showConfirm(`Sei sicuro di voler eliminare ${c.full_name}? Questa azione è irreversibile.`)) {
                 try {
-                    const { deleteCollaborator } = await import('../modules/api.js?v=148');
+                    const { deleteCollaborator } = await import('../modules/api.js?v=151');
                     await deleteCollaborator(collabId);
                     close();
                     window.showAlert('Collaboratore eliminato con successo', 'success');
@@ -604,7 +604,7 @@ window.impersonateCollaborator = async (collaboratorId) => {
         state.impersonatedCollaboratorId = c.id;
 
         // Update Sidebar
-        import('./layout.js?v=148').then(({ updateSidebarVisibility, renderSidebarProfile }) => {
+        import('./layout.js?v=151').then(({ updateSidebarVisibility, renderSidebarProfile }) => {
             updateSidebarVisibility();
             renderSidebarProfile(); // Update avatar
 
@@ -623,7 +623,7 @@ window.sendMagicLink = async (email) => {
 
     if (await window.showConfirm(`Vuoi inviare un Magic Link di accesso a ${email}?`)) {
         try {
-            const { supabase } = await import('../modules/config.js?v=148');
+            const { supabase } = await import('../modules/config.js?v=151');
             const { error } = await supabase.auth.signInWithOtp({
                 email,
                 options: {

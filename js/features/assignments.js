@@ -1,8 +1,8 @@
-import { state } from '../modules/state.js?v=148';
-import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=148';
-import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment, deleteAssignment } from '../modules/api.js?v=148';
-import { openPaymentModal } from './payments.js?v=148';
-import { CustomSelect } from '../components/CustomSelect.js?v=148';
+import { state } from '../modules/state.js?v=151';
+import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=151';
+import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment, deleteAssignment } from '../modules/api.js?v=151';
+import { openPaymentModal } from './payments.js?v=151';
+import { CustomSelect } from '../components/CustomSelect.js?v=151';
 
 // Helper functions
 function getStatusColor(status) {
@@ -58,7 +58,7 @@ export async function renderAssignmentDetail(container) {
         // Fetch collaborator services if not loaded
         if (!state.collaboratorServices || state.collaboratorServices.length === 0) {
             console.log('DEBUG: collaboratorServices missing or empty, fetching...');
-            const { fetchCollaboratorServices } = await import('../modules/api.js?v=148');
+            const { fetchCollaboratorServices } = await import('../modules/api.js?v=151');
             await fetchCollaboratorServices();
         }
 
@@ -1069,8 +1069,7 @@ window.migrateLegacyAssignments = async (auto = false) => {
 
     // Auto mode skips confirmation
     if (!auto) {
-        const confirm = window.confirm(`Trovati ${updates.length} incarichi legacy. Procedere con la migrazione?`);
-        if (!confirm) return;
+        if (!await window.showConfirm(`Trovati ${updates.length} incarichi legacy. Procedere con la migrazione?`)) return;
     }
 
     if (!auto) showGlobalAlert(`Migrazione in corso (${updates.length})...`, 'info');

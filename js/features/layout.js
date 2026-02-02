@@ -1,6 +1,6 @@
-import { state } from '../modules/state.js?v=148';
-import { supabase } from '../modules/config.js?v=148';
-import { fetchCollaborators } from '../modules/api.js?v=148';
+import { state } from '../modules/state.js?v=151';
+import { supabase } from '../modules/config.js?v=151';
+import { fetchCollaborators } from '../modules/api.js?v=151';
 
 export function initLayout() {
     // Sidebar Toggle Logic
@@ -367,12 +367,14 @@ export function updateSidebarVisibility() {
     }
 
     const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
+    const isProjectManager = userTags.some(t => t.toLowerCase() === 'project manager' || t.toLowerCase() === 'pm');
 
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
 
     const adminBtn = document.getElementById('admin-settings-btn');
     const managementNav = sidebar.querySelector('#nav-management');
+    const navPm = sidebar.querySelector('#nav-pm');
     const managementLabel = managementNav?.querySelector('.submenu-label');
 
     // Section containers (subgroups) inside management
@@ -384,7 +386,16 @@ export function updateSidebarVisibility() {
     // We strictly control what is visible by default
     const genericItems = managementNav ? managementNav.querySelectorAll('a[data-target="dashboard"], a[data-target="assignments"], a[data-target="booking"]') : [];
 
-    console.log(`[Sidebar] Updating visibility. Role: ${activeRole}, Privileged: ${isPrivilegedCollaborator}`);
+    console.log(`[Sidebar] Updating visibility. Role: ${activeRole}, Privileged: ${isPrivilegedCollaborator}, PM: ${isProjectManager}`);
+
+    // Project Management Section
+    if (navPm) {
+        if (activeRole === 'admin' || isProjectManager) {
+            navPm.classList.remove('hidden');
+        } else {
+            navPm.classList.add('hidden');
+        }
+    }
 
     if (managementNav) {
         managementNav.classList.remove('hidden');

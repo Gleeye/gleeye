@@ -41,7 +41,7 @@ export default function ConfirmDialog({
     const styles = variantStyles[variant];
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up">
                 {/* Icon */}
                 <div className="flex justify-center pt-8 pb-4">

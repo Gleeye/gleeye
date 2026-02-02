@@ -1,6 +1,6 @@
-import { state } from '../modules/state.js?v=148';
-import { formatAmount } from '../modules/utils.js?v=148';
-import { upsertCollaboratorService, deleteCollaboratorService } from '../modules/api.js?v=148';
+import { state } from '../modules/state.js?v=151';
+import { formatAmount } from '../modules/utils.js?v=151';
+import { upsertCollaboratorService, deleteCollaboratorService } from '../modules/api.js?v=151';
 
 export function renderCollaboratorServices(container) {
     const render = () => {
@@ -324,7 +324,7 @@ export function initCollaboratorServiceModals() {
                                 <label>Collaboratore</label>
                                 <select id="cs-collaborator">
                                     <option value="">Non assegnato</option>
-                                    ${state.collaborators.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('')}
+                                    ${state.collaborators.filter(c => c.is_active !== false && c.active !== false).map(c => `<option value="${c.id}">${c.full_name}</option>`).join('')}
                                 </select>
                             </div>
 
@@ -539,7 +539,7 @@ export function initCollaboratorServiceModals() {
     async function refreshPage() {
         // If in main registry
         if (state.currentPage === 'collaborator-services') {
-            const { fetchCollaboratorServices } = await import('../modules/api.js?v=148');
+            const { fetchCollaboratorServices } = await import('../modules/api.js?v=151');
             await fetchCollaboratorServices();
             renderCollaboratorServices(document.getElementById('content-area'));
             return;
@@ -552,8 +552,8 @@ export function initCollaboratorServiceModals() {
             const orderId = parts[parts.length - 1] || state.currentOrderId;
 
             if (orderId) {
-                const { fetchCollaboratorServices, fetchAssignments } = await import('../modules/api.js?v=148');
-                const { renderOrderDetail } = await import('./orders.js?v=148');
+                const { fetchCollaboratorServices, fetchAssignments } = await import('../modules/api.js?v=151');
+                const { renderOrderDetail } = await import('./orders.js?v=151');
 
                 await fetchCollaboratorServices();
                 await fetchAssignments();

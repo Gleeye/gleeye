@@ -1,5 +1,5 @@
-import { supabase } from './config.js?v=148';
-import { state } from './state.js?v=148';
+import { supabase } from './config.js?v=151';
+import { state } from './state.js?v=151';
 
 export async function fetchProfile() {
     const { data: authData } = await supabase.auth.getUser();
@@ -229,6 +229,39 @@ export async function upsertOrder(order) {
 
 export async function updateOrder(id, updates) {
     console.log("Updating order partial:", id, updates);
+
+    // --- AUTOMATION: Offer Accepted -> Status Works 'In Attesa' & Create Space ---
+    if (updates.offer_status) {
+        const s = updates.offer_status.toLowerCase();
+        // Check triggers: "accettata", "vinta"
+        if (s.includes('accettat') || s === 'vinta') {
+            console.log("Offer accepted automation triggered...");
+
+            // 1. Auto-set 'status_works' if not manually provided in this same update
+            // (Only if it's currently null/empty to avoid overwriting existing progress? 
+            //  User said: "deve comparire... in attesa". So usually this is the start. 
+            //  Let's force it if it's missing, or maybe overwrite 'preventivo' status.)
+            if (!updates.status_works) {
+                updates.status_works = 'Lavoro in Attesa';
+            }
+
+            // 2. Ensure PM Space exists (Lazy Load)
+            // We do this async after update or parallel? 
+            // Better to do it after to ensure foreign key (ref_ordine) is definitely valid/active (already true).
+            // We use dynamic import to avoid circular dependency with pm_api.js
+            setTimeout(async () => {
+                try {
+                    const { fetchProjectSpaceForOrder } = await import('./pm_api.js?v=151');
+                    await fetchProjectSpaceForOrder(id);
+                    console.log("PM Space auto-initialized for order:", id);
+                } catch (e) {
+                    console.error("Failed to auto-create PM space:", e);
+                }
+            }, 100);
+        }
+    }
+    // -----------------------------------------------------------------------------
+
     const { data, error } = await supabase
         .from('orders')
         .update(updates)
@@ -239,6 +272,7 @@ export async function updateOrder(id, updates) {
             title,
             status_works,
             offer_status,
+            pm_id,
             price_planned,
             price_actual,
             cost_planned,
@@ -258,7 +292,7 @@ export async function updateOrder(id, updates) {
             clients (id, business_name, client_code),
              order_collaborators (
                 role_in_order,
-                collaborators (id, full_name, role)
+                collaborators (id, full_name, role, user_id)
             )
         `)
         .single();
@@ -268,11 +302,93 @@ export async function updateOrder(id, updates) {
         throw error;
     }
 
+    // --- NOTIFICATIONS LOGIC ---
+    try {
+        const currentUser = state.session?.user?.id;
+        const recipients = new Set();
+
+        // 1. Gather PM
+        if (data.pm_id) {
+            // We need to resolve PM's user_id. 
+            // Often PM is a collaborator too, but let's fetch if needed or assume we have it in state?
+            // For now, let's look in state.collaborators if loaded, or just rely on order_collaborators if PM is there.
+            // Actually, best effort: check if PM is in order_collaborators list (usually is).
+            const pmInList = data.order_collaborators?.find(oc => oc.collaborators.id === data.pm_id);
+            if (pmInList && pmInList.collaborators.user_id) recipients.add(pmInList.collaborators.user_id);
+        }
+
+        // 2. Gather Accounts and PMs only (not simple Collaborators)
+        const privilegedRoles = ['account', 'pm', 'partner', 'admin', 'socio'];
+        if (data.order_collaborators) {
+            data.order_collaborators.forEach(oc => {
+                if (oc.collaborators && oc.collaborators.user_id) {
+                    const roleInOrder = (oc.role_in_order || '').toLowerCase();
+                    const collabRole = (oc.collaborators.role || '').toLowerCase();
+                    // Only include if they have a privileged role
+                    if (privilegedRoles.some(r => roleInOrder.includes(r) || collabRole.includes(r))) {
+                        recipients.add(oc.collaborators.user_id);
+                    }
+                }
+            });
+        }
+
+        // 3. Filter self
+        if (currentUser) recipients.delete(currentUser);
+
+        const recipientsArray = Array.from(recipients);
+
+        if (recipientsArray.length > 0) {
+            // Check changes
+            if (updates.offer_status) {
+                await supabase.from('notifications').insert(
+                    recipientsArray.map(uid => ({
+                        user_id: uid,
+                        type: 'order_update',
+                        title: 'Aggiornamento Offerta',
+                        message: `Lo stato dell'offerta per l'ordine ${data.order_number} è ora: ${data.offer_status}`,
+                        data: { order_id: id }
+                    }))
+                );
+            }
+
+            if (updates.status_works) {
+                await supabase.from('notifications').insert(
+                    recipientsArray.map(uid => ({
+                        user_id: uid,
+                        type: 'order_update',
+                        title: 'Aggiornamento Lavori',
+                        message: `Lo stato dei lavori per l'ordine ${data.order_number} è ora: ${data.status_works}`,
+                        data: { order_id: id }
+                    }))
+                );
+            }
+        }
+    } catch (notifErr) {
+        console.error("Notification trigger failed:", notifErr);
+        // Don't block the main flow
+    }
+    // ---------------------------
+
     const index = state.orders.findIndex(o => o.id === data.id);
     if (index >= 0) {
         state.orders[index] = data;
     }
     return data;
+}
+
+export async function deleteOrder(id) {
+    console.log("Deleting order:", id);
+    const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        console.error("Order deletion failed:", error);
+        throw error;
+    }
+
+    state.orders = state.orders.filter(o => o.id !== id);
 }
 
 export async function updateOrderEconomics(id, { price_final, cost_final }) {
@@ -1002,22 +1118,22 @@ async function refreshCurrentPage() {
     if (!container) return;
 
     if (hash.includes('order-detail/')) {
-        const { renderOrderDetail } = await import('../features/orders.js?v=148');
+        const { renderOrderDetail } = await import('../features/orders.js?v=151');
         renderOrderDetail(container);
     } else if (hash.includes('payments')) {
-        const { renderPaymentsDashboard } = await import('../features/payments.js?v=148');
+        const { renderPaymentsDashboard } = await import('../features/payments.js?v=151');
         renderPaymentsDashboard(container);
     } else if (hash.includes('bank-transactions')) {
-        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=148');
+        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=151');
         renderBankTransactions(container);
     } else if (hash.includes('collaborator-services')) {
-        const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=148');
+        const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=151');
         renderCollaboratorServices(container);
     } else if (hash.includes('assignment-detail/')) {
-        const { renderAssignmentDetail } = await import('../features/assignments.js?v=148');
+        const { renderAssignmentDetail } = await import('../features/assignments.js?v=151');
         renderAssignmentDetail(container);
     } else if (hash.includes('collaborator-detail/')) {
-        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=148');
+        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=151');
         renderCollaboratorDetail(container);
     } else if (hash.includes('client-detail/')) {
     }

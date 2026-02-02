@@ -12,7 +12,21 @@ CREATE TABLE IF NOT EXISTS public.order_contacts (
 ALTER TABLE public.order_contacts ENABLE ROW LEVEL SECURITY;
 
 -- Policies
-CREATE POLICY "Enable read access for authenticated users" ON public.order_contacts FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Enable insert access for authenticated users" ON public.order_contacts FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Enable update access for authenticated users" ON public.order_contacts FOR UPDATE TO authenticated USING (true);
-CREATE POLICY "Enable delete access for authenticated users" ON public.order_contacts FOR DELETE TO authenticated USING (true);
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'order_contacts' AND policyname = 'Enable read access for authenticated users') THEN
+        CREATE POLICY "Enable read access for authenticated users" ON public.order_contacts FOR SELECT TO authenticated USING (true);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'order_contacts' AND policyname = 'Enable insert access for authenticated users') THEN
+        CREATE POLICY "Enable insert access for authenticated users" ON public.order_contacts FOR INSERT TO authenticated WITH CHECK (true);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'order_contacts' AND policyname = 'Enable update access for authenticated users') THEN
+        CREATE POLICY "Enable update access for authenticated users" ON public.order_contacts FOR UPDATE TO authenticated USING (true);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'order_contacts' AND policyname = 'Enable delete access for authenticated users') THEN
+        CREATE POLICY "Enable delete access for authenticated users" ON public.order_contacts FOR DELETE TO authenticated USING (true);
+    END IF;
+END $$;

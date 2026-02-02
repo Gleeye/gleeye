@@ -1,11 +1,16 @@
 
 // js/features/admin/admin-dashboard.js
-import { state } from '../../modules/state.js?v=148';
-import { renderAdminNotifications } from '../notifications.js?v=148';
-import { renderNotificationLogs } from './notification_logs.js?v=148';
+import { state } from '../../modules/state.js?v=154';
+import { renderAdminNotifications } from '../notifications.js?v=154';
+import { renderNotificationLogs } from './notification_logs.js?v=155';
+import { renderSystemLogs, getUnresolvedErrorCount } from './admin_system_logs.js?v=154';
 
 export function renderAdminDashboard(container) {
-    const activeRole = state.impersonatedRole || state.profile?.role;
+    // SIMPLIFIED ACCESS CHECK
+    // If profile is not loaded yet, assume admin to allow rendering (Router already checked auth).
+    // If profile IS loaded, check role strictly.
+    const activeRole = state.impersonatedRole || (state.profile ? state.profile.role : 'admin');
+
     if (activeRole !== 'admin') {
         container.innerHTML = `
             <div style="padding: 2rem; text-align: center; color: var(--text-secondary);">
@@ -55,6 +60,17 @@ export function renderAdminDashboard(container) {
                         <span style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
                             <span class="material-icons-round">list_alt</span>
                             Log Notifiche
+                        </span>
+                    </button>
+                    <button class="tab-btn" data-tab="system" style="
+                        flex: 1; padding: 1rem; border: none; background: none; 
+                        border-bottom: 2px solid transparent; color: var(--text-secondary); 
+                        font-weight: 500; cursor: pointer; transition: all 0.2s; position: relative;
+                    ">
+                        <span style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <span class="material-icons-round">bug_report</span>
+                            Sistema
+                            <span id="error-badge" style="display: none; position: absolute; top: 8px; right: 12px; background: var(--error); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; font-weight: 700;"></span>
                         </span>
                     </button>
                 </div>
@@ -109,6 +125,11 @@ export function renderAdminDashboard(container) {
                     <div id="admin-logs-container">Loading logs...</div>
                 </div>
 
+                <!-- Tab Content: System -->
+                <div id="tab-system" class="tab-content hidden" style="padding: 2rem;">
+                    <div id="admin-system-container">Loading system logs...</div>
+                </div>
+
                 <!-- Tab Content: Labs -->
                 <div id="tab-labs" class="tab-content hidden" style="padding: 2rem;">
                     <div style="background: rgba(97, 74, 162, 0.05); border: 1px solid rgba(97, 74, 162, 0.1); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
@@ -122,8 +143,45 @@ export function renderAdminDashboard(container) {
                     </div>
 
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
-                        <!-- Feature Card: Team Chat (Hidden in public)
-                        <div class="glass-card feature-card" style="padding: 1.5rem; border: 1px solid var(--glass-border); transition: all 0.2s; cursor: pointer;">
+                        <!-- Feature Card: Project Hub -->
+                        <div class="glass-card feature-card" style="padding: 1.5rem; border: 1px solid var(--glass-border); transition: all 0.2s; cursor: pointer;"
+                             onclick="window.location.hash = 'pm/commesse'">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                                <div style="background: linear-gradient(135deg, #FF6B6B, #FF8E53); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white;">
+                                    <span class="material-icons-round">folder_special</span>
+                                </div>
+                                <span style="background: rgba(33, 150, 243, 0.1); color: #2196f3; font-size: 0.7rem; font-weight: 700; padding: 4px 8px; border-radius: 4px;">BETA</span>
+                            </div>
+                            <h4 style="margin: 0 0 0.5rem; font-size: 1.1rem;">Project Hub</h4>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.4;">
+                                Nuovo modulo per la gestione avanzata delle commesse e attività. Visualizzazione ad albero, KPI e drawer interattivo.
+                            </p>
+                            <button class="primary-btn" style="width: 100%;">
+                                Apri Project Hub
+                            </button>
+                        </div>
+
+                        <!-- Feature Card: Booking Hub -->
+                        <div class="glass-card feature-card" style="padding: 1.5rem; border: 1px solid var(--glass-border); transition: all 0.2s; cursor: pointer;"
+                             onclick="window.location.hash = 'booking'">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                                <div style="background: linear-gradient(135deg, #4facfe, #00f2fe); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white;">
+                                    <span class="material-icons-round">event_available</span>
+                                </div>
+                                <span style="background: rgba(156, 39, 176, 0.1); color: #9c27b0; font-size: 0.7rem; font-weight: 700; padding: 4px 8px; border-radius: 4px;">RE-DESIGN</span>
+                            </div>
+                            <h4 style="margin: 0 0 0.5rem; font-size: 1.1rem;">Booking Hub</h4>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.4;">
+                                Sistema di prenotazione basato su React. Gestione disponibilità team, cataloghi servizi e integrazione Google Calendar.
+                            </p>
+                            <button class="primary-btn" style="width: 100%;">
+                                Apri Booking Hub
+                            </button>
+                        </div>
+
+                        <!-- Feature Card: Team Chat -->
+                        <div class="glass-card feature-card" style="padding: 1.5rem; border: 1px solid var(--glass-border); transition: all 0.2s; cursor: pointer;"
+                             onclick="window.location.hash = 'chat'">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
                                 <div style="background: linear-gradient(135deg, #4e92d8, #614aa2); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white;">
                                     <span class="material-icons-round">chat</span>
@@ -134,11 +192,10 @@ export function renderAdminDashboard(container) {
                             <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.4;">
                                 Sistema di messaggistica interna in tempo reale. Supporta canali, DM, reazioni e allegati.
                             </p>
-                            <button class="primary-btn" onclick="window.location.hash = 'chat'" style="width: 100%;">
+                            <button class="primary-btn" style="width: 100%;">
                                 Apri Chat
                             </button>
                         </div>
-                        -->
                     </div>
                 </div>
             </div>
@@ -179,7 +236,22 @@ export function renderAdminDashboard(container) {
                 const logsContainer = container.querySelector('#admin-logs-container');
                 renderNotificationLogs(logsContainer);
             }
+
+            // Render system logs if system tab is active
+            if (tab.dataset.tab === 'system') {
+                const systemContainer = container.querySelector('#admin-system-container');
+                renderSystemLogs(systemContainer);
+            }
         });
+    });
+
+    // Load error badge count
+    getUnresolvedErrorCount().then(count => {
+        const badge = container.querySelector('#error-badge');
+        if (badge && count > 0) {
+            badge.textContent = count;
+            badge.style.display = 'inline';
+        }
     });
 
     // Load Google Config
@@ -193,7 +265,7 @@ async function loadGoogleConfigForm() {
 
     try {
         // Dynamic import to avoid circular deps
-        const { fetchAllSystemConfig, upsertSystemConfig } = await import('../../modules/api.js?v=148');
+        const { fetchAllSystemConfig, upsertSystemConfig } = await import('../../modules/api.js?v=151');
         const configs = await fetchAllSystemConfig();
 
         const clientId = configs.find(c => c.key === 'google_client_id')?.value || '';

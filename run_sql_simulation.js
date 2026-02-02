@@ -1,4 +1,6 @@
 const { Client } = require('pg');
+const fs = require('fs');
+const path = require('path');
 
 async function run() {
     const client = new Client({
@@ -12,17 +14,16 @@ async function run() {
 
     try {
         await client.connect();
-        console.log("Connected! Checking RLS policies...");
 
-        const res = await client.query(`
-      SELECT policyname, cmd, qual, with_check 
-      FROM pg_policies 
-      WHERE tablename = 'collaborator_google_auth';
-    `);
-        console.log("Policies:", res.rows);
+        const sqlPath = path.join(__dirname, 'debug_simulate_trigger.sql');
+        const sql = fs.readFileSync(sqlPath, 'utf8');
+
+        console.log("Executing simulation SQL...");
+        const res = await client.query(sql);
+        console.log("Result:", res);
 
     } catch (err) {
-        console.error("Error:", err);
+        console.error("Error executing simulation:", err);
     } finally {
         await client.end();
     }

@@ -1,5 +1,5 @@
-import { state } from '../modules/state.js?v=148';
-import { formatAmount } from '../modules/utils.js?v=148';
+import { state } from '../modules/state.js?v=151';
+import { formatAmount } from '../modules/utils.js?v=151';
 
 export const DashboardData = {
     getStats: (year, passiveFilter = 'all') => {
@@ -208,8 +208,8 @@ export function renderDashboard(container) {
 
         const funnelStates = [
             { key: 'In Lavorazione', label: 'In Lavorazione', icon: 'pending_actions', color: '#e3f2fd', textColor: '#1976d2' },
+            { key: 'Invio Programmato', label: 'Invio Programmato', icon: 'schedule', color: '#e0f2f1', textColor: '#00796b' },
             { key: 'In Attesa Di Risposta', label: 'In Attesa Di Risposta', icon: 'hourglass_empty', color: '#e1f5fe', textColor: '#0288d1' },
-            { key: 'Invio Progammato', label: 'Invio Programmato', icon: 'schedule', color: '#e0f2f1', textColor: '#00796b' },
             { key: 'Offerta Accettata', label: 'Offerta Accettata', icon: 'check_circle', color: '#e8f5e9', textColor: '#388e3c' },
             { key: 'Offerta Rifiutata', label: 'Offerta Rifiutata', icon: 'cancel', color: '#fce4ec', textColor: '#c2185b' }
         ];

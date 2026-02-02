@@ -1,7 +1,9 @@
-import { supabase } from '../modules/config.js?v=148';
-import { state } from '../modules/state.js?v=148';
-import { fetchAvailabilityRules, fetchRestDays, fetchAvailabilityOverrides } from '../modules/api.js?v=148';
-import { openAvailabilityModal, checkAndHandleGoogleCallback } from './availability_manager.js?v=148';
+import { supabase } from '../modules/config.js?v=151';
+import { state } from '../modules/state.js?v=151';
+import { fetchAvailabilityRules, fetchRestDays, fetchAvailabilityOverrides } from '../modules/api.js?v=151';
+import { fetchCollaboratorAppointments } from '../modules/pm_api.js?v=151';
+import { openAvailabilityModal, checkAndHandleGoogleCallback } from './availability_manager.js?v=151';
+import { fetchAppointment } from '../modules/pm_api.js?v=151';
 
 let currentDate = new Date(); // Represents the start of the week or current view date
 let eventsCache = [];
@@ -13,12 +15,16 @@ let currentGoogleFetchId = 0; // Track latest Google fetch to prevent race condi
 
 let filters = {
     bookings: true,
-    deadlines: true,
-    reminders: true
+    appointments: true,
+    deadlines: false,
+    reminders: false
 };
 
 export async function renderAgenda(container) {
     console.log("[Agenda] renderAgenda called. Container:", container);
+
+    // Inject critical styles immediately
+    injectAgendaStyles();
 
     // Set Page Title
     const titleEl = document.getElementById('page-title');
@@ -30,61 +36,10 @@ export async function renderAgenda(container) {
     }
 
     container.innerHTML = `
-        <div class="agenda-container animate-fade-in" id="agenda-view-wrapper">
+        <div class="agenda-container animate-fade-in" id="agenda-view-wrapper" style="display: flex !important; flex-direction: row !important;">
             
-            <!-- SIDEBAR -->
-            <aside class="agenda-sidebar" style="overflow-y: auto !important; height: 100% !important; min-height: 0 !important;">
-                <div class="agenda-sidebar-header">
-                    <h2>Agenda</h2>
-                    <p>Overview Appuntamenti</p>
-                </div>
-
-                <div class="mini-calendar" id="mini-calendar">
-                    <!-- Rendered via JS -->
-                </div>
-
-                <!-- Google Sync Status Removed from here -->
-                
-                <!-- Filters -->
-                <div class="agenda-filters">
-                    <div class="filter-group-title">Filtri Calendario</div>
-                    
-                    <div class="filter-item active" data-filter="bookings" onclick="toggleFilter('bookings')">
-                        <div class="filter-checkbox" style="background: #0ea5e9; border-color: #0ea5e9;">
-                            <i class="material-icons-round">check</i>
-                        </div>
-                        <span>Prenotazioni</span>
-                    </div>
-
-                    <div class="filter-item active" data-filter="deadlines" onclick="toggleFilter('deadlines')">
-                        <div class="filter-checkbox" style="background: #f59e0b; border-color: #f59e0b;">
-                            <i class="material-icons-round">check</i>
-                        </div>
-                        <span>Scadenze</span>
-                    </div>
-
-                     <div class="filter-item" data-filter="reminders" onclick="toggleFilter('reminders')">
-                        <div class="filter-checkbox">
-                             <i class="material-icons-round">check</i>
-                        </div>
-                        <span>Promemoria</span>
-                    </div>
-                </div>
-
-                <div class="agenda-quick-add" style="margin-top: auto; padding-top: 2rem;">
-                   <div class="filter-group-title" style="margin-bottom: 1rem;">Azioni Rapide</div>
-                   
-
-
-                   <button class="quick-add-btn" onclick="window.showAlert('Funzione in arrivo', 'info')" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.8rem; background: var(--brand-blue); color: white; border: none; border-radius: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(var(--brand-blue-rgb, 78, 146, 216), 0.3);">
-                        <span class="material-icons-round">add</span>
-                        <span>Nuovo Evento</span>
-                   </button>
-                </div>
-            </aside>
-
-            <!-- MAIN CONTENT -->
-            <div class="agenda-main">
+            <!-- MAIN CONTENT (Now on Left) -->
+            <div class="agenda-main" style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
                 <!-- Toolbar -->
                 <div class="agenda-main-header">
                     <div class="header-left">
@@ -124,32 +79,66 @@ export async function renderAgenda(container) {
                 </div>
                 </div>
                  <!-- Timeline Grid -->
-                <div class="timeline-wrapper">
-                    <!-- Combined Scrollable Container -->
-                    <div class="timeline-scroll-container">
-                        <!-- Time Gutter (Sticky Left) -->
+                <div class="timeline-wrapper" style="flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column;">
+                    <!-- Fixed Header Wrapper to handle scroll sync manually if needed, or let sticky work -->
+                     <div class="timeline-scroll-container" id="agenda-grid-container">
+                        <!-- 1. Corner (Sticky Top-Left) -->
+                        <div class="time-gutter-header"></div>
+
+                        <!-- 2. Day Headers (Sticky Top) -->
+                        <div class="timeline-header-row" id="timeline-header">
+                             <!-- Day Headers injected here -->
+                        </div>
+
+                        <!-- 3. Time Gutter (Sticky Left) -->
                         <div class="time-gutter">
                              <!-- 00:00, 01:00 ... -->
                         </div>
                         
-                        <!-- Main Content (Header + Grid) -->
-                        <div class="timeline-content">
-                            <!-- Header Row (Days) - Sticky Top -->
-                            <div class="timeline-header-row" id="timeline-header">
-                                 <!-- Day Headers injected here -->
-                            </div>
-
-                            <!-- Main Grid -->
-                            <div class="main-grid" id="main-grid">
-                                <!-- Columns & Events -->
-                                 <div class="grid-lines-layer">
-                                    <!-- Horizontal Lines -->
-                                </div>
+                        <!-- 4. Main Grid (Scrollable Content) -->
+                        <div class="main-grid" id="main-grid">
+                            <!-- Columns & Events -->
+                             <div class="grid-lines-layer">
+                                <!-- Horizontal Lines -->
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- SIDEBAR (Now on Right) -->
+            <aside class="agenda-sidebar" style="width: 340px !important; flex-shrink: 0 !important; overflow-y: auto !important; height: 100% !important; min-height: 0 !important; border-right: none; border-left: 1px solid rgba(0,0,0,0.05);">
+                <div class="agenda-sidebar-header">
+                    <h2>Agenda</h2>
+                </div>
+
+                <div class="mini-calendar" id="mini-calendar">
+                    <!-- Injected by JS -->
+                </div>
+
+                <!-- Filters (Now above list) -->
+                <div class="agenda-filters-chips">
+                    <div class="filter-chip ${filters.bookings ? 'active' : ''}" onclick="toggleFilter('bookings')">
+                        Prenotazioni
+                    </div>
+                    <div class="filter-chip ${filters.appointments ? 'active' : ''}" onclick="toggleFilter('appointments')">
+                        Appuntamenti
+                    </div>
+                    <!-- Optional: Add more if needed, but keeping it simple as requested -->
+                </div>
+
+                <!-- Event List Container -->
+                <div id="agenda-sidebar-list" class="agenda-sidebar-list">
+                    <!-- Events injected here -->
+                </div>
+
+                <div class="agenda-quick-add">
+                   <button class="quick-add-btn" onclick="window.showAlert('Funzione in arrivo', 'info')" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.8rem; background: var(--brand-blue); color: white; border: none; border-radius: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(var(--brand-blue-rgb, 78, 146, 216), 0.3);">
+                        <span class="material-icons-round">add</span>
+                        <span>Nuovo Evento</span>
+                   </button>
+                </div>
+            </aside>
         </div>
     `;
 
@@ -315,12 +304,13 @@ async function fetchMyBookings() {
         // Get collaborator User ID to fetch Timezone
         const collabUserQuery = supabase.from('collaborators').select('user_id').eq('id', collaboratorId).single();
 
-        const [bookingsRes, rules, restDays, overrides, collabUserRes] = await Promise.all([
+        const [bookingsRes, rules, restDays, overrides, collabUserRes, appointmentsData] = await Promise.all([
             bookingsQuery,
             fetchAvailabilityRules(collaboratorId),
             fetchRestDays(collaboratorId),
             supabase.from('availability_overrides').select('*, booking_items(name)').eq('collaborator_id', collaboratorId),
-            collabUserQuery
+            collabUserQuery,
+            fetchCollaboratorAppointments(collaboratorId)
         ]);
 
         let fetchedTimezone = null;
@@ -343,7 +333,15 @@ async function fetchMyBookings() {
             throw bookingsRes.error;
         }
 
-        eventsCache = bookingsRes.data || [];
+        // Merge Bookings and Appointments
+        const bookings = bookingsRes.data || [];
+        const appointments = (appointmentsData || []).map(appt => ({
+            ...appt,
+            isAppointment: true,
+            color: appt.appointment_types?.color || '#a855f7'
+        }));
+
+        eventsCache = [...bookings, ...appointments];
 
         // Preserve existing googleBusy if we have it (prevents race condition on double-render)
         const existingGoogleBusy = availabilityCache.googleBusy || [];
@@ -503,13 +501,12 @@ function renderTimeline() {
     const timelineWrapper = document.querySelector('.timeline-wrapper');
     if (timelineWrapper) {
         timelineWrapper.innerHTML = `
-            <div class="timeline-scroll-container">
+            <div class="timeline-scroll-container" id="agenda-grid-container">
+                <div class="time-gutter-header"></div>
+                <div class="timeline-header-row" id="timeline-header"></div>
                 <div class="time-gutter"></div>
-                <div class="timeline-content">
-                    <div class="timeline-header-row" id="timeline-header"></div>
-                    <div class="main-grid" id="main-grid">
-                        <div class="grid-lines-layer"></div>
-                    </div>
+                <div class="main-grid" id="main-grid">
+                    <div class="grid-lines-layer"></div>
                 </div>
             </div>
         `;
@@ -576,15 +573,71 @@ function renderTimeline() {
     // 3. Render Gutter & Grid Lines
     const startHour = 0;
     const endHour = 24; // Full day range
-    const totalHours = endHour - startHour;
+
+    // Reset styles
+    gutter.style.position = '';
+    gutter.style.height = '';
 
     let gutterHtml = '';
     let gridLinesHtml = '';
-    for (let h = startHour; h <= endHour; h++) {
-        gutterHtml += `<div class="time-slot-label"><span>${h}:00</span></div>`;
-        gridLinesHtml += `<div class="grid-line-hour"></div>`;
+
+    // INLINE STYLES to guarantee alignment and bypass CSS specificity issues
+    // INLINE STYLES to guarantee alignment and bypass CSS specificity issues
+    const labelContainerStyle = 'position: relative; height: 60px; margin: 0; padding: 0; pointer-events: none;';
+    const spanStyle = 'position: absolute; top: 0; right: 12px; transform: translateY(-50%); display: block; background: #ffffff; padding: 0 4px; z-index: 50; font-weight: 600; color: #64748b; font-size: 0.75rem;';
+
+    // FIX V247: ABSOLUTE POSITIONING STRATEGY
+    gutter.style.position = 'relative';
+    gutter.style.paddingTop = '0';
+    gutter.style.marginTop = '0';
+    // Ensure height is explicit
+    const totalHeight = (endHour - startHour + 1) * 60;
+    gutter.style.height = `${totalHeight}px`;
+
+    // We need to ensure the time gutter container allows overflow so 00:00 isn't cut off
+    gutter.style.overflow = 'visible';
+    // Gutter needs position relative for absolute children
+    gutter.style.position = 'relative';
+
+    let contentHtml = '';
+
+    // FIX V248: STRICT ABSOLUTE ALIGNMENT
+    // Using absolute positioning for labels to guarantee pixel-perfect alignment with grid lines.
+    // We enforce translateY(-50%) on ALL labels, including 00:00, to satisfy user demand for "correct" alignment.
+
+    // FIX V250: STRICT ABSOLUTE ALIGNMENT OVERRIDE
+    // We explicitly override ALL external CSS properties that might shift the label.
+    // padding: 0 !important; transform: none !important; margin: 0 !important; border: 0 !important;
+    // The inner span handles the vertical centering (-50%).
+
+    // FIX V251: PURE GRID LINES (No CSS Class)
+    // We remove 'grid-line-hour' class to avoid the "Double Border" issue (Solid Bottom from CSS vs Dashed Top from JS).
+    // Now we get exactly ONE line per hour (Dashed Top). This solves the "Every two lines" visual glitch.
+
+    // FIX V252: DEBUG RED LINES
+    // User reports no change. We MUST verify if code is running.
+    // Changing lines to BRIGHT RED and THICK.
+
+    for (let h = 0; h <= endHour; h++) {
+        const topPx = (h - startHour) * 60;
+        let zIndex = h === 0 ? 101 : 50;
+
+        // FIX V259: CLEAN LABELS & CSS OVERRIDES
+        // We use a clean DIV container (no class) to avoid global CSS.
+        // We ensure strict vertical alignment: line-height: 1, top: -0.4em offset.
+        // Cushion padding is zeroed as requested.
+        contentHtml += `
+            <div style="position: absolute; top: ${topPx}px; left: 0; width: 100%; height: 0; pointer-events: none; z-index: ${zIndex};">
+                <span style="position: absolute; top: -0.4em; right: 8px; transform: translateY(-50%); display: block; line-height: 1 !important; margin: 0 !important; padding: 0 !important; font-weight: 600; color: #64748b; font-size: 0.75rem; background: transparent;">
+                    ${h}:00
+                </span>
+            </div>`;
+
+        // Grid line - just a horizontal dashed line (no label)
+        gridLinesHtml += `<div style="height: 60px; width: 100%; border-top: 1px dashed rgba(0,0,0,0.06); box-sizing: border-box; margin: 0; padding: 0;"></div>`;
     }
-    gutter.innerHTML = '<div class="time-gutter-header"></div>' + gutterHtml;
+    // Labels go in the gutter column
+    gutter.innerHTML = contentHtml;
 
     if (bgLayer) bgLayer.innerHTML = gridLinesHtml;
 
@@ -626,147 +679,160 @@ function renderTimeline() {
         // We assume day-col has a grayish background, and we paint "Available" slots as white.
         let availabilityHtml = '';
 
-        const parseTimeInTimezone = (t, dateRef, sourceTz) => {
-            if (!t) return 0;
-            const [h, m] = t.split(':').map(Number);
-            if (!sourceTz) return h + (m / 60);
-
-            // Convert "dateRef + HH:mm in sourceTz" to local hours
-            try {
-                let guess = new Date(dateRef);
-                guess.setHours(h, m, 0, 0);
-
-                // Check time of 'guess' in sourceTz
-                const parts = new Intl.DateTimeFormat('en-US', {
-                    timeZone: sourceTz,
-                    hour: 'numeric', minute: 'numeric', hour12: false
-                }).formatToParts(guess);
-
-                let sourceH = parseInt(parts.find(p => p.type === 'hour').value);
-                if (sourceH === 24) sourceH = 0;
-                let sourceM = parseInt(parts.find(p => p.type === 'minute').value);
-
-                // Diff in minutes: (Time in CollabTZ) - (Time in Local)
-                let diffMinutes = (sourceH * 60 + sourceM) - (guess.getHours() * 60 + guess.getMinutes());
-
-                // Handle day wrap
-                if (diffMinutes > 720) diffMinutes -= 1440;
-                if (diffMinutes < -720) diffMinutes += 1440;
-
-                // If Source is Ahead (diff > 0), it means Local is Behind. 
-                // We want to match Source Identity. 
-                // e.g. We want 09:00 Source. Guess is 09:00 Local.
-                // 09:00 Local is 08:00 Source. (Diff = -60).
-                // We need to add 60 mins to guess to reach 09:00 Source (which is 10:00 Local).
-                // So guess = guess - diffMinutes ( - (-60) = +60 ).
-
-                guess.setMinutes(guess.getMinutes() - diffMinutes);
-
-                let finalH = guess.getHours() + guess.getMinutes() / 60;
-                // Handle edge case where it pushed to next/prev day? 
-                // For now we map to the hours on THIS day view. 
-                // If it goes to <0 or >24, the clipping below handles it? No, if it shifts to 25.0 it should be shown?
-                // The current view only shows 0-24. 
-                // If 9-18 London becomes 10-19 Rome. 
-                // If 23-24 London becomes 00-01 Rome (Next Day). 
-                // Since guess.getHours() wraps 0-23, we need to detect day shift?
-                // The current visual logic relies on 'startHour' (0) to 'endHour' (24).
-                // If `guess` changed day, it wraps h.
-                // For simplicity, we just take the wrapped hour. This might show "00-01" at top of SAME day if it wrapped? 
-                // Actually if it wrapped to next day, it should be on next day column. 
-                // But we are rendering THIS column based on THIS day's rule.
-
-                return finalH;
-
-            } catch (e) {
-                console.warn("Timezone calc error:", e);
-                return h + (m / 60);
+        // Parse ISO time/Date/String to "Wall Time" Hours
+        const getWallTime = (input) => {
+            if (!input) return null; // Return null if invalid
+            // Handle Date object (use its local time)
+            if (input instanceof Date) {
+                return input.getHours() + input.getMinutes() / 60;
             }
+            // Handle String
+            if (typeof input === 'string') {
+                // CASE 1: ISO String (has T, Z, or +) -> Use Browser Timezone
+                // This converts 11:00 UTC -> 12:00 Local (Italy)
+                if (input.includes('T') || input.includes('Z') || input.includes('+')) {
+                    const d = new Date(input);
+                    if (!isNaN(d.getTime())) {
+                        return d.getHours() + d.getMinutes() / 60;
+                    }
+                }
+
+                // CASE 2: Simple Time String (HH:MM:SS) -> Naive Parse
+                // Used for availability rules e.g. "09:00:00" -> 9
+                try {
+                    let timePart = input;
+                    // Fallback cleanup if T exists but Date fail (unlikely but safe)
+                    if (input.includes('T')) timePart = input.split('T')[1];
+                    else if (input.includes(' ')) timePart = input.split(' ')[1];
+
+                    const clean = timePart.split(/[Z+\-]/)[0];
+                    const [h, m] = clean.split(':').map(Number);
+                    if (isNaN(h)) return null;
+                    return h + (m / 60);
+                } catch (e) {
+                    console.warn("Time parse warn:", input, e);
+                    return null;
+                }
+            }
+            return null;
         };
 
         if (!isRest) {
             // Get busy intervals - Precise Timestamp Overlap Logic
             const dayStartMs = dayDate.getTime();
             const dayEndMs = dayStartMs + 86400000;
-            console.log(`[Agenda] Day column: ${dayDate.toLocaleDateString()} (StartMs: ${dayStartMs})`);
 
             const dayBusy = availabilityCache.googleBusy.filter(b => {
                 const bStart = new Date(b.start).getTime();
                 const bEnd = new Date(b.end).getTime();
-                const isMatch = bStart < dayEndMs && bEnd > dayStartMs;
-
-                // Verbose Debugging for first few checks
-                // if (availabilityCache.googleBusy.length < 5 || isMatch) {
-                //    console.log(`[Agenda Debug] Comparing Slot: ${b.start} -> ${b.end}`);
-                //    console.log(`[Agenda Debug]   Slot Start: ${bStart}, End: ${bEnd}`);
-                //    console.log(`[Agenda Debug]   Day  Start: ${dayStartMs}, End: ${dayEndMs}`);
-                //    console.log(`[Agenda Debug]   Match: ${isMatch} (bStart < dayEndMs: ${bStart < dayEndMs}, bEnd > dayStartMs: ${bEnd > dayStartMs})`);
-                // }
-
-                return isMatch;
+                return bStart < dayEndMs && bEnd > dayStartMs;
             }).map(b => {
                 const bStart = new Date(b.start).getTime();
                 const bEnd = new Date(b.end).getTime();
                 let startH = (bStart - dayStartMs) / 3600000;
                 let endH = (bEnd - dayStartMs) / 3600000;
-                console.log(`[Agenda]   -> Calculated Hours: ${startH.toFixed(2)} to ${endH.toFixed(2)}`);
 
                 if (startH < 0) startH = 0;
                 if (endH > 24) endH = 24;
                 return { start: startH, end: endH, original: b };
             });
 
-            // RENDER GOOGLE BUSY BLOCKS - VISUALS DISABLED
-            console.log("[Agenda] Google busy slots visual rendering is DISABLED by configuration.");
+            // RENDER GOOGLE BUSY BLOCKS
+            dayBusy.forEach(busy => {
+                const topPx = (busy.start - startHour) * 60;
+                const heightPx = (busy.end - busy.start) * 60;
 
-            activeSlots.forEach(slot => {
-                const sH = parseTimeInTimezone(slot.start_time, dayDate, availabilityCache.collaboratorTimezone);
-                const eH = parseTimeInTimezone(slot.end_time, dayDate, availabilityCache.collaboratorTimezone);
-
-                // Clip to view range
-                if (eH <= startHour || sH >= endHour) return;
-                const effectiveStart = Math.max(sH, startHour);
-                const effectiveEnd = Math.min(eH, endHour);
-
-                // Split this slot by subtracting busy intervals
-                let freeIntervals = [{ start: effectiveStart, end: effectiveEnd }];
-
-                dayBusy.forEach(busy => {
-                    const newIntervals = [];
-                    freeIntervals.forEach(interval => {
-                        if (busy.end <= interval.start || busy.start >= interval.end) {
-                            newIntervals.push(interval);
-                        } else if (busy.start <= interval.start && busy.end >= interval.end) {
-                            // Busy completely covers - skip
-                        } else if (busy.start > interval.start && busy.end < interval.end) {
-                            newIntervals.push({ start: interval.start, end: busy.start });
-                            newIntervals.push({ start: busy.end, end: interval.end });
-                        } else if (busy.start <= interval.start && busy.end < interval.end) {
-                            newIntervals.push({ start: busy.end, end: interval.end });
-                        } else if (busy.start > interval.start && busy.end >= interval.end) {
-                            newIntervals.push({ start: interval.start, end: busy.start });
-                        }
-                    });
-                    freeIntervals = newIntervals;
-                });
-
-                const isDedicated = !!slot.service_id || !!slot.booking_item_id || (Array.isArray(slot.service_ids) && slot.service_ids.length > 0);
-                const borderStyle = isDedicated ? 'border-left: 3px solid #F59E0B;' : 'border-left: 3px solid #667eea;';
-                const bgStyle = isDedicated ? 'background: #fffbf0;' : 'background: #ffffff;';
-                const serviceName = slot.booking_items?.name || (Array.isArray(slot.service_ids) && slot.service_ids.length > 0 ? "Servizi Multipli" : "");
-
-                freeIntervals.forEach(interval => {
-                    const topPx = (interval.start - startHour) * 60;
-                    const heightPx = (interval.end - interval.start) * 60;
-                    if (heightPx > 0) {
-                        availabilityHtml += `
-                    <div class="availability-slot" style="position: absolute; top: ${topPx}px; height: ${heightPx}px; left: 0; right: 0; ${bgStyle} ${borderStyle} z-index: 1; opacity: 1; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; padding: 4px; overflow: hidden;" title="${serviceName || 'Disponibile'}">
-                        ${serviceName ? `<div style="font-size:0.65rem; color:${isDedicated ? '#b45309' : '#4f46e5'}; font-weight:600; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${serviceName}</div>` : ''}
+                // Render Gray Block for Google Event
+                availabilityHtml += `
+                    <div class="agenda-google-block" 
+                         style="
+                            position: absolute; 
+                            top: ${topPx}px; 
+                            height: ${heightPx}px; 
+                            left: 0; right: 0; 
+                            background: repeating-linear-gradient(45deg, rgba(241, 245, 249, 0.5), rgba(241, 245, 249, 0.5) 10px, rgba(226, 232, 240, 0.5) 10px, rgba(226, 232, 240, 0.5) 20px);
+                            border: 1px solid rgba(203, 213, 225, 0.2);
+                            z-index: 6;
+                            pointer-events: none;
+                            opacity: 0.4;
+                        ">
+                        <span style="position: absolute; top: 2px; right: 4px; font-size: 10px; color: #64748b; font-weight: 600; opacity: 0.5;">Google</span>
                     </div>
                 `;
-                    }
-                });
             });
+
+            // SPLIT AVAILABILITY SLOTS BASED ON GOOGLE BUSY
+            let finalAvailabilitySlots = [];
+
+            activeSlots.forEach(slot => {
+                const sH = getWallTime(slot.start_time);
+                let eH = getWallTime(slot.end_time);
+                if (eH === 0 && slot.end_time === '23:59:00') eH = 24;
+
+                // Start with the full slot as one piece
+                let currentPieces = [{ start: sH, end: eH }];
+
+                // Subtract each busy block from the pieces
+                dayBusy.forEach(busy => {
+                    let nextPieces = [];
+                    currentPieces.forEach(piece => {
+                        // Check overlap
+                        const overlapStart = Math.max(piece.start, busy.start);
+                        const overlapEnd = Math.min(piece.end, busy.end);
+
+                        if (overlapStart < overlapEnd) {
+                            // There is an overlap, we need to split (result is the non-overlapping parts)
+
+                            // Part BEFORE the busy block
+                            if (piece.start < overlapStart) {
+                                nextPieces.push({ start: piece.start, end: overlapStart });
+                            }
+                            // Part AFTER the busy block
+                            if (piece.end > overlapEnd) {
+                                nextPieces.push({ start: overlapEnd, end: piece.end });
+                            }
+                        } else {
+                            // No overlap, keep original piece
+                            nextPieces.push(piece);
+                        }
+                    });
+                    currentPieces = nextPieces;
+                });
+
+                finalAvailabilitySlots.push(...currentPieces);
+            });
+
+            // Render Final (Fragmented) Availability Slots
+            finalAvailabilitySlots.forEach(slot => {
+                // effective range check
+                if (slot.end <= startHour || slot.start >= endHour) return;
+                const effectiveStart = Math.max(slot.start, startHour);
+                const effectiveEnd = Math.min(slot.end, endHour);
+
+                if (effectiveEnd <= effectiveStart) return;
+
+                const topPx = (effectiveStart - startHour) * 60;
+                const heightPx = (effectiveEnd - effectiveStart) * 60;
+
+                availabilityHtml += `
+                    <div class="agenda-availability-slot" 
+                         style="
+                            position: absolute; 
+                            top: ${topPx}px; 
+                            height: ${heightPx}px; 
+                            left: 2px;
+                            width: 2px;
+                            background: #a855f7;
+                            border-radius: 4px;
+                            box-shadow: 0 0 8px rgba(168, 85, 247, 0.6), 0 0 4px rgba(168, 85, 247, 0.4);
+                            z-index: 5;
+                            pointer-events: none;
+                        ">
+                    </div>
+                `;
+            });
+
+            // Render Google Busy Blocks (Visuals disabled)
         }
 
         // Filter events
@@ -774,38 +840,86 @@ function renderTimeline() {
 
         let eventsHtml = '';
 
-        if (filters.bookings) {
+        // Render Events & Appointments
+        if (dayEvents.length > 0) {
             dayEvents.forEach(ev => {
-                const start = new Date(ev.start_time);
-                let end = new Date(ev.end_time);
+                // Use Wall Time for Events too
+                const startH = getWallTime(ev.start_time);
+                let endH = getWallTime(ev.end_time);
 
-                // Fallback duration
-                if (!ev.end_time && ev.booking_items?.duration_minutes) {
-                    end = new Date(start.getTime() + ev.booking_items.duration_minutes * 60000);
-                }
+                const startRaw = new Date(ev.start_time);
+                const endRaw = new Date(ev.end_time);
 
-                const startH = start.getHours() + start.getMinutes() / 60;
-                let endH = end.getHours() + end.getMinutes() / 60;
-
-                if (endH === 0 && end.getDate() !== start.getDate()) endH = 24;
+                if (endH === 0) endH = 24; // Handle midnight wrap if needed
 
                 if (startH < startHour) return;
 
                 const topPx = (startH - startHour) * 60;
-                const heightPx = (endH - startH) * 60;
+                const heightPx = Math.max((endH - startH) * 60, 30);
 
-                const statusClass = `status-${ev.status}`;
+                const statusClass = `status-${ev.status || 'scheduled'}`;
+                const bgColor = ev.color || '#a855f7';
 
-                const evtId = `evt_${ev.id.replace(/-/g, '_')}`;
+                const evtId = `evt_appt_${ev.id.replace(/-/g, '_')}`;
                 window[evtId] = ev;
 
+                // FIX V263: Use Local Time (no UTC param)
+                const timeStr = `${startRaw.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} - ${endRaw.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`;
+
+                // NEW V262 DESIGN: Pro Card Look
+                const accentColor = ev.color || '#a855f7';
+
+                // Construct richer subtitle with Order/Client info
+                let richerSubtitle = '';
+                if (ev.isAppointment && ev.orders) {
+                    const orderInfo = ev.orders.order_number ? `#${ev.orders.order_number}` : '';
+                    const clientInfo = ev.orders.clients?.business_name || ev.client_name || '';
+                    if (clientInfo && orderInfo) {
+                        richerSubtitle = `<div class="event-subtitle" style="color: #475569; font-size: 0.7rem; margin-top: 2px;">
+                            <span style="font-weight: 600;">${clientInfo}</span> • ${orderInfo}
+                        </div>`;
+                    } else if (clientInfo || orderInfo) {
+                        richerSubtitle = `<div class="event-subtitle" style="color: #475569; font-size: 0.7rem; margin-top: 2px;">
+                            ${clientInfo || orderInfo}
+                        </div>`;
+                    }
+                } else if (ev.client_name) {
+                    richerSubtitle = `<div class="event-subtitle" style="color: #475569; font-size: 0.7rem; margin-top: 2px;">${ev.client_name}</div>`;
+                }
+
                 eventsHtml += `
-                    <div class="agenda-event type-booking ${statusClass}" 
-                         style="top: ${topPx}px; height: ${heightPx}px; z-index: 10;"
-                         onclick="openEventDetails(window['${evtId}'])">
-                        <span class="event-time">${start.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
-                        <div class="event-title">${ev.booking_items?.name || 'Prenotazione'}</div>
-                        ${ev.guest_info?.first_name ? `<div class="event-subtitle">con ${ev.guest_info.first_name} ${ev.guest_info.last_name || ''}</div>` : ''}
+                    <div class="agenda-event type-appointment ${statusClass}" 
+                         style="
+                            position: absolute;
+                            top: ${topPx + 1}px; 
+                            height: ${heightPx - 2}px; 
+                            left: 2px; right: 2px;
+                            z-index: 10; 
+                            background: color-mix(in srgb, ${accentColor}, white 85%); 
+                            border: 1px solid rgba(0,0,0,0.05);
+                            border-left: 4px solid ${accentColor};
+                            border-radius: 6px;
+                            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+                            padding: 6px 8px;
+                            display: flex;
+                            flex-direction: column;
+                            gap: 2px;
+                            overflow: hidden;
+                            transition: all 0.2s;
+                            cursor: pointer;
+                        "
+                         onclick="openEventDetails(window['${evtId}'])"
+                         onmouseover="this.style.boxShadow='0 8px 15px rgba(0,0,0,0.06)'; this.style.transform='translateY(-1px)'"
+                         onmouseout="this.style.boxShadow='0 4px 6px rgba(0,0,0,0.02)'; this.style.transform='none'"
+                    >
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                            <span class="event-time" style="font-size: 0.65rem; font-weight: 700; color: ${accentColor}; text-transform: uppercase;">${timeStr}</span>
+                            ${ev.status === 'confermato' ? '<span style="color: #22c55e; font-size: 10px;">●</span>' : ''}
+                        </div>
+                        <div class="event-title" style="font-weight: 700; color: #1e293b; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">
+                            ${ev.title || ev.appointment_types?.name || 'Appuntamento'}
+                        </div>
+                        ${richerSubtitle}
                     </div>
                 `;
             });
@@ -818,30 +932,23 @@ function renderTimeline() {
             const nowH = now.getHours() + now.getMinutes() / 60;
             if (nowH >= startHour && nowH <= endHour) {
                 const topPx = (nowH - startHour) * 60;
-                nowHtml = `
-                    <div class="now-indicator" style="top: ${topPx}px; z-index: 20;">
-                         <div class="now-dot"></div>
-                         <div class="now-line"></div>
-                    </div>
-                `;
+                nowHtml = `<div class="current-time-line" style="top: ${topPx}px;"></div>`;
             }
         }
 
         // Day Column Background
         // If Rest Day -> Striped Gray
-        // If Normal Day -> Light Gray (defined in CSS, or inline here)
-        // We rely on .day-col styling, but we enforce specific background here if rest day
-
-        let colStyle = 'background-color: #f1f5f9;'; // Darker gray for better contrast with white slots
+        // Normal -> Transparent
+        let colStyle = 'background-color: transparent;';
         if (isRest) {
             colStyle = `
-                background-color: #e2e8f0; 
-                background-image: repeating-linear-gradient(45deg, #cbd5e1 0, #cbd5e1 10px, #e2e8f0 10px, #e2e8f0 20px);
+                background-color: #f8fafc; 
+                background-image: repeating-linear-gradient(45deg, #f1f5f9 0, #f1f5f9 10px, #f8fafc 10px, #f8fafc 20px);
             `;
         }
 
         columnsHtml += `
-            <div class="day-col" data-date="${dateStr}" style="${colStyle} position: relative; border-right: 1px solid var(--glass-border); min-width: 170px;">
+            <div class="day-col" data-date="${dateStr}" style="${colStyle} position: relative; border-right: 1px solid rgba(0,0,0,0.05); min-width: 100px;">
                 ${availabilityHtml}
                 ${eventsHtml}
                 ${nowHtml}
@@ -850,16 +957,163 @@ function renderTimeline() {
     });
 
     // Reconstruct Main Grid
-    // Important: .grid-lines-layer must not occupy a grid cell
+    // Important: .grid-lines-layer must be ABSOLUTELY positioned, not in grid flow
+    grid.style.position = 'relative';
+    grid.style.minHeight = `${24 * 60}px`; // 24 hours * 60px per hour
+
     grid.innerHTML = `
-        <div class="grid-lines-layer" style="grid-column: 1 / -1; width: 100%; border-right: 1px solid var(--glass-border);">${gridLinesHtml}</div>
-        ${columnsHtml}
+        <div class="grid-lines-layer" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; pointer-events: none;">
+            ${gridLinesHtml}
+        </div>
+        <div class="grid-columns-container" style="display: grid; position: relative; z-index: 1;">
+            ${columnsHtml}
+        </div>
     `;
+
+    // Remove Debug Overlay if exists
+    const existingDebug = document.getElementById('agenda-debug-overlay');
+    if (existingDebug) existingDebug.remove();
 
     // CSS Grid Cols
     const cols = currentView === 'week' ? 7 : 1;
+    const colsContainer = grid.querySelector('.grid-columns-container');
+    if (colsContainer) {
+        colsContainer.style.cssText = `
+            display: grid;
+            position: absolute; 
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 1;
+            grid-template-columns: repeat(${cols}, 1fr);
+        `;
+    }
     header.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+    // --- NOW LINE INTEGRATION ---
+    if (nowLineInterval) clearInterval(nowLineInterval);
+    renderNowLine();
+    nowLineInterval = setInterval(renderNowLine, 60000); // Update every minute
+    // Auto-scroll (only if we just rendered today's view)
+    // Simple heuristic: if we have a .now-line, scroll to it.
+    setTimeout(() => {
+        if (document.querySelector('.now-line')) {
+            scrollToNow();
+        }
+    }, 100);
+
+    renderSideEventList();
+}
+
+// --- SIDEBAR EVENT LIST ---
+function renderSideEventList() {
+    const listContainer = document.getElementById('agenda-sidebar-list');
+    if (!listContainer) return;
+
+    // Determine current view range
+    let start, end;
+    if (currentView === 'day') {
+        start = new Date(currentDate);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(currentDate);
+        end.setHours(23, 59, 59, 999);
+    } else if (currentView === 'week') {
+        const day = currentDate.getDay(); // 0 (Sun) - 6 (Sat)
+        // Adjust to Monday start
+        const diff = currentDate.getDate() - day + (day === 0 ? -6 : 1);
+        start = new Date(currentDate);
+        start.setDate(diff);
+        start.setHours(0, 0, 0, 0);
+
+        end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
+    } else {
+        start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
+    }
+
+    // Filter events in range
+    const relevantEvents = eventsCache.filter(ev => {
+        // Check filters
+        if (ev.isAppointment && !filters.appointments) return false;
+        if (!ev.isAppointment && !filters.bookings) return false;
+
+        const evStart = new Date(ev.start_time);
+        return evStart >= start && evStart <= end;
+    });
+
+    // Sort by Date then Time
+    relevantEvents.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+
+    // Group by Day
+    const grouped = {};
+    relevantEvents.forEach(ev => {
+        const d = new Date(ev.start_time);
+        const dateKey = d.toDateString();
+        if (!grouped[dateKey]) {
+            grouped[dateKey] = {
+                date: d,
+                events: []
+            };
+        }
+        grouped[dateKey].events.push(ev);
+    });
+
+    if (Object.keys(grouped).length === 0) {
+        listContainer.innerHTML = '<div class="sidebar-empty-state">Nessun evento in questo periodo</div>';
+        return;
+    }
+
+    let html = '';
+    const sortedKeys = Object.keys(grouped).sort((a, b) => new Date(a) - new Date(b));
+
+    sortedKeys.forEach(key => {
+        const group = grouped[key];
+        const dayName = group.date.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+
+        html += `
+            <div class="sidebar-day-group">
+                <div class="sidebar-day-header">${dayName}</div>
+        `;
+
+        group.events.forEach(ev => {
+            const startT = new Date(ev.start_time);
+            const endT = new Date(ev.end_time);
+            // Format time: "14:30"
+            const startTimeStr = startT.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+            const endTimeStr = endT.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+
+            const typeClass = ev.isAppointment ? 'type-appointment' : 'type-booking';
+            const title = ev.isAppointment ? (ev.title || 'Appuntamento') : (ev.booking_items?.name || 'Prenotazione');
+            let subtitle = '';
+
+            if (ev.isAppointment && ev.orders) {
+                subtitle = ev.orders.clients?.business_name || ev.client_name || '';
+            } else if (ev.client_name) {
+                subtitle = ev.client_name;
+            }
+
+            const evtId = `evt_side_${ev.id.replace(/-/g, '_')}`;
+            window[evtId] = ev;
+
+            html += `
+                <div class="sidebar-event-row" onclick="openEventDetails(window['${evtId}'])">
+                    <div class="sidebar-row-time">
+                        <span>${startTimeStr}</span>
+                        <span class="end-time">${endTimeStr}</span>
+                    </div>
+                    <div class="sidebar-row-dot ${typeClass}"></div>
+                    <div class="sidebar-row-content">
+                        <div class="sidebar-row-title">${title}</div>
+                        ${subtitle ? `<div class="sidebar-row-subtitle">${subtitle}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `</div>`;
+    });
+
+    listContainer.innerHTML = html;
 }
 
 // --- MINI CALENDAR ---
@@ -1046,84 +1300,364 @@ function formatDate(date, full = false) {
 function openEventDetails(event) {
     console.log("[Agenda] Opening details for event:", event);
 
+    const isAppt = event.isAppointment;
     const start = new Date(event.start_time);
     const end = new Date(event.end_time || event.start_time);
 
+    // Formatting
     const dateStr = start.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const timeStr = `${start.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`;
+    const capDate = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
 
-    const guestName = event.guest_info ? `${event.guest_info.first_name} ${event.guest_info.last_name || ''}` : 'Nessun ospite';
-    const guestEmail = event.guest_info?.email || '-';
-    const guestPhone = event.guest_info?.phone || '-';
+    // Common Modal Structure (Backbone)
+    const modalId = 'event-detail-modal';
+    const existing = document.getElementById(modalId);
+    if (existing) existing.remove();
 
-    // Create Modal HTML
-    const modalHtml = `
-        <div class="system-modal active" id="event-detail-modal">
-            <div class="system-modal-content" style="max-width: 450px;">
-                <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                    <h3 style="margin:0; font-size:1.2rem; color:var(--text-primary);">Dettagli Appuntamento</h3>
-                    <button class="icon-btn" onclick="closeEventModal()">
-                        <span class="material-icons-round">close</span>
-                    </button>
-                </div>
-                
-                <div class="modal-body" style="display:flex; flex-direction:column; gap:1rem;">
-                    
-                    <div style="background:var(--bg-secondary); padding:1rem; border-radius:8px; border-left: 4px solid #0ea5e9;">
-                        <div style="font-weight:600; font-size:1.1rem; color:var(--text-primary); margin-bottom:0.25rem;">${event.booking_items?.name || 'Prenotazione'}</div>
-                        <div style="font-size:0.9rem; color:var(--text-secondary); display:flex; align-items:center; gap:0.5rem;">
-                             <span class="material-icons-round" style="font-size:16px;">schedule</span>
-                             ${timeStr}
-                        </div>
-                         <div style="font-size:0.9rem; color:var(--text-secondary); margin-top:0.25rem;">
-                             ${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}
-                        </div>
-                    </div>
+    const title = isAppt ? (event.title || 'Appuntamento') : (event.booking_items?.name || 'Prenotazione');
+    const modalTitle = isAppt ? 'Dettagli Appuntamento' : 'Dettagli Prenotazione';
 
-                    <div class="detail-section">
-                        <h4 style="font-size:0.85rem; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:0.5rem;">Cliente</h4>
-                        <div style="display:flex; align-items:center; gap:0.75rem;">
-                            <div style="width:36px; height:36px; background:#e0e7ff; color:#4f46e5; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:600;">
-                                ${guestName.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                                <div style="font-weight:500; color:var(--text-primary);">${guestName}</div>
-                                <div style="font-size:0.85rem; color:var(--text-secondary);">${guestEmail}</div>
-                                <div style="font-size:0.85rem; color:var(--text-secondary);">${guestPhone}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    ${event.notes ? `
-                    <div class="detail-section">
-                        <h4 style="font-size:0.85rem; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:0.5rem;">Note</h4>
-                        <p style="font-size:0.9rem; color:var(--text-secondary); background:var(--bg-secondary); padding:0.75rem; border-radius:6px; margin:0;">
-                            ${event.notes}
-                        </p>
-                    </div>
-                    ` : ''}
-
-                </div>
-
-                <div class="modal-actions" style="margin-top:1.5rem; display:flex; gap:0.5rem; justify-content:flex-end;">
-                     <button class="primary-btn secondary" onclick="closeEventModal()">Chiudi</button>
-                     <button class="primary-btn" onclick="alert('Modifica non ancora disponibile')">Modifica</button>
-                </div>
+    // 1. HEADER (Fixed)
+    const headerHtml = `
+        <div class="modal-header" style="flex: 0 0 auto; display:flex !important; justify-content:space-between !important; align-items:flex-start !important; margin-bottom: 0; padding-bottom: 1rem; border-bottom: 1px solid var(--glass-border); width: 100%;">
+            <div style="text-align: left !important; flex: 1;">
+                <h3 style="margin:0; font-size:1.1rem; color:var(--text-primary); font-family:var(--font-titles); line-height: 1.3; text-align: left !important;">${modalTitle}</h3>
+                ${isAppt ? `<div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; text-align: left !important;">${dateStr}</div>` : ''}
             </div>
+            <button class="icon-btn" onclick="closeEventModal()" style="margin-left: 1rem; flex: 0 0 auto;">
+                <span class="material-icons-round">close</span>
+            </button>
         </div>
     `;
 
-    // Remove existing if any
-    const existing = document.getElementById('event-detail-modal');
-    if (existing) existing.remove();
+    // 2. BODY (Scrollable)
+    let bodyHtml = '';
+
+    if (isAppt) {
+        // --- APPOINTMENT BODY (V269 GRID LAYOUT) ---
+        const accentColor = event.color || '#a855f7';
+        const clientName = event.orders?.clients?.business_name || event.client_name || '-';
+        const orderRef = event.orders ? `#${event.orders.order_number} ${event.orders.title}` : '';
+        const status = event.status || 'programmato';
+
+        // Badge Status
+        let statusBg = '#e2e8f0'; let statusColor = '#64748b';
+        if (status === 'confermato') { statusBg = '#dcfce7'; statusColor = '#16a34a'; }
+        if (status === 'annullato') { statusBg = '#fee2e2'; statusColor = '#dc2626'; }
+        if (status === 'bozza') { statusBg = '#fef9c3'; statusColor = '#ca8a04'; }
+
+        bodyHtml = `
+            <div id="appt-modal-content-loader" style="display: flex; justify-content: center; padding: 2rem;">
+                <div class="loader"></div>
+            </div>
+            
+            <div id="appt-modal-content" style="display: none; flex-direction: column; gap: 1rem; padding-top: 1rem;">
+                
+                <!-- Main Info Card (Full Width) -->
+                <div style="background: white; border: 1px solid var(--glass-border); border-radius: 12px; padding: 1rem; border-left: 4px solid ${accentColor}; box-shadow: var(--shadow-sm);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                        <span class="badge" style="background: ${statusBg}; color: ${statusColor}; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.6rem; padding: 2px 6px;">${status}</span>
+                        <div style="font-size: 0.8rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.4rem;">
+                           ${timeStr}
+                        </div>
+                    </div>
+                    <div style="font-size: 1rem; font-weight: 700; color: var(--text-primary); line-height: 1.4; text-align: left !important;">${title}</div>
+                </div>
+
+                <!-- GRIGLIA 2 COLONNE (Context & Details) -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    
+                    <!-- Col 1: Cliente -->
+                    <div class="glass-card" style="padding: 0.75rem; display: flex; align-items: flex-start; gap: 0.75rem;">
+                        <div style="width: 32px; height: 32px; background: var(--bg-secondary); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;">
+                             <span class="material-icons-round" style="font-size: 16px; color: var(--text-tertiary);">business</span>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-tertiary); text-align: left;">Cliente</div>
+                            <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); white-space: normal; line-height: 1.3; text-align: left;" title="${clientName}">${clientName}</div>
+                        </div>
+                    </div>
+
+                    <!-- Col 2: Commessa -->
+                    <div class="glass-card" style="padding: 0.75rem; display: flex; align-items: flex-start; gap: 0.75rem;">
+                         <div style="width: 32px; height: 32px; background: var(--bg-secondary); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;">
+                             <span class="material-icons-round" style="font-size: 16px; color: var(--text-tertiary);">style</span>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-tertiary); text-align: left;">Commessa</div>
+                            <div style="font-size: 0.85rem; font-weight: 600; color: var(--brand-blue); white-space: normal; line-height: 1.3; text-align: left;" title="${orderRef}">${orderRef || '-'}</div>
+                        </div>
+                    </div>
+
+                    <!-- Col 1: Luogo -->
+                    <div class="glass-card" style="padding: 0.75rem; display: flex; align-items: flex-start; gap: 0.75rem;">
+                        <div style="width: 32px; height: 32px; background: var(--bg-secondary); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;">
+                          <span class="material-icons-round" style="font-size: 18px; color: var(--brand-purple);">location_on</span>
+                        </div>
+                        <div style="min-width: 0; flex: 1;">
+                             <div style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-tertiary); text-align: left;">Luogo</div>
+                             <div style="font-size: 0.85rem; color: var(--text-primary); white-space: normal; text-align: left; line-height: 1.3;">${event.location || 'Nessun luogo'}</div>
+                        </div>
+                    </div>
+
+                    <!-- Col 2: Modalità -->
+                     <div class="glass-card" style="padding: 0.75rem; display: flex; align-items: flex-start; gap: 0.75rem;">
+                         <div style="width: 32px; height: 32px; background: var(--bg-secondary); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;">
+                              <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">videocam</span>
+                         </div>
+                         <div style="min-width: 0; flex: 1;">
+                             <div style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-tertiary); text-align: left;">Modalità</div>
+                             <div style="font-size: 0.85rem; font-weight: 500; text-align: left;">${event.mode || '-'}</div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- People Section (Async) - Full Width -->
+                <div class="glass-card" style="padding: 1rem;">
+                     <div style="font-size: 0.65rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 0.75rem; text-align: left;">Partecipanti</div>
+                     
+                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <!-- Internal -->
+                        <div>
+                            <div style="font-size: 0.6rem; color: var(--text-tertiary); margin-bottom: 4px; text-align: left;">Interni</div>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;" id="modal-internal-participants">
+                                <span style="font-size: 0.8rem; color: var(--text-tertiary); font-style: italic;">Caricamento...</span>
+                            </div>
+                        </div>
+
+                         <!-- External -->
+                         <div>
+                             <div style="font-size: 0.6rem; color: var(--text-tertiary); margin-bottom: 4px; text-align: left;">Referenti</div>
+                             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;" id="modal-external-participants">
+                                 <span style="font-size: 0.8rem; color: var(--text-tertiary); font-style: italic;">Caricamento...</span>
+                            </div>
+                        </div>
+                     </div>
+                </div>
+
+                <!-- Notes Section (MANDATORY) - Full Width -->
+                <div class="glass-card" style="padding: 1rem;">
+                    <div style="font-size: 0.65rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 0.5rem; text-align: left;">Note / Appunti</div>
+                    ${event.note ? `
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; white-space: pre-wrap; text-align: left;">${event.note}</div>
+                    ` : `
+                        <div style="font-size: 0.8rem; color: var(--text-tertiary); font-style: italic; text-align: left;">Nessuna nota presente.</div>
+                    `}
+                </div>
+                
+                <!-- Spacer for Footer safety -->
+                <div style="height: 20px;"></div>
+            </div>
+        `;
+
+    } else {
+        // BOOKING LAYOUT (Original)
+        // ... (Keep existing booking logic if unchanged, or clean up here)
+        // Re-using existing variables
+        const guestName = event.guest_info ? `${event.guest_info.first_name} ${event.guest_info.last_name || ''}` : 'Nessun ospite';
+        const guestEmail = event.guest_info?.email || '-';
+        const guestPhone = event.guest_info?.phone || '-';
+
+        bodyHtml = `
+            <div style="display:flex; flex-direction:column; gap:1rem; padding-top: 1rem;">
+                <!-- Main Card -->
+                <div style="background:var(--bg-secondary); padding:1rem; border-radius:8px; border-left: 4px solid #0ea5e9;">
+                    <div style="font-weight:600; font-size:1.1rem; color:var(--text-primary); margin-bottom:0.25rem;">${title}</div>
+                    <div style="font-size:0.9rem; color:var(--text-secondary); display:flex; align-items:center; gap:0.5rem;">
+                            <span class="material-icons-round" style="font-size:16px;">schedule</span>
+                            ${timeStr}
+                    </div>
+                        <div style="font-size:0.9rem; color:var(--text-secondary); margin-top:0.25rem;">
+                            ${capDate}
+                    </div>
+                </div>
+
+                <!-- Client -->
+                <div class="detail-section">
+                    <h4 style="font-size:0.85rem; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:0.5rem;">Cliente</h4>
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <div style="width:36px; height:36px; background:#e0e7ff; color:#4f46e5; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:600;">
+                            ${guestName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <div style="font-weight:500; color:var(--text-primary);">${guestName}</div>
+                            <div style="font-size:0.85rem; color:var(--text-secondary);">${guestEmail}</div>
+                            <div style="font-size:0.85rem; color:var(--text-secondary);">${guestPhone}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Notes -->
+                <div class="detail-section">
+                    <h4 style="font-size:0.85rem; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:0.5rem;">Note</h4>
+                    <p style="font-size:0.9rem; color:var(--text-secondary); background:var(--bg-secondary); padding:0.75rem; border-radius:6px; margin:0; line-height:1.5;">
+                        ${event.notes || 'Nessuna nota.'}
+                    </p>
+                </div>
+                
+                <div style="height: 20px;"></div>
+            </div>
+        `;
+    }
+
+    // 3. FOOTER (Fixed) with White Background & Separation
+    // Left: Delete (if appt). Right: Actions
+    const footerHtml = `
+        <div class="modal-footer" style="flex: 0 0 auto; display:flex !important; justify-content:space-between !important; align-items:center !important; padding-top: 1rem; border-top: 1px solid var(--glass-border); margin-top: auto; background: white; width: 100%;">
+             
+             <!-- Left: Delete -->
+             <div style="flex: 0 0 auto; margin-right: auto;">
+                 ${isAppt ? `
+                     <button class="icon-btn-danger" onclick="deleteAppointment('${event.id}')" title="Elimina" style="border: 1px solid #fee2e2; border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: #ef4444;">
+                        <span class="material-icons-round" style="font-size:18px;">delete</span>
+                     </button>
+                 ` : ''}
+             </div>
+
+             <!-- Right: Actions -->
+             <div style="flex: 0 0 auto; display: flex; gap: 0.75rem;">
+                 <button class="btn btn-secondary" onclick="closeEventModal()">Chiudi</button>
+                 ${isAppt ? `
+                     <button class="btn btn-primary" onclick="alert('Modifica in arrivo...')" title="Modifica" style="gap: 0.5rem; display: flex !important; align-items: center !important;">
+                        <span class="material-icons-round" style="font-size:16px;">edit</span>
+                        Modifica
+                     </button>
+                 ` : ''}
+             </div>
+        </div>
+    `;
+
+
+    // ASSEMBLE MODAL - FIXED FLEX STRUCTURE
+    // Note: .system-modal is screen overlay. .system-modal-content is the card.
+    // CSS for .system-modal-content MUST include: display: flex; flex-direction: column; max-height: 90vh;
+    // We already ensured CSS injection for system-modal-content in previous step? 
+    // Wait, let's force inline styles just in case to be 100% sure of layout physics.
+
+    const modalHtml = `
+        <div class="system-modal active" id="${modalId}" style="z-index: 10000; display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%;">
+            <div class="system-modal-content" style="
+                display: flex; 
+                flex-direction: column; 
+                max-width: ${isAppt ? '700px' : '450px'}; /* Expanded Width for Appts */
+                width: 90%; 
+                max-height: 85vh; 
+                background: white; 
+                border-radius: 16px; 
+                padding: 1.5rem; 
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+                overflow: hidden;"> 
+                <!-- overflow hidden on card, scroll on body -->
+                
+                ${headerHtml}
+                
+                <div class="modal-body" style="flex: 1; overflow-y: auto; padding-right: 4px; min-height: 0;">
+                    ${bodyHtml}
+                </div>
+                
+                ${footerHtml}
+            </div>
+        </div>
+    `;
 
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 
     // Global close handler
     window.closeEventModal = () => {
-        const m = document.getElementById('event-detail-modal');
+        const m = document.getElementById(modalId);
         if (m) m.remove();
     };
+
+    // --- ASYNC DATA FETCHING FOR APPOINTMENTS ---
+    if (isAppt) {
+        (async () => {
+            try {
+                const loader = document.getElementById('appt-modal-content-loader');
+                const content = document.getElementById('appt-modal-content');
+
+                // Fetch FULL details (participants, etc)
+                const fullEvent = await fetchAppointment(event.id);
+                if (!fullEvent) throw new Error("Appointment not found");
+
+                // --- DATA FIX V272: LAZY LOAD COLLABORATORS ---
+                // If state.collaborators is empty (direct access), fetch them now so we can resolve names.
+                if (!state.collaborators || state.collaborators.length === 0) {
+                    try {
+                        const { fetchCollaborators } = await import('../modules/api.js?v=151');
+                        await fetchCollaborators();
+                        console.log("Lazy loaded collaborators for modal:", state.collaborators?.length);
+                    } catch (e) {
+                        console.error("Failed to lazy load collaborators:", e);
+                    }
+                }
+
+                // --- RENDER PARTICIPANTS ---
+
+                // Process Internal
+                // Logic: show ALL participants, not just first.
+                // fullEvent.appointment_internal_participants is an array.
+                // pm_api expands it with 'user' object or 'collaborator_id'.
+                // If using 'fetchAppointment' from pm_api.js (v151), it returns arrays.
+                // But pm_api fetchAppointment does NOT auto-join users/collabs nicely for name expansion inside the query deeply?
+                // Wait, in previous step's check, fetchAppointment had `appointment_internal_participants ( collaborator_id )`.
+                // It did NOT have the expansion logic inside fetchAppointment like it did for `fetchAppointments` (plural).
+
+                // CRITICAL FIX: `fetchAppointment` (singular) in pm_api.js v151 returns raw IDs. 
+                // We need to resolve them. 
+                // Option A: Use `state.collaborators` to find names.
+                // Option B: Update `fetchAppointment` to expand.
+                // Let's use Option A (Client Side Expansion) for speed and safety.
+
+                const internals = fullEvent.appointment_internal_participants || [];
+
+                const internalHtml = internals.length > 0 ? internals.map(p => {
+                    // Check if P has collaborator_id directly or nested
+                    const cId = p.collaborator_id;
+                    const collab = state.collaborators?.find(c => c.id === cId);
+
+                    const name = collab ? (collab.full_name || `${collab.first_name || ''} ${collab.last_name || ''}`.trim() || collab.short_name || 'Staff') : 'Staff';
+                    const avatar = collab?.avatar_url;
+                    const initials = name.substring(0, 2).toUpperCase();
+
+                    return `
+                        <div class="participant-chip" style="display:flex; align-items:center; gap:0.5rem; background: var(--bg-secondary); padding: 0.3rem 0.6rem; padding-right: 0.8rem; border-radius: 20px; border: 1px solid var(--glass-border);">
+                            <div style="width: 24px; height: 24px; border-radius: 50%; background: #e0e7ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; overflow: hidden;">
+                                ${avatar ? `<img src="${avatar}" style="width:100%; height:100%; object-fit:cover;">` : initials}
+                            </div>
+                            <span style="font-size: 0.8rem; font-weight: 500;">${name}</span>
+                        </div>
+                    `;
+                }).join('') : '<span style="font-size: 0.8rem; color: var(--text-tertiary);">Nessun partecipante interno</span>';
+
+                document.getElementById('modal-internal-participants').innerHTML = internalHtml;
+
+                // Process External
+                const externals = fullEvent.appointment_client_participants || [];
+                const externalHtml = externals.length > 0 ? externals.map(p => {
+                    // Similar logic for external contacts if data available
+                    // For now, placeholder or partial ID
+                    return `
+                         <div style="display:flex; align-items:center; gap:0.3rem; background: var(--bg-secondary); padding: 0.3rem 0.6rem; border-radius: 20px; border: 1px solid var(--glass-border);">
+                            <span class="material-icons-round" style="font-size: 14px; color: var(--text-tertiary);">perm_contact_calendar</span>
+                            <span style="font-size: 0.8rem;">Contatto Esterno</span> 
+                        </div>
+                    `;
+                }).join('') : '<span style="font-size: 0.8rem; color: var(--text-tertiary);">Nessun referente esterno</span>';
+
+                document.getElementById('modal-external-participants').innerHTML = externalHtml;
+
+                // Switch View
+                if (loader) loader.style.display = 'none';
+                if (content) content.style.display = 'flex';
+
+            } catch (err) {
+                console.error("Error loading appt details", err);
+                const loader = document.getElementById('appt-modal-content-loader');
+                if (loader) loader.innerHTML = '<div style="color:red; font-size:0.9rem;">Errore nel caricamento dettagli.</div>';
+            }
+        })();
+    }
 }
 
 // Ensure function is globally available for inline onclick handlers
@@ -1210,18 +1744,24 @@ function renderMonthlyView() {
         const dayEvents = eventsCache.filter(e => e.start_time.startsWith(dateStr));
 
         let eventsHtml = '';
-        if (filters.bookings) {
-            dayEvents.forEach(ev => {
+        dayEvents.forEach(ev => {
+            const isBooking = !ev.isAppointment;
+            const isAppt = ev.isAppointment;
+
+            if ((isBooking && filters.bookings) || (isAppt && filters.appointments)) {
                 const statusClass = `status-${ev.status}`;
+                const typeClass = isAppt ? 'type-appointment' : 'type-booking';
+                const label = isAppt ? (ev.title || 'Appuntamento') : (ev.booking_items?.name || 'Prenotazione');
+
                 const evtId = `evt_month_${ev.id.replace(/-/g, '_')}`;
                 window[evtId] = ev;
                 eventsHtml += `
-                    <div class="monthly-event-dot type-booking ${statusClass}" onclick="openEventDetails(window['${evtId}'])">
-                        ${ev.booking_items?.name || 'Prenotazione'}
+                    <div class="monthly-event-dot ${typeClass} ${statusClass}" onclick="openEventDetails(window['${evtId}'])">
+                        ${label}
                     </div>
                 `;
-            });
-        }
+            }
+        });
 
         daysHtml += `
             <div class="monthly-day-box ${isToday ? 'today' : ''} ${isAvailable ? 'has-availability' : ''}">
@@ -1263,4 +1803,316 @@ function renderMonthlyView() {
             </div>
         </div>
     `;
+}
+
+// Global interval reference to clear it on re-renders
+let nowLineInterval = null;
+
+function renderNowLine() {
+    // 1. Remove existing lines
+    document.querySelectorAll('.now-line').forEach(el => el.remove());
+
+    // Only for Week or Day view
+    if (currentView === 'month') return;
+
+    // 2. Determine "Today" column
+    const grid = document.getElementById('main-grid');
+    if (!grid) return;
+
+    const today = new Date();
+    const headers = document.querySelectorAll('.day-col-header');
+
+    // Find index of today in the CURRENT view's headers
+    let todayIndex = -1;
+    headers.forEach((h, i) => {
+        // We can check the .today class we added in renderTimeline
+        if (h.classList.contains('today')) {
+            todayIndex = i;
+        }
+    });
+
+    if (todayIndex === -1) return; // Today not visible in this week/day view
+
+    // 3. Calculate Top Position
+    const h = today.getHours();
+    const m = today.getMinutes();
+    const topPx = (h * 60) + m;
+
+    // 4. Render Line
+    // We need to append it to the specific day column, typically logical 
+    // BUT our columns might be virtual or just grid columns.
+    // Our .main-grid is `display: grid`.
+    // We can insert a div that spans valid column or is placed in that specific grid column.
+
+    // Check if we have specific .day-events-col containers?
+    // In renderTimeline -> grid-columns-container we have columns.
+    const colsContainer = grid.querySelector('.grid-columns-container');
+    if (colsContainer) {
+        // We can append to this container? No, it's z-index 1.
+        // We can append to the main-grid directly and position it with grid-column.
+
+        // Grid column index: 
+        // If 'week', columns are 1..7. todayIndex is 0..6. So column is todayIndex + 1.
+
+        const line = document.createElement('div');
+        line.className = 'now-line';
+        line.style.top = `${topPx}px`;
+        // Explicitly span 1 column to avoid ambiguity
+        line.style.gridColumn = `${todayIndex + 1} / span 1`;
+        line.style.gridRow = '1 / -1'; // Span all rows (should be just one big row relative container)
+
+        // Use the grid container so grid-column works!
+        colsContainer.appendChild(line);
+    }
+}
+
+function scrollToNow() {
+    const today = new Date();
+    // Only scroll if today is roughly in range (e.g. 0-24h)
+    // Calculate position
+    const h = today.getHours();
+    const container = document.getElementById('agenda-grid-container');
+
+    if (container) {
+        // Center: (h * 60) - (containerHeight / 2)
+        const target = (h * 60) - (container.clientHeight / 2);
+        container.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+    }
+}
+
+// --- CRITICAL CSS INJECTION ---
+// --- CRITICAL CSS INJECTION ---
+function injectAgendaStyles() {
+    let style = document.getElementById('agenda-js-styles');
+    if (!style) {
+        style = document.createElement('style');
+        style.id = 'agenda-js-styles';
+        document.head.appendChild(style);
+    }
+
+    const css = `
+        /* LOCAL RESET */
+        .timeline-scroll-container * { 
+            box-sizing: border-box !important; 
+            margin: 0 !important; 
+            padding: 0 !important; 
+        }
+
+        #agenda-view-wrapper { background: #ffffff !important; }
+        
+        /* GRID LAYOUT - THE FIX */
+        .timeline-scroll-container {
+            display: grid !important;
+            grid-template-columns: 70px 1fr !important; /* Gutter | Content */
+            grid-template-rows: 90px 1fr !important;    /* Header | Body */
+            overflow: auto !important;
+            height: 100% !important;
+            background: #ffffff !important;
+            scroll-behavior: smooth !important;
+            position: relative !important;
+        }
+
+        /* 1. CORNER (Top-Left) - Sticky Both */
+        .time-gutter-header {
+            grid-column: 1 !important;
+            grid-row: 1 !important;
+            position: sticky !important;
+            top: 0 !important;
+            left: 0 !important;
+            z-index: 100 !important;
+            background: #ffffff !important;
+            border-right: 1px solid rgba(0,0,0,0.05) !important;
+            border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+        }
+
+        /* 2. HEADER ROW (Top-Right) - Sticky Top */
+        .timeline-header-row {
+            grid-column: 2 !important;
+            grid-row: 1 !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 90 !important;
+            background: #ffffff !important;
+            border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: stretch !important;
+            /* Width handled by grid/flex grow */
+        }
+
+        /* 3. TIME GUTTER (Bottom-Left) - Sticky Left */
+        .time-gutter {
+            grid-column: 1 !important;
+            grid-row: 2 !important;
+            position: sticky !important;
+            left: 0 !important;
+            z-index: 80 !important;
+            background: #ffffff !important;
+            border-right: 1px solid rgba(0,0,0,0.05) !important;
+            display: flex !important;
+            flex-direction: column !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            gap: 0 !important; /* Killer of unexpected spaces */
+            height: max-content !important; /* let it grow as needed */
+        }
+
+        /* 4. MAIN GRID (Bottom-Right) - Scrollable Content */
+        .main-grid {
+            grid-column: 2 !important;
+            grid-row: 2 !important;
+            position: relative !important;
+            display: flex !important;
+            flex-direction: row !important;
+            background: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            /* No sticky, moves freely */
+        }
+
+        /* COMPONENT STYLES */
+
+        /* Header Cells */
+        .day-col-header {
+            height: 100% !important;
+            flex: 1 0 100px !important; /* Matches day-col width */
+            border-right: 1px solid rgba(0,0,0,0.05) !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 6px !important;
+            background: #ffffff !important;
+        }
+        
+        .day-col-header .day-name { font-size: 0.75rem !important; color: var(--text-tertiary) !important; font-weight: 600 !important; text-transform: uppercase !important; }
+        .day-col-header .day-num { font-size: 1.4rem !important; color: var(--text-primary) !important; font-weight: 700 !important; }
+        .day-col-header.today .day-num { color: var(--brand-blue) !important; }
+        .day-col-header.today .day-name { color: var(--brand-blue) !important; }
+
+        /* Time Slots */
+        /* Time Slots - UPDATED FOR ABSOLUTE POSITIONING (V249) */
+        .time-slot-label {
+            /* Handled by inline styles: position: absolute, top: X, height: 0 */
+            /* We remove fixed height so it doesn't push flow */
+            width: 100% !important;
+            border-bottom: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            pointer-events: none !important;
+        }
+        
+        /* Centering the label visually ON the grid line */
+        .time-slot-label span {
+            position: absolute !important;
+            top: 0 !important;
+            right: 12px !important;
+            transform: translateY(-50%) !important; /* Pull UP to center on the line */
+            
+            display: block !important;
+            background: #ffffff !important;
+            padding: 0 4px !important;
+            
+            font-size: 0.75rem !important;
+            font-family: inherit !important;
+            font-weight: 600 !important;
+            color: #64748b !important;
+            line-height: normal !important;
+            border-radius: 4px !important;
+        }
+
+        /* Grid Background Lines */
+        .grid-line-hour {
+            height: 60px !important;
+            border-top: 1px dashed rgba(0,0,0,0.1) !important;
+            box-sizing: border-box !important;
+            margin: 0 !important;
+        }
+
+        /* Days Columns */
+        .day-col {
+            flex: 1 0 100px !important; /* Matches header width */
+            border-right: 1px solid rgba(0,0,0,0.05) !important;
+            position: relative !important;
+            min-width: 100px !important;
+        }
+
+        /* Events */
+        .agenda-event {
+            position: absolute !important;
+            left: 2px !important; 
+            right: 2px !important;
+            border-radius: 6px !important;
+            padding: 4px 8px !important;
+            font-size: 0.75rem !important;
+            overflow: hidden !important;
+            transition: transform 0.2s !important;
+            cursor: pointer !important;
+            z-index: 10 !important;
+            box-sizing: border-box !important;
+            margin: 0 !important;
+            border-left: 3px solid transparent !important;
+            /* Ensure pointer events work */
+            pointer-events: auto !important;
+        }
+
+        .agenda-event:hover {
+            transform: scale(1.02) !important;
+            z-index: 100 !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+        }
+
+        .event-time { font-weight: 700 !important; display: block !important; }
+        .event-title { font-weight: 600 !important; }
+
+        /* SIDEBAR */
+        .agenda-sidebar {
+            padding: 24px !important;
+            background: var(--card-bg) !important;
+            border-left: 1px solid var(--glass-border) !important;
+            overflow-y: auto !important;
+        }
+        .agenda-sidebar * { margin: revert !important; padding: revert !important; box-sizing: border-box !important; }
+        .agenda-sidebar h3 { margin-bottom: 16px !important; font-size: 1.1rem !important; }
+        .mini-calendar { margin-bottom: 24px !important; }
+        .filter-group { margin-top: 24px !important; }
+        .filter-item { margin-bottom: 8px !important; display: flex !important; align-items: center !important; }
+        .filter-item input { margin-right: 8px !important; }
+
+        /* MODAL FIX V265 */
+        .system-modal {
+            position: fixed !important;
+            top: 0 !important; 
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            background: rgba(0,0,0,0.4) !important;
+            backdrop-filter: blur(4px) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            z-index: 10000 !important;
+            opacity: 0;
+            animation: fadeIn 0.2s forwards !important;
+        }
+
+        .system-modal-content {
+            background: #ffffff !important;
+            border-radius: 16px !important;
+            padding: 24px !important;
+            width: 90% !important;
+            max-width: 500px !important;
+            max-height: 90vh !important;
+            overflow-y: auto !important;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+            border: 1px solid rgba(255,255,255,0.7) !important;
+            position: relative !important;
+            transform: scale(0.95);
+            animation: scaleIn 0.2s forwards !important;
+        }
+
+        @keyframes fadeIn { to { opacity: 1; } }
+        @keyframes scaleIn { to { transform: scale(1); } }
+    `;
+    style.textContent = css;
 }

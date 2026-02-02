@@ -75,13 +75,12 @@ serve(async (req: Request) => {
 
     if (!clientId || !clientSecret) throw new Error("Missing Google Client Config")
 
-    // 4. Refresh Token if needed (Simple check: always refresh if we have a refresh token to be safe, or check expiry)
-    // For robustness, let's blindly try to use access_token, and if 401, refresh.
-    // Actually, safest is to check expiry if available, but let's just refresh if we have a refresh token.
-    let accessToken = authParams.access_token
+    // 4. Determine Action (Create/Delete)
+    const action = payload.action || 'create'; // Default to create/update
 
+    // REFRESH TOKEN LOGIC (Shared)
+    let accessToken = authParams.access_token
     if (authParams.refresh_token) {
-      // Check if expired
       const now = new Date()
       const expiry = new Date(authParams.expires_at || 0)
 
@@ -113,7 +112,37 @@ serve(async (req: Request) => {
       }
     }
 
+    // --- DELETE ACTION ---
+    if (action === 'delete') {
+      const googleEventId = payload.google_event_id;
+      if (!googleEventId) {
+        console.warn("Delete requested but no google_event_id provided.");
+        return new Response(JSON.stringify({ message: "No event ID, skipped delete" }), { headers: corsHeaders });
+      }
+
+      console.log(`Deleting Google Event: ${googleEventId}`);
+      const deleteRes = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        }
+      });
+
+      if (!deleteRes.ok && deleteRes.status !== 410) { // 410 = Already deleted (Gone)
+        const errText = await deleteRes.text();
+        throw new Error(`Google Delete Failed: ${errText}`);
+      }
+
+      console.log("Google Event Deleted Successfully");
+      return new Response(JSON.stringify({ success: true, deleted: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // --- CREATE/UPDATE ACTION --- (Default)
+
     // 5. Create Event
+
     const summary = `${booking.booking_items?.name || 'Prenotazione'} - ${booking.guest_info?.first_name} ${booking.guest_info?.last_name}`
     const description = `Prenotazione ID: ${booking.id}\nNote: ${booking.notes || 'Nessuna nota'}\nCliente: ${booking.guest_info?.first_name} ${booking.guest_info?.last_name} (${booking.guest_info?.email})`
 

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Email Proof Viewer</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+
+        .preview-box {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        iframe {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #ddd;
+        }
+
+        .loading {
+            font-size: 1.5rem;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Verifica Contenuto Email (Proof)</h1>
+    <div id="status" class="loading">Caricamento dati (Assicurati di essere loggato nell'altra TAB)...</div>
+
+    <div class="container" id="content" style="display:none;">
+        <div class="preview-box">
+            <h2>1. Email per Collaboratore (Sharon)</h2>
+            <div id="collab-meta" style="margin-bottom:10px; font-family:monospace; color:#555;"></div>
+            <iframe id="collab-frame"></iframe>
+        </div>
+        <div class="preview-box">
+            <h2>2. Email per Cliente</h2>
+            <div id="guest-meta" style="margin-bottom:10px; font-family:monospace; color:#555;"></div>
+            <iframe id="guest-frame"></iframe>
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase } from './js/modules/config.js?v=999';
+
+        async function loadProofs() {
+            try {
+                // 1. Check Session
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) {
+                    document.getElementById('status').innerText = "Errore: Non sei loggato. Fai login nell'app principale e ricarica.";
+                    return;
+                }
+
+                // 2. Fetch Notification
+                const notifId = '32dd73b1-f12c-4788-be6c-5d673a7cd303';
+                const { data: record, error: e1 } = await supabase.from('notifications').select('*').eq('id', notifId).single();
+                if (e1) throw e1;
+
+                // 3. Fetch Template
+                const { data: typeData, error: e2 } = await supabase.from('notification_types').select('*').eq('key', record.type).single();
+                if (e2) throw e2;
+
+                // 4. Construct Variables (Logic mirrored from Edge Function)
+                const variables = { today: new Date().toLocaleDateString('it-IT') };
+                if (record.data) {
+                    for (const [key, val] of Object.entries(record.data)) {
+                        if (typeof val === 'string' || typeof val === 'number') variables[key] = val;
+                    }
+                    if (record.data.start_time) {
+                        const d = new Date(record.data.start_time);
+                        variables['date'] = d.toLocaleDateString('it-IT');
+                        variables['time'] = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+                        variables['start_time'] = variables['time'];
+                    }
+                    if (record.data.end_time) {
+                        const ends = new Date(record.data.end_time);
+                        variables['end_time'] = ends.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+                    }
+                }
+
+                const fill = (tpl) => tpl ? tpl.replace(/{{(\w+)}}/g, (_, k) => variables[k] !== undefined ? variables[k] : `{{${k}}}`) : '';
+
+                // --- GENERATE CLIENT PROOF ---
+                const guestSubject = fill(typeData.email_subject_template_guest);
+                let guestBody = fill(typeData.email_body_template_guest || `<p>Gentile {{guest_name}}, conferma.</p>`);
+
+                // Add Google Link Mock
+                guestBody += `<br><br><div style="padding:10px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:4px;">
+                    [Link Google Calendar Simulato: Aggiungi Prenotazione per ${variables['service_name']}]
+                </div>`;
+
+                document.getElementById('guest-meta').innerText = `To: ${record.data.guest_email}\nSubject: ${guestSubject}`;
+                document.getElementById('guest-frame').srcdoc = `<body style="font-family:sans-serif;">${guestBody}</body>`;
+
+                // --- GENERATE COLLAB PROOF ---
+                const collabSubject = fill(typeData.email_subject_template) || record.title;
+                const collabBody = fill(typeData.email_body_template) || `<p>${record.message}</p>`;
+
+                document.getElementById('collab-meta').innerText = `To: ${record.email || 'Sharon (via User ID)'}\nSubject: ${collabSubject}`;
+                document.getElementById('collab-frame').srcdoc = `<body style="font-family:sans-serif;">${collabBody}</body>`;
+
+                document.getElementById('status').style.display = 'none';
+                document.getElementById('content').style.display = 'flex';
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('status').innerText = "Errore: " + err.message;
+            }
+        }
+
+        loadProofs();
+    </script>
+</body>
+
+</html>

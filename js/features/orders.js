@@ -1,7 +1,7 @@
-import { state } from '../modules/state.js?v=148';
-import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=148';
-import { upsertPayment, deletePayment, upsertOrder, updateOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, addOrderContact, removeOrderContact, fetchOrderContacts } from '../modules/api.js?v=148';
-import { openPaymentModal } from './payments.js?v=148';
+import { state } from '../modules/state.js?v=151';
+import { formatAmount, showGlobalAlert, showConfirm } from '../modules/utils.js?v=151';
+import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, addOrderContact, removeOrderContact, fetchOrderContacts } from '../modules/api.js?v=151';
+import { openPaymentModal } from './payments.js?v=151';
 
 // ... (existing code) ...
 
@@ -31,7 +31,7 @@ export async function renderOrderDetail(container, orderId) {
     if (!state.assignments) await fetchAssignments();
     if (!state.services) await fetchServices();
     if (!state.collaboratorServices || state.collaboratorServices.length === 0) {
-        const { fetchCollaboratorServices } = await import('../modules/api.js?v=148');
+        const { fetchCollaboratorServices } = await import('../modules/api.js?v=151');
         await fetchCollaboratorServices();
     }
 
@@ -115,9 +115,38 @@ export async function renderOrderDetail(container, orderId) {
                         <span class="material-icons-round" style="color: white; font-size: 28px;">receipt</span>
                     </div>
                     <div>
-                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.4rem;">
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.4rem;">
                              <h1 style="font-size: 1.75rem; font-weight: 700; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.02em;">Ordine ${order.order_number}</h1>
-                             <span class="status-badge" style="background: ${statusColor}15; color: ${statusColor}; border: 1px solid ${statusColor}30; font-size: 0.75rem; padding: 4px 12px; border-radius: 2rem; font-weight: 600;">${order.status_works || order.status}</span>
+                             
+                             <div style="display: flex; gap: 0.75rem; align-items: center;">
+                                <!-- Offer Status Badge -->
+                                <div class="status-badge-container" style="position: relative; cursor: pointer;">
+                                     <select onchange="window.updateOrderOfferStatusQuick('${order.id}', this.value)" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+                                         <option value="In Lavorazione" ${order.offer_status === 'In Lavorazione' ? 'selected' : ''}>In Lavorazione</option>
+                                         <option value="Invio Programmato" ${order.offer_status === 'Invio Programmato' ? 'selected' : ''}>Invio Programmato</option>
+                                         <option value="In Attesa Di Risposta" ${order.offer_status === 'In Attesa Di Risposta' ? 'selected' : ''}>In Attesa Di Risposta</option>
+                                         <option value="Offerta Accettata" ${order.offer_status === 'Offerta Accettata' ? 'selected' : ''}>Offerta Accettata</option>
+                                         <option value="Offerta Rifiutata" ${order.offer_status === 'Offerta Rifiutata' ? 'selected' : ''}>Offerta Rifiutata</option>
+                                     </select>
+                                     <span class="status-badge" style="background: rgba(139, 92, 246, 0.1); color: var(--brand-viola); border: 1px solid rgba(139, 92, 246, 0.2); font-size: 0.75rem; padding: 4px 12px; border-radius: 2rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                                         ${order.offer_status || 'Stato Offerta...'} <span class="material-icons-round" style="font-size: 12px; opacity: 0.6;">expand_more</span>
+                                     </span>
+                                </div>
+
+                                <!-- Work Status Badge -->
+                                <div class="status-badge-container" style="position: relative; cursor: pointer;">
+                                     <select onchange="window.updateOrderStatusQuick('${order.id}', this.value)" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+                                     <option value="Lavoro in Attesa" ${order.status_works === 'Lavoro in Attesa' || order.status_works === 'In Attesa' ? 'selected' : ''}>In Attesa</option>
+                                     <option value="In Corso" ${order.status_works === 'In Corso' ? 'selected' : ''}>In Corso</option>
+                                         <option value="Completato" ${order.status_works === 'Completato' ? 'selected' : ''}>Completato</option>
+                                         <option value="Finito" ${order.status_works === 'Finito' ? 'selected' : ''}>Finito</option>
+                                         <option value="Annullato" ${order.status_works === 'Annullato' ? 'selected' : ''}>Annullato</option>
+                                     </select>
+                                     <span class="status-badge" style="background: ${statusColor}15; color: ${statusColor}; border: 1px solid ${statusColor}30; font-size: 0.75rem; padding: 4px 12px; border-radius: 2rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                                         ${order.status_works || 'Stato Lavori...'} <span class="material-icons-round" style="font-size: 12px; opacity: 0.6;">expand_more</span>
+                                     </span>
+                                </div>
+                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 1rem; color: var(--text-tertiary); font-size: 0.85rem;">
                             <span style="display: flex; align-items: center; gap: 0.4rem;"><span class="material-icons-round" style="font-size: 1rem;">calendar_today</span> ${new Date(order.created_at).toLocaleDateString()}</span>
@@ -132,6 +161,9 @@ export async function renderOrderDetail(container, orderId) {
                     </button>
                     <button class="primary-btn" onclick="window.editOrder('${order.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
                         <span class="material-icons-round">edit</span> Modifica Ordine
+                    </button>
+                    <button class="primary-btn secondary" onclick="window.deleteOrder('${order.id}')" style="padding: 0.6rem; border-radius: 10px; color: #ef4444; border-color: rgba(239, 68, 68, 0.2);">
+                        <span class="material-icons-round">delete</span>
                     </button>
                     <button class="primary-btn secondary" style="padding: 0.6rem; border-radius: 10px;"><span class="material-icons-round">more_vert</span></button>
                 </div>
@@ -747,6 +779,9 @@ window.filterAccountList = () => {
 
     // Filter by tag "Account" and search term
     const accounts = (state.collaborators || []).filter(c => {
+        // Filter out inactive
+        if (c.is_active === false || c.active === false) return false;
+
         const hasAccountTag = (Array.isArray(c.tags) ? c.tags : (c.tags || '').split(',')).some(t => t.trim().toLowerCase() === 'account');
         const matchesSearch = c.full_name.toLowerCase().includes(search);
         return hasAccountTag && matchesSearch;
@@ -866,6 +901,7 @@ window.editOrder = (orderId) => {
     document.getElementById('ord-number').value = order.order_number || '';
     document.getElementById('ord-date').value = order.order_date ? new Date(order.order_date).toISOString().split('T')[0] : '';
     document.getElementById('ord-status').value = order.status_works || 'In Corso';
+    document.getElementById('ord-offer-status').value = order.offer_status || 'In Lavorazione';
 
     modal.classList.add('active');
 };
@@ -901,14 +937,27 @@ export function initOrderModal() {
                         </div>
                     </div>
 
-                    <div>
-                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase;">Stato Lavori</label>
-                        <select id="ord-status" class="modal-input" style="width: 100%;">
-                            <option value="In Corso">In Corso</option>
-                            <option value="Completato">Completato</option>
-                            <option value="Finito">Finito</option>
-                            <option value="Annullato">Annullato</option>
-                        </select>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase;">Stato Offerta</label>
+                            <select id="ord-offer-status" class="modal-input" style="width: 100%;">
+                                <option value="In Lavorazione">In Lavorazione</option>
+                                <option value="Invio Programmato">Invio Programmato</option>
+                                <option value="In Attesa Di Risposta">In Attesa Di Risposta</option>
+                                <option value="Offerta Accettata">Offerta Accettata</option>
+                                <option value="Offerta Rifiutata">Offerta Rifiutata</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase;">Stato Lavori</label>
+                            <select id="ord-status" class="modal-input" style="width: 100%;">
+                                <option value="In Corso">In Corso</option>
+                                <option value="Lavoro in Attesa">In Attesa</option>
+                                <option value="Completato">Completato</option>
+                                <option value="Finito">Finito</option>
+                                <option value="Annullato">Annullato</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -926,6 +975,7 @@ export function initOrderModal() {
             title: document.getElementById('ord-title').value,
             order_number: document.getElementById('ord-number').value,
             order_date: document.getElementById('ord-date').value,
+            offer_status: document.getElementById('ord-offer-status').value,
             status_works: document.getElementById('ord-status').value
         };
 
@@ -1244,14 +1294,19 @@ window.filterAssignmentCollaborators = () => {
 
     if (!state.collaborators) {
         console.warn("Collaborators state empty, refetching...");
-        import('../modules/api.js?v=148').then(({ fetchCollaborators }) => fetchCollaborators());
+        import('../modules/api.js?v=151').then(({ fetchCollaborators }) => fetchCollaborators());
         // Show temp message
         list.innerHTML = '<div style="padding: 1rem; color: var(--text-tertiary);">Caricamento...</div>';
         list.style.display = 'block';
         return;
     }
 
-    const filtered = state.collaborators.filter(c => c.full_name.toLowerCase().includes(search));
+    const filtered = state.collaborators.filter(c => {
+        // Filter out inactive
+        if (c.is_active === false || c.active === false) return false;
+
+        return c.full_name.toLowerCase().includes(search);
+    });
 
     if (filtered.length === 0) {
         list.innerHTML = `<div style="padding: 1rem; color: var(--text-tertiary); text-align: center;">
@@ -1337,7 +1392,7 @@ window.loadCollaboratorServicesForAssignment = async () => {
         }
 
         // 2. Fetch Services (if not loaded)
-        const { fetchServices } = await import('../modules/api.js?v=148' + Date.now());
+        const { fetchServices } = await import('../modules/api.js?v=151' + Date.now());
         if (!state.services || state.services.length === 0) {
             await fetchServices();
         }
@@ -1556,8 +1611,8 @@ window.saveAssignmentMultiStep = async () => {
         const order = state.orders.find(o => o.id === orderId);
 
         // Dynamic import including calculateProposedAssignmentPayments
-        const { upsertAssignment, upsertCollaboratorService, fetchCollaboratorServices, fetchAssignments, upsertPayment, fetchPayments } = await import('../modules/api.js?v=148' + Date.now());
-        const { calculateProposedAssignmentPayments } = await import('./assignments.js?v=148');
+        const { upsertAssignment, upsertCollaboratorService, fetchCollaboratorServices, fetchAssignments, upsertPayment, fetchPayments } = await import('../modules/api.js?v=151' + Date.now());
+        const { calculateProposedAssignmentPayments } = await import('./assignments.js?v=151');
 
         console.log("Upserting Assignment...");
         const newAssignment = await upsertAssignment({
@@ -1633,3 +1688,38 @@ window.saveAssignmentMultiStep = async () => {
 };
 
 window.saveAssignment = window.saveAssignmentMultiStep;
+
+window.deleteOrder = async (id) => {
+    const confirm = await showConfirm("Sei sicuro di voler eliminare questo ordine? L'operazione non può essere annullata.", "Elimina Ordine");
+    if (!confirm) return;
+
+    try {
+        await deleteOrder(id);
+        showGlobalAlert("Ordine eliminato con successo");
+        window.location.hash = "orders";
+    } catch (e) {
+        showGlobalAlert("Errore durante l'eliminazione: " + e.message, "error");
+    }
+};
+
+window.updateOrderOfferStatusQuick = async (id, newStatus) => {
+    try {
+        await updateOrder(id, { offer_status: newStatus });
+        showGlobalAlert("Stato offerta aggiornato");
+        renderOrderDetail(document.getElementById('content-area'), id);
+    } catch (e) {
+        showGlobalAlert("Errore aggiornamento: " + e.message, "error");
+    }
+};
+
+window.updateOrderStatusQuick = async (id, newStatus) => {
+    try {
+        await updateOrder(id, { status_works: newStatus });
+        showGlobalAlert("Stato aggiornato");
+        // Re-render to update UI (specifically the badge color/text if needed, 
+        // though the select itself stays in place)
+        renderOrderDetail(document.getElementById('content-area'), id);
+    } catch (e) {
+        showGlobalAlert("Errore aggiornamento stato: " + e.message, "error");
+    }
+};

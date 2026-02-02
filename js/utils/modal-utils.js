@@ -3,11 +3,19 @@
  * Replaces native browser alert() and confirm() with styled modals
  */
 
-// Export to global scope immediately
+// Export to global scope
 window.showAlert = showAlert;
 window.showConfirm = showConfirm;
 
-console.log("[ModalUtils] System modals initialized and exported to window");
+// OVERRIDE NATIVE ALERT
+// This ensures that any third-party library or legacy code using alert() 
+// uses our custom modal instead, preventing native popups that might lose focus.
+const nativeAlert = window.alert;
+window.alert = function (message) {
+    console.log("[ModalUtils] Intercepted native alert:", message);
+    showAlert(message); // Fire and forget (async)
+};
+
 
 let systemModalContainer = null;
 

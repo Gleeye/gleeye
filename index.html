@@ -10,13 +10,154 @@
     <link rel="stylesheet" href="css/main.css?v=999">
     <link rel="stylesheet" href="css/design-system.css?v=999">
     <link rel="stylesheet" href="css/components/notifications.css?v=1000">
-    <link rel="stylesheet" href="css/components/agenda.css?v=999">
+    <link rel="stylesheet" href="css/components/agenda.css?v=1080">
+    <!-- Inline styles to override cache issues -->
+    <style>
+        .system-modal-message {
+            white-space: pre-wrap !important;
+            /* Fix newlines in popups */
+        }
+    </style>
     <link rel="stylesheet" href="css/components/custom-select.css?v=999">
     <!-- <link rel="stylesheet" href="css/components/chat.css?v=149"> -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+
+    <!-- CRITICAL CSS OVERRIDES FOR AGENDA -->
+    <style>
+        /* Force Agenda Grid Alignment - Bypass Cache */
+        .grid-line-hour {
+            border-top: 1px dashed rgba(0, 0, 0, 0.08) !important;
+            border-bottom: none !important;
+        }
+
+        .time-gutter {
+            background: #ffffff !important;
+            min-height: 100% !important;
+        }
+
+        .time-slot-label {
+            position: relative !important;
+            display: block !important;
+            height: 60px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+        }
+
+        .time-slot-label span {
+            position: absolute !important;
+            top: 0 !important;
+            right: 8px !important;
+            left: auto !important;
+            transform: translateY(-50%) !important;
+            background: #ffffff !important;
+            padding: 2px 4px !important;
+            font-size: 11px !important;
+            color: #64748b !important;
+            display: block !important;
+            width: auto !important;
+        }
+
+        .timeline-scroll-container {
+            background: #ffffff !important;
+        }
+
+        /* FIX VERTICAL MISALIGNMENT - Force Headers to Match Exact Height */
+        /* FIX VERTICAL MISALIGNMENT - Force Headers to Match Exact Height */
+        .timeline-header-row {
+            height: 96px !important;
+            box-sizing: border-box !important;
+            display: flex !important;
+            /* Switch header to flex to match body */
+            flex-direction: row !important;
+        }
+
+        .day-col-header {
+            height: 96px !important;
+            box-sizing: border-box !important;
+            padding: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+            align-items: center !important;
+            flex: 1 !important;
+            /* Match day-col flex */
+            min-width: 170px !important;
+            /* Consistent sizing */
+            border-right: 1px solid rgba(0, 0, 0, 0.05) !important;
+        }
+
+        .time-gutter-header {
+            height: 96px !important;
+            box-sizing: border-box !important;
+            margin-bottom: 0 !important;
+        }
+
+        /* Fix Availability Vertical Alignment & Grid/Gutter Sync */
+        .main-grid {
+            padding: 0 !important;
+            margin: 0 !important;
+            display: flex !important;
+            flex-direction: row !important;
+            position: relative !important;
+            height: 1440px !important;
+            min-height: 1440px !important;
+        }
+
+        .grid-lines-layer {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 0 !important;
+            display: block !important;
+        }
+
+        .day-col {
+            flex: 1 !important;
+            position: relative !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border-top: none !important;
+            z-index: 1 !important;
+            min-width: 170px !important;
+            /* Match header */
+        }
+
+        .availability-slot {
+            box-sizing: border-box !important;
+        }
+
+        /* Time Labels Right Aligned and Centered on Line */
+        .time-slot-label {
+            position: relative !important;
+            display: block !important;
+            height: 60px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .time-slot-label span {
+            position: absolute !important;
+            top: 0 !important;
+            right: 12px !important;
+            left: auto !important;
+            transform: translateY(-50%) !important;
+            background: #ffffff !important;
+            padding: 2px 4px !important;
+            font-size: 11px !important;
+            font-weight: 500 !important;
+            color: #64748b !important;
+            white-space: nowrap !important;
+            z-index: 10 !important;
+        }
+    </style>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
@@ -322,7 +463,7 @@
     </div>
 
     <!-- Main JS Module -->
-    <script type="module" src="js/app.js?v=150"></script>
+    <script type="module" src="js/app.js?v=152"></script>
 </body>
 
 </html>

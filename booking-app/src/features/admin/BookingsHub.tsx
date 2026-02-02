@@ -6,8 +6,11 @@ import GoogleCalendarConfig from './GoogleCalendarConfig';
 import BookingsCalendar from './BookingsCalendar';
 import AvailabilityCalendar from './AvailabilityCalendar';
 import BookingWizard from '../user/BookingWizard';
+import BookingDetailsModal from './BookingDetailsModal';
+import { useToast } from '../../components/ui/Toast';
 
 export default function BookingsHub() {
+    const { showToast } = useToast();
     const [activeView, setActiveView] = useState<'hub' | 'services' | 'availability' | 'calendars' | 'bookings' | 'new_booking'>('hub');
     const [stats, setStats] = useState({
         todayCount: 0,
@@ -18,6 +21,7 @@ export default function BookingsHub() {
     const [todayBookings, setTodayBookings] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [selectedBooking, setSelectedBooking] = useState<any>(null);
 
     useEffect(() => {
         checkAdmin();
@@ -91,6 +95,29 @@ export default function BookingsHub() {
             setLoading(false);
         }
     }
+
+    // Actions for Modal
+    const handleBookingDelete = async (id: string) => {
+        const { error } = await supabase.from('bookings').delete().eq('id', id);
+        if (error) {
+            showToast('Errore durante l\'eliminazione', 'error');
+        } else {
+            showToast('Prenotazione eliminata', 'success');
+            setSelectedBooking(null);
+            fetchHubData();
+        }
+    };
+
+    const handleStatusUpdate = async (id: string, status: string) => {
+        const { error } = await supabase.from('bookings').update({ status }).eq('id', id);
+        if (error) {
+            showToast('Errore aggiornamento', 'error');
+        } else {
+            showToast('Stato aggiornato', 'success');
+            setSelectedBooking(null);
+            fetchHubData();
+        }
+    };
 
     // --- SUB-VIEWS ---
     if (activeView === 'services') {
@@ -196,6 +223,15 @@ export default function BookingsHub() {
     // --- MAIN HUB ---
     return (
         <div className="animate-fade-in" style={{ maxWidth: 1400, margin: '0 auto', padding: '0 1.5rem 3rem' }}>
+
+            {selectedBooking && (
+                <BookingDetailsModal
+                    booking={selectedBooking}
+                    onClose={() => setSelectedBooking(null)}
+                    onDelete={handleBookingDelete}
+                    onStatusUpdate={handleStatusUpdate}
+                />
+            )}
 
             {/* Header - matching ERP style */}
             <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -324,7 +360,7 @@ export default function BookingsHub() {
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                 {todayBookings.map((b) => (
-                                    <BookingCard key={b.id} booking={b} />
+                                    <BookingCard key={b.id} booking={b} onClick={() => setSelectedBooking(b)} />
                                 ))}
                             </div>
                         )}
@@ -415,18 +451,22 @@ function ToolCard({ onClick, icon, label, color, bgColor }: { onClick: () => voi
     );
 }
 
-function BookingCard({ booking }: { booking: any }) {
+function BookingCard({ booking, onClick }: { booking: any; onClick?: () => void }) {
     const isConfirmed = booking.status === 'confirmed';
 
     return (
-        <div className="glass-card clickable-card" style={{
-            padding: '1rem 1.25rem',
-            display: 'flex',
-            gap: '1rem',
-            alignItems: 'center',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-        }}>
+        <div
+            onClick={onClick}
+            className="glass-card clickable-card"
+            style={{
+                padding: '1rem 1.25rem',
+                display: 'flex',
+                gap: '1rem',
+                alignItems: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+            }}
+        >
             {/* Time Badge */}
             <div style={{
                 display: 'flex',

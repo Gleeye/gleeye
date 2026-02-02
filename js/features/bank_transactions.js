@@ -1,5 +1,5 @@
-import { state } from '../modules/state.js?v=148';
-import { formatAmount } from '../modules/utils.js?v=148';
+import { state } from '../modules/state.js?v=151';
+import { formatAmount } from '../modules/utils.js?v=151';
 import {
     upsertBankTransaction,
     fetchBankTransactions,
@@ -12,8 +12,8 @@ import {
     fetchInvoices,
     fetchPassiveInvoices,
     fetchTransactionCategories
-} from '../modules/api.js?v=148';
-import { renderReadOnlyView, switchToEditMode } from './bank_transaction_readonly.js?v=148';
+} from '../modules/api.js?v=151';
+import { renderReadOnlyView, switchToEditMode } from './bank_transaction_readonly.js?v=151';
 
 // Render ID for atomic updates
 let currentRenderId = 0;
@@ -370,7 +370,7 @@ export async function renderBankTransactions(container) {
     };
 
     window.handleRejectTx = async (id) => {
-        if (!confirm("Sei sicuro di voler scartare questo movimento?")) return;
+        if (!await window.showConfirm("Sei sicuro di voler scartare questo movimento?")) return;
         try {
             await rejectBankTransaction(id);
             window.showAlert('Movimento scartato.', 'success');
@@ -644,7 +644,7 @@ export function updateBankModalUI() {
         state.suppliers.forEach(s => sGrp.appendChild(new Option(s.name, `S_${s.id}`)));
         select.appendChild(sGrp);
         const cGrp = document.createElement('optgroup'); cGrp.label = 'Collaboratori';
-        state.collaborators.forEach(c => cGrp.appendChild(new Option(c.full_name, `C_${c.id}`)));
+        state.collaborators.filter(c => c.is_active !== false && c.active !== false).forEach(c => cGrp.appendChild(new Option(c.full_name, `C_${c.id}`)));
         select.appendChild(cGrp);
     }
 
@@ -735,7 +735,7 @@ export async function submitBankTransaction() {
 
 export async function handleDeleteBT() {
     const id = document.getElementById('bt-id').value;
-    if (!id || !confirm("Eliminare definitivamente questo movimento dal registro?")) return;
+    if (!id || !await window.showConfirm("Eliminare definitivamente questo movimento dal registro?", { type: 'danger' })) return;
     try { await deleteBankTransaction(id); closeBankTransactionModal(); renderBankTransactions(document.getElementById('content-area')); } catch (e) { window.showAlert(e.message, 'error'); }
 }
 
@@ -789,7 +789,7 @@ export function initCategoryManagerModal() {
         e.preventDefault();
         const n = document.getElementById('new-cat-name'), p = document.getElementById('new-cat-parent');
         try {
-            const { upsertTransactionCategory } = await import('../modules/api.js?v=148');
+            const { upsertTransactionCategory } = await import('../modules/api.js?v=151');
             await upsertTransactionCategory({ name: n.value, type: 'uscita', parent_id: p.value || null });
             n.value = ''; reloadCatList();
         } catch (err) { window.showAlert(err.message, 'error'); }
@@ -822,7 +822,7 @@ async function reloadCatList() {
     }).join('');
 }
 
-window.deleteCategory = async (id) => { if (confirm("Sei sicuro di voler eliminare questa categoria?")) { try { const { deleteTransactionCategory } = await import('../modules/api.js?v=148'); await deleteTransactionCategory(id); reloadCatList(); } catch (e) { window.showAlert(e.message, 'error'); } } };
+window.deleteCategory = async (id) => { if (await window.showConfirm("Sei sicuro di voler eliminare questa categoria?", { type: 'danger' })) { try { const { deleteTransactionCategory } = await import('../modules/api.js?v=151'); await deleteTransactionCategory(id); reloadCatList(); } catch (e) { window.showAlert(e.message, 'error'); } } };
 
 /**
  * --- MODAL IMPORTAZIONE ---
@@ -891,7 +891,7 @@ function showImportReview(rows) {
 }
 
 window.confirmImport = async () => {
-    if (confirm(`Confermi l'importazione di ${piList.length} movimenti?`)) {
+    if (await window.showConfirm(`Confermi l'importazione di ${piList.length} movimenti?`)) {
         try { for (const r of piList) await upsertBankTransaction(r); closeImportModal(); renderBankTransactions(document.getElementById('content-area')); } catch (e) { window.showAlert(e.message, 'error'); }
     }
 };
