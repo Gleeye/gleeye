@@ -273,82 +273,80 @@ export async function renderHomepage(container) {
 }
 
 function renderTimeline(container, events, date = new Date()) {
-    if (!events || events.length === 0) {
-        const isToday = new Date().toDateString() === date.toDateString();
-        container.innerHTML = `
-            <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary);">
-                <span class="material-icons-round" style="margin-right: 8px;">event_busy</span> ${isToday ? 'Nessun impegno oggi' : 'Nessun impegno domani'}
-            </div>
-        `;
-        return;
-    }
+    // Range Config (expandable based on events?)
+    // For now fixed from 07:00 to 22:00 to cover most days
+    const startHour = 7;
+    const endHour = 22;
+    const isToday = new Date().toDateString() === date.toDateString();
 
-    // Determine range: 8:00 to 20:00 default, or expand if events outside
-    let startHour = 8;
-    let endHour = 20;
+    const eventsSafe = events || [];
 
-    // Adjust logic if events are earlier/later
-    // ... skipping for brevity, sticking to 8-20 for MVP view
-
-    let html = '';
     // Generate Hours Cols
+    let html = '';
     for (let h = startHour; h <= endHour; h++) {
         html += `
-            <div class="timeline-hour-col">
+            <div class="timeline-hour-col" data-hour="${h}">
                 <div class="timeline-hour-label">${h}:00</div>
             </div>
         `;
     }
 
-    container.innerHTML = `<div style="display: flex; position: relative;">${html}</div>`;
+    container.innerHTML = `<div class="timeline-track" style="display: flex; position: relative; min-width: max-content; padding-left: 2rem;">${html}</div>`;
+    const track = container.querySelector('.timeline-track');
 
-    // Calculate Pixels
-    // Assuming 100px min-width plus gap per hour. 
-    // Actually, simple position absolute relative to the container based on % or px.
-    // Let's use PX: 100px per hour + padding.
+    // Layout Constants (Must match CSS)
+    const colWidth = 120; // px per hour (approx min-width + gap)
+    // Actually, let's look at CSS. timeline-hour-col has padding-left 0.5rem (8px), min-width 100px.
+    // Plus gap 1rem (16px) in flex container? The previous CSS used flex gap.
+    // Let's force a cleaner calculable layout.
 
-    const hourWidth = 117; // Roughly 100px + some padding/border adjustment (approx)
-    const startPx = 0; // Relative to container
+    // We'll update the style of the track to rely on precise arithmetic for overlay positioning.
+    track.style.gap = '0'; // We handle spacing via width
 
-    // Inject Cards on top (overlay)
     const overlay = document.createElement('div');
+    overlay.className = 'timeline-overlay';
+    // Style applied in CSS or here
     overlay.style.position = 'absolute';
     overlay.style.top = '0';
-    overlay.style.left = '0';
+    overlay.style.left = '0'; // Matches track padding
     overlay.style.height = '100%';
     overlay.style.width = '100%';
-    overlay.style.pointerEvents = 'none'; // allow click through to cards but not blocking
+    overlay.style.pointerEvents = 'none';
 
-    events.forEach(ev => {
+    // 1. Render Events
+    eventsSafe.forEach(ev => {
         const startH = ev.start.getHours();
         const startM = ev.start.getMinutes();
-        const durationM = (ev.end - ev.start) / (1000 * 60);
 
-        // Calculate offset from startHour
-        const offsetM = ((startH - startHour) * 60) + startM;
-        if (offsetM < 0) return; // Skip if before view
+        let startTotalM = (startH * 60) + startM;
+        const viewStartM = startHour * 60;
 
-        // Scale: 1 hour = 117px (approximate based on CSS col width of 100px + padding/border)
-        // Better: Find the .timeline-hour-col elements and measure?
-        // For MVP, raw calc:
-        const pixelsPerMinute = 117 / 60;
-        const left = offsetM * pixelsPerMinute;
+        // Skip if ends before view starts
+        if (ev.end < new Date(date).setHours(startHour, 0, 0, 0)) return;
+
+        let displayStartM = Math.max(startTotalM, viewStartM);
+        let durationM = (ev.end - ev.start) / (1000 * 60);
+
+        // Crop duration if clipped at start
+        if (startTotalM < viewStartM) {
+            const diff = viewStartM - startTotalM;
+            durationM -= diff;
+        }
+
+        const pixelsPerMinute = colWidth / 60;
+        const left = (displayStartM - viewStartM) * pixelsPerMinute + 32; // +32px for padding-left of track (2rem)
         const width = durationM * pixelsPerMinute;
 
         const el = document.createElement('div');
         el.className = `timeline-event-card ${ev.end < new Date() ? 'past' : ''}`;
-        el.style.left = `${left + 10}px`; // +10 for padding
-        el.style.width = `${Math.max(width - 20, 100)}px`; // min width visual
-        el.style.pointerEvents = 'auto'; // Re-enable clicks
+        el.style.left = `${left}px`;
+        el.style.width = `${Math.max(width - 4, 4)}px`; // -4 for gap
+        el.style.pointerEvents = 'auto';
         el.innerHTML = `
-            <div style="font-weight: 700; margin-bottom: 4px;">${ev.title}</div>
-            <div style="font-size: 0.8rem; opacity: 0.9;">${ev.client}</div>
-            <div style="font-size: 0.75rem; margin-top: 8px; opacity: 0.8;">
-                ${ev.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${ev.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </div>
+            <div style="font-weight: 700; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.title}</div>
+            <div style="font-size: 0.75rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.client}</div>
         `;
 
-        // Style based on type
         if (ev.type === 'appointment') {
             el.style.background = 'linear-gradient(135deg, #10b981, #059669)';
             el.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
@@ -357,13 +355,67 @@ function renderTimeline(container, events, date = new Date()) {
         overlay.appendChild(el);
     });
 
-    container.appendChild(overlay);
+    // 2. Render "Now" Line (Only if Today)
+    let scrollTargetLeft = 0;
+
+    if (isToday) {
+        const now = new Date();
+        const currentH = now.getHours();
+        const currentM = now.getMinutes();
+
+        // Only show if within view range
+        if (currentH >= startHour && currentH <= endHour) {
+            const currentTotalM = (currentH * 60) + currentM;
+            const viewStartM = startHour * 60;
+
+            const pixelsPerMinute = colWidth / 60;
+            const left = (currentTotalM - viewStartM) * pixelsPerMinute + 32;
+
+            const nowLine = document.createElement('div');
+            nowLine.className = 'timeline-now-line';
+            nowLine.style.position = 'absolute';
+            nowLine.style.left = `${left}px`;
+            nowLine.style.top = '0';
+            nowLine.style.height = '100%';
+            nowLine.style.width = '2px';
+            nowLine.style.backgroundColor = '#ec4899'; // Pink/Red
+            nowLine.style.zIndex = '50';
+            nowLine.style.boxShadow = '0 0 8px rgba(236, 72, 153, 0.6)';
+
+            const nowDot = document.createElement('div');
+            nowDot.style.position = 'absolute';
+            nowDot.style.top = '-4px'; // on top of header area
+            nowDot.style.left = '-3px';
+            nowDot.style.width = '8px';
+            nowDot.style.height = '8px';
+            nowDot.style.borderRadius = '50%';
+            nowDot.style.backgroundColor = '#ec4899';
+            nowLine.appendChild(nowDot);
+
+            overlay.appendChild(nowLine);
+
+            // Calculate center scroll position
+            // Container width is visible width (e.g. 800px)
+            // We want 'left' to be in the middle
+            const containerWidth = container.clientWidth || 800; // Fallback
+            scrollTargetLeft = Math.max(0, left - (containerWidth / 2));
+        }
+    }
+
+    track.appendChild(overlay);
+
+    // Scroll Logic (after render)
+    setTimeout(() => {
+        container.scrollTo({
+            left: scrollTargetLeft,
+            behavior: 'smooth'
+        });
+    }, 100);
 }
 
 function renderNextUp(container, events) {
     const now = new Date();
     // Find first event that hasn't ended yet
-    const next = events.find(e => e.end > now);
 
     if (!next) {
         container.innerHTML = `

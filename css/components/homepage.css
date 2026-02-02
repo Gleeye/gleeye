@@ -114,28 +114,36 @@
 .timeline-scroll-area {
     display: flex;
     overflow-x: auto;
-    gap: 1rem;
     padding: 1rem 0 2rem 0;
-    /* Space for shadow/hover */
-    /* Hide scrollbar but keep functionality */
     scrollbar-width: none;
+    position: relative;
+    /* ensure proper stacking set context */
+    isolation: isolate;
 }
 
 .timeline-scroll-area::-webkit-scrollbar {
     display: none;
 }
 
+.timeline-track {
+    align-items: stretch;
+}
+
 .timeline-hour-col {
-    min-width: 100px;
+    min-width: 120px;
+    width: 120px;
+    /* Force rigid width */
     position: relative;
     border-left: 1px dashed var(--glass-border);
     padding-left: 0.5rem;
-    height: 150px;
-    /* Fixed height for lanes */
+    height: 180px;
+    /* Increased height */
+    box-sizing: border-box;
+    /* Include padding/border in width */
 }
 
 .timeline-hour-label {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--text-tertiary);
     margin-bottom: 1rem;
     font-family: monospace;
@@ -144,20 +152,17 @@
 .timeline-event-card {
     position: absolute;
     top: 30px;
-    /* Offset from label */
-    left: 0.5rem;
-    right: -2rem;
-    /* Initial overlap assumption, JS will calculate realwidth */
     background: linear-gradient(135deg, #6366f1, #4f46e5);
     color: white;
-    padding: 0.75rem;
-    border-radius: 12px;
-    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
     cursor: pointer;
     transition: transform 0.2s, z-index 0s;
     z-index: 10;
-    min-width: 140px;
+    /* Ensure content clipping */
+    overflow: hidden;
 }
 
 .timeline-event-card:hover {
