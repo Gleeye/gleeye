@@ -2,6 +2,8 @@ import { state } from '../modules/state.js?v=151';
 import { supabase } from '../modules/config.js?v=151';
 import { formatAmount } from '../modules/utils.js?v=151';
 
+import { fetchAvailabilityRules } from '../modules/api.js?v=151';
+
 // We reuse fetchMyBookings but we might need a tighter scoped fetch for "Today"
 // Actually fetchMyBookings stores in `eventsCache` (not exported) or `window`?
 // Let's create a dedicated fetch or use the general one if accessible.
@@ -31,6 +33,9 @@ async function fetchDateEvents(collaboratorId, date) {
         .select(`
             *,
             appointment_internal_participants!inner(collaborator_id),
+            appointment_type_links (
+                appointment_types (id, name, color)
+            ),
             orders (
                 clients (business_name)
             )
@@ -77,13 +82,20 @@ async function fetchDateEvents(collaboratorId, date) {
             // Extract Client from Order
             const clientName = a.orders?.clients?.business_name || (a.client_name || 'Appuntamento');
 
+            // Extract Color
+            let color = null;
+            if (a.appointment_type_links?.length > 0) {
+                color = a.appointment_type_links[0].appointment_types?.color;
+            }
+
             events.push({
                 id: a.id,
                 title: a.title || 'Appuntamento',
                 start: start,
                 end: end,
                 type: 'appointment',
-                client: clientName
+                client: clientName,
+                color: color
             });
         });
     }
@@ -248,9 +260,9 @@ export async function renderHomepage(container) {
     const loadTimeline = async (dateMode) => { // 'today' or 'tomorrow'
         timelineArea.innerHTML = `<div style="padding: 2rem; width: 100%; text-align: center; color: var(--text-tertiary);"><span class="loader small"></span> Caricamento...</div>`;
 
-        const targetDate = new Date();
+        const targetDate = new Date(); // Start with NOW
         if (dateMode === 'tomorrow') {
-            targetDate.setDate(targetDate.getDate() + 1);
+            targetDate.setDate(targetDate.getDate() + 1); // Move to tomorrow
             timelineTitle.textContent = "Orario di Domani";
             btnToday.classList.remove('active');
             btnTomorrow.classList.add('active');
@@ -261,9 +273,17 @@ export async function renderHomepage(container) {
         }
 
         try {
-            const events = await fetchDateEvents(myCollab.id, targetDate);
-            renderTimeline(timelineArea, events, targetDate);
-            // Don't update "Next Up" when toggling timeline, keep Next Up focused on immediate future from NOW
+            // Parallel Fetch: Events + Availability
+            const [events, rules] = await Promise.all([
+                fetchDateEvents(myCollab.id, targetDate),
+                fetchAvailabilityRules(myCollab.id)
+            ]);
+
+            // Filter rules for specific day of week
+            const dayId = targetDate.getDay(); // 0-6
+            const dayRules = rules.filter(r => r.day_of_week === dayId);
+
+            renderTimeline(timelineArea, events, targetDate, dayRules);
         } catch (e) {
             console.error(e);
             timelineArea.innerHTML = `<div style="color:red; text-align:center;">Errore caricamento</div>`;
@@ -280,10 +300,18 @@ export async function renderHomepage(container) {
 
         // 2. Next Up (Always dynamic from NOW)
         const todayEvents = await fetchDateEvents(myCollab.id, new Date());
-        // We might also need tomorrow's events if today is over? 
-        // For simplicity, just check next 24h or similar. 
-        // Actually, let's just use today's events for now to find the IMMEDIATE next one.
-        renderNextUp(container.querySelector('#home-next-up'), todayEvents);
+
+        // Find immediate next event
+        let nextEvent = todayEvents.find(e => e.end > new Date());
+
+        // If nothing today, check tomorrow?
+        if (!nextEvent) {
+            const tom = new Date(); tom.setDate(tom.getDate() + 1);
+            const tomEvents = await fetchDateEvents(myCollab.id, tom);
+            if (tomEvents.length > 0) nextEvent = tomEvents[0];
+        }
+
+        renderNextUp(container.querySelector('#home-next-up'), nextEvent);
 
         // 3. Load Projects
         const projects = await fetchRecentProjects();
@@ -294,13 +322,11 @@ export async function renderHomepage(container) {
     }
 }
 
-function renderTimeline(container, events, date = new Date()) {
-    // Range Config (expandable based on events?)
-    // For now fixed from 07:00 to 22:00 to cover most days
+function renderTimeline(container, events, date = new Date(), availabilityRules = []) {
+    // Range Config
     const startHour = 7;
     const endHour = 22;
     const isToday = new Date().toDateString() === date.toDateString();
-
     const eventsSafe = events || [];
 
     // Generate Hours Cols
@@ -313,27 +339,60 @@ function renderTimeline(container, events, date = new Date()) {
         `;
     }
 
-    container.innerHTML = `<div class="timeline-track" style="display: flex; position: relative; min-width: max-content; padding-left: 2rem;">${html}</div>`;
+    // Main Container
+    container.innerHTML = `
+        <div class="timeline-track" style="display: flex; position: relative; min-width: max-content; padding-left: 2rem; background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 10px, #f1f5f9 10px, #f1f5f9 20px);">
+            ${html}
+        </div>
+    `;
     const track = container.querySelector('.timeline-track');
+    track.style.gap = '0';
 
-    // Layout Constants (Must match CSS)
-    const colWidth = 120; // px per hour (approx min-width + gap)
-    // Actually, let's look at CSS. timeline-hour-col has padding-left 0.5rem (8px), min-width 100px.
-    // Plus gap 1rem (16px) in flex container? The previous CSS used flex gap.
-    // Let's force a cleaner calculable layout.
-
-    // We'll update the style of the track to rely on precise arithmetic for overlay positioning.
-    track.style.gap = '0'; // We handle spacing via width
+    // Layout Constants
+    const colWidth = 120; // Matches CSS
+    const viewStartM = startHour * 60;
+    const pixelsPerMinute = colWidth / 60;
 
     const overlay = document.createElement('div');
     overlay.className = 'timeline-overlay';
-    // Style applied in CSS or here
     overlay.style.position = 'absolute';
     overlay.style.top = '0';
-    overlay.style.left = '0'; // Matches track padding
+    overlay.style.left = '32px'; // Matches padding-left 2rem
     overlay.style.height = '100%';
     overlay.style.width = '100%';
     overlay.style.pointerEvents = 'none';
+
+    // 0. Render Availability (White Blocks)
+    // We cover the "striped" background with "white" where available.
+    availabilityRules.forEach(rule => {
+        if (!rule.start_time || !rule.end_time) return;
+
+        const [sh, sm] = rule.start_time.split(':').map(Number);
+        const [eh, em] = rule.end_time.split(':').map(Number);
+
+        const startM = (sh * 60) + sm;
+        const endM = (eh * 60) + em;
+
+        if (endM < viewStartM) return;
+
+        let displayStartM = Math.max(startM, viewStartM);
+        let durationM = endM - displayStartM;
+
+        const left = (displayStartM - viewStartM) * pixelsPerMinute;
+        const width = durationM * pixelsPerMinute;
+
+        const availEl = document.createElement('div');
+        availEl.style.position = 'absolute';
+        availEl.style.left = `${left}px`;
+        availEl.style.width = `${width}px`;
+        availEl.style.height = '100%';
+        availEl.style.background = 'var(--bg-main)'; // Current theme bg (white/dark)
+        // availEl.style.borderLeft = '1px dashed var(--glass-border)';
+        // availEl.style.borderRight = '1px dashed var(--glass-border)';
+        availEl.style.zIndex = '0'; // Behind events
+
+        overlay.appendChild(availEl);
+    });
 
     // 1. Render Events
     eventsSafe.forEach(ev => {
@@ -341,7 +400,6 @@ function renderTimeline(container, events, date = new Date()) {
         const startM = ev.start.getMinutes();
 
         let startTotalM = (startH * 60) + startM;
-        const viewStartM = startHour * 60;
 
         // Skip if ends before view starts
         if (ev.end < new Date(date).setHours(startHour, 0, 0, 0)) return;
@@ -355,8 +413,7 @@ function renderTimeline(container, events, date = new Date()) {
             durationM -= diff;
         }
 
-        const pixelsPerMinute = colWidth / 60;
-        const left = (displayStartM - viewStartM) * pixelsPerMinute + 32; // +32px for padding-left of track (2rem)
+        const left = (displayStartM - viewStartM) * pixelsPerMinute;
         const width = durationM * pixelsPerMinute;
 
         const el = document.createElement('div');
@@ -364,14 +421,21 @@ function renderTimeline(container, events, date = new Date()) {
         el.style.left = `${left}px`;
         el.style.width = `${Math.max(width - 4, 4)}px`; // -4 for gap
         el.style.pointerEvents = 'auto';
+
+        // Custom Color
+        if (ev.color) {
+            el.style.background = ev.color;
+            el.style.boxShadow = `0 4px 12px ${ev.color}40`; // 40 hex = 25% alpha approx
+        }
+
         el.innerHTML = `
             <div style="font-weight: 700; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.title}</div>
             <div style="font-size: 0.75rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.client}</div>
         `;
 
-        if (ev.type === 'appointment') {
+        if (ev.type === 'appointment' && !ev.color) {
+            // Default Fallback
             el.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-            el.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
         }
 
         overlay.appendChild(el);
@@ -388,10 +452,7 @@ function renderTimeline(container, events, date = new Date()) {
         // Only show if within view range
         if (currentH >= startHour && currentH <= endHour) {
             const currentTotalM = (currentH * 60) + currentM;
-            const viewStartM = startHour * 60;
-
-            const pixelsPerMinute = colWidth / 60;
-            const left = (currentTotalM - viewStartM) * pixelsPerMinute + 32;
+            const left = (currentTotalM - viewStartM) * pixelsPerMinute;
 
             const nowLine = document.createElement('div');
             nowLine.className = 'timeline-now-line';
@@ -416,17 +477,12 @@ function renderTimeline(container, events, date = new Date()) {
 
             overlay.appendChild(nowLine);
 
-            // Calculate center scroll position
-            // Container width is visible width (e.g. 800px)
-            // We want 'left' to be in the middle
-            const containerWidth = container.clientWidth || 800; // Fallback
-            scrollTargetLeft = Math.max(0, left - (containerWidth / 2));
+            scrollTargetLeft = Math.max(0, left - (container.clientWidth / 2));
         }
     }
 
     track.appendChild(overlay);
 
-    // Scroll Logic (after render)
     setTimeout(() => {
         container.scrollTo({
             left: scrollTargetLeft,
@@ -435,7 +491,7 @@ function renderTimeline(container, events, date = new Date()) {
     }, 100);
 }
 
-function renderNextUp(container, events) {
+function renderNextUp(container, next) {
     const now = new Date();
     // Find first event that hasn't ended yet
 
@@ -445,7 +501,7 @@ function renderNextUp(container, events) {
                 <span style="opacity: 0.7;">Prossimo Impegno</span>
                 <div style="text-align: center; padding: 2rem;">
                     <span class="material-icons-round" style="font-size: 3rem; opacity: 0.5;">done_all</span>
-                    <p style="margin-top: 1rem;">Tutto fatto per oggi!</p>
+                    <p style="margin-top: 1rem;">Nessun impegno in arrivo</p>
                 </div>
             </div>
         `;
