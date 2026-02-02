@@ -727,10 +727,6 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
 
         nowLine.appendChild(timePill);
 
-        // Dot at bottom (optional, user didn't ask but fits dashed style)
-        // const nowDot = document.createElement('div'); ... removed to match reference cleaner style
-        nowLine.appendChild(nowDot);
-
         overlay.appendChild(nowLine);
 
         // Auto Scroll to Now - Center
