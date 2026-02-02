@@ -250,12 +250,23 @@ export async function renderHomepage(container) {
                     <!-- HEADER (Date Nav) -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex: 0 0 auto;">
                          <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-titles);">Oggi</h2>
-                         <div style="display: flex; gap: 0.5rem;">
-                             <button class="icon-btn" onclick="changeHomepageDate(-1)"><span class="material-icons-round">chevron_left</span></button>
-                             <button class="btn btn-secondary" onclick="resetHomepageDate()">Oggi</button>
-                             <button class="icon-btn" onclick="changeHomepageDate(1)"><span class="material-icons-round">chevron_right</span></button>
+                         <div style="display: flex; background: #e5e7eb; border-radius: 20px; padding: 4px; gap: 4px;">
+                             <button onclick="resetHomepageDate()" class="nav-pill active-pill" style="padding: 4px 12px; border-radius: 16px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; background: white; shadow: var(--shadow-sm);">Oggi</button>
+                             <button onclick="changeHomepageDate(1)" class="nav-pill" style="padding: 4px 12px; border-radius: 16px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; background: transparent; color: #6b7280;">Domani</button>
+                             <div style="position: relative; display: flex; align-items: center;">
+                                <input type="date" style="position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer;" onchange="window.updateHomepageDateFromInput(this.value)">
+                                <button class="nav-pill" style="padding: 4px 12px; border-radius: 16px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; background: transparent; color: #6b7280; display: flex; align-items: center; gap: 4px;">
+                                    <span class="material-icons-round" style="font-size: 16px;">calendar_today</span> Data
+                                </button>
+                             </div>
                          </div>
                     </div>
+
+                    <style>
+                        .nav-pill:hover { background: rgba(255,255,255,0.5); }
+                        .active-pill { background: white !important; color: #111 !important; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+                        /* Helper to update UI state specifically for pill highlighting would require more JS, simple toggle for now */
+                    </style>
 
                     <!-- TIMELINE WRAPPER -->
                     <div id="hp-timeline-wrapper" style="flex: 1; position: relative; background: white; border-radius: 16px; border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm); overflow-x: auto; overflow-y: hidden;">
@@ -398,6 +409,13 @@ export async function renderHomepage(container) {
 
     // --- Initial Load ---
     try {
+        // Date Input Handler
+        window.updateHomepageDateFromInput = (val) => {
+            if (!val) return;
+            window.homepageCurrentDate = new Date(val);
+            window.updateHomepageTimeline(window.homepageCurrentDate);
+        };
+
         // 1. Timeline (Default Today)
         window.updateHomepageTimeline(window.homepageCurrentDate);
 
@@ -461,25 +479,25 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
     const pixelsPerMinute = colWidth / 60;
     const viewStartM = startHour * 60;
 
-    // 4. Generate Track (Clean Background)
-    // Clean white backbone
+    // 4. Generate Track (Dark Background)
     let html = '';
     for (let h = startHour; h < endHour; h++) {
         html += `
             <div class="timeline-hour-col" data-hour="${h}" style="
                 width: ${colWidth}px;
                 min-width: ${colWidth}px;
-                border-left: 1px solid var(--glass-border);
+                border-left: 1px solid rgba(255,255,255,0.08);
                 position: relative;
             ">
                 <div class="timeline-hour-label" style="
                     position: absolute;
-                    top: 8px;
-                    left: 8px;
-                    font-size: 0.75rem;
-                    color: var(--text-tertiary);
-                    font-weight: 500;
-                ">${h}:00</div>
+                    top: 12px;
+                    left: 12px;
+                    font-size: 0.85rem;
+                    color: rgba(255,255,255,0.5);
+                    font-weight: 600;
+                    font-family: var(--font-titles);
+                ">${h}.00</div>
             </div>
         `;
     }
@@ -491,7 +509,7 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
             width: ${totalWidth}px;
             min-width: ${totalWidth}px;
             padding-left: 0;
-            background: white;
+            background: #18181b; /* Dark Slate */
             height: 100%;
         ">
             ${html}
@@ -624,23 +642,29 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
         el.style.pointerEvents = 'auto';
 
         // Custom Color Logic
-        // User Request: STRICT CATEGORY COLORS.
-        // "Appointment" = Purple (#a855f7)
-        // "Booking" = Blue (#3b82f6)
-        // Ignoring specific subtype colors to avoid specific "yellow/orange" confusion.
-
-        let bgColor = '#3b82f6'; // Default
+        // Dark Mode: Vibrant colors with glow
+        let bgColor = '#3b82f6'; // Default Blue
+        let glowColor = '#3b82f6';
 
         if (ev.type === 'appointment') {
-            bgColor = '#a855f7'; // Always Purple
+            bgColor = '#c084fc'; // Bright Purple (Purple-400)
+            glowColor = '#a855f7';
         } else if (ev.type === 'booking') {
-            bgColor = '#3b82f6'; // Always Blue
+            bgColor = '#60a5fa'; // Bright Blue (Blue-400)
+            glowColor = '#3b82f6';
         }
 
-        el.style.background = bgColor;
-        el.style.boxShadow = `0 4px 12px ${bgColor}40`;
-        el.style.cursor = 'pointer'; // Clickable
-        el.style.color = 'white'; // FORCE WHITE TEXT
+        // Card Styling
+        el.style.background = `linear-gradient(135deg, ${bgColor} 0%, ${glowColor} 100%)`;
+        el.style.boxShadow = `0 4px 15px ${glowColor}60, inset 0 1px 1px rgba(255,255,255,0.3)`;
+        el.style.borderRadius = '12px'; // Rounded pill-ish
+        el.style.border = 'none';
+        el.style.cursor = 'pointer';
+        el.style.color = '#111'; // Dark Text for contrast on bright bg
+        el.style.padding = '4px 8px'; // Internal padding
+        el.style.display = 'flex';
+        el.style.flexDirection = 'column';
+        el.style.justifyContent = 'center';
 
         // INTERACTION
         const evtId = `evt_hp_${ev.id.replace(/-/g, '_')}`;
@@ -675,25 +699,36 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
         const currentM = (now.getHours() * 60) + now.getMinutes();
         const left = currentM * pixelsPerMinute;
 
+        // "Now" Pill + Dashed Line
         const nowLine = document.createElement('div');
         nowLine.className = 'timeline-now-line';
         nowLine.style.position = 'absolute';
         nowLine.style.left = `${left}px`;
         nowLine.style.top = '0';
         nowLine.style.height = '100%';
-        nowLine.style.width = '2px';
-        nowLine.style.backgroundColor = '#ec4899';
+        nowLine.style.width = '0';
+        nowLine.style.borderLeft = '2px dashed #06b6d4'; // Cyan Dashed
         nowLine.style.zIndex = '50';
-        nowLine.style.boxShadow = '0 0 8px rgba(236, 72, 153, 0.6)';
+        nowLine.style.pointerEvents = 'none';
 
-        const nowDot = document.createElement('div');
-        nowDot.style.position = 'absolute';
-        nowDot.style.top = '-4px';
-        nowDot.style.left = '-3px';
-        nowDot.style.width = '8px';
-        nowDot.style.height = '8px';
-        nowDot.style.borderRadius = '50%';
-        nowDot.style.backgroundColor = '#ec4899';
+        // Time Pill at Top
+        const timePill = document.createElement('div');
+        timePill.style.position = 'absolute';
+        timePill.style.top = '10px';
+        timePill.style.left = '-26px'; // Center pill (approx width 52px)
+        timePill.style.background = '#06b6d4'; // Cyan
+        timePill.style.color = 'white';
+        timePill.style.padding = '2px 8px';
+        timePill.style.borderRadius = '12px';
+        timePill.style.fontWeight = '700';
+        timePill.style.fontSize = '0.75rem';
+        timePill.style.boxShadow = '0 2px 8px rgba(6, 182, 212, 0.4)';
+        timePill.innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        nowLine.appendChild(timePill);
+
+        // Dot at bottom (optional, user didn't ask but fits dashed style)
+        // const nowDot = document.createElement('div'); ... removed to match reference cleaner style
         nowLine.appendChild(nowDot);
 
         overlay.appendChild(nowLine);
