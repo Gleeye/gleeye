@@ -390,13 +390,17 @@ export async function renderHomepage(container) {
         window.updateHomepageTimeline(window.homepageCurrentDate);
 
         // 2. Render My Activities
-        // Use the 'events' fetched earlier in the file (global scope of func)
-        renderMyActivities(document.getElementById('hp-activities-list'), activeTimers, myTasks, events);
+        // Store data for filtering reference
+        window.hpData = {
+            timers: activeTimers,
+            tasks: myTasks,
+            events: events
+        };
+        // Initial render with current filter
+        renderMyActivities(document.getElementById('hp-activities-list'), activeTimers, myTasks, events, window.hpActivityFilter);
 
         // 3. Load Projects
         const projects = await fetchRecentProjects();
-        renderProjects(container.querySelector('#home-recent-projects'), projects);
-
     } catch (e) {
         console.error("Home Data Load Error:", e);
     }
