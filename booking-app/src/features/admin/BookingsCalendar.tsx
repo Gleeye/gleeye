@@ -14,11 +14,6 @@ interface Collaborator {
     avatar_url?: string;
 }
 
-interface Service {
-    id: string;
-    name: string;
-    color?: string; // Future proofing
-}
 
 interface Booking {
     id: string;
