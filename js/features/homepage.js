@@ -152,8 +152,8 @@ export async function renderHomepage(container) {
 
     // --- FETCH DATA FOR "MY ACTIVITIES" ---
     let myTasks = [], activeTimers = [], events = [];
-    // Default filter state
-    if (!window.hpActivityFilter) window.hpActivityFilter = 'all';
+    // Default filter state (User requested: Task, Appuntamenti, Attività)
+    if (!window.hpActivityFilter) window.hpActivityFilter = 'task';
 
     try {
         // 1. TIMERS (Active)
@@ -167,15 +167,15 @@ export async function renderHomepage(container) {
             .is('end_time', null);
         activeTimers = timers || [];
 
-        // 2. TASKS (Assignments)
-        // User said "created locally in commesse", so it's pm_items.
+        // 2. TASKS (From PM Items)
+        // Correct join to access Order Title via Alias if defined or direct
         const { data: pmTasks, error: pmError } = await supabase
             .from('pm_items')
             .select(`
                 *,
                 pm_spaces (
                     ref_ordine,
-                    orders (order_number, title)
+                    orders:ref_ordine (order_number, title) 
                 ),
                 pm_item_assignees!inner(user_ref, collaborator_ref)
             `)
@@ -190,7 +190,7 @@ export async function renderHomepage(container) {
             title: t.title,
             status: t.status,
             due_date: t.due_date,
-            orders: t.pm_spaces?.orders,
+            orders: t.pm_spaces?.orders, // Access alias
             type: 'pm_task'
         }));
 
@@ -243,14 +243,12 @@ export async function renderHomepage(container) {
                 <div style="width: 320px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 1rem;">
                     <!-- "MY ACTIVITIES" CARD -->
                     <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; flex: 1; overflow: hidden; background: #1e293b; color: white;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.75rem;">
-                            <span style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7;">Attività & Task</span>
-                             <!-- FILTERS -->
-                             <div style="display: flex; gap: 0.5rem;">
-                                <button onclick="window.setHpFilter('all', this)" class="icon-btn-micro ${window.hpActivityFilter === 'all' ? 'active' : ''}" title="Tutti"><span class="material-icons-round">dashboard</span></button>
-                                <button onclick="window.setHpFilter('timer', this)" class="icon-btn-micro ${window.hpActivityFilter === 'timer' ? 'active' : ''}" title="Attività"><span class="material-icons-round">play_circle</span></button>
-                                <button onclick="window.setHpFilter('event', this)" class="icon-btn-micro ${window.hpActivityFilter === 'event' ? 'active' : ''}" title="Appuntamenti"><span class="material-icons-round">event</span></button>
-                                <button onclick="window.setHpFilter('task', this)" class="icon-btn-micro ${window.hpActivityFilter === 'task' ? 'active' : ''}" title="Task"><span class="material-icons-round">check_circle</span></button>
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">
+                             <!-- TEXT TABS -->
+                             <div style="display: flex; gap: 1rem; font-size: 0.85rem; font-weight: 600;">
+                                <button onclick="window.setHpFilter('task', this)" class="tab-btn ${window.hpActivityFilter === 'task' ? 'active' : ''}">Task</button>
+                                <button onclick="window.setHpFilter('event', this)" class="tab-btn ${window.hpActivityFilter === 'event' ? 'active' : ''}">Appuntamenti</button>
+                                <button onclick="window.setHpFilter('timer', this)" class="tab-btn ${window.hpActivityFilter === 'timer' ? 'active' : ''}">Attività</button>
                              </div>
                         </div>
 
@@ -706,7 +704,7 @@ window.setHpFilter = function (filter, btn) {
     // Update UI buttons
     const container = btn.closest('div');
     if (container) {
-        container.querySelectorAll('.icon-btn-micro').forEach(b => b.classList.remove('active'));
+        container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     }
     btn.classList.add('active');
 
@@ -716,7 +714,7 @@ window.setHpFilter = function (filter, btn) {
     }
 };
 
-function renderMyActivities(container, timers, tasks, events, filter = 'all') {
+function renderMyActivities(container, timers, tasks, events, filter = 'task') {
     if (!container) return;
 
     let html = '';
@@ -724,94 +722,83 @@ function renderMyActivities(container, timers, tasks, events, filter = 'all') {
     let hasContent = false;
 
     // Filter Logic
-    const showTimers = filter === 'all' || filter === 'timer';
-    const showEvents = filter === 'all' || filter === 'event';
-    const showTasks = filter === 'all' || filter === 'task';
+    const showTimers = filter === 'timer'; // Attività
+    const showEvents = filter === 'event'; // Appuntamenti (Agenda)
+    const showTasks = filter === 'task';  // Task
 
-    // 1. ACTIVE TIMERS
+    // 1. ACTIVE TIMERS (Attività)
     if (showTimers) {
         timers.forEach(t => {
             hasContent = true;
+            // Ensure title exists from updated fetch
             const title = t.orders ? `#${t.orders.order_number} - ${t.orders.title}` : 'Senza Commessa';
             html += `
-                <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem;">
-                    <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; box-shadow: 0 0 10px rgba(16,185,129,0.4);">
+                <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem;">
+                    <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;">
                         <span class="material-icons-round" style="font-size: 18px;">play_arrow</span>
                     </div>
                     <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 0.65rem; color: #6ee7b7; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">In Corso</div>
+                        <div style="font-size: 0.65rem; color: #6ee7b7; font-weight: 700;">In Corso</div>
                         <div style="font-weight: 600; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${title}">${title}</div>
-                        <div style="font-size: 0.8rem; color: rgba(255,255,255,0.8);">${t.description || 'Attività...'}</div>
                     </div>
                 </div>
             `;
         });
+        if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessuna attività in corso.</div>`;
     }
 
-    // 2. UPCOMING APPOINTMENTS
+    // 2. UPCOMING APPOINTMENTS (Agenda)
     if (showEvents) {
-        const upcomingEvents = events.filter(e => e.end > now); // Show all remaining today
-        // limit if in 'all' mode, show more if in 'event' mode
-        const limit = filter === 'all' ? 3 : 10;
-
-        upcomingEvents.slice(0, limit).forEach(evt => {
+        const upcomingEvents = events.filter(e => e.end > now);
+        upcomingEvents.forEach(evt => {
             hasContent = true;
             const timeStr = evt.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const isNow = evt.start <= now && evt.end > now;
 
             html += `
-                <div style="background: rgba(255, 255, 255, 0.05); border-left: 3px solid ${isNow ? '#4ade80' : '#3b82f6'}; padding: 0.75rem; border-radius: 4px; display: flex; gap: 0.75rem; align-items: flex-start; cursor: pointer; margin-bottom: 0.5rem; transition: background 0.2s;" onclick="openHomepageEventDetails(window['evt_hp_${evt.id.replace(/-/g, '_')}'])" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
-                    <div style="display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0;">
-                        <span style="font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.8);">${timeStr}</span>
-                        <span class="material-icons-round" style="font-size: 16px; color: ${isNow ? '#4ade80' : '#60a5fa'}; margin-top: 4px;">${isNow ? 'timelapse' : 'event'}</span>
+                <div style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.75rem 0; display: flex; gap: 0.75rem; align-items: center; cursor: pointer;" onclick="openHomepageEventDetails(window['evt_hp_${evt.id.replace(/-/g, '_')}'])">
+                    <div style="display: flex; flex-direction: column; align-items: center; width: 45px; flex-shrink: 0;">
+                        <span style="font-size: 0.8rem; font-weight: 600; color: white;">${timeStr}</span>
                     </div>
                     <div style="flex: 1; min-width: 0;">
-                        <div style="font-weight: 600; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.title}</div>
-                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.client || 'Nessun dettaglio'}</div>
+                        <div style="font-weight: 600; font-size: 0.9rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.title}</div>
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6);">${evt.client || ''}</div>
                     </div>
                 </div>
             `;
         });
+        if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessun appuntamento in programma.</div>`;
     }
 
     // 3. TASKS
     if (showTasks) {
         if (tasks.length > 0) {
             tasks.sort((a, b) => new Date(a.due_date || '9999-12-31') - new Date(b.due_date || '9999-12-31'));
-            const limit = filter === 'all' ? 5 : 20;
 
-            tasks.slice(0, limit).forEach(t => {
+            tasks.forEach(t => {
                 hasContent = true;
-                const orderRef = t.orders ? `#${t.orders.order_number} - ${t.orders.title}` : 'No Commessa';
+                // Correctly access nested Order fields
+                const orderNum = t.orders?.order_number || '';
+                const orderTitle = t.orders?.title || 'No Commessa';
+                const fullTitle = orderNum ? `#${orderNum} - ${orderTitle}` : orderTitle;
                 const isLate = t.due_date && new Date(t.due_date) < new Date();
 
                 html += `
                     <div style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.75rem 0; display: flex; gap: 0.75rem; align-items: flex-start;">
-                        <div style="padding-top: 2px;">
+                         <div style="padding-top: 2px;">
                             <input type="checkbox" style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer; border-radius: 4px;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completato">
                         </div>
                         <div style="flex: 1; min-width: 0;">
-                             <!-- Order / Context Line (Primary) -->
-                            <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                <span>${orderRef}</span>
-                                ${isLate ? `<span style="color: #f87171; background: rgba(248, 113, 113, 0.1); padding: 0 4px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SCADUTO</span>` : ''}
+                             <div style="font-size: 0.75rem; color: #cbd5e1; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600;">
+                                ${fullTitle}
+                                ${isLate ? `<span style="color: #f87171; margin-left:6px;">!</span>` : ''}
                             </div>
-                            
-                            <!-- Task Title (Secondary) -->
-                            <div style="font-weight: 500; font-size: 0.9rem; color: white; line-height: 1.3;">${t.title}</div>
+                            <div style="font-size: 0.85rem; color: rgba(255,255,255,0.8); line-height: 1.3;">${t.title}</div>
                         </div>
                     </div>
                 `;
             });
         }
-    }
-
-    if (!hasContent) {
-        let msg = 'Nessuna attività.';
-        if (filter === 'timer') msg = 'Nessun timer attivo.';
-        if (filter === 'event') msg = 'Nessun appuntamento in programma.';
-        if (filter === 'task') msg = 'Nessun task da fare.';
-        html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">${msg}</div>`;
+        if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessun task da completare.</div>`;
     }
 
     container.innerHTML = html;
