@@ -261,12 +261,6 @@ export async function renderHomepage(container) {
                             Vedi Agenda
                         </button>
                     </div>
-
-                    <!-- STATS / QUOTES (Optional Filler) -->
-                     <div class="glass-card" style="padding: 1.5rem; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; min-height: 120px;">
-                        <div style="font-size: 2rem; font-weight: 700;">${myTasks.length}</div>
-                        <div style="font-size: 0.8rem; opacity: 0.8;">Task Aperti</div>
-                    </div>
                 </div>
             </div>
 
@@ -704,72 +698,82 @@ window.closeHomepageEventModal = function (id) {
     if (el) el.remove();
 };
 
-function renderMyActivities(container, timers, tasks, nextEvent) {
+function renderMyActivities(container, timers, tasks, events) {
     if (!container) return;
 
     let html = '';
+    const now = new Date();
 
     // 1. ACTIVE TIMERS (Top Priority)
     timers.forEach(t => {
-        const title = t.orders ? `#${t.orders.order_number} ${t.orders.title}` : 'Senza Commessa';
+        const title = t.orders ? `#${t.orders.order_number} - ${t.orders.title}` : 'Senza Commessa';
         html += `
-            <div style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: center;">
-                <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">
+            <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem;">
+                <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; box-shadow: 0 0 10px rgba(16,185,129,0.4);">
                     <span class="material-icons-round" style="font-size: 18px;">play_arrow</span>
                 </div>
                 <div style="flex: 1; min-width: 0;">
-                    <div style="font-size: 0.75rem; color: #6ee7b7; font-weight: 600; text-transform: uppercase;">In Corso</div>
-                    <div style="font-weight: 500; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${title}">${title}</div>
-                    <div style="font-size: 0.8rem; color: rgba(255,255,255,0.7);">${t.description || 'Attività...'}</div>
+                    <div style="font-size: 0.65rem; color: #6ee7b7; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">In Corso</div>
+                    <div style="font-weight: 600; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${title}">${title}</div>
+                    <div style="font-size: 0.8rem; color: rgba(255,255,255,0.8);">${t.description || 'Attività...'}</div>
                 </div>
             </div>
         `;
     });
 
-    // 2. NEXT APPOINTMENT
-    if (nextEvent) {
+    // 2. UPCOMING APPOINTMENTS (Next 24h or Today remaining)
+    // Filter events that haven't ended yet
+    const upcomingEvents = events.filter(e => e.end > now).slice(0, 3); // Show max 3
+
+    upcomingEvents.forEach(evt => {
+        const timeStr = evt.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const isNow = evt.start <= now && evt.end > now;
+
         html += `
-            <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: center; cursor: pointer;" onclick="openHomepageEventDetails(window['evt_hp_${nextEvent.id.replace(/-/g, '_')}'])">
-                <div style="width: 32px; height: 32px; background: rgba(59, 130, 246, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #60a5fa;">
-                    <span class="material-icons-round" style="font-size: 18px;">event</span>
+            <div style="background: rgba(255, 255, 255, 0.05); border-left: 3px solid ${isNow ? '#4ade80' : '#3b82f6'}; padding: 0.75rem; border-radius: 4px; display: flex; gap: 0.75rem; align-items: flex-start; cursor: pointer; margin-bottom: 0.5rem; transition: background 0.2s;" onclick="openHomepageEventDetails(window['evt_hp_${evt.id.replace(/-/g, '_')}'])" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                <div style="display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0;">
+                    <span style="font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.8);">${timeStr}</span>
+                    <span class="material-icons-round" style="font-size: 16px; color: ${isNow ? '#4ade80' : '#60a5fa'}; margin-top: 4px;">${isNow ? 'timelapse' : 'event'}</span>
                 </div>
                 <div style="flex: 1; min-width: 0;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                         <div style="font-size: 0.75rem; color: #93c5fd; font-weight: 600;">${nextEvent.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                         ${nextEvent.status === 'confermato' ? '<span style="width: 6px; height: 6px; background: #4ade80; border-radius: 50%;"></span>' : ''}
-                    </div>
-                    <div style="font-weight: 500; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nextEvent.title}</div>
-                     <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nextEvent.client || ''}</div>
+                    <div style="font-weight: 600; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.title}</div>
+                    <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.client || 'Nessun dettaglio'}</div>
                 </div>
             </div>
         `;
-    }
+    });
 
     // 3. TASKS
     if (tasks.length > 0) {
-        tasks.sort((a, b) => new Date(a.due_date || '9999-12-31') - new Date(b.due_date || '9999-12-31')); // Sort by due date
+        tasks.sort((a, b) => new Date(a.due_date || '9999-12-31') - new Date(b.due_date || '9999-12-31'));
 
-        tasks.slice(0, 5).forEach(t => { // Limit to 5
-            const orderRef = t.orders ? `#${t.orders.order_number}` : '';
+        tasks.slice(0, 10).forEach(t => {
+            // Format: "#Order - Title"
+            const orderRef = t.orders ? `#${t.orders.order_number} - ${t.orders.title}` : 'No Commessa';
             const isLate = t.due_date && new Date(t.due_date) < new Date();
 
             html += `
-                <div style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.5rem 0; display: flex; gap: 0.75rem; align-items: flex-start;">
+                <div style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.75rem 0; display: flex; gap: 0.75rem; align-items: flex-start;">
                     <div style="padding-top: 2px;">
-                        <input type="checkbox" style="width: 16px; height: 16px; accent-color: #10b981; cursor: pointer;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completato">
+                        <input type="checkbox" style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer; border-radius: 4px;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completato">
                     </div>
                     <div style="flex: 1; min-width: 0;">
-                        <div style="font-weight: 500; font-size: 0.85rem; color: white; line-height: 1.3;">${t.title}</div>
-                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 2px; display: flex; align-items: center; gap: 6px;">
+                         <!-- Order / Context Line (Primary) -->
+                        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             <span>${orderRef}</span>
-                            ${isLate ? `<span style="color: #f87171; display:flex; align-items:center; gap:2px;"><span class="material-icons-round" style="font-size:10px;">warning</span> Scaduto</span>` : ''}
+                            ${isLate ? `<span style="color: #f87171; background: rgba(248, 113, 113, 0.1); padding: 0 4px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SCADUTO</span>` : ''}
                         </div>
+                        
+                        <!-- Task Title (Secondary) -->
+                        <div style="font-weight: 500; font-size: 0.9rem; color: white; line-height: 1.3;">${t.title}</div>
                     </div>
                 </div>
             `;
         });
     } else {
-        html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 1rem;">Nessun task attivo</div>`;
+        if (timers.length === 0 && upcomingEvents.length === 0) {
+            html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessuna attività in programma o task aperti.</div>`;
+        }
     }
 
     container.innerHTML = html;
