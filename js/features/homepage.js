@@ -367,13 +367,25 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
     const pixelsPerMinute = colWidth / 60;
     const viewStartM = startHour * 60;
 
-    // 4. Generate Track (Background Pattern = Default Busy/Closed)
-    // We use a CSS repeating gradient for the "closed" look.
+    // 4. Generate Track (Clean Background)
+    // Clean white backbone
     let html = '';
     for (let h = startHour; h < endHour; h++) {
         html += `
-            <div class="timeline-hour-col" data-hour="${h}" style="width: ${colWidth}px; min-width: ${colWidth}px;">
-                <div class="timeline-hour-label">${h}:00</div>
+            <div class="timeline-hour-col" data-hour="${h}" style="
+                width: ${colWidth}px; 
+                min-width: ${colWidth}px; 
+                border-left: 1px solid var(--glass-border); 
+                position: relative;
+            ">
+                <div class="timeline-hour-label" style="
+                    position: absolute; 
+                    top: 8px; 
+                    left: 8px; 
+                    font-size: 0.75rem; 
+                    color: var(--text-tertiary);
+                    font-weight: 500;
+                ">${h}:00</div>
             </div>
         `;
     }
@@ -385,7 +397,8 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
             width: ${totalWidth}px; 
             min-width: ${totalWidth}px; 
             padding-left: 0; 
-            background: repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 10px, #e2e8f0 10px, #e2e8f0 20px);
+            background: white;
+            height: 100%;
         ">
             ${html}
         </div>
@@ -402,7 +415,7 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
     overlay.style.width = '100%';
     overlay.style.pointerEvents = 'none';
 
-    // A. RENDER AVAILABILITY (White Blocks over Gray Background)
+    // A. RENDER AVAILABILITY (Purple Vertical Line)
     // Rules + Overrides (Extra specific slots for this date)
 
     // Merge Rules and Overrides into a "Open Slots" list
@@ -418,7 +431,7 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
         openSlots.push({ start: sM, end: eM, source: 'rule' });
     });
 
-    // 2. Extra Overrides (Specific Date) - Assuming they are ALREADY filtered for this date in fetch
+    // 2. Extra Overrides (Specific Date)
     overrides.forEach(o => {
         if (new Date(o.date).toDateString() !== date.toDateString()) return;
         const [sh, sm] = o.start_time.split(':').map(Number);
@@ -428,30 +441,51 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
         openSlots.push({ start: sM, end: eM, source: 'override' });
     });
 
-    // Render Open Slots (White)
+    // Render Open Slots (Purple Line)
     openSlots.forEach(slot => {
+        if (slot.start >= slot.end) return;
+
         const left = slot.start * pixelsPerMinute;
         const width = (slot.end - slot.start) * pixelsPerMinute;
 
-        const block = document.createElement('div');
-        block.style.position = 'absolute';
-        block.style.left = `${left}px`;
-        block.style.width = `${width}px`;
-        block.style.height = '100%';
-        block.style.background = 'var(--bg-main)'; // White
-        block.style.borderLeft = '1px solid var(--glass-border)';
-        block.style.borderRight = '1px solid var(--glass-border)';
-        block.style.zIndex = '1';
-        overlay.appendChild(block);
+        // Render a purple line/bar at the bottom or top? 
+        // User said "Purple Line" like in Agenda. Agenda uses a vertical line on the left of the day column or a block.
+        // In a Horizontal Timeline, this usually translates to a bottom bar or a background color.
+        // BUT user said "la riga viola... non sono inventate".
+        // In the vertical agenda, it's a vertical line on the left.
+        // In this HORIZONTAL timeline, the equivalent is a HORIZONTAL line or bar.
+        // Let's render a nice Purple Bar at the bottom of the track (or top).
+        // Let's put it at the bottom distinctively.
+
+        const line = document.createElement('div');
+        line.title = "Disponibile";
+        line.style.position = 'absolute';
+        line.style.left = `${left}px`;
+        line.style.width = `${width}px`;
+        line.style.bottom = '0';
+        line.style.height = '4px'; // Subtle line
+        line.style.background = '#a855f7'; // Purple
+        line.style.zIndex = '5';
+        line.style.borderRadius = '2px';
+        line.style.boxShadow = '0 0 8px rgba(168, 85, 247, 0.6)';
+        overlay.appendChild(line);
+
+        // Optional: faint background to make it clearer?
+        const bg = document.createElement('div');
+        bg.style.position = 'absolute';
+        bg.style.left = `${left}px`;
+        bg.style.width = `${width}px`;
+        bg.style.height = '100%';
+        bg.style.background = 'rgba(168, 85, 247, 0.03)'; // Very faint purple tint
+        bg.style.zIndex = '1';
+        overlay.appendChild(bg);
     });
 
-    // B. GOOGLE BUSY (Gray Blocks ON TOP of White) - "Eats" availability
+    // B. GOOGLE BUSY (Gray Blocks) - Overlaying everything
     googleBusy.forEach(busy => {
         const startD = new Date(busy.start);
         const endD = new Date(busy.end);
 
-        // Normalize to minutes in THIS day view
-        // Clamp to 00:00 - 24:00 of selected day
         const viewStartD = new Date(date).setHours(0, 0, 0, 0);
         const viewEndD = new Date(date).setHours(23, 59, 59, 999);
 
@@ -472,10 +506,11 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
         block.style.left = `${left}px`;
         block.style.width = `${width}px`;
         block.style.height = '100%';
-        block.style.background = 'repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 10px, #cbd5e1 10px, #cbd5e1 20px)'; // Darker gray hatch
-        block.style.opacity = '0.7';
-        block.style.zIndex = '2'; // Above Open Slots
-        block.title = "Impegno Google Calendar";
+        block.style.background = 'repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 10px, #cbd5e1 10px, #cbd5e1 20px)';
+        block.style.opacity = '0.5';
+        block.style.zIndex = '20'; // Above Events? Or Below? Usually below events but above availability.
+        // User said "al netto degli impegni". Usually busy slots block availability.
+        block.title = "Impegnato (Google)";
         overlay.appendChild(block);
     });
 
@@ -491,14 +526,13 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
         el.className = `timeline-event-card ${ev.end < new Date() ? 'past' : ''}`;
         el.style.left = `${left}px`;
         el.style.width = `${Math.max(width - 2, 4)}px`;
-        el.style.zIndex = '10'; // Top
+        el.style.zIndex = '30'; // Top
         el.style.pointerEvents = 'auto';
 
         // Custom Color Logic (User Request: Appts=Purple, Bookings=Blue)
         let bgColor = '#3b82f6'; // Default Blue (Booking)
 
         if (ev.type === 'appointment') {
-            // Use type color if exists, else generic Purple
             bgColor = ev.color || '#a855f7';
         } else if (ev.type === 'booking') {
             bgColor = '#3b82f6';
