@@ -1,6 +1,6 @@
 import './utils/modal-utils.js?v=151';
 import { initAuth } from './features/auth.js?v=151';
-import { router } from './modules/router.js?v=151';
+import { router } from './modules/router.js?v=153';
 import { InvoiceLogic } from './features/invoices.js?v=151';
 import { state } from './modules/state.js?v=151';
 import { initSettingsModals } from './features/settings.js?v=151';
