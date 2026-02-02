@@ -2,8 +2,8 @@ import { state } from '../modules/state.js?v=151';
 import { supabase } from '../modules/config.js?v=151';
 import { formatAmount } from '../modules/utils.js?v=151';
 
-import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments } from '../modules/api.js?v=151';
-import { fetchAppointment, upsertAssignment } from '../modules/pm_api.js?v=151';
+import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment } from '../modules/api.js?v=151';
+import { fetchAppointment } from '../modules/pm_api.js?v=151';
 
 // We reuse fetchMyBookings but we might need a tighter scoped fetch for "Today"
 // Actually fetchMyBookings stores in `eventsCache` (not exported) or `window`?
