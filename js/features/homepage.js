@@ -390,7 +390,8 @@ export async function renderHomepage(container) {
         window.updateHomepageTimeline(window.homepageCurrentDate);
 
         // 2. Render My Activities
-        renderMyActivities(document.getElementById('hp-activities-list'), activeTimers, myTasks, nextEvent);
+        // Use the 'events' fetched earlier in the file (global scope of func)
+        renderMyActivities(document.getElementById('hp-activities-list'), activeTimers, myTasks, events);
 
         // 3. Load Projects
         const projects = await fetchRecentProjects();
