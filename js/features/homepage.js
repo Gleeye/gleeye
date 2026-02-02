@@ -415,7 +415,7 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
     overlay.style.width = '100%';
     overlay.style.pointerEvents = 'none';
 
-    // A. RENDER AVAILABILITY (Purple Vertical Line)
+    // A. RENDER AVAILABILITY (Purple Line at TOP)
     // Rules + Overrides (Extra specific slots for this date)
 
     // Merge Rules and Overrides into a "Open Slots" list
@@ -441,78 +441,78 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
         openSlots.push({ start: sM, end: eM, source: 'override' });
     });
 
-    // Render Open Slots (Purple Line)
+    // 2b. MASK with Google Busy (User request: "lascialo bianco... se su calendar è occupato")
+    // This means we remove the "Available" line where Google says it's busy.
+    // We do NOT draw gray blocks.
+
+    // Simplify algorithm: We subtract Google Busy intervals from Open Slots.
+    let finalSlots = [];
+
     openSlots.forEach(slot => {
+        let pieces = [slot]; // Start with the full slot
+
+        googleBusy.forEach(busy => {
+            const startD = new Date(busy.start);
+            const endD = new Date(busy.end);
+
+            // Normalize busy time to minutes of current view day
+            const viewStartD = new Date(date).setHours(0, 0, 0, 0);
+            const viewEndD = new Date(date).setHours(23, 59, 59, 999);
+
+            const bStartMs = Math.max(startD.getTime(), viewStartD);
+            const bEndMs = Math.min(endD.getTime(), viewEndD);
+
+            if (bEndMs <= bStartMs) return; // Busy slot not in today
+
+            const bStart = (bStartMs - viewStartD) / 60000;
+            const bEnd = (bEndMs - viewStartD) / 60000;
+
+            // Subtract [bStart, bEnd] from current pieces
+            let newPieces = [];
+            pieces.forEach(p => {
+                // No overlap
+                if (bEnd <= p.start || bStart >= p.end) {
+                    newPieces.push(p);
+                    return;
+                }
+
+                // Overlap: Split
+                if (p.start < bStart) {
+                    newPieces.push({ start: p.start, end: bStart });
+                }
+                if (p.end > bEnd) {
+                    newPieces.push({ start: bEnd, end: p.end });
+                }
+            });
+            pieces = newPieces;
+        });
+
+        finalSlots.push(...pieces);
+    });
+
+    // Render Final Open Slots (Top Purple Line)
+    finalSlots.forEach(slot => {
         if (slot.start >= slot.end) return;
 
         const left = slot.start * pixelsPerMinute;
         const width = (slot.end - slot.start) * pixelsPerMinute;
 
-        // Render a purple line/bar at the bottom or top? 
-        // User said "Purple Line" like in Agenda. Agenda uses a vertical line on the left of the day column or a block.
-        // In a Horizontal Timeline, this usually translates to a bottom bar or a background color.
-        // BUT user said "la riga viola... non sono inventate".
-        // In the vertical agenda, it's a vertical line on the left.
-        // In this HORIZONTAL timeline, the equivalent is a HORIZONTAL line or bar.
-        // Let's render a nice Purple Bar at the bottom of the track (or top).
-        // Let's put it at the bottom distinctively.
-
+        // "Magari metterla in alto" + "Più leggera"
         const line = document.createElement('div');
         line.title = "Disponibile";
         line.style.position = 'absolute';
         line.style.left = `${left}px`;
         line.style.width = `${width}px`;
-        line.style.bottom = '0';
-        line.style.height = '4px'; // Subtle line
-        line.style.background = '#a855f7'; // Purple
+        line.style.top = '0'; // Top
+        line.style.height = '3px'; // Thinner
+        line.style.background = '#d8b4fe'; // Lighter Purple (Tailwind purple-300)
         line.style.zIndex = '5';
-        line.style.borderRadius = '2px';
-        line.style.boxShadow = '0 0 8px rgba(168, 85, 247, 0.6)';
+        line.style.borderRadius = '0 0 2px 2px';
+        line.style.opacity = '0.8';
         overlay.appendChild(line);
-
-        // Optional: faint background to make it clearer?
-        const bg = document.createElement('div');
-        bg.style.position = 'absolute';
-        bg.style.left = `${left}px`;
-        bg.style.width = `${width}px`;
-        bg.style.height = '100%';
-        bg.style.background = 'rgba(168, 85, 247, 0.03)'; // Very faint purple tint
-        bg.style.zIndex = '1';
-        overlay.appendChild(bg);
     });
 
-    // B. GOOGLE BUSY (Gray Blocks) - Overlaying everything
-    googleBusy.forEach(busy => {
-        const startD = new Date(busy.start);
-        const endD = new Date(busy.end);
-
-        const viewStartD = new Date(date).setHours(0, 0, 0, 0);
-        const viewEndD = new Date(date).setHours(23, 59, 59, 999);
-
-        const effectiveStart = Math.max(startD.getTime(), viewStartD);
-        const effectiveEnd = Math.min(endD.getTime(), viewEndD);
-
-        if (effectiveEnd <= effectiveStart) return;
-
-        const startM = (effectiveStart - viewStartD) / 60000;
-        const durationM = (effectiveEnd - effectiveStart) / 60000;
-
-        const left = startM * pixelsPerMinute;
-        const width = durationM * pixelsPerMinute;
-
-        const block = document.createElement('div');
-        block.className = 'google-busy-slot';
-        block.style.position = 'absolute';
-        block.style.left = `${left}px`;
-        block.style.width = `${width}px`;
-        block.style.height = '100%';
-        block.style.background = 'repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 10px, #cbd5e1 10px, #cbd5e1 20px)';
-        block.style.opacity = '0.5';
-        block.style.zIndex = '20'; // Above Events? Or Below? Usually below events but above availability.
-        // User said "al netto degli impegni". Usually busy slots block availability.
-        block.title = "Impegnato (Google)";
-        overlay.appendChild(block);
-    });
+    // B. GOOGLE BUSY -> REMOVED VISUALS (User request: "lascialo in bianco")
 
     // C. INTERNAL EVENTS (Colorful Cards)
     eventsSafe.forEach(ev => {
@@ -529,10 +529,14 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
         el.style.zIndex = '30'; // Top
         el.style.pointerEvents = 'auto';
 
-        // Custom Color Logic (User Request: Appts=Purple, Bookings=Blue)
+        // Custom Color Logic
+        // User complained about "random colors".
+        // Fallback for Appointment MUST be Purple if he expects them to be purple.
         let bgColor = '#3b82f6'; // Default Blue (Booking)
 
         if (ev.type === 'appointment') {
+            // Use type color if exists, else Default Purple (User Expectation)
+            // Previously fallback was Green (#10b981), which caused confusion ("colori a caso").
             bgColor = ev.color || '#a855f7';
         } else if (ev.type === 'booking') {
             bgColor = '#3b82f6';
