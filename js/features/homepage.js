@@ -96,7 +96,15 @@ async function fetchDateEvents(collaboratorId, date) {
                 end: end,
                 type: 'appointment',
                 client: clientName,
-                color: color
+                color: color,
+                // Full attributes for Modal
+                orders: a.orders,
+                appointment_internal_participants: a.appointment_internal_participants,
+                appointment_client_participants: a.appointment_client_participants, // If available
+                location: a.location,
+                mode: a.mode,
+                note: a.note,
+                status: a.status
             });
         });
     }
