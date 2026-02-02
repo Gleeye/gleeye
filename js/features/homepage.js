@@ -179,7 +179,7 @@ export async function renderHomepage(container) {
                     ref_ordine,
                     orders (order_number, title)
                 ),
-                pm_item_assignees!inner(user_ref)
+                pm_item_assignees!inner(user_ref, role)
             `)
             .eq('pm_item_assignees.user_ref', targetUserId)
             .neq('status', 'done')
@@ -187,24 +187,34 @@ export async function renderHomepage(container) {
 
         if (pmError) console.error("PM Tasks fetch error:", pmError);
 
-        myTasks = (pmTasks || []).map(t => {
-            // Robustly extract order
-            let ord = null;
-            if (t.pm_spaces) {
-                const space = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
-                if (space && space.orders) {
-                    ord = Array.isArray(space.orders) ? space.orders[0] : space.orders;
+        myTasks = (pmTasks || [])
+            .map(t => {
+                // Determine user's role for this item
+                const myAssignment = t.pm_item_assignees.find(a => a.user_ref === targetUserId);
+                const myRole = myAssignment ? myAssignment.role : 'viewer';
+
+                // Robustly extract order
+                let ord = null;
+                if (t.pm_spaces) {
+                    const space = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
+                    if (space && space.orders) {
+                        ord = Array.isArray(space.orders) ? space.orders[0] : space.orders;
+                    }
                 }
-            }
-            return {
-                id: t.id,
-                title: t.title,
-                status: t.status,
-                due_date: t.due_date,
-                orders: ord,
-                type: 'pm_task'
-            };
-        });
+                return {
+                    id: t.id,
+                    title: t.title,
+                    status: t.status,
+                    due_date: t.due_date,
+                    orders: ord,
+                    type: 'pm_task',
+                    role: myRole
+                };
+            })
+            // Filter: Only show tasks where I am explicitly assigned (not just watching/tagged)
+            // Assuming 'assignee' is the standard role for executors. 
+            // Also including 'owner' or undefined/null just in case legacy data has no role.
+            .filter(t => t.role === 'assignee' || t.role === 'owner' || !t.role);
 
         // 3. EVENTS (Today/Upcoming)
         events = await fetchDateEvents(myId, new Date());
