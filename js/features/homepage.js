@@ -699,6 +699,7 @@ window.closeHomepageEventModal = function (id) {
 
 // Helper for Filter Switching
 window.setHpFilter = function (filter, btn) {
+    if (!btn) return;
     window.hpActivityFilter = filter;
 
     // Update UI buttons
@@ -717,91 +718,115 @@ window.setHpFilter = function (filter, btn) {
 function renderMyActivities(container, timers, tasks, events, filter = 'task') {
     if (!container) return;
 
-    let html = '';
-    const now = new Date();
-    let hasContent = false;
-
     // Filter Logic
     const showTimers = filter === 'timer'; // Attività
     const showEvents = filter === 'event'; // Appuntamenti (Agenda)
     const showTasks = filter === 'task';  // Task
 
-    // 1. ACTIVE TIMERS (Attività)
-    if (showTimers) {
-        timers.forEach(t => {
-            hasContent = true;
-            // Ensure title exists from updated fetch
-            const title = t.orders ? `#${t.orders.order_number} - ${t.orders.title}` : 'Senza Commessa';
-            html += `
-                <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem;">
-                    <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;">
-                        <span class="material-icons-round" style="font-size: 18px;">play_arrow</span>
-                    </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 0.65rem; color: #6ee7b7; font-weight: 700;">In Corso</div>
-                        <div style="font-weight: 600; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${title}">${title}</div>
-                    </div>
-                </div>
-            `;
-        });
-        if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessuna attività in corso.</div>`;
-    }
+    let html = '';
+    let hasContent = false;
+    const now = new Date();
 
-    // 2. UPCOMING APPOINTMENTS (Agenda)
-    if (showEvents) {
-        const upcomingEvents = events.filter(e => e.end > now);
-        upcomingEvents.forEach(evt => {
-            hasContent = true;
-            const timeStr = evt.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    try {
+        // 1. ACTIVE TIMERS (Attività)
+        if (showTimers) {
+            if (timers && timers.length > 0) {
+                timers.forEach(t => {
+                    hasContent = true;
+                    // Handle Orders
+                    let title = 'Senza Commessa';
+                    if (t.orders) {
+                        // Check for array just in case
+                        const ord = Array.isArray(t.orders) ? t.orders[0] : t.orders;
+                        if (ord) title = `#${ord.order_number || '?'} - ${ord.title || '...'}`;
+                    }
 
-            html += `
-                <div style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.75rem 0; display: flex; gap: 0.75rem; align-items: center; cursor: pointer;" onclick="openHomepageEventDetails(window['evt_hp_${evt.id.replace(/-/g, '_')}'])">
-                    <div style="display: flex; flex-direction: column; align-items: center; width: 45px; flex-shrink: 0;">
-                        <span style="font-size: 0.8rem; font-weight: 600; color: white;">${timeStr}</span>
-                    </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-weight: 600; font-size: 0.9rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.title}</div>
-                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6);">${evt.client || ''}</div>
-                    </div>
-                </div>
-            `;
-        });
-        if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessun appuntamento in programma.</div>`;
-    }
-
-    // 3. TASKS
-    if (showTasks) {
-        if (tasks.length > 0) {
-            tasks.sort((a, b) => new Date(a.due_date || '9999-12-31') - new Date(b.due_date || '9999-12-31'));
-
-            tasks.forEach(t => {
-                hasContent = true;
-                // Correctly access nested Order fields
-                const orderNum = t.orders?.order_number || '';
-                const orderTitle = t.orders?.title || 'No Commessa';
-                const fullTitle = orderNum ? `#${orderNum} - ${orderTitle}` : orderTitle;
-                const isLate = t.due_date && new Date(t.due_date) < new Date();
-
-                html += `
-                    <div style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.75rem 0; display: flex; gap: 0.75rem; align-items: flex-start;">
-                         <div style="padding-top: 2px;">
-                            <input type="checkbox" style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer; border-radius: 4px;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completato">
-                        </div>
-                        <div style="flex: 1; min-width: 0;">
-                             <div style="font-size: 0.75rem; color: #cbd5e1; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600;">
-                                ${fullTitle}
-                                ${isLate ? `<span style="color: #f87171; margin-left:6px;">!</span>` : ''}
+                    html += `
+                        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem;">
+                            <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;">
+                                <span class="material-icons-round" style="font-size: 18px;">play_arrow</span>
                             </div>
-                            <div style="font-size: 0.85rem; color: rgba(255,255,255,0.8); line-height: 1.3;">${t.title}</div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 0.65rem; color: #6ee7b7; font-weight: 700; text-transform: uppercase;">In Corso</div>
+                                <div style="font-weight: 600; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${title}">${title}</div>
+                            </div>
                         </div>
-                    </div>
-                `;
-            });
+                    `;
+                });
+            }
+            if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessuna attività in corso.</div>`;
         }
-        if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessun task da completare.</div>`;
-    }
 
-    container.innerHTML = html;
+        // 2. UPCOMING APPOINTMENTS (Agenda)
+        if (showEvents) {
+            const upcomingEvents = (events || []).filter(e => e.end > now);
+            if (upcomingEvents.length > 0) {
+                upcomingEvents.forEach(evt => {
+                    hasContent = true;
+                    const timeStr = evt.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                    html += `
+                        <div style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.75rem 0; display: flex; gap: 0.75rem; align-items: center; cursor: pointer;" onclick="openHomepageEventDetails(window['evt_hp_${evt.id.replace(/-/g, '_')}'])">
+                            <div style="display: flex; flex-direction: column; align-items: center; width: 45px; flex-shrink: 0;">
+                                <span style="font-size: 0.8rem; font-weight: 600; color: white;">${timeStr}</span>
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-weight: 600; font-size: 0.9rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.title}</div>
+                                <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6);">${evt.client || ''}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessun appuntamento in programma.</div>`;
+        }
+
+        // 3. TASKS
+        if (showTasks) {
+            if (tasks && tasks.length > 0) {
+                // Defensive Sort
+                tasks.sort((a, b) => {
+                    const da = a.due_date ? new Date(a.due_date) : new Date('9999-12-31');
+                    const db = b.due_date ? new Date(b.due_date) : new Date('9999-12-31');
+                    return da - db;
+                });
+
+                tasks.forEach(t => {
+                    hasContent = true;
+                    // Correctly access nested Order fields
+                    let fullTitle = 'No Commessa';
+                    if (t.orders) {
+                        const ord = Array.isArray(t.orders) ? t.orders[0] : t.orders;
+                        if (ord) fullTitle = `#${ord.order_number} - ${ord.title}`;
+                    }
+
+                    const isLate = t.due_date && new Date(t.due_date) < new Date();
+
+                    html += `
+                        <div style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.75rem 0; display: flex; gap: 0.75rem; align-items: flex-start;">
+                             <div style="padding-top: 2px;">
+                                <input type="checkbox" style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer; border-radius: 4px;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completato">
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                 <div style="font-size: 0.75rem; color: #cbd5e1; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600;">
+                                    ${fullTitle}
+                                    ${isLate ? `<span style="color: #f87171; margin-left:6px;">!</span>` : ''}
+                                </div>
+                                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.8); line-height: 1.3;">${t.title}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessun task da completare.</div>`;
+        }
+
+        container.innerHTML = html;
+
+    } catch (e) {
+        console.error("Render Activities Error:", e);
+        container.innerHTML = `<div style="color: #f87171; padding: 1rem;">Errore visualizzazione: ${e.message}</div>`;
+    }
 }
 
 // Helper for Task Completion
