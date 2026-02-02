@@ -16,6 +16,7 @@ import { renderPaymentsDashboard, initPaymentModals } from '../features/payments
 import { renderBooking } from '../features/booking.js?v=151';
 import { renderUserProfile } from '../features/user_dashboard.js?v=152';
 import { renderAgenda } from '../features/personal_agenda.js?v=287';
+import { renderHomepage } from '../features/homepage.js?v=1';
 import { renderNotificationCenter } from '../features/notifications.js?v=151';
 import { renderAdminNotifications } from '../features/admin_notifications.js?v=151';
 // Chat is loaded dynamically to avoid slowing down app startup
@@ -33,8 +34,8 @@ export function router() {
         return; // The hash change will re-trigger router
     }
 
-    // Default to dashboard if no hash
-    hash = hash || 'dashboard';
+    // Default to home if no hash
+    hash = hash || 'home';
     const parts = hash.split('/');
     const page = parts[0];
     const subPage = parts[1];
@@ -73,7 +74,7 @@ export function router() {
     const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
 
     // List of pages allowed for Collaborators (standard - no special tags)
-    const allowedPagesForCollaborator = ['profile', 'agenda', 'my-assignments', 'booking']; // Added booking just in case
+    const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'my-assignments', 'booking'];
 
     // Don't redirect if we are still fetching profile/auth - wait for it
     if (state.isFetching && activeRole === 'collaborator') {
@@ -111,6 +112,10 @@ function render() {
 
     try {
         switch (state.currentPage) {
+            case 'home':
+                if (pageTitle) pageTitle.textContent = 'Home';
+                renderHomepage(contentArea);
+                break;
             case 'dashboard':
                 if (pageTitle) pageTitle.textContent = 'Ordini';
                 renderDashboard(contentArea);

@@ -1,0 +1,314 @@
+/* homepage.css */
+
+.homepage-container {
+    padding: 0 2rem 3rem 2rem;
+    max-width: 1600px;
+    margin: 0 auto;
+    animation: fade-in 0.5s ease-out;
+}
+
+/* Header Section */
+.homepage-header {
+    margin-bottom: 2.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.greeting-section h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    font-family: var(--font-titles);
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.greeting-section p {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.header-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+/* Main Grid Layout */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    /* 2/3 for calendar, 1/3 for side widgets */
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+/* Widgets General */
+.dashboard-widget {
+    background: var(--bg-card);
+    /* Glass effect var */
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.dashboard-widget:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.widget-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* Timeline Widget (Top Left) */
+.timeline-widget {
+    min-height: 300px;
+}
+
+.timeline-controls {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--bg-tertiary);
+    padding: 4px;
+    border-radius: 10px;
+}
+
+.timeline-btn {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.timeline-btn.active {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Horizontal Timeline Scroll */
+.timeline-scroll-area {
+    display: flex;
+    overflow-x: auto;
+    gap: 1rem;
+    padding: 1rem 0 2rem 0;
+    /* Space for shadow/hover */
+    /* Hide scrollbar but keep functionality */
+    scrollbar-width: none;
+}
+
+.timeline-scroll-area::-webkit-scrollbar {
+    display: none;
+}
+
+.timeline-hour-col {
+    min-width: 100px;
+    position: relative;
+    border-left: 1px dashed var(--glass-border);
+    padding-left: 0.5rem;
+    height: 150px;
+    /* Fixed height for lanes */
+}
+
+.timeline-hour-label {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    margin-bottom: 1rem;
+    font-family: monospace;
+}
+
+.timeline-event-card {
+    position: absolute;
+    top: 30px;
+    /* Offset from label */
+    left: 0.5rem;
+    right: -2rem;
+    /* Initial overlap assumption, JS will calculate realwidth */
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: white;
+    padding: 0.75rem;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    cursor: pointer;
+    transition: transform 0.2s, z-index 0s;
+    z-index: 10;
+    min-width: 140px;
+}
+
+.timeline-event-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    z-index: 20;
+}
+
+.timeline-event-card.past {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    box-shadow: none;
+    opacity: 0.7;
+}
+
+/* Upcoming Meeting Widget (Top Right) */
+.next-up-widget {
+    background: linear-gradient(145deg, #1e293b, #0f172a);
+    /* Dark theme accent */
+    color: white;
+    border: none;
+}
+
+.next-up-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+    gap: 1rem;
+}
+
+.meeting-time-badge {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    width: fit-content;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.meeting-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.participants-avatars {
+    display: flex;
+    padding-left: 10px;
+}
+
+.participant-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid #1e293b;
+    margin-left: -10px;
+    background: #cbd5e1;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1e293b;
+    font-weight: 700;
+}
+
+.join-btn {
+    margin-top: auto;
+    background: #38bdf8;
+    /* Sky blue */
+    color: #0f172a;
+    border: none;
+    padding: 0.8rem;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.join-btn:hover {
+    background: #7dd3fc;
+    transform: translateY(-1px);
+}
+
+/* Bottom Row Grid */
+.bottom-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+}
+
+.project-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-bottom: 1px solid var(--glass-border);
+    transition: background 0.2s;
+    cursor: pointer;
+}
+
+.project-item:last-child {
+    border-bottom: none;
+}
+
+.project-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.project-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--bg-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--brand-blue);
+}
+
+.chart-bars {
+    display: flex;
+    align-items: flex-end;
+    /* Bottom align bars */
+    justify-content: space-between;
+    height: 120px;
+    gap: 8px;
+    padding-top: 1rem;
+}
+
+.chart-bar {
+    flex: 1;
+    background: var(--brand-blue);
+    opacity: 0.2;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.5s ease;
+}
+
+.chart-bar.active {
+    opacity: 1;
+    background: linear-gradient(to top, var(--brand-blue), #60a5fa);
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+
+    .dashboard-grid,
+    .bottom-grid {
+        grid-template-columns: 1fr;
+    }
+}
