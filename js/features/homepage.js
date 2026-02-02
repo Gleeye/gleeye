@@ -479,14 +479,14 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
     const pixelsPerMinute = colWidth / 60;
     const viewStartM = startHour * 60;
 
-    // 4. Generate Track (Dark Background)
+    // 4. Generate Track (Light Modern Background)
     let html = '';
     for (let h = startHour; h < endHour; h++) {
         html += `
             <div class="timeline-hour-col" data-hour="${h}" style="
                 width: ${colWidth}px;
                 min-width: ${colWidth}px;
-                border-left: 1px solid rgba(255,255,255,0.08);
+                border-left: 1px solid var(--glass-border);
                 position: relative;
             ">
                 <div class="timeline-hour-label" style="
@@ -494,7 +494,7 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
                     top: 12px;
                     left: 12px;
                     font-size: 0.85rem;
-                    color: rgba(255,255,255,0.5);
+                    color: var(--text-tertiary);
                     font-weight: 600;
                     font-family: var(--font-titles);
                 ">${h}.00</div>
@@ -509,7 +509,7 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
             width: ${totalWidth}px;
             min-width: ${totalWidth}px;
             padding-left: 0;
-            background: #18181b; /* Dark Slate */
+            background: white;
             height: 100%;
         ">
             ${html}
