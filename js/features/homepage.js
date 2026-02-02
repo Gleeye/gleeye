@@ -168,14 +168,14 @@ export async function renderHomepage(container) {
         activeTimers = timers || [];
 
         // 2. TASKS (From PM Items)
-        // Correct join to access Order Title via Alias if defined or direct
+        // Standard syntax without aliases.
         const { data: pmTasks, error: pmError } = await supabase
             .from('pm_items')
             .select(`
                 *,
                 pm_spaces (
                     ref_ordine,
-                    orders:ref_ordine (order_number, title) 
+                    orders (order_number, title)
                 ),
                 pm_item_assignees!inner(user_ref, collaborator_ref)
             `)
@@ -185,14 +185,25 @@ export async function renderHomepage(container) {
 
         if (pmError) console.error("PM Tasks fetch error:", pmError);
 
-        myTasks = (pmTasks || []).map(t => ({
-            id: t.id,
-            title: t.title,
-            status: t.status,
-            due_date: t.due_date,
-            orders: t.pm_spaces?.orders, // Access alias
-            type: 'pm_task'
-        }));
+        myTasks = (pmTasks || []).map(t => {
+            // Robustly extract order
+            let ord = null;
+            if (t.pm_spaces) {
+                // If pm_spaces is array (shouldn't be for one-to-one, but safety first)
+                const space = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
+                if (space && space.orders) {
+                    ord = Array.isArray(space.orders) ? space.orders[0] : space.orders;
+                }
+            }
+            return {
+                id: t.id,
+                title: t.title,
+                status: t.status,
+                due_date: t.due_date,
+                orders: ord,
+                type: 'pm_task'
+            };
+        });
 
         // 3. EVENTS (Today/Upcoming)
         events = await fetchDateEvents(myId, new Date());
