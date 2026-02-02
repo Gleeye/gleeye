@@ -530,16 +530,17 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
         el.style.pointerEvents = 'auto';
 
         // Custom Color Logic
-        // User complained about "random colors".
-        // Fallback for Appointment MUST be Purple if he expects them to be purple.
-        let bgColor = '#3b82f6'; // Default Blue (Booking)
+        // User Request: STRICT CATEGORY COLORS.
+        // "Appointment" = Purple (#a855f7)
+        // "Booking" = Blue (#3b82f6)
+        // Ignoring specific subtype colors to avoid specific "yellow/orange" confusion.
+
+        let bgColor = '#3b82f6'; // Default
 
         if (ev.type === 'appointment') {
-            // Use type color if exists, else Default Purple (User Expectation)
-            // Previously fallback was Green (#10b981), which caused confusion ("colori a caso").
-            bgColor = ev.color || '#a855f7';
+            bgColor = '#a855f7'; // Always Purple
         } else if (ev.type === 'booking') {
-            bgColor = '#3b82f6';
+            bgColor = '#3b82f6'; // Always Blue
         }
 
         el.style.background = bgColor;
