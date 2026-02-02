@@ -1,6 +1,5 @@
 import { state } from '../modules/state.js?v=151';
 import { supabase } from '../modules/config.js?v=151';
-import { fetchMyBookings } from '../features/personal_agenda.js?v=151';
 import { formatAmount } from '../modules/utils.js?v=151';
 
 // We reuse fetchMyBookings but we might need a tighter scoped fetch for "Today"
