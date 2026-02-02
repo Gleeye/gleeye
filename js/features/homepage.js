@@ -17,28 +17,47 @@ async function fetchDateEvents(collaboratorId, date) {
         .select(`
             *,
             booking_items (name, duration),
-            booking_assignments!inner(collaborator_id)
+            booking_assignments!inner(collaborator_id),
+            guest_info
         `)
         .eq('booking_assignments.collaborator_id', collaboratorId)
         .gte('start_time', startOfDay.toISOString())
         .lte('start_time', endOfDay.toISOString())
         .neq('status', 'cancelled');
 
-    // 2. Fetch Appointments
+    // 2. Fetch Appointments (Use correct relation table)
     const { data: appointments } = await supabase
         .from('appointments')
-        .select(`*`)
-        .eq('collaborator_id', collaboratorId)
+        .select(`
+            *,
+            appointment_internal_participants!inner(collaborator_id),
+            orders (
+                clients (business_name)
+            )
+        `)
+        .eq('appointment_internal_participants.collaborator_id', collaboratorId)
         .gte('start_time', startOfDay.toISOString())
-        .lte('start_time', endOfDay.toISOString());
+        .lte('start_time', endOfDay.toISOString())
+        .neq('status', 'cancelled')
+        .neq('status', 'annullato');
 
     // Merge & normalize
     const events = [];
     if (bookings) {
         bookings.forEach(b => {
-            // Parse times. Note: stored as UTC.
+            // Parse times (UTC -> Local)
             const start = new Date(b.start_time);
             const end = new Date(b.end_time);
+
+            // Extract Client Name safely
+            let clientName = 'Cliente';
+            if (b.guest_info) {
+                if (typeof b.guest_info === 'string') {
+                    try { const g = JSON.parse(b.guest_info); clientName = g.company || (g.first_name + ' ' + g.last_name); } catch (e) { }
+                } else {
+                    clientName = b.guest_info.company || (b.guest_info.first_name + ' ' + b.guest_info.last_name);
+                }
+            }
 
             events.push({
                 id: b.id,
@@ -46,7 +65,7 @@ async function fetchDateEvents(collaboratorId, date) {
                 start: start,
                 end: end,
                 type: 'booking',
-                client: b.guest_info?.company || (b.guest_info?.first_name + ' ' + b.guest_info?.last_name)
+                client: clientName
             });
         });
     }
@@ -55,13 +74,16 @@ async function fetchDateEvents(collaboratorId, date) {
             const start = new Date(a.start_time);
             const end = new Date(a.end_time);
 
+            // Extract Client from Order
+            const clientName = a.orders?.clients?.business_name || (a.client_name || 'Appuntamento');
+
             events.push({
                 id: a.id,
                 title: a.title || 'Appuntamento',
                 start: start,
                 end: end,
                 type: 'appointment',
-                client: a.client_name || ''
+                client: clientName
             });
         });
     }
