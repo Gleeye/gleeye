@@ -747,18 +747,32 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
 
     // Data Safety & Counts
     const safeTimers = timers || [];
-    const safeTasks = tasks || [];
+    const allPmItems = tasks || [];
     const safeEvents = events || [];
 
-    // Update Tab Counts (Live)
-    // We assume the buttons exist in the DOM relative to the container parent
-    // But since we redraw the specific list container, we might need to look up.
-    // Actually, simpler: let's re-inject the TABS + LIST every time to keep counts fresh if we wanted, 
-    // OR just update the text content if we can find them.
-    // For now, let's just render the list content robustly.
+    // Separate PM Items into "Real Tasks" and "PM Activities"
+    // Assumption: 'activity' type or similar distinguishes them. 
+    // If not found, rely on title keywords or user feedback.
+    // For now assuming 'attivita' or 'activity' in raw_type.
+    const realTasks = [];
+    const pmActivities = [];
+
+    allPmItems.forEach(item => {
+        const type = (item.raw_type || '').toLowerCase();
+        if (type.includes('attivit') || type.includes('activity')) {
+            pmActivities.push(item);
+        } else {
+            realTasks.push(item);
+        }
+    });
+
+    // Total counts for tabs
+    const countTask = realTasks.length;
+    const countEvent = safeEvents.length;
+    const countActivity = safeTimers.length + pmActivities.length;
 
     // Filter Logic
-    const showTimers = filter === 'timer'; // Attività
+    const showTimers = filter === 'timer'; // Attività (Timers + PM Activities)
     const showEvents = filter === 'event'; // Appuntamenti (Agenda)
     const showTasks = filter === 'task';  // Task
 
@@ -767,35 +781,57 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
     const now = new Date();
 
     try {
-        // 1. ACTIVE TIMERS (Attività)
+        // 1. ACTIVE TIMERS & PM ACTIVITIES (Attività Tab)
         if (showTimers) {
-            if (safeTimers.length > 0) {
-                safeTimers.forEach(t => {
-                    hasContent = true;
-                    // Handle Orders
-                    let title = 'Senza Commessa';
-                    if (t.orders) {
-                        const ord = Array.isArray(t.orders) ? t.orders[0] : t.orders;
-                        if (ord) title = `#${ord.order_number || '?'} - ${ord.title || '...'}`;
-                    }
-
-                    html += `
-                        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem;">
-                            <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;">
-                                <span class="material-icons-round" style="font-size: 18px;">play_arrow</span>
-                            </div>
-                            <div style="flex: 1; min-width: 0;">
-                                <div style="font-size: 0.65rem; color: #6ee7b7; font-weight: 700; text-transform: uppercase;">In Corso</div>
-                                <div style="font-weight: 600; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${title}">${title}</div>
-                            </div>
+            // A. Timers
+            safeTimers.forEach(t => {
+                hasContent = true;
+                let title = 'Senza Commessa';
+                if (t.orders) {
+                    const ord = Array.isArray(t.orders) ? t.orders[0] : t.orders;
+                    if (ord) title = `#${ord.order_number || '?'} - ${ord.title || '...'}`;
+                }
+                html += `
+                    <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem;">
+                        <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;">
+                            <span class="material-icons-round" style="font-size: 18px;">play_arrow</span>
                         </div>
-                    `;
-                });
-            }
-            if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessun timer attivo.</div>`;
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 0.65rem; color: #6ee7b7; font-weight: 700; text-transform: uppercase;">In Corso (Timer)</div>
+                            <div style="font-weight: 600; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${title}">${title}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // B. PM Activities (Static)
+            pmActivities.forEach(t => {
+                hasContent = true;
+                let fullTitle = 'Attività';
+                if (t.orders) {
+                    const ord = Array.isArray(t.orders) ? t.orders[0] : t.orders;
+                    if (ord) fullTitle = `#${ord.order_number} - ${ord.title}`;
+                }
+
+                html += `
+                    <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 0.5rem;">
+                        <div style="width: 32px; height: 32px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;">
+                            <span class="material-icons-round" style="font-size: 18px;">assignment</span>
+                        </div>
+                         <div style="flex: 1; min-width: 0;">
+                             <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">
+                                ${fullTitle}
+                            </div>
+                            <div style="font-weight: 500; font-size: 0.9rem; color: white; line-height: 1.3;">${t.title}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessuna attività.</div>`;
         }
 
-        // 2. EVENTS (Agenda) - Show ALL for today
+        // 2. EVENTS (Agenda)
         if (showEvents) {
             if (safeEvents.length > 0) {
                 // Sort by time
@@ -839,15 +875,15 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
 
         // 3. TASKS
         if (showTasks) {
-            if (safeTasks.length > 0) {
+            if (realTasks.length > 0) {
                 // Sort by Due Date
-                safeTasks.sort((a, b) => {
+                realTasks.sort((a, b) => {
                     const da = a.due_date ? new Date(a.due_date) : new Date('9999-12-31');
                     const db = b.due_date ? new Date(b.due_date) : new Date('9999-12-31');
                     return da - db;
                 });
 
-                safeTasks.forEach(t => {
+                realTasks.forEach(t => {
                     hasContent = true;
                     // Correctly access nested Order fields
                     let fullTitle = 'Generico';
@@ -887,9 +923,9 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
             if (card) {
                 const tabs = card.querySelectorAll('.tab-btn');
                 if (tabs.length === 3) {
-                    tabs[0].textContent = `Task (${safeTasks.length})`;
-                    tabs[1].textContent = `Appuntamenti (${safeEvents.length})`;
-                    tabs[2].textContent = `Attività (${safeTimers.length})`;
+                    tabs[0].textContent = `Task (${countTask})`;
+                    tabs[1].textContent = `Appuntamenti (${countEvent})`;
+                    tabs[2].textContent = `Attività (${countActivity})`;
                 }
             }
         } catch (e) {/* ignore */ }
