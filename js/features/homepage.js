@@ -7,10 +7,9 @@ import { formatAmount } from '../modules/utils.js?v=151';
 // Let's create a dedicated fetch or use the general one if accessible.
 // Since `personal_agenda.js` doesn't export the cache cleanly, we'll fetch explicitly here.
 
-async function fetchTodayEvents(collaboratorId) {
-    const today = new Date();
-    const startOfDay = new Date(today); startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999);
+async function fetchDateEvents(collaboratorId, date) {
+    const startOfDay = new Date(date); startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date); endOfDay.setHours(23, 59, 59, 999);
 
     // 1. Fetch Bookings
     const { data: bookings } = await supabase
@@ -37,11 +36,15 @@ async function fetchTodayEvents(collaboratorId) {
     const events = [];
     if (bookings) {
         bookings.forEach(b => {
+            // Parse times. Note: stored as UTC.
+            const start = new Date(b.start_time);
+            const end = new Date(b.end_time);
+
             events.push({
                 id: b.id,
                 title: b.booking_items?.name || 'Prenotazione',
-                start: new Date(b.start_time),
-                end: new Date(b.end_time),
+                start: start,
+                end: end,
                 type: 'booking',
                 client: b.guest_info?.company || (b.guest_info?.first_name + ' ' + b.guest_info?.last_name)
             });
@@ -49,11 +52,14 @@ async function fetchTodayEvents(collaboratorId) {
     }
     if (appointments) {
         appointments.forEach(a => {
+            const start = new Date(a.start_time);
+            const end = new Date(a.end_time);
+
             events.push({
                 id: a.id,
                 title: a.title || 'Appuntamento',
-                start: new Date(a.start_time),
-                end: new Date(a.end_time),
+                start: start,
+                end: end,
                 type: 'appointment',
                 client: a.client_name || ''
             });
@@ -84,9 +90,21 @@ export async function renderHomepage(container) {
     const user = state.session?.user;
     if (!user) return;
 
-    // Find curr collab
-    const collab = state.collaborators.find(c => c.email === user.email);
-    const firstName = collab ? collab.first_name : 'Utente';
+    // Determine which collaborator to show (support impersonation)
+    let myCollab;
+    if (state.impersonatedCollaboratorId) {
+        myCollab = state.collaborators.find(c => c.id === state.impersonatedCollaboratorId);
+    }
+    if (!myCollab) {
+        myCollab = state.collaborators.find(c => c.email === user.email);
+    }
+
+    if (!myCollab) {
+        container.innerHTML = `<div style="padding:2rem;">Profilo non trovato. Contatta l'amministratore.</div>`;
+        return;
+    }
+
+    const firstName = myCollab.first_name || 'Utente';
 
     // Skeleton
     container.innerHTML = `
@@ -112,11 +130,10 @@ export async function renderHomepage(container) {
                 <!-- Daily Timeline -->
                 <div class="dashboard-widget timeline-widget">
                     <div class="widget-header">
-                        <h3 class="widget-title">Orario di Oggi</h3>
+                        <h3 class="widget-title" id="timeline-title">Orario di Oggi</h3>
                         <div class="timeline-controls">
-                            <!-- Just visual for now -->
-                            <button class="timeline-btn active">Oggi</button>
-                            <button class="timeline-btn">Domani</button>
+                            <button class="timeline-btn active" id="btn-today">Oggi</button>
+                            <button class="timeline-btn" id="btn-tomorrow">Domani</button>
                         </div>
                     </div>
                     <div class="timeline-scroll-area" id="home-timeline-area">
@@ -131,8 +148,7 @@ export async function renderHomepage(container) {
                     <div class="next-up-content">
                         <span style="opacity: 0.7;">Prossimo Impegno</span>
                         <div style="text-align: center; padding: 2rem;">
-                            <span class="material-icons-round" style="font-size: 3rem; opacity: 0.5;">event_available</span>
-                            <p>Nessun impegno imminente</p>
+                            <span class="loader small"></span>
                         </div>
                     </div>
                 </div>
@@ -201,29 +217,67 @@ export async function renderHomepage(container) {
         </div>
     `;
 
-    // --- Load Data ---
-    if (collab) {
-        try {
-            // 1. Load Events
-            const events = await fetchTodayEvents(collab.id);
-            renderTimeline(container.querySelector('#home-timeline-area'), events);
-            renderNextUp(container.querySelector('#home-next-up'), events);
+    // --- Interaction Logic ---
+    const btnToday = container.querySelector('#btn-today');
+    const btnTomorrow = container.querySelector('#btn-tomorrow');
+    const timelineTitle = container.querySelector('#timeline-title');
+    const timelineArea = container.querySelector('#home-timeline-area');
 
-            // 2. Load Projects
-            const projects = await fetchRecentProjects();
-            renderProjects(container.querySelector('#home-recent-projects'), projects);
+    const loadTimeline = async (dateMode) => { // 'today' or 'tomorrow'
+        timelineArea.innerHTML = `<div style="padding: 2rem; width: 100%; text-align: center; color: var(--text-tertiary);"><span class="loader small"></span> Caricamento...</div>`;
 
-        } catch (e) {
-            console.error("Home Data Load Error:", e);
+        const targetDate = new Date();
+        if (dateMode === 'tomorrow') {
+            targetDate.setDate(targetDate.getDate() + 1);
+            timelineTitle.textContent = "Orario di Domani";
+            btnToday.classList.remove('active');
+            btnTomorrow.classList.add('active');
+        } else {
+            timelineTitle.textContent = "Orario di Oggi";
+            btnToday.classList.add('active');
+            btnTomorrow.classList.remove('active');
         }
+
+        try {
+            const events = await fetchDateEvents(myCollab.id, targetDate);
+            renderTimeline(timelineArea, events, targetDate);
+            // Don't update "Next Up" when toggling timeline, keep Next Up focused on immediate future from NOW
+        } catch (e) {
+            console.error(e);
+            timelineArea.innerHTML = `<div style="color:red; text-align:center;">Errore caricamento</div>`;
+        }
+    };
+
+    btnToday.onclick = () => loadTimeline('today');
+    btnTomorrow.onclick = () => loadTimeline('tomorrow');
+
+    // --- Initial Load ---
+    try {
+        // 1. Timeline (Default Today)
+        loadTimeline('today');
+
+        // 2. Next Up (Always dynamic from NOW)
+        const todayEvents = await fetchDateEvents(myCollab.id, new Date());
+        // We might also need tomorrow's events if today is over? 
+        // For simplicity, just check next 24h or similar. 
+        // Actually, let's just use today's events for now to find the IMMEDIATE next one.
+        renderNextUp(container.querySelector('#home-next-up'), todayEvents);
+
+        // 3. Load Projects
+        const projects = await fetchRecentProjects();
+        renderProjects(container.querySelector('#home-recent-projects'), projects);
+
+    } catch (e) {
+        console.error("Home Data Load Error:", e);
     }
 }
 
-function renderTimeline(container, events) {
+function renderTimeline(container, events, date = new Date()) {
     if (!events || events.length === 0) {
+        const isToday = new Date().toDateString() === date.toDateString();
         container.innerHTML = `
             <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary);">
-                <span class="material-icons-round" style="margin-right: 8px;">event_busy</span> Nessun impegno oggi
+                <span class="material-icons-round" style="margin-right: 8px;">event_busy</span> ${isToday ? 'Nessun impegno oggi' : 'Nessun impegno domani'}
             </div>
         `;
         return;
