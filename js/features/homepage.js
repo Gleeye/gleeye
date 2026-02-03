@@ -278,14 +278,37 @@ export async function renderHomepage(container) {
                 <div style="width: 340px; flex: 0 0 auto; display: flex; flex-direction: column;">
                     <!-- "MY ACTIVITIES" CARD -->
                     <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; height: 100%; overflow: hidden; background: #1e293b; color: white; border-radius: 16px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem; flex-shrink: 0;">
-                             <!-- TEXT TABS -->
-                             <div style="display: flex; gap: 1rem; font-size: 0.85rem; font-weight: 600;">
-                                <button onclick="window.setHpFilter('task', this)" class="tab-btn ${window.hpActivityFilter === 'task' ? 'active' : ''}">Task</button>
-                                <button onclick="window.setHpFilter('event', this)" class="tab-btn ${window.hpActivityFilter === 'event' ? 'active' : ''}">Appuntamenti</button>
-                                <button onclick="window.setHpFilter('timer', this)" class="tab-btn ${window.hpActivityFilter === 'timer' ? 'active' : ''}">Attività</button>
-                             </div>
+                        <!-- SEGMENTED CONTROL TABS -->
+                        <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 4px; display: flex; gap: 4px; flex-shrink: 0;">
+                            <button onclick="window.setHpFilter('task', this)" class="tab-pill ${window.hpActivityFilter === 'task' ? 'active' : ''}">Task</button>
+                            <button onclick="window.setHpFilter('event', this)" class="tab-pill ${window.hpActivityFilter === 'event' ? 'active' : ''}">Appuntamenti</button>
+                            <button onclick="window.setHpFilter('timer', this)" class="tab-pill ${window.hpActivityFilter === 'timer' ? 'active' : ''}">Attività</button>
                         </div>
+                        
+                        <style>
+                            .tab-pill {
+                                flex: 1;
+                                border: none;
+                                background: transparent;
+                                color: rgba(255,255,255,0.6);
+                                padding: 6px 0;
+                                border-radius: 8px;
+                                font-size: 0.75rem;
+                                font-weight: 600;
+                                cursor: pointer;
+                                transition: all 0.2s ease;
+                                text-align: center;
+                            }
+                            .tab-pill:hover {
+                                color: white;
+                                background: rgba(255,255,255,0.05);
+                            }
+                            .tab-pill.active {
+                                background: rgba(255,255,255,0.15) !important;
+                                color: white !important;
+                                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                            }
+                        </style>
 
                         <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; padding-right: 4px; min-height: 0;" id="hp-activities-list">
                             <!-- Content Injected Below -->
@@ -765,7 +788,7 @@ window.setHpFilter = function (filter, btn) {
     // Update UI buttons
     const container = btn.closest('div');
     if (container) {
-        container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        container.querySelectorAll('.tab-pill').forEach(b => b.classList.remove('active'));
     }
     btn.classList.add('active');
 
@@ -954,7 +977,7 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
         try {
             const card = container.closest('.glass-card');
             if (card) {
-                const tabs = card.querySelectorAll('.tab-btn');
+                const tabs = card.querySelectorAll('.tab-pill');
                 if (tabs.length === 3) {
                     tabs[0].textContent = `Task (${countTask})`;
                     tabs[1].textContent = `Appuntamenti (${countEvent})`;
