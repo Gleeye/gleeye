@@ -458,21 +458,22 @@ export async function renderHomepage(container) {
 
         // Create Popover
         const rect = btn.getBoundingClientRect();
+        const popoverWidth = 300;
         const popover = document.createElement('div');
         popover.id = 'custom-datepicker-popover';
         popover.className = 'glass-card'; // Reuse global class
         popover.style.cssText = `
             position: fixed;
             top: ${rect.bottom + 8}px;
-            left: ${rect.left}px;
-            background: #1e293b;
-            color: white;
+            left: ${rect.right - popoverWidth}px; /* Align Right Edge */
+            background: white; /* Light Theme */
+            color: #1f2937; /* Gray-800 */
             padding: 16px;
             border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); /* Soft shadow */
             z-index: 9999;
-            width: 300px;
-            border: 1px solid rgba(255,255,255,0.1);
+            width: ${popoverWidth}px;
+            border: 1px solid #e5e7eb; /* Light border */
             font-family: var(--font-base, sans-serif);
         `;
 
@@ -500,11 +501,11 @@ export async function renderHomepage(container) {
         // Header
         let html = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <button onclick="changePickerMonth(-1)" style="background:transparent; border:none; color:white; cursor:pointer; padding:4px;">
+                <button onclick="changePickerMonth(-1)" style="background:transparent; border:none; color:#374151; cursor:pointer; padding:4px; border-radius:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
                     <span class="material-icons-round">chevron_left</span>
                 </button>
-                <div style="font-weight: 700; font-size: 0.95rem;">${monthNames[month]} ${year}</div>
-                <button onclick="changePickerMonth(1)" style="background:transparent; border:none; color:white; cursor:pointer; padding:4px;">
+                <div style="font-weight: 700; font-size: 0.95rem; color:#111;">${monthNames[month]} ${year}</div>
+                <button onclick="changePickerMonth(1)" style="background:transparent; border:none; color:#374151; cursor:pointer; padding:4px; border-radius:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
                     <span class="material-icons-round">chevron_right</span>
                 </button>
             </div>
@@ -514,7 +515,7 @@ export async function renderHomepage(container) {
         // Weekdays
         const days = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
         days.forEach(d => {
-            html += `<div style="text-align: center; font-size: 0.75rem; color: rgba(255,255,255,0.5); font-weight: 600;">${d}</div>`;
+            html += `<div style="text-align: center; font-size: 0.75rem; color: #9ca3af; font-weight: 600;">${d}</div>`;
         });
         html += `</div><div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">`;
 
@@ -533,26 +534,28 @@ export async function renderHomepage(container) {
         // Day slots
         for (let i = 1; i <= daysInMonth; i++) {
             let bg = 'transparent';
-            let color = 'white';
-            let weight = '400';
+            let color = '#374151'; // Gray-700
+            let weight = '500';
 
             // Highlight Selected (Prioritize over today)
             if (i === currentSelected.getDate() && month === currentSelected.getMonth() && year === currentSelected.getFullYear()) {
                 bg = 'var(--brand-purple, #a855f7)';
+                color = 'white';
                 weight = '700';
             }
             // Highlight Today (secondary)
             else if (i === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
-                bg = 'rgba(255,255,255,0.1)';
-                color = '#60a5fa'; // Blueish
+                bg = '#eff6ff'; // Blue-50
+                color = '#3b82f6'; // Blue-500
+                weight = '700';
             }
 
             html += `
                 <button onclick="selectPickerDate(${i})" style="
-                    width: 100%; aspect-ratio: 1; border: none; background: ${bg}; color: ${color}; 
+                    width: 100%; aspect-ratio: 1; border: none; background: ${bg}; color: ${color};
                     border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: ${weight};
                     display: flex; align-items: center; justify-content: center; transition: background 0.2s;
-                " onmouseover="this.style.background = '${bg === 'transparent' ? 'rgba(255,255,255,0.1)' : bg}'" 
+                " onmouseover="this.style.background = '${bg === 'transparent' ? '#f3f4f6' : bg}'"
                   onmouseout="this.style.background = '${bg}'">
                     ${i}
                 </button>
@@ -862,20 +865,20 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
             tooltip.id = 'timeline-custom-tooltip';
             tooltip.style.position = 'fixed'; // Fixed to viewport
             tooltip.style.zIndex = '9999';
-            tooltip.style.background = 'rgba(15, 23, 42, 0.95)'; // Slate-900 with slight opacity
-            tooltip.style.color = 'white';
+            tooltip.style.background = 'rgba(255, 255, 255, 0.98)'; // White glass
+            tooltip.style.color = '#1e293b'; // Slate-800
             tooltip.style.padding = '8px 12px';
             tooltip.style.borderRadius = '8px';
             tooltip.style.fontSize = '0.85rem';
-            tooltip.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)';
+            tooltip.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)';
             tooltip.style.pointerEvents = 'none';
             tooltip.style.backdropFilter = 'blur(4px)';
-            tooltip.style.border = '1px solid rgba(255,255,255,0.1)';
+            tooltip.style.border = '1px solid #e2e8f0'; // Light border
             tooltip.style.maxWidth = '250px';
 
             tooltip.innerHTML = `
                 <div style="font-weight: 600; margin-bottom: 2px;">${ev.title}</div>
-                <div style="font-size: 0.75rem; color: #cbd5e1;">${ev.client || ''}</div>
+                <div style="font-size: 0.75rem; color: #64748b;">${ev.client || ''}</div>
                 <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px;">
                    ${ev.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${ev.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
