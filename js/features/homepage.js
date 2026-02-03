@@ -697,17 +697,22 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
         el.style.borderRadius = '12px'; // Rounded pill-ish
         el.style.border = 'none';
         el.style.cursor = 'pointer';
-        el.style.color = '#111'; // Dark Text for contrast on bright bg
-        el.style.padding = '4px 8px'; // Internal padding
+        el.style.color = 'white'; // White Text for better contrast
+        el.style.padding = '6px 10px'; // More padding
         el.style.display = 'flex';
         el.style.flexDirection = 'column';
         el.style.justifyContent = 'center';
+
+        // Positioning (Detached from top)
+        el.style.position = 'absolute';
+        el.style.top = '42px'; // Push down from date header
+        el.style.height = 'calc(100% - 50px)'; // Fill remaining space with some bottom margin
 
         // INTERACTION
         const evtId = `evt_hp_${ev.id.replace(/-/g, '_')}`;
         window[evtId] = ev;
         el.setAttribute('onclick', `openHomepageEventDetails(window['${evtId}'])`);
-        el.onmouseover = function () { this.style.transform = 'translateY(-1px)'; this.style.boxShadow = `0 6px 16px ${bgColor}50`; };
+        el.onmouseover = function () { this.style.transform = 'translateY(-2px)'; this.style.boxShadow = `0 8px 20px ${bgColor}60`; };
         el.onmouseout = function () { this.style.transform = 'none'; this.style.boxShadow = `0 4px 12px ${bgColor}40`; };
 
         // READABILITY: Handle Small Blocks
@@ -718,10 +723,10 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
             // No Text, just tooltip
             el.title = `${ev.title} (${ev.client || '-'})`;
         } else {
-            let htmlContent = `<div style="font-weight: 700; margin-bottom: ${isSmall ? '0' : '2px'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8rem; line-height: 1.2;">${ev.title}</div>`;
+            let htmlContent = `<div style="font-weight: 700; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">${ev.title}</div>`;
 
             if (!isSmall) {
-                htmlContent += `<div style="font-size: 0.7rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.client || ''}</div>`;
+                htmlContent += `<div style="font-size: 0.75rem; font-weight: 500; opacity: 0.95; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.client || ''}</div>`;
             }
             el.innerHTML = htmlContent;
         }
