@@ -278,11 +278,20 @@ export async function renderHomepage(container) {
                 <div style="width: 340px; flex: 0 0 auto; display: flex; flex-direction: column;">
                     <!-- "MY ACTIVITIES" CARD -->
                     <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; height: 100%; overflow: hidden; background: #1e293b; color: white; border-radius: 16px;">
-                        <!-- SEGMENTED CONTROL TABS -->
+                        <!-- SEGMENTED CONTROL TABS (Icons) -->
                         <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 4px; display: flex; gap: 4px; flex-shrink: 0;">
-                            <button onclick="window.setHpFilter('task', this)" class="tab-pill ${window.hpActivityFilter === 'task' ? 'active' : ''}">Task</button>
-                            <button onclick="window.setHpFilter('event', this)" class="tab-pill ${window.hpActivityFilter === 'event' ? 'active' : ''}">Appuntamenti</button>
-                            <button onclick="window.setHpFilter('timer', this)" class="tab-pill ${window.hpActivityFilter === 'timer' ? 'active' : ''}">Attività</button>
+                            <button onclick="window.setHpFilter('task', this)" class="tab-pill ${window.hpActivityFilter === 'task' ? 'active' : ''}" title="Task">
+                                <span class="material-icons-round" style="font-size: 18px;">check_circle</span>
+                                <span class="tab-count" style="margin-left: 4px;"></span>
+                            </button>
+                            <button onclick="window.setHpFilter('event', this)" class="tab-pill ${window.hpActivityFilter === 'event' ? 'active' : ''}" title="Appuntamenti">
+                                <span class="material-icons-round" style="font-size: 18px;">event</span>
+                                <span class="tab-count" style="margin-left: 4px;"></span>
+                            </button>
+                            <button onclick="window.setHpFilter('timer', this)" class="tab-pill ${window.hpActivityFilter === 'timer' ? 'active' : ''}" title="Attività">
+                                <span class="material-icons-round" style="font-size: 18px;">schedule</span>
+                                <span class="tab-count" style="margin-left: 4px;"></span>
+                            </button>
                         </div>
                         
                         <style>
@@ -290,14 +299,14 @@ export async function renderHomepage(container) {
                                 flex: 1;
                                 border: none;
                                 background: transparent;
-                                color: rgba(255,255,255,0.6);
-                                padding: 6px 0;
+                                color: rgba(255,255,255,0.4); /* Dimmer inactive */
+                                padding: 8px 0;
                                 border-radius: 8px;
-                                font-size: 0.75rem;
-                                font-weight: 600;
                                 cursor: pointer;
                                 transition: all 0.2s ease;
-                                text-align: center;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
                             }
                             .tab-pill:hover {
                                 color: white;
@@ -307,6 +316,11 @@ export async function renderHomepage(container) {
                                 background: rgba(255,255,255,0.15) !important;
                                 color: white !important;
                                 box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                            }
+                            .tab-count {
+                                font-size: 0.75rem;
+                                font-weight: 700;
+                                opacity: 0.8;
                             }
                         </style>
 
@@ -979,9 +993,14 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
             if (card) {
                 const tabs = card.querySelectorAll('.tab-pill');
                 if (tabs.length === 3) {
-                    tabs[0].textContent = `Task (${countTask})`;
-                    tabs[1].textContent = `Appuntamenti (${countEvent})`;
-                    tabs[2].textContent = `Attività (${countActivity})`;
+                    // Update counts safely without killing icons
+                    const setCnt = (btn, n) => {
+                        const s = btn.querySelector('.tab-count');
+                        if (s) s.textContent = n;
+                    };
+                    setCnt(tabs[0], countTask);
+                    setCnt(tabs[1], countEvent);
+                    setCnt(tabs[2], countActivity);
                 }
             }
         } catch (e) {/* ignore */ }
