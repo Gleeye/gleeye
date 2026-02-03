@@ -254,8 +254,7 @@ export async function renderHomepage(container) {
                              <button onclick="resetHomepageDate()" class="nav-pill active-pill" style="padding: 4px 12px; border-radius: 16px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; background: white; shadow: var(--shadow-sm);">Oggi</button>
                              <button onclick="changeHomepageDate(1)" class="nav-pill" style="padding: 4px 12px; border-radius: 16px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; background: transparent; color: #6b7280;">Domani</button>
                              <div style="position: relative; display: flex; align-items: center;">
-                                <input type="date" style="position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer;" onchange="window.updateHomepageDateFromInput(this.value)">
-                                <button class="nav-pill" style="padding: 4px 12px; border-radius: 16px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; background: transparent; color: #6b7280; display: flex; align-items: center; gap: 4px;">
+                                <button id="hp-date-picker-btn" onclick="toggleCustomDatePicker(this)" class="nav-pill" style="padding: 4px 12px; border-radius: 16px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; background: transparent; color: #6b7280; display: flex; align-items: center; gap: 4px;">
                                     <span class="material-icons-round" style="font-size: 16px;">calendar_today</span> Data
                                 </button>
                              </div>
@@ -442,6 +441,147 @@ export async function renderHomepage(container) {
     window.resetHomepageDate = () => {
         window.homepageCurrentDate = new Date();
         window.updateHomepageTimeline(window.homepageCurrentDate);
+    };
+
+    // --- CUSTOM DATE PICKER ---
+    let pickerCurrentDate = new Date(); // Tracks the displayed month
+
+    window.toggleCustomDatePicker = (btn) => {
+        const existing = document.getElementById('custom-datepicker-popover');
+        if (existing) {
+            existing.remove();
+            return;
+        }
+
+        // Initialize picker date to current selected date
+        pickerCurrentDate = new Date(window.homepageCurrentDate);
+
+        // Create Popover
+        const rect = btn.getBoundingClientRect();
+        const popover = document.createElement('div');
+        popover.id = 'custom-datepicker-popover';
+        popover.className = 'glass-card'; // Reuse global class
+        popover.style.cssText = `
+            position: fixed;
+            top: ${rect.bottom + 8}px;
+            left: ${rect.left}px;
+            background: #1e293b;
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            z-index: 9999;
+            width: 300px;
+            border: 1px solid rgba(255,255,255,0.1);
+            font-family: var(--font-base, sans-serif);
+        `;
+
+        // Render Initial View
+        renderCalendar(popover);
+        document.body.appendChild(popover);
+
+        // Click Outside to Close
+        setTimeout(() => {
+            const closeHandler = (e) => {
+                if (!popover.contains(e.target) && !btn.contains(e.target)) {
+                    popover.remove();
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+            document.addEventListener('click', closeHandler);
+        }, 0);
+    };
+
+    function renderCalendar(container) {
+        const year = pickerCurrentDate.getFullYear();
+        const month = pickerCurrentDate.getMonth(); // 0-11
+        const monthNames = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+
+        // Header
+        let html = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <button onclick="changePickerMonth(-1)" style="background:transparent; border:none; color:white; cursor:pointer; padding:4px;">
+                    <span class="material-icons-round">chevron_left</span>
+                </button>
+                <div style="font-weight: 700; font-size: 0.95rem;">${monthNames[month]} ${year}</div>
+                <button onclick="changePickerMonth(1)" style="background:transparent; border:none; color:white; cursor:pointer; padding:4px;">
+                    <span class="material-icons-round">chevron_right</span>
+                </button>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 8px;">
+        `;
+
+        // Weekdays
+        const days = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
+        days.forEach(d => {
+            html += `<div style="text-align: center; font-size: 0.75rem; color: rgba(255,255,255,0.5); font-weight: 600;">${d}</div>`;
+        });
+        html += `</div><div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">`;
+
+        // Days Grid
+        const firstDay = new Date(year, month, 1).getDay(); // 0=Sun (need adjustment to Mon=0)
+        const adjustedFirstDay = (firstDay === 0 ? 6 : firstDay - 1);
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const today = new Date(); // To highlight today
+        const currentSelected = window.homepageCurrentDate;
+
+        // Empty slots
+        for (let i = 0; i < adjustedFirstDay; i++) {
+            html += `<div></div>`;
+        }
+
+        // Day slots
+        for (let i = 1; i <= daysInMonth; i++) {
+            let bg = 'transparent';
+            let color = 'white';
+            let weight = '400';
+
+            // Highlight Selected (Prioritize over today)
+            if (i === currentSelected.getDate() && month === currentSelected.getMonth() && year === currentSelected.getFullYear()) {
+                bg = 'var(--brand-purple, #a855f7)';
+                weight = '700';
+            }
+            // Highlight Today (secondary)
+            else if (i === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+                bg = 'rgba(255,255,255,0.1)';
+                color = '#60a5fa'; // Blueish
+            }
+
+            html += `
+                <button onclick="selectPickerDate(${i})" style="
+                    width: 100%; aspect-ratio: 1; border: none; background: ${bg}; color: ${color}; 
+                    border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: ${weight};
+                    display: flex; align-items: center; justify-content: center; transition: background 0.2s;
+                " onmouseover="this.style.background = '${bg === 'transparent' ? 'rgba(255,255,255,0.1)' : bg}'" 
+                  onmouseout="this.style.background = '${bg}'">
+                    ${i}
+                </button>
+            `;
+        }
+
+        html += `</div>`;
+        container.innerHTML = html;
+    }
+
+    // Global helpers for pure HTML interaction
+    window.changePickerMonth = (offset) => {
+        pickerCurrentDate.setMonth(pickerCurrentDate.getMonth() + offset);
+        const popover = document.getElementById('custom-datepicker-popover');
+        if (popover) renderCalendar(popover);
+    };
+
+    window.selectPickerDate = (day) => {
+        const newDate = new Date(pickerCurrentDate.getFullYear(), pickerCurrentDate.getMonth(), day);
+        // Date input needs YYYY-MM-DD usually, but our logic handles Date obj
+        const offset = newDate.getTimezoneOffset();
+        const localDate = new Date(newDate.getTime() - (offset * 60 * 1000));
+        const dateStr = localDate.toISOString().split('T')[0];
+
+        window.updateHomepageDateFromInput(dateStr);
+
+        // Remove popover
+        const popover = document.getElementById('custom-datepicker-popover');
+        if (popover) popover.remove();
     };
 
     // --- Initial Load ---
