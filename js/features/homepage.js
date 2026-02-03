@@ -3,7 +3,7 @@ import { supabase } from '../modules/config.js?v=151';
 import { formatAmount } from '../modules/utils.js?v=151';
 
 import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment } from '../modules/api.js?v=151';
-import { fetchAppointment } from '../modules/pm_api.js?v=151';
+import { fetchAppointment, updatePMItem } from '../modules/pm_api.js?v=151';
 
 // We reuse fetchMyBookings but we might need a tighter scoped fetch for "Today"
 // Actually fetchMyBookings stores in `eventsCache` (not exported) or `window`?
@@ -1020,7 +1020,7 @@ window.quickCompleteTask = async function (id, checkbox) {
     if (row) row.style.opacity = '0.3';
 
     try {
-        await upsertAssignment({ id: id, status: 'completed' });
+        await updatePMItem(id, { status: 'completed' });
         // Refresh? For now just hide
         if (row) row.remove();
         // Update stats counter?
