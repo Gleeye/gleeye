@@ -698,32 +698,74 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
         el.style.border = 'none';
         el.style.cursor = 'pointer';
         el.style.color = 'white'; // White Text for better contrast
-        el.style.padding = '6px 10px'; // More padding
+        // Positioning (Slimmer & Detached)
+        el.style.position = 'absolute';
+        el.style.top = '50px'; // More breathing room
+        el.style.height = '46px'; // Fixed slim height (Pill/Strip look)
+        el.style.padding = '0 10px'; // Horizontal padding
         el.style.display = 'flex';
         el.style.flexDirection = 'column';
         el.style.justifyContent = 'center';
-
-        // Positioning (Detached from top)
-        el.style.position = 'absolute';
-        el.style.top = '42px'; // Push down from date header
-        el.style.height = 'calc(100% - 50px)'; // Fill remaining space with some bottom margin
 
         // INTERACTION
         const evtId = `evt_hp_${ev.id.replace(/-/g, '_')}`;
         window[evtId] = ev;
         el.setAttribute('onclick', `openHomepageEventDetails(window['${evtId}'])`);
-        el.onmouseover = function () { this.style.transform = 'translateY(-2px)'; this.style.boxShadow = `0 8px 20px ${bgColor}60`; };
-        el.onmouseout = function () { this.style.transform = 'none'; this.style.boxShadow = `0 4px 12px ${bgColor}40`; };
+
+        // CUSTOM TOOLTIP LOGIC
+        el.onmouseenter = function (e) {
+            this.style.transform = 'translateY(-2px)';
+            this.style.boxShadow = `0 8px 20px ${bgColor}60`;
+
+            // Create Tooltip
+            const tooltip = document.createElement('div');
+            tooltip.id = 'timeline-custom-tooltip';
+            tooltip.style.position = 'fixed'; // Fixed to viewport
+            tooltip.style.zIndex = '9999';
+            tooltip.style.background = 'rgba(15, 23, 42, 0.95)'; // Slate-900 with slight opacity
+            tooltip.style.color = 'white';
+            tooltip.style.padding = '8px 12px';
+            tooltip.style.borderRadius = '8px';
+            tooltip.style.fontSize = '0.85rem';
+            tooltip.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)';
+            tooltip.style.pointerEvents = 'none';
+            tooltip.style.backdropFilter = 'blur(4px)';
+            tooltip.style.border = '1px solid rgba(255,255,255,0.1)';
+            tooltip.style.maxWidth = '250px';
+
+            tooltip.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 2px;">${ev.title}</div>
+                <div style="font-size: 0.75rem; color: #cbd5e1;">${ev.client || ''}</div>
+                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px;">
+                   ${ev.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${ev.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+            `;
+
+            document.body.appendChild(tooltip);
+
+            // Position Tooltip
+            const rect = this.getBoundingClientRect();
+            tooltip.style.top = `${rect.bottom + 8}px`; // Below the card
+            tooltip.style.left = `${rect.left}px`;
+        };
+
+        el.onmouseleave = function () {
+            this.style.transform = 'none';
+            this.style.boxShadow = `0 4px 12px ${bgColor}40`;
+
+            // Remove Tooltip
+            const tooltip = document.getElementById('timeline-custom-tooltip');
+            if (tooltip) tooltip.remove();
+        };
 
         // READABILITY: Handle Small Blocks
         const isSmall = width < 60;
         const isTiny = width < 30;
 
         if (isTiny) {
-            // No Text, just tooltip
-            el.title = `${ev.title} (${ev.client || '-'})`;
+            // No Text inside, relies on Tooltip
         } else {
-            let htmlContent = `<div style="font-weight: 700; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">${ev.title}</div>`;
+            let htmlContent = `<div style="font-weight: 700; margin-bottom: 0px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">${ev.title}</div>`;
 
             if (!isSmall) {
                 htmlContent += `<div style="font-size: 0.75rem; font-weight: 500; opacity: 0.95; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.client || ''}</div>`;
