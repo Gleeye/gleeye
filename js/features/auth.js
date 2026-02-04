@@ -1,8 +1,8 @@
-import { supabase } from '../modules/config.js?v=151';
-import { state } from '../modules/state.js?v=151';
-import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js?v=151';
-import { showGlobalAlert } from '../modules/utils.js?v=151';
-import { updateSidebarVisibility } from './layout.js?v=151';
+import { supabase } from '../modules/config.js?v=155';
+import { state } from '../modules/state.js?v=155';
+import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js?v=155';
+import { showGlobalAlert } from '../modules/utils.js?v=155';
+import { updateSidebarVisibility } from './layout.js?v=155';
 
 
 // We need a way to call router() from here. 

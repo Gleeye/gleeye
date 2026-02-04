@@ -1,24 +1,24 @@
-import { state } from './state.js?v=151';
-import { renderDashboard } from '../features/dashboard.js?v=151';
-import { renderClients, renderClientDetail } from '../features/clients.js?v=151';
-import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=151';
-import { renderContacts } from '../features/contacts.js?v=151';
-import { renderOrderDetail } from '../features/orders.js?v=151';
-import { renderActiveInvoicesSafe, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from '../features/invoices.js?v=151';
-import { renderRevenueDashboard } from '../features/revenue_dashboard.js?v=151';
-import { renderBankTransactions } from '../features/bank_transactions.js?v=151';
-import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=151';
-import { renderBankStatements } from '../features/bank_statements.js?v=151';
-import { renderServices } from '../features/services.js?v=151';
-import { renderCollaboratorServices } from '../features/collaborator_services.js?v=151';
-import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=151';
-import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=151';
-import { renderBooking } from '../features/booking.js?v=151';
-import { renderUserProfile } from '../features/user_dashboard.js?v=152';
+import { state } from './state.js?v=155';
+import { renderDashboard } from '../features/dashboard.js?v=155';
+import { renderClients, renderClientDetail } from '../features/clients.js?v=155';
+import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=155';
+import { renderContacts } from '../features/contacts.js?v=155';
+import { renderOrderDetail } from '../features/orders.js?v=155';
+import { renderActiveInvoicesSafe, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from '../features/invoices.js?v=155';
+import { renderRevenueDashboard } from '../features/revenue_dashboard.js?v=155';
+import { renderBankTransactions } from '../features/bank_transactions.js?v=155';
+import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=155';
+import { renderBankStatements } from '../features/bank_statements.js?v=155';
+import { renderServices } from '../features/services.js?v=155';
+import { renderCollaboratorServices } from '../features/collaborator_services.js?v=155';
+import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=155';
+import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=155';
+import { renderBooking } from '../features/booking.js?v=155';
+import { renderUserProfile } from '../features/user_dashboard.js?v=155';
 import { renderAgenda } from '../features/personal_agenda.js?v=287';
 import { renderHomepage } from '../features/homepage.js?v=1';
-import { renderNotificationCenter } from '../features/notifications.js?v=151';
-import { renderAdminNotifications } from '../features/admin_notifications.js?v=151';
+import { renderNotificationCenter } from '../features/notifications.js?v=155';
+import { renderAdminNotifications } from '../features/admin_notifications.js?v=155';
 // Chat is loaded dynamically to avoid slowing down app startup
 
 export function router() {
@@ -71,10 +71,13 @@ export function router() {
         userTags = Array.isArray(tags) ? tags : [];
     }
 
-    const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
+    const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione') || userTags.includes('Project Manager') || userTags.includes('Account');
 
     // List of pages allowed for Collaborators (standard - no special tags)
     const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'my-assignments', 'booking'];
+
+    // Specific check for Project Management page access
+    const canAccessPM = activeRole === 'admin' || isPrivilegedCollaborator;
 
     // Don't redirect if we are still fetching profile/auth - wait for it
     if (state.isFetching && activeRole === 'collaborator') {
@@ -85,7 +88,14 @@ export function router() {
     console.log(`[Router] Routing to: ${state.currentPage}, Role: ${activeRole}, Privileged: ${isPrivilegedCollaborator}`);
 
     // Allow if Admin OR Privileged OR Page is Allowed
-    if (activeRole !== 'admin' && !isPrivilegedCollaborator && !allowedPagesForCollaborator.includes(state.currentPage)) {
+    if (state.currentPage === 'pm') {
+        if (!canAccessPM) {
+            console.warn(`[Router] Access denied to PM for standard collaborator. Redirecting to home.`);
+            state.currentPage = 'home';
+            window.location.hash = 'home';
+            return;
+        }
+    } else if (activeRole !== 'admin' && !isPrivilegedCollaborator && !allowedPagesForCollaborator.includes(state.currentPage)) {
         console.warn(`[Router] Access denied for role '${activeRole}' to page '${state.currentPage}'. Redirecting...`);
         // Force redirect to a safe page - Agenda is the default for standard collaborators
         state.currentPage = 'agenda';
@@ -179,7 +189,7 @@ function render() {
                 break;
             case 'settings':
                 if (pageTitle) pageTitle.textContent = 'Impostazioni';
-                import('../features/settings.js?v=151').then(module => {
+                import('../features/settings.js?v=155').then(module => {
                     module.renderSettings(contentArea);
                 });
                 break;
@@ -226,7 +236,7 @@ function render() {
                 break;
             case 'admin':
                 if (pageTitle) pageTitle.textContent = 'Amministrazione';
-                import('../features/admin/admin-dashboard.js?v=154').then(module => {
+                import('../features/admin/admin-dashboard.js?v=155').then(module => {
                     module.renderAdminDashboard(contentArea);
                 });
                 break;
@@ -242,7 +252,7 @@ function render() {
                 // Check if it's commessa detail route: #pm/commessa/:orderId
                 if (state.currentSubPage === 'commessa' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Commessa';
-                    import('../features/pm/commessa_detail.js?v=151')
+                    import('../features/pm/commessa_detail.js?v=155')
                         .then(module => {
                             module.renderCommessaDetail(contentArea, state.currentId);
                         })
@@ -252,7 +262,7 @@ function render() {
                         });
                 } else {
                     // Standard PM views
-                    import('../features/pm/index.js?v=151')
+                    import('../features/pm/index.js?v=155')
                         .then(module => {
                             module.renderPM(contentArea);
                         })

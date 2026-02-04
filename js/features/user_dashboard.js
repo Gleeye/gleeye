@@ -1,8 +1,8 @@
-import { state } from '../modules/state.js?v=151';
-import { supabase } from '../modules/config.js?v=151';
-import { fetchCollaborators, upsertCollaborator, fetchAvailabilityRules, saveAvailabilityRules, fetchPayments, fetchRestDays, upsertRestDay, deleteRestDay, fetchCollaboratorServices, fetchCollaboratorSkills, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchBookingItemCollaborators, fetchGoogleAuth, deleteGoogleAuth, fetchSystemConfig, upsertGoogleAuth, fetchNotificationTypes, fetchUserNotificationPreferences, upsertUserNotificationPreference } from '../modules/api.js?v=151';
-import { formatAmount } from '../modules/utils.js?v=151';
-import { loadAvailabilityIntoContainer } from './availability_manager.js?v=151';
+import { state } from '../modules/state.js?v=155';
+import { supabase } from '../modules/config.js?v=155';
+import { fetchCollaborators, upsertCollaborator, fetchAvailabilityRules, saveAvailabilityRules, fetchPayments, fetchRestDays, upsertRestDay, deleteRestDay, fetchCollaboratorServices, fetchCollaboratorSkills, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchBookingItemCollaborators, fetchGoogleAuth, deleteGoogleAuth, fetchSystemConfig, upsertGoogleAuth, fetchNotificationTypes, fetchUserNotificationPreferences, upsertUserNotificationPreference } from '../modules/api.js?v=155';
+import { formatAmount } from '../modules/utils.js?v=155';
+import { loadAvailabilityIntoContainer } from './availability_manager.js?v=155';
 
 
 export async function renderUserProfile(container) {
@@ -786,7 +786,7 @@ export async function renderUserProfile(container) {
             state.impersonatedRole = newRole;
 
             // Update UI
-            import('../features/layout.js?v=151').then(({ updateSidebarVisibility }) => {
+            import('../features/layout.js?v=155').then(({ updateSidebarVisibility }) => {
                 updateSidebarVisibility();
 
                 // If switching to collaborator and currently on a restricted page, redirect

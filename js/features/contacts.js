@@ -1,4 +1,4 @@
-import { state } from '../modules/state.js?v=151';
+import { state } from '../modules/state.js?v=155';
 
 export function renderContacts(container) {
     console.log("renderContacts called. Container:", container);

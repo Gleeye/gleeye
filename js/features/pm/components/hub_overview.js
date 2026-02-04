@@ -152,7 +152,7 @@ export function renderHubOverview(container, items, kpis, spaceId) {
     container.querySelectorAll('.urgent-item').forEach(el => {
         el.addEventListener('click', () => {
             const itemId = el.dataset.id;
-            import('./hub_drawer.js?v=151').then(mod => {
+            import('./hub_drawer.js?v=155').then(mod => {
                 mod.openHubDrawer(itemId, spaceId);
             });
         });
@@ -162,7 +162,7 @@ export function renderHubOverview(container, items, kpis, spaceId) {
     container.querySelectorAll('.quick-action-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const action = btn.dataset.action;
-            import('./hub_drawer.js?v=151').then(mod => {
+            import('./hub_drawer.js?v=155').then(mod => {
                 mod.openHubDrawer(null, spaceId, null, action === 'add-activity' ? 'attivita' : 'task');
             });
         });

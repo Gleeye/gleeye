@@ -1,9 +1,8 @@
-import { state } from '../modules/state.js?v=151';
-import { formatAmount, showGlobalAlert, showConfirm } from '../modules/utils.js?v=151';
-import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, addOrderContact, removeOrderContact, fetchOrderContacts } from '../modules/api.js?v=151';
-import { openPaymentModal } from './payments.js?v=151';
+import { state } from '../modules/state.js?v=155';
+import { formatAmount, showGlobalAlert, showConfirm } from '../modules/utils.js?v=155';
+import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, addOrderContact, removeOrderContact, fetchOrderContacts } from '../modules/api.js?v=155';
+import { openPaymentModal } from './payments.js?v=155';
 
-// ... (existing code) ...
 
 function getStatusColor(status) {
     const s = status?.toLowerCase() || '';
@@ -31,14 +30,10 @@ export async function renderOrderDetail(container, orderId) {
     if (!state.assignments) await fetchAssignments();
     if (!state.services) await fetchServices();
     if (!state.collaboratorServices || state.collaboratorServices.length === 0) {
-        const { fetchCollaboratorServices } = await import('../modules/api.js?v=151');
+        const { fetchCollaboratorServices } = await import('../modules/api.js?v=155');
         await fetchCollaboratorServices();
     }
 
-    renderManualPaymentModal();
-    initOrderPaymentModals();
-    initOrderEconomicsModal();
-    initOrderPeopleModals();
     initOrderPaymentModals();
     initOrderEconomicsModal();
     initOrderPeopleModals();
@@ -481,8 +476,149 @@ export async function renderOrderDetail(container, orderId) {
 window.orderConfigEditState = {};
 
 function formatPaymentMode(mode) {
-    const map = { 'saldo': 'Saldo Completo', 'rate': 'Rate', 'anticipo_rate': 'Anticipo + Rate', 'anticipo_saldo': 'Anticipo + Saldo', 'as_rate': 'A&S + Rate' };
+    const map = {
+        'saldo': 'Saldo Completo',
+        'rate': 'Rate',
+        'anticipo_rate': 'Anticipo + Rate',
+        'anticipo_saldo': 'Anticipo + Saldo',
+        'as_rate': 'Anticipo + Rate + Saldo'
+    };
     return map[mode] || mode || 'Non configurato';
+}
+
+function calculateProposedOrderPayments(order, config) {
+    const startDate = config.startDate ? new Date(config.startDate) : new Date();
+    const mode = config.mode || order.payment_mode || 'saldo';
+    const total = parseFloat(order.price_final || order.total_price) || 0;
+    const payments = [];
+
+    const getDueDate = (index, freq = 'Mensile') => {
+        const d = new Date(startDate);
+        let monthsToAdd = 1;
+        if (freq === 'Bimestrale') monthsToAdd = 2;
+        if (freq === 'Trimestrale') monthsToAdd = 3;
+        if (freq === 'Semestrale') monthsToAdd = 6;
+        if (freq === 'Annuale') monthsToAdd = 12;
+
+        d.setMonth(d.getMonth() + (index * monthsToAdd));
+        return d.toISOString().split('T')[0];
+    };
+
+    if (mode === 'saldo') {
+        payments.push({
+            title: 'Saldo Complessivo',
+            amount: total,
+            due_date: getDueDate(0),
+            status: 'To Do',
+            payment_type: 'Cliente',
+            order_id: order.id,
+            client_id: order.client_id
+        });
+    } else if (mode === 'anticipo_saldo') {
+        const pct = config.deposit_percentage || order.deposit_percentage || 30;
+        const deposit = total * (pct / 100);
+        payments.push({
+            title: `Anticipo (${pct}%)`,
+            amount: deposit,
+            due_date: getDueDate(0),
+            status: 'To Do',
+            payment_type: 'Cliente',
+            order_id: order.id,
+            client_id: order.client_id
+        });
+        payments.push({
+            title: 'Saldo Finale',
+            amount: total - deposit,
+            due_date: getDueDate(1),
+            status: 'To Do',
+            payment_type: 'Cliente',
+            order_id: order.id,
+            client_id: order.client_id
+        });
+    } else if (mode === 'rate') {
+        const n = config.installments_count || order.installments_count || 3;
+        const val = total / n;
+        for (let i = 0; i < n; i++) {
+            payments.push({
+                title: `Rata ${i + 1}/${n}`,
+                amount: val,
+                due_date: getDueDate(i, config.installment_type || order.installment_type),
+                status: 'To Do',
+                payment_type: 'Cliente',
+                order_id: order.id,
+                client_id: order.client_id
+            });
+        }
+    } else if (mode === 'anticipo_rate') {
+        const pct = config.deposit_percentage || order.deposit_percentage || 30;
+        const deposit = total * (pct / 100);
+        const rest = total - deposit;
+        const n = config.installments_count || order.installments_count || 3;
+        const val = rest / n;
+
+        payments.push({
+            title: `Anticipo (${pct}%)`,
+            amount: deposit,
+            due_date: getDueDate(0),
+            status: 'To Do',
+            payment_type: 'Cliente',
+            order_id: order.id,
+            client_id: order.client_id
+        });
+
+        for (let i = 0; i < n; i++) {
+            payments.push({
+                title: `Rata ${i + 1}/${n}`,
+                amount: val,
+                due_date: getDueDate(i + 1, config.installment_type || order.installment_type),
+                status: 'To Do',
+                payment_type: 'Cliente',
+                order_id: order.id,
+                client_id: order.client_id
+            });
+        }
+    } else if (mode === 'as_rate') {
+        const pct = config.deposit_percentage || order.deposit_percentage || 20;
+        const balPct = 20; // 20% Saldo finale fisso per ora
+        const deposit = total * (pct / 100);
+        const balance = total * (balPct / 100);
+        const rest = total - deposit - balance;
+        const n = config.installments_count || order.installments_count || 3;
+        const val = rest / n;
+
+        payments.push({
+            title: `Anticipo (${pct}%)`,
+            amount: deposit,
+            due_date: getDueDate(0),
+            status: 'To Do',
+            payment_type: 'Cliente',
+            order_id: order.id,
+            client_id: order.client_id
+        });
+
+        for (let i = 0; i < n; i++) {
+            payments.push({
+                title: `Rata ${i + 1}/${n}`,
+                amount: val,
+                due_date: getDueDate(i + 1, config.installment_type || order.installment_type),
+                status: 'To Do',
+                payment_type: 'Cliente',
+                order_id: order.id,
+                client_id: order.client_id
+            });
+        }
+
+        payments.push({
+            title: `Saldo Finale (${balPct}%)`,
+            amount: balance,
+            due_date: getDueDate(n + 1),
+            status: 'To Do',
+            payment_type: 'Cliente',
+            order_id: order.id,
+            client_id: order.client_id
+        });
+    }
+    return payments;
 }
 
 function renderOrderPaymentConfigUI(order) {
@@ -504,14 +640,40 @@ function renderOrderPaymentConfigEdit(order) {
     const currentMode = order.payment_mode || 'saldo';
     return `
         <div style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--brand-blue);">
-            <select id="ord-pay-mode-${order.id}" class="modal-input small" style="font-size: 0.75rem; width: 100%;">
-                <option value="saldo" ${currentMode === 'saldo' ? 'selected' : ''}>Saldo Completo</option>
-                <option value="anticipo_saldo" ${currentMode === 'anticipo_saldo' ? 'selected' : ''}>Anticipo + Saldo</option>
-                <option value="anticipo_rate" ${currentMode === 'anticipo_rate' ? 'selected' : ''}>Anticipo + Rate</option>
-                <option value="rate" ${currentMode === 'rate' ? 'selected' : ''}>Rate</option>
-                <option value="as_rate" ${currentMode === 'as_rate' ? 'selected' : ''}>Anticipo + Rate + Saldo</option>
-            </select>
-            <div class="flex-end" style="gap: 0.5rem; margin-top: 0.5rem;">
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div>
+                    <label style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700; display: block; margin-bottom: 0.25rem;">Modalità</label>
+                    <select id="ord-pay-mode-${order.id}" class="modal-input small" style="font-size: 0.75rem; width: 100%;" onchange="window.toggleOrderConfigFields('${order.id}')">
+                        <option value="saldo" ${currentMode === 'saldo' ? 'selected' : ''}>Saldo Completo</option>
+                        <option value="anticipo_saldo" ${currentMode === 'anticipo_saldo' ? 'selected' : ''}>Anticipo + Saldo</option>
+                        <option value="anticipo_rate" ${currentMode === 'anticipo_rate' ? 'selected' : ''}>Anticipo + Rate</option>
+                        <option value="rate" ${currentMode === 'rate' ? 'selected' : ''}>Rate</option>
+                        <option value="as_rate" ${currentMode === 'as_rate' ? 'selected' : ''}>Anticipo + Rate + Saldo</option>
+                    </select>
+                </div>
+
+                <div id="ord-config-dep-cnt-${order.id}" style="display: none;">
+                    <label style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700; display: block; margin-bottom: 0.25rem;">Anticipo (%)</label>
+                    <input type="number" id="ord-pay-dep-${order.id}" class="modal-input small" value="${order.deposit_percentage || 30}" style="width: 100%;">
+                </div>
+
+                <div id="ord-config-rate-cnt-${order.id}" style="display: none; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <div>
+                        <label style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700; display: block; margin-bottom: 0.25rem;">N. Rate</label>
+                        <input type="number" id="ord-pay-rate-count-${order.id}" class="modal-input small" value="${order.installments_count || 3}" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700; display: block; margin-bottom: 0.25rem;">Freq.</label>
+                        <select id="ord-pay-rate-type-${order.id}" class="modal-input small" style="width: 100%;">
+                            <option value="Mensile" ${order.installment_type === 'Mensile' ? 'selected' : ''}>Mese</option>
+                            <option value="Bimestrale" ${order.installment_type === 'Bimestrale' ? 'selected' : ''}>2 Mesi</option>
+                            <option value="Trimestrale" ${order.installment_type === 'Trimestrale' ? 'selected' : ''}>3 Mesi</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-end" style="gap: 0.5rem; margin-top: 1rem;">
                 <button class="btn-link small" onclick="window.toggleOrderConfigEdit('${order.id}', false)">Annulla</button>
                 <button class="primary-btn small" onclick="window.saveOrderConfig('${order.id}')">Salva</button>
             </div>
@@ -519,17 +681,39 @@ function renderOrderPaymentConfigEdit(order) {
     `;
 }
 
+window.toggleOrderConfigFields = (orderId) => {
+    const mode = document.getElementById(`ord-pay-mode-${orderId}`).value;
+    const depCnt = document.getElementById(`ord-config-dep-cnt-${orderId}`);
+    const rateCnt = document.getElementById(`ord-config-rate-cnt-${orderId}`);
+    if (depCnt) depCnt.style.display = (mode.includes('anticipo') || mode === 'as_rate') ? 'block' : 'none';
+    if (rateCnt) rateCnt.style.display = mode.includes('rate') ? 'grid' : 'none';
+};
+
 window.toggleOrderConfigEdit = (orderId, isEdit) => {
     window.orderConfigEditState[orderId] = isEdit;
     const container = document.getElementById(`order-payment-config-container-${orderId}`);
     const order = state.orders.find(o => o.id == orderId);
-    if (container && order) container.innerHTML = renderOrderPaymentConfigUI(order);
+    if (container && order) {
+        container.innerHTML = renderOrderPaymentConfigUI(order);
+        if (isEdit) {
+            setTimeout(() => window.toggleOrderConfigFields(orderId), 0);
+        }
+    }
 };
 
 window.saveOrderConfig = async (orderId) => {
     const mode = document.getElementById(`ord-pay-mode-${orderId}`).value;
+    const deposit = parseFloat(document.getElementById(`ord-pay-dep-${orderId}`).value) || 0;
+    const installments = parseInt(document.getElementById(`ord-pay-rate-count-${orderId}`).value) || 1;
+    const instType = document.getElementById(`ord-pay-rate-type-${orderId}`).value;
+
     try {
-        await updateOrder(orderId, { payment_mode: mode });
+        await updateOrder(orderId, {
+            payment_mode: mode,
+            deposit_percentage: deposit,
+            installments_count: installments,
+            installment_type: instType
+        });
         await fetchOrders();
         window.toggleOrderConfigEdit(orderId, false);
         showGlobalAlert('Configurazione salvata', 'success');
@@ -552,15 +736,42 @@ export function initOrderPaymentModals() {
                     <h2 style="margin: 0; font-family: var(--font-titles); font-weight: 700;">Genera Piano Pagamenti</h2>
                 </div>
                 
-                <div style="margin-bottom: 2rem;">
-                    <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">Modalità di Pagamento</label>
-                    <select id="pg-mode" class="modal-input" style="width: 100%;">
-                        <option value="saldo">Saldo Completo</option>
-                        <option value="rate">Rate</option>
-                        <option value="anticipo_saldo">Anticipo e Saldo</option>
-                        <option value="anticipo_rate">Anticipo + Rate</option>
-                        <option value="as_rate">Anticipo + Rate + Saldo</option>
-                    </select>
+                <div style="display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 2rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform: uppercase;">Modalità</label>
+                        <select id="pg-mode" class="modal-input" style="width: 100%;">
+                            <option value="saldo">Saldo Completo</option>
+                            <option value="anticipo_saldo">Anticipo e Saldo</option>
+                            <option value="anticipo_rate">Anticipo + Rate</option>
+                            <option value="rate">Rate</option>
+                            <option value="as_rate">Anticipo + Saldo + Rate</option>
+                        </select>
+                    </div>
+
+                    <div id="pg-field-deposit" style="display: none;">
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform: uppercase;">Anticipo (%)</label>
+                        <input type="number" id="pg-deposit" class="modal-input" value="30" style="width: 100%;">
+                    </div>
+
+                    <div id="pg-field-rate" style="display: none; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform: uppercase;">N. Rate</label>
+                            <input type="number" id="pg-rate-count" class="modal-input" value="3" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform: uppercase;">Frequenza</label>
+                            <select id="pg-rate-type" class="modal-input" style="width: 100%;">
+                                <option value="Mensile">Mensile</option>
+                                <option value="Bimestrale">Bimestrale</option>
+                                <option value="Trimestrale">Trimestrale</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform: uppercase;">Data Primo Pagamento</label>
+                        <input type="date" id="pg-start-date" class="modal-input" style="width: 100%;">
+                    </div>
                 </div>
 
                 <div class="flex-end" style="gap: 1rem;">
@@ -572,22 +783,57 @@ export function initOrderPaymentModals() {
     `);
 
     const modal = document.getElementById('payment-gen-modal');
+
+    // Toggle fields based on mode
+    document.getElementById('pg-mode').addEventListener('change', (e) => {
+        const mode = e.target.value;
+        document.getElementById('pg-field-deposit').style.display = mode.includes('anticipo') || mode === 'as_rate' ? 'block' : 'none';
+        document.getElementById('pg-field-rate').style.display = mode.includes('rate') ? 'grid' : 'none';
+    });
+
     window.openPaymentGenerationModal = (orderId, total) => {
         state.currentOrderId = orderId;
         state.currentTotal = parseFloat(total);
+
+        const order = state.orders.find(o => o.id === orderId);
+        if (order) {
+            document.getElementById('pg-mode').value = order.payment_mode || 'saldo';
+            document.getElementById('pg-deposit').value = order.deposit_percentage || 30;
+            document.getElementById('pg-rate-count').value = order.installments_count || 3;
+            document.getElementById('pg-rate-type').value = order.installment_type || 'Mensile';
+            // Trigger change to update visibility
+            document.getElementById('pg-mode').dispatchEvent(new Event('change'));
+        }
+
+        document.getElementById('pg-start-date').value = new Date().toISOString().split('T')[0];
         modal.classList.add('active');
     };
 
     document.getElementById('pg-btn-confirm').addEventListener('click', async () => {
         const orderId = state.currentOrderId;
-        const total = state.currentTotal;
-        const mode = document.getElementById('pg-mode').value;
+        const order = state.orders.find(o => o.id === orderId);
+        if (!order) return;
+
+        const config = {
+            mode: document.getElementById('pg-mode').value,
+            deposit_percentage: parseFloat(document.getElementById('pg-deposit').value),
+            installments_count: parseInt(document.getElementById('pg-rate-count').value),
+            installment_type: document.getElementById('pg-rate-type').value,
+            startDate: document.getElementById('pg-start-date').value
+        };
+
         try {
-            await upsertPayment({ title: 'Saldo', amount: total, due_date: new Date().toISOString().split('T')[0], status: 'To Do', payment_type: 'Cliente', order_id: orderId });
+            const payments = calculateProposedOrderPayments(order, config);
+
+            for (const p of payments) {
+                await upsertPayment(p);
+            }
+
             modal.classList.remove('active');
             renderOrderDetail(document.getElementById('content-area'), orderId);
-            showGlobalAlert('Piano generato!');
+            showGlobalAlert(`Piano generato con ${payments.length} pagamenti!`, 'success');
         } catch (e) {
+            console.error('Generation error:', e);
             showGlobalAlert('Errore generazione', 'error');
         }
     });
@@ -1294,7 +1540,7 @@ window.filterAssignmentCollaborators = () => {
 
     if (!state.collaborators) {
         console.warn("Collaborators state empty, refetching...");
-        import('../modules/api.js?v=151').then(({ fetchCollaborators }) => fetchCollaborators());
+        import('../modules/api.js?v=155').then(({ fetchCollaborators }) => fetchCollaborators());
         // Show temp message
         list.innerHTML = '<div style="padding: 1rem; color: var(--text-tertiary);">Caricamento...</div>';
         list.style.display = 'block';
@@ -1392,7 +1638,7 @@ window.loadCollaboratorServicesForAssignment = async () => {
         }
 
         // 2. Fetch Services (if not loaded)
-        const { fetchServices } = await import('../modules/api.js?v=151' + Date.now());
+        const { fetchServices } = await import('../modules/api.js?v=155' + Date.now());
         if (!state.services || state.services.length === 0) {
             await fetchServices();
         }
@@ -1611,8 +1857,8 @@ window.saveAssignmentMultiStep = async () => {
         const order = state.orders.find(o => o.id === orderId);
 
         // Dynamic import including calculateProposedAssignmentPayments
-        const { upsertAssignment, upsertCollaboratorService, fetchCollaboratorServices, fetchAssignments, upsertPayment, fetchPayments } = await import('../modules/api.js?v=151' + Date.now());
-        const { calculateProposedAssignmentPayments } = await import('./assignments.js?v=151');
+        const { upsertAssignment, upsertCollaboratorService, fetchCollaboratorServices, fetchAssignments, upsertPayment, fetchPayments } = await import('../modules/api.js?v=155' + Date.now());
+        const { calculateProposedAssignmentPayments } = await import('./assignments.js?v=155');
 
         console.log("Upserting Assignment...");
         const newAssignment = await upsertAssignment({

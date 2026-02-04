@@ -1,5 +1,5 @@
 // Hub Drawer - Full item editor panel
-import '../../../utils/modal-utils.js?v=151';
+import '../../../utils/modal-utils.js?v=155';
 import {
     createPMItem,
     updatePMItem,
@@ -9,8 +9,8 @@ import {
     fetchItemAssignees,
     assignUserToItem,
     removeUserFromItem
-} from '../../../modules/pm_api.js?v=151';
-import { state } from '../../../modules/state.js?v=151';
+} from '../../../modules/pm_api.js?v=155';
+import { state } from '../../../modules/state.js?v=155';
 
 
 

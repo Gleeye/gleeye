@@ -1,5 +1,5 @@
-import { fetchInternalSpaces, createInternalSpace } from '../../modules/pm_api.js?v=151';
-import { state } from '../../modules/state.js?v=151';
+import { fetchInternalSpaces, createInternalSpace } from '../../modules/pm_api.js?v=155';
+import { state } from '../../modules/state.js?v=155';
 
 export async function renderInternalProjects(container) {
     container.innerHTML = '<div class="loading-state"><span class="loader"></span></div>';

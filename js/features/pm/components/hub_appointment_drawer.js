@@ -1,7 +1,7 @@
-import { saveAppointment, deleteAppointment, fetchAppointmentTypes } from '../../../modules/pm_api.js?v=151';
-import { fetchContacts } from '../../../modules/api.js?v=151';
-import { state } from '../../../modules/state.js?v=151';
-import { renderUserPicker } from './picker_utils.js?v=151';
+import { saveAppointment, deleteAppointment, fetchAppointmentTypes } from '../../../modules/pm_api.js?v=155';
+import { fetchContacts } from '../../../modules/api.js?v=155';
+import { state } from '../../../modules/state.js?v=155';
+import { renderUserPicker } from './picker_utils.js?v=155';
 
 export async function openAppointmentDrawer(inputAppointment, orderId = null) {
     const overlay = document.getElementById('hub-drawer-overlay');
@@ -42,7 +42,7 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
         start_time: '',
         end_time: '',
         location: '',
-        mode: 'presenza',
+        mode: 'in_presenza',
         status: 'bozza',
         note: '',
         types: [], // Set<id>
@@ -59,7 +59,7 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
             start_time: appointment.start_time,
             end_time: appointment.end_time,
             location: appointment.location || '',
-            mode: appointment.mode || 'presenza',
+            mode: appointment.mode || 'in_presenza',
             status: appointment.status || 'bozza',
             note: appointment.note || '',
             types: new Set(appointment.types?.map(t => t.id) || []),
@@ -148,7 +148,7 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
                             <span class="material-icons-round">${appointment.mode === 'remoto' ? 'videocam' : 'place'}</span>
                         </div>
                         <div>
-                            <div style="font-weight: 600; text-transform: capitalize;">${appointment.mode}</div>
+                            <div style="font-weight: 600; text-transform: capitalize;">${appointment.mode?.replace('_', ' ') || 'In Presenza'}</div>
                             <div style="color: var(--text-secondary); white-space: pre-wrap;">${appointment.location || 'Nessun luogo'}</div>
                         </div>
                     </div>
@@ -253,7 +253,7 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
                         <div class="form-group">
                             <label class="label-sm">Modalità</label>
                             <select name="mode" class="input-modern">
-                                <option value="presenza" ${formState.mode === 'presenza' ? 'selected' : ''}>In Presenza</option>
+                                <option value="in_presenza" ${formState.mode === 'in_presenza' ? 'selected' : ''}>In Presenza</option>
                                 <option value="remoto" ${formState.mode === 'remoto' ? 'selected' : ''}>Remoto / Link</option>
                             </select>
                         </div>
@@ -284,7 +284,7 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
                                     <button type="button" id="add-internal-btn" style="width: 28px; height: 28px; border-radius: 50%; border: 1px dashed var(--text-secondary); background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer;">
                                         <span class="material-icons-round" style="font-size: 16px; color: var(--text-secondary);">add</span>
                                     </button>
-                                     <div id="internal-picker" class="hidden" style="position: absolute; top: 110%; left: 0; min-width: 240px; background: white; border: 1px solid var(--surface-2); box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 100; border-radius: 8px;"></div>
+                                     <div id="internal-picker" class="hidden" style="position: absolute; top: 100%; left: 50%; transform: translateX(-50%); min-width: 280px; background: white; border: 1px solid var(--surface-2); box-shadow: 0 10px 40px rgba(0,0,0,0.25); z-index: 9999; border-radius: 12px; max-height: 350px !important; overflow-y: auto !important; overflow-x: hidden; box-sizing: border-box; padding: 4px 0;"></div>
                                 </div>
                             </div>
                         </div>
@@ -381,6 +381,7 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
             el.addEventListener('change', (e) => {
                 if (formState.hasOwnProperty(e.target.name)) {
                     formState[e.target.name] = e.target.value;
+                    console.log(`Field ${e.target.name} changed to ${e.target.value}`);
                 }
             });
         });
@@ -391,16 +392,38 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
         if (addInternalBtn && internalPicker) {
             addInternalBtn.addEventListener('click', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
+
+                if (!internalPicker.classList.contains('hidden')) {
+                    internalPicker.classList.add('hidden');
+                    return;
+                }
+
                 const space = state.pm_spaces?.find(s => s.ref_ordine === targetOrderId);
                 const spaceId = space ? space.id : null;
-                const assignedIds = new Set(formState.participants.internal.map(p => p.collaborator_id && state.collaborators?.find(c => c.id === p.collaborator_id)?.user_id).filter(Boolean));
+                const assignedIds = new Set([
+                    ...formState.participants.internal.map(p => p.collaborator_id),
+                    ...formState.participants.internal.map(p => p.user?.user_id).filter(Boolean)
+                ]);
 
                 internalPicker.innerHTML = renderUserPicker(spaceId, 'participant', assignedIds);
                 internalPicker.classList.remove('hidden');
+
+                // Edge detection
+                const rect = internalPicker.getBoundingClientRect();
+                if (rect.right > window.innerWidth) {
+                    internalPicker.style.left = 'auto';
+                    internalPicker.style.right = '0';
+                    internalPicker.style.transform = 'none';
+                } else if (rect.left < 0) {
+                    internalPicker.style.left = '0';
+                    internalPicker.style.transform = 'none';
+                }
             });
-            internalPicker.addEventListener('click', (e) => {
+            internalPicker.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
                 const opt = e.target.closest('.user-option');
-                if (!opt || opt.classList.contains('disabled-opt')) return;
+                if (!opt) return;
 
                 const collabId = opt.dataset.collabId;
                 const uid = opt.dataset.uid;
@@ -422,6 +445,16 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
                 }
             });
         }
+
+        drawer.querySelector('.drawer-body').addEventListener('click', (e) => {
+            if (internalPicker && !internalPicker.classList.contains('hidden')) {
+                const isClickInside = internalPicker.contains(e.target) || e.target.closest('#add-internal-btn');
+                if (!isClickInside) {
+                    internalPicker.classList.add('hidden');
+                }
+            }
+        });
+
         drawer.querySelectorAll('.remove-internal-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 formState.participants.internal.splice(e.target.dataset.idx, 1);

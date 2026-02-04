@@ -1,6 +1,6 @@
-import { fetchSpace, fetchProjectItems } from '../../modules/pm_api.js?v=151';
-import { renderPMTree } from './components/pm_tree.js?v=151';
-import { state } from '../../modules/state.js?v=151';
+import { fetchSpace, fetchProjectItems } from '../../modules/pm_api.js?v=155';
+import { renderPMTree } from './components/pm_tree.js?v=155';
+import { state } from '../../modules/state.js?v=155';
 
 export async function renderSpaceView(container, spaceId) {
     container.innerHTML = '<div class="loading-state"><span class="loader"></span></div>';

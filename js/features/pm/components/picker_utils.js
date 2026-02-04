@@ -1,4 +1,4 @@
-import { state } from '../../../modules/state.js?v=151';
+import { state } from '../../../modules/state.js?v=155';
 
 export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set()) {
     const space = state.pm_spaces?.find(s => s.id === spaceId) || {};
@@ -36,6 +36,7 @@ export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(
 
         // Exclude if already assigned
         if (uid && assignedUserIds.has(uid)) return;
+        if (c.id && assignedUserIds.has(c.id)) return;
         // Also avoid duplicate listings if same user has multiple collab records (rare but possible)
         if (uid && processedUserIds.has(uid)) return;
 
@@ -98,7 +99,7 @@ export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(
         else if (!u.hasAccount) desc = 'Collaboratore esterno';
 
         return `
-            <div class="user-option ${!u.hasAccount && targetRole !== 'pm' ? 'disabled-opt' : ''}" 
+            <div class="user-option" 
                 data-uid="${uid}" 
                 data-collab-id="${u.collabId || ''}"
                 data-has-account="${u.hasAccount}"
@@ -110,6 +111,10 @@ export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(
                     gap: 0.75rem; 
                     cursor: pointer; 
                     transition: background 0.2s;
+                    pointer-events: auto !important;
+                    position: relative;
+                    z-index: 1;
+                    opacity: ${!u.hasAccount && targetRole === 'pm' ? '0.5' : '1'};
                 " onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
                 <img src="${avatar}" style="width: 32px; height: 32px; border-radius: 50%;">
                 <div>

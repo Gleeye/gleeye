@@ -1,6 +1,6 @@
-import { state } from '../../modules/state.js?v=151';
-import { fetchOrders } from '../../modules/api.js?v=151';
-import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes } from '../../modules/pm_api.js?v=151';
+import { state } from '../../modules/state.js?v=155';
+import { fetchOrders } from '../../modules/api.js?v=155';
+import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes } from '../../modules/pm_api.js?v=155';
 
 // Status colors for "Stato Lavori"
 const STATUS_CONFIG = {
@@ -65,7 +65,7 @@ export async function renderCommessaDetail(container, orderId) {
 
         // We need assignments and collaborators for the Smart Picker and Incarichi tab
         // Assuming fetchAssignments and fetchCollaborators exist in api.js
-        const { fetchAssignments, fetchCollaborators } = await import('../../modules/api.js?v=151');
+        const { fetchAssignments, fetchCollaborators } = await import('../../modules/api.js?v=155');
         if (!state.assignments || state.assignments.length === 0) promises.push(fetchAssignments());
         if (!state.collaborators || state.collaborators.length === 0) promises.push(fetchCollaborators());
 
@@ -459,22 +459,22 @@ export async function renderCommessaDetail(container, orderId) {
 
             switch (tabName) {
                 case 'overview':
-                    const { renderHubOverview } = await import('./components/hub_overview.js?v=151');
+                    const { renderHubOverview } = await import('./components/hub_overview.js?v=155');
                     renderHubOverview(tabContent, items, kpis, spaceId);
                     break;
                 case 'tree':
-                    const { renderHubTree } = await import('./components/hub_tree.js?v=151');
+                    const { renderHubTree } = await import('./components/hub_tree.js?v=155');
                     renderHubTree(tabContent, items, space, spaceId);
                     break;
                 case 'list':
-                    const { renderHubList } = await import('./components/hub_list.js?v=151');
+                    const { renderHubList } = await import('./components/hub_list.js?v=155');
                     renderHubList(tabContent, items, space, spaceId);
                     break;
                 case 'incarichi':
                     renderIncarichiTab(tabContent, order);
                     break;
                 case 'appointments':
-                    const { renderHubAppointments } = await import('./components/hub_appointments.js?v=151');
+                    const { renderHubAppointments } = await import('./components/hub_appointments.js?v=155');
                     // We need to fetch appointments first or let the component do it.
                     // Let's pass the fetch function and orderId
                     // Or fetch here? Fetching here ensures data readiness before render.
@@ -541,7 +541,7 @@ export async function renderCommessaDetail(container, orderId) {
                     renderTab(activeTab);
                 }
 
-                const { fetchProjectItems, fetchSpace, fetchSpaceAssignees } = await import('../../modules/pm_api.js?v=151');
+                const { fetchProjectItems, fetchSpace, fetchSpaceAssignees } = await import('../../modules/pm_api.js?v=155');
 
                 try {
                     console.log('[ProjectHub] Fetching fresh data to sync...');
@@ -705,7 +705,7 @@ export async function renderCommessaDetail(container, orderId) {
                 const newStatus = e.target.value;
                 try {
                     statusSelect.disabled = true;
-                    const { updateOrder } = await import('../../modules/api.js?v=151');
+                    const { updateOrder } = await import('../../modules/api.js?v=155');
                     await updateOrder(orderId, { status_works: newStatus });
                     const newNormalized = normalizeStatus(newStatus);
                     const newCfg = STATUS_CONFIG[newNormalized] || { label: newStatus, color: '#64748b', bg: '#f1f5f9' };
@@ -729,7 +729,7 @@ export async function renderCommessaDetail(container, orderId) {
 
 // Drawer function (exported for use by child components)
 export function openItemDrawer(itemId, spaceId, parentId = null, itemType = 'task') {
-    import('./components/hub_drawer.js?v=151').then(mod => {
+    import('./components/hub_drawer.js?v=155').then(mod => {
         mod.openHubDrawer(itemId, spaceId, parentId, itemType);
     });
 }

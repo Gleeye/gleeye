@@ -1,9 +1,9 @@
 // 1. Update PM Index imports
-import { renderCommesseList } from './commesse_list.js?v=151';
-import { renderInternalProjects } from './internal_list.js?v=151';
-import { renderMyWork } from './my_work.js?v=151';
-import { renderSpaceView } from './space_view.js?v=151';
-import { state } from '../../modules/state.js?v=151';
+import { renderCommesseList } from './commesse_list.js?v=155';
+import { renderInternalProjects } from './internal_list.js?v=155';
+import { renderMyWork } from './my_work.js?v=155';
+import { renderSpaceView } from './space_view.js?v=155';
+import { state } from '../../modules/state.js?v=155';
 
 export function renderPM(container) {
     const subPage = state.currentSubPage;

@@ -1,31 +1,41 @@
-import { state } from '../modules/state.js?v=151';
-import { supabase } from '../modules/config.js?v=151';
-import { formatAmount } from '../modules/utils.js?v=151';
+import { state } from '../modules/state.js?v=155';
+import { supabase } from '../modules/config.js?v=155';
+import { formatAmount } from '../modules/utils.js?v=155';
 
-import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment } from '../modules/api.js?v=151';
-import { fetchAppointment, updatePMItem } from '../modules/pm_api.js?v=151';
+import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment } from '../modules/api.js?v=155';
+import { fetchAppointment, updatePMItem } from '../modules/pm_api.js?v=155';
 
 // We reuse fetchMyBookings but we might need a tighter scoped fetch for "Today"
 // Actually fetchMyBookings stores in `eventsCache` (not exported) or `window`?
 // Let's create a dedicated fetch or use the general one if accessible.
 // Since `personal_agenda.js` doesn't export the cache cleanly, we'll fetch explicitly here.
 
-async function fetchDateEvents(collaboratorId, date) {
-    const startOfDay = new Date(date); startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date); endOfDay.setHours(23, 59, 59, 999);
+async function fetchDateEvents(collaboratorId, startArg, endArg) {
+    let start, end;
+    if (endArg) {
+        start = new Date(startArg);
+        end = new Date(endArg);
+    } else {
+        start = new Date(startArg); start.setHours(0, 0, 0, 0);
+        end = new Date(startArg); end.setHours(23, 59, 59, 999);
+    }
+
+    // ISO Strings for Queries
+    const startIso = start.toISOString();
+    const endIso = end.toISOString();
 
     // 1. Fetch Bookings
     const { data: bookings } = await supabase
         .from('bookings')
         .select(`
             *,
-            booking_items (name, duration),
+            booking_items (name, duration_minutes),
             booking_assignments!inner(collaborator_id),
             guest_info
         `)
         .eq('booking_assignments.collaborator_id', collaboratorId)
-        .gte('start_time', startOfDay.toISOString())
-        .lte('start_time', endOfDay.toISOString())
+        .gte('start_time', startIso)
+        .lte('start_time', endIso)
         .neq('status', 'cancelled');
 
     // 2. Fetch Appointments (Use correct relation table)
@@ -42,8 +52,8 @@ async function fetchDateEvents(collaboratorId, date) {
             )
         `)
         .eq('appointment_internal_participants.collaborator_id', collaboratorId)
-        .gte('start_time', startOfDay.toISOString())
-        .lte('start_time', endOfDay.toISOString())
+        .gte('start_time', startIso)
+        .lte('start_time', endIso)
         .neq('status', 'cancelled')
         .neq('status', 'annullato');
 
@@ -112,19 +122,139 @@ async function fetchDateEvents(collaboratorId, date) {
     return events.sort((a, b) => a.start - b.start);
 }
 
-async function fetchRecentProjects() {
-    // Assuming 'orders' or 'commesse'
-    // Let's just grab the last 5 modify orders from state if available, or fetch
-    if (!state.orders || state.orders.length === 0) {
-        // trigger fetch if needed, but for now assuming state is populated by router or we fetch simple
-        const { data } = await supabase
-            .from('orders')
-            .select('id, title, clients(business_name), status_works, updated_at')
-            .order('updated_at', { ascending: false })
-            .limit(5);
-        return data || [];
+async function fetchRecentProjects(collabId, userUuid) {
+    try {
+        const userId = userUuid || state.session?.user?.id;
+        const collaboratorId = collabId || state.profile?.id;
+
+        if (!userId) {
+            console.log("[Homepage] No user session found for recent projects");
+            return [];
+        }
+
+        // 1. Identify which orders this user technically "owns" for LINK routing only
+        const { data: myManagedSpaces } = await supabase
+            .from('pm_spaces')
+            .select('ref_ordine')
+            .eq('default_pm_user_ref', userId)
+            .eq('type', 'commessa');
+
+        const managedOrderIds = new Set((myManagedSpaces || []).map(s => s.ref_ordine).filter(Boolean));
+
+        // 2. Filter for "In Svolgimento" only (as requested)
+        const isInSvolgimento = (status) => {
+            if (!status) return false;
+            const s = status.toLowerCase();
+            return s.includes('svolgimento') || s.includes('in corso');
+        };
+
+        const projectsMap = new Map();
+
+        // --- STEP 1: Fetch Assigned Orders (order_collaborators) ---
+        if (collaboratorId) {
+            const { data: assigned } = await supabase
+                .from('order_collaborators')
+                .select(`
+                    orders (id, title, order_number, status_works, clients(business_name), created_at)
+                `)
+                .eq('collaborator_id', collaboratorId);
+
+            if (assigned) {
+                assigned.forEach(item => {
+                    const o = item.orders;
+                    if (!o || projectsMap.has(o.id)) return;
+                    if (!isInSvolgimento(o.status_works)) return;
+
+                    projectsMap.set(o.id, {
+                        id: o.id,
+                        order_number: o.order_number,
+                        title: o.title || 'Senza Titolo',
+                        client: o.clients?.business_name || 'No Cliente',
+                        status: o.status_works,
+                        last_active: o.created_at,
+                        link: `#pm/commessa/${o.id}` // Always Go to Hub
+                    });
+                });
+            }
+        }
+
+        // --- STEP 2: Fetch Orders where specifically designated as PM (orders.pm_id) ---
+        if (collaboratorId) {
+            const { data: managed } = await supabase
+                .from('orders')
+                .select('id, title, order_number, status_works, clients(business_name), created_at')
+                .eq('pm_id', collaboratorId);
+
+            if (managed) {
+                managed.forEach(o => {
+                    if (projectsMap.has(o.id)) return;
+                    if (!isInSvolgimento(o.status_works)) return;
+
+                    projectsMap.set(o.id, {
+                        id: o.id,
+                        order_number: o.order_number,
+                        title: o.title || 'Senza Titolo',
+                        client: o.clients?.business_name || 'No Cliente',
+                        status: o.status_works,
+                        last_active: o.created_at,
+                        link: `#pm/commessa/${o.id}`
+                    });
+                });
+            }
+        }
+
+        // --- STEP 3: Recent Personal Activity (activity_logs) ---
+        if (collaboratorId) {
+            const { data: recentLogs } = await supabase
+                .from('activity_logs')
+                .select(`
+                    created_at,
+                    orders (id, title, order_number, status_works, clients(business_name))
+                `)
+                .eq('collaborator_id', collaboratorId)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (recentLogs) {
+                recentLogs.forEach(log => {
+                    const o = log.orders;
+                    if (!o) return;
+
+                    if (projectsMap.has(o.id)) {
+                        const existing = projectsMap.get(o.id);
+                        if (new Date(log.created_at) > new Date(existing.last_active)) {
+                            existing.last_active = log.created_at;
+                        }
+                        return;
+                    }
+
+                    if (!isInSvolgimento(o.status_works)) return;
+
+                    projectsMap.set(o.id, {
+                        id: o.id,
+                        order_number: o.order_number,
+                        title: o.title || 'Senza Titolo',
+                        client: o.clients?.business_name || 'No Cliente',
+                        status: o.status_works,
+                        last_active: log.created_at,
+                        link: `#pm/commessa/${o.id}`
+                    });
+                });
+            }
+        }
+
+        // Final sort by activity date
+        const results = Array.from(projectsMap.values())
+            .sort((a, b) => new Date(b.last_active) - new Date(a.last_active))
+            .slice(0, 20);
+
+        console.log("[Homepage] Verified Personal Projects:", results.length, results);
+        return results;
+
+    } catch (e) {
+        console.error("Error fetching recent projects:", e);
+        return [];
     }
-    return state.orders.slice(0, 5); // Simplification using existing state
 }
 
 export async function renderHomepage(container) {
@@ -258,6 +388,10 @@ export async function renderHomepage(container) {
                                     <span class="material-icons-round" style="font-size: 16px;">calendar_today</span> Data
                                 </button>
                              </div>
+                             <!-- View Switcher -->
+                             <div style="height: 24px; width: 1px; background: #e5e7eb; margin: 0 4px;"></div>
+                             <button onclick="toggleHomepageView('daily')" id="view-daily-btn" class="nav-pill active-pill" style="padding: 4px 12px; border-radius: 16px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; background: white; shadow: var(--shadow-sm);">Giorno</button>
+                             <button onclick="toggleHomepageView('weekly')" id="view-weekly-btn" class="nav-pill" style="padding: 4px 12px; border-radius: 16px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; background: transparent; color: #6b7280;">Settimana</button>
                          </div>
                     </div>
 
@@ -343,9 +477,15 @@ export async function renderHomepage(container) {
                         <h3 class="widget-title">Progetti Recenti</h3>
                         <button class="timeline-btn" onclick="window.location.hash='dashboard'">Vedi Tutti</button>
                     </div>
-                    <div id="home-recent-projects" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <div id="home-recent-projects" class="custom-scrollbar" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 380px; overflow-y: auto; padding-right: 4px;">
                          <span class="loader small"></span>
                     </div>
+                    <style>
+                        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+                        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+                        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+                    </style>
                 </div>
 
                 <!-- Quick Stats (Work Hours / Productivity) - Placeholder -->
@@ -400,6 +540,24 @@ export async function renderHomepage(container) {
     // Store current date for timeline navigation
     window.homepageCurrentDate = new Date();
     window.homepageCollaboratorId = myCollab.id;
+    window.hpView = 'daily'; // 'daily' | 'weekly'
+
+    window.toggleHomepageView = (view) => {
+        window.hpView = view;
+
+        // UI Update
+        const dailyBtn = document.getElementById('view-daily-btn');
+        const weeklyBtn = document.getElementById('view-weekly-btn');
+        if (view === 'daily') {
+            dailyBtn.classList.add('active-pill'); dailyBtn.style.background = 'white'; dailyBtn.style.color = '#111';
+            weeklyBtn.classList.remove('active-pill'); weeklyBtn.style.background = 'transparent'; weeklyBtn.style.color = '#6b7280';
+        } else {
+            weeklyBtn.classList.add('active-pill'); weeklyBtn.style.background = 'white'; weeklyBtn.style.color = '#111';
+            dailyBtn.classList.remove('active-pill'); dailyBtn.style.background = 'transparent'; dailyBtn.style.color = '#6b7280';
+        }
+
+        window.updateHomepageTimeline(window.homepageCurrentDate);
+    };
 
     // Function to update timeline and header date
     window.updateHomepageTimeline = async (date) => {
@@ -407,26 +565,56 @@ export async function renderHomepage(container) {
         const headerDate = container.querySelector('.homepage-header h1').nextElementSibling; // The <p> tag
         const headerTitle = container.querySelector('.homepage-header h1');
 
+        // Determine Start/End based on View
+        let start = new Date(date);
+        let end = new Date(date);
+        let dateText = '';
+
+        if (window.hpView === 'weekly') {
+            const day = start.getDay(); // 0 (Sun) - 6 (Sat)
+            const diff = start.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+            start.setDate(diff); start.setHours(0, 0, 0, 0);
+
+            end = new Date(start);
+            end.setDate(start.getDate() + 6); end.setHours(23, 59, 59, 999);
+
+            const startStr = start.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' });
+            const endStr = end.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' });
+            dateText = `Settimana dal ${startStr} al ${endStr}.`;
+        } else {
+            // Daily
+            start.setHours(0, 0, 0, 0);
+            end.setHours(23, 59, 59, 999);
+            dateText = `Ecco cosa c'è in programma per ${date.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}.`;
+        }
+
         // Update header date
-        headerDate.innerHTML = `Ecco cosa c'è in programma per ${date.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}.`;
+        headerDate.innerHTML = dateText;
         headerTitle.textContent = `Buongiorno, ${firstName}!`; // Reset if it changed
 
         timelineWrapper.innerHTML = `<div style="padding: 2rem; width: 100%; text-align: center; color: var(--text-tertiary);"><span class="loader small"></span> Caricamento...</div>`;
 
         try {
             // Parallel Fetch: Events + Availability + Google + Overrides
+            // Now passing (id, start, end)
             const [events, rules, googleBusy, overrides] = await Promise.all([
-                fetchDateEvents(window.homepageCollaboratorId, date),
+                fetchDateEvents(window.homepageCollaboratorId, start, end),
                 fetchAvailabilityRules(window.homepageCollaboratorId),
-                fetchGoogleCalendarBusy(window.homepageCollaboratorId, date),
+                fetchGoogleCalendarBusy(window.homepageCollaboratorId, start, end),
                 fetchAvailabilityOverrides(window.homepageCollaboratorId) // from api.js
             ]);
 
-            // Filter rules for specific day of week
-            const dayId = date.getDay(); // 0-6
-            const dayRules = rules.filter(r => r.day_of_week === dayId);
+            // Rules filtering needs to be smarter for weekly (pass all rules? or filter inside render?)
+            // For now pass all rules, render logic handles day matching
 
-            renderTimeline(timelineWrapper, events, date, dayRules, googleBusy, overrides);
+            if (window.hpView === 'weekly') {
+                renderWeeklyTimeline(timelineWrapper, events, start, rules, googleBusy, overrides);
+            } else {
+                // Determine day ID for Daily View
+                const dayId = date.getDay();
+                const dayRules = rules.filter(r => r.day_of_week === dayId);
+                renderTimeline(timelineWrapper, events, date, dayRules, googleBusy, overrides);
+            }
         } catch (e) {
             console.error(e);
             timelineWrapper.innerHTML = `<div style="color:red; text-align:center;">Errore caricamento</div>`;
@@ -610,7 +798,10 @@ export async function renderHomepage(container) {
         renderMyActivities(document.getElementById('hp-activities-list'), activeTimers, myTasks, events, window.hpActivityFilter);
 
         // 3. Load Projects
-        const projects = await fetchRecentProjects();
+        const targetUserId = myCollab.user_id || state.session?.user?.id;
+        const projects = await fetchRecentProjects(myId, targetUserId);
+        const pContainer = document.getElementById('home-recent-projects');
+        if (pContainer) renderProjects(pContainer, projects);
     } catch (e) {
         console.error("Home Data Load Error:", e);
     }
@@ -618,9 +809,15 @@ export async function renderHomepage(container) {
 
 // --- GOOGLE & AVAILABILITY HELPERS ---
 
-async function fetchGoogleCalendarBusy(collaboratorId, date) {
-    const start = new Date(date); start.setHours(0, 0, 0, 0);
-    const end = new Date(date); end.setHours(23, 59, 59, 999);
+async function fetchGoogleCalendarBusy(collaboratorId, startArg, endArg) {
+    let start, end;
+    if (endArg) {
+        start = new Date(startArg);
+        end = new Date(endArg);
+    } else {
+        start = new Date(startArg); start.setHours(0, 0, 0, 0);
+        end = new Date(startArg); end.setHours(23, 59, 59, 999);
+    }
 
     // Call existing cloud function
     try {
@@ -636,6 +833,276 @@ async function fetchGoogleCalendarBusy(collaboratorId, date) {
     } catch (e) {
         console.warn("Google Fetch Error:", e);
         return [];
+    }
+}
+
+// --- WEEKLY RENDER LOGIC ---
+
+function renderWeeklyTimeline(container, events, startDate, rules, googleBusy, overrides) {
+    container.innerHTML = '';
+    const startOfWeek = new Date(startDate); // Should be Monday
+
+    // Layout: Time Column + 7 Days
+    // Grid: [Time 50px] [Day 1fr] ... [Day 1fr]
+
+    // 1. Header Row (Day Names)
+    const headerRow = document.createElement('div');
+    headerRow.style.display = 'grid';
+    headerRow.style.gridTemplateColumns = '50px repeat(7, 1fr)';
+    headerRow.style.gap = '8px';
+    headerRow.style.padding = '1rem 1rem 0 1rem';
+    headerRow.style.marginBottom = '1rem';
+    headerRow.style.position = 'sticky';
+    headerRow.style.top = '0';
+    headerRow.style.zIndex = '10';
+    headerRow.style.background = 'white'; // Cover content when scrolling
+
+    // Spacer for time column
+    headerRow.innerHTML = `<div></div>`;
+
+    const dayNames = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+    const todayStr = new Date().toDateString();
+
+    for (let i = 0; i < 7; i++) {
+        const currentD = new Date(startOfWeek);
+        currentD.setDate(startOfWeek.getDate() + i);
+        const isToday = currentD.toDateString() === todayStr;
+
+        const colHeader = document.createElement('div');
+        colHeader.style.textAlign = 'center';
+
+        // Pill Header
+        colHeader.innerHTML = `
+            <div style="
+                display:flex; flex-direction:column; align-items:center; justify-content:center;
+                background: ${isToday ? '#1e293b' : 'transparent'};
+                color: ${isToday ? 'white' : '#64748b'};
+                padding: 6px; border-radius: 12px;
+                box-shadow: ${isToday ? '0 4px 6px -1px rgba(0,0,0,0.1)' : 'none'};
+            ">
+                <div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">${dayNames[i]}</div>
+                <div style="font-size:1.1rem; font-weight:700;">${currentD.getDate()}</div>
+            </div>
+        `;
+        headerRow.appendChild(colHeader);
+    }
+    container.appendChild(headerRow);
+
+    // 2. Main Grid (Scrollable)
+    const gridBody = document.createElement('div');
+    gridBody.style.display = 'grid';
+    gridBody.style.gridTemplateColumns = '50px repeat(7, 1fr)';
+    gridBody.style.position = 'relative';
+    gridBody.style.padding = '0 1rem 2rem 1rem';
+    gridBody.style.height = '500px';
+    gridBody.style.overflowY = 'auto';
+    gridBody.style.background = 'white';
+    gridBody.style.borderRadius = '0 0 16px 16px';
+    gridBody.style.paddingBottom = '250px'; // Significantly deeper buffer
+
+    // Ensure the content inside pushes boundaries
+    const pxPerHour = 60;
+    const totalHeight = (24 * pxPerHour) + 50; // Add specific buffer to columns too
+
+    // Time Labels Column
+    const timeCol = document.createElement('div');
+    timeCol.style.position = 'relative';
+    timeCol.style.height = `${totalHeight}px`;
+    timeCol.style.borderRight = '1px solid #f1f5f9';
+
+    for (let h = 0; h < 24; h++) {
+        const label = document.createElement('div');
+        label.innerText = `${h.toString().padStart(2, '0')}:00`;
+        label.style.position = 'absolute';
+        label.style.top = `${h * pxPerHour}px`;
+        label.style.fontSize = '0.7rem';
+        label.style.color = '#94a3b8';
+        label.style.transform = 'translateY(-50%)';
+        label.style.width = '100%';
+        label.style.textAlign = 'right';
+        label.style.paddingRight = '8px';
+        timeCol.appendChild(label);
+    }
+    gridBody.appendChild(timeCol);
+
+    // Day Columns
+    for (let i = 0; i < 7; i++) {
+        const currentD = new Date(startOfWeek);
+        currentD.setDate(startOfWeek.getDate() + i);
+
+        const dayCol = document.createElement('div');
+        dayCol.style.position = 'relative';
+        dayCol.style.height = `${totalHeight}px`;
+        dayCol.style.borderRight = (i < 6) ? '1px dashed #f1f5f9' : 'none';
+        dayCol.style.background = '#f8fafc'; // DEFAULT CLOSED (Gray)
+
+        // 1. RENDER AVAILABILITY (WHITE BLOCKS)
+        const dayId = currentD.getDay();
+        const dailyRules = (rules || []).filter(r => r.day_of_week === dayId);
+
+        dailyRules.forEach(r => {
+            if (!r.start_time || !r.end_time) return;
+            const [sh, sm] = r.start_time.split(':').map(Number);
+            const [eh, em] = r.end_time.split(':').map(Number);
+            const sM = (sh * 60) + sm;
+            const eM = (eh * 60) + em;
+
+            const slotEl = document.createElement('div');
+            slotEl.style.position = 'absolute';
+            slotEl.style.top = `${(sM / 60) * pxPerHour}px`;
+            slotEl.style.height = `${((eM - sM) / 60) * pxPerHour}px`;
+            slotEl.style.left = '0'; slotEl.style.right = '0';
+            slotEl.style.background = 'white';
+            slotEl.style.zIndex = '0';
+            dayCol.appendChild(slotEl);
+        });
+
+        // Background Grid Lines
+        for (let h = 1; h < 24; h++) {
+            const line = document.createElement('div');
+            line.style.position = 'absolute';
+            line.style.top = `${h * pxPerHour}px`;
+            line.style.left = '0'; line.style.right = '0';
+            line.style.height = '1px';
+            line.style.background = '#f1f5f9';
+            line.style.zIndex = '1';
+            dayCol.appendChild(line);
+        }
+
+        // Filter events for this day
+        // Check date range overlap or start date
+        const dayStart = new Date(currentD); dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(currentD); dayEnd.setHours(23, 59, 59, 999);
+
+        const dayEvents = (events || []).filter(ev => {
+            const evStart = new Date(ev.start);
+            const evEnd = new Date(ev.end);
+            return (evStart < dayEnd && evEnd > dayStart);
+        });
+
+        // Render Events
+        dayEvents.forEach(ev => {
+            const evStart = new Date(ev.start);
+            const evEnd = new Date(ev.end);
+
+            // Calculate Top & Height (clamped to this day)
+            let startMins = evStart.getHours() * 60 + evStart.getMinutes();
+            let endMins = evEnd.getHours() * 60 + evEnd.getMinutes();
+
+            // Handle cross-day (simplified: clamp to 00:00-24:00)
+            if (evStart < dayStart) startMins = 0;
+            if (evEnd > dayEnd) endMins = 1440;
+
+            const top = (startMins / 60) * pxPerHour;
+            const height = Math.max(((endMins - startMins) / 60) * pxPerHour, 20); // Min height
+
+            // Render Card
+            const el = document.createElement('div');
+            el.className = 'timeline-event-card'; // Reuse interactions?
+
+            // PREMIUM STYLE
+            // Strict Deterministic Logic (Database Type)
+            // Appointment -> Purple
+            // Booking -> Blue
+
+            let bgColor = '#60a5fa'; // Default Blue
+            let glowColor = '#3b82f6';
+
+            if (ev.type === 'appointment') {
+                bgColor = '#c084fc'; // Purple-400
+                glowColor = '#a855f7'; // Purple-500
+            } else if (ev.type === 'booking') {
+                bgColor = '#60a5fa'; // Blue
+                glowColor = '#3b82f6';
+            } else if (ev.title && ev.title.toLowerCase().includes('google')) {
+                // Only if no type is known (e.g. from generic feed)
+                bgColor = '#fcd34d'; // Amber
+                glowColor = '#f59e0b';
+            }
+
+            el.style.cssText = `
+                position: absolute;
+                top: ${top}px;
+                left: 4px; right: 4px;
+                height: ${height}px;
+                background: linear-gradient(135deg, ${bgColor} 0%, ${glowColor} 100%);
+                border-radius: 12px;
+                padding: 6px;
+                color: white;
+                font-size: 0.75rem;
+                overflow: hidden;
+                box-shadow: 0 4px 12px ${glowColor}40;
+                cursor: pointer;
+                z-index: 5;
+                transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                display: flex; flex-direction: column; justify-content: start;
+            `;
+
+            el.innerHTML = `
+                <div style="font-weight:700; line-height:1.1; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${ev.title}</div>
+                <div style="opacity:0.9; font-size:0.65rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${ev.client || ''}</div>
+            `;
+
+            // TOOLTIP & HOVER (Aligned with Daily)
+            el.onmouseenter = function (e) {
+                this.style.zIndex = '50';
+                this.style.transform = 'translateY(-2px)';
+                this.style.boxShadow = `0 8px 20px ${glowColor}60`;
+
+                const tooltip = document.createElement('div');
+                tooltip.id = 'timeline-custom-tooltip';
+                tooltip.style.cssText = `
+                    position: fixed; z-index: 9999; background: rgba(255,255,255,0.98); color: #1e293b;
+                    padding: 8px 12px; border-radius: 8px; font-size: 0.85rem;
+                    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); pointer-events: none;
+                    backdrop-filter: blur(4px); border: 1px solid #e2e8f0; max-width: 250px;
+                `;
+                tooltip.innerHTML = `
+                    <div style="font-weight: 600; margin-bottom: 2px;">${ev.title}</div>
+                    <div style="font-size: 0.75rem; color: #64748b;">${ev.client || ''}</div>
+                    <div style="font-size: 0.7rem; color: #94a3b8; margin-top:4px;">${evStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${evEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                `;
+                document.body.appendChild(tooltip);
+                const rect = this.getBoundingClientRect();
+                tooltip.style.top = `${rect.bottom + 8}px`;
+                tooltip.style.left = `${rect.left}px`;
+            };
+
+            el.onmouseleave = function () {
+                this.style.zIndex = '5';
+                this.style.transform = 'none';
+                this.style.boxShadow = `0 4px 12px ${glowColor}40`;
+                const t = document.getElementById('timeline-custom-tooltip');
+                if (t) t.remove();
+            };
+
+            // Interaction matching daily
+            const evtId = `evt_hp_w_${ev.id.replace(/-/g, '_')}`;
+            window[evtId] = ev;
+            el.setAttribute('onclick', `openHomepageEventDetails(window['${evtId}'])`);
+
+            dayCol.appendChild(el);
+        });
+
+        // Availability / Busy Areas?
+        // For V1, keep it clean. Maybe shade overrides.
+
+        gridBody.appendChild(dayCol);
+    }
+
+    container.appendChild(gridBody);
+
+    // 3. AUTO-SCROLL TO NOW
+    const now = new Date();
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 7);
+
+    if (now >= startOfWeek && now <= endOfWeek) {
+        const nowHour = now.getHours();
+        const scrollPos = Math.max(0, (nowHour * pxPerHour) - 150);
+        setTimeout(() => {
+            gridBody.scrollTo({ top: scrollPos, behavior: 'smooth' });
+        }, 500);
     }
 }
 
@@ -975,7 +1442,7 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
 }
 
 // --- EVENT DETAIL MODAL (Now unified via agenda_utils.js) ---
-import { openEventDetails } from './agenda_utils.js?v=152';
+import { openEventDetails } from './agenda_utils.js?v=155';
 
 window.openHomepageEventDetails = openEventDetails; // Compatibility Alias
 
@@ -1229,17 +1696,21 @@ function renderProjects(container, projects) {
     }
 
     container.innerHTML = projects.map(p => `
-        <div class="project-item" onclick="window.location.hash='order-detail/${p.id}'">
-            <div class="project-icon">
+        <div class="project-item" onclick="window.location.hash='${p.link.replace('#', '')}'" style="align-items: flex-start;">
+            <div class="project-icon" style="margin-top: 2px;">
                 <span class="material-icons-round">folder</span>
             </div>
-            <div style="flex: 1;">
-                <div style="font-weight: 600; color: var(--text-primary);">${p.title || 'Senza Titolo'}</div>
-                <div style="font-size: 0.8rem; color: var(--text-tertiary);">${p.clients?.business_name || 'Cliente N/D'}</div>
+            <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 1.05rem; line-height: 1.3; overflow-wrap: break-word;">
+                    ${p.order_number} ${p.title}
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    ${p.client}
+                </div>
             </div>
-            <div style="text-align: right;">
-                 <div style="font-size: 0.75rem; color: var(--text-tertiary);">Aggiornato</div>
-                 <div style="font-size: 0.8rem; font-weight: 500;">${new Date(p.updated_at).toLocaleDateString([], { day: 'numeric', month: 'short' })}</div>
+            <div style="text-align: right; flex-shrink: 0;">
+                 <div style="font-size: 0.75rem; color: var(--text-tertiary);">Stato</div>
+                 <div style="font-size: 0.8rem; font-weight: 500; color: var(--text-primary);">${p.status || 'N/D'}</div>
             </div>
         </div>
     `).join('');
