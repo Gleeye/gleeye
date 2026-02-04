@@ -388,10 +388,13 @@ export function updateSidebarVisibility() {
 
     console.log(`[Sidebar] Updating visibility. Role: ${activeRole}, Privileged: ${isPrivilegedCollaborator}, PM: ${isProjectManager}`);
 
+    console.log(`[Sidebar Visibility Check] activeRole: ${activeRole}, isProjectManager: ${isProjectManager}`);
     // Project Management Section
     if (navPm) {
         if (activeRole === 'admin' || isProjectManager) {
+            console.log("[Sidebar] Removing hidden from nav-pm");
             navPm.classList.remove('hidden');
+            navPm.querySelectorAll('.nav-item').forEach(i => i.classList.remove('hidden'));
         } else {
             navPm.classList.add('hidden');
         }
@@ -402,9 +405,15 @@ export function updateSidebarVisibility() {
 
         if (activeRole === 'admin') {
             // Full access
+            console.log("[Sidebar] Giving Full Admin access");
             if (adminBtn) adminBtn.classList.remove('hidden');
             [accountingSection, anagraficheSection, tariffarioSection].forEach(s => s?.classList.remove('hidden'));
-            genericItems.forEach(i => i.classList.remove('hidden'));
+
+            // Show all generic items (Ordini, Incarichi, Booking)
+            if (managementNav) {
+                managementNav.querySelectorAll('a.nav-item').forEach(i => i.classList.remove('hidden'));
+            }
+
             if (managementLabel) managementLabel.classList.remove('hidden');
         } else if (isPrivilegedCollaborator) {
             // Partner / Amministrazione access

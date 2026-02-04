@@ -498,8 +498,7 @@ export async function fetchCommesseTeamSummary() {
             )
         `)
         .in('pm_space_ref', spaceIds)
-        .neq('status', 'done')
-        .neq('status', 'completed'); // exclude finished tasks
+        .not('status', 'in', '("done","completed")'); // exclude finished tasks
 
     // 3. Aggregate by Order ID
     const teamByOrder = {}; // { orderId: [ { userId, collabId, role } ] }

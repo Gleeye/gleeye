@@ -9,6 +9,14 @@ export function renderPM(container) {
     const subPage = state.currentSubPage;
     const id = state.currentId;
     console.log("Rendering PM Module:", subPage, id);
+    console.log("Full state.currentSubPage:", state.currentSubPage);
+    console.log("Location Hash:", window.location.hash);
+    if (!subPage) {
+        console.log("No subPage detected, redirecting to commesse");
+        window.location.hash = '#pm/commesse';
+        return;
+    }
+
     switch (subPage) {
         case 'commesse': renderCommesseList(container); break;
         case 'interni': renderInternalProjects(container); break;
