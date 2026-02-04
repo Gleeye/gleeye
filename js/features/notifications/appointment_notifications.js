@@ -1,5 +1,5 @@
-import { supabase } from '../../modules/config.js?v=155';
-import { state } from '../../modules/state.js?v=155';
+import { supabase } from '../../modules/config.js?v=156';
+import { state } from '../../modules/state.js?v=156';
 
 // Config
 const DEBOUNCE_MS = 60000; // 60s debounce for updates

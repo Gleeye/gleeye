@@ -1,6 +1,6 @@
-import { state } from '../modules/state.js?v=155';
-import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=155';
-import { upsertPayment, deletePayment, upsertBankTransaction, fetchPayments } from '../modules/api.js?v=155';
+import { state } from '../modules/state.js?v=156';
+import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=156';
+import { upsertPayment, deletePayment, upsertBankTransaction, fetchPayments } from '../modules/api.js?v=156';
 
 export function renderPaymentsDashboard(container) {
     // Ensure global assignment on load/render
@@ -587,7 +587,7 @@ export function openPaymentModal(id) {
                 if (inviteBtn) {
                     inviteBtn.addEventListener('click', async () => {
                         try {
-                            const { supabase } = await import('../modules/config.js?v=155');
+                            const { supabase } = await import('../modules/config.js?v=156');
                             await supabase.rpc('send_payment_invite', { p_payment_id: p.id });
                             // Refresh payments and reopen modal
                             await fetchPayments();

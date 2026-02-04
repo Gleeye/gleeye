@@ -1,4 +1,4 @@
-import { supabase } from '../modules/config.js?v=155';
+import { supabase } from '../modules/config.js?v=156';
 
 export async function initSuppliers() {
     const contentArea = document.getElementById('content-area');

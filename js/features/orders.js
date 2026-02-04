@@ -1,7 +1,7 @@
-import { state } from '../modules/state.js?v=155';
-import { formatAmount, showGlobalAlert, showConfirm } from '../modules/utils.js?v=155';
-import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, addOrderContact, removeOrderContact, fetchOrderContacts } from '../modules/api.js?v=155';
-import { openPaymentModal } from './payments.js?v=155';
+import { state } from '../modules/state.js?v=156';
+import { formatAmount, showGlobalAlert, showConfirm } from '../modules/utils.js?v=156';
+import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, addOrderContact, removeOrderContact, fetchOrderContacts } from '../modules/api.js?v=156';
+import { openPaymentModal } from './payments.js?v=156';
 
 
 function getStatusColor(status) {
@@ -30,7 +30,7 @@ export async function renderOrderDetail(container, orderId) {
     if (!state.assignments) await fetchAssignments();
     if (!state.services) await fetchServices();
     if (!state.collaboratorServices || state.collaboratorServices.length === 0) {
-        const { fetchCollaboratorServices } = await import('../modules/api.js?v=155');
+        const { fetchCollaboratorServices } = await import('../modules/api.js?v=156');
         await fetchCollaboratorServices();
     }
 
@@ -1540,7 +1540,7 @@ window.filterAssignmentCollaborators = () => {
 
     if (!state.collaborators) {
         console.warn("Collaborators state empty, refetching...");
-        import('../modules/api.js?v=155').then(({ fetchCollaborators }) => fetchCollaborators());
+        import('../modules/api.js?v=156').then(({ fetchCollaborators }) => fetchCollaborators());
         // Show temp message
         list.innerHTML = '<div style="padding: 1rem; color: var(--text-tertiary);">Caricamento...</div>';
         list.style.display = 'block';
@@ -1638,7 +1638,7 @@ window.loadCollaboratorServicesForAssignment = async () => {
         }
 
         // 2. Fetch Services (if not loaded)
-        const { fetchServices } = await import('../modules/api.js?v=155' + Date.now());
+        const { fetchServices } = await import('../modules/api.js?v=156' + Date.now());
         if (!state.services || state.services.length === 0) {
             await fetchServices();
         }
@@ -1857,8 +1857,8 @@ window.saveAssignmentMultiStep = async () => {
         const order = state.orders.find(o => o.id === orderId);
 
         // Dynamic import including calculateProposedAssignmentPayments
-        const { upsertAssignment, upsertCollaboratorService, fetchCollaboratorServices, fetchAssignments, upsertPayment, fetchPayments } = await import('../modules/api.js?v=155' + Date.now());
-        const { calculateProposedAssignmentPayments } = await import('./assignments.js?v=155');
+        const { upsertAssignment, upsertCollaboratorService, fetchCollaboratorServices, fetchAssignments, upsertPayment, fetchPayments } = await import('../modules/api.js?v=156' + Date.now());
+        const { calculateProposedAssignmentPayments } = await import('./assignments.js?v=156');
 
         console.log("Upserting Assignment...");
         const newAssignment = await upsertAssignment({

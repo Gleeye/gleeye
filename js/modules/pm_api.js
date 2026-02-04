@@ -1,24 +1,29 @@
-import { supabase } from './config.js?v=155';
-import { state } from './state.js?v=155';
-import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=155';
+import { supabase } from './config.js?v=156';
+import { state } from './state.js?v=156';
+import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=156';
 
 // --- SPACES ---
 
 export async function fetchProjectSpaceForOrder(orderId) {
     // 1. Try to find existing space
-    const { data, error } = await supabase
+    const { data: spaces, error } = await supabase
         .from('pm_spaces')
         .select('*')
         .eq('type', 'commessa')
         .eq('ref_ordine', orderId)
-        .maybeSingle();
+        .order('created_at', { ascending: false });
 
     if (error) {
         console.error("Error fetching space:", error);
         return null;
     }
 
-    if (data) return data;
+    if (spaces && spaces.length > 0) {
+        if (spaces.length > 1) {
+            console.warn(`[PM API] Multiple spaces found for order ${orderId}. Picking the most recent one.`, spaces);
+        }
+        return spaces[0];
+    }
 
     // 2. Lazy Create
     console.log("Space not found for order, attempting lazy creation...", orderId);

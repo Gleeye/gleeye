@@ -73,7 +73,7 @@ export function renderHubAppointments(container, appointments, types, orderId) {
 
     // New Appointment Stub
     container.querySelector('#new-appt-fab').addEventListener('click', () => {
-        import('./hub_appointment_drawer.js?v=155').then(mod => {
+        import('./hub_appointment_drawer.js?v=156').then(mod => {
             mod.openAppointmentDrawer(null, orderId);
         });
     });
@@ -121,7 +121,7 @@ function renderListView(container, appointments, types, orderId) {
             const id = card.dataset.id;
             const appt = appointments.find(a => a.id === id);
             if (appt) {
-                import('./hub_appointment_drawer.js?v=155').then(mod => {
+                import('./hub_appointment_drawer.js?v=156').then(mod => {
                     mod.openAppointmentDrawer(appt, orderId);
                 });
             }
