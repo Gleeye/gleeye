@@ -5,7 +5,14 @@ const ITEM_STATUS = {
     'in_progress': { label: 'In Corso', color: '#3b82f6', bg: '#eff6ff' },
     'blocked': { label: 'Bloccato', color: '#ef4444', bg: '#fef2f2' },
     'review': { label: 'Revisione', color: '#f59e0b', bg: '#fffbeb' },
-    'done': { label: 'Completato', color: '#10b981', bg: '#ecfdf5' }
+    'done': { label: 'Completata', color: '#10b981', bg: '#ecfdf5' }
+};
+
+const ITEM_PRIORITY = {
+    'low': { label: 'Bassa', color: '#10b981', bg: '#ecfdf5' },
+    'medium': { label: 'Media', color: '#f59e0b', bg: '#fffbeb' },
+    'high': { label: 'Alta', color: '#ef4444', bg: '#fef2f2' },
+    'urgent': { label: 'Urgente', color: '#7c3aed', bg: '#f5f3ff' }
 };
 
 export function renderHubTree(container, items, space, spaceId) {
@@ -54,7 +61,7 @@ export function renderHubTree(container, items, space, spaceId) {
             
             <!-- Tree Content -->
             <div id="tree-content" style="padding: 1rem;">
-                ${tree.length === 0 ? renderEmptyState() : renderTreeNodes(tree, 0, spaceId)}
+                ${renderTreeContainer(tree, spaceId)}
             </div>
         </div>
         
@@ -153,48 +160,153 @@ function buildTree(items) {
     return roots;
 }
 
+function renderTreeContainer(tree, spaceId) {
+    const showCompleted = document.getElementById('show-completed')?.checked !== false;
+    const activeFilter = document.querySelector('.filter-chip.active')?.dataset.filter || 'all';
+    const searchTerm = document.getElementById('tree-search')?.value.toLowerCase() || '';
+
+    // Recursive filter function
+    const filterNodes = (nodes) => {
+        return nodes.map(node => {
+            const children = node.children ? filterNodes(node.children) : [];
+            const isDone = node.status === 'done';
+
+            // Should this node be visible?
+            let visible = true;
+
+            // 1. Completed filter
+            if (!showCompleted && isDone) visible = false;
+
+            // 2. Category filter
+            if (activeFilter === 'my') {
+                const myId = state.session?.user?.id;
+                const isAssignedToMe = node.pm_item_assignees?.some(a => a.user_ref === myId);
+                if (!isAssignedToMe && children.length === 0) visible = false;
+            } else if (activeFilter === 'overdue') {
+                const isOverdue = node.due_date && !isDone && new Date(node.due_date) < new Date();
+                if (!isOverdue && children.length === 0) visible = false;
+            } else if (activeFilter === 'blocked') {
+                if (node.status !== 'blocked' && children.length === 0) visible = false;
+            }
+
+            // 3. Search filter
+            if (searchTerm && !node.title.toLowerCase().includes(searchTerm) && children.length === 0) visible = false;
+
+            // If children are visible, parent must be visible
+            if (children.some(c => c._visible)) visible = true;
+
+            return { ...node, children, _visible: visible };
+        });
+    };
+
+    const processedTree = filterNodes(tree);
+    const visibleRoots = processedTree.filter(n => n._visible);
+
+    if (visibleRoots.length === 0) return renderEmptyState();
+
+    // Render Table Header
+    const headerHtml = `
+        <div style="display: flex; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--surface-2); font-size: 0.75rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+            <div style="width: 30px;"></div>
+            <div style="flex: 2; min-width: 0;">Titolo</div>
+            <div style="width: 120px; text-align: center;">Persone</div>
+            <div style="width: 100px; text-align: center;">Priorità</div>
+            <div style="width: 100px; text-align: center;">Scadenza</div>
+            <div style="width: 80px; text-align: center;">Stato</div>
+            <div style="width: 40px;"></div>
+        </div>
+    `;
+
+    return headerHtml + renderTreeNodes(visibleRoots, 0, spaceId);
+}
+
 function renderTreeNodes(nodes, level, spaceId) {
     return nodes.map(node => {
-        const hasChildren = node.children && node.children.length > 0;
+        if (node._visible === false) return '';
+
+        const hasChildren = node.children && node.children.some(c => c._visible);
         const statusInfo = ITEM_STATUS[node.status] || ITEM_STATUS['todo'];
+        const priorityInfo = ITEM_PRIORITY[node.priority] || ITEM_PRIORITY['medium'];
         const isDone = node.status === 'done';
-        const isOverdue = node.due_date && node.status !== 'done' && new Date(node.due_date) < new Date();
+        const isOverdue = node.due_date && !isDone && new Date(node.due_date) < new Date();
+
+        // Assignee avatars
+        const assignees = node.pm_item_assignees || [];
+        const avatars = assignees.slice(0, 3).map((a, idx) => {
+            const userName = a.user?.full_name || 'U';
+            const avatarUrl = a.user?.avatar_url;
+            return `
+                <div title="${userName}" style="
+                    width: 24px; height: 24px; border-radius: 50%; background: var(--surface-3); 
+                    border: 2px solid white; margin-left: ${idx === 0 ? '0' : '-8px'}; 
+                    display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-secondary);
+                    overflow: hidden; z-index: ${5 - idx};
+                ">
+                    ${avatarUrl ? `<img src="${avatarUrl}" style="width:100%; height:100%; object-fit:cover;">` : userName.charAt(0)}
+                </div>
+            `;
+        }).join('');
+        const extraAssignees = assignees.length > 3 ? `<div style="font-size: 0.7rem; color: var(--text-tertiary); margin-left: 4px;">+${assignees.length - 3}</div>` : '';
 
         return `
             <div class="tree-node" data-id="${node.id}">
-                <div class="tree-row" data-id="${node.id}">
-                    <!-- Toggle -->
-                    <button class="tree-toggle" style="visibility: ${hasChildren ? 'visible' : 'hidden'};">
-                        <span class="material-icons-round" style="font-size: 1.1rem; color: var(--text-secondary);">expand_more</span>
-                    </button>
-                    
-                    <!-- Icon -->
-                    <span class="material-icons-round" style="margin-right: 0.5rem; font-size: 1.1rem; color: ${node.item_type === 'attivita' ? '#f59e0b' : 'var(--text-secondary)'};">
-                        ${node.item_type === 'attivita' ? 'folder' : node.item_type === 'milestone' ? 'flag' : 'check_circle_outline'}
-                    </span>
-                    
-                    <!-- Title -->
-                    <div style="flex: 1; min-width: 0; ${isDone ? 'text-decoration: line-through; opacity: 0.6;' : ''}">
-                        <span style="font-weight: 500;">${node.title}</span>
+                <div class="tree-row" data-id="${node.id}" style="display: flex; align-items: center; padding: 0.5rem 1rem; border-bottom: 1px solid var(--surface-1);">
+                    <!-- Toggle & Icon -->
+                    <div style="width: 30px; display: flex; align-items: center;">
+                        ${hasChildren ? `
+                            <button class="tree-toggle" style="padding:0; margin-left: -4px;">
+                                <span class="material-icons-round" style="font-size: 1.1rem; color: var(--text-secondary);">expand_more</span>
+                            </button>
+                        ` : ''}
                     </div>
                     
-                    <!-- Status Pill -->
-                    <span class="status-pill" style="background: ${statusInfo.bg}; color: ${statusInfo.color}; margin-right: 0.75rem;">
-                        ${statusInfo.label}
-                    </span>
-                    
-                    <!-- Due Date -->
-                    ${node.due_date ? `
-                        <span style="font-size: 0.8rem; color: ${isOverdue ? '#ef4444' : 'var(--text-secondary)'}; margin-right: 0.75rem; display: flex; align-items: center; gap: 4px;">
-                            <span class="material-icons-round" style="font-size: 0.9rem;">${isOverdue ? 'warning' : 'event'}</span>
-                            ${new Date(node.due_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+                    <!-- Title & Type Icon -->
+                    <div style="flex: 2; min-width: 0; display: flex; align-items: center; gap: 8px; ${isDone ? 'opacity: 0.5;' : ''}">
+                        <span class="material-icons-round" style="font-size: 1.1rem; color: ${node.item_type === 'attivita' ? '#f59e0b' : 'var(--text-secondary)'}; flex-shrink: 0;">
+                            ${node.item_type === 'attivita' ? 'folder' : 'check_circle_outline'}
                         </span>
-                    ` : ''}
-                    
-                    <!-- Add Child Button -->
-                    <button class="add-child-btn icon-btn" data-parent="${node.id}" data-space="${spaceId}" title="Aggiungi sotto-elemento" style="padding: 4px;">
-                        <span class="material-icons-round" style="font-size: 1rem;">add</span>
-                    </button>
+                        <span style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; ${isDone ? 'text-decoration: line-through;' : ''}">${node.title}</span>
+                    </div>
+
+                    <!-- Assignees -->
+                    <div style="width: 120px; display: flex; align-items: center; justify-content: center;">
+                        <div style="display: flex; align-items: center;">
+                            ${avatars}
+                            ${extraAssignees}
+                        </div>
+                        ${assignees.length === 0 ? '<span style="font-size: 0.7rem; color: var(--text-tertiary); opacity: 0.5;">---</span>' : ''}
+                    </div>
+
+                    <!-- Priority -->
+                    <div style="width: 100px; display: flex; align-items: center; justify-content: center;">
+                        <span style="
+                            font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; 
+                            background: ${priorityInfo.bg}; color: ${priorityInfo.color};
+                            text-transform: uppercase;
+                        ">${priorityInfo.label}</span>
+                    </div>
+
+                    <!-- Due Date -->
+                    <div style="width: 100px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: ${isOverdue ? '#ef4444' : 'var(--text-secondary)'}; font-weight: 500;">
+                        ${node.due_date ? `
+                            <span class="material-icons-round" style="font-size: 0.9rem; margin-right: 4px;">${isOverdue ? 'warning' : 'event'}</span>
+                            ${new Date(node.due_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+                        ` : '<span style="color: var(--text-tertiary); opacity: 0.5;">---</span>'}
+                    </div>
+
+                    <!-- Status -->
+                    <div style="width: 80px; display: flex; align-items: center; justify-content: center;">
+                        <span class="status-pill" style="background: ${statusInfo.bg}; color: ${statusInfo.color};">
+                            ${statusInfo.label}
+                        </span>
+                    </div>
+
+                    <!-- Actions -->
+                    <div style="width: 40px; display: flex; align-items: center; justify-content: center;">
+                        <button class="add-child-btn icon-btn" data-parent="${node.id}" data-space="${spaceId}" title="Aggiungi" style="padding: 4px;">
+                            <span class="material-icons-round" style="font-size: 1rem;">add</span>
+                        </button>
+                    </div>
                 </div>
                 
                 ${hasChildren ? `
@@ -238,7 +350,7 @@ function setupTreeEventHandlers(container, items, spaceId) {
         row.addEventListener('click', (e) => {
             if (e.target.closest('.tree-toggle') || e.target.closest('.add-child-btn')) return;
             const itemId = row.dataset.id;
-            import('./hub_drawer.js?v=156').then(mod => {
+            import('./hub_drawer.js?v=157').then(mod => {
                 mod.openHubDrawer(itemId, spaceId);
             });
         });
@@ -294,7 +406,7 @@ function setupTreeEventHandlers(container, items, spaceId) {
                 item.addEventListener('click', (ev) => {
                     ev.stopPropagation();
                     const type = item.dataset.type;
-                    import('./hub_drawer.js?v=156').then(mod => {
+                    import('./hub_drawer.js?v=157').then(mod => {
                         mod.openHubDrawer(null, spaceId, parentId, type);
                     });
                     menu.remove();
@@ -314,7 +426,7 @@ function setupTreeEventHandlers(container, items, spaceId) {
 
     // Create first button
     container.querySelector('.create-first-btn')?.addEventListener('click', () => {
-        import('./hub_drawer.js?v=156').then(mod => {
+        import('./hub_drawer.js?v=157').then(mod => {
             mod.openHubDrawer(null, spaceId, null, 'attivita');
         });
     });
@@ -324,19 +436,27 @@ function setupTreeEventHandlers(container, items, spaceId) {
         chip.addEventListener('click', () => {
             container.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
             chip.classList.add('active');
-            // TODO: Apply filter logic
+            refreshTree();
         });
     });
+
+    // Toggle completed
+    container.querySelector('#show-completed')?.addEventListener('change', () => {
+        refreshTree();
+    });
+
+    function refreshTree() {
+        const content = container.querySelector('#tree-content');
+        if (content) content.innerHTML = renderTreeContainer(buildTree(items), spaceId);
+        // Re-attach handlers because we re-rendered the tree
+        setupTreeEventHandlers(container, items, spaceId);
+    }
 
     // Search
     const searchInput = container.querySelector('#tree-search');
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            container.querySelectorAll('.tree-node').forEach(node => {
-                const title = node.querySelector('.tree-row span[style*="font-weight"]')?.textContent?.toLowerCase() || '';
-                node.style.display = title.includes(term) ? '' : 'none';
-            });
+            refreshTree();
         });
     }
 }

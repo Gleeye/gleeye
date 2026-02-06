@@ -1,6 +1,6 @@
-import { supabase } from './config.js?v=156';
-import { state } from './state.js?v=156';
-import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=156';
+import { supabase } from './config.js?v=157';
+import { state } from './state.js?v=157';
+import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=157';
 
 // --- SPACES ---
 
@@ -85,14 +85,27 @@ export async function fetchInternalSpaces() {
     return data;
 }
 
-export async function createInternalSpace(name) {
+export async function createInternalSpace(name, area) {
     const { data, error } = await supabase
         .from('pm_spaces')
         .insert({
             type: 'interno',
             name: name,
+            area: area,
             default_pm_user_ref: state.profile?.id
         })
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+export async function updateSpace(spaceId, updates) {
+    const { data, error } = await supabase
+        .from('pm_spaces')
+        .update(updates)
+        .eq('id', spaceId)
         .select()
         .single();
 
@@ -104,22 +117,40 @@ export async function createInternalSpace(name) {
 
 export async function fetchProjectItems(spaceId) {
     // Fetch items and their relations
-    // We fetch raw relations and map in UI to avoid complex join issues if any
     const { data, error } = await supabase
         .from('pm_items')
         .select(`
             *,
-            pm_item_assignees ( user_ref, role ),
+            pm_item_assignees ( id, user_ref, collaborator_ref, role, created_at ),
             pm_item_incarichi ( incarico_ref )
         `)
         .eq('space_ref', spaceId)
-        .order('created_at', { ascending: true }); // Important for stability, but UI will tree-sort
+        .order('created_at', { ascending: true });
 
     if (error) {
         console.error("Error fetching items:", error);
         return [];
     }
-    return data || [];
+
+    if (!data || data.length === 0) return [];
+
+    // Expand assignees for all items
+    // Since _expandAssignees works on a flat list of assignee records, 
+    // we collect all, expand, and then map back.
+    const allAssignees = data.flatMap(item => item.pm_item_assignees || []);
+    if (allAssignees.length > 0) {
+        const expandedAll = await _expandAssignees(allAssignees);
+        // Map back to items
+        data.forEach(item => {
+            if (item.pm_item_assignees) {
+                item.pm_item_assignees = expandedAll.filter(a =>
+                    item.pm_item_assignees.some(raw => raw.id === a.id)
+                );
+            }
+        });
+    }
+
+    return data;
 }
 
 export async function createPMItem(itemData) {
@@ -298,34 +329,44 @@ async function _expandAssignees(data) {
     }
 
     return data.map(record => {
-        let user = null;
         let profile = record.user_ref ? profilesMap[record.user_ref] : null;
         let collaborator = record.collaborator_ref ? collabsMap[record.collaborator_ref] : null;
 
-        // Fallback: Link via State if DB link missing
-        if (!collaborator && record.user_ref) {
-            collaborator = state.collaborators?.find(c => c.user_id === record.user_ref);
+        // Fallback: Link via State if DB link missing (legacy or partial data)
+        if (!collaborator && record.user_ref && state.collaborators) {
+            collaborator = state.collaborators.find(c => c.user_id === record.user_ref);
+        }
+
+        // Unified User Object Building
+        const user = {
+            id: record.user_ref || record.collaborator_ref, // Priority to User ID if available
+            user_id: record.user_ref,
+            collaborator_id: record.collaborator_ref || collaborator?.id,
+            first_name: '',
+            last_name: '',
+            full_name: '',
+            avatar_url: '',
+            email: profile?.email || ''
+        };
+
+        if (collaborator) {
+            user.first_name = collaborator.first_name || collaborator.full_name?.split(' ')[0] || '';
+            user.last_name = collaborator.last_name || collaborator.full_name?.split(' ').slice(1).join(' ') || '';
+            user.full_name = collaborator.full_name || `${user.first_name} ${user.last_name}`.trim();
+            user.avatar_url = collaborator.avatar_url;
         }
 
         if (profile) {
-            user = { ...profile };
-            // If profile has no name but we have a collaborator, try to fill gaps
-            if ((!user.first_name || user.first_name === 'Utente') && collaborator) {
-                user.first_name = collaborator.first_name || collaborator.full_name?.split(' ')[0] || user.first_name;
-                user.last_name = collaborator.last_name || collaborator.full_name?.split(' ').slice(1).join(' ') || user.last_name;
+            user.first_name = profile.first_name && profile.first_name !== 'Utente' ? profile.first_name : (user.first_name || profile.first_name);
+            user.last_name = profile.last_name ? profile.last_name : (user.last_name || profile.last_name);
+            user.full_name = `${user.first_name} ${user.last_name}`.trim() || profile.full_name;
+            if (!user.avatar_url) user.avatar_url = profile.avatar_url;
+        }
 
-                if (!user.avatar_url && collaborator.avatar_url) {
-                    user.avatar_url = collaborator.avatar_url;
-                }
-            }
-        } else if (collaborator) {
-            user = {
-                id: collaborator.id, // Using collab ID as ID if no user ID
-                first_name: collaborator.first_name || collaborator.full_name?.split(' ')[0],
-                last_name: collaborator.last_name || collaborator.full_name?.split(' ').slice(1).join(' '),
-                full_name: collaborator.full_name,
-                avatar_url: collaborator.avatar_url
-            };
+        // Final Fallback for UI avatars
+        if (!user.full_name) user.full_name = user.email ? user.email.split('@')[0] : 'Utente';
+        if (!user.avatar_url) {
+            user.avatar_url = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=random`;
         }
 
         return { ...record, user, is_collab_assignment: !!record.collaborator_ref };
@@ -498,7 +539,7 @@ export async function fetchCommesseTeamSummary() {
             )
         `)
         .in('pm_space_ref', spaceIds)
-        .not('status', 'in', '("done","completed")'); // exclude finished tasks
+        .neq('status', 'done'); // exclude finished tasks
 
     // 3. Aggregate by Order ID
     const teamByOrder = {}; // { orderId: [ { userId, collabId, role } ] }
@@ -607,11 +648,11 @@ export async function fetchAppointmentTypes() {
     return data || [];
 }
 
-export async function fetchAppointments(orderId) {
-    if (!orderId) return [];
+export async function fetchAppointments(refId, refType = 'order') {
+    if (!refId) return [];
 
-    // 1. Fetch appointments linked to this order
-    const { data, error } = await supabase
+    // 1. Fetch appointments linked to this order or space
+    let query = supabase
         .from('appointments')
         .select(`
             *,
@@ -624,9 +665,16 @@ export async function fetchAppointments(orderId) {
             appointment_client_participants (
                 contact_id
             )
-        `)
-        .eq('order_id', orderId)
-        .neq('status', 'annullato') // Default filter? Or fetch all? user said "filtri: Futuri/Passati, Tipi... Stato"
+        `);
+
+    if (refType === 'space') {
+        query = query.eq('pm_space_id', refId);
+    } else {
+        query = query.eq('order_id', refId);
+    }
+
+    const { data, error } = await query
+        .neq('status', 'annullato') // Default filter
         .order('start_time', { ascending: true });
 
     if (error) {
@@ -637,9 +685,6 @@ export async function fetchAppointments(orderId) {
     if (!data || data.length === 0) return [];
 
     // 2. Expand Participants (Internal & Client)
-    // We reuse _expandAssignees logic for internal, but adapted manually here or make generic
-    // Let's expand manually to keep it isolated for now.
-
     // Internal
     const collabIds = new Set();
     data.forEach(a => {
@@ -663,9 +708,6 @@ export async function fetchAppointments(orderId) {
 
     let contactsMap = {};
     if (contactIds.size > 0) {
-        // Assuming 'contacts' table or 'order_contacts' joined with contacts.
-        // User said 'order_contacts' table exists. But FK was to 'contacts'.
-        // Let's fetch from 'contacts' table directly.
         const { data: contacts } = await supabase
             .from('contacts')
             .select('id, first_name, last_name, email, phone')
@@ -723,7 +765,7 @@ export async function fetchAppointment(id) {
 export async function saveAppointment(apptData) {
     // 1. Prepare Core Data
     const {
-        id, order_id, title, start_time, end_time,
+        id, order_id, pm_space_id, title, start_time, end_time,
         location, mode, note, status,
         types = [], internal_participants = [], client_participants = []
     } = apptData;
@@ -737,7 +779,7 @@ export async function saveAppointment(apptData) {
 
     // 2. Upsert Appointment
     const payload = {
-        order_id, title, start_time, end_time, location, mode, note, status
+        order_id, pm_space_id, title, start_time, end_time, location, mode, note, status
     };
     if (id) payload.id = id;
 

@@ -1,9 +1,9 @@
-import { state } from '../modules/state.js?v=156';
-import { supabase } from '../modules/config.js?v=156';
-import { formatAmount } from '../modules/utils.js?v=156';
+import { state } from '../modules/state.js?v=157';
+import { supabase } from '../modules/config.js?v=157';
+import { formatAmount } from '../modules/utils.js?v=157';
 
-import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment } from '../modules/api.js?v=156';
-import { fetchAppointment, updatePMItem } from '../modules/pm_api.js?v=156';
+import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment } from '../modules/api.js?v=157';
+import { fetchAppointment, updatePMItem } from '../modules/pm_api.js?v=157';
 
 // We reuse fetchMyBookings but we might need a tighter scoped fetch for "Today"
 // Actually fetchMyBookings stores in `eventsCache` (not exported) or `window`?
@@ -312,8 +312,7 @@ export async function renderHomepage(container) {
                 pm_item_assignees!inner(user_ref, role)
             `)
             .eq('pm_item_assignees.user_ref', targetUserId)
-            .neq('status', 'done')
-            .neq('status', 'completed');
+            .neq('status', 'done');
 
         if (pmError) console.error("PM Tasks fetch error:", pmError);
 
@@ -488,49 +487,7 @@ export async function renderHomepage(container) {
                     </style>
                 </div>
 
-                <!-- Quick Stats (Work Hours / Productivity) - Placeholder -->
-                <div class="dashboard-widget">
-                    <div class="widget-header">
-                        <h3 class="widget-title">Ore Lavorate (Settimana)</h3>
-                    </div>
-                    <div>
-                         <h2 style="font-size: 2.5rem; font-weight: 700; margin: 0;">24h 12m</h2>
-                         <div class="chart-bars">
-                            <div class="chart-bar" style="height: 40%"></div>
-                            <div class="chart-bar" style="height: 60%"></div>
-                            <div class="chart-bar active" style="height: 80%"></div> <!-- Today -->
-                            <div class="chart-bar" style="height: 30%"></div>
-                            <div class="chart-bar" style="height: 20%"></div>
-                            <div class="chart-bar" style="height: 0%"></div>
-                            <div class="chart-bar" style="height: 0%"></div>
-                         </div>
-                    </div>
-                </div>
 
-                <!-- Recent Files / Resources -->
-                <div class="dashboard-widget">
-                    <div class="widget-header">
-                         <h3 class="widget-title">Link Rapidi</h3>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <div class="glass-card" style="padding: 1rem; text-align: center; cursor: pointer; transition: transform 0.2s;" onclick="window.location.hash='invoices-dashboard'">
-                            <span class="material-icons-round" style="font-size: 2rem; color: var(--brand-blue);">analytics</span>
-                            <div style="font-size: 0.9rem; font-weight: 600; margin-top: 0.5rem;">Fatturato</div>
-                        </div>
-                         <div class="glass-card" style="padding: 1rem; text-align: center; cursor: pointer; transition: transform 0.2s;" onclick="window.location.hash='agenda'">
-                            <span class="material-icons-round" style="font-size: 2rem; color: #10b981;">calendar_month</span>
-                            <div style="font-size: 0.9rem; font-weight: 600; margin-top: 0.5rem;">Agenda</div>
-                        </div>
-                         <div class="glass-card" style="padding: 1rem; text-align: center; cursor: pointer; transition: transform 0.2s;" onclick="window.location.hash='pm/commesse'">
-                            <span class="material-icons-round" style="font-size: 2rem; color: #f59e0b;">folder</span>
-                            <div style="font-size: 0.9rem; font-weight: 600; margin-top: 0.5rem;">Commesse</div>
-                        </div>
-                        <div class="glass-card" style="padding: 1rem; text-align: center; cursor: pointer; transition: transform 0.2s;" onclick="window.location.hash='payments'">
-                            <span class="material-icons-round" style="font-size: 2rem; color: #ef4444;">schedule</span>
-                            <div style="font-size: 0.9rem; font-weight: 600; margin-top: 0.5rem;">Scadenze</div>
-                        </div>
-                    </div>
-                </div>
 
             </div>
         </div>
@@ -1442,7 +1399,7 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
 }
 
 // --- EVENT DETAIL MODAL (Now unified via agenda_utils.js) ---
-import { openEventDetails } from './agenda_utils.js?v=156';
+import { openEventDetails } from './agenda_utils.js?v=157';
 
 window.openHomepageEventDetails = openEventDetails; // Compatibility Alias
 
@@ -1632,7 +1589,7 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                                 ${isLate ? `<div style="font-size: 0.65rem; color: #f87171; margin-top: 1px;">Scaduto: ${dateStr}</div>` : ''}
                             </div>
                              <div style="padding-left: 8px;">
-                                <input type="checkbox" style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer; border-radius: 4px;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completato">
+                                <input type="checkbox" style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer; border-radius: 4px;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completata">
                             </div>
                         </div>
                     `;
@@ -1677,7 +1634,7 @@ window.quickCompleteTask = async function (id, checkbox) {
     if (row) row.style.opacity = '0.3';
 
     try {
-        await updatePMItem(id, { status: 'completed' });
+        await updatePMItem(id, { status: 'done' });
         // Refresh? For now just hide
         if (row) row.remove();
         // Update stats counter?

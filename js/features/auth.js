@@ -1,8 +1,8 @@
-import { supabase } from '../modules/config.js?v=156';
-import { state } from '../modules/state.js?v=156';
-import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js?v=156';
-import { showGlobalAlert } from '../modules/utils.js?v=156';
-import { updateSidebarVisibility } from './layout.js?v=156';
+import { supabase } from '../modules/config.js?v=157';
+import { state } from '../modules/state.js?v=157';
+import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js?v=157';
+import { showGlobalAlert } from '../modules/utils.js?v=157';
+import { updateSidebarVisibility } from './layout.js?v=157';
 
 
 // We need a way to call router() from here. 
@@ -142,14 +142,10 @@ async function handleSession(session) {
             const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
             const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
 
-            let allowedPagesForCollaborator = ['booking', 'profile', 'agenda', 'my-assignments'];
+            let allowedPagesForCollaborator = ['home', 'booking', 'profile', 'agenda', 'my-assignments'];
             if (isPrivilegedCollaborator) {
                 // Expand allowed pages for Partner/Amministrazione
                 allowedPagesForCollaborator = [...allowedPagesForCollaborator,
-                    'invoices-dashboard', 'invoices', 'passive-invoices-collab', 'passive-invoices-suppliers', 'invoices-archive',
-                    'bank-transactions', 'bank-statements', 'payments',
-                    'sales', 'contacts', 'employees', 'suppliers',
-                    'services', 'collaborator-services',
                     'invoices-dashboard', 'invoices', 'passive-invoices-collab', 'passive-invoices-suppliers', 'invoices-archive',
                     'bank-transactions', 'bank-statements', 'payments',
                     'sales', 'contacts', 'employees', 'suppliers',
@@ -164,8 +160,8 @@ async function handleSession(session) {
 
             if (activeRole !== 'admin' && !allowedPagesForCollaborator.includes(currentPage)) {
                 // Redirect BEFORE showing anything - no flash
-                console.log(`[Auth] Collaborator on restricted page '${currentPage}', redirecting to booking...`);
-                window.location.hash = 'booking';
+                console.log(`[Auth] Collaborator on restricted page '${currentPage}', redirecting to home...`);
+                window.location.hash = 'home';
             }
 
             // NOW show the app (with correct sidebar visibility already set)

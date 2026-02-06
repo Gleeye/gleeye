@@ -1,5 +1,5 @@
-import { supabase } from './config.js?v=156';
-import { state } from './state.js?v=156';
+import { supabase } from './config.js?v=157';
+import { state } from './state.js?v=157';
 
 export async function fetchProfile() {
     const { data: authData } = await supabase.auth.getUser();
@@ -251,7 +251,7 @@ export async function updateOrder(id, updates) {
             // We use dynamic import to avoid circular dependency with pm_api.js
             setTimeout(async () => {
                 try {
-                    const { fetchProjectSpaceForOrder } = await import('./pm_api.js?v=156');
+                    const { fetchProjectSpaceForOrder } = await import('./pm_api.js?v=157');
                     await fetchProjectSpaceForOrder(id);
                     console.log("PM Space auto-initialized for order:", id);
                 } catch (e) {
@@ -1118,22 +1118,22 @@ async function refreshCurrentPage() {
     if (!container) return;
 
     if (hash.includes('order-detail/')) {
-        const { renderOrderDetail } = await import('../features/orders.js?v=156');
+        const { renderOrderDetail } = await import('../features/orders.js?v=157');
         renderOrderDetail(container);
     } else if (hash.includes('payments')) {
-        const { renderPaymentsDashboard } = await import('../features/payments.js?v=156');
+        const { renderPaymentsDashboard } = await import('../features/payments.js?v=157');
         renderPaymentsDashboard(container);
     } else if (hash.includes('bank-transactions')) {
-        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=156');
+        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=157');
         renderBankTransactions(container);
     } else if (hash.includes('collaborator-services')) {
-        const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=156');
+        const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=157');
         renderCollaboratorServices(container);
     } else if (hash.includes('assignment-detail/')) {
-        const { renderAssignmentDetail } = await import('../features/assignments.js?v=156');
+        const { renderAssignmentDetail } = await import('../features/assignments.js?v=157');
         renderAssignmentDetail(container);
     } else if (hash.includes('collaborator-detail/')) {
-        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=156');
+        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=157');
         renderCollaboratorDetail(container);
     } else if (hash.includes('client-detail/')) {
     }

@@ -1,9 +1,9 @@
 
 // js/features/admin/admin-dashboard.js
-import { state } from '../../modules/state.js?v=156';
-import { renderAdminNotifications } from '../notifications.js?v=156';
-import { renderNotificationLogs } from './notification_logs.js?v=156';
-import { renderSystemLogs, getUnresolvedErrorCount } from './admin_system_logs.js?v=156';
+import { state } from '../../modules/state.js?v=157';
+import { renderAdminNotifications } from '../notifications.js?v=157';
+import { renderNotificationLogs } from './notification_logs.js?v=157';
+import { renderSystemLogs, getUnresolvedErrorCount } from './admin_system_logs.js?v=157';
 
 export function renderAdminDashboard(container) {
     // SIMPLIFIED ACCESS CHECK
@@ -265,7 +265,7 @@ async function loadGoogleConfigForm() {
 
     try {
         // Dynamic import to avoid circular deps
-        const { fetchAllSystemConfig, upsertSystemConfig } = await import('../../modules/api.js?v=156');
+        const { fetchAllSystemConfig, upsertSystemConfig } = await import('../../modules/api.js?v=157');
         const configs = await fetchAllSystemConfig();
 
         const clientId = configs.find(c => c.key === 'google_client_id')?.value || '';

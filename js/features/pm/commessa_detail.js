@@ -1,6 +1,6 @@
-import { state } from '../../modules/state.js?v=156';
-import { fetchOrders } from '../../modules/api.js?v=156';
-import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes } from '../../modules/pm_api.js?v=156';
+import { state } from '../../modules/state.js?v=157';
+import { fetchOrders } from '../../modules/api.js?v=157';
+import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes } from '../../modules/pm_api.js?v=157';
 
 // Status colors for "Stato Lavori"
 const STATUS_CONFIG = {
@@ -17,7 +17,7 @@ const ITEM_STATUS = {
     'in_progress': { label: 'In Corso', color: '#3b82f6', bg: '#eff6ff' },
     'blocked': { label: 'Bloccato', color: '#ef4444', bg: '#fef2f2' },
     'review': { label: 'Revisione', color: '#f59e0b', bg: '#fffbeb' },
-    'done': { label: 'Completato', color: '#10b981', bg: '#ecfdf5' }
+    'done': { label: 'Completata', color: '#10b981', bg: '#ecfdf5' }
 };
 
 function normalizeStatus(status) {
@@ -37,7 +37,7 @@ function calculateKPIs(items) {
     const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     const total = items.length;
-    const done = items.filter(i => i.status === 'done' || i.status === 'completed').length;
+    const done = items.filter(i => i.status === 'done').length;
     const overdue = items.filter(i => {
         if (!i.due_date || i.status === 'done') return false;
         return new Date(i.due_date) < now;
@@ -53,49 +53,54 @@ function calculateKPIs(items) {
     return { total, done, overdue, dueSoon, blocked, progress };
 }
 
-export async function renderCommessaDetail(container, orderId) {
+export async function renderCommessaDetail(container, entityId, isInternal = false) {
     container.innerHTML = '<div class="loading-state"><span class="loader"></span></div>';
 
     try {
-        console.log('[ProjectHub] Loading commessa:', orderId);
+        console.log('[ProjectHub] Loading:', entityId, 'Internal:', isInternal);
 
-        // 1. Ensure core data is fetched
+        // 1. Ensure core data is fetched (for collaborators, assignments)
         const promises = [];
-        if (!state.orders || state.orders.length === 0) promises.push(fetchOrders());
+        // Only fetch orders if we are in commessa mode
+        if (!isInternal && (!state.orders || state.orders.length === 0)) promises.push(fetchOrders());
 
-        // We need assignments and collaborators for the Smart Picker and Incarichi tab
-        // Assuming fetchAssignments and fetchCollaborators exist in api.js
-        const { fetchAssignments, fetchCollaborators } = await import('../../modules/api.js?v=156');
+        const { fetchAssignments, fetchCollaborators } = await import('../../modules/api.js?v=157');
         if (!state.assignments || state.assignments.length === 0) promises.push(fetchAssignments());
         if (!state.collaborators || state.collaborators.length === 0) promises.push(fetchCollaborators());
 
-        if (promises.length > 0) {
-            console.log('[ProjectHub] Fetching dependencies...', promises.length);
-            await Promise.all(promises);
+        if (promises.length > 0) await Promise.all(promises);
+
+        // 2. Resolve Space and Context
+        let space = null;
+        let order = null;
+        let orderId = null;
+
+        if (isInternal) {
+            // EntityId is SpaceID
+            const { fetchSpace } = await import('../../modules/pm_api.js?v=157');
+            space = await fetchSpace(entityId);
+            if (!space) throw new Error("Spazio non trovato");
+        } else {
+            // EntityId is OrderID
+            orderId = entityId;
+            // Use loose comparison or string conversion to handle numeric IDs vs string URL params
+            order = state.orders?.find(o => String(o.id) === String(orderId));
+
+            if (!order) {
+                // If not found in current state, force a refresh of orders just in case
+                console.warn("Order not found in state, refetching orders...");
+                await fetchOrders();
+                order = state.orders?.find(o => String(o.id) === String(orderId));
+            }
+
+            if (!order) throw new Error("Ordine non trovato");
+
+            // Get or create PM Space
+            space = await fetchProjectSpaceForOrder(orderId);
         }
 
-        // 2. Find the order
-        const order = state.orders?.find(o => o.id === orderId);
-        console.log('[ProjectHub] Found order:', order?.order_number);
+        const spaceId = space?.id; // Should be available now
 
-        if (!order) {
-            console.error('[ProjectHub] Order not found in state. Available IDs:', state.orders?.map(o => o.id).slice(0, 5));
-            container.innerHTML = `
-                <div class="error-state" style="padding: 2rem; text-align: center;">
-                    <span class="material-icons-round" style="font-size: 3rem; color: var(--text-tertiary);">search_off</span>
-                    <h3>Commessa non trovata</h3>
-                    <p class="text-secondary">ID: ${orderId}</p>
-                    <a href="#pm/commesse" class="primary-btn" style="margin-top: 1rem; text-decoration: none;">
-                        Torna alle Commesse
-                    </a>
-                </div>
-            `;
-            return;
-        }
-
-        // 2. Get or create PM Space
-        let space = await fetchProjectSpaceForOrder(orderId);
-        const spaceId = space?.id;
         let [items, spaceAssignees] = await Promise.all([
             spaceId ? fetchProjectItems(spaceId) : [],
             spaceId ? fetchSpaceAssignees(spaceId) : []
@@ -104,9 +109,10 @@ export async function renderCommessaDetail(container, orderId) {
         // 3. Calculate KPIs
         let kpis = calculateKPIs(items);
 
-        // 4. Status badge
-        const normalized = normalizeStatus(order.status_works);
-        const statusConfig = STATUS_CONFIG[normalized] || { label: order.status_works || 'N/A', color: '#64748b', bg: '#f1f5f9' };
+        // 4. Status badge (Only for Commesse)
+        /* const normalized = normalizeStatus(order?.status_works);
+        const statusConfig = STATUS_CONFIG[normalized] || { label: order?.status_works || 'N/A', color: '#64748b', bg: '#f1f5f9' }; */
+        // Moved inside render to handle internal case
 
         // 5. Get PM user
         const pmUser = state.profiles?.find(p => p.id === space?.default_pm_user_ref);
@@ -124,237 +130,171 @@ export async function renderCommessaDetail(container, orderId) {
                     top: 0;
                     z-index: 50;
                 ">
-                    <!-- Row 1: Title + Actions -->
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
-                        <div>
-                            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
-                                <span style="
-                                    background: var(--brand-color); 
-                                    color: white; 
-                                    padding: 2px 8px; 
-                                    border-radius: 4px; 
-                                    font-size: 0.7rem; 
-                                    font-weight: 600;
-                                    text-transform: uppercase;
-                                ">Commessa</span>
-                                <span style="font-family: monospace; color: var(--text-secondary);">${order.order_number}</span>
-                                <div class="status-selector-wrapper" style="position: relative;">
-                                    <select id="hub-order-status-select" style="
-                                        appearance: none;
-                                        border: none;
-                                        padding: 4px 28px 4px 12px;
-                                        border-radius: 20px;
-                                        font-size: 0.75rem;
-                                        font-weight: 500;
-                                        background-color: ${statusConfig.bg};
-                                        color: ${statusConfig.color};
-                                        cursor: pointer;
-                                        font-family: inherit;
-                                        outline: none;
-                                        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-                                    ">
-                                        ${Object.entries(STATUS_CONFIG).map(([key, cfg]) => `
-                                            <option value="${cfg.label}" ${normalized === key ? 'selected' : ''}>
-                                                ${cfg.label}
-                                            </option>
-                                        `).join('')}
-                                    </select>
-                                    <span class="material-icons-round" style="
-                                        position: absolute;
-                                        right: 8px;
-                                        top: 50%;
-                                        transform: translateY(-50%);
-                                        font-size: 1rem;
-                                        pointer-events: none;
-                                        color: ${statusConfig.color};
-                                    ">expand_more</span>
-                                </div>
-                            </div>
-                            <h1 style="margin: 0; font-size: 1.5rem; font-weight: 600; line-height: 1.3;">${order.title || 'Senza Titolo'}</h1>
-                            <div style="display: flex; align-items: center; gap: 1.5rem; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">
-                                <span style="display: flex; align-items: center; gap: 4px;">
-                                    <span class="material-icons-round" style="font-size: 1rem;">business</span>
-                                    ${order.clients?.business_name || '---'}
-                                </span>
-                                
-                                <!-- SPACE PROJECT MANAGERS -->
-                                <div id="space-pms-container" style="display: flex; align-items: center; gap: 0.75rem;">
-                                    <span style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 500; text-transform: uppercase;">PM:</span>
-                                    <div id="space-pms-list" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                        ${spaceAssignees.filter(a => a.role === 'pm').map(a => {
-            // Improved Name Resolution: Try global collaborators list first
-            let userName = 'Utente';
-            let avatarUrl = null;
-
-            const collab = state.collaborators?.find(c =>
-                (a.user_ref && c.user_id === a.user_ref) ||
-                (a.collaborator_ref && c.id === a.collaborator_ref)
-            );
-
-            if (collab) {
-                userName = collab.full_name || `${collab.first_name} ${collab.last_name}`;
-                avatarUrl = collab.avatar_url;
-            } else {
-                // Fallback to expanded object from API
-                userName = a.user?.full_name || a.user?.first_name || a.user?.email || 'Utente';
-                avatarUrl = a.user?.avatar_url;
-            }
-
-            // Final cleanup if name is still weird
-            if (!userName || userName === 'null null') userName = 'Utente';
-
-            const initial = (userName && userName !== 'Utente') ? userName.charAt(0).toUpperCase() : 'U';
-
-            return `
-                                            <div class="user-pill-mini pm" data-uid="${a.user_ref}" data-collab-id="${a.collaborator_ref}" title="${userName}" style="
-                                                display: flex;
-                                                align-items: center;
-                                                gap: 4px;
-                                                background: var(--surface-2);
-                                                padding: 2px 8px 2px 4px;
-                                                border-radius: 12px;
-                                                border: 1px solid var(--brand-blue-light, rgba(66, 133, 244, 0.2));
-                                                font-size: 0.75rem;
-                                                color: var(--brand-blue);
-                                                font-weight: 500;
-                                            ">
-                                                <div style="width: 16px; height: 16px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 10px;">
-                                                    ${avatarUrl ? `<img src="${avatarUrl}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : initial}
-                                                </div>
-                                                ${userName}
-                                                <span class="material-icons-round remove-space-pm-btn" data-id="${a.id}" style="font-size: 0.8rem; cursor: pointer; opacity: 0.6;">close</span>
-                                            </div>
-                                            `;
-        }).join('')}
-                                        
-                                        <!-- Add Button & Picker Wrapper -->
-                                        <div style="position: relative;">
-                                            <button id="add-space-pm-btn" class="icon-btn-mini" style="width: 22px; height: 22px; border-radius: 50%; color: var(--brand-blue); background: var(--surface-2); border: 1px dashed var(--brand-blue); display: flex; align-items: center; justify-content: center; cursor: pointer;">
-                                                <span class="material-icons-round" style="font-size: 1rem;">add</span>
-                                            </button>
-                                            
-                                            <!-- PM PICKER -->
-                                            <div id="space-pm-picker" class="hidden glass-card" style="
-                                                position: absolute;
-                                                top: 120%;
-                                                left: 0;
-                                                width: 260px;
-                                                z-index: 1000;
-                                                max-height: 300px;
-                                                overflow-y: auto;
-                                                box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-                                                border: 1px solid var(--surface-2);
-                                                background: white;
-                                                border-radius: 12px;
-                                            ">
-                                                <!-- Logic will fill this -->
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <!-- UNIFIED HEADER -->
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem;">
                         
-                        <!-- Actions -->
-                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            <!-- Add Dropdown -->
-                            <div style="position: relative;">
-                                <button class="primary-btn" id="add-new-hub-btn" style="display: flex; align-items: center; gap: 0.5rem;">
-                                    <span class="material-icons-round" style="font-size: 1rem;">add</span>
-                                    Nuovo
-                                    <span class="material-icons-round" style="font-size: 1rem;">expand_more</span>
-                                </button>
-                                
-                                <div id="add-hub-dropdown" class="hidden glass-card" style="
-                                    position: absolute;
-                                    top: 120%;
-                                    right: 0;
-                                    width: 200px;
-                                    z-index: 1000;
-                                    background: white;
-                                    border: 1px solid var(--surface-2);
-                                    border-radius: 12px;
-                                    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-                                    overflow: hidden;
-                                    padding: 0.5rem;
-                                ">
-                                    <button class="dropdown-item" id="add-activity-btn" style="
-                                        display: flex; align-items: center; gap: 0.75rem; 
-                                        width: 100%; padding: 0.75rem; text-align: left;
-                                        border: none; background: none; cursor: pointer;
-                                        border-radius: 8px; transition: background 0.2s;
-                                        color: var(--text-primary); font-size: 0.9rem;
-                                    ">
-                                        <span class="material-icons-round" style="color: #f59e0b;">folder</span>
-                                        <div>
-                                            <div style="font-weight: 500;">Attività</div>
-                                            <div style="font-size: 0.75rem; color: var(--text-tertiary);">Raggruppa task</div>
+                        <!-- Row 1: Badges & Status -->
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            ${isInternal ? `
+                                <span style="font-family: monospace; color: var(--text-secondary); font-weight: 600; font-size: 0.85rem;">${space?.area || 'Generale'}</span>
+                                <span style="background: #f1f5f9; color: var(--text-secondary); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase;">Progetto Interno</span>
+                            ` : `
+                                <span style="font-family: monospace; color: var(--text-secondary); font-weight: 600; font-size: 0.85rem;">${order?.order_number || ''}</span>
+                                ${(() => {
+                const normalized = normalizeStatus(order?.status_works);
+                const statusConfig = STATUS_CONFIG[normalized] || { label: order?.status_works || 'N/A', color: '#64748b', bg: '#f1f5f9' };
+                return `
+                                        <div style="position: relative;">
+                                            <select id="hub-order-status-select" style="
+                                                appearance: none; border: none; padding: 2px 24px 2px 10px; border-radius: 12px;
+                                                font-size: 0.75rem; font-weight: 600; background-color: ${statusConfig.bg}; color: ${statusConfig.color};
+                                                cursor: pointer; outline: none;
+                                            ">
+                                                ${Object.entries(STATUS_CONFIG).map(([key, cfg]) => `
+                                                    <option value="${key}" ${normalized === key ? 'selected' : ''}>${cfg.label}</option>
+                                                `).join('')}
+                                            </select>
+                                            <span class="material-icons-round" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 0.9rem; color: ${statusConfig.color}; pointer-events: none;">expand_more</span>
                                         </div>
+                                    `;
+            })()}
+                            `}
+                        </div>
+
+                        <!-- Row 2: Title & Main Actions -->
+                        <div style="display: flex; justify-content: space-between; align-items: start; gap: 1rem;">
+                            <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin: 0; line-height: 1.2;">
+                                ${isInternal ? (space?.name || 'Progetto senza nome') : (order?.title || 'Senza Titolo')}
+                            </h1>
+
+                            <!-- Actions -->
+                            <div style="display: flex; gap: 0.5rem;">
+                                <!-- Add Dropdown -->
+                                <div style="position: relative;">
+                                    <button class="primary-btn" id="add-new-hub-btn" style="display: flex; align-items: center; gap: 0.5rem; padding: 8px 16px;">
+                                        <span class="material-icons-round" style="font-size: 1.1rem;">add</span>
+                                        Nuovo
+                                        <span class="material-icons-round" style="font-size: 1.1rem;">expand_more</span>
                                     </button>
                                     
-                                    <button class="dropdown-item" id="add-task-btn" style="
-                                        display: flex; align-items: center; gap: 0.75rem; 
-                                        width: 100%; padding: 0.75rem; text-align: left;
-                                        border: none; background: none; cursor: pointer;
-                                        border-radius: 8px; transition: background 0.2s;
-                                        color: var(--text-primary); font-size: 0.9rem;
+                                    <div id="add-hub-dropdown" class="hidden glass-card" style="
+                                        position: absolute; top: 110%; right: 0; width: 200px; z-index: 1000;
+                                        background: white; border: 1px solid var(--surface-2); border-radius: 12px;
+                                        box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 0.5rem;
                                     ">
-                                        <span class="material-icons-round" style="color: #3b82f6;">check_circle_outline</span>
-                                        <div>
-                                            <div style="font-weight: 500;">Task</div>
-                                            <div style="font-size: 0.75rem; color: var(--text-tertiary);">Singolo lavoro</div>
-                                        </div>
+                                        <button class="dropdown-item" id="add-activity-btn" style="
+                                            display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; 
+                                            text-align: left; border: none; background: none; cursor: pointer; border-radius: 8px;
+                                            color: var(--text-primary); font-size: 0.9rem;
+                                        ">
+                                            <span class="material-icons-round" style="color: #f59e0b;">folder</span>
+                                            <div><div style="font-weight: 500;">Attività</div><div style="font-size: 0.75rem; text-secondary;">Raggruppa task</div></div>
+                                        </button>
+                                        <button class="dropdown-item" id="add-task-btn" style="
+                                            display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; 
+                                            text-align: left; border: none; background: none; cursor: pointer; border-radius: 8px;
+                                            color: var(--text-primary); font-size: 0.9rem;
+                                        ">
+                                            <span class="material-icons-round" style="color: #3b82f6;">check_circle_outline</span>
+                                            <div><div style="font-weight: 500;">Task</div><div style="font-size: 0.75rem; text-secondary;">Singolo lavoro</div></div>
+                                        </button>
+                                        ${!isInternal ? `
+                                        <button class="dropdown-item" id="add-appointment-btn" style="
+                                            display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; 
+                                            text-align: left; border: none; background: none; cursor: pointer; border-radius: 8px;
+                                            color: var(--text-primary); font-size: 0.9rem;
+                                        ">
+                                            <span class="material-icons-round" style="color: #8b5cf6;">event</span>
+                                            <div><div style="font-weight: 500;">Appuntamento</div><div style="font-size: 0.75rem; text-secondary;">Singolo incontro</div></div>
+                                        </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                                
+                                ${!isInternal ? `
+                                <a href="#order-detail/${orderId}" class="secondary-btn" title="Info Ordine" style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; text-decoration: none; border-radius: 8px;">
+                                    <span class="material-icons-round" style="font-size: 1.25rem;">receipt_long</span>
+                                </a>
+                                ` : ''}
+                            </div>
+                        </div>
+
+                        <!-- Row 3: Meta Info (Client + PMs) -->
+                        <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+                            ${!isInternal && order?.clients ? `
+                                <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">
+                                    <span class="material-icons-round" style="font-size: 1.1rem;">business</span>
+                                    <span>${order.clients.business_name}</span>
+                                </div>
+                            ` : ''}
+                            
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <span style="font-size: 0.8rem; color: var(--text-tertiary); font-weight: 500; text-transform: uppercase;">PM:</span>
+                                <div id="space-pms-list" style="display: flex; align-items: center; gap: 6px;">
+                                    ${spaceAssignees.filter(a => a.role === 'pm').map(a => {
+                // Name Resolution logic
+                let userName = 'Utente';
+                let avatarUrl = null;
+                const collab = state.collaborators?.find(c => (a.user_ref && c.user_id === a.user_ref) || (a.collaborator_ref && c.id === a.collaborator_ref));
+                if (collab) {
+                    userName = collab.full_name || `${collab.first_name} ${collab.last_name}`;
+                    avatarUrl = collab.avatar_url;
+                } else {
+                    userName = a.user?.full_name || a.user?.first_name || 'Utente';
+                    avatarUrl = a.user?.avatar_url;
+                }
+                const initial = userName.charAt(0).toUpperCase();
+
+                return `
+                                            <div class="user-pill-mini pm" data-uid="${a.user_ref}" data-collab-id="${a.collaborator_ref}" title="${userName}" style="
+                                                display: flex; align-items: center; gap: 6px; background: var(--surface-1); 
+                                                padding: 2px 8px 2px 2px; border-radius: 16px; border: 1px solid transparent;
+                                                font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;
+                                            ">
+                                                <div style="width: 20px; height: 20px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 10px;">
+                                                    ${avatarUrl ? `<img src="${avatarUrl}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : initial}
+                                                </div>
+                                                ${userName.split(' ')[0]}
+                                                <span class="material-icons-round remove-space-pm-btn" data-id="${a.id}" style="font-size: 0.9rem; cursor: pointer; opacity: 0.5;">close</span>
+                                            </div>
+                                        `;
+            }).join('')}
+                                
+                                <!-- Add PM Button -->
+                                <div style="position: relative;">
+                                    <button id="add-space-pm-btn" style="
+                                        width: 24px; height: 24px; border-radius: 50%; color: var(--brand-blue); 
+                                        background: white; border: 1px dashed var(--brand-blue); display: flex; 
+                                        align-items: center; justify-content: center; cursor: pointer;
+                                    ">
+                                        <span class="material-icons-round" style="font-size: 1rem;">add</span>
                                     </button>
+                                    <div id="space-pm-picker" class="hidden glass-card" style="position: absolute; top: 130%; left: 0; width: 280px; z-index: 1000; max-height: 320px; overflow-y: auto; background: white; border-radius: 12px; border: 1px solid var(--surface-2); box-shadow: 0 10px 40px rgba(0,0,0,0.2);"></div>
                                 </div>
                             </div>
-                            <a href="#order-detail/${orderId}" class="icon-btn" title="Info Ordine" style="text-decoration: none;">
-                                <span class="material-icons-round">receipt_long</span>
-                            </a>
                         </div>
+
+                        <!-- Row 4: KPI Pills -->
+                        <div style="display: flex; gap: 1.5rem; margin-top: 0.5rem; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; background: #fef2f2; color: #ef4444; padding: 4px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem;">
+                                <span class="material-icons-round" style="font-size: 1rem;">warning</span>
+                                ${kpis.overdue} Scadute
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; color: #f59e0b; font-weight: 600; font-size: 0.85rem;">
+                                <span class="material-icons-round" style="font-size: 1rem;">schedule</span>
+                                ${kpis.dueSoon} In scadenza
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-weight: 600; font-size: 0.85rem;">
+                                <span class="material-icons-round" style="font-size: 1rem;">block</span>
+                                ${kpis.blocked} Bloccate
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; color: #10b981; font-weight: 600; font-size: 0.85rem;">
+                                <span class="material-icons-round" style="font-size: 1rem;">check_circle</span>
+                                ${kpis.progress}% Completato
+                            </div>
+                        </div>
+
                     </div>
-                    
-                    <!-- Row 2: KPI Badges -->
-                    <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
-                        <div id="kpi-badge-overdue" class="kpi-badge ${kpis.overdue > 0 ? 'warning' : ''}" style="
-                            display: flex; 
-                            align-items: center; 
-                            gap: 0.5rem; 
-                            padding: 0.5rem 1rem; 
-                            background: ${kpis.overdue > 0 ? '#fef2f2' : 'var(--surface-1)'}; 
-                            border-radius: 8px;
-                            ${kpis.overdue > 0 ? 'border: 1px solid #fecaca;' : ''}
-                        ">
-                            <span class="material-icons-round" style="font-size: 1.1rem; color: ${kpis.overdue > 0 ? '#ef4444' : 'var(--text-secondary)'};">warning</span>
-                            <span class="kpi-val" style="font-weight: 600; color: ${kpis.overdue > 0 ? '#ef4444' : 'var(--text-main)'};">${kpis.overdue}</span>
-                            <span style="font-size: 0.85rem; color: var(--text-secondary);">Scadute</span>
-                        </div>
-                        
-                        <div id="kpi-badge-dueSoon" class="kpi-badge" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--surface-1); border-radius: 8px;">
-                            <span class="material-icons-round" style="font-size: 1.1rem; color: #f59e0b;">schedule</span>
-                            <span class="kpi-val" style="font-weight: 600;">${kpis.dueSoon}</span>
-                            <span style="font-size: 0.85rem; color: var(--text-secondary);">In scadenza</span>
-                        </div>
-                        
-                        <div id="kpi-badge-blocked" class="kpi-badge ${kpis.blocked > 0 ? 'blocked' : ''}" style="
-                            display: flex; 
-                            align-items: center; 
-                            gap: 0.5rem; 
-                            padding: 0.5rem 1rem; 
-                            background: ${kpis.blocked > 0 ? '#fef2f2' : 'var(--surface-1)'}; 
-                            border-radius: 8px;
-                        ">
-                            <span class="material-icons-round" style="font-size: 1.1rem; color: ${kpis.blocked > 0 ? '#ef4444' : 'var(--text-secondary)'};">block</span>
-                            <span class="kpi-val" style="font-weight: 600; color: ${kpis.blocked > 0 ? '#ef4444' : 'var(--text-main)'};">${kpis.blocked}</span>
-                            <span style="font-size: 0.85rem; color: var(--text-secondary);">Bloccate</span>
-                        </div>
-                        
-                        <div id="kpi-badge-progress" class="kpi-badge" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--surface-1); border-radius: 8px;">
-                            <span class="material-icons-round" style="font-size: 1.1rem; color: #10b981;">check_circle</span>
-                            <span class="kpi-val" style="font-weight: 600;">${kpis.progress}%</span>
-                            <span style="font-size: 0.85rem; color: var(--text-secondary);">Completato</span>
-                        </div>
-                    </div>
-                </div>
                 
                 <!-- TABS -->
                 <div class="hub-tabs" style="
@@ -376,10 +316,12 @@ export async function renderCommessaDetail(container, orderId) {
                         <span class="material-icons-round">view_list</span>
                         Lista
                     </button>
+                    ${!isInternal ? `
                     <button class="hub-tab" data-tab="incarichi">
                         <span class="material-icons-round">assignment_ind</span>
                         Incarichi
                     </button>
+                    ` : ''}
                     <button class="hub-tab" data-tab="appointments">
                         <span class="material-icons-round">event</span>
                         Appuntamenti
@@ -387,7 +329,7 @@ export async function renderCommessaDetail(container, orderId) {
                 </div>
                 
                 <!-- TAB CONTENT -->
-                <div id="hub-tab-content" style="flex: 1; overflow-y: auto; background: var(--surface-1); padding: 1.5rem;">
+                <div id="hub-tab-content" style="flex: 1; overflow-y: auto; background: #f1f5f9; padding: 1.5rem;">
                     <!-- Dynamic content -->
                 </div>
                 
@@ -459,29 +401,29 @@ export async function renderCommessaDetail(container, orderId) {
 
             switch (tabName) {
                 case 'overview':
-                    const { renderHubOverview } = await import('./components/hub_overview.js?v=156');
+                    const { renderHubOverview } = await import('./components/hub_overview.js?v=157');
                     renderHubOverview(tabContent, items, kpis, spaceId);
                     break;
                 case 'tree':
-                    const { renderHubTree } = await import('./components/hub_tree.js?v=156');
+                    const { renderHubTree } = await import('./components/hub_tree.js?v=157');
                     renderHubTree(tabContent, items, space, spaceId);
                     break;
                 case 'list':
-                    const { renderHubList } = await import('./components/hub_list.js?v=156');
+                    const { renderHubList } = await import('./components/hub_list.js?v=157');
                     renderHubList(tabContent, items, space, spaceId);
                     break;
                 case 'incarichi':
-                    renderIncarichiTab(tabContent, order);
+                    if (!isInternal && order) renderIncarichiTab(tabContent, order);
+                    else tabContent.innerHTML = '<p style="padding:2rem;">Non disponibile per progetti interni.</p>';
                     break;
                 case 'appointments':
-                    const { renderHubAppointments } = await import('./components/hub_appointments.js?v=156');
-                    // We need to fetch appointments first or let the component do it.
-                    // Let's pass the fetch function and orderId
-                    // Or fetch here? Fetching here ensures data readiness before render.
-                    // But for consistency with overview (which takes items), let's fetch here.
-                    const ap = await fetchAppointments(orderId);
+                    const { renderHubAppointments } = await import('./components/hub_appointments.js?v=157');
+                    const refId = isInternal ? spaceId : orderId;
+                    const refType = isInternal ? 'space' : 'order';
+
+                    const ap = await fetchAppointments(refId, refType);
                     const types = await fetchAppointmentTypes();
-                    renderHubAppointments(tabContent, ap, types, orderId);
+                    renderHubAppointments(tabContent, ap, types, refId, refType);
                     break;
                 default:
                     tabContent.innerHTML = '<p style="padding:2rem;">Tab non implementata.</p>';
@@ -517,6 +459,15 @@ export async function renderCommessaDetail(container, orderId) {
                 addHubDropdown.classList.add('hidden');
                 openItemDrawer(null, spaceId, null, 'task');
             });
+
+            container.querySelector('#add-appointment-btn')?.addEventListener('click', () => {
+                addHubDropdown.classList.add('hidden');
+                import('./components/hub_appointment_drawer.js?v=157').then(mod => {
+                    const refId = isInternal ? spaceId : orderId;
+                    const refType = isInternal ? 'space' : 'order';
+                    mod.openAppointmentDrawer(null, refId, refType);
+                });
+            });
         }
 
         // 9. Listen for Item Changes (No Reload)
@@ -541,7 +492,7 @@ export async function renderCommessaDetail(container, orderId) {
                     renderTab(activeTab);
                 }
 
-                const { fetchProjectItems, fetchSpace, fetchSpaceAssignees } = await import('../../modules/pm_api.js?v=156');
+                const { fetchProjectItems, fetchSpace, fetchSpaceAssignees } = await import('../../modules/pm_api.js?v=157');
 
                 try {
                     console.log('[ProjectHub] Fetching fresh data to sync...');
@@ -559,16 +510,6 @@ export async function renderCommessaDetail(container, orderId) {
                     spaceAssignees = newAssignees || [];
                     kpis = calculateKPIs(items);
 
-                    window._hubContext.items = items;
-                    window._hubContext.space = space;
-                    window._hubContext.kpis = kpis;
-
-                    // Update Header KPI DOM manually to avoid full re-render
-                    container.querySelector('#kpi-badge-overdue .kpi-val').textContent = kpis.overdue;
-                    container.querySelector('#kpi-badge-dueSoon .kpi-val').textContent = kpis.dueSoon;
-                    container.querySelector('#kpi-badge-blocked .kpi-val').textContent = kpis.blocked;
-                    container.querySelector('#kpi-badge-progress .kpi-val').textContent = `${kpis.progress}%`;
-
                     // Update PM icons in header
                     const pmsList = container.querySelector('#space-pms-list');
                     if (pmsList) {
@@ -580,14 +521,18 @@ export async function renderCommessaDetail(container, orderId) {
                             let avatarUrl = a.user?.avatar_url;
                             const initial = userName.charAt(0).toUpperCase();
                             return `
-                                <div class="user-pill-mini pm" data-uid="${a.user_ref}" data-collab-id="${a.collaborator_ref}" title="${userName}" style="display: flex; align-items: center; gap: 4px; background: var(--surface-2); padding: 2px 8px 2px 4px; border-radius: 12px; border: 1px solid rgba(66, 133, 244, 0.2); font-size: 0.75rem; color: var(--brand-blue); font-weight: 500;">
-                                    <div style="width: 16px; height: 16px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 10px;">
-                                        ${avatarUrl ? `<img src="${avatarUrl}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : initial}
-                                    </div>
-                                    ${userName}
-                                    <span class="material-icons-round remove-space-pm-btn" data-id="${a.id}" style="font-size: 0.8rem; cursor: pointer; opacity: 0.6;">close</span>
-                                </div>
-                            `;
+                                        <div class="user-pill-mini pm" data-uid="${a.user_ref}" data-collab-id="${a.collaborator_ref}" title="${userName}" style="
+                                            display: flex; align-items: center; gap: 6px; background: var(--surface-1); 
+                                            padding: 2px 8px 2px 2px; border-radius: 16px; border: 1px solid transparent;
+                                            font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;
+                                        ">
+                                            <div style="width: 20px; height: 20px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 10px;">
+                                                ${avatarUrl ? `<img src="${avatarUrl}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : initial}
+                                            </div>
+                                            ${userName.split(' ')[0]}
+                                            <span class="material-icons-round remove-space-pm-btn" data-id="${a.id}" style="font-size: 0.9rem; cursor: pointer; opacity: 0.5;">close</span>
+                                        </div>
+                                    `;
                         }).join('') + addBtnHtml;
 
                         // Re-attach remove PM listeners if needed or use delegation (better)
@@ -610,10 +555,15 @@ export async function renderCommessaDetail(container, orderId) {
         document.addEventListener('pm-item-changed', pmListener);
 
         const apptListener = (e) => {
-            if (String(e.detail.orderId) === String(orderId)) {
+            const evt = e.detail;
+            const matchOrder = !isInternal && orderId && String(evt.orderId) === String(orderId);
+            const matchSpace = isInternal && spaceId && String(evt.spaceId) === String(spaceId);
+            const matchGeneric = evt.refType === (isInternal ? 'space' : 'order') && String(evt.refId) === String(isInternal ? spaceId : orderId);
+
+            if (matchOrder || matchSpace || matchGeneric) {
                 const activeTab = container.querySelector('.hub-tab.active')?.dataset.tab;
-                if (activeTab === 'appointments') {
-                    renderTab('appointments');
+                if (activeTab === 'appointments' || activeTab === 'overview') {
+                    renderTab(activeTab);
                 }
             }
         };
@@ -639,17 +589,34 @@ export async function renderCommessaDetail(container, orderId) {
                 return isPM && !isAssigned;
             });
 
-            if (others.length === 0) return '<div style="padding:1rem; font-size:0.8rem; color:var(--text-tertiary);">Nessun altro PM disponibile</div>';
-            return others.map(c => `
-                 <div class="user-option-space" data-uid="${c.user_id || ''}" data-collab-id="${c.id}" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; cursor: pointer; transition: background 0.2s;">
-                    <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 10px;">
-                        ${c.avatar_url ? `<img src="${c.avatar_url}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : (c.full_name || 'U')[0]}
-                    </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 0.85rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.full_name}</div>
-                    </div>
-                 </div>
-             `).join('');
+            if (others.length === 0) return '<div style="padding:1.5rem; text-align:center; font-size:0.85rem; color:var(--text-tertiary);">Nessun altro PM disponibile</div>';
+
+            return `
+                <div style="padding: 10px 12px 6px; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--surface-2); margin-bottom: 4px;">Assegna Project Manager</div>
+                ${others.map(c => {
+                const initial = c.full_name?.charAt(0).toUpperCase() || 'P';
+                return `
+                        <div class="user-option-space" data-uid="${c.user_id || ''}" data-collab-id="${c.id}" style="
+                            display: flex; 
+                            align-items: center; 
+                            gap: 10px; 
+                            padding: 10px 12px; 
+                            cursor: pointer; 
+                            transition: background 0.2s;
+                        " onmouseover="this.style.background='var(--surface-1)'" onmouseout="this.style.background='transparent'">
+                            <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; border: 1px solid rgba(0,0,0,0.05); overflow: hidden;">
+                                ${c.avatar_url ? `<img src="${c.avatar_url}" style="width:100%; height:100%; object-fit:cover;">` : initial}
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.full_name}</div>
+                                <div style="font-size: 0.7rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 4px;">
+                                    <span class="material-icons-round" style="font-size: 10px;">verified</span> Project Manager
+                                </div>
+                            </div>
+                        </div>
+                    `;
+            }).join('')}
+            `;
         };
 
         const attachPmOptionListeners = (picker) => {
@@ -705,7 +672,7 @@ export async function renderCommessaDetail(container, orderId) {
                 const newStatus = e.target.value;
                 try {
                     statusSelect.disabled = true;
-                    const { updateOrder } = await import('../../modules/api.js?v=156');
+                    const { updateOrder } = await import('../../modules/api.js?v=157');
                     await updateOrder(orderId, { status_works: newStatus });
                     const newNormalized = normalizeStatus(newStatus);
                     const newCfg = STATUS_CONFIG[newNormalized] || { label: newStatus, color: '#64748b', bg: '#f1f5f9' };
@@ -723,13 +690,23 @@ export async function renderCommessaDetail(container, orderId) {
         }
     } catch (e) {
         console.error("Error Hub:", e);
-        container.innerHTML = `<div class="error-state">Errore: ${e.message}</div>`;
+        container.innerHTML = `
+            <div class="error-state" style="padding: 2rem; text-align: center;">
+                <span class="material-icons-round" style="font-size: 3rem; color: var(--text-tertiary);">error_outline</span>
+                <h3>${isInternal ? 'Progetto non trovato' : 'Commessa non trovata'}</h3>
+                <p class="text-secondary">${e.message || 'Si è verificato un errore durante il caricamento.'}</p>
+                <a href="${isInternal ? '#pm/interni' : '#pm/commesse'}" class="primary-btn" style="margin-top: 1rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <span class="material-icons-round">arrow_back</span>
+                    ${isInternal ? 'Torna ai Progetti' : 'Torna alle Commesse'}
+                </a>
+            </div>
+        `;
     }
 }
 
 // Drawer function (exported for use by child components)
 export function openItemDrawer(itemId, spaceId, parentId = null, itemType = 'task') {
-    import('./components/hub_drawer.js?v=156').then(mod => {
+    import('./components/hub_drawer.js?v=157').then(mod => {
         mod.openHubDrawer(itemId, spaceId, parentId, itemType);
     });
 }

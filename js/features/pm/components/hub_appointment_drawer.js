@@ -1,9 +1,9 @@
-import { saveAppointment, deleteAppointment, fetchAppointmentTypes } from '../../../modules/pm_api.js?v=156';
-import { fetchContacts } from '../../../modules/api.js?v=156';
-import { state } from '../../../modules/state.js?v=156';
-import { renderUserPicker } from './picker_utils.js?v=156';
+import { saveAppointment, deleteAppointment, fetchAppointmentTypes } from '../../../modules/pm_api.js?v=157';
+import { fetchContacts } from '../../../modules/api.js?v=157';
+import { state } from '../../../modules/state.js?v=157';
+import { renderUserPicker } from './picker_utils.js?v=157';
 
-export async function openAppointmentDrawer(inputAppointment, orderId = null) {
+export async function openAppointmentDrawer(inputAppointment, contextId = null, contextType = 'order') {
     const overlay = document.getElementById('hub-drawer-overlay');
     const drawer = document.getElementById('hub-drawer');
 
@@ -15,9 +15,11 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
     let viewMode = !isCreate;
 
     // Context
-    const targetOrderId = appointment?.order_id || orderId;
-    if (!targetOrderId) {
-        console.error("Missing Order ID context for appointment");
+    const targetId = appointment ? (appointment.order_id || appointment.pm_space_id) : contextId;
+    const targetType = appointment ? (appointment.pm_space_id ? 'space' : 'order') : contextType;
+
+    if (!targetId) {
+        console.error("Missing Context ID for appointment");
         return;
     }
 
@@ -31,10 +33,12 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
     } catch (e) { console.error("Error loading types/contacts", e); }
 
     // Resolve Client Contacts
-    const order = state.orders?.find(o => o.id === targetOrderId);
-    const clientId = order?.client_id;
-    const clientContacts = state.contacts?.filter(c => c.client_id === clientId) || [];
-
+    let clientContacts = [];
+    if (targetType === 'order') {
+        const order = state.orders?.find(o => o.id === targetId);
+        const clientId = order?.client_id;
+        clientContacts = state.contacts?.filter(c => c.client_id === clientId) || [];
+    }
 
     // Form State
     let formState = {
@@ -291,6 +295,7 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
                     </div>
 
                     <!-- Client Participants -->
+                    ${targetType === 'order' ? `
                     <div class="form-group">
                          <label class="label-sm">Referenti Cliente</label>
                          <div style="background: white; border: 1px solid var(--surface-2); border-radius: 8px; padding: 0.5rem;">
@@ -321,9 +326,10 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
                                         </button>
                                     `).join('')}
                                 </div>
-                             ` : `<div style="font-size:0.8rem; color:var(--text-tertiary); font-style:italic;">Nessun contatto trovato per questo cliente.</div>`}
+                             ` : `<div style="font-size:0.8rem; color:var(--text-tertiary); font-style:italic;">Nessun contatto trovato.</div>`}
                          </div>
                     </div>
+                    ` : ''}
 
                     <!-- Status -->
                      <div class="form-group">
@@ -399,8 +405,10 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
                     return;
                 }
 
-                const space = state.pm_spaces?.find(s => s.ref_ordine === targetOrderId);
-                const spaceId = space ? space.id : null;
+                // If targetType is space, we can fetch space members. But `renderUserPicker` likely expects generic logic.
+                // Assuming we want to show current space participants + all collabs potentially.
+                const spaceId = targetType === 'space' ? targetId : state.pm_spaces?.find(s => s.ref_ordine === targetId)?.id;
+
                 const assignedIds = new Set([
                     ...formState.participants.internal.map(p => p.collaborator_id),
                     ...formState.participants.internal.map(p => p.user?.user_id).filter(Boolean)
@@ -492,7 +500,8 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
             try {
                 const payload = {
                     id: isCreate ? undefined : appointment.id,
-                    order_id: targetOrderId,
+                    order_id: targetType === 'order' ? targetId : null,
+                    pm_space_id: targetType === 'space' ? targetId : null,
                     title: formState.title,
                     start_time: new Date(formState.start_time).toISOString(),
                     end_time: new Date(formState.end_time).toISOString(),
@@ -514,7 +523,16 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
                 const saved = await saveAppointment(payload);
                 appointment = saved;
                 viewMode = true;
-                document.dispatchEvent(new CustomEvent('appointment-changed', { detail: { orderId: targetOrderId } }));
+
+                // Generic listener dispatch
+                const evtDetail = {
+                    refId: targetId,
+                    refType: targetType,
+                    orderId: targetType === 'order' ? targetId : null,
+                    spaceId: targetType === 'space' ? targetId : null
+                };
+
+                document.dispatchEvent(new CustomEvent('appointment-changed', { detail: evtDetail }));
                 render();
             } catch (err) {
                 console.error("Save failed", err);
@@ -531,7 +549,13 @@ export async function openAppointmentDrawer(inputAppointment, orderId = null) {
                 if (!confirm("Eliminare definitivamente l'appuntamento?")) return;
                 try {
                     await deleteAppointment(appointment.id);
-                    document.dispatchEvent(new CustomEvent('appointment-changed', { detail: { orderId: targetOrderId } }));
+                    const evtDetail = {
+                        refId: targetId,
+                        refType: targetType,
+                        orderId: targetType === 'order' ? targetId : null,
+                        spaceId: targetType === 'space' ? targetId : null
+                    };
+                    document.dispatchEvent(new CustomEvent('appointment-changed', { detail: evtDetail }));
                     overlay.classList.add('hidden');
                 } catch (err) { alert("Errore eliminazione: " + err.message); }
             });

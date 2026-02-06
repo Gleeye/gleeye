@@ -1,5 +1,5 @@
 // Hub Drawer - Full item editor panel
-import '../../../utils/modal-utils.js?v=156';
+import '../../../utils/modal-utils.js?v=157';
 import {
     createPMItem,
     updatePMItem,
@@ -9,8 +9,8 @@ import {
     fetchItemAssignees,
     assignUserToItem,
     removeUserFromItem
-} from '../../../modules/pm_api.js?v=156';
-import { state } from '../../../modules/state.js?v=156';
+} from '../../../modules/pm_api.js?v=157';
+import { state } from '../../../modules/state.js?v=157';
 
 
 
@@ -19,7 +19,7 @@ const ITEM_STATUS = {
     'in_progress': { label: 'In Corso', color: '#3b82f6', bg: '#eff6ff' },
     'blocked': { label: 'Bloccato', color: '#ef4444', bg: '#fef2f2' },
     'review': { label: 'Revisione', color: '#f59e0b', bg: '#fffbeb' },
-    'done': { label: 'Completato', color: '#10b981', bg: '#ecfdf5' }
+    'done': { label: 'Completata', color: '#10b981', bg: '#ecfdf5' }
 };
 
 export async function openHubDrawer(itemId, spaceId, parentId = null, itemType = 'task') {
@@ -303,7 +303,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                             <span style="font-size: 0.85rem; font-weight: 500; color: var(--brand-blue);">${userName}</span>
                                             <span style="font-size: 0.65rem; color: var(--text-tertiary); font-weight: 400;">Project Manager</span>
                                         </div>
-                                        <span class="material-icons-round remove-assignee-btn" data-uid="${a.user_ref || ''}" data-collab-id="${a.collaborator_ref || ''}" data-role="pm" style="font-size: 16px; color: var(--brand-blue); cursor: pointer; margin-left: 4px; opacity: 0.5; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">close</span>
+                                        <span class="material-icons-round remove-assignee-btn" data-id="${a.id}" data-role="pm" style="font-size: 16px; color: var(--brand-blue); cursor: pointer; margin-left: 4px; opacity: 0.5; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">close</span>
                                     </div>
                                 `;
             }).join('')}
@@ -323,16 +323,16 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 <div id="pm-picker" class="hidden" style="
                                     position: absolute; 
                                     background: white; 
-                                    box-shadow: 0 4px 20px rgba(0,0,0,0.15); 
+                                    box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
                                     border-radius: 12px; 
-                                    min-width: 240px; 
+                                    min-width: 260px; 
+                                    max-width: 350px;
                                     z-index: 1000;
                                     top: 100%;
                                     left: 0;
                                     margin-top: 8px;
                                     border: 1px solid var(--surface-2);
-                                    overflow-y: auto;
-                                    max-height: 280px;
+                                    overflow: hidden;
                                 ">
                                     ${renderAssigneePickerOptions(spaceId, 'pm')}
                                 </div>
@@ -353,7 +353,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                             ${a.user?.avatar_url ? `<img src="${a.user.avatar_url}" style="width:100%; height:100%; object-fit:cover;">` : initial}
                                         </div>
                                         <span style="font-size: 0.85rem; font-weight: 500;">${userName}</span>
-                                        <span class="material-icons-round remove-assignee-btn" data-uid="${a.user_ref || ''}" data-collab-id="${a.collaborator_ref || ''}" data-role="assignee" style="font-size: 16px; color: var(--text-tertiary); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-tertiary)'">close</span>
+                                        <span class="material-icons-round remove-assignee-btn" data-id="${a.id}" data-role="assignee" style="font-size: 16px; color: var(--text-tertiary); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-tertiary)'">close</span>
                                     </div>
                                 `;
             }).join('')}
@@ -370,15 +370,16 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 <div id="assignee-picker" class="hidden" style="
                                     position: absolute; 
                                     background: white; 
-                                    box-shadow: 0 4px 15px rgba(0,0,0,0.15); 
-                                    border-radius: 8px; 
-                                    min-width: 240px; 
+                                    box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
+                                    border-radius: 12px; 
+                                    min-width: 260px; 
+                                    max-width: 350px;
                                     z-index: 1000;
                                     top: 100%;
                                     right: 0;
                                     margin-top: 8px;
-                                    overflow-y: auto;
-                                    max-height: 280px;
+                                    border: 1px solid var(--surface-2);
+                                    overflow: hidden;
                                 ">
                                     ${renderAssigneePickerOptions(spaceId, 'assignee')}
                                 </div>
@@ -501,7 +502,20 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                      </button>
 
                                      <!-- Helper Picker -->
-                                     <div id="form-assignee-picker" class="hidden" style="position: absolute; top: 110%; left: 0; min-width: 240px; background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 100; border: 1px solid var(--surface-2);">
+                                     <div id="form-assignee-picker" class="hidden" style="
+                                         position: absolute; 
+                                         top: 100%; 
+                                         left: 0; 
+                                         min-width: 260px; 
+                                         max-width: 350px;
+                                         background: white; 
+                                         border-radius: 12px; 
+                                         box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
+                                         z-index: 100; 
+                                         border: 1px solid var(--surface-2);
+                                         overflow: hidden;
+                                         margin-top: 8px;
+                                     ">
                                          ${renderAssigneePickerOptions(spaceId, 'assignee')}
                                      </div>
                                  </div>
@@ -640,63 +654,45 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
             else others.push(u);
         });
 
-        // Add PM if applicable
-        if (space.default_pm_user_ref && !assignedIds.has(space.default_pm_user_ref) && !processedUserIds.has(space.default_pm_user_ref)) {
-            const pm = state.profiles?.find(p => p.id === space.default_pm_user_ref);
-            if (pm) {
-                suggestions.unshift({
-                    uid: pm.id,
-                    name: `${pm.first_name} ${pm.last_name} (PM)`,
-                    avatar: pm.avatar_url,
-                    hasAccount: true,
-                    isPm: true
-                });
-            }
-        }
-
-        if (suggestions.length === 0 && others.length === 0) {
-            return `<div style="padding:1rem; text-align:center; color:var(--text-secondary); font-size:0.8rem;">Nessun altro utente disponibile</div>`;
-        }
+        const headerStyle = "padding: 10px 12px 6px; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--surface-2); margin-bottom: 4px;";
 
         const renderUserOption = (u) => {
-            const uid = u.uid || '';
-            const avatar = u.avatar || 'https://ui-avatars.com/api/?name=' + u.name;
-            const name = u.name;
-            let desc = '';
-            if (u.isPm) desc = 'Project Manager';
-            else if (!u.hasAccount) desc = 'Collaboratore esterno';
-
+            const initial = u.name.charAt(0).toUpperCase();
             return `
-                <div class="user-option ${!u.hasAccount && targetRole === 'assignee' ? 'disabled' : ''}" 
-                    data-uid="${uid}" 
-                    data-collab-id="${u.collabId || ''}"
-                    data-has-account="${u.hasAccount}"
-                    data-target-role="${targetRole}"
+                <div class="user-option" 
+                    data-uid="${u.uid || ''}" 
+                    data-collab-id="${u.collabId || ''}" 
+                    data-has-account="${!!u.uid}" 
+                    data-target-role="${targetRole}" 
                     style="
-                        padding: 0.75rem 1rem; 
-                        display: flex; 
-                        align-items: center; 
-                        gap: 0.75rem; 
-                        cursor: pointer; 
-                        transition: background 0.2s;
-                    " onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
-                    <img src="${avatar}" style="width: 32px; height: 32px; border-radius: 50%;">
-                    <div>
-                        <div style="font-size: 0.9rem; font-weight: 500;">${name}</div>
-                        <div style="font-size: 0.75rem; color: var(--text-tertiary);">${desc}</div>
+                        padding: 8px 12px;
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                        cursor: pointer;
+                        transition: background 0.1s;
+                    " 
+                    onmouseover="this.style.background='var(--surface-1)'" 
+                    onmouseout="this.style.background='transparent'"
+                >
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--surface-3); overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--text-secondary); border: 1px solid var(--surface-2);">
+                        ${u.avatar ? `<img src="${u.avatar}" style="width:100%; height:100%; object-fit:cover;">` : initial}
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.name}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 4px;">
+                            ${u.uid ? '<span class="material-icons-round" style="font-size: 10px; color: var(--brand-blue);">verified_user</span> User' : '<span class="material-icons-round" style="font-size: 10px;">person_outline</span> Guest'}
+                        </div>
                     </div>
                 </div>
             `;
         };
 
-        const headerStyle = "padding: 0.5rem 1rem; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); letter-spacing: 0.05em; background: var(--surface-1); border-bottom: 1px solid var(--surface-2);";
-
         return `
-            <div>
-               ${targetRole === 'pm' ? '<div style="padding:1rem; text-align:center; font-size:0.8rem; color:var(--brand-blue); border-bottom:1px solid var(--surface-2);">Seleziona Project Manager</div>' : ''}
-               ${suggestions.length ? `<div style="${headerStyle}">SUGGERITI</div>${suggestions.map(renderUserOption).join('')}` : ''}
-               <div style="${headerStyle}">TUTTI</div>
-               ${others.map(renderUserOption).join('')}
+            <div style="max-height: 280px; overflow-y: auto;">
+                ${suggestions.length ? `<div style="${headerStyle}">SUGGERITI</div>${suggestions.map(renderUserOption).join('')}` : ''}
+                <div style="${headerStyle}">ALTRI</div>
+                ${others.map(renderUserOption).join('')}
             </div>
         `;
     };
@@ -945,17 +941,11 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                 if (!await window.showConfirm("Rimuovere assegnazione?")) return;
                 try {
-                    // Decide which ID to use for removal
-                    // If we have a collaborator ID but no user ID (or we want to prioritize), use it?
-                    // pm_api.removeUserFromItem handles the switch based on 3rd arg.
+                    const recordId = btn.dataset.id;
+                    if (!recordId) throw new Error("ID assegnazione mancante");
 
-                    if (userId && userId !== 'null') {
-                        await removeUserFromItem(itemId, userId, false);
-                    } else if (collabId && collabId !== 'null') {
-                        await removeUserFromItem(itemId, collabId, true);
-                    } else {
-                        throw new Error("ID assegnazione mancante");
-                    }
+                    const { error } = await supabase.from('pm_item_assignees').delete().eq('id', recordId);
+                    if (error) throw error;
 
                     // Refresh
                     assignees = await fetchItemAssignees(itemId);

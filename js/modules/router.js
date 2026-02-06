@@ -1,24 +1,24 @@
-import { state } from './state.js?v=156';
-import { renderDashboard } from '../features/dashboard.js?v=156';
-import { renderClients, renderClientDetail } from '../features/clients.js?v=156';
-import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=156';
-import { renderContacts } from '../features/contacts.js?v=156';
-import { renderOrderDetail } from '../features/orders.js?v=156';
-import { renderActiveInvoicesSafe, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from '../features/invoices.js?v=156';
-import { renderRevenueDashboard } from '../features/revenue_dashboard.js?v=156';
-import { renderBankTransactions } from '../features/bank_transactions.js?v=156';
-import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=156';
-import { renderBankStatements } from '../features/bank_statements.js?v=156';
-import { renderServices } from '../features/services.js?v=156';
-import { renderCollaboratorServices } from '../features/collaborator_services.js?v=156';
-import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=156';
-import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=156';
-import { renderBooking } from '../features/booking.js?v=156';
-import { renderUserProfile } from '../features/user_dashboard.js?v=156';
+import { state } from './state.js?v=157';
+import { renderDashboard } from '../features/dashboard.js?v=157';
+import { renderClients, renderClientDetail } from '../features/clients.js?v=157';
+import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=157';
+import { renderContacts } from '../features/contacts.js?v=157';
+import { renderOrderDetail } from '../features/orders.js?v=157';
+import { renderActiveInvoicesSafe, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from '../features/invoices.js?v=157';
+import { renderRevenueDashboard } from '../features/revenue_dashboard.js?v=157';
+import { renderBankTransactions } from '../features/bank_transactions.js?v=157';
+import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=157';
+import { renderBankStatements } from '../features/bank_statements.js?v=157';
+import { renderServices } from '../features/services.js?v=157';
+import { renderCollaboratorServices } from '../features/collaborator_services.js?v=157';
+import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=157';
+import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=157';
+import { renderBooking } from '../features/booking.js?v=157';
+import { renderUserProfile } from '../features/user_dashboard.js?v=157';
 import { renderAgenda } from '../features/personal_agenda.js?v=287';
 import { renderHomepage } from '../features/homepage.js?v=1';
-import { renderNotificationCenter } from '../features/notifications.js?v=156';
-import { renderAdminNotifications } from '../features/admin_notifications.js?v=156';
+import { renderNotificationCenter } from '../features/notifications.js?v=157';
+import { renderAdminNotifications } from '../features/admin_notifications.js?v=157';
 // Chat is loaded dynamically to avoid slowing down app startup
 
 export function router() {
@@ -98,8 +98,8 @@ export function router() {
     } else if (activeRole !== 'admin' && !isPrivilegedCollaborator && !allowedPagesForCollaborator.includes(state.currentPage)) {
         console.warn(`[Router] Access denied for role '${activeRole}' to page '${state.currentPage}'. Redirecting...`);
         // Force redirect to a safe page - Agenda is the default for standard collaborators
-        state.currentPage = 'agenda';
-        window.location.hash = 'agenda';
+        state.currentPage = 'home';
+        window.location.hash = 'home';
         return; // Stop here, the hash change will trigger router again
     }
 
@@ -189,7 +189,7 @@ function render() {
                 break;
             case 'settings':
                 if (pageTitle) pageTitle.textContent = 'Impostazioni';
-                import('../features/settings.js?v=156').then(module => {
+                import('../features/settings.js?v=157').then(module => {
                     module.renderSettings(contentArea);
                 });
                 break;
@@ -236,7 +236,7 @@ function render() {
                 break;
             case 'admin':
                 if (pageTitle) pageTitle.textContent = 'Amministrazione';
-                import('../features/admin/admin-dashboard.js?v=156').then(module => {
+                import('../features/admin/admin-dashboard.js?v=157').then(module => {
                     module.renderAdminDashboard(contentArea);
                 });
                 break;
@@ -249,20 +249,46 @@ function render() {
                 break;
             case 'pm':
                 if (pageTitle) pageTitle.textContent = 'Project Management';
-                // Check if it's commessa detail route: #pm/commessa/:orderId
+
+                // Route: Commessa Detail (#pm/commessa/:orderId)
                 if (state.currentSubPage === 'commessa' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Commessa';
-                    import('../features/pm/commessa_detail.js?v=156')
+                    import('../features/pm/commessa_detail.js?v=160')
                         .then(module => {
-                            module.renderCommessaDetail(contentArea, state.currentId);
+                            module.renderCommessaDetail(contentArea, state.currentId, false);
                         })
                         .catch(err => {
                             console.error("Failed to load commessa detail:", err);
                             contentArea.innerHTML = `<div class="error-state">Errore caricamento: ${err.message}</div>`;
                         });
+
+                    // Route: Internal Project Detail (#pm/space/:spaceId)
+                } else if (state.currentSubPage === 'space' && state.currentId) {
+                    if (pageTitle) pageTitle.textContent = 'Dettaglio Progetto';
+                    import('../features/pm/commessa_detail.js?v=160')
+                        .then(module => {
+                            module.renderCommessaDetail(contentArea, state.currentId, true);
+                        })
+                        .catch(err => {
+                            console.error("Failed to load project detail:", err);
+                            contentArea.innerHTML = `<div class="error-state">Errore caricamento: ${err.message}</div>`;
+                        });
+
+                    // Route: Internal Projects List (#pm/interni)
+                } else if (state.currentSubPage === 'interni') {
+                    if (pageTitle) pageTitle.textContent = 'Progetti Interni';
+                    import('../features/pm/internal_list.js?v=159')
+                        .then(module => {
+                            module.renderInternalProjects(contentArea);
+                        })
+                        .catch(err => {
+                            console.error("Failed to load internal projects:", err);
+                            contentArea.innerHTML = `<div class="error-state">Errore caricamento: ${err.message}</div>`;
+                        });
+
                 } else {
-                    // Standard PM views
-                    import('../features/pm/index.js?v=156')
+                    // Standard PM views (Dashboard)
+                    import('../features/pm/index.js?v=157')
                         .then(module => {
                             module.renderPM(contentArea);
                         })

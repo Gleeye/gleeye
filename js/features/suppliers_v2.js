@@ -1,6 +1,6 @@
-import { supabase } from '../modules/config.js?v=156';
-import { state } from '../modules/state.js?v=156';
-import { formatAmount } from '../modules/utils.js?v=156';
+import { supabase } from '../modules/config.js?v=157';
+import { state } from '../modules/state.js?v=157';
+import { formatAmount } from '../modules/utils.js?v=157';
 
 export async function renderSuppliers(container) {
     // Fetch data

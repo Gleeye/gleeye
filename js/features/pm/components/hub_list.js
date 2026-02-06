@@ -5,14 +5,14 @@ const ITEM_STATUS = {
     'in_progress': { label: 'In Corso', color: '#3b82f6', bg: '#eff6ff' },
     'blocked': { label: 'Bloccato', color: '#ef4444', bg: '#fef2f2' },
     'review': { label: 'Revisione', color: '#f59e0b', bg: '#fffbeb' },
-    'done': { label: 'Completato', color: '#10b981', bg: '#ecfdf5' }
+    'done': { label: 'Completata', color: '#10b981', bg: '#ecfdf5' }
 };
 
-const PRIORITY_CONFIG = {
-    'low': { label: 'Bassa', color: '#94a3b8' },
-    'medium': { label: 'Media', color: '#f59e0b' },
-    'high': { label: 'Alta', color: '#ef4444' },
-    'urgent': { label: 'Urgente', color: '#dc2626' }
+const ITEM_PRIORITY = {
+    'low': { label: 'Bassa', color: '#10b981', bg: '#ecfdf5' },
+    'medium': { label: 'Media', color: '#f59e0b', bg: '#fffbeb' },
+    'high': { label: 'Alta', color: '#ef4444', bg: '#fef2f2' },
+    'urgent': { label: 'Urgente', color: '#7c3aed', bg: '#f5f3ff' }
 };
 
 export function renderHubList(container, items, space, spaceId) {
@@ -64,7 +64,6 @@ export function renderHubList(container, items, space, spaceId) {
                         <option value="">Tutti i tipi</option>
                         <option value="attivita">Attività</option>
                         <option value="task">Task</option>
-                        <option value="milestone">Milestone</option>
                     </select>
                 </div>
                 
@@ -72,33 +71,28 @@ export function renderHubList(container, items, space, spaceId) {
                 <span class="text-secondary" style="font-size: 0.9rem;">${items.length} elementi</span>
             </div>
             
-            <!-- Table -->
+            <!-- Table Container -->
             <div style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse; min-width: 800px;">
-                    <thead>
-                        <tr style="background: var(--surface-1);">
-                            <th class="sortable" data-sort="title" style="text-align: left; padding: 0.75rem 1rem; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); cursor: pointer;">
-                                Titolo <span class="material-icons-round sort-icon" style="font-size: 1rem; vertical-align: middle;">unfold_more</span>
-                            </th>
-                            <th style="text-align: left; padding: 0.75rem 1rem; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary);">Tipo</th>
-                            <th style="text-align: left; padding: 0.75rem 1rem; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary);">Stato</th>
-                            <th style="text-align: left; padding: 0.75rem 1rem; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary);">Priorità</th>
-                            <th class="sortable" data-sort="due_date" style="text-align: left; padding: 0.75rem 1rem; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); cursor: pointer;">
-                                Scadenza <span class="material-icons-round sort-icon" style="font-size: 1rem; vertical-align: middle;">unfold_more</span>
-                            </th>
-                            <th style="width: 50px;"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="list-tbody">
+                <div style="min-width: 900px;">
+                    <!-- Table Header -->
+                    <div style="display: flex; align-items: center; padding: 0.75rem 1.5rem; border-bottom: 2px solid var(--surface-2); font-size: 0.75rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: var(--surface-1);">
+                        <div style="flex: 2; min-width: 0;">Titolo</div>
+                        <div style="width: 120px; text-align: center;">Persone</div>
+                        <div style="width: 100px; text-align: center;">Priorità</div>
+                        <div style="width: 100px; text-align: center;">Scadenza</div>
+                        <div style="width: 100px; text-align: center;">Stato</div>
+                        <div style="width: 50px;"></div>
+                    </div>
+                    
+                    <!-- Table Body -->
+                    <div id="list-content" style="padding: 0.5rem 0;">
                         ${sortedItems.length === 0 ? `
-                            <tr>
-                                <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                                    Nessun elemento trovato
-                                </td>
-                            </tr>
+                            <div style="text-align: center; padding: 4rem; color: var(--text-tertiary);">
+                                Nessun elemento trovato
+                            </div>
                         ` : sortedItems.map(item => renderListRow(item)).join('')}
-                    </tbody>
-                </table>
+                    </div>
+                </div>
             </div>
         </div>
     `;
@@ -109,59 +103,84 @@ export function renderHubList(container, items, space, spaceId) {
 
 function renderListRow(item) {
     const statusInfo = ITEM_STATUS[item.status] || ITEM_STATUS['todo'];
-    const priorityInfo = PRIORITY_CONFIG[item.priority] || { label: '-', color: 'var(--text-secondary)' };
+    const priorityInfo = ITEM_PRIORITY[item.priority] || ITEM_PRIORITY['medium'];
     const isOverdue = item.due_date && item.status !== 'done' && new Date(item.due_date) < new Date();
     const isDone = item.status === 'done';
 
-    const typeIcon = item.item_type === 'attivita' ? 'folder' : item.item_type === 'milestone' ? 'flag' : 'check_circle_outline';
-    const typeColor = item.item_type === 'attivita' ? '#f59e0b' : item.item_type === 'milestone' ? 'var(--brand-color)' : 'var(--text-secondary)';
+    // Assignees
+    const assignees = item.pm_item_assignees || [];
+    const avatars = assignees.slice(0, 3).map((a, idx) => {
+        const userName = a.user?.full_name || 'U';
+        const avatarUrl = a.user?.avatar_url;
+        return `
+            <div title="${userName}" style="
+                width: 24px; height: 24px; border-radius: 50%; background: var(--surface-3); 
+                border: 2px solid white; margin-left: ${idx === 0 ? '0' : '-8px'}; 
+                display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-secondary);
+                overflow: hidden; z-index: ${5 - idx};
+            ">
+                ${avatarUrl ? `<img src="${avatarUrl}" style="width:100%; height:100%; object-fit:cover;">` : userName.charAt(0)}
+            </div>
+        `;
+    }).join('');
+    const extraAssignees = assignees.length > 3 ? `<div style="font-size: 0.7rem; color: var(--text-tertiary); margin-left: 4px;">+${assignees.length - 3}</div>` : '';
 
     return `
-        <tr class="list-row" data-id="${item.id}" style="border-bottom: 1px solid var(--surface-2); cursor: pointer; transition: background 0.15s; ${isDone ? 'opacity: 0.6;' : ''}">
-            <td style="padding: 0.75rem 1rem;">
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <span class="material-icons-round" style="font-size: 1.1rem; color: ${typeColor};">${typeIcon}</span>
-                    <span style="font-weight: 500; ${isDone ? 'text-decoration: line-through;' : ''}">${item.title}</span>
+        <div class="list-row" data-id="${item.id}" style="
+            display: flex; align-items: center; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--surface-1); 
+            cursor: pointer; transition: all 0.2s;
+        " onmouseover="this.style.background='var(--surface-1)'" onmouseout="this.style.background='white'">
+            
+            <!-- Title -->
+            <div style="flex: 2; min-width: 0; display: flex; align-items: center; gap: 10px; ${isDone ? 'opacity: 0.5;' : ''}">
+                <span class="material-icons-round" style="font-size: 1.1rem; color: ${item.item_type === 'attivita' ? '#f59e0b' : 'var(--text-secondary)'}; flex-shrink: 0;">
+                    ${item.item_type === 'attivita' ? 'folder' : 'check_circle_outline'}
+                </span>
+                <span style="font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; ${isDone ? 'text-decoration: line-through;' : ''}">${item.title}</span>
+            </div>
+
+            <!-- People -->
+            <div style="width: 120px; display: flex; align-items: center; justify-content: center;">
+                <div style="display: flex; align-items: center;">
+                    ${avatars}
+                    ${extraAssignees}
                 </div>
-            </td>
-            <td style="padding: 0.75rem 1rem;">
-                <span style="font-size: 0.85rem; color: var(--text-secondary);">${item.item_type === 'attivita' ? 'Attività' : item.item_type === 'milestone' ? 'Milestone' : 'Task'}</span>
-            </td>
-            <td style="padding: 0.75rem 1rem;">
+                ${assignees.length === 0 ? '<span style="font-size: 0.7rem; color: var(--text-tertiary); opacity: 0.5;">---</span>' : ''}
+            </div>
+
+            <!-- Priority -->
+            <div style="width: 100px; display: flex; align-items: center; justify-content: center;">
                 <span style="
-                    display: inline-block;
-                    padding: 3px 10px;
-                    border-radius: 10px;
-                    font-size: 0.75rem;
-                    font-weight: 600;
-                    background: ${statusInfo.bg};
-                    color: ${statusInfo.color};
-                ">${statusInfo.label}</span>
-            </td>
-            <td style="padding: 0.75rem 1rem;">
-                <span style="font-size: 0.85rem; color: ${priorityInfo.color}; font-weight: 500;">${priorityInfo.label}</span>
-            </td>
-            <td style="padding: 0.75rem 1rem;">
+                    font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; 
+                    background: ${priorityInfo.bg}; color: ${priorityInfo.color};
+                    text-transform: uppercase; letter-spacing: 0.02em;
+                ">${priorityInfo.label}</span>
+            </div>
+
+            <!-- Due Date -->
+            <div style="width: 100px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: ${isOverdue ? '#ef4444' : 'var(--text-secondary)'}; font-weight: 600;">
                 ${item.due_date ? `
-                    <span style="
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 4px;
-                        font-size: 0.85rem;
-                        color: ${isOverdue ? '#ef4444' : 'var(--text-secondary)'};
-                        ${isOverdue ? 'font-weight: 600;' : ''}
-                    ">
-                        ${isOverdue ? '<span class="material-icons-round" style="font-size: 0.9rem;">warning</span>' : ''}
-                        ${new Date(item.due_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
-                    </span>
-                ` : '<span style="color: var(--text-tertiary);">-</span>'}
-            </td>
-            <td style="padding: 0.75rem 1rem; text-align: center;">
+                    <span class="material-icons-round" style="font-size: 0.9rem; margin-right: 4px;">${isOverdue ? 'warning' : 'event'}</span>
+                    ${new Date(item.due_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+                ` : '<span style="color: var(--text-tertiary); opacity: 0.3;">---</span>'}
+            </div>
+
+            <!-- Status -->
+            <div style="width: 100px; display: flex; align-items: center; justify-content: center;">
+                <span style="
+                    font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+                    background: ${statusInfo.bg}; color: ${statusInfo.color};
+                    text-transform: uppercase;
+                ">${statusInfo.label}</span>
+            </div>
+
+            <!-- Actions -->
+            <div style="width: 50px; display: flex; align-items: center; justify-content: center;">
                 <button class="icon-btn row-menu-btn" style="padding: 4px;">
-                    <span class="material-icons-round" style="font-size: 1rem;">more_vert</span>
+                    <span class="material-icons-round" style="font-size: 1.1rem; color: var(--text-tertiary);">more_vert</span>
                 </button>
-            </td>
-        </tr>
+            </div>
+        </div>
     `;
 }
 
@@ -171,36 +190,19 @@ function setupListEventHandlers(container, items, spaceId) {
         row.addEventListener('click', (e) => {
             if (e.target.closest('.row-menu-btn')) return;
             const itemId = row.dataset.id;
-            import('./hub_drawer.js?v=156').then(mod => {
+            import('./hub_drawer.js?v=157').then(mod => {
                 mod.openHubDrawer(itemId, spaceId);
             });
         });
-
-        row.addEventListener('mouseenter', () => {
-            row.style.background = 'var(--surface-1)';
-        });
-        row.addEventListener('mouseleave', () => {
-            row.style.background = '';
-        });
     });
 
-    // Search
+    // Filtering logic remains the same but targets .list-row
     const searchInput = container.querySelector('#list-search');
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            container.querySelectorAll('.list-row').forEach(row => {
-                const title = row.querySelector('td span[style*="font-weight"]')?.textContent?.toLowerCase() || '';
-                row.style.display = title.includes(term) ? '' : 'none';
-            });
-        });
-    }
-
-    // Filter by status
     const statusFilter = container.querySelector('#filter-status');
     const typeFilter = container.querySelector('#filter-type');
 
     const applyFilters = () => {
+        const term = searchInput?.value.toLowerCase() || '';
         const statusVal = statusFilter?.value || '';
         const typeVal = typeFilter?.value || '';
 
@@ -208,13 +210,14 @@ function setupListEventHandlers(container, items, spaceId) {
             const item = items.find(i => i.id === row.dataset.id);
             if (!item) return;
 
+            const matchSearch = item.title.toLowerCase().includes(term);
             const matchStatus = !statusVal || item.status === statusVal;
             const matchType = !typeVal || item.item_type === typeVal;
 
-            row.style.display = (matchStatus && matchType) ? '' : 'none';
+            row.style.display = (matchSearch && matchStatus && matchType) ? 'flex' : 'none';
         });
     };
 
-    statusFilter?.addEventListener('change', applyFilters);
-    typeFilter?.addEventListener('change', applyFilters);
+    [searchInput, statusFilter, typeFilter].forEach(el => el?.addEventListener('input', applyFilters));
+    [statusFilter, typeFilter].forEach(el => el?.addEventListener('change', applyFilters));
 }
