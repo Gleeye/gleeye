@@ -1,6 +1,6 @@
-import { fetchOrders, fetchCollaborators } from '../../modules/api.js?v=157';
-import { state } from '../../modules/state.js?v=157';
-import { fetchProjectSpaceForOrder, fetchCommesseTeamSummary } from '../../modules/pm_api.js?v=157';
+import { fetchOrders, fetchCollaborators } from '../../modules/api.js?v=317';
+import { state } from '../../modules/state.js?v=317';
+import { fetchProjectSpaceForOrder, fetchCommesseTeamSummary } from '../../modules/pm_api.js?v=317';
 
 // Real status values from "Stato Lavori" multiselect
 const STATUS_CONFIG = {
@@ -92,13 +92,17 @@ export async function renderCommesseList(container) {
         `;
 
         // --- 2. DATA FETCHING ---
-        const promises = [];
-        if (!state.orders || state.orders.length === 0) promises.push(fetchOrders());
-        if (!state.collaborators || state.collaborators.length === 0) promises.push(fetchCollaborators());
-        promises.push(fetchCommesseTeamSummary());
+        const fetchPromises = [];
+        let teamSummaryIdx = -1;
 
-        const results = await Promise.all(promises);
-        teamSummary = results[results.length - 1]; // Assume last is team summary
+        if (!state.orders || state.orders.length === 0) fetchPromises.push(fetchOrders());
+        if (!state.collaborators || state.collaborators.length === 0) fetchPromises.push(fetchCollaborators());
+
+        teamSummaryIdx = fetchPromises.length;
+        fetchPromises.push(fetchCommesseTeamSummary());
+
+        const results = await Promise.all(fetchPromises);
+        teamSummary = results[teamSummaryIdx] || {};
 
         // --- 3. PROCESS DATA ---
         allProjects = (state.orders || []).filter(o => {

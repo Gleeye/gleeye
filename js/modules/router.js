@@ -1,24 +1,24 @@
-import { state } from './state.js?v=157';
-import { renderDashboard } from '../features/dashboard.js?v=157';
-import { renderClients, renderClientDetail } from '../features/clients.js?v=157';
-import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=157';
-import { renderContacts } from '../features/contacts.js?v=157';
-import { renderOrderDetail } from '../features/orders.js?v=157';
-import { renderActiveInvoicesSafe, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from '../features/invoices.js?v=157';
-import { renderRevenueDashboard } from '../features/revenue_dashboard.js?v=157';
-import { renderBankTransactions } from '../features/bank_transactions.js?v=157';
-import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=157';
-import { renderBankStatements } from '../features/bank_statements.js?v=157';
-import { renderServices } from '../features/services.js?v=157';
-import { renderCollaboratorServices } from '../features/collaborator_services.js?v=157';
-import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=157';
-import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=157';
-import { renderBooking } from '../features/booking.js?v=157';
-import { renderUserProfile } from '../features/user_dashboard.js?v=157';
-import { renderAgenda } from '../features/personal_agenda.js?v=287';
-import { renderHomepage } from '../features/homepage.js?v=1';
-import { renderNotificationCenter } from '../features/notifications.js?v=157';
-import { renderAdminNotifications } from '../features/admin_notifications.js?v=157';
+import { state } from './state.js?v=317';
+import { renderDashboard } from '../features/dashboard.js?v=317';
+import { renderClients, renderClientDetail } from '../features/clients.js?v=317';
+import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=317';
+import { renderContacts } from '../features/contacts.js?v=317';
+import { renderOrderDetail } from '../features/orders.js?v=317';
+import { renderActiveInvoicesSafe, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from '../features/invoices.js?v=317';
+import { renderRevenueDashboard } from '../features/revenue_dashboard.js?v=317';
+import { renderBankTransactions } from '../features/bank_transactions.js?v=317';
+import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=317';
+import { renderBankStatements } from '../features/bank_statements.js?v=317';
+import { renderServices } from '../features/services.js?v=317';
+import { renderCollaboratorServices } from '../features/collaborator_services.js?v=317';
+import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=317';
+import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=317';
+import { renderBooking } from '../features/booking.js?v=317';
+import { renderUserProfile } from '../features/user_dashboard.js?v=317';
+import { renderAgenda } from '../features/personal_agenda.js?v=317';
+import { renderHomepage } from '../features/homepage.js?v=317';
+import { renderNotificationCenter } from '../features/notifications.js?v=317';
+import { renderAdminNotifications } from '../features/admin_notifications.js?v=317';
 // Chat is loaded dynamically to avoid slowing down app startup
 
 export function router() {
@@ -189,7 +189,7 @@ function render() {
                 break;
             case 'settings':
                 if (pageTitle) pageTitle.textContent = 'Impostazioni';
-                import('../features/settings.js?v=157').then(module => {
+                import('../features/settings.js?v=317').then(module => {
                     module.renderSettings(contentArea);
                 });
                 break;
@@ -236,7 +236,7 @@ function render() {
                 break;
             case 'admin':
                 if (pageTitle) pageTitle.textContent = 'Amministrazione';
-                import('../features/admin/admin-dashboard.js?v=157').then(module => {
+                import('../features/admin/admin-dashboard.js?v=317').then(module => {
                     module.renderAdminDashboard(contentArea);
                 });
                 break;
@@ -253,7 +253,7 @@ function render() {
                 // Route: Commessa Detail (#pm/commessa/:orderId)
                 if (state.currentSubPage === 'commessa' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Commessa';
-                    import('../features/pm/commessa_detail.js?v=160')
+                    import('../features/pm/commessa_detail.js?v=317')
                         .then(module => {
                             module.renderCommessaDetail(contentArea, state.currentId, false);
                         })
@@ -265,9 +265,9 @@ function render() {
                     // Route: Internal Project Detail (#pm/space/:spaceId)
                 } else if (state.currentSubPage === 'space' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Progetto';
-                    import('../features/pm/commessa_detail.js?v=160')
+                    import('../features/pm/space_view.js?v=317')
                         .then(module => {
-                            module.renderCommessaDetail(contentArea, state.currentId, true);
+                            module.renderSpaceView(contentArea, state.currentId);
                         })
                         .catch(err => {
                             console.error("Failed to load project detail:", err);
@@ -277,7 +277,7 @@ function render() {
                     // Route: Internal Projects List (#pm/interni)
                 } else if (state.currentSubPage === 'interni') {
                     if (pageTitle) pageTitle.textContent = 'Progetti Interni';
-                    import('../features/pm/internal_list.js?v=159')
+                    import('../features/pm/internal_list.js?v=317')
                         .then(module => {
                             module.renderInternalProjects(contentArea);
                         })
@@ -288,7 +288,7 @@ function render() {
 
                 } else {
                     // Standard PM views (Dashboard)
-                    import('../features/pm/index.js?v=157')
+                    import('../features/pm/index.js?v=317')
                         .then(module => {
                             module.renderPM(contentArea);
                         })

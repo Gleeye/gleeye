@@ -1,10 +1,10 @@
-import { state } from '../modules/state.js?v=157';
-import { formatAmount } from '../modules/utils.js?v=157';
-import { CustomSelect } from '../components/CustomSelect.js?v=149';
-import { DashboardData } from './dashboard.js?v=157';
-import { showGlobalAlert } from '../modules/utils.js?v=157';
-import { supabase } from '../modules/config.js?v=157';
-import { fetchInvoices, fetchPassiveInvoices, fetchPayments, fetchBankTransactions } from '../modules/api.js?v=157';
+import { state } from '../modules/state.js?v=317';
+import { formatAmount } from '../modules/utils.js?v=317';
+import { CustomSelect } from '../components/CustomSelect.js?v=317';
+import { DashboardData } from './dashboard.js?v=317';
+import { showGlobalAlert } from '../modules/utils.js?v=317';
+import { supabase } from '../modules/config.js?v=317';
+import { fetchInvoices, fetchPassiveInvoices, fetchPayments, fetchBankTransactions } from '../modules/api.js?v=317';
 
 // --- VIEW FUNCTIONS ---
 

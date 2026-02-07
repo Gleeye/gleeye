@@ -1,9 +1,9 @@
-import { state } from '../modules/state.js?v=157';
-import { supabase } from '../modules/config.js?v=157';
-import { formatAmount } from '../modules/utils.js?v=157';
+import { state } from '../modules/state.js?v=317';
+import { supabase } from '../modules/config.js?v=317';
+import { formatAmount } from '../modules/utils.js?v=317';
 
-import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment } from '../modules/api.js?v=157';
-import { fetchAppointment, updatePMItem } from '../modules/pm_api.js?v=157';
+import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment } from '../modules/api.js?v=317';
+import { fetchAppointment, updatePMItem } from '../modules/pm_api.js?v=317';
 
 // We reuse fetchMyBookings but we might need a tighter scoped fetch for "Today"
 // Actually fetchMyBookings stores in `eventsCache` (not exported) or `window`?
@@ -1399,7 +1399,7 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
 }
 
 // --- EVENT DETAIL MODAL (Now unified via agenda_utils.js) ---
-import { openEventDetails } from './agenda_utils.js?v=157';
+import { openEventDetails } from './agenda_utils.js?v=317';
 
 window.openHomepageEventDetails = openEventDetails; // Compatibility Alias
 

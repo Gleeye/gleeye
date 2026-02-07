@@ -107,7 +107,7 @@ function renderListView(container, appointments, types, contextId, contextType) 
             const id = card.dataset.id;
             const appt = appointments.find(a => a.id === id);
             if (appt) {
-                import('./hub_appointment_drawer.js?v=157').then(mod => {
+                import('./hub_appointment_drawer.js?v=317').then(mod => {
                     mod.openAppointmentDrawer(appt, contextId, contextType);
                 });
             }

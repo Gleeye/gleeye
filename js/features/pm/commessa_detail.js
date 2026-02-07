@@ -1,6 +1,6 @@
-import { state } from '../../modules/state.js?v=157';
-import { fetchOrders } from '../../modules/api.js?v=157';
-import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes } from '../../modules/pm_api.js?v=157';
+import { state } from '../../modules/state.js?v=317';
+import { fetchOrders } from '../../modules/api.js?v=317';
+import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes } from '../../modules/pm_api.js?v=317';
 
 // Status colors for "Stato Lavori"
 const STATUS_CONFIG = {
@@ -64,7 +64,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         // Only fetch orders if we are in commessa mode
         if (!isInternal && (!state.orders || state.orders.length === 0)) promises.push(fetchOrders());
 
-        const { fetchAssignments, fetchCollaborators } = await import('../../modules/api.js?v=157');
+        const { fetchAssignments, fetchCollaborators } = await import('../../modules/api.js?v=317');
         if (!state.assignments || state.assignments.length === 0) promises.push(fetchAssignments());
         if (!state.collaborators || state.collaborators.length === 0) promises.push(fetchCollaborators());
 
@@ -77,7 +77,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
         if (isInternal) {
             // EntityId is SpaceID
-            const { fetchSpace } = await import('../../modules/pm_api.js?v=157');
+            const { fetchSpace } = await import('../../modules/pm_api.js?v=317');
             space = await fetchSpace(entityId);
             if (!space) throw new Error("Spazio non trovato");
         } else {
@@ -401,15 +401,15 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
             switch (tabName) {
                 case 'overview':
-                    const { renderHubOverview } = await import('./components/hub_overview.js?v=157');
+                    const { renderHubOverview } = await import('./components/hub_overview.js?v=317');
                     renderHubOverview(tabContent, items, kpis, spaceId);
                     break;
                 case 'tree':
-                    const { renderHubTree } = await import('./components/hub_tree.js?v=157');
+                    const { renderHubTree } = await import('./components/hub_tree.js?v=317');
                     renderHubTree(tabContent, items, space, spaceId);
                     break;
                 case 'list':
-                    const { renderHubList } = await import('./components/hub_list.js?v=157');
+                    const { renderHubList } = await import('./components/hub_list.js?v=317');
                     renderHubList(tabContent, items, space, spaceId);
                     break;
                 case 'incarichi':
@@ -417,7 +417,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     else tabContent.innerHTML = '<p style="padding:2rem;">Non disponibile per progetti interni.</p>';
                     break;
                 case 'appointments':
-                    const { renderHubAppointments } = await import('./components/hub_appointments.js?v=157');
+                    const { renderHubAppointments } = await import('./components/hub_appointments.js?v=317');
                     const refId = isInternal ? spaceId : orderId;
                     const refType = isInternal ? 'space' : 'order';
 
@@ -462,7 +462,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
             container.querySelector('#add-appointment-btn')?.addEventListener('click', () => {
                 addHubDropdown.classList.add('hidden');
-                import('./components/hub_appointment_drawer.js?v=157').then(mod => {
+                import('./components/hub_appointment_drawer.js?v=317').then(mod => {
                     const refId = isInternal ? spaceId : orderId;
                     const refType = isInternal ? 'space' : 'order';
                     mod.openAppointmentDrawer(null, refId, refType);
@@ -492,7 +492,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     renderTab(activeTab);
                 }
 
-                const { fetchProjectItems, fetchSpace, fetchSpaceAssignees } = await import('../../modules/pm_api.js?v=157');
+                const { fetchProjectItems, fetchSpace, fetchSpaceAssignees } = await import('../../modules/pm_api.js?v=317');
 
                 try {
                     console.log('[ProjectHub] Fetching fresh data to sync...');
@@ -574,7 +574,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         // 11. Initial render
         renderTab('overview');
 
-        // 12. Multi-PM Picker Logic Helpers
+        // Multi-PM Picker Logic Helpers
         const renderPmOptions = () => {
             const assignedUserIds = new Set(spaceAssignees.map(a => a.user_ref).filter(Boolean));
             const assignedCollabIds = new Set(spaceAssignees.map(a => a.collaborator_ref).filter(Boolean));
@@ -619,51 +619,83 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
             `;
         };
 
-        const attachPmOptionListeners = (picker) => {
-            picker.querySelectorAll('.user-option-space').forEach(opt => {
-                opt.addEventListener('click', async () => {
-                    const uid = opt.dataset.uid;
-                    const collabId = opt.dataset.collabId;
+        // Header PM UI - Consolidated Event Handler
+        const handleCommessaPmEvents = async (e) => {
+            // 1. ADD Button Click
+            const addBtn = e.target.closest('#add-space-pm-btn');
+            if (addBtn) {
+                e.stopPropagation();
+                // Find relative picker
+                const pickerContainer = addBtn.parentElement;
+                const pmPicker = pickerContainer.querySelector('#space-pm-picker');
+                if (pmPicker) {
+                    if (pmPicker.classList.contains('hidden')) {
+                        // Close other pickers if any (optional)
+                        document.querySelectorAll('#space-pm-picker:not(.hidden)').forEach(p => p.classList.add('hidden'));
+                        pmPicker.innerHTML = renderPmOptions();
+                        pmPicker.classList.remove('hidden');
+                    } else {
+                        pmPicker.classList.add('hidden');
+                    }
+                }
+                return;
+            }
+
+            // 2. OPTION Selection Click
+            const opt = e.target.closest('.user-option-space');
+            if (opt) {
+                e.stopPropagation();
+                const uid = opt.dataset.uid;
+                const collabId = opt.dataset.collabId;
+                const pmPicker = opt.closest('#space-pm-picker');
+                if (pmPicker) pmPicker.classList.add('hidden');
+
+                try {
+                    if (uid && uid !== 'null' && uid !== '') await assignUserToSpace(spaceId, uid, 'pm');
+                    else await assignUserToSpace(spaceId, collabId, 'pm', true);
+                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
+                } catch (err) { alert("Errore PM: " + err.message); }
+                return;
+            }
+
+            // 3. PM removal delegation
+            const removeBtn = e.target.closest('.remove-space-pm-btn');
+            if (removeBtn) {
+                e.stopPropagation();
+                const pill = removeBtn.closest('.user-pill-mini');
+                if (pill && await window.showConfirm?.("Rimuovere PM dalla commessa?")) {
+                    const uid = pill.dataset.uid;
+                    const collabId = pill.dataset.collabId;
                     try {
-                        if (uid && uid !== 'null' && uid !== '') await assignUserToSpace(spaceId, uid, 'pm');
-                        else await assignUserToSpace(spaceId, collabId, 'pm', true);
+                        if (uid && uid !== 'null' && uid !== 'undefined') await removeUserFromSpace(spaceId, uid);
+                        else await removeUserFromSpace(spaceId, collabId, true);
                         document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
-                    } catch (err) { alert("Errore PM: " + err.message); }
-                });
-            });
+                    } catch (err) { alert("Errore: " + err.message); }
+                }
+                return;
+            }
         };
 
-        // Header PM UI initial setup
-        const addPmBtn = container.querySelector('#add-space-pm-btn');
-        const pmPicker = container.querySelector('#space-pm-picker');
-        if (addPmBtn && pmPicker) {
-            addPmBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (pmPicker.classList.contains('hidden')) {
-                    pmPicker.innerHTML = renderPmOptions();
-                    pmPicker.classList.remove('hidden');
-                    attachPmOptionListeners(pmPicker);
-                } else pmPicker.classList.add('hidden');
-            });
-            document.addEventListener('click', (e) => { if (pmPicker && !pmPicker.contains(e.target) && e.target !== addPmBtn) pmPicker.classList.add('hidden'); });
+        // Attach Container Listener (Remove old first)
+        if (container._commessaPmHandler) {
+            container.removeEventListener('click', container._commessaPmHandler);
         }
+        container._commessaPmHandler = handleCommessaPmEvents;
+        container.addEventListener('click', handleCommessaPmEvents);
 
-        // PM removal delegation
-        container.addEventListener('click', async (e) => {
-            const removeBtn = e.target.closest('.remove-space-pm-btn');
-            if (!removeBtn) return;
-            e.stopPropagation();
-            const pill = removeBtn.closest('.user-pill-mini');
-            if (pill && await window.showConfirm?.("Rimuovere PM dalla commessa?")) {
-                const uid = pill.dataset.uid;
-                const collabId = pill.dataset.collabId;
-                try {
-                    if (uid && uid !== 'null' && uid !== 'undefined') await removeUserFromSpace(spaceId, uid);
-                    else await removeUserFromSpace(spaceId, collabId, true);
-                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
-                } catch (err) { alert("Errore: " + err.message); }
-            }
-        });
+        // Global Outside Click for PM Picker
+        if (!window._commessaPickerOutside) {
+            window._commessaPickerOutside = (e) => {
+                const pickers = container.querySelectorAll('#space-pm-picker:not(.hidden)');
+                pickers.forEach(picker => {
+                    const btn = picker.parentElement.querySelector('#add-space-pm-btn');
+                    if (!picker.contains(e.target) && (!btn || !btn.contains(e.target))) {
+                        picker.classList.add('hidden');
+                    }
+                });
+            };
+            document.addEventListener('click', window._commessaPickerOutside);
+        }
 
         // 13. Status Update Logic
         const statusSelect = container.querySelector('#hub-order-status-select');
@@ -672,7 +704,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                 const newStatus = e.target.value;
                 try {
                     statusSelect.disabled = true;
-                    const { updateOrder } = await import('../../modules/api.js?v=157');
+                    const { updateOrder } = await import('../../modules/api.js?v=317');
                     await updateOrder(orderId, { status_works: newStatus });
                     const newNormalized = normalizeStatus(newStatus);
                     const newCfg = STATUS_CONFIG[newNormalized] || { label: newStatus, color: '#64748b', bg: '#f1f5f9' };
@@ -706,7 +738,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
 // Drawer function (exported for use by child components)
 export function openItemDrawer(itemId, spaceId, parentId = null, itemType = 'task') {
-    import('./components/hub_drawer.js?v=157').then(mod => {
+    import('./components/hub_drawer.js?v=317').then(mod => {
         mod.openHubDrawer(itemId, spaceId, parentId, itemType);
     });
 }

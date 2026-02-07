@@ -1,6 +1,6 @@
-import { supabase } from './config.js?v=157';
-import { state } from './state.js?v=157';
-import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=157';
+import { supabase } from './config.js?v=317';
+import { state } from './state.js?v=317';
+import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=317';
 
 // --- SPACES ---
 
@@ -76,10 +76,61 @@ export async function fetchInternalSpaces() {
         .from('pm_spaces')
         .select('*')
         .eq('type', 'interno')
+        .order('is_cluster', { ascending: false }) // Clusters first
         .order('created_at', { ascending: false });
 
     if (error) {
         console.error("Error fetching internal spaces:", error);
+        return [];
+    }
+    return data;
+}
+
+export async function createCluster(name, area) {
+    const { data, error } = await supabase
+        .from('pm_spaces')
+        .insert({
+            type: 'interno',
+            name: name,
+            area: area,
+            is_cluster: true,
+            default_pm_user_ref: state.profile?.id
+        })
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+export async function createProjectInCluster(name, area, clusterId) {
+    const { data, error } = await supabase
+        .from('pm_spaces')
+        .insert({
+            type: 'interno',
+            name: name,
+            area: area,
+            is_cluster: false,
+            parent_ref: clusterId,
+            default_pm_user_ref: state.profile?.id
+        })
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+
+}
+
+export async function fetchChildProjects(clusterId) {
+    const { data, error } = await supabase
+        .from('pm_spaces')
+        .select('*')
+        .eq('parent_ref', clusterId)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching child projects:", error);
         return [];
     }
     return data;

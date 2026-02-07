@@ -1,6 +1,6 @@
-import { state } from '../modules/state.js?v=157';
-import { fetchAppointment } from '../modules/pm_api.js?v=157';
-import { fetchCollaborators } from '../modules/api.js?v=157';
+import { state } from '../modules/state.js?v=317';
+import { fetchAppointment } from '../modules/pm_api.js?v=317';
+import { fetchCollaborators } from '../modules/api.js?v=317';
 
 // Shared Event Detail Modal Logic
 export async function openEventDetails(event) {

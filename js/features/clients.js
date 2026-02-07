@@ -1,8 +1,8 @@
-import { state } from '../modules/state.js?v=157';
-import { formatAmount } from '../modules/utils.js?v=157';
+import { state } from '../modules/state.js?v=317';
+import { formatAmount } from '../modules/utils.js?v=317';
 // Import dependencies similar to collaborators.js
 // We assume fetch functions are available in api.js if needed, but we rely on state mostly
-import { fetchOrders, fetchInvoices, fetchPayments } from '../modules/api.js?v=157';
+import { fetchOrders, fetchInvoices, fetchPayments } from '../modules/api.js?v=317';
 
 export function renderClients(container) {
     const filteredClients = state.clients.filter(c =>

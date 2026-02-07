@@ -1,8 +1,8 @@
-import { state } from '../modules/state.js?v=157';
-import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=157';
-import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment, deleteAssignment } from '../modules/api.js?v=157';
-import { openPaymentModal } from './payments.js?v=157';
-import { CustomSelect } from '../components/CustomSelect.js?v=157';
+import { state } from '../modules/state.js?v=317';
+import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=317';
+import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment, deleteAssignment } from '../modules/api.js?v=317';
+import { openPaymentModal } from './payments.js?v=317';
+import { CustomSelect } from '../components/CustomSelect.js?v=317';
 
 // Helper functions
 function getStatusColor(status) {
@@ -58,7 +58,7 @@ export async function renderAssignmentDetail(container) {
         // Fetch collaborator services if not loaded
         if (!state.collaboratorServices || state.collaboratorServices.length === 0) {
             console.log('DEBUG: collaboratorServices missing or empty, fetching...');
-            const { fetchCollaboratorServices } = await import('../modules/api.js?v=157');
+            const { fetchCollaboratorServices } = await import('../modules/api.js?v=317');
             await fetchCollaboratorServices();
         }
 

@@ -17,7 +17,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
     let appointments = [];
     if (orderId) {
         try {
-            const { fetchAppointments } = await import('../../../modules/pm_api.js?v=159');
+            const { fetchAppointments } = await import('../../../modules/pm_api.js?v=317');
             appointments = await fetchAppointments(orderId);
         } catch (err) {
             console.error("Error fetching appointments for overview:", err);
@@ -210,7 +210,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
     container.querySelectorAll('.urgent-item').forEach(el => {
         el.addEventListener('click', () => {
             const itemId = el.dataset.id;
-            import('./hub_drawer.js?v=157').then(mod => {
+            import('./hub_drawer.js?v=317').then(mod => {
                 mod.openHubDrawer(itemId, spaceId);
             });
         });
@@ -219,7 +219,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
     container.querySelectorAll('.appointment-item').forEach(el => {
         el.addEventListener('click', () => {
             const apptId = el.dataset.id;
-            import('./hub_appointment_drawer.js?v=157').then(mod => {
+            import('./hub_appointment_drawer.js?v=317').then(mod => {
                 mod.openAppointmentDrawer(apptId, orderId);
             });
         });
@@ -228,7 +228,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
     container.querySelectorAll('.quick-action-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const action = btn.dataset.action;
-            import('./hub_drawer.js?v=157').then(mod => {
+            import('./hub_drawer.js?v=317').then(mod => {
                 mod.openHubDrawer(null, spaceId, null, action === 'add-activity' ? 'attivita' : 'task');
             });
         });

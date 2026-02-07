@@ -18,6 +18,7 @@ export function renderPMTree(container, items, space) {
     container.innerHTML = `<div class="pm-tree-container">${renderTreeNodes(tree)}</div>`;
 
     // Attach Listeners
+
     // Toggle expand/collapse
     container.querySelectorAll('.tree-toggle').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -26,6 +27,21 @@ export function renderPMTree(container, items, space) {
             node.classList.toggle('expanded');
             const icon = btn.querySelector('.material-icons-round');
             icon.textContent = node.classList.contains('expanded') ? 'expand_more' : 'chevron_right';
+        });
+    });
+
+    // Item Click (Open Drawer)
+    container.querySelectorAll('.tree-row').forEach(row => {
+        row.addEventListener('click', (e) => {
+            // Ignore if clicked on toggle
+            if (e.target.closest('.tree-toggle')) return;
+
+            e.stopPropagation();
+            const itemId = row.closest('.tree-node').dataset.id;
+
+            import('./hub_drawer.js?v=317').then(mod => {
+                mod.openHubDrawer(itemId, space.id);
+            });
         });
     });
 }
@@ -42,10 +58,11 @@ function buildTree(items) {
 
     // Link children
     items.forEach(item => {
+        const node = map.get(item.id);
         if (item.parent_ref && map.has(item.parent_ref)) {
-            map.get(item.parent_ref).children.push(map.get(item.id));
+            map.get(item.parent_ref).children.push(node);
         } else {
-            roots.push(map.get(item.id));
+            roots.push(node);
         }
     });
 
@@ -65,7 +82,7 @@ function renderTreeNodes(nodes, level = 0) {
 
         return `
             <div class="tree-node expanded" data-id="${node.id}">
-                <div class="tree-row hover-bg" style="padding-left: ${padding}rem; display:flex; align-items:center; padding-top:0.5rem; padding-bottom:0.5rem; border-bottom:1px solid var(--glass-border);">
+                <div class="tree-row hover-bg" style="padding-left: ${padding}rem; display:flex; align-items:center; padding-top:0.5rem; padding-bottom:0.5rem; border-bottom:1px solid var(--glass-border); cursor:pointer;">
                     
                     <button class="icon-btn tree-toggle" style="visibility: ${hasChildren ? 'visible' : 'hidden'}; padding:0; margin-right:0.5rem; width:24px; height:24px;">
                         <span class="material-icons-round" style="font-size:1.2rem;">expand_more</span>
@@ -85,8 +102,7 @@ function renderTreeNodes(nodes, level = 0) {
                     </div>
                     
                     <div class="tree-actions" style="opacity:0.5;">
-                        <!-- Avatars could go here -->
-                        <button class="icon-btn" onclick="alert('Modifica in arrivo')">
+                        <button class="icon-btn">
                             <span class="material-icons-round" style="font-size:1rem;">edit</span>
                         </button>
                     </div>

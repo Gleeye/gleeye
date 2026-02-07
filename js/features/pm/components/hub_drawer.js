@@ -1,5 +1,5 @@
 // Hub Drawer - Full item editor panel
-import '../../../utils/modal-utils.js?v=157';
+import '../../../utils/modal-utils.js?v=317';
 import {
     createPMItem,
     updatePMItem,
@@ -9,8 +9,8 @@ import {
     fetchItemAssignees,
     assignUserToItem,
     removeUserFromItem
-} from '../../../modules/pm_api.js?v=157';
-import { state } from '../../../modules/state.js?v=157';
+} from '../../../modules/pm_api.js?v=317';
+import { state } from '../../../modules/state.js?v=317';
 
 
 
@@ -65,6 +65,30 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     role: a.role, // 'assignee' or 'pm'
                     user: a.user
                 }));
+
+                // Fallback: If no PM, try to default from space (Legacy Migration)
+                if (!pendingAssignees.some(a => a.role === 'pm')) {
+                    let s = state.pm_spaces?.find(x => x.id === spaceId);
+                    if (!s && window._hubContext?.space?.id === spaceId) s = window._hubContext.space;
+
+                    if (s && s.default_pm_user_ref) {
+                        let pm = state.profiles?.find(p => p.id === s.default_pm_user_ref);
+                        if (!pm) {
+                            const collabAsPm = state.collaborators?.find(c => c.user_id === s.default_pm_user_ref);
+                            if (collabAsPm) pm = { id: collabAsPm.user_id, first_name: collabAsPm.first_name, last_name: collabAsPm.last_name, avatar_url: collabAsPm.avatar_url };
+                        }
+
+                        if (pm) {
+                            const pmName = `${pm.first_name || ''} ${pm.last_name || ''}`.trim() || 'PM';
+                            pendingAssignees.unshift({
+                                user_ref: pm.id,
+                                role: 'pm',
+                                displayName: pmName,
+                                user: { first_name: pm.first_name, last_name: pm.last_name, avatar_url: pm.avatar_url, full_name: pmName }
+                            });
+                        }
+                    }
+                }
             }
         } catch (e) {
             console.error("Error fetching details:", e);
@@ -664,6 +688,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     data-collab-id="${u.collabId || ''}" 
                     data-has-account="${!!u.uid}" 
                     data-target-role="${targetRole}" 
+                    data-name="${u.name.replace(/"/g, '&quot;')}"
                     style="
                         padding: 8px 12px;
                         display: flex;
@@ -1007,7 +1032,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     e.stopPropagation();
                     const uid = opt.dataset.uid;
                     const collabId = opt.dataset.collabId;
-                    const name = opt.querySelector('div > div:first-child').innerText; // Hacky but works for now or use dataset
+                    const name = opt.dataset.name || (opt.innerText || 'Utente');
 
                     // Check dupe
                     const exists = pendingAssignees.some(a => (uid && a.user_ref === uid) || (collabId && a.collaborator_ref === collabId));
@@ -1016,6 +1041,10 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         return;
                     }
 
+                    // Safe Avatar Extraction
+                    const imgEl = opt.querySelector('img');
+                    const avatarUrl = imgEl ? imgEl.src : null;
+
                     // Add to pending
                     captureFormState(); // Capture before adding and re-rendering
                     pendingAssignees.push({
@@ -1023,7 +1052,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         collaborator_ref: collabId || null,
                         role: 'assignee', // Default to assignee for this picker
                         displayName: name, // Store the display name explicitly
-                        user: { first_name: name, last_name: '', avatar_url: opt.querySelector('img').src, full_name: name }
+                        user: { first_name: name, last_name: '', avatar_url: avatarUrl, full_name: name }
                     });
 
                     formPicker.classList.add('hidden');

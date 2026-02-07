@@ -1,3 +1,5 @@
+import { state } from '../../../modules/state.js?v=317';
+
 // Hub Tree Tab - Hierarchical Activity View with filters
 
 const ITEM_STATUS = {
@@ -133,6 +135,22 @@ export function renderHubTree(container, items, space, spaceId) {
             .tree-row:hover .add-child-btn {
                 opacity: 1;
             }
+            /* Drag & Drop Styles */
+            .tree-node.dragging > .tree-row {
+                opacity: 0.5;
+                background: var(--surface-2);
+                border: 1px dashed var(--text-tertiary);
+            }
+            .tree-row.drag-over {
+                background: #eff6ff !important; /* Brand-blue light */
+                border: 2px solid var(--brand-color) !important;
+                transform: scale(1.01);
+            }
+            .tree-row.drag-over-forbidden {
+                background: #fef2f2 !important;
+                border: 2px solid #ef4444 !important;
+                cursor: not-allowed;
+            }
         </style>
     `;
 
@@ -250,7 +268,7 @@ function renderTreeNodes(nodes, level, spaceId) {
 
         return `
             <div class="tree-node" data-id="${node.id}">
-                <div class="tree-row" data-id="${node.id}" style="display: flex; align-items: center; padding: 0.5rem 1rem; border-bottom: 1px solid var(--surface-1);">
+                <div class="tree-row" draggable="true" data-id="${node.id}" data-type="${node.item_type}" style="display: flex; align-items: center; padding: 0.5rem 1rem; border-bottom: 1px solid var(--surface-1);">
                     <!-- Toggle & Icon -->
                     <div style="width: 30px; display: flex; align-items: center;">
                         ${hasChildren ? `
@@ -345,12 +363,142 @@ function setupTreeEventHandlers(container, items, spaceId) {
         });
     });
 
+    // ----------------------------
+    // Drag and Drop Logic
+    // ----------------------------
+    const rows = container.querySelectorAll('.tree-row');
+
+    rows.forEach(row => {
+        // DRAG START
+        row.addEventListener('dragstart', (e) => {
+            e.stopPropagation(); // Prevent bubbling layout issues
+            const id = row.dataset.id;
+            const type = row.dataset.type;
+
+            e.dataTransfer.setData('text/plain', id);
+            e.dataTransfer.setData('type', type);
+            e.dataTransfer.effectAllowed = 'move';
+
+            // Add visual class to the whole node container
+            const node = row.closest('.tree-node');
+            node.classList.add('dragging');
+
+            // Set drag image (optional, browser default is usually fine)
+        });
+
+        // DRAG END
+        row.addEventListener('dragend', (e) => {
+            const node = row.closest('.tree-node');
+            node.classList.remove('dragging');
+            container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            container.querySelectorAll('.drag-over-forbidden').forEach(el => el.classList.remove('drag-over-forbidden'));
+        });
+
+        // DRAG OVER
+        row.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Necessary to allow dropping
+            e.stopPropagation();
+
+            const draggedNode = container.querySelector('.tree-node.dragging');
+            if (!draggedNode) return; // Drag from outside?
+
+            const draggedId = draggedNode.dataset.id;
+            const targetId = row.dataset.id;
+            const targetType = row.dataset.type;
+
+            // 1. Cannot drop on self
+            if (draggedId === targetId) return;
+
+            // 2. Cannot drop into own child (Cycle prevention)
+            if (draggedNode.contains(row)) {
+                e.dataTransfer.dropEffect = 'none';
+                row.classList.add('drag-over-forbidden');
+                return;
+            }
+
+            // 3. Only Folders (Attività) can accept children
+            if (targetType !== 'attivita') {
+                e.dataTransfer.dropEffect = 'none';
+                // Optional: Allow dropping on task to turn it into a subtask? User asked for "folders".
+                // For now, let's strictly say only folders can be parents to avoid confusion.
+                return;
+            }
+
+            // 4. Valid Drop
+            e.dataTransfer.dropEffect = 'move';
+            row.classList.add('drag-over');
+            row.classList.remove('drag-over-forbidden');
+        });
+
+        // DRAG LEAVE
+        row.addEventListener('dragleave', (e) => {
+            row.classList.remove('drag-over');
+            row.classList.remove('drag-over-forbidden');
+        });
+
+        // DROP
+        row.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const draggedId = e.dataTransfer.getData('text/plain');
+            const targetId = row.dataset.id;
+            const targetType = row.dataset.type;
+
+            // Cleanup visuals
+            container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            container.querySelectorAll('.drag-over-forbidden').forEach(el => el.classList.remove('drag-over-forbidden'));
+
+            // Validation
+            if (draggedId === targetId) return;
+            if (targetType !== 'attivita') return; // Strict folder check
+
+            // Cycle check (DOM based)
+            const draggedNode = container.querySelector(`.tree-node[data-id="${draggedId}"]`);
+            if (draggedNode && draggedNode.contains(row)) {
+                alert("Non puoi spostare una cartella dentro se stessa o un suo figlio.");
+                return;
+            }
+
+            // Execute Move
+            try {
+                // Optimistic UI update could go here, but let's rely on event reload for safety
+                const { updatePMItem } = await import('../../../modules/pm_api.js?v=317');
+
+                await updatePMItem(draggedId, { parent_ref: targetId });
+
+                // Dispatch event to refresh parent view
+                document.dispatchEvent(new CustomEvent('pm-item-changed', {
+                    detail: {
+                        spaceId: spaceId,
+                        action: 'update',
+                        itemId: draggedId
+                    }
+                }));
+
+                // Expand the target folder to show the new child
+                const targetNode = row.closest('.tree-node');
+                if (targetNode) {
+                    targetNode.classList.remove('collapsed');
+                    // Also update icon if it was collapsed/hidden?
+                    // The re-render will handle structure, but we might want open state.
+                    // The re-render usually kills DOM state. We rely on re-render.
+                }
+
+            } catch (err) {
+                console.error("Drop failed:", err);
+                alert("Errore durante lo spostamento: " + err.message);
+            }
+        });
+    });
+
+
     // Click item to open drawer
     container.querySelectorAll('.tree-row').forEach(row => {
         row.addEventListener('click', (e) => {
             if (e.target.closest('.tree-toggle') || e.target.closest('.add-child-btn')) return;
             const itemId = row.dataset.id;
-            import('./hub_drawer.js?v=157').then(mod => {
+            import('./hub_drawer.js?v=317').then(mod => {
                 mod.openHubDrawer(itemId, spaceId);
             });
         });
@@ -406,7 +554,7 @@ function setupTreeEventHandlers(container, items, spaceId) {
                 item.addEventListener('click', (ev) => {
                     ev.stopPropagation();
                     const type = item.dataset.type;
-                    import('./hub_drawer.js?v=157').then(mod => {
+                    import('./hub_drawer.js?v=317').then(mod => {
                         mod.openHubDrawer(null, spaceId, parentId, type);
                     });
                     menu.remove();
@@ -424,9 +572,51 @@ function setupTreeEventHandlers(container, items, spaceId) {
         });
     });
 
+    // Root Drop Zone (container itself)
+    const treeContent = container.querySelector('#tree-content');
+    if (treeContent) {
+        treeContent.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const dragging = container.querySelector('.tree-node.dragging');
+            if (dragging) {
+                e.dataTransfer.dropEffect = 'move';
+                treeContent.style.background = '#f8fafc'; // Subtle highlight
+                treeContent.style.boxShadow = 'inset 0 0 0 2px var(--brand-color)';
+            }
+        });
+
+        treeContent.addEventListener('dragleave', (e) => {
+            if (e.relatedTarget && !treeContent.contains(e.relatedTarget)) {
+                treeContent.style.background = '';
+                treeContent.style.boxShadow = '';
+            }
+        });
+
+        treeContent.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            treeContent.style.background = '';
+            treeContent.style.boxShadow = '';
+
+            const draggedId = e.dataTransfer.getData('text/plain');
+            if (!draggedId) return;
+
+            // Start move to root
+            try {
+                const { updatePMItem } = await import('../../../modules/pm_api.js?v=317');
+                await updatePMItem(draggedId, { parent_ref: null });
+
+                document.dispatchEvent(new CustomEvent('pm-item-changed', {
+                    detail: { spaceId, action: 'update', itemId: draggedId }
+                }));
+            } catch (err) {
+                console.error("Root drop failed:", err);
+            }
+        });
+    }
+
     // Create first button
     container.querySelector('.create-first-btn')?.addEventListener('click', () => {
-        import('./hub_drawer.js?v=157').then(mod => {
+        import('./hub_drawer.js?v=317').then(mod => {
             mod.openHubDrawer(null, spaceId, null, 'attivita');
         });
     });

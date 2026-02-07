@@ -1,7 +1,8 @@
-import { createPMItem, updatePMItem, fetchSpace } from '../../modules/pm_api.js';
-import { renderSpaceView } from '../space_view.js'; // Reload view on save
+import { createPMItem, updatePMItem, fetchSpace } from '../../../modules/pm_api.js?v=317';
+// NOTE: Removed static import of space_view to avoid circular dependency
+// Using event dispatch instead for view refresh
 
-export function openItemDrawer(itemId, spaceId, parentId = null) {
+export function openItemDrawer(itemId, spaceId, parentId = null, itemType = 'task') {
     const overlay = document.getElementById('pm-drawer-overlay');
     const drawer = document.getElementById('pm-drawer');
 
@@ -12,10 +13,11 @@ export function openItemDrawer(itemId, spaceId, parentId = null) {
 
     // TODO: If itemId is present, fetch details. For now assume creation.
     const isEdit = !!itemId;
+    const typeLabel = itemType === 'attivita' ? 'Attività' : (itemType === 'milestone' ? 'Milestone' : 'Task');
 
     drawer.innerHTML = `
         <div class="drawer-header" style="padding:1.5rem; border-bottom:1px solid var(--glass-border); display:flex; justify-content:space-between; align-items:center;">
-            <h2 style="margin:0;">${isEdit ? 'Modifica' : 'Nuova'} Attività</h2>
+            <h2 style="margin:0;">${isEdit ? 'Modifica' : 'Nuova'} ${typeLabel}</h2>
             <button class="icon-btn close-drawer-btn"><span class="material-icons-round">close</span></button>
         </div>
         
@@ -33,9 +35,9 @@ export function openItemDrawer(itemId, spaceId, parentId = null) {
                     <div class="form-group" style="flex:1;">
                         <label class="label">Tipo</label>
                         <select name="item_type" class="input-field">
-                            <option value="task">Task</option>
-                            <option value="attivita">Attività (Gruppo)</option>
-                            <option value="milestone">Milestone</option>
+                            <option value="task" ${itemType === 'task' ? 'selected' : ''}>Task</option>
+                            <option value="attivita" ${itemType === 'attivita' ? 'selected' : ''}>Attività (Gruppo)</option>
+                            <option value="milestone" ${itemType === 'milestone' ? 'selected' : ''}>Milestone</option>
                         </select>
                     </div>
                      <div class="form-group" style="flex:1;">
@@ -98,13 +100,15 @@ export function openItemDrawer(itemId, spaceId, parentId = null) {
                 await createPMItem(payload);
             }
             closeDrawer();
-            // Refresh View
-            // Ideally assume we are in the correct container.
-            // But we need to find the container. 
-            // We can just reload the router or current view logic?
-            // space_view exports renderSpaceView.
-            const contentArea = document.getElementById('content-area');
-            if (contentArea) renderSpaceView(contentArea, spaceId);
+
+            // Dispatch event to refresh parent view (avoids circular import)
+            document.dispatchEvent(new CustomEvent('pm-item-changed', {
+                detail: {
+                    spaceId: spaceId,
+                    action: isEdit ? 'update' : 'create',
+                    itemId: itemId
+                }
+            }));
 
         } catch (err) {
             console.error(err);
