@@ -203,7 +203,7 @@ export async function renderInternalProjects(container) {
                 openProjectModal({
                     onSuccess: (res) => {
                         // Reload entire view or redirect
-                        window.location.hash = `#pm / space / ${res.id} `;
+                        window.location.hash = `#pm/space/${res.id}`;
                     }
                 });
             };
