@@ -47,6 +47,36 @@ export async function renderInternalProjects(container) {
 
             container.innerHTML = `
                 <div class="internal-projects-page" style="padding: 2.5rem; max-width: 1400px; margin: 0 auto; animation: fadeIn 0.3s ease-out;">
+                    <!-- Styles -->
+                    <style>
+                        .filter-pill {
+                            padding: 0.6rem 1.2rem;
+                            border: 1px solid #e2e8f0;
+                            background: white;
+                            color: #64748b;
+                            border-radius: 100px;
+                            font-size: 0.85rem;
+                            font-weight: 600;
+                            cursor: pointer;
+                            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                            white-space: nowrap;
+                            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                        }
+                        .filter-pill:hover {
+                            background: #f8fafc;
+                            border-color: #cbd5e1;
+                            color: #1e293b;
+                            transform: translateY(-1px);
+                            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                        }
+                        .filter-pill.active {
+                            background: #1e293b;
+                            color: white;
+                            border-color: #1e293b;
+                            box-shadow: 0 4px 12px rgba(30, 41, 59, 0.25);
+                        }
+                    </style>
+
                     <!-- Header -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
                         <div>
