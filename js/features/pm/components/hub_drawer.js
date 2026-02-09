@@ -9,8 +9,8 @@ import {
     fetchItemAssignees,
     assignUserToItem,
     removeUserFromItem
-} from '../modules/api.js';
-import { state } from '../modules/state.js';
+} from '../../../modules/api.js';
+import { state } from '../../../modules/state.js';
 
 
 

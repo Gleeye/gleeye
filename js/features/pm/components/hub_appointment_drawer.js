@@ -1,6 +1,6 @@
-import { saveAppointment, deleteAppointment, fetchAppointmentTypes } from '../modules/api.js';
-import { fetchContacts } from '../modules/api.js';
-import { state } from '../modules/state.js';
+import { saveAppointment, deleteAppointment, fetchAppointmentTypes } from '../../../modules/api.js';
+import { fetchContacts } from '../../../modules/api.js';
+import { state } from '../../../modules/state.js';
 import { renderUserPicker } from './picker_utils.js?v=317';
 
 export async function openAppointmentDrawer(inputAppointment, contextId = null, contextType = 'order') {

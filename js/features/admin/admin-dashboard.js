@@ -1,6 +1,6 @@
 
 // js/features/admin/admin-dashboard.js
-import { state } from '../modules/state.js';
+import { state } from '../../modules/state.js';
 import { renderAdminNotifications } from '../notifications.js?v=317';
 import { renderNotificationLogs } from './notification_logs.js?v=317';
 import { renderSystemLogs, getUnresolvedErrorCount } from './admin_system_logs.js?v=317';
