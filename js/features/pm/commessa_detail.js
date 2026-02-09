@@ -1,6 +1,6 @@
 import { state } from '../../modules/state.js';
 import { fetchOrders } from '../../modules/api.js';
-import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes } from '../../modules/api.js';
+import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes } from '../../modules/pm_api.js';
 
 // Status colors for "Stato Lavori"
 const STATUS_CONFIG = {

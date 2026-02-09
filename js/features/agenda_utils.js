@@ -1,5 +1,5 @@
 import { state } from '../modules/state.js';
-import { fetchAppointment } from '../modules/api.js';
+import { fetchAppointment } from '../modules/pm_api.js';
 import { fetchCollaborators } from '../modules/api.js';
 
 // Shared Event Detail Modal Logic

@@ -1,9 +1,8 @@
 import { supabase } from '../modules/config.js';
 import { state } from '../modules/state.js';
 import { fetchAvailabilityRules, fetchRestDays, fetchAvailabilityOverrides } from '../modules/api.js';
-import { fetchCollaboratorAppointments } from '../modules/api.js';
+import { fetchCollaboratorAppointments, fetchAppointment } from '../modules/pm_api.js';
 import { openAvailabilityModal, checkAndHandleGoogleCallback } from './availability_manager.js?v=317';
-import { fetchAppointment } from '../modules/api.js';
 
 let currentDate = new Date(); // Represents the start of the week or current view date
 let eventsCache = [];
