@@ -1,11 +1,11 @@
-import { fetchSpace, fetchProjectItems, fetchChildProjects, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, deleteSpace } from '../../modules/pm_api.js?v=375';
-import { openProjectModal } from './components/project_modal.js?v=375';
-import { renderHubTree } from './components/hub_tree.js?v=375';
-import { renderHubAppointments } from './components/hub_appointments.js?v=375';
-import { state } from '../../modules/state.js?v=375';
-import { supabase } from '../../modules/config.js?v=375';
+import { fetchSpace, fetchProjectItems, fetchChildProjects, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, deleteSpace } from '../../modules/pm_api.js?v=376';
+import { openProjectModal } from './components/project_modal.js?v=376';
+import { renderHubTree } from './components/hub_tree.js?v=376';
+import { renderHubAppointments } from './components/hub_appointments.js?v=376';
+import { state } from '../../modules/state.js?v=376';
+import { supabase } from '../../modules/config.js?v=376';
 
-console.log("[SpaceView] Module v375 loaded");
+console.log("[SpaceView] Module v376 loaded");
 
 // KPI Calculation Helper
 function calculateKPIs(items) {
@@ -242,7 +242,7 @@ export async function renderSpaceView(container, spaceId) {
                                         </div>
                                     `).join('')}
                                     ${members.length === 0 ? '<span style="font-size: 0.75rem; color: var(--text-tertiary); font-style: italic;">Nessuno</span>' : ''}
-                                    <button id="add-space-member-btn" class="add-pm-circle" title="Gestisci Team" style="border-color: #cbd5e1; color: #64748b;" onclick="document.querySelector('.tab-btn[data-view=\'people\']')?.click()">
+                                    <button id="add-space-member-btn" class="add-pm-circle" title="Gestisci Team" style="border-color: #cbd5e1; color: #64748b;">
                                         <span class="material-icons-round">group_add</span>
                                     </button>
                                 </div>
@@ -444,7 +444,7 @@ export async function renderSpaceView(container, spaceId) {
         container.querySelector('#add-space-pm-btn')?.addEventListener('click', (e) => {
             e.stopPropagation();
             const picker = container.querySelector('#space-pm-picker');
-
+            // ... (rest of PM picker logic)
             // Render options (excluding already assigned)
             const assignedUserIds = new Set(spaceAssignees.map(a => a.user_ref).filter(Boolean));
             const assignedCollabIds = new Set(spaceAssignees.map(a => a.collaborator_ref).filter(Boolean));
@@ -467,6 +467,7 @@ export async function renderSpaceView(container, spaceId) {
 
             picker.querySelectorAll('.pm-candidate').forEach(el => {
                 el.addEventListener('click', async () => {
+                    // ...
                     const uid = el.dataset.uid !== 'undefined' ? el.dataset.uid : null;
                     const cid = el.dataset.cid;
                     try {
@@ -478,6 +479,11 @@ export async function renderSpaceView(container, spaceId) {
             });
 
             picker.classList.toggle('hidden');
+        });
+
+        // Add Member Button (Header) Logic
+        container.querySelector('#add-space-member-btn')?.addEventListener('click', () => {
+            container.querySelector('.tab-btn[data-view="people"]')?.click();
         });
 
         // Remove PM (Use Custom Modal)
