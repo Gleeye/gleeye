@@ -99,6 +99,17 @@ export async function renderSpaceView(container, spaceId) {
             };
         });
 
+        // Filter standard members
+        let members = spaceAssignees.filter(a => !['pm', 'manager', 'admin'].includes(a.role)).map(assignee => {
+            const profile = resolveProfile(assignee);
+            return {
+                id: assignee.id,
+                name: profile.full_name || 'Utente',
+                avatar: profile.avatar_url,
+                initial: (profile.full_name || 'U').charAt(0).toUpperCase()
+            };
+        });
+
         // Fallback: If no explicit PM, show default creator/manager (matches Dashboard logic)
         if (pms.length === 0 && space.default_pm_user_ref) {
             const fallbackProfile = (latestCollabs || []).find(x => x.user_id === space.default_pm_user_ref)
@@ -192,24 +203,47 @@ export async function renderSpaceView(container, spaceId) {
 
                     <!-- Bottom Row: PMs & KPIs -->
                     <div style="display: flex; gap: 2rem; align-items: center; flex-wrap: wrap;">
-                        <!-- PM List -->
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <span style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">RESPONSABILI:</span>
-                            <div id="space-pms-list" style="display: flex; align-items: center; gap: 6px;">
-                                ${pms.map(pm => `
-                                    <div class="user-pill-mini pm" title="${pm.name}">
-                                        <div class="avatar-circle">
-                                            ${pm.avatar ? `<img src="${pm.avatar}">` : pm.initial}
+                        <!-- PM & Team List -->
+                        <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+                            
+                            <!-- Managers -->
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <span style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">MANAGER:</span>
+                                <div id="space-pms-list" style="display: flex; align-items: center; gap: 6px;">
+                                    ${pms.map(pm => `
+                                        <div class="user-pill-mini pm" title="${pm.name}" style="background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2);">
+                                            <div class="avatar-circle" style="background: var(--brand-blue);">
+                                                ${pm.avatar ? `<img src="${pm.avatar}">` : pm.initial}
+                                            </div>
+                                            <span class="name" style="color: var(--brand-blue);">${pm.name.split(' ')[0]}</span>
+                                            ${!pm.is_fallback ? `<span class="material-icons-round remove-space-pm-btn" data-id="${pm.id}">close</span>` : ''}
                                         </div>
-                                        <span class="name">${pm.name.split(' ')[0]}</span>
-                                        ${!pm.is_fallback ? `<span class="material-icons-round remove-space-pm-btn" data-id="${pm.id}">close</span>` : ''}
-                                    </div>
-                                `).join('')}
-                                <button id="add-space-pm-btn" class="add-pm-circle">
-                                    <span class="material-icons-round">add</span>
-                                </button>
-                                <!-- Picker handled by generic picker popover -->
-                                <div id="space-pm-picker" class="hidden glass-card picker-popover"></div>
+                                    `).join('')}
+                                    <button id="add-space-pm-btn" class="add-pm-circle" title="Aggiungi Responsabile">
+                                        <span class="material-icons-round">add</span>
+                                    </button>
+                                    <!-- Picker handled by generic picker popover -->
+                                    <div id="space-pm-picker" class="hidden glass-card picker-popover" style="margin-top: 10px;"></div>
+                                </div>
+                            </div>
+
+                            <!-- Standard Members (Team) -->
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <span style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">TEAM:</span>
+                                <div id="space-members-list" style="display: flex; align-items: center; gap: 6px;">
+                                    ${members.map(m => `
+                                        <div class="user-pill-mini" title="${m.name}">
+                                            <div class="avatar-circle" style="background: #94a3b8;">
+                                                ${m.avatar ? `<img src="${m.avatar}">` : m.initial}
+                                            </div>
+                                            <span class="name">${m.name.split(' ')[0]}</span>
+                                        </div>
+                                    `).join('')}
+                                    ${members.length === 0 ? '<span style="font-size: 0.75rem; color: var(--text-tertiary); font-style: italic;">Nessuno</span>' : ''}
+                                    <button id="add-space-member-btn" class="add-pm-circle" title="Gestisci Team" style="border-color: #cbd5e1; color: #64748b;" onclick="document.querySelector('.tab-btn[data-view=\'people\']')?.click()">
+                                        <span class="material-icons-round">group_add</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -276,7 +310,7 @@ export async function renderSpaceView(container, spaceId) {
                 
                 .user-pill-mini {
                     display: flex; align-items: center; gap: 6px; background: var(--surface-1);
-                    padding: 2px 8px 2px 2px; border-radius: 16px; border: 1px solid transparent;
+                    padding: 2px 8px 2px 2px; border-radius: 16px; border: 1px solid var(--surface-2);
                     font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;
                 }
                 .avatar-circle {
@@ -343,7 +377,7 @@ export async function renderSpaceView(container, spaceId) {
                 } else if (view === 'appointments') {
                     renderHubAppointments(viewContent, appointments, appointmentTypes, spaceId, 'space');
                 } else if (view === 'people') {
-                    renderTeamTab(viewContent, spaceAssignees, latestCollabs);
+                    renderTeamTab(viewContent, spaceAssignees, latestCollabs, spaceId);
                 } else if (view === 'list') {
                     viewContent.innerHTML = '<div style="text-align:center; padding: 2rem; color: #94a3b8;">Vista lista in arrivo...</div>';
                 }
@@ -461,7 +495,7 @@ export async function renderSpaceView(container, spaceId) {
 
         // Initial Content Render
         if (activeView === 'people') {
-            renderTeamTab(viewContent, spaceAssignees, latestCollabs);
+            renderTeamTab(viewContent, spaceAssignees, latestCollabs, spaceId);
         } else if (activeView === 'projects' && space.is_cluster) {
             renderChildProjects(viewContent, childProjects);
         } else if (activeView === 'tree') {
@@ -478,18 +512,7 @@ export async function renderSpaceView(container, spaceId) {
     }
 }
 
-function renderTeamTab(container, assignees, collaborators) {
-    if (!assignees || assignees.length === 0) {
-        container.innerHTML = `
-            <div style="text-align: center; padding: 4rem;">
-                <span class="material-icons-round" style="font-size: 3rem; color: #cbd5e1;">group</span>
-                <h3 style="color: #64748b; margin-top: 1rem;">Nessun membro del team</h3>
-                <p style="color: #94a3b8;">Assegna persone dal pulsante Responsabili o aggiungile qui.</p>
-            </div>
-        `;
-        return;
-    }
-
+function renderTeamTab(container, assignees, collaborators, spaceId) {
     // Helper to resolve profile
     const resolve = (assignee) => {
         if (assignee.user_ref) return collaborators.find(x => x.user_id === assignee.user_ref);
@@ -498,6 +521,18 @@ function renderTeamTab(container, assignees, collaborators) {
     };
 
     container.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">Membri del Team</h3>
+            <button id="add-team-member-btn" class="primary-btn" style="display: flex; align-items: center; gap: 0.5rem; padding: 6px 12px; font-size: 0.85rem;">
+                <span class="material-icons-round" style="font-size: 1.1rem;">person_add</span>
+                Aggiungi Persona
+            </button>
+        </div>
+
+        <div id="team-member-picker-container" class="hidden glass-card picker-popover" style="right: 1.5rem; left: auto; width: 300px;">
+            <!-- Picker content will be injected -->
+        </div>
+
         <div style="background: white; border-radius: 12px; border: 1px solid var(--surface-2); overflow: hidden;">
             <table style="width: 100%; border-collapse: collapse;">
                 <thead style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
@@ -508,7 +543,7 @@ function renderTeamTab(container, assignees, collaborators) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${assignees.map(a => {
+                    ${(assignees || []).map(a => {
         const profile = resolve(a) || { full_name: 'Sconosciuto', avatar_url: null };
         return `
                             <tr style="border-bottom: 1px solid #f1f5f9;">
@@ -517,17 +552,23 @@ function renderTeamTab(container, assignees, collaborators) {
                                         <div class="avatar-circle" style="width:32px; height:32px; font-size: 0.85rem;">
                                             ${profile.avatar_url ? `<img src="${profile.avatar_url}">` : (profile.full_name || 'U').charAt(0)}
                                         </div>
-                                        <div style="font-weight: 500; font-size: 0.9rem;">${profile.full_name || 'Sconosciuto'}</div>
+                                        <div style="display: flex; flex-direction: column;">
+                                            <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary);">${profile.full_name || 'Sconosciuto'}</div>
+                                            <div style="font-size: 0.75rem; color: var(--text-tertiary);">${profile.email || ''}</div>
+                                        </div>
                                     </div>
                                 </td>
                                 <td style="padding: 1rem;">
-                                    <span style="
-                                        display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+                                    <select class="member-role-select" data-id="${a.id}" style="
+                                        padding: 4px 8px; border-radius: 6px; border: 1px solid var(--surface-2); 
+                                        font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
                                         background: ${['pm', 'manager'].includes(a.role) ? '#eff6ff' : '#f1f5f9'};
                                         color: ${['pm', 'manager'].includes(a.role) ? 'var(--brand-blue)' : '#64748b'};
+                                        outline: none; cursor: pointer;
                                     ">
-                                        ${a.role || 'Membro'}
-                                    </span>
+                                        <option value="pm" ${a.role === 'pm' ? 'selected' : ''}>Project Manager</option>
+                                        <option value="assignee" ${['pm', 'manager'].includes(a.role) ? '' : 'selected'}>Membro</option>
+                                    </select>
                                 </td>
                                 <td style="padding: 1rem; text-align: right;">
                                     <button class="remove-member-btn" data-id="${a.id}" style="
@@ -535,30 +576,104 @@ function renderTeamTab(container, assignees, collaborators) {
                                         color: #94a3b8; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
                                         transition: all 0.2s;
                                     ">
-                                        <span class="material-icons-round">delete</span>
+                                        <span class="material-icons-round">delete_outline</span>
                                     </button>
                                 </td>
                             </tr>
                         `;
     }).join('')}
+                    ${(!assignees || assignees.length === 0) ? `
+                        <tr>
+                            <td colspan="3" style="padding: 3rem; text-align: center; color: var(--text-tertiary);">
+                                Nessun membro assegnato a questo progetto.
+                            </td>
+                        </tr>
+                    ` : ''}
                 </tbody>
             </table>
         </div>
-        <style>
-            .remove-member-btn:hover { background: #fef2f2; color: #ef4444; }
-        </style>
     `;
 
     // Attach listeners
+    const addBtn = container.querySelector('#add-team-member-btn');
+    const picker = container.querySelector('#team-member-picker-container');
+
+    addBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        const assignedUserIds = new Set(assignees.map(a => a.user_ref).filter(Boolean));
+        const assignedCollabIds = new Set(assignees.map(a => a.collaborator_ref).filter(Boolean));
+
+        const candidates = (collaborators || [])
+            .filter(c => {
+                const isAssigned = (c.user_id && assignedUserIds.has(c.user_id)) || assignedCollabIds.has(c.id);
+                return !isAssigned && c.active !== false;
+            })
+            .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
+
+        picker.innerHTML = `
+            <div style="padding: 0.75rem; border-bottom: 1px solid var(--surface-2); font-size: 0.75rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase;">
+                Aggiungi al Team
+            </div>
+            <div style="max-height: 250px; overflow-y: auto; padding: 0.5rem;">
+                ${candidates.map(c => `
+                    <div class="dropdown-item candidate-item" data-uid="${c.user_id}" data-cid="${c.id}" style="padding: 8px; border-radius: 8px;">
+                        <div class="avatar-circle" style="width:24px; height:24px;">
+                            ${c.avatar_url ? `<img src="${c.avatar_url}">` : (c.full_name || 'U').charAt(0)}
+                        </div>
+                        <div style="flex: 1; font-size: 0.85rem; font-weight: 500;">${c.full_name}</div>
+                        <span class="material-icons-round" style="font-size: 1.2rem; color: var(--brand-blue);">add_circle_outline</span>
+                    </div>
+                `).join('')}
+                ${candidates.length === 0 ? '<div style="padding: 1rem; color: var(--text-tertiary); font-size: 0.85rem; text-align: center;">Nessun altro collaboratore</div>' : ''}
+            </div>
+        `;
+
+        picker.querySelectorAll('.candidate-item').forEach(el => {
+            el.onclick = async () => {
+                const uid = el.dataset.uid !== 'undefined' ? el.dataset.uid : null;
+                const cid = el.dataset.cid;
+                try {
+                    // Default to 'assignee' (Member) when adding from here
+                    if (uid) await assignUserToSpace(spaceId, uid, 'assignee');
+                    else await assignUserToSpace(spaceId, cid, 'assignee', true);
+
+                    // Trigger a re-render of the whole space view to update everything
+                    // Or just re-click the tab
+                    document.querySelector('.tab-btn.active')?.click();
+                } catch (err) { window.showAlert(err.message, 'error'); }
+            };
+        });
+
+        picker.classList.toggle('hidden');
+    });
+
+    // Close picker when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!picker.contains(e.target) && !addBtn.contains(e.target)) {
+            picker.classList.add('hidden');
+        }
+    }, { once: true });
+
     container.querySelectorAll('.remove-member-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             if (await window.showConfirm("Rimuovere questo membro dal progetto?", { type: 'warning' })) {
                 try {
                     await supabase.from('pm_space_assignees').delete().eq('id', btn.dataset.id);
-                    // Reload
-                    document.querySelector('.tab-btn[data-view="people"]')?.click();
+                    document.querySelector('.tab-btn.active')?.click();
                 } catch (err) { window.showAlert(err.message, 'error'); }
             }
+        });
+    });
+
+    container.querySelectorAll('.member-role-select').forEach(sel => {
+        sel.addEventListener('change', async () => {
+            const id = sel.dataset.id;
+            const newRole = sel.value;
+            try {
+                await supabase.from('pm_space_assignees').update({ role: newRole }).eq('id', id);
+                document.querySelector('.tab-btn.active')?.click();
+            } catch (err) { window.showAlert(err.message, 'error'); }
         });
     });
 }
