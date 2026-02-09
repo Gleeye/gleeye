@@ -1,6 +1,6 @@
-import { state } from '../../modules/state.js?v=317';
-import { fetchOrders } from '../../modules/api.js?v=317';
-import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes } from '../../modules/pm_api.js?v=317';
+import { state } from '../../modules/state.js?v=318';
+import { fetchOrders } from '../../modules/api.js?v=318';
+import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes } from '../../modules/pm_api.js?v=318';
 
 // Status colors for "Stato Lavori"
 const STATUS_CONFIG = {

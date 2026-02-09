@@ -188,14 +188,22 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
         if (viewMode) {
             drawer.innerHTML = `
                 <!-- Header -->
-                <div class="drawer-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--surface-2); display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem; text-transform:uppercase;">
+                <div class="drawer-header" style="
+                    padding: 1.25rem 1.5rem; 
+                    border-bottom: 1px solid var(--surface-2); 
+                    display: flex; 
+                    justify-content: space-between; 
+                    align-items: flex-start;
+                    background: white;
+                    flex-shrink: 0;
+                ">
+                    <div style="min-width: 0; flex: 1; margin-right: 1.5rem;">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem; text-transform:uppercase; letter-spacing: 0.05em; font-weight: 600;">
                             #${(item.item_type || itemType)}
                         </div>
-                        <h2 style="margin: 0; font-size: 1.4rem; font-weight: 700;">${item.title}</h2>
+                        <h2 style="margin: 0; font-size: 1.4rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; word-break: break-word;">${item.title}</h2>
                     </div>
-                    <div style="display: flex; gap: 0.75rem; align-items: center;">
+                    <div style="display: flex; gap: 0.75rem; align-items: center; flex-shrink: 0;">
                         <!-- Delete Button (Circular) -->
                         <button id="delete-item-btn" class="icon-btn" title="Elimina" style="
                             width: 38px; height: 38px; border-radius: 50%;
@@ -228,89 +236,91 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     </div>
                 </div>
 
-                <!-- Hero / Meta -->
-                <div style="padding: 1.5rem; background: var(--surface-1); border-bottom: 1px solid var(--surface-2);">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-                        
-                        <!-- Status (Custom Dropdown) -->
-                        <div>
-                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">STATO</label>
+                <!-- Scrollable Content -->
+                <div class="drawer-scroll-container" style="flex: 1; overflow-y: auto;">
+                    <!-- Hero / Meta -->
+                    <div style="padding: 1.5rem; background: var(--surface-1); border-bottom: 1px solid var(--surface-2);">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
                             
-                            <div style="position: relative;">
-                                <!-- Trigger -->
-                                <button id="status-trigger-btn" style="
-                                    appearance: none;
-                                    border: none;
-                                    padding: 6px 16px;
-                                    padding-right: 36px;
-                                    border-radius: 20px;
-                                    font-size: 0.85rem;
-                                    font-weight: 600;
-                                    background-color: ${ITEM_STATUS[item.status]?.bg || '#f1f5f9'};
-                                    color: ${ITEM_STATUS[item.status]?.color || '#64748b'};
-                                    cursor: pointer;
-                                    transition: all 0.2s;
-                                    position: relative;
-                                    min-width: 140px;
-                                    text-align: left;
-                                ">
-                                    <span class="status-label">${ITEM_STATUS[item.status]?.label || item.status}</span>
-                                    <span class="material-icons-round" style="
-                                        position: absolute;
-                                        right: 10px;
-                                        top: 50%;
-                                        transform: translateY(-50%);
-                                        font-size: 1.1rem;
-                                        opacity: 0.7;
-                                    ">expand_more</span>
-                                </button>
+                            <!-- Status (Custom Dropdown) -->
+                            <div>
+                                <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">STATO</label>
+                                
+                                <div style="position: relative;">
+                                    <!-- Trigger -->
+                                    <button id="status-trigger-btn" style="
+                                        appearance: none;
+                                        border: none;
+                                        padding: 6px 16px;
+                                        padding-right: 36px;
+                                        border-radius: 20px;
+                                        font-size: 0.85rem;
+                                        font-weight: 600;
+                                        background-color: ${ITEM_STATUS[item.status]?.bg || '#f1f5f9'};
+                                        color: ${ITEM_STATUS[item.status]?.color || '#64748b'};
+                                        cursor: pointer;
+                                        transition: all 0.2s;
+                                        position: relative;
+                                        min-width: 140px;
+                                        text-align: left;
+                                    ">
+                                        <span class="status-label">${ITEM_STATUS[item.status]?.label || item.status}</span>
+                                        <span class="material-icons-round" style="
+                                            position: absolute;
+                                            right: 10px;
+                                            top: 50%;
+                                            transform: translateY(-50%);
+                                            font-size: 1.1rem;
+                                            opacity: 0.7;
+                                        ">expand_more</span>
+                                    </button>
 
-                                <!-- Dropdown Menu -->
-                                <div id="status-dropdown-menu" class="hidden" style="
-                                    position: absolute;
-                                    top: 100%;
-                                    left: 0;
-                                    margin-top: 8px;
-                                    background: white;
-                                    border-radius: 12px;
-                                    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-                                    border: 1px solid var(--surface-2);
-                                    padding: 6px;
-                                    z-index: 1000;
-                                    min-width: 160px;
-                                    display: flex;
-                                    flex-direction: column;
-                                    gap: 2px;
-                                ">
-                                    ${Object.keys(ITEM_STATUS).map(k => `
-                                        <div class="status-option" data-value="${k}" style="
-                                            padding: 8px 12px;
-                                            border-radius: 8px;
-                                            cursor: pointer;
-                                            display: flex;
-                                            align-items: center;
-                                            gap: 8px;
-                                            font-size: 0.85rem;
-                                            font-weight: 500;
-                                            color: #334155;
-                                            transition: background 0.1s;
-                                        " onmouseover="this.style.background='var(--surface-1)'" onmouseout="this.style.background='transparent'">
-                                            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${ITEM_STATUS[k].color || '#ccc'};"></div>
-                                            ${ITEM_STATUS[k].label}
-                                            ${item.status === k ? `<span class="material-icons-round" style="margin-left: auto; font-size: 16px; color: var(--brand-color);">check</span>` : ''}
-                                        </div>
-                                    `).join('')}
+                                    <!-- Dropdown Menu -->
+                                    <div id="status-dropdown-menu" class="hidden" style="
+                                        position: absolute;
+                                        top: 100%;
+                                        left: 0;
+                                        margin-top: 8px;
+                                        background: white;
+                                        border-radius: 12px;
+                                        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+                                        border: 1px solid var(--surface-2);
+                                        padding: 6px;
+                                        z-index: 1000;
+                                        min-width: 160px;
+                                        display: flex;
+                                        flex-direction: column;
+                                        gap: 2px;
+                                    ">
+                                        ${Object.keys(ITEM_STATUS).map(k => `
+                                            <div class="status-option" data-value="${k}" style="
+                                                padding: 8px 12px;
+                                                border-radius: 8px;
+                                                cursor: pointer;
+                                                display: flex;
+                                                align-items: center;
+                                                gap: 8px;
+                                                font-size: 0.85rem;
+                                                font-weight: 500;
+                                                color: #334155;
+                                                transition: background 0.1s;
+                                            " onmouseover="this.style.background='var(--surface-1)'" onmouseout="this.style.background='transparent'">
+                                                <div style="width: 8px; height: 8px; border-radius: 50%; background: ${ITEM_STATUS[k].color || '#ccc'};"></div>
+                                                ${ITEM_STATUS[k].label}
+                                                ${item.status === k ? `<span class="material-icons-round" style="margin-left: auto; font-size: 16px; color: var(--brand-color);">check</span>` : ''}
+                                            </div>
+                                        `).join('')}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                <!-- Project Managers -->
-                        <div style="position: relative; margin-bottom: 1.5rem;">
-                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">PROJECT MANAGER</label>
-                            
-                            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-                                <!-- Current PMs -->
-                                ${assignees.filter(a => a.role === 'pm').map(a => {
+                            <!-- Project Managers -->
+                            <div style="position: relative; margin-bottom: 1.5rem;">
+                                <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">PROJECT MANAGER</label>
+                                
+                                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                                    <!-- Current PMs -->
+                                    ${assignees.filter(a => a.role === 'pm').map(a => {
                 let userName = a.user?.full_name;
                 if (!userName && a.user?.first_name) {
                     userName = `${a.user.first_name} ${a.user.last_name || ''}`.trim();
@@ -319,124 +329,126 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                 const initial = userName.charAt(0).toUpperCase();
                 return `
-                                    <div class="assignee-pill pm-pill" style="display: flex; align-items: center; gap: 8px; background: rgba(66, 133, 244, 0.1); border: 1px solid rgba(66, 133, 244, 0.2); padding: 4px 10px 4px 4px; border-radius: 24px; transition: all 0.2s;">
-                                        <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; border: 2px solid white; overflow: hidden;">
-                                            ${a.user?.avatar_url ? `<img src="${a.user.avatar_url}" style="width:100%; height:100%; object-fit:cover;">` : initial}
+                                        <div class="assignee-pill pm-pill" style="display: flex; align-items: center; gap: 8px; background: rgba(66, 133, 244, 0.1); border: 1px solid rgba(66, 133, 244, 0.2); padding: 4px 10px 4px 4px; border-radius: 24px; transition: all 0.2s;">
+                                            <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; border: 2px solid white; overflow: hidden;">
+                                                ${a.user?.avatar_url ? `<img src="${a.user.avatar_url}" style="width:100%; height:100%; object-fit:cover;">` : initial}
+                                            </div>
+                                            <div style="display: flex; flex-direction: column; line-height: 1.1;">
+                                                <span style="font-size: 0.85rem; font-weight: 500; color: var(--brand-blue);">${userName}</span>
+                                                <span style="font-size: 0.65rem; color: var(--text-tertiary); font-weight: 400;">Project Manager</span>
+                                            </div>
+                                            <span class="material-icons-round remove-assignee-btn" data-id="${a.id}" data-role="pm" style="font-size: 16px; color: var(--brand-blue); cursor: pointer; margin-left: 4px; opacity: 0.5; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">close</span>
                                         </div>
-                                        <div style="display: flex; flex-direction: column; line-height: 1.1;">
-                                            <span style="font-size: 0.85rem; font-weight: 500; color: var(--brand-blue);">${userName}</span>
-                                            <span style="font-size: 0.65rem; color: var(--text-tertiary); font-weight: 400;">Project Manager</span>
-                                        </div>
-                                        <span class="material-icons-round remove-assignee-btn" data-id="${a.id}" data-role="pm" style="font-size: 16px; color: var(--brand-blue); cursor: pointer; margin-left: 4px; opacity: 0.5; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">close</span>
-                                    </div>
-                                `;
+                                    `;
             }).join('')}
 
-                                <!-- Add PM Button -->
-                                <button id="add-pm-btn" style="
-                                    width: 36px; height: 36px; border-radius: 50%; 
-                                    border: 1px dashed var(--brand-blue); 
-                                    display: flex; align-items: center; justify-content: center;
-                                    color: var(--brand-blue); cursor: pointer; background: transparent;
-                                    transition: background 0.2s;
-                                ">
-                                    <span class="material-icons-round" style="font-size: 20px;">add</span>
-                                </button>
+                                    <!-- Add PM Button -->
+                                    <button id="add-pm-btn" style="
+                                        width: 36px; height: 36px; border-radius: 50%; 
+                                        border: 1px dashed var(--brand-blue); 
+                                        display: flex; align-items: center; justify-content: center;
+                                        color: var(--brand-blue); cursor: pointer; background: transparent;
+                                        transition: background 0.2s;
+                                    ">
+                                        <span class="material-icons-round" style="font-size: 20px;">add</span>
+                                    </button>
 
-                                <!-- PM Picker -->
-                                <div id="pm-picker" class="hidden" style="
-                                    position: absolute; 
-                                    background: white; 
-                                    box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
-                                    border-radius: 12px; 
-                                    min-width: 260px; 
-                                    max-width: 350px;
-                                    z-index: 1000;
-                                    top: 100%;
-                                    left: 0;
-                                    margin-top: 8px;
-                                    border: 1px solid var(--surface-2);
-                                    overflow: hidden;
-                                ">
-                                    ${renderAssigneePickerOptions(spaceId, 'pm')}
+                                    <!-- PM Picker -->
+                                    <div id="pm-picker" class="hidden" style="
+                                        position: absolute; 
+                                        background: white; 
+                                        box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
+                                        border-radius: 12px; 
+                                        min-width: 260px; 
+                                        max-width: 350px;
+                                        z-index: 1000;
+                                        top: 100%;
+                                        left: 0;
+                                        margin-top: 8px;
+                                        border: 1px solid var(--surface-2);
+                                        overflow: hidden;
+                                    ">
+                                        ${renderAssigneePickerOptions(spaceId, 'pm')}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Assignees -->
-                        <div style="position: relative;">
-                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">ASSEGNATO A</label>
-                            
-                            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                                ${assignees.filter(a => !a.role || a.role === 'assignee').map(a => {
+                            <!-- Assignees -->
+                            <div style="position: relative;">
+                                <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">ASSEGNATO A</label>
+                                
+                                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                    ${assignees.filter(a => !a.role || a.role === 'assignee').map(a => {
                 const userName = `${a.user?.first_name || ''} ${a.user?.last_name || ''}`.trim() || 'Utente';
                 const initial = userName.charAt(0).toUpperCase();
                 return `
-                                    <div class="assignee-pill" style="display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--surface-2); padding: 4px 10px 4px 4px; border-radius: 20px; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                        <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--surface-3); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; overflow: hidden;">
-                                            ${a.user?.avatar_url ? `<img src="${a.user.avatar_url}" style="width:100%; height:100%; object-fit:cover;">` : initial}
+                                        <div class="assignee-pill" style="display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--surface-2); padding: 4px 10px 4px 4px; border-radius: 20px; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                            <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--surface-3); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; overflow: hidden;">
+                                                ${a.user?.avatar_url ? `<img src="${a.user.avatar_url}" style="width:100%; height:100%; object-fit:cover;">` : initial}
+                                            </div>
+                                            <span style="font-size: 0.85rem; font-weight: 500;">${userName}</span>
+                                            <span class="material-icons-round remove-assignee-btn" data-id="${a.id}" data-role="assignee" style="font-size: 16px; color: var(--text-tertiary); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-tertiary)'">close</span>
                                         </div>
-                                        <span style="font-size: 0.85rem; font-weight: 500;">${userName}</span>
-                                        <span class="material-icons-round remove-assignee-btn" data-id="${a.id}" data-role="assignee" style="font-size: 16px; color: var(--text-tertiary); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-tertiary)'">close</span>
-                                    </div>
-                                `;
+                                    `;
             }).join('')}
-                                
-                                <button id="add-assignee-btn" style="
-                                    width: 32px; height: 32px; border-radius: 50%; 
-                                    border: 1px dashed var(--text-secondary); 
-                                    display: flex; align-items: center; justify-content: center;
-                                    color: var(--text-secondary); cursor: pointer; background: transparent;
-                                ">
-                                    <span class="material-icons-round">add</span>
-                                </button>
-                                
-                                <div id="assignee-picker" class="hidden" style="
-                                    position: absolute; 
-                                    background: white; 
-                                    box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
-                                    border-radius: 12px; 
-                                    min-width: 260px; 
-                                    max-width: 350px;
-                                    z-index: 1000;
-                                    top: 100%;
-                                    right: 0;
-                                    margin-top: 8px;
-                                    border: 1px solid var(--surface-2);
-                                    overflow: hidden;
-                                ">
-                                    ${renderAssigneePickerOptions(spaceId, 'assignee')}
+                                    
+                                    <button id="add-assignee-btn" style="
+                                        width: 32px; height: 32px; border-radius: 50%; 
+                                        border: 1px dashed var(--text-secondary); 
+                                        display: flex; align-items: center; justify-content: center;
+                                        color: var(--text-secondary); cursor: pointer; background: transparent;
+                                    ">
+                                        <span class="material-icons-round">add</span>
+                                    </button>
+                                    
+                                    <div id="assignee-picker" class="hidden" style="
+                                        position: absolute; 
+                                        background: white; 
+                                        box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
+                                        border-radius: 12px; 
+                                        min-width: 260px; 
+                                        max-width: 350px;
+                                        z-index: 1000;
+                                        top: 100%;
+                                        right: 0;
+                                        margin-top: 8px;
+                                        border: 1px solid var(--surface-2);
+                                        overflow: hidden;
+                                    ">
+                                        ${renderAssigneePickerOptions(spaceId, 'assignee')}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Body -->
-                <div class="drawer-body" style="padding: 1.5rem;">
-                    <!-- Dates -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
-                        <div>
-                            <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">INIZIO</label>
-                            <div style="font-size: 0.95rem;">${item.start_date ? new Date(item.start_date).toLocaleDateString() : '-'}</div>
-                        </div>
-                        <div>
-                            <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">SCADENZA</label>
-                            <div style="font-size: 0.95rem; color: ${item.due_date && new Date(item.due_date) < new Date() ? 'red' : 'inherit'}">
-                                ${item.due_date ? new Date(item.due_date).toLocaleDateString() : '-'}
+                    <!-- Body -->
+                    <div class="drawer-body" style="padding: 1.5rem;">
+                        <!-- Dates -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
+                            <div>
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">INIZIO</label>
+                                <div style="font-size: 0.95rem;">${item.start_date ? new Date(item.start_date).toLocaleDateString() : '-'}</div>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">SCADENZA</label>
+                                <div style="font-size: 0.95rem; color: ${item.due_date && new Date(item.due_date) < new Date() ? 'red' : 'inherit'}">
+                                    ${item.due_date ? new Date(item.due_date).toLocaleDateString() : '-'}
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Description -->
-                    <div style="margin-bottom: 2rem;">
-                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">DESCRIZIONE</label>
-                        <div style="margin-top: 0.5rem; line-height: 1.5; white-space: pre-wrap; font-size: 0.95rem;">${item.notes || '<span style="color:var(--text-secondary); font-style:italic;">Nessuna descrizione</span>'}</div>
-                    </div>
+                        <!-- Description -->
+                        <div style="margin-bottom: 2rem;">
+                            <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">DESCRIZIONE</label>
+                            <div style="margin-top: 0.5rem; line-height: 1.5; white-space: pre-wrap; font-size: 0.95rem;">${item.notes || '<span style="color:var(--text-secondary); font-style:italic;">Nessuna descrizione</span>'}</div>
+                        </div>
 
-                    <!-- Comments -->
-                    ${renderCommentsSection(comments)}
+                        <!-- Comments -->
+                        ${renderCommentsSection(comments)}
+                    </div>
                 </div>
+
             `;
 
             attachViewModeListeners();
@@ -450,9 +462,11 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
+                    background: white;
+                    flex-shrink: 0;
                 ">
-                    <h2 style="margin: 0; font-size: 1.1rem;">${isEdit ? 'Modifica' : 'Nuova'} ${itemType === 'attivita' ? 'Attività' : 'Task'}</h2>
-                    <button class="icon-btn close-drawer-btn"><span class="material-icons-round">close</span></button>
+                    <h2 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">${isEdit ? 'Modifica' : 'Nuova'} ${itemType === 'attivita' ? 'Attività' : 'Task'}</h2>
+                    <button class="icon-btn close-drawer-btn" title="Chiudi"><span class="material-icons-round">close</span></button>
                 </div>
                 
                 <div class="drawer-body" style="flex: 1; overflow-y: auto; padding: 1.5rem;">

@@ -1,8 +1,31 @@
-import { fetchSpace, fetchProjectItems, fetchChildProjects, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes } from '../../modules/pm_api.js?v=317';
-import { openProjectModal } from './components/project_modal.js?v=317';
-import { renderHubTree } from './components/hub_tree.js?v=317';
-import { renderHubAppointments } from './components/hub_appointments.js?v=317';
-import { state } from '../../modules/state.js?v=317';
+import { fetchSpace, fetchProjectItems, fetchChildProjects, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, deleteSpace } from '../../modules/pm_api.js?v=370';
+import { openProjectModal } from './components/project_modal.js?v=370';
+import { renderHubTree } from './components/hub_tree.js?v=370';
+import { renderHubAppointments } from './components/hub_appointments.js?v=370';
+import { state } from '../../modules/state.js?v=370';
+import { supabase } from '../../modules/config.js?v=370';
+
+// KPI Calculation Helper
+function calculateKPIs(items) {
+    const now = new Date();
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const total = items.length;
+    const done = items.filter(i => i.status === 'done').length;
+    const overdue = items.filter(i => {
+        if (!i.due_date || i.status === 'done') return false;
+        return new Date(i.due_date) < now;
+    }).length;
+    const dueSoon = items.filter(i => {
+        if (!i.due_date || i.status === 'done') return false;
+        const due = new Date(i.due_date);
+        return due >= now && due <= weekFromNow;
+    }).length;
+    const blocked = items.filter(i => i.status === 'blocked').length;
+    const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    return { total, done, overdue, dueSoon, blocked, progress };
+}
 
 export async function renderSpaceView(container, spaceId) {
     // Preserve current view if reloading same space
@@ -11,6 +34,11 @@ export async function renderSpaceView(container, spaceId) {
     container.innerHTML = '<div class="loading-state"><span class="loader"></span></div>';
 
     try {
+        // 1. Robust Collaborator Fetch (Deterministic Fix)
+        // Always ensure we have the latest list to resolve IDs
+        const { data: latestCollabs } = await supabase.from('collaborators').select('*');
+        if (latestCollabs) state.collaborators = latestCollabs; // Update global state too
+
         const space = await fetchSpace(spaceId);
         if (!space) {
             container.innerHTML = '<div class="error-state">Progetto non trovato o accesso negato.</div>';
@@ -23,168 +51,285 @@ export async function renderSpaceView(container, spaceId) {
             fetchAppointments(spaceId, 'space'),
             fetchAppointmentTypes()
         ]);
+
         let childProjects = [];
         if (space.is_cluster) {
             childProjects = await fetchChildProjects(spaceId);
         }
 
-        // Header Info
-        const title = space.type === 'commessa' && space.orders
-            ? `${space.orders.order_number} - ${space.orders.title}`
-            : (space.name || 'Progetto Interno');
+        // KPIs
+        const kpis = calculateKPIs(items);
 
-        const subtitle = space.type === 'commessa' && space.orders?.clients
-            ? space.orders.clients.business_name
-            : 'Progetto';
-
+        // View Defaults
         const defaultView = space.is_cluster ? 'projects' : 'tree';
         const activeView = previousView || defaultView;
 
         // Set Hub Context for Drawer
         window._hubContext = { items, space, spaceId, spaceAssignees };
 
+        // Helper to resolve Profile from Assignee
+        const resolveProfile = (assignee) => {
+            if (!latestCollabs) return { full_name: 'Caricamento...', avatar_url: null };
+
+            // Try matching by user_id first
+            if (assignee.user_ref) {
+                const c = latestCollabs.find(x => x.user_id === assignee.user_ref);
+                if (c) return c;
+            }
+            // Fallback to collaborator_id
+            if (assignee.collaborator_ref) {
+                const c = latestCollabs.find(x => x.id === assignee.collaborator_ref);
+                if (c) return c;
+            }
+            // Fallback to embedded user object if API provided it
+            return assignee.user || { full_name: 'Utente', avatar_url: null };
+        };
+
+        // Filter PMs for Header (role 'pm' or 'manager')
+        let pms = spaceAssignees.filter(a => ['pm', 'manager', 'admin'].includes(a.role)).map(assignee => {
+            const profile = resolveProfile(assignee);
+            return {
+                id: assignee.id, // assignment id
+                name: profile.full_name || `${profile.first_name} ${profile.last_name}` || 'Utente',
+                avatar: profile.avatar_url,
+                initial: (profile.full_name || 'U').charAt(0).toUpperCase(),
+                user_ref: assignee.user_ref,
+                collab_ref: assignee.collaborator_ref,
+                is_fallback: false
+            };
+        });
+
+        // Fallback: If no explicit PM, show default creator/manager (matches Dashboard logic)
+        if (pms.length === 0 && space.default_pm_user_ref) {
+            const fallbackProfile = (latestCollabs || []).find(x => x.user_id === space.default_pm_user_ref)
+                || { full_name: 'Non assegnato' };
+
+            if (fallbackProfile.full_name !== 'Non assegnato') {
+                pms.push({
+                    id: 'default',
+                    name: fallbackProfile.full_name,
+                    avatar: fallbackProfile.avatar_url,
+                    initial: (fallbackProfile.full_name || 'U').charAt(0).toUpperCase(),
+                    user_ref: space.default_pm_user_ref,
+                    is_fallback: true
+                });
+            }
+        }
+
+        // --- RENDER ---
         container.innerHTML = `
             <div class="pm-space-layout" style="height: 100%; display: flex; flex-direction: column;">
-                <!-- Header -->
-                <div class="pm-header glass-panel" style="margin: 0 0 1rem 0; padding: 1.5rem; display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <div class="text-xs text-secondary uppercase tracking-wider">${subtitle}</div>
-                        <h1 style="margin:0; font-size:1.5rem;">${title}</h1>
-                        
-                        <!-- PM List (New) -->
-                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-top: 0.5rem;">
-                            <span style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 500; text-transform: uppercase;">RESPONSABILI:</span>
-                            <div id="space-pms-list" style="display: flex; align-items: center; gap: 6px;">
-                                ${spaceAssignees.filter(a => a.role === 'pm').map(a => {
-            let userName = a.user?.full_name || a.user?.first_name || 'Utente';
-            let avatarUrl = a.user?.avatar_url;
-            return `
-                                    <div class="user-pill-mini pm" data-uid="${a.user_ref}" data-collab-id="${a.collaborator_ref}" title="${userName}" style="
-                                        display: flex; align-items: center; gap: 6px; background: var(--surface-1); 
-                                        padding: 2px 8px 2px 2px; border-radius: 16px; border: 1px solid transparent;
-                                        font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;
-                                    ">
-                                        <div style="width: 20px; height: 20px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 10px;">
-                                            ${avatarUrl ? `<img src="${avatarUrl}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : userName.charAt(0).toUpperCase()}
-                                        </div>
-                                        ${userName.split(' ')[0]}
-                                        <span class="material-icons-round remove-space-pm-btn" data-id="${a.id}" style="font-size: 0.9rem; cursor: pointer; opacity: 0.5;">close</span>
-                                    </div>
-                                `;
-        }).join('')}
-                                
-                                <!-- Add PM Button -->
-                                <div style="position: relative;">
-                                    <button id="add-space-pm-btn" style="
-                                        width: 24px; height: 24px; border-radius: 50%; color: var(--brand-blue); 
-                                        background: white; border: 1px dashed var(--brand-blue); display: flex; 
-                                        align-items: center; justify-content: center; cursor: pointer;
-                                    ">
-                                        <span class="material-icons-round" style="font-size: 1rem;">add</span>
+                
+                <!-- STICKY HEADER (Unified Style) -->
+                <div class="hub-header" style="
+                    background: white; border-bottom: 1px solid var(--surface-2); padding: 1.25rem 1.5rem;
+                    position: sticky; top: 0; z-index: 50;
+                ">
+                    <!-- Top Row: Meta -->
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                        <span style="font-family: monospace; color: var(--text-secondary); font-weight: 600; font-size: 0.85rem; text-transform: uppercase;">
+                            ${space.area || 'Generale'}
+                        </span>
+                        <span style="background: #f1f5f9; color: var(--text-secondary); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase;">
+                            ${space.is_cluster ? 'Cluster' : 'Progetto'}
+                        </span>
+                    </div>
+
+                    <!-- Main Row: Title & Actions -->
+                    <div style="display: flex; justify-content: space-between; align-items: start; gap: 1rem; margin-bottom: 1.5rem;">
+                         <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin: 0; line-height: 1.2;">
+                            ${space.name}
+                        </h1>
+
+                        <div style="display: flex; gap: 0.5rem;">
+                            <!-- New Button -->
+                            <div style="position: relative;">
+                                <button class="primary-btn" id="add-new-hub-btn" style="display: flex; align-items: center; gap: 0.5rem; padding: 8px 16px;">
+                                    <span class="material-icons-round">add</span>
+                                    Nuovo
+                                    <span class="material-icons-round">expand_more</span>
+                                </button>
+                                <div id="add-hub-dropdown" class="hidden glass-card" style="
+                                    position: absolute; top: 110%; right: 0; width: 210px; z-index: 1000;
+                                    background: white; border: 1px solid var(--surface-2); border-radius: 12px;
+                                    box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 0.5rem;
+                                ">
+                                    ${space.is_cluster ? `
+                                        <button class="dropdown-item" id="add-project-btn">
+                                            <span class="material-icons-round" style="color: #6366f1;">folder_special</span>
+                                            <div><div class="dt">Progetto</div><div class="ds">Nel cluster</div></div>
+                                        </button>
+                                    ` : ''}
+                                    <button class="dropdown-item" id="add-activity-btn">
+                                        <span class="material-icons-round" style="color: #f59e0b;">folder</span>
+                                        <div><div class="dt">Attività</div><div class="ds">Raggruppa task</div></div>
                                     </button>
-                                    <div id="space-pm-picker" class="hidden glass-card" style="position: absolute; top: 130%; left: 0; width: 280px; z-index: 1000; max-height: 320px; overflow-y: auto; background: white; border-radius: 12px; border: 1px solid var(--surface-2); box-shadow: 0 10px 40px rgba(0,0,0,0.2);"></div>
+                                    <button class="dropdown-item" id="add-task-btn">
+                                        <span class="material-icons-round" style="color: #3b82f6;">check_circle_outline</span>
+                                        <div><div class="dt">Task</div><div class="ds">Singolo lavoro</div></div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Settings Button -->
+                            <div style="position: relative;">
+                                <button class="secondary-btn" id="space-settings-btn" style="width: 38px; height: 38px; padding:0; display:flex; align-items:center; justify-content:center;">
+                                    <span class="material-icons-round">more_vert</span>
+                                </button>
+                                <div id="space-settings-dropdown" class="hidden glass-card" style="
+                                    position: absolute; top: 110%; right: 0; width: 180px; z-index: 1000;
+                                    background: white; border: 1px solid var(--surface-2); border-radius: 12px;
+                                    box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 0.5rem;
+                                ">
+                                    <button class="dropdown-item text-red" id="delete-space-btn" style="color: #ef4444;">
+                                        <span class="material-icons-round">delete</span>
+                                        Elimina ${space.is_cluster ? 'Cluster' : 'Progetto'}
+                                    </button>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="actions" style="display:flex; gap:0.5rem;">
-                        <!-- Unified Add Dropdown -->
-                        <div style="position: relative;">
-                            <button class="primary-btn" id="add-new-hub-btn" style="display: flex; align-items: center; gap: 0.5rem;">
-                                <span class="material-icons-round">add</span>
-                                Nuovo
-                                <span class="material-icons-round">expand_more</span>
-                            </button>
-                            
-                            <div id="add-hub-dropdown" class="hidden glass-card" style="
-                                position: absolute; top: 110%; right: 0; width: 210px; z-index: 1000;
-                                background: white; border: 1px solid var(--surface-2); border-radius: 12px;
-                                box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 0.5rem;
-                            ">
-                                ${space.is_cluster ? `
-                                    <button class="dropdown-item" id="add-project-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; text-align: left; border: none; background: none; cursor: pointer; border-radius: 8px;">
-                                        <span class="material-icons-round" style="color: #6366f1;">folder_special</span>
-                                        <div><div style="font-weight: 600; font-size: 0.85rem;">Progetto</div><div style="font-size: 0.7rem; color: #64748b;">Nuovo progetto nel cluster</div></div>
-                                    </button>
-                                ` : ''}
-                                
-                                <button class="dropdown-item" id="add-activity-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; text-align: left; border: none; background: none; cursor: pointer; border-radius: 8px;">
-                                    <span class="material-icons-round" style="color: #f59e0b;">folder</span>
-                                    <div><div style="font-weight: 600; font-size: 0.85rem;">Attività</div><div style="font-size: 0.7rem; color: #64748b;">Raggruppa task</div></div>
-                                </button>
-                                
-                                <button class="dropdown-item" id="add-task-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; text-align: left; border: none; background: none; cursor: pointer; border-radius: 8px;">
-                                    <span class="material-icons-round" style="color: #3b82f6;">check_circle_outline</span>
-                                    <div><div style="font-weight: 600; font-size: 0.85rem;">Task</div><div style="font-size: 0.7rem; color: #64748b;">Singolo lavoro</div></div>
-                                </button>
 
-                                <div style="height: 1px; background: #f1f5f9; margin: 4px 0;"></div>
-
-                                <button class="dropdown-item" id="add-appointment-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; text-align: left; border: none; background: none; cursor: pointer; border-radius: 8px;">
-                                    <span class="material-icons-round" style="color: #8b5cf6;">event</span>
-                                    <div><div style="font-weight: 600; font-size: 0.85rem;">Appuntamento</div><div style="font-size: 0.7rem; color: #64748b;">Singolo incontro</div></div>
+                    <!-- Bottom Row: PMs & KPIs -->
+                    <div style="display: flex; gap: 2rem; align-items: center; flex-wrap: wrap;">
+                        <!-- PM List -->
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">RESPONSABILI:</span>
+                            <div id="space-pms-list" style="display: flex; align-items: center; gap: 6px;">
+                                ${pms.map(pm => `
+                                    <div class="user-pill-mini pm" title="${pm.name}">
+                                        <div class="avatar-circle">
+                                            ${pm.avatar ? `<img src="${pm.avatar}">` : pm.initial}
+                                        </div>
+                                        <span class="name">${pm.name.split(' ')[0]}</span>
+                                        ${!pm.is_fallback ? `<span class="material-icons-round remove-space-pm-btn" data-id="${pm.id}">close</span>` : ''}
+                                    </div>
+                                `).join('')}
+                                <button id="add-space-pm-btn" class="add-pm-circle">
+                                    <span class="material-icons-round">add</span>
                                 </button>
+                                <!-- Picker handled by generic picker popover -->
+                                <div id="space-pm-picker" class="hidden glass-card picker-popover"></div>
+                            </div>
+                        </div>
+
+                        <!-- KPIs -->
+                        <div style="height: 24px; width: 1px; background: var(--surface-2);"></div>
+                        
+                        <div style="display: flex; gap: 1rem;">
+                            <div class="kpi-pill red">
+                                <span class="material-icons-round">warning</span> ${kpis.overdue} Scadute
+                            </div>
+                             <div class="kpi-pill orange">
+                                <span class="material-icons-round">schedule</span> ${kpis.dueSoon} In scadenza
+                            </div>
+                            <div class="kpi-pill green">
+                                <span class="material-icons-round">check_circle</span> ${kpis.progress}%
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Tabs -->
-                <div class="pm-tabs" style="margin-bottom: 1rem; display:flex; gap: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">
+                <div class="pm-tabs-bar">
                     ${space.is_cluster ? `
                         <button class="tab-btn ${activeView === 'projects' ? 'active' : ''}" data-view="projects">
                             <span class="material-icons-round">folder_special</span> Progetti
                         </button>
                     ` : ''}
                     <button class="tab-btn ${activeView === 'tree' ? 'active' : ''}" data-view="tree">
-                        <span class="material-icons-round">account_tree</span> Albero
+                        <span class="material-icons-round">account_tree</span> Struttura
                     </button>
                     <button class="tab-btn ${activeView === 'list' ? 'active' : ''}" data-view="list">
                         <span class="material-icons-round">view_list</span> Lista
                     </button>
+                    <button class="tab-btn ${activeView === 'people' ? 'active' : ''}" data-view="people">
+                        <span class="material-icons-round">group</span> Persone
+                    </button>
                     <button class="tab-btn ${activeView === 'appointments' ? 'active' : ''}" data-view="appointments">
                         <span class="material-icons-round">event</span> Appuntamenti
                     </button>
-                    ${!space.is_cluster ? `
-                        <button class="tab-btn ${activeView === 'people' ? 'active' : ''}" data-view="people">
-                            <span class="material-icons-round">group</span> Persone
-                        </button>
-                    ` : ''}
                 </div>
 
                 <!-- View Content -->
-                <div id="pm-view-content" style="flex: 1; overflow-y: auto; position: relative;">
-                    <!-- Content will be injected here -->
+                <div id="pm-view-content" style="flex: 1; overflow-y: auto; position: relative; background: #f8fafc; padding: 1.5rem;">
+                    <!-- Content injected here -->
                 </div>
             </div>
             
-            <!-- Drawer Container (Hub Style) -->
-            <div id="hub-drawer-overlay" class="drawer-overlay hidden" style="
-                position: fixed;
-                inset: 0;
-                background: rgba(0,0,0,0.3);
-                z-index: 200;
-                display: flex;
-                justify-content: flex-end;
-            ">
-                <div id="hub-drawer" style="
-                    width: 500px;
-                    max-width: 100%;
-                    background: white;
-                    height: 100%;
-                    box-shadow: -4px 0 20px rgba(0,0,0,0.1);
-                    display: flex;
-                    flex-direction: column;
-                ">
-                    <!-- Drawer content injected dynamically -->
-                </div>
+            <!-- Drawer Overlay -->
+            <div id="hub-drawer-overlay" class="drawer-overlay hidden">
+                <div id="hub-drawer"></div>
             </div>
+
+            <style>
+                /* Shared Styles */
+                .dropdown-item {
+                    display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem;
+                    text-align: left; border: none; background: none; cursor: pointer; border-radius: 8px;
+                    transition: background 0.2s;
+                }
+                .dropdown-item:hover { background: #f1f5f9; }
+                .dropdown-item .dt { font-weight: 600; font-size: 0.85rem; color: var(--text-primary); }
+                .dropdown-item .ds { font-size: 0.7rem; color: #64748b; }
+                .dropdown-item.text-red:hover { background: #fef2f2; }
+                
+                .user-pill-mini {
+                    display: flex; align-items: center; gap: 6px; background: var(--surface-1);
+                    padding: 2px 8px 2px 2px; border-radius: 16px; border: 1px solid transparent;
+                    font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;
+                }
+                .avatar-circle {
+                    width: 20px; height: 20px; border-radius: 50%; background: var(--brand-blue); color: white;
+                    display: flex; align-items: center; justify-content: center; font-size: 10px; overflow: hidden;
+                }
+                .avatar-circle img { width: 100%; height: 100%; object-fit: cover; }
+                .add-pm-circle {
+                    width: 24px; height: 24px; border-radius: 50%; color: var(--brand-blue);
+                    background: white; border: 1px dashed var(--brand-blue); display: flex;
+                    align-items: center; justify-content: center; cursor: pointer; transition: 0.2s;
+                }
+                .add-pm-circle:hover { background: #eff6ff; }
+                .picker-popover {
+                    position: absolute; top: 130%; left: 0; width: 280px; z-index: 1000;
+                    max-height: 320px; overflow-y: auto; background: white; border-radius: 12px;
+                    border: 1px solid var(--surface-2); box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                }
+                
+                .kpi-pill { display: flex; align-items: center; gap: 0.5rem; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; }
+                .kpi-pill.red { background: #fef2f2; color: #ef4444; }
+                .kpi-pill.orange { color: #f59e0b; background: #fffbeb; }
+                .kpi-pill.green { color: #10b981; background: #ecfdf5; }
+
+                .pm-tabs-bar {
+                    display: flex; gap: 0; background: white; border-bottom: 1px solid var(--surface-2); padding: 0 1.5rem;
+                }
+                .tab-btn {
+                    display: flex; align-items: center; gap: 0.5rem; padding: 1rem 1.25rem;
+                    border: none; background: none; cursor: pointer; font-weight: 500; color: var(--text-secondary);
+                    border-bottom: 2px solid transparent; transition: all 0.2s;
+                }
+                .tab-btn:hover { color: var(--text-main); background: var(--surface-1); }
+                .tab-btn.active { color: var(--brand-color); border-bottom-color: var(--brand-color); font-weight: 600; }
+                
+                /* Drawer */
+                .drawer-overlay {
+                    position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 200;
+                    display: flex; justify-content: flex-end;
+                }
+                .drawer-overlay.hidden { display: none; }
+                #hub-drawer {
+                    width: 500px; max-width: 100%; background: white; height: 100%;
+                    box-shadow: -4px 0 20px rgba(0,0,0,0.1); display: flex; flex-direction: column;
+                }
+            </style>
         `;
 
-        // Tab Logic
-        const tabs = container.querySelectorAll('.tab-btn');
+        // --- EVENT HANDLERS ---
         const viewContent = container.querySelector('#pm-view-content');
+        const tabs = container.querySelectorAll('.tab-btn');
 
+        // Tabs Logic
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 tabs.forEach(t => t.classList.remove('active'));
@@ -197,224 +342,225 @@ export async function renderSpaceView(container, spaceId) {
                     renderChildProjects(viewContent, childProjects);
                 } else if (view === 'appointments') {
                     renderHubAppointments(viewContent, appointments, appointmentTypes, spaceId, 'space');
-                } else {
-                    viewContent.innerHTML = `<div style="padding:2rem; text-align:center; color:var(--text-secondary);">Vista ${view} in arrivo...</div>`;
+                } else if (view === 'people') {
+                    renderTeamTab(viewContent, spaceAssignees, latestCollabs);
+                } else if (view === 'list') {
+                    viewContent.innerHTML = '<div style="text-align:center; padding: 2rem; color: #94a3b8;">Vista lista in arrivo...</div>';
                 }
             });
         });
 
-        // Dropdown Header Logic
-        const addBtn = container.querySelector('#add-new-hub-btn');
-        const addDropdown = container.querySelector('#add-hub-dropdown');
-
-        if (addBtn && addDropdown) {
-            addBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                addDropdown.classList.toggle('hidden');
-            });
-
-            document.addEventListener('click', (e) => {
-                if (!addBtn.contains(e.target) && !addDropdown.contains(e.target)) {
-                    addDropdown.classList.add('hidden');
-                }
-            });
-
-            // Handlers inside dropdown
-            addDropdown.querySelector('#add-project-btn')?.addEventListener('click', () => {
-                addDropdown.classList.add('hidden');
-                openProjectModal({
-                    prefilledParentId: spaceId,
-                    forceType: 'project',
-                    onSuccess: () => renderSpaceView(container, spaceId)
+        // Dropdowns Toggle
+        const toggleDropdown = (triggerId, dropdownId) => {
+            const btn = container.querySelector(triggerId);
+            const drop = container.querySelector(dropdownId);
+            if (btn && drop) {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    container.querySelectorAll('.glass-card.hidden').forEach(el => {
+                        if (el !== drop && !el.classList.contains('picker-popover')) el.classList.add('hidden');
+                    });
+                    drop.classList.toggle('hidden');
                 });
+                document.addEventListener('click', (e) => {
+                    if (!btn.contains(e.target) && !drop.contains(e.target)) drop.classList.add('hidden');
+                });
+            }
+            return drop;
+        };
+
+        const addDropdown = toggleDropdown('#add-new-hub-btn', '#add-hub-dropdown');
+        const settingsDropdown = toggleDropdown('#space-settings-btn', '#space-settings-dropdown');
+
+        // Delete Action (Use Custom Modal)
+        container.querySelector('#delete-space-btn')?.addEventListener('click', async () => {
+            if (await window.showConfirm(`Sei sicuro di voler eliminare questo ${space.is_cluster ? 'Cluster' : 'Progetto'}? Questa azione è irreversibile.`, { type: 'danger' })) {
+                try {
+                    await deleteSpace(spaceId);
+                    window.location.hash = '#pm/interni';
+                } catch (err) {
+                    window.showAlert("Errore durante l'eliminazione: " + err.message, 'error');
+                }
+            }
+        });
+
+        // Add Actions
+        addDropdown?.querySelector('#add-project-btn')?.addEventListener('click', () => {
+            addDropdown.classList.add('hidden');
+            openProjectModal({
+                prefilledParentId: spaceId,
+                forceType: 'project',
+                onSuccess: () => renderSpaceView(container, spaceId)
             });
+        });
 
-            addDropdown.querySelector('#add-activity-btn')?.addEventListener('click', () => {
-                addDropdown.classList.add('hidden');
-                import('./components/hub_drawer.js?v=317').then(mod => mod.openHubDrawer(null, spaceId, null, 'attivita'));
-            });
+        addDropdown?.querySelector('#add-activity-btn')?.addEventListener('click', () => {
+            addDropdown.classList.add('hidden');
+            import('./components/hub_drawer.js?v=370').then(mod => mod.openHubDrawer(null, spaceId, null, 'attivita'));
+        });
 
-            addDropdown.querySelector('#add-task-btn')?.addEventListener('click', () => {
-                addDropdown.classList.add('hidden');
-                import('./components/hub_drawer.js?v=317').then(mod => mod.openHubDrawer(null, spaceId, null, 'task'));
-            });
+        addDropdown?.querySelector('#add-task-btn')?.addEventListener('click', () => {
+            addDropdown.classList.add('hidden');
+            import('./components/hub_drawer.js?v=370').then(mod => mod.openHubDrawer(null, spaceId, null, 'task'));
+        });
 
-            addDropdown.querySelector('#add-appointment-btn')?.addEventListener('click', () => {
-                addDropdown.classList.add('hidden');
-                import('./components/hub_appointment_drawer.js?v=317').then(mod => mod.openAppointmentDrawer(null, spaceId, 'space'));
-            });
-        }
+        // PM Picker logic
+        container.querySelector('#add-space-pm-btn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const picker = container.querySelector('#space-pm-picker');
 
-        // ---------------------------------------------------------
-        // PM Management Logic (Delegated)
-        // ---------------------------------------------------------
-
-        const renderPmOptions = () => {
+            // Render options (excluding already assigned)
             const assignedUserIds = new Set(spaceAssignees.map(a => a.user_ref).filter(Boolean));
             const assignedCollabIds = new Set(spaceAssignees.map(a => a.collaborator_ref).filter(Boolean));
-            const others = (state.collaborators || []).filter(c => {
-                if (c.is_active === false || c.active === false) return false;
-                let tags = c.tags || [];
-                if (typeof tags === 'string') {
-                    try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
-                }
-                const isPM = Array.isArray(tags) && tags.some(t => t.toLowerCase().includes('pm') || t.toLowerCase().includes('manager') || t.toLowerCase().includes('account'));
-                const isAssigned = (c.user_id && assignedUserIds.has(c.user_id)) || assignedCollabIds.has(c.id);
-                return (isPM || true) && !isAssigned;
+
+            // Sort by name
+            const candidates = (latestCollabs || [])
+                .filter(c => {
+                    const isAssigned = (c.user_id && assignedUserIds.has(c.user_id)) || assignedCollabIds.has(c.id);
+                    return !isAssigned && c.active !== false;
+                })
+                .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
+
+            picker.innerHTML = candidates.length === 0 ? '<div style="padding:1rem;">Nessun candidato</div>' : candidates.map(c => `
+                <div class="dropdown-item pm-candidate" data-uid="${c.user_id}" data-cid="${c.id}">
+                    <div class="avatar-circle" style="width:24px;height:24px;">${c.avatar_url ? `<img src="${c.avatar_url}">` : (c.full_name || 'U').charAt(0)}</div>
+                    <div class="dt" style="font-size:0.8rem;">${c.full_name}</div>
+                    <div class="ds" style="margin-left:auto;">+</div>
+                </div>
+             `).join('');
+
+            picker.querySelectorAll('.pm-candidate').forEach(el => {
+                el.addEventListener('click', async () => {
+                    const uid = el.dataset.uid !== 'undefined' ? el.dataset.uid : null;
+                    const cid = el.dataset.cid;
+                    try {
+                        if (uid) await assignUserToSpace(spaceId, uid, 'pm');
+                        else await assignUserToSpace(spaceId, cid, 'pm', true);
+                        renderSpaceView(container, spaceId);
+                    } catch (err) { window.showAlert(err.message, 'error'); }
+                });
             });
 
-            if (others.length === 0) return '<div style="padding:1.5rem; text-align:center; font-size:0.85rem; color:var(--text-tertiary);">Nessun altro responsabile disponibile</div>';
+            picker.classList.toggle('hidden');
+        });
 
-            return `
-                <div style="padding: 10px 12px 6px; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--surface-2); margin-bottom: 4px;">Aggiungi Responsabile</div>
-                ${others.map(c => {
-                return `
-                        <div class="user-option-space" data-uid="${c.user_id || ''}" data-collab-id="${c.id}" style="
-                            display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; transition: background 0.2s;
-                        " onmouseover="this.style.background='var(--surface-1)'" onmouseout="this.style.background='transparent'">
-                            <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; border: 1px solid rgba(0,0,0,0.05); overflow: hidden;">
-                                ${c.avatar_url ? `<img src="${c.avatar_url}" style="width:100%; height:100%; object-fit:cover;">` : (c.full_name?.charAt(0) || 'U')}
-                            </div>
-                            <div style="flex: 1; min-width: 0;">
-                                <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">${c.full_name}</div>
-                                <div style="font-size: 0.7rem; color: var(--text-tertiary);">Responsabile</div>
-                            </div>
-                        </div>
-                    `;
-            }).join('')}
-            `;
-        };
-
-        const handleSpaceViewEvents = async (e) => {
-            // Add PM
-            const addBtn = e.target.closest('#add-space-pm-btn');
-            if (addBtn) {
+        // Remove PM (Use Custom Modal)
+        container.querySelectorAll('.remove-space-pm-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                const picker = addBtn.parentElement.querySelector('#space-pm-picker');
-                if (picker) {
-                    if (picker.classList.contains('hidden')) {
-                        document.querySelectorAll('#space-pm-picker:not(.hidden)').forEach(p => p.classList.add('hidden'));
-                        picker.innerHTML = renderPmOptions();
-                        picker.classList.remove('hidden');
-                    } else {
-                        picker.classList.add('hidden');
-                    }
+                if (await window.showConfirm("Rimuovere Responsabile?", { type: 'warning', confirmText: 'Rimuovi' })) {
+                    try {
+                        const assignmentId = btn.dataset.id;
+                        await supabase.from('pm_space_assignees').delete().eq('id', assignmentId);
+                        renderSpaceView(container, spaceId);
+                    } catch (err) { window.showAlert(err.message, 'error'); }
                 }
-                return;
-            }
-
-            // Select PM
-            const opt = e.target.closest('.user-option-space');
-            if (opt) {
-                e.stopPropagation();
-                const uid = opt.dataset.uid;
-                const collabId = opt.dataset.collabId;
-                const picker = opt.closest('#space-pm-picker');
-                if (picker) picker.classList.add('hidden');
-
-                try {
-                    if (uid && uid !== 'null') await assignUserToSpace(spaceId, uid, 'pm');
-                    else await assignUserToSpace(spaceId, collabId, 'pm', true);
-                    renderSpaceView(container, spaceId); // Re-render full view to refresh state
-                } catch (err) { alert("Errore: " + err.message); }
-                return;
-            }
-
-            // Remove PM
-            const removeBtn = e.target.closest('.remove-space-pm-btn');
-            if (removeBtn) {
-                e.stopPropagation();
-                if (!confirm("Rimuovere responsabile?")) return;
-                const pill = removeBtn.closest('.user-pill-mini');
-                const uid = pill.dataset.uid;
-                const collabId = pill.dataset.collabId;
-                try {
-                    if (uid && uid !== 'null' && uid !== 'undefined') await removeUserFromSpace(spaceId, uid);
-                    else await removeUserFromSpace(spaceId, collabId, true);
-                    renderSpaceView(container, spaceId); // Re-render
-                } catch (err) { alert("Errore: " + err.message); }
-                return;
-            }
-        };
-
-        // Remove previous listener if reference exists
-        if (container._spaceViewHandler) {
-            container.removeEventListener('click', container._spaceViewHandler);
-        }
-        container._spaceViewHandler = handleSpaceViewEvents;
-        container.addEventListener('click', handleSpaceViewEvents);
-
-        // Outside Click (Global)
-        if (!window._pickerOutsideListener) {
-            window._pickerOutsideListener = (e) => {
-                const pickers = document.querySelectorAll('#space-pm-picker:not(.hidden)');
-                pickers.forEach(p => {
-                    const btn = p.parentElement?.querySelector('#add-space-pm-btn');
-                    if (!p.contains(e.target) && (!btn || !btn.contains(e.target))) {
-                        p.classList.add('hidden');
-                    }
-                });
-            };
-            document.addEventListener('click', window._pickerOutsideListener);
-        }
+            });
+        });
 
 
-
-        // ---------------------------------------------------------
-        // State Listeners (Real-time updates without full reload)
-        // ---------------------------------------------------------
-
-        const spaceListener = async (e) => {
-            if (String(e.detail?.spaceId) === String(spaceId)) {
-                // Fetch fresh data
-                const [newItems, newSpace, newChildren] = await Promise.all([
-                    fetchProjectItems(spaceId),
-                    fetchSpace(spaceId),
-                    space.is_cluster ? fetchChildProjects(spaceId) : Promise.resolve([])
-                ]);
-
-                // Update local references
-                // We actually need to update the higher scope if we want to avoid full re-render, 
-                // but for space_view, a re-render is safer for now.
-                renderSpaceView(container, spaceId);
-            }
-        };
-
-        const apptListener = (e) => {
-            if (String(e.detail?.spaceId) === String(spaceId) || (e.detail?.refType === 'space' && String(e.detail?.refId) === String(spaceId))) {
-                renderSpaceView(container, spaceId);
-            }
-        };
-
-        if (window._spaceViewListener) document.removeEventListener('pm-item-changed', window._spaceViewListener);
-        window._spaceViewListener = spaceListener;
-        document.addEventListener('pm-item-changed', spaceListener);
-
-        if (window._spaceApptListener) document.removeEventListener('appointment-changed', window._spaceApptListener);
-        window._spaceApptListener = apptListener;
-        document.addEventListener('appointment-changed', apptListener);
-
-        // Initial Render
-        if (activeView === 'projects' && space.is_cluster) {
+        // Initial Content Render
+        if (activeView === 'people') {
+            renderTeamTab(viewContent, spaceAssignees, latestCollabs);
+        } else if (activeView === 'projects' && space.is_cluster) {
             renderChildProjects(viewContent, childProjects);
         } else if (activeView === 'tree') {
             renderHubTree(viewContent, items, space, spaceId);
         } else if (activeView === 'appointments') {
             renderHubAppointments(viewContent, appointments, appointmentTypes, spaceId, 'space');
         } else {
-            // Default fallback or rendering for 'list'/'people' if they have renderers
-            if (activeView === 'list') viewContent.innerHTML = `<div style="padding:2rem; text-align:center; color:var(--text-secondary);">Vista Lista in arrivo...</div>`;
-            else if (activeView === 'people') viewContent.innerHTML = `<div style="padding:2rem; text-align:center; color:var(--text-secondary);">Vista Persone in arrivo...</div>`;
-            else {
-                // Really fallback
-                space.is_cluster ? renderChildProjects(viewContent, childProjects) : renderHubTree(viewContent, items, space, spaceId);
-            }
+            renderHubTree(viewContent, items, space, spaceId);
         }
 
     } catch (e) {
         console.error("Error rendering space:", e);
-        container.innerHTML = `<div class="error-state">Errore caricamento progetto: ${e.message}</div>`;
+        container.innerHTML = `<div class="error-state">Errore caricamento: ${e.message}</div>`;
     }
+}
+
+function renderTeamTab(container, assignees, collaborators) {
+    if (!assignees || assignees.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 4rem;">
+                <span class="material-icons-round" style="font-size: 3rem; color: #cbd5e1;">group</span>
+                <h3 style="color: #64748b; margin-top: 1rem;">Nessun membro del team</h3>
+                <p style="color: #94a3b8;">Assegna persone dal pulsante Responsabili o aggiungile qui.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Helper to resolve profile
+    const resolve = (assignee) => {
+        if (assignee.user_ref) return collaborators.find(x => x.user_id === assignee.user_ref);
+        if (assignee.collaborator_ref) return collaborators.find(x => x.id === assignee.collaborator_ref);
+        return assignee.user;
+    };
+
+    container.innerHTML = `
+        <div style="background: white; border-radius: 12px; border: 1px solid var(--surface-2); overflow: hidden;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                    <tr>
+                        <th style="padding: 1rem; text-align: left; font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Membro</th>
+                        <th style="padding: 1rem; text-align: left; font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Ruolo</th>
+                        <th style="padding: 1rem; text-align: right;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${assignees.map(a => {
+        const profile = resolve(a) || { full_name: 'Sconosciuto', avatar_url: null };
+        return `
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 1rem;">
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <div class="avatar-circle" style="width:32px; height:32px; font-size: 0.85rem;">
+                                            ${profile.avatar_url ? `<img src="${profile.avatar_url}">` : (profile.full_name || 'U').charAt(0)}
+                                        </div>
+                                        <div style="font-weight: 500; font-size: 0.9rem;">${profile.full_name || 'Sconosciuto'}</div>
+                                    </div>
+                                </td>
+                                <td style="padding: 1rem;">
+                                    <span style="
+                                        display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+                                        background: ${['pm', 'manager'].includes(a.role) ? '#eff6ff' : '#f1f5f9'};
+                                        color: ${['pm', 'manager'].includes(a.role) ? 'var(--brand-blue)' : '#64748b'};
+                                    ">
+                                        ${a.role || 'Membro'}
+                                    </span>
+                                </td>
+                                <td style="padding: 1rem; text-align: right;">
+                                    <button class="remove-member-btn" data-id="${a.id}" style="
+                                        width: 32px; height: 32px; border-radius: 8px; border: none; background: transparent; 
+                                        color: #94a3b8; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+                                        transition: all 0.2s;
+                                    ">
+                                        <span class="material-icons-round">delete</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+    }).join('')}
+                </tbody>
+            </table>
+        </div>
+        <style>
+            .remove-member-btn:hover { background: #fef2f2; color: #ef4444; }
+        </style>
+    `;
+
+    // Attach listeners
+    container.querySelectorAll('.remove-member-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (await window.showConfirm("Rimuovere questo membro dal progetto?", { type: 'warning' })) {
+                try {
+                    await supabase.from('pm_space_assignees').delete().eq('id', btn.dataset.id);
+                    // Reload
+                    document.querySelector('.tab-btn[data-view="people"]')?.click();
+                } catch (err) { window.showAlert(err.message, 'error'); }
+            }
+        });
+    });
 }
 
 function renderChildProjects(container, projects) {

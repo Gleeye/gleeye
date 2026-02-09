@@ -139,12 +139,20 @@ async function handleSession(session) {
                 }
             }
 
-            const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
+            const isPrivilegedCollaborator = userTags.includes('Partner') ||
+                userTags.includes('Amministrazione') ||
+                userTags.includes('Project Manager') ||
+                userTags.includes('Account');
             const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
 
-            let allowedPagesForCollaborator = ['home', 'booking', 'profile', 'agenda', 'my-assignments'];
+            // Base allowed pages for all collaborators
+            let allowedPagesForCollaborator = [
+                'home', 'booking', 'profile', 'agenda', 'my-assignments',
+                'pm', 'notifications', 'chat', 'assignment-detail', 'assignments'
+            ];
+
             if (isPrivilegedCollaborator) {
-                // Expand allowed pages for Partner/Amministrazione
+                // Expand allowed pages for Partner/Amministrazione/PMs
                 allowedPagesForCollaborator = [...allowedPagesForCollaborator,
                     'invoices-dashboard', 'invoices', 'passive-invoices-collab', 'passive-invoices-suppliers', 'invoices-archive',
                     'bank-transactions', 'bank-statements', 'payments',
@@ -153,7 +161,7 @@ async function handleSession(session) {
                 ];
             }
 
-            const currentHash = window.location.hash.slice(1) || 'dashboard';
+            const currentHash = window.location.hash.slice(1) || 'home';
             const [currentPage] = currentHash.split('/');
 
             console.log(`[Auth] User Role: ${activeRole}, Profile Role: ${state.profile?.role}, Current Page: ${currentPage}, Privileged: ${isPrivilegedCollaborator}`);

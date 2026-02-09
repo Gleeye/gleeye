@@ -1,6 +1,20 @@
-import { supabase } from './config.js?v=317';
-import { state } from './state.js?v=317';
-import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=317';
+import { supabase } from './config.js?v=327';
+import { state } from './state.js?v=327';
+import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=327';
+
+export async function fetchAllCollaborators() {
+    const { data, error } = await supabase
+        .from('collaborators')
+        .select('*')
+        .neq('status', 'archived')
+        .order('full_name');
+
+    if (error) {
+        console.error("Error fetching collaborators:", error);
+        return [];
+    }
+    return data || [];
+}
 
 // --- SPACES ---
 
@@ -162,6 +176,15 @@ export async function updateSpace(spaceId, updates) {
 
     if (error) throw error;
     return data;
+}
+
+export async function deleteSpace(spaceId) {
+    const { error } = await supabase
+        .from('pm_spaces')
+        .delete()
+        .eq('id', spaceId);
+    if (error) throw error;
+    return true;
 }
 
 // --- ITEMS ---

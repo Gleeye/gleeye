@@ -74,7 +74,7 @@ export function router() {
     const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione') || userTags.includes('Project Manager') || userTags.includes('Account');
 
     // List of pages allowed for Collaborators (standard - no special tags)
-    const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'my-assignments', 'booking'];
+    const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'my-assignments', 'booking', 'notifications', 'chat', 'assignment-detail', 'assignments', 'pm'];
 
     // Specific check for Project Management page access
     const canAccessPM = activeRole === 'admin' || isPrivilegedCollaborator;
@@ -88,14 +88,7 @@ export function router() {
     console.log(`[Router] Routing to: ${state.currentPage}, Role: ${activeRole}, Privileged: ${isPrivilegedCollaborator}`);
 
     // Allow if Admin OR Privileged OR Page is Allowed
-    if (state.currentPage === 'pm') {
-        if (!canAccessPM) {
-            console.warn(`[Router] Access denied to PM for standard collaborator. Redirecting to home.`);
-            state.currentPage = 'home';
-            window.location.hash = 'home';
-            return;
-        }
-    } else if (activeRole !== 'admin' && !isPrivilegedCollaborator && !allowedPagesForCollaborator.includes(state.currentPage)) {
+    if (activeRole !== 'admin' && !isPrivilegedCollaborator && !allowedPagesForCollaborator.includes(state.currentPage)) {
         console.warn(`[Router] Access denied for role '${activeRole}' to page '${state.currentPage}'. Redirecting...`);
         // Force redirect to a safe page - Agenda is the default for standard collaborators
         state.currentPage = 'home';
@@ -253,7 +246,7 @@ function render() {
                 // Route: Commessa Detail (#pm/commessa/:orderId)
                 if (state.currentSubPage === 'commessa' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Commessa';
-                    import('../features/pm/commessa_detail.js?v=317')
+                    import('../features/pm/commessa_detail.js?v=318')
                         .then(module => {
                             module.renderCommessaDetail(contentArea, state.currentId, false);
                         })
@@ -265,7 +258,7 @@ function render() {
                     // Route: Internal Project Detail (#pm/space/:spaceId)
                 } else if (state.currentSubPage === 'space' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Progetto';
-                    import('../features/pm/space_view.js?v=317')
+                    import('../features/pm/space_view.js?v=372')
                         .then(module => {
                             module.renderSpaceView(contentArea, state.currentId);
                         })
@@ -277,7 +270,7 @@ function render() {
                     // Route: Internal Projects List (#pm/interni)
                 } else if (state.currentSubPage === 'interni') {
                     if (pageTitle) pageTitle.textContent = 'Progetti Interni';
-                    import('../features/pm/internal_list.js?v=317')
+                    import('../features/pm/internal_list.js?v=368')
                         .then(module => {
                             module.renderInternalProjects(contentArea);
                         })
@@ -288,7 +281,7 @@ function render() {
 
                 } else {
                     // Standard PM views (Dashboard)
-                    import('../features/pm/index.js?v=317')
+                    import('../features/pm/index.js?v=318')
                         .then(module => {
                             module.renderPM(contentArea);
                         })
