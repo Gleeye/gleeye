@@ -281,7 +281,7 @@ function render() {
 
                 } else {
                     // Standard PM views (Dashboard)
-                    import('../features/pm/index.js?v=318')
+                    import('../features/pm/index.js?v=380')
                         .then(module => {
                             module.renderPM(contentArea);
                         })
