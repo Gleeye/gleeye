@@ -1,6 +1,6 @@
-import { state } from "../modules/state.js';
-import { fetchAppointment } from "../modules/api.js';
-import { fetchCollaborators } from "../modules/api.js';
+import { state } from '../modules/state.js;
+import { fetchAppointment } from '../modules/api.js;
+import { fetchCollaborators } from '../modules/api.js;
 
 // Shared Event Detail Modal Logic
 export async function openEventDetails(event) {

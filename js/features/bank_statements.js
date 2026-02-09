@@ -1,4 +1,4 @@
-import { supabase } from "../modules/config.js';
+import { supabase } from '../modules/config.js;
 import { renderModal, closeModal } from '../modules/utils.js?v=317';
 import { formatAmount } from '../modules/utils.js?v=317';
 

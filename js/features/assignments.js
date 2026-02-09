@@ -1,6 +1,6 @@
-import { state } from "../modules/state.js';
+import { state } from '../modules/state.js;
 import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=317';
-import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment, deleteAssignment } from "../modules/api.js';
+import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment, deleteAssignment } from '../modules/api.js;
 import { openPaymentModal } from './payments.js?v=317';
 import { CustomSelect } from '../components/CustomSelect.js?v=317';
 

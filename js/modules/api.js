@@ -1,5 +1,5 @@
-import { supabase } from "../modules/config.js';
-import { state } from "../modules/state.js';
+import { supabase } from '../modules/config.js;
+import { state } from '../modules/state.js;
 
 export async function fetchProfile() {
     const { data: authData } = await supabase.auth.getUser();

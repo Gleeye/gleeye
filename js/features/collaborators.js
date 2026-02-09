@@ -1,9 +1,9 @@
-import { state } from "../modules/state.js';
+import { state } from '../modules/state.js;
 import { formatAmount } from '../modules/utils.js?v=317';
 import { openDepartmentManager } from './settings.js?v=317';
-import { upsertCollaborator, fetchPayments, fetchAssignments, fetchPassiveInvoices, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from "../modules/api.js';
+import { upsertCollaborator, fetchPayments, fetchAssignments, fetchPassiveInvoices, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js;
 import { loadAvailabilityIntoContainer } from './availability_manager.js?v=317';
-import { supabase } from "../modules/config.js';
+import { supabase } from '../modules/config.js;
 
 // Global signed URL opener for secure documents (if not already defined elsewhere)
 if (!window.openSignedUrl) {

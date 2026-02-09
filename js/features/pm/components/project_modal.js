@@ -1,6 +1,6 @@
-import { createInternalSpace, createCluster, createProjectInCluster, fetchInternalSpaces, assignUserToSpace } from "../modules/api.js';
-import { state } from "../modules/state.js';
-import { supabase } from "../modules/config.js';
+import { createInternalSpace, createCluster, createProjectInCluster, fetchInternalSpaces, assignUserToSpace } from '../modules/api.js;
+import { state } from '../modules/state.js;
+import { supabase } from '../modules/config.js;
 
 const COMPANY_AREAS = [
     { id: 'amministrazione', label: 'Amministrazione', color: '#3b82f6', bg: '#eff6ff', icon: 'account_balance' },
