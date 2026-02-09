@@ -1,6 +1,6 @@
-import { state } from '../modules/state.js;
+import { state } from '../modules/state.js';
 import { formatAmount, showGlobalAlert, showConfirm } from '../modules/utils.js?v=317';
-import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, addOrderContact, removeOrderContact, fetchOrderContacts } from '../modules/api.js;
+import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, addOrderContact, removeOrderContact, fetchOrderContacts } from '../modules/api.js';
 import { openPaymentModal } from './payments.js?v=317';
 
 

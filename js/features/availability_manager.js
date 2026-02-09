@@ -14,9 +14,9 @@ import {
     upsertGoogleAuth,
     deleteGoogleAuth,
     fetchSystemConfig
-} from '../modules/api.js;
-import { state } from '../modules/state.js;
-import { supabase } from '../modules/config.js;
+} from '../modules/api.js';
+import { state } from '../modules/state.js';
+import { supabase } from '../modules/config.js';
 
 
 // Reusable function to open availability in a system modal

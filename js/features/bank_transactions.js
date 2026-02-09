@@ -1,4 +1,4 @@
-import { state } from '../modules/state.js;
+import { state } from '../modules/state.js';
 import { formatAmount } from '../modules/utils.js?v=317';
 import {
     upsertBankTransaction,
@@ -12,7 +12,7 @@ import {
     fetchInvoices,
     fetchPassiveInvoices,
     fetchTransactionCategories
-} from '../modules/api.js;
+} from '../modules/api.js';
 import { renderReadOnlyView, switchToEditMode } from './bank_transaction_readonly.js?v=317';
 
 // Render ID for atomic updates

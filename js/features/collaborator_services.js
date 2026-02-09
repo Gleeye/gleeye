@@ -1,6 +1,6 @@
-import { state } from '../modules/state.js;
+import { state } from '../modules/state.js';
 import { formatAmount } from '../modules/utils.js?v=317';
-import { upsertCollaboratorService, deleteCollaboratorService } from '../modules/api.js;
+import { upsertCollaboratorService, deleteCollaboratorService } from '../modules/api.js';
 
 export function renderCollaboratorServices(container) {
     const render = () => {

@@ -1,6 +1,6 @@
-import { state } from '../modules/state.js;
+import { state } from '../modules/state.js';
 import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=317';
-import { supabase } from '../modules/config.js;
+import { supabase } from '../modules/config.js';
 
 // State local to this dashboard
 let dashboardState = {
