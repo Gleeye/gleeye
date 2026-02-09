@@ -258,7 +258,7 @@ function render() {
                     // Route: Internal Project Detail (#pm/space/:spaceId)
                 } else if (state.currentSubPage === 'space' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Progetto';
-                    import('../features/pm/space_view.js?v=372')
+                    import('../features/pm/space_view.js?v=375')
                         .then(module => {
                             module.renderSpaceView(contentArea, state.currentId);
                         })

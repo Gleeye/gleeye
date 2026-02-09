@@ -1,9 +1,11 @@
-import { fetchSpace, fetchProjectItems, fetchChildProjects, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, deleteSpace } from '../../modules/pm_api.js?v=370';
-import { openProjectModal } from './components/project_modal.js?v=370';
-import { renderHubTree } from './components/hub_tree.js?v=370';
-import { renderHubAppointments } from './components/hub_appointments.js?v=370';
-import { state } from '../../modules/state.js?v=370';
-import { supabase } from '../../modules/config.js?v=370';
+import { fetchSpace, fetchProjectItems, fetchChildProjects, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, deleteSpace } from '../../modules/pm_api.js?v=375';
+import { openProjectModal } from './components/project_modal.js?v=375';
+import { renderHubTree } from './components/hub_tree.js?v=375';
+import { renderHubAppointments } from './components/hub_appointments.js?v=375';
+import { state } from '../../modules/state.js?v=375';
+import { supabase } from '../../modules/config.js?v=375';
+
+console.log("[SpaceView] Module v375 loaded");
 
 // KPI Calculation Helper
 function calculateKPIs(items) {
