@@ -333,26 +333,6 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     <!-- Dynamic content -->
                 </div>
                 
-                <!-- DRAWER -->
-                <div id="hub-drawer-overlay" class="drawer-overlay hidden" style="
-                    position: fixed;
-                    inset: 0;
-                    background: rgba(0,0,0,0.3);
-                    z-index: 200;
-                    display: flex;
-                    justify-content: flex-end;
-                ">
-                    <div id="hub-drawer" style="
-                        width: 500px;
-                        max-width: 100%;
-                        background: white;
-                        height: 100%;
-                        box-shadow: -4px 0 20px rgba(0,0,0,0.1);
-                        display: flex;
-                        flex-direction: column;
-                    ">
-                        <!-- Drawer content injected dynamically -->
-                    </div>
                 </div>
             </div>
             

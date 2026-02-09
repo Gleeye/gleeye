@@ -348,16 +348,6 @@ export async function renderSpaceView(container, spaceId) {
                 .tab-btn:hover { color: var(--text-main); background: var(--surface-1); }
                 .tab-btn.active { color: var(--brand-color); border-bottom-color: var(--brand-color); font-weight: 600; }
                 
-                /* Drawer */
-                .drawer-overlay {
-                    position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 200;
-                    display: flex; justify-content: flex-end;
-                }
-                .drawer-overlay.hidden { display: none; }
-                #hub-drawer {
-                    width: 500px; max-width: 100%; background: white; height: 100%;
-                    box-shadow: -4px 0 20px rgba(0,0,0,0.1); display: flex; flex-direction: column;
-                }
             </style>
         `;
 
