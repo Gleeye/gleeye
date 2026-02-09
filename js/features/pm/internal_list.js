@@ -1,4 +1,4 @@
-import { fetchInternalSpaces, createInternalSpace, createCluster, createProjectInCluster } from '../../modules/api.js';
+import { fetchInternalSpaces, createInternalSpace, createCluster, createProjectInCluster } from '../../modules/pm_api.js';
 import { openProjectModal } from './components/project_modal.js?v=335';
 import { supabase } from '../../modules/config.js';
 import { state } from '../../modules/state.js';

@@ -9,7 +9,7 @@ import {
     fetchItemAssignees,
     assignUserToItem,
     removeUserFromItem
-} from '../../../modules/api.js';
+} from '../../../modules/pm_api.js';
 import { state } from '../../../modules/state.js';
 
 
