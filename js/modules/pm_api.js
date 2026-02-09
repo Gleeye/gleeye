@@ -1,5 +1,5 @@
-import { supabase } from './config.js?v=327';
-import { state } from './state.js?v=327';
+import { supabase } from "../modules/config.js';
+import { state } from "../modules/state.js';
 import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=327';
 
 export async function fetchAllCollaborators() {

@@ -1,4 +1,4 @@
-import { state } from './state.js?v=317';
+import { state } from './state.js';
 import { renderDashboard } from '../features/dashboard.js?v=317';
 import { renderClients, renderClientDetail } from '../features/clients.js?v=317';
 import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=317';

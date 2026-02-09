@@ -1,9 +1,9 @@
-import { fetchSpace, fetchProjectItems, fetchChildProjects, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, deleteSpace } from '../../modules/pm_api.js?v=376';
+import { fetchSpace, fetchProjectItems, fetchChildProjects, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, deleteSpace } from '../../modules/pm_api.js';
 import { openProjectModal } from './components/project_modal.js?v=376';
 import { renderHubTree } from './components/hub_tree.js?v=376';
 import { renderHubAppointments } from './components/hub_appointments.js?v=376';
-import { state } from '../../modules/state.js?v=376';
-import { supabase } from '../../modules/config.js?v=376';
+import { state } from '../../modules/state.js';
+import { supabase } from '../../modules/config.js';
 
 console.log("[SpaceView] Module v376 loaded");
 

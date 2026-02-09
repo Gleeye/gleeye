@@ -1,4 +1,4 @@
-import { state } from '../../../modules/state.js?v=317';
+import { state } from "../modules/state.js';
 
 // Hub Tree Tab - Hierarchical Activity View with filters
 

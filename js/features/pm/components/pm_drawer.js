@@ -1,4 +1,4 @@
-import { createPMItem, updatePMItem, fetchSpace } from '../../../modules/pm_api.js?v=317';
+import { createPMItem, updatePMItem, fetchSpace } from "../modules/api.js';
 // NOTE: Removed static import of space_view to avoid circular dependency
 // Using event dispatch instead for view refresh
 

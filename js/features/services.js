@@ -1,8 +1,8 @@
-import { state } from '../modules/state.js?v=317';
+import { state } from "../modules/state.js';
 import { formatAmount } from '../modules/utils.js?v=317';
-import { supabase } from '../modules/config.js?v=317';
+import { supabase } from "../modules/config.js';
 // Actually, usually upsert functions are imported from api.js. I'll add upsertService to api.js later.
-import { upsertService } from '../modules/api.js?v=317';
+import { upsertService } from "../modules/api.js';
 
 export function renderServices(container) {
     const renderGrid = () => {

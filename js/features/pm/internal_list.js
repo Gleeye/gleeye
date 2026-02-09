@@ -1,7 +1,7 @@
-import { fetchInternalSpaces, createInternalSpace, createCluster, createProjectInCluster } from '../../modules/pm_api.js?v=335';
+import { fetchInternalSpaces, createInternalSpace, createCluster, createProjectInCluster } from "../modules/api.js';
 import { openProjectModal } from './components/project_modal.js?v=335';
-import { supabase } from '../../modules/config.js?v=335';
-import { state } from '../../modules/state.js?v=335';
+import { supabase } from "../modules/config.js';
+import { state } from "../modules/state.js';
 
 const COMPANY_AREAS = [
     { id: 'amministrazione', label: 'Amministrazione', color: '#3b82f6', bg: '#eff6ff', icon: 'account_balance' },

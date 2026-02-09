@@ -1,9 +1,9 @@
-import { supabase } from '../modules/config.js?v=317';
-import { state } from '../modules/state.js?v=317';
-import { fetchAvailabilityRules, fetchRestDays, fetchAvailabilityOverrides } from '../modules/api.js?v=317';
-import { fetchCollaboratorAppointments } from '../modules/pm_api.js?v=317';
+import { supabase } from "../modules/config.js';
+import { state } from "../modules/state.js';
+import { fetchAvailabilityRules, fetchRestDays, fetchAvailabilityOverrides } from "../modules/api.js';
+import { fetchCollaboratorAppointments } from "../modules/api.js';
 import { openAvailabilityModal, checkAndHandleGoogleCallback } from './availability_manager.js?v=317';
-import { fetchAppointment } from '../modules/pm_api.js?v=317';
+import { fetchAppointment } from "../modules/api.js';
 
 let currentDate = new Date(); // Represents the start of the week or current view date
 let eventsCache = [];

@@ -1,4 +1,4 @@
-import { state } from '../../../modules/state.js?v=317';
+import { state } from "../modules/state.js';
 
 export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set()) {
     const space = state.pm_spaces?.find(s => s.id === spaceId) || {};

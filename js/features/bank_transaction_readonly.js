@@ -1,4 +1,4 @@
-import { state } from '../modules/state.js?v=317';
+import { state } from "../modules/state.js';
 import { formatAmount } from '../modules/utils.js?v=317';
 
 export function renderReadOnlyView(t) {

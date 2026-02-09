@@ -1,6 +1,6 @@
-import { fetchOrders, fetchCollaborators } from '../../modules/api.js?v=317';
-import { state } from '../../modules/state.js?v=317';
-import { fetchProjectSpaceForOrder, fetchCommesseTeamSummary } from '../../modules/pm_api.js?v=317';
+import { fetchOrders, fetchCollaborators } from '../../modules/api.js';
+import { state } from '../../modules/state.js';
+import { fetchProjectSpaceForOrder, fetchCommesseTeamSummary } from '../../modules/pm_api.js';
 
 // Real status values from "Stato Lavori" multiselect
 const STATUS_CONFIG = {
