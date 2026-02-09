@@ -1,4 +1,4 @@
-import { createInternalSpace, createCluster, createProjectInCluster, fetchInternalSpaces, assignUserToSpace } from '../../../modules/api.js';
+import { createInternalSpace, createCluster, createProjectInCluster, fetchInternalSpaces, assignUserToSpace } from '../../../modules/pm_api.js';
 import { state } from '../../../modules/state.js';
 import { supabase } from '../../../modules/config.js';
 
