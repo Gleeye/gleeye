@@ -241,7 +241,6 @@ function render() {
                 });
                 break;
             case 'pm':
-                console.log("[Router] Handling PM Route. Role:", activeRole, "Sub:", state.currentSubPage, "ID:", state.currentId);
                 if (pageTitle) pageTitle.textContent = 'Project Management';
 
                 // Route: Commessa Detail (#pm/commessa/:orderId)
