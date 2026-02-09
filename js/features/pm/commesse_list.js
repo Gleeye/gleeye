@@ -24,14 +24,17 @@ function normalizeStatus(status) {
 }
 
 export async function renderCommesseList(container) {
+    console.log("[CommesseList] Starting render...");
+    container.innerHTML = '<div style="padding:2rem; text-align:center;"><span class="loader"></span> Caricamento Commesse in corso...</div>';
+
     try {
         // --- STATE MANAGEMENT ---
-        let currentFilter = 'in_svolgimento';
+        let currentFilter = 'all';
         let searchTerm = '';
         let allProjects = [];
         let teamSummary = {};
 
-        // --- 1. INITIAL LAYOUT (Skeleton) ---
+        console.log("[CommesseList] Initializing...");
         container.innerHTML = `
             <div class="dashboard-container" style="padding: 2rem; max-width: 1600px; margin: 0 auto; min-height: 100vh; background: var(--surface-1); display: flex; flex-direction: column;">
                 
@@ -103,6 +106,8 @@ export async function renderCommesseList(container) {
 
         const results = await Promise.all(fetchPromises);
         teamSummary = results[teamSummaryIdx] || {};
+
+        console.log("[CommesseList] Fetch Complete. Orders:", state.orders?.length, "TeamSummary Keys:", Object.keys(teamSummary).length);
 
         // --- 3. PROCESS DATA ---
         allProjects = (state.orders || []).filter(o => {
@@ -210,6 +215,8 @@ export async function renderCommesseList(container) {
         const renderGrid = () => {
             const grid = container.querySelector('#projects-grid');
             if (!grid) return;
+
+            console.log("[CommesseList] Rendering Grid. Filter:", currentFilter, "Search:", searchTerm);
 
             const filtered = allProjects.filter(p => {
                 const sTerm = searchTerm.toLowerCase();
