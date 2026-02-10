@@ -1,6 +1,7 @@
 import { state } from '../modules/state.js';
 import { formatAmount, showGlobalAlert, showConfirm } from '../modules/utils.js?v=317';
-import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, addOrderContact, removeOrderContact, fetchOrderContacts } from '../modules/api.js';
+import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, addOrderContact, removeOrderContact, fetchOrderContacts, updateOrderCloudLinks } from '../modules/api.js';
+import { CloudLinksManager } from './components/CloudLinksManager.js?v=376';
 import { openPaymentModal } from './payments.js?v=317';
 
 
@@ -208,6 +209,13 @@ export async function renderOrderDetail(container, orderId) {
                                 `).join('')}
                             </div>
                         </div>
+                    </div>
+                    </div>
+
+                    <!-- Cloud Links -->
+                    <div class="glass-card" style="padding: 1.5rem; margin-top: 1rem;">
+                        <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Risorse Cloud</h3>
+                        <div id="order-cloud-links-container"></div>
                     </div>
                 </div>
 

@@ -14,7 +14,7 @@ const COMPANY_AREAS = [
 
 const MANAGER_TAGS = ['Partner', 'Account', 'Amministrazione', 'Project Manager'];
 
-export function openProjectModal({ onSuccess, prefilledParentId = null, forceType = 'project' } = {}) {
+export function openProjectModal({ onSuccess, prefilledParentId = null, forceType = 'project', prefilledArea = null } = {}) {
     console.log("[ProjectModal] Opening v330 with direct Supabase fetch");
     let modalOverlay = document.getElementById('create-project-modal-overlay');
 
@@ -71,6 +71,14 @@ export function openProjectModal({ onSuccess, prefilledParentId = null, forceTyp
 
             <div style="margin-bottom: 2rem;">
                 <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 0.75rem;">AREA AZIENDALE</label>
+                ${prefilledArea ? `
+                    <div style="padding: 0.85rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; color: #475569; font-weight: 500; display: flex; align-items: center; gap: 0.5rem;">
+                         <span class="material-icons-round" style="color: #64748b;">lock</span>
+                         ${prefilledArea}
+                         <span style="font-size: 0.75rem; color: #94a3b8; margin-left: auto;">(Implicita dal Cluster)</span>
+                         <input type="hidden" id="prefilled-area-input" value="${prefilledArea}">
+                    </div>
+                ` : `
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                     ${COMPANY_AREAS.map(area => `
                         <label class="area-selectable" style="
@@ -85,6 +93,7 @@ export function openProjectModal({ onSuccess, prefilledParentId = null, forceTyp
                         </label>
                     `).join('')}
                 </div>
+                `}
             </div>
 
             <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
@@ -230,7 +239,10 @@ export function openProjectModal({ onSuccess, prefilledParentId = null, forceTyp
     // === CONFIRM BUTTON ===
     confirmBtn.onclick = async () => {
         const name = modalOverlay.querySelector('#new-project-name').value;
-        const area = modalOverlay.querySelector('input[name="area"]:checked')?.value;
+        // Check for radio selection OR prefilled hidden input
+        const areaRadio = modalOverlay.querySelector('input[name="area"]:checked');
+        const areaHidden = modalOverlay.querySelector('#prefilled-area-input');
+        const area = areaRadio ? areaRadio.value : (areaHidden ? areaHidden.value : null);
         const managerId = managerSelect.value;
         if (!name || !area) return alert("Compila Nome e Area Aziendale");
 

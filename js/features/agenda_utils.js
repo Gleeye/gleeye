@@ -223,7 +223,7 @@ export async function openEventDetails(event) {
              <div style="flex: 0 0 auto; display: flex; gap: 0.75rem;">
                  <button class="btn btn-secondary" onclick="closeEventModal()">Chiudi</button>
                  ${isAppt ? `
-                     <button class="btn btn-primary" onclick="alert('Modifica in arrivo...')" title="Modifica" style="gap: 0.5rem; display: flex !important; align-items: center !important;">
+                     <button class="btn btn-primary" onclick="window.editAppointment && window.editAppointment('${event.id}')" title="Modifica" style="gap: 0.5rem; display: flex !important; align-items: center !important;">
                         <span class="material-icons-round" style="font-size:16px;">edit</span>
                         Modifica
                      </button>
@@ -339,6 +339,34 @@ export function closeEventModal() {
     if (m) m.remove();
 }
 
-// Global expose for close button
+export async function editAppointment(id) {
+    closeEventModal();
+    const { fetchAppointment } = await import('../modules/pm_api.js?v=380');
+    const { openAppointmentDrawer } = await import('./pm/components/hub_appointment_drawer.js?v=380');
+
+    const appt = await fetchAppointment(id);
+    if (appt) {
+        openAppointmentDrawer(appt);
+    }
+}
+
+export async function deleteAppointment(id) {
+    const confirmed = await window.showConfirm?.("Eliminare definitivamente l'appuntamento?", { type: 'danger' });
+    if (!confirmed) return;
+
+    try {
+        const { deleteAppointment: apiDelete } = await import('../modules/pm_api.js?v=380');
+        await apiDelete(id);
+        closeEventModal();
+        // Trigger generic refresh
+        document.dispatchEvent(new CustomEvent('appointment-changed', { detail: { refId: id, action: 'delete' } }));
+    } catch (err) {
+        alert("Errore durante l'eliminazione: " + err.message);
+    }
+}
+
+// Global expose for buttons
 window.closeEventModal = closeEventModal;
-window.openEventDetails = openEventDetails; // Expose for legacy access if needed
+window.openEventDetails = openEventDetails;
+window.editAppointment = editAppointment;
+window.deleteAppointment = deleteAppointment;

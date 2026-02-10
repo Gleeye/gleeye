@@ -16,7 +16,7 @@ import { renderPaymentsDashboard, initPaymentModals } from '../features/payments
 import { renderBooking } from '../features/booking.js?v=317';
 import { renderUserProfile } from '../features/user_dashboard.js?v=317';
 import { renderAgenda } from '../features/personal_agenda.js?v=317';
-import { renderHomepage } from '../features/homepage.js?v=317';
+import { renderHomepage } from '../features/homepage.js?v=385';
 import { renderNotificationCenter } from '../features/notifications.js?v=317';
 import { renderAdminNotifications } from '../features/admin_notifications.js?v=317';
 // Chat is loaded dynamically to avoid slowing down app startup
@@ -258,7 +258,7 @@ function render() {
                     // Route: Internal Project Detail (#pm/space/:spaceId)
                 } else if (state.currentSubPage === 'space' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Progetto';
-                    import('../features/pm/space_view.js?v=380')
+                    import('../features/pm/space_view.js?v=385')
                         .then(module => {
                             module.renderSpaceView(contentArea, state.currentId);
                         })
@@ -281,7 +281,7 @@ function render() {
 
                 } else {
                     // Standard PM views (Dashboard)
-                    import('../features/pm/index.js?v=380')
+                    import('../features/pm/index.js?v=381')
                         .then(module => {
                             module.renderPM(contentArea);
                         })

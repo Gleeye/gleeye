@@ -1,6 +1,8 @@
 import { state } from '../../modules/state.js';
 import { fetchOrders } from '../../modules/api.js';
-import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes } from '../../modules/pm_api.js';
+import { showGlobalAlert } from '../../modules/utils.js?v=317';
+import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, updateSpaceCloudLinks } from '../../modules/pm_api.js';
+import { CloudLinksManager } from '../components/CloudLinksManager.js?v=376';
 
 // Status colors for "Stato Lavori"
 const STATUS_CONFIG = {
@@ -117,6 +119,17 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         // 5. Get PM user
         const pmUser = state.profiles?.find(p => p.id === space?.default_pm_user_ref);
 
+        // 5b. Check permissions for Receipt Icon (Partner, Account, Amministrazione only)
+        const userTags = (() => {
+            let t = state.profile?.tags || [];
+            if (typeof t === 'string') {
+                try { t = JSON.parse(t); } catch { t = t.split(',').map(s => s.trim()); }
+            }
+            return Array.isArray(t) ? t : [];
+        })();
+        // Check if user has at least one of the allowed tags or is admin
+        const canViewReceipt = state.profile?.role === 'admin' || userTags.some(t => ['Partner', 'Account', 'Amministrazione'].includes(t));
+
         // 6. Render Page
         container.innerHTML = `
             <div class="project-hub" style="height: 100%; display: flex; flex-direction: column;">
@@ -169,6 +182,33 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
                             <!-- Actions -->
                             <div style="display: flex; gap: 0.5rem;">
+                                <!-- Risorse Button (Added) -->
+                                <div style="position: relative;">
+                                    <button id="open-resources-btn" style="
+                                        display: flex; align-items: center; gap: 0.6rem; padding: 8px 16px; height: 100%;
+                                        background: white; border: 1px solid var(--surface-2); border-radius: 12px;
+                                        color: var(--text-secondary); font-weight: 600; font-size: 0.85rem;
+                                        cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                                    " onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.color='var(--text-primary)'" onmouseout="this.style.borderColor='var(--surface-2)'; this.style.color='var(--text-secondary)'">
+                                        <span class="material-icons-round" style="font-size: 1.1rem; color: var(--brand-blue);">cloud</span>
+                                        Risorse
+                                        ${space?.cloud_links?.length > 0 ? `<span class="badge" style="background: var(--brand-blue); color: white; padding: 2px 6px; font-size: 0.7rem; border-radius: 10px; margin-left: 2px;">${space.cloud_links.length}</span>` : ''}
+                                    </button>
+                                    
+                                    <!-- Resources Popover -->
+                                    <div id="resources-popover" class="glass-card hidden" style="
+                                        position: absolute; top: 110%; right: 0; width: 320px; z-index: 1000;
+                                        background: white; border: 1px solid var(--surface-2); padding: 1rem;
+                                        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+                                    ">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                            <h3 style="font-size: 0.95rem; font-weight: 700; margin: 0;">Risorse Cloud</h3>
+                                            <button id="close-resources-btn" style="background: none; border: none; cursor: pointer; color: var(--text-tertiary);"><span class="material-icons-round">close</span></button>
+                                        </div>
+                                        <div id="space-cloud-links-container"></div>
+                                    </div>
+                                </div>
+
                                 <!-- Add Dropdown -->
                                 <div style="position: relative;">
                                     <button class="primary-btn" id="add-new-hub-btn" style="display: flex; align-items: center; gap: 0.5rem; padding: 8px 16px;">
@@ -211,7 +251,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                     </div>
                                 </div>
                                 
-                                ${!isInternal ? `
+                                ${!isInternal && canViewReceipt ? `
                                 <a href="#order-detail/${orderId}" class="secondary-btn" title="Info Ordine" style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; text-decoration: none; border-radius: 8px;">
                                     <span class="material-icons-round" style="font-size: 1.25rem;">receipt_long</span>
                                 </a>
@@ -415,6 +455,54 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         });
 
         // 8. Add Activity/Task buttons (Dropdown Logic)
+
+        // Resources Popover Logic
+        const resourcesBtn = container.querySelector('#open-resources-btn');
+        const resourcesPopover = container.querySelector('#resources-popover');
+        const closeResourcesBtn = container.querySelector('#close-resources-btn');
+
+        if (resourcesBtn && resourcesPopover) {
+            // Initialize Manager
+            new CloudLinksManager(
+                container.querySelector('#space-cloud-links-container'),
+                space.cloud_links || [],
+                async (newLinks) => {
+                    try {
+                        await updateSpaceCloudLinks(spaceId, newLinks);
+                        // Update local state
+                        space.cloud_links = newLinks;
+                        // Update badge
+                        const badge = resourcesBtn.querySelector('.badge');
+                        if (newLinks.length > 0) {
+                            if (badge) badge.textContent = newLinks.length;
+                            else resourcesBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1.1rem;">cloud</span> Risorse <span class="badge" style="background: var(--brand-blue); color: white; padding: 2px 6px; font-size: 0.7rem; border-radius: 10px;">${newLinks.length}</span>`;
+                        } else {
+                            if (badge) badge.remove();
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        showGlobalAlert('Errore salvataggio link', 'error');
+                    }
+                }
+            );
+
+            resourcesBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                resourcesPopover.classList.toggle('hidden');
+            });
+
+            closeResourcesBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                resourcesPopover.classList.add('hidden');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!resourcesBtn.contains(e.target) && !resourcesPopover.contains(e.target)) {
+                    resourcesPopover.classList.add('hidden');
+                }
+            });
+        }
+
         const addHubBtn = container.querySelector('#add-new-hub-btn');
         const addHubDropdown = container.querySelector('#add-hub-dropdown');
 

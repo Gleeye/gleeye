@@ -1,18 +1,18 @@
-import './utils/modal-utils.js?v=380';
-import { initAuth } from './features/auth.js?v=380';
-import { router } from './modules/router.js?v=380';
-import { InvoiceLogic } from './features/invoices.js?v=380';
+import './utils/modal-utils.js?v=381';
+import { initAuth } from './features/auth.js?v=381';
+import { router } from './modules/router.js?v=381';
+import { InvoiceLogic } from './features/invoices.js?v=381';
 import { state } from './modules/state.js';
-import { initSettingsModals } from './features/settings.js?v=380';
-import { initCollaboratorModals } from './features/collaborators.js?v=380';
-import { initCollaboratorServiceModals } from './features/collaborator_services.js?v=380';
-import { initBankTransactionModals } from './features/bank_transactions.js?v=380';
-import { initPaymentModals } from './features/payments.js?v=380';
-import { initServiceModals } from './features/services.js?v=380';
-import { initLayout, renderSidebarProfile } from './features/layout.js?v=380';
-import { initNotifications } from './features/notifications.js?v=380';
+import { initSettingsModals } from './features/settings.js?v=381';
+import { initCollaboratorModals } from './features/collaborators.js?v=381';
+import { initCollaboratorServiceModals } from './features/collaborator_services.js?v=381';
+import { initBankTransactionModals } from './features/bank_transactions.js?v=381';
+import { initPaymentModals } from './features/payments.js?v=381';
+import { initServiceModals } from './features/services.js?v=381';
+import { initLayout, renderSidebarProfile } from './features/layout.js?v=381';
+import { initNotifications } from './features/notifications.js?v=381';
 // Chat UI is loaded lazily when user navigates to #chat
-import { runOneTimeFix } from './fix_phantom_data.js?v=380';
+import { runOneTimeFix } from './fix_phantom_data.js?v=381';
 // Utilities imported at top
 
 // Suppress benign ResizeObserver error

@@ -498,7 +498,7 @@ function setupTreeEventHandlers(container, items, spaceId) {
         row.addEventListener('click', (e) => {
             if (e.target.closest('.tree-toggle') || e.target.closest('.add-child-btn')) return;
             const itemId = row.dataset.id;
-            import('./hub_drawer.js?v=317').then(mod => {
+            import('./hub_drawer.js?v=385').then(mod => {
                 mod.openHubDrawer(itemId, spaceId);
             });
         });
@@ -554,7 +554,7 @@ function setupTreeEventHandlers(container, items, spaceId) {
                 item.addEventListener('click', (ev) => {
                     ev.stopPropagation();
                     const type = item.dataset.type;
-                    import('./hub_drawer.js?v=317').then(mod => {
+                    import('./hub_drawer.js?v=385').then(mod => {
                         mod.openHubDrawer(null, spaceId, parentId, type);
                     });
                     menu.remove();
@@ -616,7 +616,7 @@ function setupTreeEventHandlers(container, items, spaceId) {
 
     // Create first button
     container.querySelector('.create-first-btn')?.addEventListener('click', () => {
-        import('./hub_drawer.js?v=317').then(mod => {
+        import('./hub_drawer.js?v=385').then(mod => {
             mod.openHubDrawer(null, spaceId, null, 'attivita');
         });
     });

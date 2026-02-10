@@ -501,11 +501,13 @@ window.initDeptMultiselect = () => {
     });
 
     // Close on outside click
+    // Close on outside click
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('#dept-multiselect')) {
+        if (e.target.closest && !e.target.closest('#dept-multiselect')) {
             dropdown.style.display = 'none';
         }
     });
+
 
     function renderDeptOptions() {
         const selectedTags = JSON.parse(hiddenInput.value || '[]');

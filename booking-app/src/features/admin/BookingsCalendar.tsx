@@ -47,6 +47,105 @@ function getStatusStyle(status: string) {
     }
 }
 
+// --- LAYOUT HELPER ---
+// --- LAYOUT HELPER ---
+function getConcurrentLayout(bookings: Booking[]) {
+    // Helper to safely get time
+    const getTime = (d: string | undefined) => {
+        if (!d) return 0;
+        const ms = new Date(d).getTime();
+        return isNaN(ms) ? 0 : ms;
+    };
+
+    const processedBookings = bookings.map(b => {
+        let start = getTime(b.start_time);
+        let end = getTime(b.end_time);
+
+        // Fallback for bad data
+        if (start === 0) start = new Date().getTime();
+        if (end === 0 || end < start) end = start + (60 * 60 * 1000); // Default 1h duration
+
+        return { ...b, _start: start, _end: end };
+    });
+
+    // 1. Sort by start time
+    const sorted = processedBookings.sort((a, b) => {
+        const diff = a._start - b._start;
+        if (diff !== 0) return diff;
+        return b._end - a._end; // Longer first
+    });
+
+    // 2. Group overlapping events into clusters
+    const clusters: typeof processedBookings[] = [];
+    let currentCluster: typeof processedBookings = [];
+    let clusterEnd = 0;
+
+    sorted.forEach(b => {
+        if (currentCluster.length === 0) {
+            currentCluster.push(b);
+            clusterEnd = b._end;
+        } else {
+            // Overlapping condition: start < clusterEnd
+            // Note: We use < strictly. If start == clusterEnd, they touch but don't overlap (usually)
+            if (b._start < clusterEnd) {
+                currentCluster.push(b);
+                clusterEnd = Math.max(clusterEnd, b._end);
+            } else {
+                clusters.push(currentCluster);
+                currentCluster = [b];
+                clusterEnd = b._end;
+            }
+        }
+    });
+    if (currentCluster.length > 0) clusters.push(currentCluster);
+
+    // 3. Process clusters to assign columns
+    const results: Array<Booking & { layout: { left: string; width: string } }> = [];
+
+    clusters.forEach(cluster => {
+        const columns: typeof processedBookings[] = [];
+
+        cluster.forEach(b => {
+            let placed = false;
+
+            // First-Fit algorithm for columns
+            for (let i = 0; i < columns.length; i++) {
+                const col = columns[i];
+                const last = col[col.length - 1];
+
+                // Check if we can place after the last element in this column
+                // We can if our start is >= last element's end
+                if (b._start >= last._end) {
+                    col.push(b);
+                    placed = true;
+                    break;
+                }
+            }
+
+            if (!placed) {
+                columns.push([b]);
+            }
+        });
+
+        const widthPercent = 100 / columns.length;
+
+        columns.forEach((col, colIndex) => {
+            col.forEach(b => {
+                // Formatting back to original booking, plus layout
+                results.push({
+                    ...b,
+                    layout: {
+                        left: `${colIndex * widthPercent}%`,
+                        width: `${widthPercent}%`
+                    }
+                });
+            });
+        });
+    });
+
+    return results;
+}
+
 // --- MINI CALENDAR COMPONENT ---
 function MiniCalendar({ currentMonth, onMonthChange, selectedDate, onSelectDate }: { currentMonth: Date, onMonthChange: (d: Date) => void, selectedDate: Date, onSelectDate: (d: Date) => void }) {
     const monthStart = startOfMonth(currentMonth);
@@ -308,8 +407,8 @@ export default function BookingsCalendar() {
                                                     </div>
                                                 )}
 
-                                                {/* Bookings */}
-                                                {dayBookings.map(b => {
+                                                {/* Bookings with Smart Layout */}
+                                                {getConcurrentLayout(dayBookings).map(b => {
                                                     const start = new Date(b.start_time);
                                                     const end = new Date(b.end_time);
                                                     const top = timeToPosition(start);
@@ -320,10 +419,12 @@ export default function BookingsCalendar() {
                                                         <div
                                                             key={b.id}
                                                             onClick={() => setSelectedBooking(b)}
-                                                            className="absolute left-1 right-1 rounded-lg border-l-4 shadow-sm cursor-pointer hover:shadow-md hover:scale-[1.02] hover:z-40 transition-all overflow-hidden flex flex-col px-3 py-2"
+                                                            className="absolute rounded-lg border-l-4 shadow-sm cursor-pointer hover:shadow-md hover:scale-[1.02] hover:z-50 transition-all overflow-hidden flex flex-col px-3 py-2"
                                                             style={{
                                                                 top,
                                                                 height,
+                                                                left: `calc(${b.layout.left} + 2px)`,
+                                                                width: `calc(${b.layout.width} - 4px)`,
                                                                 backgroundColor: style.light, // Using light bg
                                                                 borderLeftColor: style.border,
                                                                 zIndex: 10

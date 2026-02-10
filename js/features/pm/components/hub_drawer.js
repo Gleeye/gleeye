@@ -8,8 +8,11 @@ import {
     addComment,
     fetchItemAssignees,
     assignUserToItem,
-    removeUserFromItem
-} from '../../../modules/pm_api.js';
+    removeUserFromItem,
+    updateItemCloudLinks
+} from '../../../modules/pm_api.js?v=385';
+import { supabase } from '../../../modules/config.js';
+import { CloudLinksManager } from '../../components/CloudLinksManager.js?v=376';
 import { state } from '../../../modules/state.js';
 
 
@@ -23,12 +26,27 @@ const ITEM_STATUS = {
 };
 
 export async function openHubDrawer(itemId, spaceId, parentId = null, itemType = 'task') {
-    const overlay = document.getElementById('hub-drawer-overlay');
-    const drawer = document.getElementById('hub-drawer');
+    let overlay = document.getElementById('hub-drawer-overlay');
+    let drawer = document.getElementById('hub-drawer');
 
     if (!overlay || !drawer) {
-        console.error("Drawer elements not found");
-        return;
+        console.warn("Drawer elements not found, injecting...");
+        const html = `
+            <div id="hub-drawer-overlay" class="drawer-overlay hidden" style="
+                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                background: rgba(0,0,0,0.4); z-index: 99999;
+                display: flex; justify-content: flex-end;
+            ">
+                <div id="hub-drawer" style="
+                    width: 600px; max-width: 100%; height: 100%; 
+                    background: white; box-shadow: -10px 0 40px rgba(0,0,0,0.2);
+                    display: flex; flex-direction: column;
+                "></div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', html);
+        overlay = document.getElementById('hub-drawer-overlay');
+        drawer = document.getElementById('hub-drawer');
     }
 
     const isEdit = !!itemId;
@@ -444,6 +462,12 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             <div style="margin-top: 0.5rem; line-height: 1.5; white-space: pre-wrap; font-size: 0.95rem;">${item.notes || '<span style="color:var(--text-secondary); font-style:italic;">Nessuna descrizione</span>'}</div>
                         </div>
 
+                        <!-- Cloud Links -->
+                        <div style="margin-bottom: 2rem;">
+                            <h4 style="margin:0 0 0.5rem; font-size:0.75rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase;">RISORSE CLOUD</h4>
+                            <div id="item-cloud-links-container"></div>
+                        </div>
+
                         <!-- Comments -->
                         ${renderCommentsSection(comments)}
                     </div>
@@ -452,6 +476,20 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
             `;
 
             attachViewModeListeners();
+
+            // Cloud Links Manager
+            new CloudLinksManager(
+                drawer.querySelector('#item-cloud-links-container'),
+                item.cloud_links || [],
+                async (newLinks) => {
+                    try {
+                        await updateItemCloudLinks(itemId, newLinks);
+                        item.cloud_links = newLinks; // Update locally
+                    } catch (err) {
+                        alert("Errore salvataggio link: " + err.message);
+                    }
+                }
+            );
 
         } else {
             // --- EDIT / CREATE MODE ---
@@ -773,6 +811,15 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
         if (closeBtn) closeBtn.addEventListener('click', () => overlay.classList.add('hidden'));
 
         drawer.querySelector('#edit-mode-btn').addEventListener('click', () => {
+            // Sync pendingAssignees from current assignees to ensure freshness
+            pendingAssignees = assignees.map(a => ({
+                user_ref: a.user_ref,
+                collaborator_ref: a.collaborator_ref,
+                role: a.role || 'assignee',
+                displayName: a.user?.full_name || `${a.user?.first_name || ''} ${a.user?.last_name || ''}`.trim(),
+                user: a.user // Keep the user object for avatar rendering
+            }));
+
             viewMode = false;
             render();
         });
@@ -1108,6 +1155,41 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
             try {
                 if (isEdit) {
                     await updatePMItem(itemId, payload);
+
+                    // Sync Assignees (Form State vs DB State)
+                    // 1. Additions
+                    for (const p of pendingAssignees) {
+                        const exists = assignees.some(a =>
+                            (a.user_ref && a.user_ref === p.user_ref) ||
+                            (a.collaborator_ref && a.collaborator_ref === p.collaborator_ref)
+                        );
+                        if (!exists) {
+                            try {
+                                if (p.user_ref) await assignUserToItem(itemId, p.user_ref, p.role || 'assignee');
+                                else if (p.collaborator_ref) await assignUserToItem(itemId, p.collaborator_ref, p.role || 'assignee', true);
+                            } catch (e) {
+                                if (e.code !== '23505') console.error("Assign error", e);
+                            }
+                        }
+                    }
+
+                    // 2. Removals
+                    for (const a of assignees) {
+                        const stillExists = pendingAssignees.some(p =>
+                            (p.user_ref && p.user_ref === a.user_ref) ||
+                            (p.collaborator_ref && p.collaborator_ref === a.collaborator_ref)
+                        );
+                        if (!stillExists && a.id) {
+                            try {
+                                const { error } = await supabase.from('pm_item_assignees').delete().eq('id', a.id);
+                                if (error) throw error;
+                            } catch (e) { console.error("Remove assignee error", e); }
+                        }
+                    }
+
+                    // Refresh assignees for View Mode logic
+                    assignees = await fetchItemAssignees(itemId);
+
                     // Update local item reference
                     Object.assign(item, payload);
                     viewMode = true;

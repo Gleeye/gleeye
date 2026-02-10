@@ -1,7 +1,8 @@
-import { fetchSpace, fetchProjectItems, fetchChildProjects, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, deleteSpace } from '../../modules/pm_api.js';
-import { openProjectModal } from './components/project_modal.js?v=376';
-import { renderHubTree } from './components/hub_tree.js?v=376';
-import { renderHubAppointments } from './components/hub_appointments.js?v=376';
+import { fetchSpace, fetchProjectItems, fetchChildProjects, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, deleteSpace, updateSpaceCloudLinks } from '../../modules/pm_api.js?v=385';
+import { openProjectModal } from './components/project_modal.js?v=377';
+import { renderHubTree } from './components/hub_tree.js?v=377';
+import { renderHubAppointments } from './components/hub_appointments.js?v=377';
+import { CloudLinksManager } from '../components/CloudLinksManager.js?v=377';
 import { state } from '../../modules/state.js';
 import { supabase } from '../../modules/config.js';
 
@@ -155,6 +156,28 @@ export async function renderSpaceView(container, spaceId) {
                         </h1>
 
                         <div style="display: flex; gap: 0.5rem;">
+                            <!-- Cloud Resources Button -->
+                            <div style="position: relative;">
+                                <button id="cloud-resources-btn" style="
+                                    display: flex; align-items: center; gap: 0.6rem; padding: 0 16px; height: 42px;
+                                    background: white; border: 1px solid var(--surface-2); border-radius: 12px;
+                                    color: var(--text-secondary); font-weight: 600; font-size: 0.85rem;
+                                    cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                                " onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.color='var(--text-primary)'" onmouseout="this.style.borderColor='var(--surface-2)'; this.style.color='var(--text-secondary)'">
+                                    <span class="material-icons-round" style="font-size: 1.1rem; color: var(--brand-blue);">cloud</span>
+                                    Risorse
+                                    ${(space.cloud_links?.length || 0) > 0 ? `<span class="badge" style="background: var(--brand-blue); color: white; padding: 2px 6px; font-size: 0.7rem; border-radius: 10px; margin-left: 2px;">${space.cloud_links.length}</span>` : ''}
+                                </button>
+                                <div id="cloud-resources-popover" class="hidden glass-card" style="
+                                    position: absolute; top: 110%; right: 0; width: 320px; z-index: 1000;
+                                    background: white; border: 1px solid var(--surface-2); border-radius: 12px;
+                                    box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 1rem;
+                                ">
+                                    <h4 style="margin:0 0 1rem; font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94a3b8; letter-spacing:0.05em;">Cartelle Cloud</h4>
+                                    <div id="cloud-links-container"></div>
+                                </div>
+                            </div>
+
                             <!-- New Button -->
                             <div style="position: relative;">
                                 <button class="primary-btn" id="add-new-hub-btn" style="display: flex; align-items: center; gap: 0.5rem; padding: 8px 16px;">
@@ -221,11 +244,13 @@ export async function renderSpaceView(container, spaceId) {
                                             ${!pm.is_fallback ? `<span class="material-icons-round remove-space-pm-btn" data-id="${pm.id}">close</span>` : ''}
                                         </div>
                                     `).join('')}
-                                    <button id="add-space-pm-btn" class="add-pm-circle" title="Aggiungi Responsabile">
-                                        <span class="material-icons-round">add</span>
-                                    </button>
-                                    <!-- Picker handled by generic picker popover -->
-                                    <div id="space-pm-picker" class="hidden glass-card picker-popover" style="margin-top: 10px;"></div>
+                                    <div style="position: relative;">
+                                        <button id="add-space-pm-btn" class="add-pm-circle" title="Aggiungi Responsabile">
+                                            <span class="material-icons-round">add</span>
+                                        </button>
+                                        <!-- Picker handled by generic picker popover -->
+                                        <div id="space-pm-picker" class="hidden glass-card picker-popover" style="margin-top: 10px;"></div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -293,10 +318,6 @@ export async function renderSpaceView(container, spaceId) {
                 </div>
             </div>
             
-            <!-- Drawer Overlay -->
-            <div id="hub-drawer-overlay" class="drawer-overlay hidden">
-                <div id="hub-drawer"></div>
-            </div>
 
             <style>
                 /* Shared Styles */
@@ -398,6 +419,49 @@ export async function renderSpaceView(container, spaceId) {
         const addDropdown = toggleDropdown('#add-new-hub-btn', '#add-hub-dropdown');
         const settingsDropdown = toggleDropdown('#space-settings-btn', '#space-settings-dropdown');
 
+        // Cloud Resources
+        const cloudBtn = container.querySelector('#cloud-resources-btn');
+        const cloudPopover = container.querySelector('#cloud-resources-popover');
+        if (cloudBtn && cloudPopover) {
+            cloudBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Close others
+                addDropdown?.classList.add('hidden');
+                settingsDropdown?.classList.add('hidden');
+
+                cloudPopover.classList.toggle('hidden');
+
+                if (!cloudPopover.classList.contains('hidden')) {
+                    new CloudLinksManager(
+                        cloudPopover.querySelector('#cloud-links-container'),
+                        space.cloud_links || [],
+                        async (newLinks) => {
+                            try {
+                                await updateSpaceCloudLinks(spaceId, newLinks);
+                                space.cloud_links = newLinks;
+                                // Update badge
+                                let badge = cloudBtn.querySelector('.badge');
+                                if (newLinks.length > 0) {
+                                    if (badge) {
+                                        badge.textContent = newLinks.length;
+                                    } else {
+                                        cloudBtn.insertAdjacentHTML('beforeend', `<span class="badge" style="background: var(--brand-blue); color: white; padding: 2px 6px; font-size: 0.7rem; border-radius: 10px; margin-left: 2px;">${newLinks.length}</span>`);
+                                    }
+                                } else {
+                                    if (badge) badge.remove();
+                                }
+                            } catch (err) {
+                                window.showAlert("Errore salvataggio link: " + err.message, 'error');
+                            }
+                        }
+                    );
+                }
+            });
+            document.addEventListener('click', (e) => {
+                if (!cloudBtn.contains(e.target) && !cloudPopover.contains(e.target)) cloudPopover.classList.add('hidden');
+            });
+        }
+
         // Delete Action (Use Custom Modal)
         container.querySelector('#delete-space-btn')?.addEventListener('click', async () => {
             if (await window.showConfirm(`Sei sicuro di voler eliminare questo ${space.is_cluster ? 'Cluster' : 'Progetto'}? Questa azione è irreversibile.`, { type: 'danger' })) {
@@ -416,18 +480,19 @@ export async function renderSpaceView(container, spaceId) {
             openProjectModal({
                 prefilledParentId: spaceId,
                 forceType: 'project',
+                prefilledArea: space.area,
                 onSuccess: () => renderSpaceView(container, spaceId)
             });
         });
 
         addDropdown?.querySelector('#add-activity-btn')?.addEventListener('click', () => {
             addDropdown.classList.add('hidden');
-            import('./components/hub_drawer.js?v=370').then(mod => mod.openHubDrawer(null, spaceId, null, 'attivita'));
+            import('./components/hub_drawer.js?v=385').then(mod => mod.openHubDrawer(null, spaceId, null, 'attivita'));
         });
 
         addDropdown?.querySelector('#add-task-btn')?.addEventListener('click', () => {
             addDropdown.classList.add('hidden');
-            import('./components/hub_drawer.js?v=370').then(mod => mod.openHubDrawer(null, spaceId, null, 'task'));
+            import('./components/hub_drawer.js?v=385').then(mod => mod.openHubDrawer(null, spaceId, null, 'task'));
         });
 
         // PM Picker logic
@@ -508,6 +573,29 @@ export async function renderSpaceView(container, spaceId) {
         console.error("Error rendering space:", e);
         container.innerHTML = `<div class="error-state">Errore caricamento: ${e.message}</div>`;
     }
+
+    // Setup Auto-Refresh for Drawer Updates
+    setupRefresher(container, spaceId);
+}
+
+function setupRefresher(container, spaceId) {
+    if (container._pmRefreshHandler) {
+        document.removeEventListener('pm-item-changed', container._pmRefreshHandler);
+    }
+
+    const handler = (e) => {
+        if (e.detail && e.detail.spaceId === spaceId) {
+            console.log("[SpaceView] Detected item change, refreshing view...");
+            // Debounce or just reload?
+            // Reloading the specific tab would be better, but full re-render is safer for consistency
+            // We can check which tab is active and re-render that + HubTree logic?
+            // renderSpaceView does a full fetch.
+            renderSpaceView(container, spaceId);
+        }
+    };
+
+    container._pmRefreshHandler = handler;
+    document.addEventListener('pm-item-changed', handler);
 }
 
 function renderTeamTab(container, assignees, collaborators, spaceId) {
@@ -521,15 +609,15 @@ function renderTeamTab(container, assignees, collaborators, spaceId) {
     container.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
             <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">Membri del Team</h3>
-            <button id="add-team-member-btn" class="primary-btn" style="display: flex; align-items: center; gap: 0.5rem; padding: 6px 12px; font-size: 0.85rem;">
-                <span class="material-icons-round" style="font-size: 1.1rem;">person_add</span>
-                Aggiungi Persona
-            </button>
-        </div>
-
-        <div id="team-member-picker-container" class="hidden glass-card picker-popover" style="right: 1.5rem; left: auto; width: 300px;">
-            <!-- Picker content will be injected -->
-        </div>
+            <div style="position: relative;">
+                <button id="add-team-member-btn" class="primary-btn" style="display: flex; align-items: center; gap: 0.5rem; padding: 6px 12px; font-size: 0.85rem;">
+                    <span class="material-icons-round" style="font-size: 1.1rem;">person_add</span>
+                    Aggiungi Persona
+                </button>
+                <div id="team-member-picker-container" class="hidden glass-card picker-popover" style="top: 110%; right: 0; left: auto; width: 300px;">
+                    <!-- Picker content will be injected -->
+                </div>
+            </div>
 
         <div style="background: white; border-radius: 12px; border: 1px solid var(--surface-2); overflow: hidden;">
             <table style="width: 100%; border-collapse: collapse;">

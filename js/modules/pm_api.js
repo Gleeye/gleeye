@@ -235,11 +235,10 @@ export async function createPMItem(itemData) {
             ...itemData,
             created_by_user_ref: state.profile?.id
         })
-        .select()
-        .single();
+        .select();
 
     if (error) throw error;
-    return data;
+    return data?.[0];
 }
 
 export async function updatePMItem(itemId, itemData) {
@@ -250,11 +249,10 @@ export async function updatePMItem(itemId, itemData) {
             updated_at: new Date().toISOString()
         })
         .eq('id', itemId)
-        .select()
-        .single();
+        .select();
 
     if (error) throw error;
-    return data;
+    return data?.[0];
 }
 
 export async function deletePMItem(itemId) {
@@ -748,7 +746,6 @@ export async function fetchAppointments(refId, refType = 'order') {
     }
 
     const { data, error } = await query
-        .neq('status', 'annullato') // Default filter
         .order('start_time', { ascending: true });
 
     if (error) {
@@ -756,12 +753,20 @@ export async function fetchAppointments(refId, refType = 'order') {
         return [];
     }
 
+    return await _expandAppointments(data || []);
+}
+
+async function _expandAppointments(data) {
     if (!data || data.length === 0) return [];
+
+    // Support single object or array
+    const isSingle = !Array.isArray(data);
+    const records = isSingle ? [data] : data;
 
     // 2. Expand Participants (Internal & Client)
     // Internal
     const collabIds = new Set();
-    data.forEach(a => {
+    records.forEach(a => {
         a.appointment_internal_participants?.forEach(p => collabIds.add(p.collaborator_id));
     });
 
@@ -776,7 +781,7 @@ export async function fetchAppointments(refId, refType = 'order') {
 
     // Client/External
     const contactIds = new Set();
-    data.forEach(a => {
+    records.forEach(a => {
         a.appointment_client_participants?.forEach(p => contactIds.add(p.contact_id));
     });
 
@@ -790,7 +795,7 @@ export async function fetchAppointments(refId, refType = 'order') {
     }
 
     // Map back
-    return data.map(appt => {
+    const expanded = records.map(appt => {
         // Types
         const types = appt.appointment_type_links?.map(l => l.appointment_types) || [];
 
@@ -812,6 +817,8 @@ export async function fetchAppointments(refId, refType = 'order') {
             participants: { internal, client }
         };
     });
+
+    return isSingle ? expanded[0] : expanded;
 }
 
 export async function fetchAppointment(id) {
@@ -833,7 +840,7 @@ export async function fetchAppointment(id) {
         .single();
 
     if (error) return null;
-    return data;
+    return await _expandAppointments(data);
 }
 
 export async function saveAppointment(apptData) {
@@ -857,13 +864,13 @@ export async function saveAppointment(apptData) {
     };
     if (id) payload.id = id;
 
-    const { data: saved, error } = await supabase
+    const { data: saved_arr, error } = await supabase
         .from('appointments')
         .upsert(payload)
-        .select()
-        .single();
+        .select();
 
     if (error) throw error;
+    const saved = saved_arr?.[0];
 
     // 3. Update Relations (Delete All + Insert New strategy for MVP)
     const apptId = saved.id;
@@ -900,9 +907,8 @@ export async function saveAppointment(apptData) {
         );
     }
 
-    // 4. Fetch Fresh Data for Notifications
-    const items = await fetchAppointments(order_id);
-    const fullAppt = items.find(a => a.id === apptId);
+    // 4. Fetch Fresh Data with expansions
+    const fullAppt = await fetchAppointment(apptId);
 
     // 5. Trigger Notifications
     if (fullAppt) {
@@ -1000,5 +1006,31 @@ export async function fetchCollaboratorAppointments(collaboratorId) {
         throw error;
     }
 
+    return data;
+}
+
+// --- CLOUD LINKS ---
+
+export async function updateSpaceCloudLinks(spaceId, links) {
+    const { data, error } = await supabase
+        .from('pm_spaces')
+        .update({ cloud_links: links })
+        .eq('id', spaceId)
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+export async function updateItemCloudLinks(itemId, links) {
+    const { data, error } = await supabase
+        .from('pm_items')
+        .update({ cloud_links: links })
+        .eq('id', itemId)
+        .select()
+        .single();
+
+    if (error) throw error;
     return data;
 }

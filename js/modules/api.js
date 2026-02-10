@@ -153,6 +153,7 @@ export async function fetchOrders() {
             balance_percentage,
             installment_type,
             installments_count,
+            cloud_links,
             client_id,
             clients (id, business_name, client_code),
              order_collaborators (
@@ -204,6 +205,7 @@ export async function upsertOrder(order) {
             balance_percentage,
             installment_type,
             installments_count,
+            cloud_links,
             client_id,
             clients (id, business_name, client_code),
              order_collaborators (
@@ -1482,6 +1484,58 @@ export async function upsertUserNotificationPreference(preference) {
     if (error) {
         console.error('Failed to upsert user notification preference:', error);
         throw error;
+    }
+    return data;
+}
+
+// --- GOOGLE CALENDAR ---
+
+export async function fetchGoogleCalendarBusy(collaboratorId, startArg, endArg) {
+    let start, end;
+    if (endArg) {
+        start = new Date(startArg);
+        end = new Date(endArg);
+    } else {
+        start = new Date(startArg);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(startArg);
+        end.setHours(23, 59, 59, 999);
+    }
+
+    try {
+        const { data, error } = await supabase.functions.invoke('check-google-availability', {
+            body: {
+                collaborator_id: collaboratorId,
+                timeMin: start.toISOString(),
+                timeMax: end.toISOString()
+            }
+        });
+        if (error || (data && data.error)) return [];
+        return (data && data.busy) || [];
+    } catch (e) {
+        console.warn("Google Fetch Error:", e);
+        return [];
+    }
+}
+
+export async function updateOrderCloudLinks(orderId, links) {
+    console.log("Updating order cloud links:", orderId, links);
+    const { data, error } = await supabase
+        .from('orders')
+        .update({ cloud_links: links })
+        .eq('id', orderId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Order cloud links update failed:", error);
+        throw error;
+    }
+
+    // Update local state
+    const index = state.orders.findIndex(o => o.id === orderId);
+    if (index >= 0) {
+        state.orders[index] = { ...state.orders[index], cloud_links: links };
     }
     return data;
 }

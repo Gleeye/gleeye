@@ -197,6 +197,20 @@ export async function renderAgenda(container) {
         });
     }
 
+    // Event Listeners for Automatic Refresh (Sync with drawers)
+    const reloadHandler = (e) => {
+        console.log("[Agenda] External change detected:", e.type, e.detail);
+        fetchMyBookings().then(() => updateView());
+    };
+
+    if (window._agendaReloadHandler) {
+        document.removeEventListener('appointment-changed', window._agendaReloadHandler);
+        document.removeEventListener('pm-item-changed', window._agendaReloadHandler);
+    }
+    window._agendaReloadHandler = reloadHandler;
+    document.addEventListener('appointment-changed', reloadHandler);
+    document.addEventListener('pm-item-changed', reloadHandler);
+
     renderTimeline();
 }
 
@@ -841,59 +855,145 @@ function renderTimeline() {
 
         // Render Events & Appointments
         if (dayEvents.length > 0) {
-            dayEvents.forEach(ev => {
-                // Use Wall Time for Events too
-                const startH = getWallTime(ev.start_time);
-                let endH = getWallTime(ev.end_time);
+            console.log('[Agenda] Rendering Events for', dateStr, 'Count:', dayEvents.length);
 
-                const startRaw = new Date(ev.start_time);
-                const endRaw = new Date(ev.end_time);
+            // 1. Prepare and Sort Events (Robust Parsing)
+            const parseTime = (iso) => {
+                if (!iso) return null;
+                const d = new Date(iso);
+                return d.getHours() + d.getMinutes() / 60.0;
+            };
 
-                if (endH === 0) endH = 24; // Handle midnight wrap if needed
+            const sortedEvents = dayEvents.map(ev => {
+                const startH = parseTime(ev.start_time);
+                let endH = parseTime(ev.end_time);
 
-                if (startH < startHour) return;
+                // Handle midnight wrap-around or bad data
+                if (endH === 0 && ev.end_time.includes('00:00')) endH = 24.0;
+                if (endH < startH) endH += 24; // Handle Next Day wrapping
 
-                const topPx = (startH - startHour) * 60;
-                const heightPx = Math.max((endH - startH) * 60, 30);
+                if (startH === null) return null;
 
-                const statusClass = `status-${ev.status || 'scheduled'}`;
-                const bgColor = ev.color || '#a855f7';
+                // Ensure min duration for rendering
+                let effectiveEnd = endH || (startH + 1);
+                if (effectiveEnd <= startH + 0.01) effectiveEnd = startH + 0.5;
 
-                const evtId = `evt_appt_${ev.id.replace(/-/g, '_')}`;
-                window[evtId] = ev;
+                return {
+                    ev,
+                    startH,
+                    endH: effectiveEnd,
+                    duration: effectiveEnd - startH
+                };
+            })
+                .filter(item => item !== null && item.startH >= startHour)
+                .sort((a, b) => {
+                    if (Math.abs(a.startH - b.startH) > 0.001) return a.startH - b.startH;
+                    return b.duration - a.duration;
+                });
 
-                // FIX V263: Use Local Time (no UTC param)
-                const timeStr = `${startRaw.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} - ${endRaw.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`;
+            console.log('[Agenda] Sorted Events:', sortedEvents.map(e => `${e.startH.toFixed(2)}-${e.endH.toFixed(2)}`));
 
-                // NEW V262 DESIGN: Pro Card Look
-                const accentColor = ev.color || '#a855f7';
+            // 2. Cluster Overlapping Events
+            const clusters = [];
+            let currentCluster = [];
+            let clusterEnd = -1.0;
 
-                // Construct richer subtitle with Order/Client info
-                let richerSubtitle = '';
-                if (ev.isAppointment && ev.orders) {
-                    const orderInfo = ev.orders.order_number ? `#${ev.orders.order_number}` : '';
-                    const clientInfo = ev.orders.clients?.business_name || ev.client_name || '';
-                    if (clientInfo && orderInfo) {
-                        richerSubtitle = `<div class="event-subtitle" style="color: #475569; font-size: 0.7rem; margin-top: 2px;">
-                            <span style="font-weight: 600;">${clientInfo}</span> • ${orderInfo}
-                        </div>`;
-                    } else if (clientInfo || orderInfo) {
-                        richerSubtitle = `<div class="event-subtitle" style="color: #475569; font-size: 0.7rem; margin-top: 2px;">
-                            ${clientInfo || orderInfo}
-                        </div>`;
+            sortedEvents.forEach(item => {
+                if (currentCluster.length === 0) {
+                    currentCluster.push(item);
+                    clusterEnd = item.endH;
+                } else {
+                    // Check overlap with the WHOLE cluster range
+                    // Actually, standard algo checks if Start < MaxEndDate of cluster so far
+                    if (item.startH < clusterEnd - 0.001) {
+                        currentCluster.push(item);
+                        clusterEnd = Math.max(clusterEnd, item.endH);
+                    } else {
+                        clusters.push(currentCluster);
+                        currentCluster = [item];
+                        clusterEnd = item.endH;
                     }
-                } else if (ev.client_name) {
-                    richerSubtitle = `<div class="event-subtitle" style="color: #475569; font-size: 0.7rem; margin-top: 2px;">${ev.client_name}</div>`;
                 }
+            });
+            if (currentCluster.length > 0) clusters.push(currentCluster);
 
-                eventsHtml += `
-                    <div class="agenda-event type-appointment ${statusClass}" 
-                         style="
-                            position: absolute;
-                            top: ${topPx + 1}px; 
-                            height: ${heightPx - 2}px; 
-                            left: 2px; right: 2px;
-                            z-index: 10; 
+            console.log('[Agenda] Clusters built:', clusters.length);
+
+            // 3. Render Clusters with Column Packing
+            clusters.forEach((cluster, cIdx) => {
+                // Packing Algorithm: First Fit
+                const columns = [];
+                cluster.forEach(item => {
+                    let placed = false;
+                    for (let i = 0; i < columns.length; i++) {
+                        const col = columns[i];
+                        const last = col[col.length - 1];
+                        // Fits if Start >= Last End
+                        if (item.startH >= last.endH - 0.001) {
+                            col.push(item);
+                            placed = true;
+                            break;
+                        }
+                    }
+                    if (!placed) columns.push([item]);
+                });
+
+                console.log(`[Agenda] Cluster ${cIdx}: Columns generated:`, columns.length);
+
+                const count = columns.length;
+                const widthPercent = 100 / count;
+
+                columns.forEach((col, colIndex) => {
+                    col.forEach(item => {
+                        const { ev, startH, endH } = item;
+
+                        const topPx = (startH - startHour) * 60;
+                        const heightPx = Math.max((endH - startH) * 60, 30);
+
+                        const statusClass = `status-${ev.status || 'scheduled'}`;
+                        const accentColor = ev.color || '#a855f7';
+
+                        const evtId = `evt_appt_${ev.id.replace(/-/g, '_')}`;
+                        window[evtId] = ev;
+
+                        const startRaw = new Date(ev.start_time);
+                        const endRaw = new Date(ev.end_time);
+                        const timeStr = `${startRaw.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} - ${endRaw.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`;
+
+                        // Generic Subtitle Logic
+                        let richerSubtitle = '';
+                        if (ev.isAppointment && ev.orders) {
+                            const orderInfo = ev.orders.order_number ? `#${ev.orders.order_number}` : '';
+                            const clientInfo = ev.orders.clients?.business_name || ev.client_name || '';
+                            if (clientInfo && orderInfo) {
+                                richerSubtitle = `<div class="event-subtitle" style="color: #475569; font-size: 0.7rem; margin-top: 2px;">
+                                    <span style="font-weight: 600;">${clientInfo}</span> • ${orderInfo}
+                                </div>`;
+                            } else if (clientInfo || orderInfo) {
+                                richerSubtitle = `<div class="event-subtitle" style="color: #475569; font-size: 0.7rem; margin-top: 2px;">
+                                    ${clientInfo || orderInfo}
+                                </div>`;
+                            }
+                        } else if (ev.client_name) {
+                            richerSubtitle = `<div class="event-subtitle" style="color: #475569; font-size: 0.7rem; margin-top: 2px;">${ev.client_name}</div>`;
+                        }
+
+                        // Position Styles
+                        // Use left% and width% based on columns
+                        // See if !important fixes the override issue
+                        const leftPct = colIndex * widthPercent;
+                        const widthCalc = `calc(${widthPercent}% - 4px)`;
+
+                        // Debug log to verify exact values
+                        console.log(`[Agenda] Evt ${ev.id.substring(0, 4)} Col:${colIndex} Left:${leftPct}% Width:${widthPercent}%`);
+
+                        const styleStr = `
+                            position: absolute !important;
+                            top: ${topPx + 1}px !important; 
+                            height: ${heightPx - 2}px !important; 
+                            left: calc(${leftPct}% + 2px) !important; 
+                            width: ${widthCalc} !important;
+                            z-index: ${10 + colIndex} !important; 
                             background: color-mix(in srgb, ${accentColor}, white 85%); 
                             border: 1px solid rgba(0,0,0,0.05);
                             border-left: 4px solid ${accentColor};
@@ -906,21 +1006,27 @@ function renderTimeline() {
                             overflow: hidden;
                             transition: all 0.2s;
                             cursor: pointer;
-                        "
-                         onclick="openEventDetails(window['${evtId}'])"
-                         onmouseover="this.style.boxShadow='0 8px 15px rgba(0,0,0,0.06)'; this.style.transform='translateY(-1px)'"
-                         onmouseout="this.style.boxShadow='0 4px 6px rgba(0,0,0,0.02)'; this.style.transform='none'"
-                    >
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
-                            <span class="event-time" style="font-size: 0.65rem; font-weight: 700; color: ${accentColor}; text-transform: uppercase;">${timeStr}</span>
-                            ${ev.status === 'confermato' ? '<span style="color: #22c55e; font-size: 10px;">●</span>' : ''}
-                        </div>
-                        <div class="event-title" style="font-weight: 700; color: #1e293b; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">
-                            ${ev.title || ev.appointment_types?.name || 'Appuntamento'}
-                        </div>
-                        ${richerSubtitle}
-                    </div>
-                `;
+                        `;
+
+                        eventsHtml += `
+                            <div class="agenda-event type-appointment ${statusClass}" 
+                                 style="${styleStr}"
+                                 onclick="openEventDetails(window['${evtId}'])"
+                                 onmouseover="this.style.zIndex='50'; this.style.boxShadow='0 8px 15px rgba(0,0,0,0.06)'; this.style.transform='translateY(-1px)'"
+                                 onmouseout="this.style.zIndex='${10 + colIndex}'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.02)'; this.style.transform='none'"
+                            >
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                                    <span class="event-time" style="font-size: 0.65rem; font-weight: 700; color: ${accentColor}; text-transform: uppercase;">${timeStr}</span>
+                                    ${ev.status === 'confermato' ? '<span style="color: #22c55e; font-size: 10px;">●</span>' : ''}
+                                </div>
+                                <div class="event-title" style="font-weight: 700; color: #1e293b; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">
+                                    ${ev.title || ev.appointment_types?.name || 'Appuntamento'}
+                                </div>
+                                ${richerSubtitle}
+                            </div>
+                        `;
+                    });
+                });
             });
         }
 

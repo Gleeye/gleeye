@@ -84,6 +84,164 @@ CREATE TYPE "public"."service_logic_type" AS ENUM (
 
 ALTER TYPE "public"."service_logic_type" OWNER TO "postgres";
 
+
+CREATE OR REPLACE FUNCTION "public"."_clients_business_name_search_trg"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+  new.business_name_search := unaccent(lower(new.business_name));
+  return new;
+end $$;
+
+
+ALTER FUNCTION "public"."_clients_business_name_search_trg"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."_col_exists"("p_table" "text", "p_col" "text") RETURNS boolean
+    LANGUAGE "sql" STABLE
+    AS $$
+  select exists(
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = p_table
+      and column_name = p_col
+  );
+$$;
+
+
+ALTER FUNCTION "public"."_col_exists"("p_table" "text", "p_col" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."_collaborators_full_name_search_trg"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+  new.full_name_search := unaccent(lower(new.full_name));
+  return new;
+end $$;
+
+
+ALTER FUNCTION "public"."_collaborators_full_name_search_trg"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."_invoices_invoice_number_search_trg"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+  new.invoice_number_search := case
+    when new.invoice_number is null then null
+    else public.normalize_invoice_ref(new.invoice_number)
+  end;
+  return new;
+end $$;
+
+
+ALTER FUNCTION "public"."_invoices_invoice_number_search_trg"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."_name_expr"("p_table" "text", "p_alias" "text") RETURNS "text"
+    LANGUAGE "plpgsql" STABLE
+    AS $$
+declare
+  has_name boolean;
+  has_full_name boolean;
+  has_business_name boolean;
+  has_company_name boolean;
+  has_display_name boolean;
+  has_ragione_sociale boolean;
+  has_first_name boolean;
+  has_last_name boolean;
+begin
+  select exists(
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name=p_table and column_name='full_name'
+  ) into has_full_name;
+
+  select exists(
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name=p_table and column_name='ragione_sociale'
+  ) into has_ragione_sociale;
+
+  select exists(
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name=p_table and column_name='company_name'
+  ) into has_company_name;
+
+  select exists(
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name=p_table and column_name='business_name'
+  ) into has_business_name;
+
+  select exists(
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name=p_table and column_name='display_name'
+  ) into has_display_name;
+
+  select exists(
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name=p_table and column_name='name'
+  ) into has_name;
+
+  select exists(
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name=p_table and column_name='first_name'
+  ) into has_first_name;
+
+  select exists(
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name=p_table and column_name='last_name'
+  ) into has_last_name;
+
+  if has_full_name then
+    return format('%s.%I', p_alias, 'full_name');
+  elsif has_ragione_sociale then
+    return format('%s.%I', p_alias, 'ragione_sociale');
+  elsif has_company_name then
+    return format('%s.%I', p_alias, 'company_name');
+  elsif has_business_name then
+    return format('%s.%I', p_alias, 'business_name');
+  elsif has_display_name then
+    return format('%s.%I', p_alias, 'display_name');
+  elsif has_name then
+    return format('%s.%I', p_alias, 'name');
+  elsif has_first_name and has_last_name then
+    return format('concat_ws('' '', %s.%I, %s.%I)', p_alias, 'first_name', p_alias, 'last_name');
+  else
+    return null;
+  end if;
+end $$;
+
+
+ALTER FUNCTION "public"."_name_expr"("p_table" "text", "p_alias" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."_passive_invoices_invoice_number_search_trg"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+  new.invoice_number_search := case
+    when new.invoice_number is null then null
+    else public.normalize_invoice_ref(new.invoice_number)
+  end;
+  return new;
+end $$;
+
+
+ALTER FUNCTION "public"."_passive_invoices_invoice_number_search_trg"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."_suppliers_name_search_trg"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+  new.name_search := unaccent(lower(new.name));
+  return new;
+end $$;
+
+
+ALTER FUNCTION "public"."_suppliers_name_search_trg"() OWNER TO "postgres";
+
 SET default_tablespace = '';
 
 SET default_table_access_method = "heap";
@@ -91,23 +249,32 @@ SET default_table_access_method = "heap";
 
 CREATE TABLE IF NOT EXISTS "public"."bank_transactions" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "old_id" "text",
+    "date" "date" NOT NULL,
+    "type" "text",
+    "amount" numeric(15,2) NOT NULL,
     "description" "text",
-    "amount" numeric(15,2),
-    "date" "date",
     "category_id" "uuid",
+    "active_invoice_id" "uuid",
+    "passive_invoice_id" "uuid",
     "client_id" "uuid",
     "supplier_id" "uuid",
-    "invoice_id" "uuid",
-    "passive_invoice_id" "uuid",
+    "counterparty_name" "text",
+    "external_ref_active_invoice" "text",
+    "external_ref_passive_invoice" "text",
     "attachment_url" "text",
     "created_at" timestamp with time zone DEFAULT "now"(),
     "collaborator_id" "uuid",
-    "linked_invoices" "jsonb" DEFAULT '[]'::"jsonb",
+    "statement_id" "uuid",
+    "dedupe_key" "text",
+    "raw" "jsonb",
     "status" "text" DEFAULT 'posted'::"text" NOT NULL,
     "reviewed_at" timestamp with time zone,
     "reviewed_by" "uuid",
     "review_notes" "text",
-    CONSTRAINT "bank_transactions_status_check" CHECK (("status" = ANY (ARRAY['pending'::"text", 'posted'::"text", 'rejected'::"text"])))
+    "linked_invoices" "jsonb" DEFAULT '[]'::"jsonb",
+    CONSTRAINT "bank_transactions_status_check" CHECK (("status" = ANY (ARRAY['pending'::"text", 'posted'::"text", 'rejected'::"text"]))),
+    CONSTRAINT "bank_transactions_type_check" CHECK (("type" = ANY (ARRAY['entrata'::"text", 'uscita'::"text"])))
 );
 
 
@@ -223,6 +390,50 @@ END $$;
 
 
 ALTER FUNCTION "public"."approve_bank_transaction"("p_tx_id" "uuid", "p_category_id" "uuid", "p_client_id" "uuid", "p_supplier_id" "uuid", "p_collaborator_id" "uuid", "p_active_invoice_id" "uuid", "p_passive_invoice_id" "uuid", "p_payment_id" "uuid", "p_note" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."auto_set_payment_done_on_invoice_paid"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+    -- Check for various "Paid" statuses
+    IF NEW.status IN ('Saldata', 'Pagato', 'Paid', 'Completed', 'Saldato') AND 
+       (OLD.status IS NULL OR OLD.status NOT IN ('Saldata', 'Pagato', 'Paid', 'Completed', 'Saldato')) THEN
+        
+        -- Update linked payments based on table name
+        IF TG_TABLE_NAME = 'invoices' THEN
+            UPDATE public.payments 
+            SET status = 'Done' 
+            WHERE invoice_id = NEW.id AND status <> 'Done';
+            
+        ELSIF TG_TABLE_NAME = 'passive_invoices' THEN
+            UPDATE public.payments 
+            SET status = 'Done' 
+            WHERE passive_invoice_id = NEW.id AND status <> 'Done';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."auto_set_payment_done_on_invoice_paid"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."auto_set_payment_done_on_link"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+    -- If transaction_id is set (and wasn't before or changed), set status to 'Done'
+    IF NEW.transaction_id IS NOT NULL THEN
+        NEW.status := 'Done';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."auto_set_payment_done_on_link"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."get_admin_notification_logs"("p_limit" integer DEFAULT 50, "p_offset" integer DEFAULT 0, "p_search" "text" DEFAULT NULL::"text") RETURNS TABLE("id" "uuid", "created_at" timestamp with time zone, "type" "text", "title" "text", "message" "text", "user_email" "text", "collaborator_name" "text", "is_read" boolean)
@@ -754,6 +965,21 @@ $$;
 ALTER FUNCTION "public"."handle_new_message"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+begin
+  insert into public.profiles (id, email, full_name, role, is_onboarded)
+  values (new.id, new.email, split_part(new.email, '@', 1), 'collaborator', false)
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."handle_new_user"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."handle_updated_at"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
@@ -814,6 +1040,22 @@ $$;
 ALTER FUNCTION "public"."is_member_of_conversation"("conv_id" "uuid") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."link_payment_to_bank_transaction"("p_payment_id" "uuid", "p_bank_transaction_id" "uuid", "p_new_status" "text" DEFAULT NULL::"text") RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+  update public.payments
+  set bank_transaction_id = p_bank_transaction_id,
+      status = coalesce(p_new_status, status),
+      updated_at = now()
+  where id = p_payment_id
+    and (bank_transaction_id is null or bank_transaction_id = p_bank_transaction_id);
+end $$;
+
+
+ALTER FUNCTION "public"."link_payment_to_bank_transaction"("p_payment_id" "uuid", "p_bank_transaction_id" "uuid", "p_new_status" "text") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."mark_message_read"("p_message_id" "uuid", "p_channel_id" "uuid" DEFAULT NULL::"uuid", "p_conversation_id" "uuid" DEFAULT NULL::"uuid") RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -864,6 +1106,26 @@ $$;
 
 
 ALTER FUNCTION "public"."mark_message_read"("p_message_id" "uuid", "p_channel_id" "uuid", "p_conversation_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."normalize_invoice_ref"("p" "text") RETURNS "text"
+    LANGUAGE "sql" IMMUTABLE
+    AS $$
+  select nullif(
+    regexp_replace(
+      upper(
+        replace(replace(replace(trim(coalesce(p,'')), '-', '/'), ' ', ''), '.', '')
+      ),
+      '[^A-Z0-9/]',
+      '',
+      'g'
+    ),
+    ''
+  );
+$$;
+
+
+ALTER FUNCTION "public"."normalize_invoice_ref"("p" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."notify_collaborator_assignment"() RETURNS "trigger"
@@ -997,6 +1259,287 @@ end $$;
 ALTER FUNCTION "public"."reject_bank_transaction"("p_tx_id" "uuid", "p_note" "text") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."resolve_active_invoice_candidates"("refs" "text"[], "p_client_id" "uuid" DEFAULT NULL::"uuid", "p_amount" numeric DEFAULT NULL::numeric, "p_date" "date" DEFAULT NULL::"date", "min_score" double precision DEFAULT 0.35) RETURNS TABLE("active_invoice_id" "uuid", "score" double precision, "matched_ref" "text", "candidate_rank" integer)
+    LANGUAGE "plpgsql" STABLE
+    AS $_$
+declare
+  sql text;
+begin
+  sql :=
+    'with cand_raw as ( '||
+    '  select u.ref as ref, u.ord as ord, public.normalize_invoice_ref(u.ref) as ref_norm '||
+    '  from unnest($1) with ordinality u(ref, ord) '||
+    '  where u.ref is not null and length(trim(u.ref)) > 1 '||
+    '), cand as ( '||
+    '  select ref, ord, ref_norm from cand_raw '||
+    '  union all '||
+    '  select ref, ord, (substr(ref_norm,1,2) || ''/'' || substr(ref_norm,3,2)) as ref_norm '||
+    '  from cand_raw '||
+    '  where ref_norm ~ ''^[0-9]{4}$'' '||
+    '), src as ( '||
+    '  select i.id as active_invoice_id, i.invoice_number_search as row_ref_norm, '||
+    '         i.amount_tax_included::numeric as row_amount, '||
+    '         i.invoice_date::date as row_invoice_date, '||
+    '         i.payment_date::date as row_payment_date, '||
+    '         i.client_id '||
+    '  from public.invoices i '||
+    '  where 1=1 '||
+    '    and ($2::uuid is null or i.client_id = $2) '||
+    ') '||
+    'select active_invoice_id, score, matched_ref, candidate_rank '||
+    'from ( '||
+    '  select s.active_invoice_id, '||
+    '         ( '||
+    '           similarity(s.row_ref_norm, c.ref_norm)::double precision '||
+    '           + case when s.row_ref_norm = c.ref_norm then 0.60 else 0 end '||
+    '           + case when s.row_ref_norm like ''%''||c.ref_norm||''%'' or c.ref_norm like ''%''||s.row_ref_norm||''%'' then 0.15 else 0 end '||
+    '           + case when $3 is not null and s.row_amount is not null and abs(s.row_amount - $3) <= 0.02 then 0.20 else 0 end '||
+    '           + case when $4 is not null and s.row_payment_date is not null and s.row_payment_date = $4 then 0.15 else 0 end '||
+    '           + case when $4 is not null and s.row_payment_date is null and s.row_invoice_date is not null and s.row_invoice_date = $4 then 0.07 else 0 end '||
+    '         ) as score, '||
+    '         c.ref as matched_ref, '||
+    '         c.ord::int as candidate_rank '||
+    '  from src s cross join cand c '||
+    '  where s.row_ref_norm is not null and c.ref_norm is not null '||
+    ') x '||
+    'where x.score >= $5 '||
+    'order by x.score desc, x.candidate_rank asc '||
+    'limit 1';
+
+  return query execute sql using refs, p_client_id, p_amount, p_date, min_score;
+end $_$;
+
+
+ALTER FUNCTION "public"."resolve_active_invoice_candidates"("refs" "text"[], "p_client_id" "uuid", "p_amount" numeric, "p_date" "date", "min_score" double precision) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."resolve_counterparty_candidates"("candidates" "text"[], "min_score" double precision DEFAULT 0.35) RETURNS TABLE("entity_type" "text", "entity_id" "uuid", "entity_name" "text", "score" double precision, "matched_candidate" "text", "candidate_rank" integer)
+    LANGUAGE "plpgsql" STABLE
+    AS $_$
+declare
+  supplier_expr text;
+  client_expr text;
+  collab_expr text;
+  parts text[] := array[]::text[];
+  sql text;
+begin
+  supplier_expr := public._name_expr('suppliers', 's');
+  client_expr   := public._name_expr('clients', 'c');
+  collab_expr   := public._name_expr('collaborators', 'co');
+
+  if supplier_expr is not null then
+    parts := parts || format($f$
+      select
+        'supplier'::text as entity_type,
+        s.id as entity_id,
+        (%s)::text as entity_name,
+        similarity(unaccent(lower((%s)::text)), cand.qq)::double precision as score,
+        cand.cand as matched_candidate,
+        cand.ord::int as candidate_rank
+      from public.suppliers s
+      cross join cand
+      where similarity(unaccent(lower((%s)::text)), cand.qq)::double precision >= $2
+    $f$, supplier_expr, supplier_expr, supplier_expr);
+  end if;
+
+  if client_expr is not null then
+    parts := parts || format($f$
+      select
+        'client'::text as entity_type,
+        c.id as entity_id,
+        (%s)::text as entity_name,
+        similarity(unaccent(lower((%s)::text)), cand.qq)::double precision as score,
+        cand.cand as matched_candidate,
+        cand.ord::int as candidate_rank
+      from public.clients c
+      cross join cand
+      where similarity(unaccent(lower((%s)::text)), cand.qq)::double precision >= $2
+    $f$, client_expr, client_expr, client_expr);
+  end if;
+
+  if collab_expr is not null then
+    parts := parts || format($f$
+      select
+        'collaborator'::text as entity_type,
+        co.id as entity_id,
+        (%s)::text as entity_name,
+        similarity(unaccent(lower((%s)::text)), cand.qq)::double precision as score,
+        cand.cand as matched_candidate,
+        cand.ord::int as candidate_rank
+      from public.collaborators co
+      cross join cand
+      where similarity(unaccent(lower((%s)::text)), cand.qq)::double precision >= $2
+    $f$, collab_expr, collab_expr, collab_expr);
+  end if;
+
+  if array_length(parts, 1) is null then
+    return;
+  end if;
+
+  sql :=
+    'with cand as ( '||
+    '  select u.cand, u.ord, unaccent(lower(trim(u.cand))) as qq '||
+    '  from unnest($1) with ordinality u(cand, ord) '||
+    '  where u.cand is not null and length(trim(u.cand)) > 1 '||
+    ') '||
+    'select * from ('|| array_to_string(parts, ' union all ') ||') x '||
+    'order by 4 desc, 6 asc '||
+    'limit 1';
+
+  return query execute sql using candidates, min_score;
+end $_$;
+
+
+ALTER FUNCTION "public"."resolve_counterparty_candidates"("candidates" "text"[], "min_score" double precision) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."resolve_passive_invoice_candidates"("refs" "text"[], "p_supplier_id" "uuid" DEFAULT NULL::"uuid", "p_collaborator_id" "uuid" DEFAULT NULL::"uuid", "p_amount" numeric DEFAULT NULL::numeric, "p_date" "date" DEFAULT NULL::"date", "min_score" double precision DEFAULT 0.35) RETURNS TABLE("passive_invoice_id" "uuid", "score" double precision, "matched_ref" "text", "candidate_rank" integer)
+    LANGUAGE "plpgsql" STABLE
+    AS $_$
+declare
+  sql text;
+begin
+  sql :=
+    'with cand_raw as ( '||
+    '  select u.ref as ref, u.ord as ord, public.normalize_invoice_ref(u.ref) as ref_norm '||
+    '  from unnest($1) with ordinality u(ref, ord) '||
+    '  where u.ref is not null and length(trim(u.ref)) > 1 '||
+    '), cand as ( '||
+    '  select ref, ord, ref_norm from cand_raw '||
+    '  union all '||
+    '  select ref, ord, (substr(ref_norm,1,2) || ''/'' || substr(ref_norm,3,2)) as ref_norm '||
+    '  from cand_raw '||
+    '  where ref_norm ~ ''^[0-9]{4}$'' '||
+    '), src as ( '||
+    '  select pi.id as passive_invoice_id, pi.invoice_number_search as row_ref_norm, '||
+    '         pi.amount_tax_included::numeric as row_amount, '||
+    '         pi.issue_date::date as row_issue_date, '||
+    '         pi.payment_date::date as row_payment_date, '||
+    '         pi.supplier_id, pi.collaborator_id '||
+    '  from public.passive_invoices pi '||
+    '  where 1=1 '||
+    '    and ($2::uuid is null or pi.supplier_id = $2) '||
+    '    and ($3::uuid is null or pi.collaborator_id = $3) '||
+    ') '||
+    'select passive_invoice_id, score, matched_ref, candidate_rank '||
+    'from ( '||
+    '  select s.passive_invoice_id, '||
+    '         ( similarity(s.row_ref_norm, c.ref_norm)::double precision '||
+    '           + case when s.row_ref_norm = c.ref_norm then 0.60 else 0 end '||
+    '           + case when s.row_ref_norm like ''%''||c.ref_norm||''%'' or c.ref_norm like ''%''||s.row_ref_norm||''%'' then 0.15 else 0 end '||
+    '           + case when $4 is not null and s.row_amount is not null and abs(s.row_amount - $4) <= 0.02 then 0.20 else 0 end '||
+    '           + case when $5 is not null and s.row_payment_date is not null and s.row_payment_date = $5 then 0.15 else 0 end '||
+    '           + case when $5 is not null and s.row_payment_date is null and s.row_issue_date is not null and s.row_issue_date = $5 then 0.07 else 0 end '||
+    '         ) as score, '||
+    '         c.ref as matched_ref, '||
+    '         c.ord::int as candidate_rank '||
+    '  from src s cross join cand c '||
+    '  where s.row_ref_norm is not null and c.ref_norm is not null '||
+    ') x '||
+    'where x.score >= $6 '||
+    'order by x.score desc, x.candidate_rank asc '||
+    'limit 1';
+
+  return query execute sql using refs, p_supplier_id, p_collaborator_id, p_amount, p_date, min_score;
+end $_$;
+
+
+ALTER FUNCTION "public"."resolve_passive_invoice_candidates"("refs" "text"[], "p_supplier_id" "uuid", "p_collaborator_id" "uuid", "p_amount" numeric, "p_date" "date", "min_score" double precision) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."resolve_payment_candidates"("p_bank_transaction_id" "uuid", "p_days_window" integer DEFAULT 30, "min_score" double precision DEFAULT 0.35) RETURNS TABLE("payment_id" "uuid", "score" double precision, "reason" "jsonb")
+    LANGUAGE "plpgsql" STABLE
+    AS $$
+declare
+  tx record;
+begin
+  select *
+  into tx
+  from public.bank_transactions
+  where id = p_bank_transaction_id;
+
+  if not found then
+    return;
+  end if;
+
+  return query
+  with candidates as (
+    select
+      p.id as payment_id,
+
+      (
+        -- 1) match fattura (fortissimo)
+        (case when tx.active_invoice_id is not null and p.invoice_id = tx.active_invoice_id then 2.0 else 0 end) +
+        (case when tx.passive_invoice_id is not null and p.passive_invoice_id = tx.passive_invoice_id then 2.0 else 0 end) +
+
+        -- 2) match controparte
+        (case when tx.client_id is not null and p.client_id = tx.client_id then 0.9 else 0 end) +
+        (case when tx.supplier_id is not null and p.supplier_id = tx.supplier_id then 0.9 else 0 end) +
+        (case when tx.collaborator_id is not null and p.collaborator_id = tx.collaborator_id then 0.9 else 0 end) +
+
+        -- 3) importo
+        (case when abs(p.amount - tx.amount) <= 0.02 then 0.6
+              when abs(p.amount - tx.amount) <= 1.00 then 0.25
+              else 0 end) +
+
+        -- 4) vicinanza a due_date (se presente)
+        (case
+          when p.due_date is null then 0
+          else greatest(
+                 0.0,
+                 0.45 - (abs((p.due_date - tx.date))::double precision / p_days_window::double precision) * 0.45
+               )
+         end) +
+
+        -- 5) coerenza payment_type con direzione
+        -- (assumo tx.type = 'Entrata'/'Uscita' come stai usando tu)
+        (case
+          when tx.type ilike 'entrata' and p.payment_type ilike 'cliente' then 0.15
+          when tx.type ilike 'uscita' and p.payment_type ilike 'cliente' then -0.10
+          else 0
+         end)
+      )::double precision as score,
+
+      jsonb_build_object(
+        'tx_date', tx.date,
+        'tx_amount', tx.amount,
+        'tx_type', tx.type,
+        'match_invoice', (tx.active_invoice_id is not null and p.invoice_id = tx.active_invoice_id),
+        'match_passive_invoice', (tx.passive_invoice_id is not null and p.passive_invoice_id = tx.passive_invoice_id),
+        'match_client', (tx.client_id is not null and p.client_id = tx.client_id),
+        'match_supplier', (tx.supplier_id is not null and p.supplier_id = tx.supplier_id),
+        'match_collaborator', (tx.collaborator_id is not null and p.collaborator_id = tx.collaborator_id),
+        'amount_delta', abs(p.amount - tx.amount),
+        'due_date', p.due_date,
+        'payment_type', p.payment_type,
+        'title', p.title
+      ) as reason
+
+    from public.payments p
+    where p.bank_transaction_id is null
+      and (p.status is null or p.status <> 'Done')
+      and (p.due_date is null or p.due_date between (tx.date - p_days_window) and (tx.date + p_days_window))
+      and (
+        -- Deve avere almeno UN aggancio sensato:
+        (tx.active_invoice_id is not null and p.invoice_id = tx.active_invoice_id) or
+        (tx.passive_invoice_id is not null and p.passive_invoice_id = tx.passive_invoice_id) or
+        (tx.client_id is not null and p.client_id = tx.client_id) or
+        (tx.supplier_id is not null and p.supplier_id = tx.supplier_id) or
+        (tx.collaborator_id is not null and p.collaborator_id = tx.collaborator_id) or
+        abs(p.amount - tx.amount) <= 1.00
+      )
+  )
+  select c.payment_id, c.score, c.reason
+  from candidates c
+  where c.score >= min_score
+  order by c.score desc
+  limit 5;
+end $$;
+
+
+ALTER FUNCTION "public"."resolve_payment_candidates"("p_bank_transaction_id" "uuid", "p_days_window" integer, "min_score" double precision) OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."safe_numeric"("val" "anyelement") RETURNS numeric
     LANGUAGE "plpgsql" IMMUTABLE
     AS $$
@@ -1049,16 +1592,27 @@ ALTER FUNCTION "public"."search_messages"("query_text" "text", "limit_val" integ
 
 CREATE TABLE IF NOT EXISTS "public"."payments" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "assignment_id" "text",
-    "amount" numeric(15,2),
-    "status" "text" DEFAULT 'pending'::"text",
-    "payment_date" "date",
+    "title" "text",
+    "due_date" "date",
+    "amount" numeric(10,2),
+    "status" "text",
+    "payment_type" "text",
+    "payment_mode" "text",
     "notes" "text",
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "type" "text" DEFAULT 'passive'::"text",
+    "order_id" "uuid",
+    "assignment_id" "text",
+    "client_id" "uuid",
+    "collaborator_id" "uuid",
+    "supplier_id" "uuid",
     "invoice_id" "uuid",
-    "invited_at" timestamp with time zone,
-    "bank_transaction_id" "uuid"
+    "passive_invoice_id" "uuid",
+    "res_partner_request" "text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "transaction_id" "uuid",
+    "bank_transaction_id" "uuid",
+    "type" "text" DEFAULT 'passive'::"text",
+    "invited_at" timestamp with time zone
 );
 
 
@@ -1156,6 +1710,20 @@ $$;
 ALTER FUNCTION "public"."trigger_sync_google_calendar"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."unlink_payment_from_bank_transaction"("p_payment_id" "uuid") RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+  update public.payments
+  set bank_transaction_id = null,
+      updated_at = now()
+  where id = p_payment_id;
+end $$;
+
+
+ALTER FUNCTION "public"."unlink_payment_from_bank_transaction"("p_payment_id" "uuid") OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."appointment_client_participants" (
     "appointment_id" "uuid" NOT NULL,
     "contact_id" "uuid" NOT NULL,
@@ -1165,6 +1733,24 @@ CREATE TABLE IF NOT EXISTS "public"."appointment_client_participants" (
 
 
 ALTER TABLE "public"."appointment_client_participants" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."appointment_google_sync" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "appointment_id" "uuid",
+    "user_id" "uuid",
+    "google_event_id" "text" NOT NULL,
+    "google_calendar_id" "text" NOT NULL,
+    "last_synced_at" timestamp with time zone DEFAULT "now"(),
+    "status" "text" DEFAULT 'synced'::"text",
+    "error_message" "text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    CONSTRAINT "appointment_google_sync_status_check" CHECK (("status" = ANY (ARRAY['synced'::"text", 'error'::"text", 'pending'::"text"])))
+);
+
+
+ALTER TABLE "public"."appointment_google_sync" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."appointment_internal_participants" (
@@ -1215,6 +1801,7 @@ CREATE TABLE IF NOT EXISTS "public"."appointments" (
     "created_by" "uuid",
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"(),
+    "pm_space_id" "uuid",
     CONSTRAINT "appointments_mode_check" CHECK (("mode" = ANY (ARRAY['remoto'::"text", 'in_presenza'::"text"]))),
     CONSTRAINT "appointments_status_check" CHECK (("status" = ANY (ARRAY['bozza'::"text", 'confermato'::"text", 'annullato'::"text"])))
 );
@@ -1268,10 +1855,11 @@ CREATE TABLE IF NOT EXISTS "public"."availability_overrides" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "collaborator_id" "uuid",
     "date" "date" NOT NULL,
-    "is_available" boolean DEFAULT false NOT NULL,
+    "is_available" boolean DEFAULT true NOT NULL,
     "start_time" time without time zone,
     "end_time" time without time zone,
     "end_date" "date",
+    "booking_item_id" "uuid",
     "is_on_call" boolean DEFAULT false,
     "service_ids" "uuid"[]
 );
@@ -1433,12 +2021,40 @@ CREATE TABLE IF NOT EXISTS "public"."channels" (
 ALTER TABLE "public"."channels" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."client_contacts" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "client_id" "uuid",
+    "first_name" "text",
+    "last_name" "text",
+    "email" "text",
+    "phone" "text",
+    "role" "text",
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."client_contacts" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."clients" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "business_name" "text" NOT NULL,
+    "vat_number" "text",
+    "fiscal_code" "text",
+    "address" "text",
+    "city" "text",
+    "is_potential" boolean DEFAULT false,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "airtable_id" "text",
+    "dropbox_folder" "text",
     "client_code" "text",
+    "zip_code" "text",
+    "sdi_code" "text",
+    "pec" "text",
+    "phone" "text",
+    "province" "text",
     "email" "text",
-    "created_at" timestamp with time zone DEFAULT "now"()
+    "business_name_search" "text"
 );
 
 
@@ -1511,31 +2127,38 @@ COMMENT ON COLUMN "public"."collaborator_services"."assignment_id" IS 'Link to t
 
 CREATE TABLE IF NOT EXISTS "public"."collaborators" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "full_name" "text" NOT NULL,
-    "email" "text",
-    "phone" "text",
-    "role" "text",
-    "user_id" "uuid",
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "is_active" boolean DEFAULT true,
-    "document_health_card_back_url" "text",
     "name" "text",
     "first_name" "text",
     "last_name" "text",
-    "birth_date" "date",
-    "birth_place" "text",
+    "full_name" "text",
+    "role" "text",
+    "tags" "text",
+    "email" "text",
+    "phone" "text",
+    "vat_number" "text",
     "fiscal_code" "text",
     "address" "text",
+    "birth_date" "date",
+    "birth_place" "text",
+    "airtable_id" "text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "pec" "text",
+    "address_cap" "text",
+    "address_city" "text",
+    "address_province" "text",
+    "avatar_url" "text",
+    "user_id" "uuid",
+    "is_active" boolean DEFAULT true,
+    "full_name_search" "text",
+    "iban" "text",
+    "bank_name" "text",
+    "document_id_front_url" "text",
+    "document_id_back_url" "text",
+    "document_health_card_url" "text",
+    "document_health_card_back_url" "text",
     "city" "text",
     "province" "text",
-    "cap" "text",
-    "pec" "text",
-    "vat_number" "text",
-    "bank_name" "text",
-    "iban" "text",
-    "tags" "text" DEFAULT '[]'::"jsonb",
-    "avatar_url" "text",
-    "airtable_id" "text"
+    "cap" "text"
 );
 
 
@@ -1544,18 +2167,16 @@ ALTER TABLE "public"."collaborators" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "public"."contacts" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "client_id" "uuid",
+    "first_name" "text",
+    "last_name" "text",
     "full_name" "text",
     "email" "text",
     "phone" "text",
-    "client_id" "uuid",
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "first_name" "text",
-    "last_name" "text",
-    "tags" "text",
-    "comments" "text",
     "mobile" "text",
     "role" "text",
-    "airtable_id" "text"
+    "airtable_id" "text",
+    "created_at" timestamp with time zone DEFAULT "now"()
 );
 
 
@@ -1600,7 +2221,9 @@ ALTER TABLE "public"."debug_logs" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "public"."departments" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "name" "text" NOT NULL
+    "name" "text" NOT NULL,
+    "color" "text" DEFAULT '#4e92d8'::"text",
+    "created_at" timestamp with time zone DEFAULT "now"()
 );
 
 
@@ -1637,17 +2260,74 @@ CREATE TABLE IF NOT EXISTS "public"."external_calendar_connections" (
 ALTER TABLE "public"."external_calendar_connections" OWNER TO "postgres";
 
 
-CREATE TABLE IF NOT EXISTS "public"."invoices" (
+CREATE TABLE IF NOT EXISTS "public"."finance_movements" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "invoice_number" "text",
-    "date" "date",
+    "movement_code" "text",
     "amount" numeric(15,2),
-    "client_id" "uuid",
+    "movement_date" "date",
+    "description" "text",
+    "type" "text",
     "created_at" timestamp with time zone DEFAULT "now"()
 );
 
 
+ALTER TABLE "public"."finance_movements" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."invoice_movements" (
+    "invoice_id" "uuid" NOT NULL,
+    "movement_id" "uuid" NOT NULL
+);
+
+
+ALTER TABLE "public"."invoice_movements" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."invoice_orders" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "invoice_id" "uuid",
+    "order_id" "uuid",
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."invoice_orders" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."invoice_payments" (
+    "invoice_id" "uuid" NOT NULL,
+    "payment_id" "uuid" NOT NULL
+);
+
+
+ALTER TABLE "public"."invoice_payments" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."invoices" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "invoice_number" "text",
+    "invoice_date" "date",
+    "client_id" "uuid",
+    "order_id" "uuid",
+    "title" "text",
+    "amount_tax_excluded" numeric(15,2),
+    "tax_amount" numeric(15,2),
+    "amount_tax_included" numeric(15,2),
+    "status" "text",
+    "payment_date" "date",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "vat_eligibility" "text",
+    "vat_rate" numeric(5,2),
+    "expenses_client_account" boolean DEFAULT false,
+    "invoice_number_search" "text"
+);
+
+
 ALTER TABLE "public"."invoices" OWNER TO "postgres";
+
+
+COMMENT ON COLUMN "public"."invoices"."vat_eligibility" IS 'Esigibilità IVA: "Scissione dei pagamenti" o "Iva ad esigibilità immediata"';
+
 
 
 CREATE TABLE IF NOT EXISTS "public"."message_attachments" (
@@ -1763,29 +2443,84 @@ CREATE TABLE IF NOT EXISTS "public"."order_contacts" (
 ALTER TABLE "public"."order_contacts" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."order_items" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "order_id" "uuid",
+    "service_title" "text",
+    "quantity" numeric(10,2) DEFAULT 1,
+    "unit_price" numeric(12,2),
+    "unit_cost" numeric(12,2),
+    "assigned_to" "uuid"
+);
+
+
+ALTER TABLE "public"."order_items" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."orders" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "order_number" "text",
-    "title" "text",
+    "order_number" "text" NOT NULL,
     "client_id" "uuid",
-    "status" "text",
+    "pm_id" "uuid",
+    "title" "text",
+    "status_sales" "text" DEFAULT 'draft'::"text",
+    "total_price" numeric(12,2) DEFAULT 0,
+    "total_cost" numeric(12,2) DEFAULT 0,
+    "delivery_date" "date",
     "created_at" timestamp with time zone DEFAULT "now"(),
+    "order_date" "date",
+    "total_amount" numeric,
+    "airtable_id" "text",
+    "status_works" "text",
+    "offer_status" "text",
+    "price_planned" numeric,
+    "price_actual" numeric,
+    "cost_planned" numeric,
+    "cost_actual" numeric,
+    "revenue_planned" numeric,
+    "revenue_actual" numeric,
     "payment_mode" "text" DEFAULT 'saldo'::"text",
     "deposit_percentage" numeric DEFAULT 0,
     "balance_percentage" numeric DEFAULT 0,
     "installment_type" "text" DEFAULT 'Mensile'::"text",
     "installments_count" integer DEFAULT 1,
-    "status_works" "text" DEFAULT 'In Attesa'::"text",
-    "offer_status" "text" DEFAULT 'Bozza'::"text",
-    "pm_id" "uuid",
-    "cloud_links" "jsonb" DEFAULT '[]'::"jsonb"
+    "contact_id" "uuid",
+    "account_id" "uuid",
+    "contract_duration" integer,
+    "price_final" numeric(10,2),
+    "cost_final" numeric(10,2),
+    CONSTRAINT "orders_status_sales_check" CHECK (("status_sales" = ANY (ARRAY['draft'::"text", 'sent'::"text", 'accepted'::"text", 'rejected'::"text"])))
 );
 
 
 ALTER TABLE "public"."orders" OWNER TO "postgres";
 
 
-COMMENT ON COLUMN "public"."orders"."cloud_links" IS 'List of external resource links: [{type, url, label}]';
+COMMENT ON COLUMN "public"."orders"."price_actual" IS 'Prezzi Finali storici da Airtable';
+
+
+
+COMMENT ON COLUMN "public"."orders"."cost_actual" IS 'Costi Finali storici da Airtable';
+
+
+
+COMMENT ON COLUMN "public"."orders"."contact_id" IS 'Referente dell''ordine (link a contacts)';
+
+
+
+COMMENT ON COLUMN "public"."orders"."account_id" IS 'Account Gleeye responsabile dell''ordine (link a collaborators)';
+
+
+
+COMMENT ON COLUMN "public"."orders"."contract_duration" IS 'Durata del contratto in mesi';
+
+
+
+COMMENT ON COLUMN "public"."orders"."price_final" IS 'Prezzo finale corrente gestito dall''account';
+
+
+
+COMMENT ON COLUMN "public"."orders"."cost_final" IS 'Costo finale corrente gestito dall''account';
 
 
 
@@ -1793,27 +2528,29 @@ CREATE TABLE IF NOT EXISTS "public"."passive_invoices" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "invoice_number" "text",
     "issue_date" "date",
-    "amount" numeric(15,2),
+    "due_date" "date",
+    "payment_date" "date",
+    "status" "text",
+    "amount_tax_excluded" numeric(15,2),
+    "tax_amount" numeric(15,2),
+    "amount_tax_included" numeric(15,2),
     "supplier_id" "uuid",
     "collaborator_id" "uuid",
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "description" "text",
-    "service_description" "text",
-    "related_orders" "text",
-    "tax_amount" numeric(15,2) DEFAULT 0,
-    "amount_tax_included" numeric(15,2),
-    "amount_tax_excluded" numeric(15,2),
-    "vat_rate" numeric(5,2),
-    "vat_eligibility" "text",
-    "attachment_url" "text",
-    "status" "text" DEFAULT 'Da Pagare'::"text",
-    "payment_date" "date",
+    "notes" "text",
     "category" "text",
+    "related_orders" "text",
+    "attachment_url" "text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
     "ritenuta" numeric(15,2) DEFAULT 0,
     "rivalsa_inps" numeric(15,2) DEFAULT 0,
-    "stamp_duty" numeric(15,2) DEFAULT 0,
     "iva_attiva" boolean DEFAULT false,
-    "notes" "text"
+    "amount_paid" numeric(15,2) DEFAULT 0,
+    "stamp_duty" numeric(15,2) DEFAULT 0,
+    "invoice_number_search" "text",
+    "description" "text",
+    "service_description" "text",
+    "vat_rate" numeric(5,2),
+    "vat_eligibility" "text"
 );
 
 
@@ -1883,16 +2620,11 @@ CREATE TABLE IF NOT EXISTS "public"."pm_items" (
     "created_by_user_ref" "uuid",
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"(),
-    "archived_at" timestamp with time zone,
-    "cloud_links" "jsonb" DEFAULT '[]'::"jsonb"
+    "archived_at" timestamp with time zone
 );
 
 
 ALTER TABLE "public"."pm_items" OWNER TO "postgres";
-
-
-COMMENT ON COLUMN "public"."pm_items"."cloud_links" IS 'List of external resource links: [{type, url, label}]';
-
 
 
 CREATE TABLE IF NOT EXISTS "public"."pm_space_assignees" (
@@ -1916,25 +2648,26 @@ CREATE TABLE IF NOT EXISTS "public"."pm_spaces" (
     "default_pm_user_ref" "uuid",
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"(),
-    "cloud_links" "jsonb" DEFAULT '[]'::"jsonb"
+    "area" "text",
+    "is_cluster" boolean DEFAULT false,
+    "parent_ref" "uuid"
 );
 
 
 ALTER TABLE "public"."pm_spaces" OWNER TO "postgres";
 
 
-COMMENT ON COLUMN "public"."pm_spaces"."cloud_links" IS 'List of external resource links: [{type, url, label}]';
-
-
-
 CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "id" "uuid" NOT NULL,
-    "email" "text",
-    "role" "text" DEFAULT 'user'::"text",
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "avatar_url" "text",
     "full_name" "text",
-    "timezone" "text" DEFAULT 'Europe/Rome'::"text"
+    "email" "text",
+    "role" "text" DEFAULT 'collaborator'::"text",
+    "tags" "text"[],
+    "avatar_url" "text",
+    "updated_at" timestamp with time zone DEFAULT "timezone"('utc'::"text", "now"()),
+    "is_onboarded" boolean DEFAULT false,
+    "timezone" "text" DEFAULT 'Europe/Rome'::"text",
+    CONSTRAINT "profiles_role_check" CHECK (("role" = ANY (ARRAY['admin'::"text", 'pm'::"text", 'sales'::"text", 'collaborator'::"text"])))
 );
 
 
@@ -1958,16 +2691,21 @@ ALTER TABLE "public"."reactions" OWNER TO "postgres";
 CREATE TABLE IF NOT EXISTS "public"."services" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "name" "text" NOT NULL,
+    "cost" numeric,
+    "price" numeric,
+    "margin" numeric,
+    "margin_percent" numeric,
+    "tags" "text"[],
     "type" "text",
-    "department" "text",
-    "price" numeric(15,2),
+    "details" "text",
+    "notes" "text",
+    "template_name" "text",
+    "linked_service_ids" "text"[],
+    "linked_collaborator_ids" "text"[],
+    "airtable_id" "text",
     "created_at" timestamp with time zone DEFAULT "now"(),
     "description" "text",
-    "organization_id" "uuid",
-    "cost" numeric,
-    "margin" numeric,
-    "margin_percentage" numeric,
-    "tags" "text"
+    "organization_id" "uuid"
 );
 
 
@@ -1977,10 +2715,12 @@ ALTER TABLE "public"."services" OWNER TO "postgres";
 CREATE TABLE IF NOT EXISTS "public"."suppliers" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "name" "text" NOT NULL,
+    "vat_number" "text",
+    "notes" "text",
     "created_at" timestamp with time zone DEFAULT "now"(),
     "archived" boolean DEFAULT false,
     "website" "text",
-    "vat_number" "text",
+    "name_search" "text",
     "tax_code" "text",
     "address" "text",
     "city" "text",
@@ -1992,8 +2732,7 @@ CREATE TABLE IF NOT EXISTS "public"."suppliers" (
     "cassa_previdenziale_rate" numeric(5,2) DEFAULT 0,
     "withholding_tax_rate" numeric(5,2) DEFAULT 0,
     "payment_terms" "text",
-    "bank_iban" "text",
-    "notes" "text"
+    "bank_iban" "text"
 );
 
 
@@ -2016,11 +2755,29 @@ CREATE TABLE IF NOT EXISTS "public"."system_config" (
 ALTER TABLE "public"."system_config" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."tasks" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "order_id" "uuid",
+    "title" "text" NOT NULL,
+    "description" "text",
+    "assigned_to" "uuid",
+    "due_date" "date",
+    "status" "text" DEFAULT 'todo'::"text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    CONSTRAINT "tasks_status_check" CHECK (("status" = ANY (ARRAY['todo'::"text", 'doing'::"text", 'done'::"text"])))
+);
+
+
+ALTER TABLE "public"."tasks" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."transaction_categories" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "name" "text" NOT NULL,
     "type" "text",
-    "created_at" timestamp with time zone DEFAULT "now"()
+    "parent_id" "uuid",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    CONSTRAINT "transaction_categories_type_check" CHECK (("type" = ANY (ARRAY['entrata'::"text", 'uscita'::"text", 'altro'::"text"])))
 );
 
 
@@ -2042,6 +2799,16 @@ ALTER TABLE "public"."user_notification_preferences" OWNER TO "postgres";
 
 ALTER TABLE ONLY "public"."appointment_client_participants"
     ADD CONSTRAINT "appointment_client_participants_pkey" PRIMARY KEY ("appointment_id", "contact_id");
+
+
+
+ALTER TABLE ONLY "public"."appointment_google_sync"
+    ADD CONSTRAINT "appointment_google_sync_appointment_id_user_id_key" UNIQUE ("appointment_id", "user_id");
+
+
+
+ALTER TABLE ONLY "public"."appointment_google_sync"
+    ADD CONSTRAINT "appointment_google_sync_pkey" PRIMARY KEY ("id");
 
 
 
@@ -2101,7 +2868,17 @@ ALTER TABLE ONLY "public"."bank_statements"
 
 
 ALTER TABLE ONLY "public"."bank_transactions"
+    ADD CONSTRAINT "bank_transactions_old_id_key" UNIQUE ("old_id");
+
+
+
+ALTER TABLE ONLY "public"."bank_transactions"
     ADD CONSTRAINT "bank_transactions_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."bank_transactions"
+    ADD CONSTRAINT "bank_transactions_statement_dedupe_uniq" UNIQUE ("statement_id", "dedupe_key");
 
 
 
@@ -2132,6 +2909,16 @@ ALTER TABLE ONLY "public"."channel_members"
 
 ALTER TABLE ONLY "public"."channels"
     ADD CONSTRAINT "channels_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."client_contacts"
+    ADD CONSTRAINT "client_contacts_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."clients"
+    ADD CONSTRAINT "clients_airtable_id_key" UNIQUE ("airtable_id");
 
 
 
@@ -2171,6 +2958,11 @@ ALTER TABLE ONLY "public"."collaborators"
 
 
 ALTER TABLE ONLY "public"."collaborators"
+    ADD CONSTRAINT "collaborators_email_key" UNIQUE ("email");
+
+
+
+ALTER TABLE ONLY "public"."collaborators"
     ADD CONSTRAINT "collaborators_pkey" PRIMARY KEY ("id");
 
 
@@ -2201,6 +2993,11 @@ ALTER TABLE ONLY "public"."debug_logs"
 
 
 ALTER TABLE ONLY "public"."departments"
+    ADD CONSTRAINT "departments_name_key" UNIQUE ("name");
+
+
+
+ALTER TABLE ONLY "public"."departments"
     ADD CONSTRAINT "departments_pkey" PRIMARY KEY ("id");
 
 
@@ -2217,6 +3014,41 @@ ALTER TABLE ONLY "public"."external_calendar_connections"
 
 ALTER TABLE ONLY "public"."external_calendar_connections"
     ADD CONSTRAINT "external_calendar_connections_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."finance_movements"
+    ADD CONSTRAINT "finance_movements_movement_code_key" UNIQUE ("movement_code");
+
+
+
+ALTER TABLE ONLY "public"."finance_movements"
+    ADD CONSTRAINT "finance_movements_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."invoice_movements"
+    ADD CONSTRAINT "invoice_movements_pkey" PRIMARY KEY ("invoice_id", "movement_id");
+
+
+
+ALTER TABLE ONLY "public"."invoice_orders"
+    ADD CONSTRAINT "invoice_orders_invoice_id_order_id_key" UNIQUE ("invoice_id", "order_id");
+
+
+
+ALTER TABLE ONLY "public"."invoice_orders"
+    ADD CONSTRAINT "invoice_orders_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."invoice_payments"
+    ADD CONSTRAINT "invoice_payments_pkey" PRIMARY KEY ("invoice_id", "payment_id");
+
+
+
+ALTER TABLE ONLY "public"."invoices"
+    ADD CONSTRAINT "invoices_invoice_number_key" UNIQUE ("invoice_number");
 
 
 
@@ -2285,6 +3117,21 @@ ALTER TABLE ONLY "public"."order_contacts"
 
 
 
+ALTER TABLE ONLY "public"."order_items"
+    ADD CONSTRAINT "order_items_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."orders"
+    ADD CONSTRAINT "orders_airtable_id_key" UNIQUE ("airtable_id");
+
+
+
+ALTER TABLE ONLY "public"."orders"
+    ADD CONSTRAINT "orders_order_number_key" UNIQUE ("order_number");
+
+
+
 ALTER TABLE ONLY "public"."orders"
     ADD CONSTRAINT "orders_pkey" PRIMARY KEY ("id");
 
@@ -2346,6 +3193,11 @@ ALTER TABLE ONLY "public"."pm_spaces"
 
 
 ALTER TABLE ONLY "public"."profiles"
+    ADD CONSTRAINT "profiles_email_key" UNIQUE ("email");
+
+
+
+ALTER TABLE ONLY "public"."profiles"
     ADD CONSTRAINT "profiles_pkey" PRIMARY KEY ("id");
 
 
@@ -2371,6 +3223,11 @@ ALTER TABLE ONLY "public"."booking_item_collaborators"
 
 
 ALTER TABLE ONLY "public"."services"
+    ADD CONSTRAINT "services_airtable_id_key" UNIQUE ("airtable_id");
+
+
+
+ALTER TABLE ONLY "public"."services"
     ADD CONSTRAINT "services_pkey" PRIMARY KEY ("id");
 
 
@@ -2382,6 +3239,16 @@ ALTER TABLE ONLY "public"."suppliers"
 
 ALTER TABLE ONLY "public"."system_config"
     ADD CONSTRAINT "system_config_pkey" PRIMARY KEY ("key");
+
+
+
+ALTER TABLE ONLY "public"."tasks"
+    ADD CONSTRAINT "tasks_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."transaction_categories"
+    ADD CONSTRAINT "transaction_categories_name_type_key" UNIQUE ("name", "type");
 
 
 
@@ -2400,7 +3267,19 @@ ALTER TABLE ONLY "public"."user_notification_preferences"
 
 
 
+CREATE INDEX "bank_transactions_statement_status_idx" ON "public"."bank_transactions" USING "btree" ("statement_id", "status");
+
+
+
 CREATE INDEX "bank_transactions_status_date_idx" ON "public"."bank_transactions" USING "btree" ("status", "date" DESC);
+
+
+
+CREATE INDEX "clients_business_name_search_trgm" ON "public"."clients" USING "gin" ("business_name_search" "public"."gin_trgm_ops");
+
+
+
+CREATE INDEX "collaborators_full_name_search_trgm" ON "public"."collaborators" USING "gin" ("full_name_search" "public"."gin_trgm_ops");
 
 
 
@@ -2412,6 +3291,10 @@ CREATE INDEX "idx_appointments_order" ON "public"."appointments" USING "btree" (
 
 
 
+CREATE INDEX "idx_appointments_space" ON "public"."appointments" USING "btree" ("pm_space_id");
+
+
+
 CREATE INDEX "idx_appointments_start" ON "public"."appointments" USING "btree" ("start_time");
 
 
@@ -2420,7 +3303,23 @@ CREATE INDEX "idx_appt_internal_collab" ON "public"."appointment_internal_partic
 
 
 
+CREATE INDEX "idx_bank_trans_active_inv" ON "public"."bank_transactions" USING "btree" ("active_invoice_id");
+
+
+
+CREATE INDEX "idx_bank_trans_category" ON "public"."bank_transactions" USING "btree" ("category_id");
+
+
+
 CREATE INDEX "idx_bank_trans_collaborator_id" ON "public"."bank_transactions" USING "btree" ("collaborator_id");
+
+
+
+CREATE INDEX "idx_bank_trans_date" ON "public"."bank_transactions" USING "btree" ("date");
+
+
+
+CREATE INDEX "idx_bank_trans_passive_inv" ON "public"."bank_transactions" USING "btree" ("passive_invoice_id");
 
 
 
@@ -2432,7 +3331,19 @@ CREATE INDEX "idx_busy_cache_range" ON "public"."external_busy_cache" USING "btr
 
 
 
+CREATE INDEX "idx_contacts_client_id" ON "public"."contacts" USING "btree" ("client_id");
+
+
+
 CREATE INDEX "idx_debug_logs_level" ON "public"."debug_logs" USING "btree" ("level");
+
+
+
+CREATE INDEX "idx_invoices_client_id" ON "public"."invoices" USING "btree" ("client_id");
+
+
+
+CREATE INDEX "idx_invoices_order_id" ON "public"."invoices" USING "btree" ("order_id");
 
 
 
@@ -2449,6 +3360,14 @@ CREATE INDEX "idx_notifications_email_queued" ON "public"."notifications" USING 
 
 
 CREATE INDEX "idx_notifications_user" ON "public"."notifications" USING "btree" ("user_id", "is_read", "created_at" DESC);
+
+
+
+CREATE INDEX "idx_passive_invoices_collaborator_id" ON "public"."passive_invoices" USING "btree" ("collaborator_id");
+
+
+
+CREATE INDEX "idx_passive_invoices_supplier_id" ON "public"."passive_invoices" USING "btree" ("supplier_id");
 
 
 
@@ -2484,6 +3403,14 @@ CREATE INDEX "idx_pm_items_status" ON "public"."pm_items" USING "btree" ("space_
 
 
 
+CREATE INDEX "idx_pm_spaces_is_cluster" ON "public"."pm_spaces" USING "btree" ("is_cluster");
+
+
+
+CREATE INDEX "idx_pm_spaces_parent" ON "public"."pm_spaces" USING "btree" ("parent_ref");
+
+
+
 CREATE INDEX "idx_system_config_key" ON "public"."system_config" USING "btree" ("key");
 
 
@@ -2492,7 +3419,63 @@ CREATE INDEX "idx_user_notif_prefs_user" ON "public"."user_notification_preferen
 
 
 
+CREATE INDEX "invoices_client_id_idx" ON "public"."invoices" USING "btree" ("client_id");
+
+
+
+CREATE INDEX "invoices_invnum_trgm" ON "public"."invoices" USING "gin" ("invoice_number_search" "public"."gin_trgm_ops");
+
+
+
 CREATE INDEX "messages_fts_idx" ON "public"."messages" USING "gin" ("fts");
+
+
+
+CREATE INDEX "passive_invoices_collaborator_id_idx" ON "public"."passive_invoices" USING "btree" ("collaborator_id");
+
+
+
+CREATE INDEX "passive_invoices_invnum_trgm" ON "public"."passive_invoices" USING "gin" ("invoice_number_search" "public"."gin_trgm_ops");
+
+
+
+CREATE INDEX "passive_invoices_supplier_id_idx" ON "public"."passive_invoices" USING "btree" ("supplier_id");
+
+
+
+CREATE INDEX "payments_bank_transaction_id_idx" ON "public"."payments" USING "btree" ("bank_transaction_id");
+
+
+
+CREATE INDEX "payments_client_amount_due_idx" ON "public"."payments" USING "btree" ("client_id", "amount", "due_date") WHERE ("bank_transaction_id" IS NULL);
+
+
+
+CREATE INDEX "payments_collab_amount_due_idx" ON "public"."payments" USING "btree" ("collaborator_id", "amount", "due_date") WHERE ("bank_transaction_id" IS NULL);
+
+
+
+CREATE INDEX "payments_invoice_idx" ON "public"."payments" USING "btree" ("invoice_id") WHERE ("bank_transaction_id" IS NULL);
+
+
+
+CREATE INDEX "payments_order_idx" ON "public"."payments" USING "btree" ("order_id") WHERE ("bank_transaction_id" IS NULL);
+
+
+
+CREATE INDEX "payments_passive_invoice_idx" ON "public"."payments" USING "btree" ("passive_invoice_id") WHERE ("bank_transaction_id" IS NULL);
+
+
+
+CREATE INDEX "payments_supplier_amount_due_idx" ON "public"."payments" USING "btree" ("supplier_id", "amount", "due_date") WHERE ("bank_transaction_id" IS NULL);
+
+
+
+CREATE INDEX "payments_unlinked_idx" ON "public"."payments" USING "btree" ("status", "due_date") WHERE ("bank_transaction_id" IS NULL);
+
+
+
+CREATE INDEX "suppliers_name_search_trgm" ON "public"."suppliers" USING "gin" ("name_search" "public"."gin_trgm_ops");
 
 
 
@@ -2512,7 +3495,23 @@ CREATE OR REPLACE TRIGGER "sync_profile_name_trigger" AFTER INSERT OR UPDATE OF 
 
 
 
+CREATE OR REPLACE TRIGGER "trg_clients_business_name_search" BEFORE INSERT OR UPDATE OF "business_name" ON "public"."clients" FOR EACH ROW EXECUTE FUNCTION "public"."_clients_business_name_search_trg"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_collaborators_full_name_search" BEFORE INSERT OR UPDATE OF "full_name" ON "public"."collaborators" FOR EACH ROW EXECUTE FUNCTION "public"."_collaborators_full_name_search_trg"();
+
+
+
 CREATE OR REPLACE TRIGGER "trg_handle_new_message" AFTER INSERT ON "public"."messages" FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_message"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_invoices_invoice_number_search" BEFORE INSERT OR UPDATE OF "invoice_number" ON "public"."invoices" FOR EACH ROW EXECUTE FUNCTION "public"."_invoices_invoice_number_search_trg"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_passive_invoices_invoice_number_search" BEFORE INSERT OR UPDATE OF "invoice_number" ON "public"."passive_invoices" FOR EACH ROW EXECUTE FUNCTION "public"."_passive_invoices_invoice_number_search_trg"();
 
 
 
@@ -2524,6 +3523,22 @@ CREATE OR REPLACE TRIGGER "trg_process_notification" AFTER INSERT ON "public"."n
 
 
 
+CREATE OR REPLACE TRIGGER "trg_suppliers_name_search" BEFORE INSERT OR UPDATE OF "name" ON "public"."suppliers" FOR EACH ROW EXECUTE FUNCTION "public"."_suppliers_name_search_trg"();
+
+
+
+CREATE OR REPLACE TRIGGER "trigger_payment_auto_done_on_invoice_paid" AFTER UPDATE ON "public"."invoices" FOR EACH ROW EXECUTE FUNCTION "public"."auto_set_payment_done_on_invoice_paid"();
+
+
+
+CREATE OR REPLACE TRIGGER "trigger_payment_auto_done_on_link" BEFORE UPDATE ON "public"."payments" FOR EACH ROW EXECUTE FUNCTION "public"."auto_set_payment_done_on_link"();
+
+
+
+CREATE OR REPLACE TRIGGER "trigger_payment_auto_done_on_passive_invoice_paid" AFTER UPDATE ON "public"."passive_invoices" FOR EACH ROW EXECUTE FUNCTION "public"."auto_set_payment_done_on_invoice_paid"();
+
+
+
 ALTER TABLE ONLY "public"."appointment_client_participants"
     ADD CONSTRAINT "appointment_client_participants_appointment_id_fkey" FOREIGN KEY ("appointment_id") REFERENCES "public"."appointments"("id") ON DELETE CASCADE;
 
@@ -2531,6 +3546,16 @@ ALTER TABLE ONLY "public"."appointment_client_participants"
 
 ALTER TABLE ONLY "public"."appointment_client_participants"
     ADD CONSTRAINT "appointment_client_participants_contact_id_fkey" FOREIGN KEY ("contact_id") REFERENCES "public"."contacts"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."appointment_google_sync"
+    ADD CONSTRAINT "appointment_google_sync_appointment_id_fkey" FOREIGN KEY ("appointment_id") REFERENCES "public"."appointments"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."appointment_google_sync"
+    ADD CONSTRAINT "appointment_google_sync_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
 
@@ -2569,6 +3594,11 @@ ALTER TABLE ONLY "public"."appointments"
 
 
 
+ALTER TABLE ONLY "public"."appointments"
+    ADD CONSTRAINT "appointments_pm_space_id_fkey" FOREIGN KEY ("pm_space_id") REFERENCES "public"."pm_spaces"("id") ON DELETE SET NULL;
+
+
+
 ALTER TABLE ONLY "public"."assignments"
     ADD CONSTRAINT "assignments_collaborator_id_fkey" FOREIGN KEY ("collaborator_id") REFERENCES "public"."collaborators"("id") ON DELETE SET NULL;
 
@@ -2576,6 +3606,11 @@ ALTER TABLE ONLY "public"."assignments"
 
 ALTER TABLE ONLY "public"."assignments"
     ADD CONSTRAINT "assignments_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."availability_overrides"
+    ADD CONSTRAINT "availability_overrides_booking_item_id_fkey" FOREIGN KEY ("booking_item_id") REFERENCES "public"."booking_items"("id") ON DELETE CASCADE;
 
 
 
@@ -2595,6 +3630,11 @@ ALTER TABLE ONLY "public"."availability_rules"
 
 
 ALTER TABLE ONLY "public"."bank_transactions"
+    ADD CONSTRAINT "bank_transactions_active_invoice_id_fkey" FOREIGN KEY ("active_invoice_id") REFERENCES "public"."invoices"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."bank_transactions"
     ADD CONSTRAINT "bank_transactions_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "public"."transaction_categories"("id") ON DELETE SET NULL;
 
 
@@ -2610,12 +3650,12 @@ ALTER TABLE ONLY "public"."bank_transactions"
 
 
 ALTER TABLE ONLY "public"."bank_transactions"
-    ADD CONSTRAINT "bank_transactions_invoice_id_fkey" FOREIGN KEY ("invoice_id") REFERENCES "public"."invoices"("id") ON DELETE SET NULL;
+    ADD CONSTRAINT "bank_transactions_passive_invoice_id_fkey" FOREIGN KEY ("passive_invoice_id") REFERENCES "public"."passive_invoices"("id") ON DELETE SET NULL;
 
 
 
 ALTER TABLE ONLY "public"."bank_transactions"
-    ADD CONSTRAINT "bank_transactions_passive_invoice_id_fkey" FOREIGN KEY ("passive_invoice_id") REFERENCES "public"."passive_invoices"("id") ON DELETE SET NULL;
+    ADD CONSTRAINT "bank_transactions_statement_id_fkey" FOREIGN KEY ("statement_id") REFERENCES "public"."bank_statements"("id") ON DELETE SET NULL;
 
 
 
@@ -2655,7 +3695,7 @@ ALTER TABLE ONLY "public"."booking_items"
 
 
 ALTER TABLE ONLY "public"."bookings"
-    ADD CONSTRAINT "bookings_service_id_fkey" FOREIGN KEY ("booking_item_id") REFERENCES "public"."services"("id");
+    ADD CONSTRAINT "bookings_booking_item_id_fkey" FOREIGN KEY ("booking_item_id") REFERENCES "public"."booking_items"("id") ON DELETE CASCADE;
 
 
 
@@ -2676,6 +3716,11 @@ ALTER TABLE ONLY "public"."channel_members"
 
 ALTER TABLE ONLY "public"."channels"
     ADD CONSTRAINT "channels_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id");
+
+
+
+ALTER TABLE ONLY "public"."client_contacts"
+    ADD CONSTRAINT "client_contacts_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE CASCADE;
 
 
 
@@ -2710,12 +3755,12 @@ ALTER TABLE ONLY "public"."collaborator_services"
 
 
 ALTER TABLE ONLY "public"."collaborators"
-    ADD CONSTRAINT "collaborators_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
+    ADD CONSTRAINT "collaborators_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
 
 
 
 ALTER TABLE ONLY "public"."contacts"
-    ADD CONSTRAINT "contacts_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE SET NULL;
+    ADD CONSTRAINT "contacts_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE CASCADE;
 
 
 
@@ -2744,8 +3789,38 @@ ALTER TABLE ONLY "public"."external_calendar_connections"
 
 
 
+ALTER TABLE ONLY "public"."invoice_movements"
+    ADD CONSTRAINT "invoice_movements_invoice_id_fkey" FOREIGN KEY ("invoice_id") REFERENCES "public"."invoices"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."invoice_movements"
+    ADD CONSTRAINT "invoice_movements_movement_id_fkey" FOREIGN KEY ("movement_id") REFERENCES "public"."finance_movements"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."invoice_orders"
+    ADD CONSTRAINT "invoice_orders_invoice_id_fkey" FOREIGN KEY ("invoice_id") REFERENCES "public"."invoices"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."invoice_orders"
+    ADD CONSTRAINT "invoice_orders_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."invoice_payments"
+    ADD CONSTRAINT "invoice_payments_invoice_id_fkey" FOREIGN KEY ("invoice_id") REFERENCES "public"."invoices"("id") ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."invoices"
     ADD CONSTRAINT "invoices_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."invoices"
+    ADD CONSTRAINT "invoices_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE SET NULL;
 
 
 
@@ -2824,13 +3899,33 @@ ALTER TABLE ONLY "public"."order_contacts"
 
 
 
-ALTER TABLE ONLY "public"."orders"
-    ADD CONSTRAINT "orders_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE SET NULL;
+ALTER TABLE ONLY "public"."order_items"
+    ADD CONSTRAINT "order_items_assigned_to_fkey" FOREIGN KEY ("assigned_to") REFERENCES "public"."profiles"("id");
+
+
+
+ALTER TABLE ONLY "public"."order_items"
+    ADD CONSTRAINT "order_items_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE CASCADE;
 
 
 
 ALTER TABLE ONLY "public"."orders"
-    ADD CONSTRAINT "orders_pm_id_fkey" FOREIGN KEY ("pm_id") REFERENCES "auth"."users"("id");
+    ADD CONSTRAINT "orders_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "public"."collaborators"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."orders"
+    ADD CONSTRAINT "orders_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id");
+
+
+
+ALTER TABLE ONLY "public"."orders"
+    ADD CONSTRAINT "orders_contact_id_fkey" FOREIGN KEY ("contact_id") REFERENCES "public"."contacts"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."orders"
+    ADD CONSTRAINT "orders_pm_id_fkey" FOREIGN KEY ("pm_id") REFERENCES "public"."profiles"("id");
 
 
 
@@ -2845,12 +3940,47 @@ ALTER TABLE ONLY "public"."passive_invoices"
 
 
 ALTER TABLE ONLY "public"."payments"
-    ADD CONSTRAINT "payments_assignment_id_fkey" FOREIGN KEY ("assignment_id") REFERENCES "public"."assignments"("id") ON DELETE CASCADE;
+    ADD CONSTRAINT "payments_assignment_id_fkey" FOREIGN KEY ("assignment_id") REFERENCES "public"."assignments"("id") ON DELETE SET NULL;
 
 
 
 ALTER TABLE ONLY "public"."payments"
-    ADD CONSTRAINT "payments_bank_transaction_id_fkey" FOREIGN KEY ("bank_transaction_id") REFERENCES "public"."bank_transactions"("id");
+    ADD CONSTRAINT "payments_bank_transaction_id_fkey" FOREIGN KEY ("bank_transaction_id") REFERENCES "public"."bank_transactions"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."payments"
+    ADD CONSTRAINT "payments_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."payments"
+    ADD CONSTRAINT "payments_collaborator_id_fkey" FOREIGN KEY ("collaborator_id") REFERENCES "public"."collaborators"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."payments"
+    ADD CONSTRAINT "payments_invoice_id_fkey" FOREIGN KEY ("invoice_id") REFERENCES "public"."invoices"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."payments"
+    ADD CONSTRAINT "payments_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."payments"
+    ADD CONSTRAINT "payments_passive_invoice_id_fkey" FOREIGN KEY ("passive_invoice_id") REFERENCES "public"."passive_invoices"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."payments"
+    ADD CONSTRAINT "payments_supplier_id_fkey" FOREIGN KEY ("supplier_id") REFERENCES "public"."suppliers"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."payments"
+    ADD CONSTRAINT "payments_transaction_id_fkey" FOREIGN KEY ("transaction_id") REFERENCES "public"."bank_transactions"("id") ON DELETE SET NULL;
 
 
 
@@ -2935,12 +4065,17 @@ ALTER TABLE ONLY "public"."pm_spaces"
 
 
 ALTER TABLE ONLY "public"."pm_spaces"
+    ADD CONSTRAINT "pm_spaces_parent_ref_fkey" FOREIGN KEY ("parent_ref") REFERENCES "public"."pm_spaces"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."pm_spaces"
     ADD CONSTRAINT "pm_spaces_ref_ordine_fkey" FOREIGN KEY ("ref_ordine") REFERENCES "public"."orders"("id") ON DELETE SET NULL;
 
 
 
 ALTER TABLE ONLY "public"."profiles"
-    ADD CONSTRAINT "profiles_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id");
+    ADD CONSTRAINT "profiles_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
 
@@ -2974,6 +4109,21 @@ ALTER TABLE ONLY "public"."system_config"
 
 
 
+ALTER TABLE ONLY "public"."tasks"
+    ADD CONSTRAINT "tasks_assigned_to_fkey" FOREIGN KEY ("assigned_to") REFERENCES "public"."profiles"("id");
+
+
+
+ALTER TABLE ONLY "public"."tasks"
+    ADD CONSTRAINT "tasks_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."transaction_categories"
+    ADD CONSTRAINT "transaction_categories_parent_id_fkey" FOREIGN KEY ("parent_id") REFERENCES "public"."transaction_categories"("id") ON DELETE SET NULL;
+
+
+
 ALTER TABLE ONLY "public"."user_notification_preferences"
     ADD CONSTRAINT "user_notification_preferences_notification_type_id_fkey" FOREIGN KEY ("notification_type_id") REFERENCES "public"."notification_types"("id") ON DELETE CASCADE;
 
@@ -2990,7 +4140,97 @@ CREATE POLICY "Admin can do everything on bank_statements" ON "public"."bank_sta
 
 
 
+CREATE POLICY "Admin can do everything on bank_transactions" ON "public"."bank_transactions" USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin can do everything on clients" ON "public"."clients" USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
 CREATE POLICY "Admin can do everything on collaborator_services" ON "public"."collaborator_services" USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin can do everything on collaborators" ON "public"."collaborators" USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin can do everything on contacts" ON "public"."contacts" USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin can do everything on invoices" ON "public"."invoices" USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin can do everything on order_collaborators" ON "public"."order_collaborators" USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin can do everything on orders" ON "public"."orders" USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin can do everything on passive_invoices" ON "public"."passive_invoices" USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin can do everything on services" ON "public"."services" USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin can do everything on suppliers" ON "public"."suppliers" USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin can do everything on transaction_categories" ON "public"."transaction_categories" USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access" ON "public"."finance_movements" USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access" ON "public"."invoice_movements" USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access" ON "public"."invoice_orders" USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
+
+
+
+CREATE POLICY "Admin full access" ON "public"."invoice_payments" USING ((( SELECT "profiles"."role"
    FROM "public"."profiles"
   WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text"));
 
@@ -3034,11 +4274,19 @@ CREATE POLICY "Allow all access to booking_items" ON "public"."booking_items" US
 
 
 
+CREATE POLICY "Allow all for authenticated departments" ON "public"."departments" TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
 CREATE POLICY "Allow all for authenticated users" ON "public"."collaborator_google_auth" USING (true) WITH CHECK (true);
 
 
 
 CREATE POLICY "Allow public inserts to bookings" ON "public"."bookings" FOR INSERT WITH CHECK (true);
+
+
+
+CREATE POLICY "Allow public read departments" ON "public"."departments" FOR SELECT USING (true);
 
 
 
@@ -3115,6 +4363,10 @@ CREATE POLICY "Authenticated users can view collaborator_services" ON "public"."
 
 
 
+CREATE POLICY "Authenticated users can view services" ON "public"."services" FOR SELECT USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
 CREATE POLICY "Comments: Insert" ON "public"."pm_item_comments" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."pm_items" "i"
   WHERE ("i"."id" = "pm_item_comments"."pm_item_ref"))));
@@ -3155,6 +4407,10 @@ CREATE POLICY "Enable read access for all users" ON "public"."passive_invoices" 
 
 
 
+CREATE POLICY "Enable read access for all users" ON "public"."payments" FOR SELECT USING (true);
+
+
+
 CREATE POLICY "Enable read access for authenticated users" ON "public"."order_contacts" FOR SELECT TO "authenticated" USING (true);
 
 
@@ -3178,6 +4434,10 @@ CREATE POLICY "Enable view for admins" ON "public"."debug_logs" FOR SELECT USING
 
 
 CREATE POLICY "Enable write access for authenticated users" ON "public"."assignments" USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Enable write access for authenticated users" ON "public"."payments" USING (("auth"."role"() = 'authenticated'::"text"));
 
 
 
@@ -3264,11 +4524,7 @@ CREATE POLICY "Public access assignments" ON "public"."assignments" USING (true)
 
 
 
-CREATE POLICY "Public access availability_overrides" ON "public"."availability_overrides" USING (true);
-
-
-
-CREATE POLICY "Public access availability_rules" ON "public"."availability_rules" USING (true);
+CREATE POLICY "Public access auth" ON "public"."collaborator_google_auth" USING (true);
 
 
 
@@ -3280,47 +4536,11 @@ CREATE POLICY "Public access bank_transactions" ON "public"."bank_transactions" 
 
 
 
-CREATE POLICY "Public access booking_assignments" ON "public"."booking_assignments" USING (true);
-
-
-
-CREATE POLICY "Public access booking_categories" ON "public"."booking_categories" USING (true);
-
-
-
-CREATE POLICY "Public access booking_holds" ON "public"."booking_holds" USING (true);
-
-
-
-CREATE POLICY "Public access booking_item_collaborators" ON "public"."booking_item_collaborators" USING (true);
-
-
-
-CREATE POLICY "Public access booking_items" ON "public"."booking_items" USING (true);
-
-
-
-CREATE POLICY "Public access bookings" ON "public"."bookings" USING (true);
-
-
-
-CREATE POLICY "Public access channel_members" ON "public"."channel_members" USING (true);
-
-
-
-CREATE POLICY "Public access channels" ON "public"."channels" USING (true);
+CREATE POLICY "Public access client_contacts" ON "public"."client_contacts" USING (true);
 
 
 
 CREATE POLICY "Public access clients" ON "public"."clients" USING (true);
-
-
-
-CREATE POLICY "Public access collaborator_google_auth" ON "public"."collaborator_google_auth" USING (true);
-
-
-
-CREATE POLICY "Public access collaborator_rest_days" ON "public"."collaborator_rest_days" USING (true);
 
 
 
@@ -3336,51 +4556,27 @@ CREATE POLICY "Public access contacts" ON "public"."contacts" USING (true);
 
 
 
-CREATE POLICY "Public access conversation_members" ON "public"."conversation_members" USING (true);
-
-
-
-CREATE POLICY "Public access conversations" ON "public"."conversations" USING (true);
-
-
-
-CREATE POLICY "Public access debug_logs" ON "public"."debug_logs" USING (true);
-
-
-
 CREATE POLICY "Public access departments" ON "public"."departments" USING (true);
 
 
 
-CREATE POLICY "Public access external_busy_cache" ON "public"."external_busy_cache" USING (true);
+CREATE POLICY "Public access finance_movements" ON "public"."finance_movements" USING (true);
 
 
 
-CREATE POLICY "Public access external_calendar_connections" ON "public"."external_calendar_connections" USING (true);
+CREATE POLICY "Public access invoice_movements" ON "public"."invoice_movements" USING (true);
+
+
+
+CREATE POLICY "Public access invoice_orders" ON "public"."invoice_orders" USING (true);
+
+
+
+CREATE POLICY "Public access invoice_payments" ON "public"."invoice_payments" USING (true);
 
 
 
 CREATE POLICY "Public access invoices" ON "public"."invoices" USING (true);
-
-
-
-CREATE POLICY "Public access message_attachments" ON "public"."message_attachments" USING (true);
-
-
-
-CREATE POLICY "Public access message_reads" ON "public"."message_reads" USING (true);
-
-
-
-CREATE POLICY "Public access messages" ON "public"."messages" USING (true);
-
-
-
-CREATE POLICY "Public access notification_types" ON "public"."notification_types" USING (true);
-
-
-
-CREATE POLICY "Public access notifications" ON "public"."notifications" USING (true);
 
 
 
@@ -3389,6 +4585,10 @@ CREATE POLICY "Public access order_collaborators" ON "public"."order_collaborato
 
 
 CREATE POLICY "Public access order_contacts" ON "public"."order_contacts" USING (true);
+
+
+
+CREATE POLICY "Public access order_items" ON "public"."order_items" USING (true);
 
 
 
@@ -3404,39 +4604,7 @@ CREATE POLICY "Public access payments" ON "public"."payments" USING (true);
 
 
 
-CREATE POLICY "Public access pm_item_assignees" ON "public"."pm_item_assignees" USING (true);
-
-
-
-CREATE POLICY "Public access pm_item_comments" ON "public"."pm_item_comments" USING (true);
-
-
-
-CREATE POLICY "Public access pm_item_incarichi" ON "public"."pm_item_incarichi" USING (true);
-
-
-
-CREATE POLICY "Public access pm_item_links" ON "public"."pm_item_links" USING (true);
-
-
-
-CREATE POLICY "Public access pm_items" ON "public"."pm_items" USING (true);
-
-
-
-CREATE POLICY "Public access pm_space_assignees" ON "public"."pm_space_assignees" USING (true);
-
-
-
-CREATE POLICY "Public access pm_spaces" ON "public"."pm_spaces" USING (true);
-
-
-
 CREATE POLICY "Public access profiles" ON "public"."profiles" USING (true);
-
-
-
-CREATE POLICY "Public access reactions" ON "public"."reactions" USING (true);
 
 
 
@@ -3448,15 +4616,11 @@ CREATE POLICY "Public access suppliers" ON "public"."suppliers" USING (true);
 
 
 
-CREATE POLICY "Public access system_config" ON "public"."system_config" USING (true);
+CREATE POLICY "Public access tasks" ON "public"."tasks" USING (true);
 
 
 
 CREATE POLICY "Public access transaction_categories" ON "public"."transaction_categories" USING (true);
-
-
-
-CREATE POLICY "Public access user_notification_preferences" ON "public"."user_notification_preferences" USING (true);
 
 
 
@@ -3511,6 +4675,10 @@ CREATE POLICY "Reactions visibility" ON "public"."reactions" FOR SELECT TO "auth
 
 
 CREATE POLICY "Read status own" ON "public"."message_reads" TO "authenticated" USING (("user_id" = "auth"."uid"()));
+
+
+
+CREATE POLICY "Service role can insert notifications" ON "public"."notifications" FOR INSERT WITH CHECK (true);
 
 
 
@@ -3570,11 +4738,35 @@ CREATE POLICY "Users can delete own preferences" ON "public"."user_notification_
 
 
 
+CREATE POLICY "Users can delete own sync records" ON "public"."appointment_google_sync" FOR DELETE TO "authenticated" USING (("auth"."uid"() = "user_id"));
+
+
+
 CREATE POLICY "Users can insert own preferences" ON "public"."user_notification_preferences" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
 
 
 
+CREATE POLICY "Users can insert own sync records" ON "public"."appointment_google_sync" FOR INSERT TO "authenticated" WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can manage own overrides" ON "public"."availability_overrides" USING (("collaborator_id" IN ( SELECT "collaborators"."id"
+   FROM "public"."collaborators"
+  WHERE ("collaborators"."email" = ("auth"."jwt"() ->> 'email'::"text")))));
+
+
+
+CREATE POLICY "Users can manage own rest days" ON "public"."collaborator_rest_days" USING (("collaborator_id" IN ( SELECT "collaborators"."id"
+   FROM "public"."collaborators"
+  WHERE ("collaborators"."email" = ("auth"."jwt"() ->> 'email'::"text")))));
+
+
+
 CREATE POLICY "Users can read own preferences" ON "public"."user_notification_preferences" FOR SELECT USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can see own profile" ON "public"."profiles" FOR SELECT USING (("auth"."uid"() = "id"));
 
 
 
@@ -3588,9 +4780,21 @@ CREATE POLICY "Users can update own preferences" ON "public"."user_notification_
 
 
 
+CREATE POLICY "Users can update own profile" ON "public"."profiles" FOR UPDATE USING (("auth"."uid"() = "id"));
+
+
+
+CREATE POLICY "Users can update own sync records" ON "public"."appointment_google_sync" FOR UPDATE TO "authenticated" USING (("auth"."uid"() = "user_id"));
+
+
+
 CREATE POLICY "Users can view own notifications" ON "public"."notifications" FOR SELECT USING ((("auth"."uid"() = "user_id") OR ("collaborator_id" IN ( SELECT "collaborators"."id"
    FROM "public"."collaborators"
   WHERE ("collaborators"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "Users can view own sync records" ON "public"."appointment_google_sync" FOR SELECT TO "authenticated" USING (("auth"."uid"() = "user_id"));
 
 
 
@@ -3601,6 +4805,9 @@ CREATE POLICY "Users view own bookings" ON "public"."bookings" FOR SELECT USING 
 
 
 ALTER TABLE "public"."appointment_client_participants" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."appointment_google_sync" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."appointment_internal_participants" ENABLE ROW LEVEL SECURITY;
@@ -3621,9 +4828,6 @@ ALTER TABLE "public"."assignments" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."availability_overrides" ENABLE ROW LEVEL SECURITY;
 
 
-ALTER TABLE "public"."availability_rules" ENABLE ROW LEVEL SECURITY;
-
-
 ALTER TABLE "public"."bank_statements" ENABLE ROW LEVEL SECURITY;
 
 
@@ -3636,12 +4840,6 @@ ALTER TABLE "public"."booking_assignments" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."booking_categories" ENABLE ROW LEVEL SECURITY;
 
 
-ALTER TABLE "public"."booking_holds" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."booking_item_collaborators" ENABLE ROW LEVEL SECURITY;
-
-
 ALTER TABLE "public"."booking_items" ENABLE ROW LEVEL SECURITY;
 
 
@@ -3652,6 +4850,9 @@ ALTER TABLE "public"."channel_members" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."channels" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."client_contacts" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."clients" ENABLE ROW LEVEL SECURITY;
@@ -3684,10 +4885,7 @@ ALTER TABLE "public"."debug_logs" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."departments" ENABLE ROW LEVEL SECURITY;
 
 
-ALTER TABLE "public"."external_busy_cache" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."external_calendar_connections" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."finance_movements" ENABLE ROW LEVEL SECURITY;
 
 
 CREATE POLICY "insert_channel_members" ON "public"."channel_members" FOR INSERT TO "authenticated" WITH CHECK ((("auth"."uid"() = "user_id") AND ((EXISTS ( SELECT 1
@@ -3716,6 +4914,15 @@ CREATE POLICY "insert_reactions" ON "public"."reactions" FOR INSERT TO "authenti
 
 
 
+ALTER TABLE "public"."invoice_movements" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."invoice_orders" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."invoice_payments" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."invoices" ENABLE ROW LEVEL SECURITY;
 
 
@@ -3738,6 +4945,9 @@ ALTER TABLE "public"."order_collaborators" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."order_contacts" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."order_items" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."orders" ENABLE ROW LEVEL SECURITY;
@@ -3817,6 +5027,9 @@ ALTER TABLE "public"."suppliers" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."system_config" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."tasks" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."transaction_categories" ENABLE ROW LEVEL SECURITY;
 
 
@@ -3830,6 +5043,48 @@ GRANT USAGE ON SCHEMA "public" TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."_clients_business_name_search_trg"() TO "anon";
+GRANT ALL ON FUNCTION "public"."_clients_business_name_search_trg"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."_clients_business_name_search_trg"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."_col_exists"("p_table" "text", "p_col" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."_col_exists"("p_table" "text", "p_col" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."_col_exists"("p_table" "text", "p_col" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."_collaborators_full_name_search_trg"() TO "anon";
+GRANT ALL ON FUNCTION "public"."_collaborators_full_name_search_trg"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."_collaborators_full_name_search_trg"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."_invoices_invoice_number_search_trg"() TO "anon";
+GRANT ALL ON FUNCTION "public"."_invoices_invoice_number_search_trg"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."_invoices_invoice_number_search_trg"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."_name_expr"("p_table" "text", "p_alias" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."_name_expr"("p_table" "text", "p_alias" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."_name_expr"("p_table" "text", "p_alias" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."_passive_invoices_invoice_number_search_trg"() TO "anon";
+GRANT ALL ON FUNCTION "public"."_passive_invoices_invoice_number_search_trg"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."_passive_invoices_invoice_number_search_trg"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."_suppliers_name_search_trg"() TO "anon";
+GRANT ALL ON FUNCTION "public"."_suppliers_name_search_trg"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."_suppliers_name_search_trg"() TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."bank_transactions" TO "anon";
 GRANT ALL ON TABLE "public"."bank_transactions" TO "authenticated";
 GRANT ALL ON TABLE "public"."bank_transactions" TO "service_role";
@@ -3839,6 +5094,18 @@ GRANT ALL ON TABLE "public"."bank_transactions" TO "service_role";
 GRANT ALL ON FUNCTION "public"."approve_bank_transaction"("p_tx_id" "uuid", "p_category_id" "uuid", "p_client_id" "uuid", "p_supplier_id" "uuid", "p_collaborator_id" "uuid", "p_active_invoice_id" "uuid", "p_passive_invoice_id" "uuid", "p_payment_id" "uuid", "p_note" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."approve_bank_transaction"("p_tx_id" "uuid", "p_category_id" "uuid", "p_client_id" "uuid", "p_supplier_id" "uuid", "p_collaborator_id" "uuid", "p_active_invoice_id" "uuid", "p_passive_invoice_id" "uuid", "p_payment_id" "uuid", "p_note" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."approve_bank_transaction"("p_tx_id" "uuid", "p_category_id" "uuid", "p_client_id" "uuid", "p_supplier_id" "uuid", "p_collaborator_id" "uuid", "p_active_invoice_id" "uuid", "p_passive_invoice_id" "uuid", "p_payment_id" "uuid", "p_note" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."auto_set_payment_done_on_invoice_paid"() TO "anon";
+GRANT ALL ON FUNCTION "public"."auto_set_payment_done_on_invoice_paid"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."auto_set_payment_done_on_invoice_paid"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."auto_set_payment_done_on_link"() TO "anon";
+GRANT ALL ON FUNCTION "public"."auto_set_payment_done_on_link"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."auto_set_payment_done_on_link"() TO "service_role";
 
 
 
@@ -3902,6 +5169,12 @@ GRANT ALL ON FUNCTION "public"."handle_new_message"() TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "anon";
+GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "service_role";
@@ -3926,9 +5199,21 @@ GRANT ALL ON FUNCTION "public"."is_member_of_conversation"("conv_id" "uuid") TO 
 
 
 
+GRANT ALL ON FUNCTION "public"."link_payment_to_bank_transaction"("p_payment_id" "uuid", "p_bank_transaction_id" "uuid", "p_new_status" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."link_payment_to_bank_transaction"("p_payment_id" "uuid", "p_bank_transaction_id" "uuid", "p_new_status" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."link_payment_to_bank_transaction"("p_payment_id" "uuid", "p_bank_transaction_id" "uuid", "p_new_status" "text") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."mark_message_read"("p_message_id" "uuid", "p_channel_id" "uuid", "p_conversation_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."mark_message_read"("p_message_id" "uuid", "p_channel_id" "uuid", "p_conversation_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."mark_message_read"("p_message_id" "uuid", "p_channel_id" "uuid", "p_conversation_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."normalize_invoice_ref"("p" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."normalize_invoice_ref"("p" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."normalize_invoice_ref"("p" "text") TO "service_role";
 
 
 
@@ -3947,6 +5232,30 @@ GRANT ALL ON FUNCTION "public"."payment_invoice_link_trigger"() TO "service_role
 GRANT ALL ON FUNCTION "public"."reject_bank_transaction"("p_tx_id" "uuid", "p_note" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."reject_bank_transaction"("p_tx_id" "uuid", "p_note" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."reject_bank_transaction"("p_tx_id" "uuid", "p_note" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."resolve_active_invoice_candidates"("refs" "text"[], "p_client_id" "uuid", "p_amount" numeric, "p_date" "date", "min_score" double precision) TO "anon";
+GRANT ALL ON FUNCTION "public"."resolve_active_invoice_candidates"("refs" "text"[], "p_client_id" "uuid", "p_amount" numeric, "p_date" "date", "min_score" double precision) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."resolve_active_invoice_candidates"("refs" "text"[], "p_client_id" "uuid", "p_amount" numeric, "p_date" "date", "min_score" double precision) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."resolve_counterparty_candidates"("candidates" "text"[], "min_score" double precision) TO "anon";
+GRANT ALL ON FUNCTION "public"."resolve_counterparty_candidates"("candidates" "text"[], "min_score" double precision) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."resolve_counterparty_candidates"("candidates" "text"[], "min_score" double precision) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."resolve_passive_invoice_candidates"("refs" "text"[], "p_supplier_id" "uuid", "p_collaborator_id" "uuid", "p_amount" numeric, "p_date" "date", "min_score" double precision) TO "anon";
+GRANT ALL ON FUNCTION "public"."resolve_passive_invoice_candidates"("refs" "text"[], "p_supplier_id" "uuid", "p_collaborator_id" "uuid", "p_amount" numeric, "p_date" "date", "min_score" double precision) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."resolve_passive_invoice_candidates"("refs" "text"[], "p_supplier_id" "uuid", "p_collaborator_id" "uuid", "p_amount" numeric, "p_date" "date", "min_score" double precision) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."resolve_payment_candidates"("p_bank_transaction_id" "uuid", "p_days_window" integer, "min_score" double precision) TO "anon";
+GRANT ALL ON FUNCTION "public"."resolve_payment_candidates"("p_bank_transaction_id" "uuid", "p_days_window" integer, "min_score" double precision) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."resolve_payment_candidates"("p_bank_transaction_id" "uuid", "p_days_window" integer, "min_score" double precision) TO "service_role";
 
 
 
@@ -3992,9 +5301,21 @@ GRANT ALL ON FUNCTION "public"."trigger_sync_google_calendar"() TO "service_role
 
 
 
+GRANT ALL ON FUNCTION "public"."unlink_payment_from_bank_transaction"("p_payment_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."unlink_payment_from_bank_transaction"("p_payment_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."unlink_payment_from_bank_transaction"("p_payment_id" "uuid") TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."appointment_client_participants" TO "anon";
 GRANT ALL ON TABLE "public"."appointment_client_participants" TO "authenticated";
 GRANT ALL ON TABLE "public"."appointment_client_participants" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."appointment_google_sync" TO "anon";
+GRANT ALL ON TABLE "public"."appointment_google_sync" TO "authenticated";
+GRANT ALL ON TABLE "public"."appointment_google_sync" TO "service_role";
 
 
 
@@ -4094,6 +5415,12 @@ GRANT ALL ON TABLE "public"."channels" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."client_contacts" TO "anon";
+GRANT ALL ON TABLE "public"."client_contacts" TO "authenticated";
+GRANT ALL ON TABLE "public"."client_contacts" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."clients" TO "anon";
 GRANT ALL ON TABLE "public"."clients" TO "authenticated";
 GRANT ALL ON TABLE "public"."clients" TO "service_role";
@@ -4166,6 +5493,30 @@ GRANT ALL ON TABLE "public"."external_calendar_connections" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."finance_movements" TO "anon";
+GRANT ALL ON TABLE "public"."finance_movements" TO "authenticated";
+GRANT ALL ON TABLE "public"."finance_movements" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."invoice_movements" TO "anon";
+GRANT ALL ON TABLE "public"."invoice_movements" TO "authenticated";
+GRANT ALL ON TABLE "public"."invoice_movements" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."invoice_orders" TO "anon";
+GRANT ALL ON TABLE "public"."invoice_orders" TO "authenticated";
+GRANT ALL ON TABLE "public"."invoice_orders" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."invoice_payments" TO "anon";
+GRANT ALL ON TABLE "public"."invoice_payments" TO "authenticated";
+GRANT ALL ON TABLE "public"."invoice_payments" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."invoices" TO "anon";
 GRANT ALL ON TABLE "public"."invoices" TO "authenticated";
 GRANT ALL ON TABLE "public"."invoices" TO "service_role";
@@ -4211,6 +5562,12 @@ GRANT ALL ON TABLE "public"."order_collaborators" TO "service_role";
 GRANT ALL ON TABLE "public"."order_contacts" TO "anon";
 GRANT ALL ON TABLE "public"."order_contacts" TO "authenticated";
 GRANT ALL ON TABLE "public"."order_contacts" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."order_items" TO "anon";
+GRANT ALL ON TABLE "public"."order_items" TO "authenticated";
+GRANT ALL ON TABLE "public"."order_items" TO "service_role";
 
 
 
@@ -4295,6 +5652,12 @@ GRANT ALL ON TABLE "public"."suppliers" TO "service_role";
 GRANT ALL ON TABLE "public"."system_config" TO "anon";
 GRANT ALL ON TABLE "public"."system_config" TO "authenticated";
 GRANT ALL ON TABLE "public"."system_config" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tasks" TO "anon";
+GRANT ALL ON TABLE "public"."tasks" TO "authenticated";
+GRANT ALL ON TABLE "public"."tasks" TO "service_role";
 
 
 
