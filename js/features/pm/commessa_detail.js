@@ -366,6 +366,10 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                         <span class="material-icons-round">event</span>
                         Appuntamenti
                     </button>
+                    <button class="hub-tab" data-tab="docs">
+                        <span class="material-icons-round">description</span>
+                        Documenti
+                    </button>
                 </div>
                 
                 <!-- TAB CONTENT -->
@@ -419,6 +423,9 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
             tabs.forEach(t => t.classList.remove('active'));
             container.querySelector(`[data-tab="${tabName}"]`)?.classList.add('active');
 
+            // Reset padding by default, specific tabs might override
+            tabContent.style.padding = '1.5rem';
+
             switch (tabName) {
                 case 'overview':
                     const { renderHubOverview } = await import('./components/hub_overview.js?v=317');
@@ -444,6 +451,11 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     const ap = await fetchAppointments(refId, refType);
                     const types = await fetchAppointmentTypes();
                     renderHubAppointments(tabContent, ap, types, refId, refType);
+                    break;
+                case 'docs':
+                    tabContent.style.padding = '0';
+                    const { renderDocsView } = await import('../docs/DocsView.js');
+                    renderDocsView(tabContent, spaceId);
                     break;
                 default:
                     tabContent.innerHTML = '<p style="padding:2rem;">Tab non implementata.</p>';

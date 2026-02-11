@@ -310,6 +310,9 @@ export async function renderSpaceView(container, spaceId) {
                     <button class="tab-btn ${activeView === 'appointments' ? 'active' : ''}" data-view="appointments">
                         <span class="material-icons-round">event</span> Appuntamenti
                     </button>
+                    <button class="tab-btn ${activeView === 'docs' ? 'active' : ''}" data-view="docs">
+                        <span class="material-icons-round">description</span> Documenti
+                    </button>
                 </div>
 
                 <!-- View Content -->
@@ -393,6 +396,8 @@ export async function renderSpaceView(container, spaceId) {
                     renderTeamTab(viewContent, spaceAssignees, latestCollabs, spaceId);
                 } else if (view === 'list') {
                     viewContent.innerHTML = '<div style="text-align:center; padding: 2rem; color: #94a3b8;">Vista lista in arrivo...</div>';
+                } else if (view === 'docs') {
+                    import('../docs/DocsView.js').then(mod => mod.renderDocsView(viewContent, spaceId));
                 }
             });
         });
@@ -565,6 +570,8 @@ export async function renderSpaceView(container, spaceId) {
             renderHubTree(viewContent, items, space, spaceId);
         } else if (activeView === 'appointments') {
             renderHubAppointments(viewContent, appointments, appointmentTypes, spaceId, 'space');
+        } else if (activeView === 'docs') {
+            import('../docs/DocsView.js').then(mod => mod.renderDocsView(viewContent, spaceId));
         } else {
             renderHubTree(viewContent, items, space, spaceId);
         }
