@@ -48,6 +48,14 @@ ALTER TABLE public.doc_pages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.doc_blocks ENABLE ROW LEVEL SECURITY;
 
 -- Permissive RLS for MVP
-CREATE POLICY "Docs: Public Access Spaces" ON public.doc_spaces FOR ALL USING (true);
-CREATE POLICY "Docs: Public Access Pages" ON public.doc_pages FOR ALL USING (true);
-CREATE POLICY "Docs: Public Access Blocks" ON public.doc_blocks FOR ALL USING (true);
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Docs: Public Access Spaces' AND tablename = 'doc_spaces') THEN
+        CREATE POLICY "Docs: Public Access Spaces" ON public.doc_spaces FOR ALL USING (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Docs: Public Access Pages' AND tablename = 'doc_pages') THEN
+        CREATE POLICY "Docs: Public Access Pages" ON public.doc_pages FOR ALL USING (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Docs: Public Access Blocks' AND tablename = 'doc_blocks') THEN
+        CREATE POLICY "Docs: Public Access Blocks" ON public.doc_blocks FOR ALL USING (true);
+    END IF;
+END $$;

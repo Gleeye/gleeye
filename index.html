@@ -159,14 +159,21 @@
         }
     </style>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
     <script>
         window.addEventListener('error', function (event) {
             // Ignore benign ResizeObserver error
-            if (event.message === 'ResizeObserver loop completed with undelivered notifications.') {
+            if (event.message === 'ResizeObserver loop completed with undelivered notifications.' ||
+                event.message === 'ResizeObserver loop limit exceeded') {
                 event.stopImmediatePropagation();
+                return;
+            }
+
+            // Ignore generic "Script error." (likely from extensions or CDNs without proper details)
+            if (event.message === 'Script error.' && !event.error) {
+                console.warn("Benign Script error suppressed (likely browser extension)");
                 return;
             }
 

@@ -1,5 +1,6 @@
 import { state } from '../modules/state.js';
 import { formatAmount } from '../modules/utils.js?v=317';
+import { initNewOrderModal } from './orders.js?v=317';
 
 export const DashboardData = {
     getStats: (year, passiveFilter = 'all') => {
@@ -304,7 +305,13 @@ export function renderDashboard(container) {
                         <h2 style="font-size: 1.5rem; font-weight: 700; margin: 0; font-family: var(--font-titles); color: var(--text-primary);">Funnel Commerciale</h2>
                         <span id="active-filter-badge" style="display: none; font-size: 0.7rem; background: var(--brand-viola); color: white; padding: 4px 10px; border-radius: 12px; font-weight: 600;">Filtro Attivo</span>
                     </div>
-                    <span style="font-size: 0.75rem; font-weight: 400; color: var(--text-tertiary);">Clicca su una card per filtrare</span>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span style="font-size: 0.75rem; font-weight: 400; color: var(--text-tertiary);">Clicca su una card per filtrare</span>
+                        <button class="primary-btn" onclick="window.openNewOrderModal()" style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; padding: 0.6rem 1.2rem;">
+                            <span class="material-icons-round" style="font-size: 1.1rem;">add</span>
+                            Nuovo Ordine
+                        </button>
+                    </div>
                 </div>
                 
                 <div id="funnel-container" style="
@@ -434,6 +441,9 @@ export function renderDashboard(container) {
         resetBtn.addEventListener('mouseleave', () => resetBtn.style.background = 'none');
         resetBtn.addEventListener('click', () => updateView(null));
     };
+
+    // Initialize new order modal
+    initNewOrderModal();
 
     // Initial Render
     renderContent();

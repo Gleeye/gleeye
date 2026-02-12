@@ -144,9 +144,14 @@ function createPageItem(node, activePageId, level = 0) {
         ? `<span style="font-size: 16px; margin-right: 8px; line-height: 1;">${node.icon}</span>`
         : `<span class="material-icons-round" style="font-size: 16px; margin-right: 8px; opacity: 0.7;">description</span>`;
 
+    const visibilityIcon = node.is_public
+        ? `<span class="material-icons-round" style="font-size: 13px; color: var(--brand-blue); opacity: 0.8; margin-left: 4px;" title="Pubblico">public</span>`
+        : ``;
+
     div.innerHTML = `
         ${iconHtml}
         <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${node.title || 'Untitled'}</span>
+        ${visibilityIcon}
     `;
 
     // Add Sub-page Button

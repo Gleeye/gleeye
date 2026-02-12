@@ -1,4 +1,4 @@
-import { ensureDocSpace, fetchDocPages, createDocPage, fetchPageBlocks, deleteDocPage } from '../../modules/docs_api.js';
+import { ensureDocSpace, fetchVisiblePages, createDocPage, fetchPageBlocks, deleteDocPage } from '../../modules/docs_api.js?v=1';
 import { renderDocsSidebar, setupSidebarEvents } from './DocsSidebar.js';
 import { renderPageEditor } from './PageEditor.js';
 
@@ -6,17 +6,20 @@ let currentSpaceId = null;
 let currentDocSpace = null;
 let currentPages = [];
 let activePageId = null;
+let currentContainer = null;
 
 export async function renderDocsView(container, spaceId) {
+    currentContainer = container;
     currentSpaceId = spaceId;
+
     container.innerHTML = '<div class="loading-state"><span class="loader"></span></div>';
 
     try {
         // 1. Ensure Doc Space exists
         currentDocSpace = await ensureDocSpace(spaceId);
 
-        // 2. Fetch Pages
-        currentPages = await fetchDocPages(currentDocSpace.id);
+        // 2. Fetch Pages (Filtered by permissions)
+        currentPages = await fetchVisiblePages(currentDocSpace.id);
 
         // 3. Render Structure
         container.innerHTML = `
@@ -53,7 +56,11 @@ export async function renderDocsView(container, spaceId) {
 
                 <!-- Main Editor Area -->
                 <div id="docs-main" style="flex: 1; display: flex; flex-direction: column; background: white; position: relative;">
-                    <div style="padding: 12px 24px; display: flex; justify-content: flex-end; border-bottom: 1px solid #f1f5f9;">
+                     <div style="padding: 12px 24px; display: flex; justify-content: flex-end; gap: 10px; border-bottom: 1px solid #f1f5f9;">
+                         <button id="docs-share-btn" class="btn-sm" style="display: flex; align-items: center; gap: 4px; padding: 6px 12px; background: white; border: 1px solid var(--brand-blue); border-radius: 6px; cursor: pointer; color: var(--brand-blue); font-weight: 600;">
+                            <span class="material-icons-round" style="font-size: 16px;">share</span>
+                            <span style="font-size: 13px;">Condividi</span>
+                         </button>
                          <button id="docs-export-btn" class="btn-sm" style="display: flex; align-items: center; gap: 4px; padding: 6px 12px; background: white; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; color: #475569;">
                             <span class="material-icons-round" style="font-size: 16px;">file_download</span>
                             <span style="font-size: 13px;">Export</span>
@@ -90,17 +97,18 @@ export async function renderDocsView(container, spaceId) {
             onPageDelete: async (pageId) => {
                 try {
                     await deleteDocPage(pageId);
-                    // Remove from local array
                     currentPages = currentPages.filter(p => p.id !== pageId);
-                    // If active page deleted, clear editor
                     if (activePageId === pageId) {
                         activePageId = null;
-                        document.getElementById('editor-container').innerHTML = `
-                            <div class="empty-state" style="text-align: center; margin-top: 100px; color: #94a3b8;">
-                                <span class="material-icons-round" style="font-size: 48px; margin-bottom: 16px;">delete</span>
-                                <p>Pagina eliminata.</p>
-                            </div>
-                        `;
+                        const editorContainer = currentContainer.querySelector('#editor-container');
+                        if (editorContainer) {
+                            editorContainer.innerHTML = `
+                                <div class="empty-state" style="text-align: center; margin-top: 100px; color: #94a3b8;">
+                                    <span class="material-icons-round" style="font-size: 48px; margin-bottom: 16px;">delete</span>
+                                    <p>Pagina eliminata.</p>
+                                </div>
+                            `;
+                        }
                     }
                     refreshSidebar();
                 } catch (err) {
@@ -110,75 +118,90 @@ export async function renderDocsView(container, spaceId) {
         });
 
         // 6. Sidebar Toggle Logic
-        const toggleBtn = document.getElementById('sidebar-toggle');
-        const sidebar = document.getElementById('docs-sidebar');
-        const content = document.getElementById('sidebar-content');
+        const toggleBtn = currentContainer.querySelector('#sidebar-toggle');
+        const sidebar = currentContainer.querySelector('#docs-sidebar');
+        const content = currentContainer.querySelector('#sidebar-content');
         let isCollapsed = false;
 
-        toggleBtn.onclick = () => {
-            isCollapsed = !isCollapsed;
-            if (isCollapsed) {
-                sidebar.style.width = '40px';
-                content.style.opacity = '0';
-                content.style.pointerEvents = 'none';
-                toggleBtn.querySelector('span').innerText = 'chevron_right';
-                toggleBtn.style.right = '4px'; // Center
-            } else {
-                sidebar.style.width = '260px';
-                content.style.opacity = '1';
-                content.style.pointerEvents = 'all';
-                toggleBtn.querySelector('span').innerText = 'chevron_left';
-                toggleBtn.style.right = '8px';
-            }
-        };
+        if (toggleBtn && sidebar && content) {
+            toggleBtn.onclick = () => {
+                isCollapsed = !isCollapsed;
+                if (isCollapsed) {
+                    sidebar.style.width = '40px';
+                    content.style.opacity = '0';
+                    content.style.pointerEvents = 'none';
+                    const icon = toggleBtn.querySelector('span');
+                    if (icon) icon.innerText = 'chevron_right';
+                    toggleBtn.style.right = '4px';
+                } else {
+                    sidebar.style.width = '260px';
+                    content.style.opacity = '1';
+                    content.style.pointerEvents = 'all';
+                    const icon = toggleBtn.querySelector('span');
+                    if (icon) icon.innerText = 'chevron_left';
+                    toggleBtn.style.right = '8px';
+                }
+            };
+        }
 
-        // 7. Export Logic
-        document.getElementById('docs-export-btn').onclick = async () => {
-            if (!activePageId) {
-                alert('Select a page first.');
-                return;
-            }
-
-            const choice = confirm("Export options:\nOK: Download Markdown\nCancel: Print / PDF");
-            if (choice) {
-                // Markdown
+        // 7. Share Logic
+        const shareBtn = currentContainer.querySelector('#docs-share-btn');
+        if (shareBtn) {
+            shareBtn.onclick = async () => {
+                if (!activePageId) {
+                    alert('Seleziona una pagina per condividerla.');
+                    return;
+                }
                 const page = currentPages.find(p => p.id === activePageId);
-                const blocks = await fetchPageBlocks(activePageId);
-                let md = `# ${page.title || 'Untitled'}\n\n`;
+                const { openPageSharingModal } = await import('./PageSharingModal.js');
+                openPageSharingModal(page);
+            };
+        }
 
-                blocks.forEach(b => {
-                    const text = b.content.text || '';
-                    if (b.type === 'heading1') md += `# ${text}\n\n`;
-                    else if (b.type === 'heading2') md += `## ${text}\n\n`;
-                    else if (b.type === 'heading3') md += `### ${text}\n\n`;
-                    else if (b.type === 'list') md += `- ${text}\n`;
-                    else if (b.type === 'checklist') md += `- [${b.content.checked ? 'x' : ' '}] ${text}\n`;
-                    else if (b.type === 'quote') md += `> ${text}\n\n`;
-                    else if (b.type === 'code') md += `\`\`\`\n${text}\n\`\`\`\n\n`;
-                    else if (b.type === 'divider') md += `---\n\n`;
-                    else if (b.type === 'image') md += `![Image](${b.content.url})\n\n`;
-                    else md += `${text}\n\n`;
-                });
+        // 8. Export Logic
+        const exportBtn = currentContainer.querySelector('#docs-export-btn');
+        if (exportBtn) {
+            exportBtn.onclick = async () => {
+                if (!activePageId) {
+                    alert('Seleziona una pagina per esportarla.');
+                    return;
+                }
 
-                const blob = new Blob([md], { type: 'text/markdown' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${page.title || 'document'}.md`;
-                a.click();
-            } else {
-                // Print / PDF
-                window.print();
-            }
-        };
+                const choice = confirm("Opzioni Export:\nOK: Scarica Markdown\nAnnulla: Stampa / PDF");
+                if (choice) {
+                    const page = currentPages.find(p => p.id === activePageId);
+                    const blocks = await fetchPageBlocks(activePageId);
+                    let md = `# ${page.title || 'Untitled'}\n\n`;
 
-        // 6. Mobile Toggle (if needed, simplified for MVP)
-        // Check if no pages, maybe create one automatically?
-        if (currentPages.length === 0) {
-            // Optional: Create "Getting Started"?
-        } else {
-            // Select first page
-            // loadPage(currentPages[0].id);
+                    blocks.forEach(b => {
+                        const text = b.content.text || '';
+                        if (b.type === 'heading1') md += `# ${text}\n\n`;
+                        else if (b.type === 'heading2') md += `## ${text}\n\n`;
+                        else if (b.type === 'heading3') md += `### ${text}\n\n`;
+                        else if (b.type === 'list') md += `- ${text}\n`;
+                        else if (b.type === 'checklist') md += `- [${b.content.checked ? 'x' : ' '}] ${text}\n`;
+                        else if (b.type === 'quote') md += `> ${text}\n\n`;
+                        else if (b.type === 'code') md += `\`\`\`\n${text}\n\`\`\`\n\n`;
+                        else if (b.type === 'divider') md += `---\n\n`;
+                        else if (b.type === 'image') md += `![Image](${b.content.url})\n\n`;
+                        else md += `${text}\n\n`;
+                    });
+
+                    const blob = new Blob([md], { type: 'text/markdown' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${page.title || 'document'}.md`;
+                    a.click();
+                } else {
+                    window.print();
+                }
+            };
+        }
+
+        // 8. Auto-load first page
+        if (currentPages.length > 0 && !activePageId) {
+            loadPage(currentPages[0].id);
         }
 
     } catch (err) {
@@ -188,17 +211,19 @@ export async function renderDocsView(container, spaceId) {
 }
 
 function refreshSidebar() {
-    const treeContainer = document.getElementById('docs-tree');
+    if (!currentContainer) return;
+    const treeContainer = currentContainer.querySelector('#docs-tree');
     if (!treeContainer) return;
     renderDocsSidebar(treeContainer, currentPages, activePageId);
 }
 
 async function loadPage(pageId) {
     activePageId = pageId;
-    refreshSidebar(); // Update active state
+    refreshSidebar();
 
-    // Pass container to Editor
-    const editorContainer = document.getElementById('editor-container');
+    if (!currentContainer) return;
+    const editorContainer = currentContainer.querySelector('#editor-container');
+    if (!editorContainer) return;
     const page = currentPages.find(p => p.id === pageId);
 
     if (page) {
@@ -206,9 +231,7 @@ async function loadPage(pageId) {
     }
 }
 
-// Global Listener for Updates (Sidebar Sync)
 document.addEventListener('doc-page-updated', (e) => {
-    // If the updated page is in currentPages, refresh.
     if (currentPages && currentPages.some(p => p.id === e.detail.pageId)) {
         refreshSidebar();
     }

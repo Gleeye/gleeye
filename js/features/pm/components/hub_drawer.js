@@ -25,7 +25,7 @@ const ITEM_STATUS = {
     'done': { label: 'Completata', color: '#10b981', bg: '#ecfdf5' }
 };
 
-export async function openHubDrawer(itemId, spaceId, parentId = null, itemType = 'task') {
+export async function openHubDrawer(itemId, spaceId, parentId = null, itemType = 'task', options = {}) {
     let overlay = document.getElementById('hub-drawer-overlay');
     let drawer = document.getElementById('hub-drawer');
 
@@ -61,6 +61,9 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
     // On edit, we will populate this after fetch, but usually we prefer live edit in view mode. 
     // However, for consistency, if we allow editing in form, we should sync.
     // For specific "Creation" request, we start empty.
+
+    // Options
+    const { defaultRole = 'assignee', defaultNote = '' } = options;
 
     // Fetch data
     if (isEdit) {
@@ -116,9 +119,23 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
         item = {
             item_type: itemType,
             status: 'todo',
-            priority: 'medium'
+            priority: 'medium',
+            notes: defaultNote
         };
-        pendingAssignees = []; // Start empty for new item
+
+        // Default Assignee (Account role if requested)
+        if (state.profile?.id) {
+            const meCollab = state.collaborators?.find(c => c.user_id === state.profile.id);
+            if (meCollab) {
+                pendingAssignees = [{
+                    user_ref: state.profile.id,
+                    collaborator_ref: meCollab.id,
+                    role: defaultRole,
+                    displayName: meCollab.full_name,
+                    user: meCollab
+                }];
+            }
+        }
     }
 
     // Sync pending on edit load

@@ -128,6 +128,61 @@ export async function fetchClients() {
     state.clients = clients || [];
 }
 
+export async function upsertClient(client) {
+    console.log("Upserting client:", client);
+    const dbData = { ...client };
+
+    // Remove any undefined keys to avoid db errors
+    Object.keys(dbData).forEach(key => dbData[key] === undefined && delete dbData[key]);
+
+    const { data, error } = await supabase
+        .from('clients')
+        .upsert(dbData)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Client upsert failed:", error);
+        throw error;
+    }
+
+    const index = state.clients.findIndex(c => c.id === data.id);
+    if (index >= 0) {
+        state.clients[index] = data;
+    } else {
+        state.clients.push(data);
+    }
+    return data;
+}
+
+export async function generateNextOrderNumber() {
+    const yearShort = new Date().getFullYear().toString().slice(-2);
+    const prefix = `${yearShort}-`;
+
+    const { data, error } = await supabase
+        .from('orders')
+        .select('order_number')
+        .like('order_number', `${prefix}%`)
+        .order('order_number', { ascending: false })
+        .limit(1);
+
+    if (error) {
+        console.error("Error fetching max order number:", error);
+        return `${prefix}0001`;
+    }
+
+    if (!data || data.length === 0) {
+        return `${prefix}0001`;
+    }
+
+    const lastNumStr = data[0].order_number;
+    const parts = lastNumStr.split('-');
+    if (parts.length < 2) return `${prefix}0001`;
+
+    const nextNum = parseInt(parts[1]) + 1;
+    return `${prefix}${nextNum.toString().padStart(4, '0')}`;
+}
+
 export async function fetchOrders() {
     console.log("Fetching orders with commercial details...");
     const { data: orders, error } = await supabase

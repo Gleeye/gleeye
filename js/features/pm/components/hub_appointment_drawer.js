@@ -2,25 +2,30 @@ import { saveAppointment, deleteAppointment, fetchAppointmentTypes } from '../..
 import { fetchContacts } from '../../../modules/api.js';
 import { state } from '../../../modules/state.js';
 import { renderUserPicker } from './picker_utils.js?v=317';
+import { supabase } from '../../../modules/config.js';
 
-export async function openAppointmentDrawer(inputAppointment, contextId = null, contextType = 'order') {
-    const overlay = document.getElementById('hub-drawer-overlay');
-    const drawer = document.getElementById('hub-drawer');
+export async function openAppointmentDrawer(inputAppointment, contextId = null, contextType = 'order', options = {}) {
+    let overlay = document.getElementById('hub-drawer-overlay');
+    let drawer = document.getElementById('hub-drawer');
 
-    if (!overlay || !drawer) return;
-
-    // --- STATE ---
-    let appointment = inputAppointment ? { ...inputAppointment } : null;
-    const isCreate = !appointment;
-    let viewMode = !isCreate;
-
-    // Context
-    const targetId = appointment ? (appointment.order_id || appointment.pm_space_id) : contextId;
-    const targetType = appointment ? (appointment.pm_space_id ? 'space' : 'order') : contextType;
-
-    if (!targetId) {
-        console.error("Missing Context ID for appointment");
-        return;
+    if (!overlay || !drawer) {
+        console.warn("Drawer elements not found, injecting...");
+        const html = `
+            <div id="hub-drawer-overlay" class="drawer-overlay hidden" style="
+                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                background: rgba(0,0,0,0.4); z-index: 99999;
+                display: flex; justify-content: flex-end;
+            ">
+                <div id="hub-drawer" style="
+                    width: 600px; max-width: 100%; height: 100%; 
+                    background: white; box-shadow: -10px 0 40px rgba(0,0,0,0.2);
+                    display: flex; flex-direction: column;
+                "></div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', html);
+        overlay = document.getElementById('hub-drawer-overlay');
+        drawer = document.getElementById('hub-drawer');
     }
 
     // Load Data (Types & Contacts)
@@ -31,6 +36,52 @@ export async function openAppointmentDrawer(inputAppointment, contextId = null, 
         const [types] = await Promise.all(promises);
         appointmentTypes = types || [];
     } catch (e) { console.error("Error loading types/contacts", e); }
+
+    // Resolve Appointment if only ID provided
+    let appointment = inputAppointment ? { ...inputAppointment } : null;
+    if (appointment && appointment.id && Object.keys(appointment).length === 1) {
+        try {
+            const { data, error } = await supabase.from('appointments').select(`
+                *,
+                types:appointment_type_assignments(appointment_types(*)),
+                participants:appointment_internal_participants(*)
+            `).eq('id', appointment.id).single();
+
+            if (error) throw error;
+
+            // Map structure to what drawer expects
+            appointment = {
+                ...data,
+                types: data.types?.map(t => t.appointment_types) || [],
+                participants: {
+                    internal: data.participants || [],
+                    client: [] // Client participants are usually fetched via another join or in render
+                }
+            };
+
+            // Fetch client participants if needed
+            const { data: cp } = await supabase.from('appointment_client_participants').select('*').eq('appointment_id', appointment.id);
+            appointment.participants.client = cp || [];
+        } catch (err) {
+            console.error("Error fetching appointment:", err);
+            alert("Errore nel caricamento dell'appuntamento.");
+            return;
+        }
+    }
+    const isCreate = !appointment;
+    let viewMode = !isCreate;
+
+    // Options
+    const { defaultRole = 'organizer', defaultNote = '' } = options;
+
+    // Context
+    const targetId = appointment ? (appointment.order_id || appointment.pm_space_id) : contextId;
+    const targetType = appointment ? (appointment.pm_space_id ? 'space' : 'order') : contextType;
+
+    if (!targetId) {
+        console.error("Missing Context ID for appointment");
+        return;
+    }
 
     // Resolve Client Contacts
     let clientContacts = [];
@@ -84,6 +135,7 @@ export async function openAppointmentDrawer(inputAppointment, contextId = null, 
 
         formState.start_time = now.toISOString();
         formState.end_time = end.toISOString();
+        formState.note = defaultNote;
         formState.status = 'bozza';
         formState.types = new Set();
         // Add creator
@@ -92,7 +144,7 @@ export async function openAppointmentDrawer(inputAppointment, contextId = null, 
             if (meCollab) {
                 formState.participants.internal.push({
                     collaborator_id: meCollab.id,
-                    role: 'organizer',
+                    role: defaultRole,
                     user: meCollab
                 });
             }

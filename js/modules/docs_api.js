@@ -60,6 +60,78 @@ export async function fetchDocPages(docSpaceId) {
     if (error) throw error;
     return data;
 }
+/**
+ * Fetches pages visible to the current user (Owner, Admin, or Shared).
+ * @param {string} docSpaceId 
+ */
+export async function fetchVisiblePages(docSpaceId) {
+    const profile = state.profile;
+
+    // 1. Admin/Superuser sees everything
+    if (profile?.role === 'admin' || profile?.email === 'davide@gleeye.eu') {
+        return fetchDocPages(docSpaceId);
+    }
+
+    const userId = state.user?.id;
+    const collabId = profile?.collaborator_id;
+    const deptNames = profile?.tags || [];
+
+    // Resolve Dept Names to IDs if needed
+    let deptIds = [];
+    if (deptNames.length > 0) {
+        if (!state.departments || state.departments.length === 0) {
+            const { data: allDepts } = await supabase.from('departments').select('*');
+            state.departments = allDepts || [];
+        }
+        deptIds = state.departments
+            .filter(d => deptNames.includes(d.name))
+            .map(d => d.id);
+    }
+
+    // 2. Fetch all pages in space
+    let { data: pages, error } = await supabase
+        .from('doc_pages')
+        .select('*')
+        .eq('space_ref', docSpaceId)
+        .order('order_index', { ascending: true });
+
+    if (error) throw error;
+
+    // 3. Fetch permissions for these pages
+    const { data: perms } = await supabase
+        .from('doc_page_permissions')
+        .select('page_ref, target_type, target_id')
+        .in('page_ref', pages.map(p => p.id));
+
+    // 4. Filter Logic
+    const visiblePages = pages.filter(page => {
+        // Owner or Public
+        if (page.created_by === userId || page.is_public === true) return true;
+
+        // Direct Shared
+        const isDirectlyShared = perms?.some(p =>
+            p.page_ref === page.id &&
+            p.target_type === 'collaborator' &&
+            p.target_id === collabId
+        );
+        if (isDirectlyShared) return true;
+
+        // Dept Shared
+        const isDeptShared = perms?.some(p =>
+            p.page_ref === page.id &&
+            p.target_type === 'department' &&
+            deptIds.includes(p.target_id)
+        );
+        if (isDeptShared) return true;
+
+        return false;
+    });
+
+    // Special Case: Ensure children are shown if parent is hidden? 
+    // Usually Notion requires top-down sharing. We'll stick to explicit sharing.
+
+    return visiblePages;
+}
 
 export async function createDocPage(docSpaceId, parentRef = null, title = 'Pagina senza titolo') {
     // Get max order index for the level to append at end
@@ -209,4 +281,44 @@ export async function uploadImage(file, folder = 'docs') {
         .getPublicUrl(filePath);
 
     return publicUrl;
+}
+
+/* ==========================================================================
+   PERMISSIONS Management
+   ========================================================================== */
+
+export async function fetchPagePermissions(pageId) {
+    const { data, error } = await supabase
+        .from('doc_page_permissions')
+        .select('*')
+        .eq('page_ref', pageId);
+
+    if (error) throw error;
+    return data;
+}
+
+export async function addPagePermission(pageId, targetType, targetId, accessLevel = 'view') {
+    const { data, error } = await supabase
+        .from('doc_page_permissions')
+        .insert([{
+            page_ref: pageId,
+            target_type: targetType,
+            target_id: targetId,
+            access_level: accessLevel
+        }])
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+export async function deletePagePermission(permissionId) {
+    const { error } = await supabase
+        .from('doc_page_permissions')
+        .delete()
+        .eq('id', permissionId);
+
+    if (error) throw error;
+    return true;
 }

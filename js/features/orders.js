@@ -1,8 +1,9 @@
 import { state } from '../modules/state.js';
 import { formatAmount, showGlobalAlert, showConfirm } from '../modules/utils.js?v=317';
-import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, addOrderContact, removeOrderContact, fetchOrderContacts, updateOrderCloudLinks } from '../modules/api.js';
+import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, addOrderContact, removeOrderContact, fetchOrderContacts, updateOrderCloudLinks, generateNextOrderNumber } from '../modules/api.js';
 import { CloudLinksManager } from './components/CloudLinksManager.js?v=376';
 import { openPaymentModal } from './payments.js?v=317';
+import { fetchProjectSpaceForOrder, fetchProjectItems, fetchAppointments } from '../modules/pm_api.js?v=385';
 
 
 function getStatusColor(status) {
@@ -102,8 +103,45 @@ export async function renderOrderDetail(container, orderId) {
         return colors[Math.abs(hash) % colors.length];
     };
 
+    // --- PM Data Fetching ---
+    const pmSpace = await fetchProjectSpaceForOrder(orderId);
+    let pmKPIs = { total: 0, done: 0, overdue: 0, dueSoon: 0, progress: 0 };
+    let upcomingActivities = [];
+
+    if (pmSpace) {
+        const [items, appointments] = await Promise.all([
+            fetchProjectItems(pmSpace.id),
+            fetchAppointments(pmSpace.id, 'space')
+        ]);
+
+        // Calculate KPIs
+        const now = new Date();
+        const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const total = items.length;
+        const done = items.filter(i => i.status === 'done').length;
+        const overdue = items.filter(i => {
+            if (!i.due_date || i.status === 'done') return false;
+            return new Date(i.due_date) < now;
+        }).length;
+        const dueSoon = items.filter(i => {
+            if (!i.due_date || i.status === 'done') return false;
+            const due = new Date(i.due_date);
+            return due >= now && due <= weekFromNow;
+        }).length;
+        pmKPIs = {
+            total, done, overdue, dueSoon,
+            progress: total > 0 ? Math.round((done / total) * 100) : 0
+        };
+
+        // Get activities for Account Highlights
+        upcomingActivities = [
+            ...items.filter(i => i.status !== 'done' && i.due_date).map(i => ({ ...i, type: 'task' })),
+            ...appointments.map(a => ({ ...a, type: 'appointment', due_date: a.start_time }))
+        ].sort((a, b) => new Date(a.due_date) - new Date(b.due_date)).slice(0, 5);
+    }
+
     container.innerHTML = `
-        <div class="animate-fade-in" style="max-width: 1400px; margin: 0 auto; padding: 1rem;">
+        <div class="animate-fade-in" style="max-width: 1400px; margin: 0 auto; padding: 1.5rem;">
             <!-- Header Section -->
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; background: var(--bg-secondary); padding: 1.5rem 2rem; border-radius: 16px; border: 1px solid var(--glass-border);">
                 <div style="display: flex; align-items: center; gap: 1.25rem;">
@@ -115,7 +153,6 @@ export async function renderOrderDetail(container, orderId) {
                              <h1 style="font-size: 1.75rem; font-weight: 700; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.02em;">Ordine ${order.order_number}</h1>
                              
                              <div style="display: flex; gap: 0.75rem; align-items: center;">
-                                <!-- Offer Status Badge -->
                                 <div class="status-badge-container" style="position: relative; cursor: pointer;">
                                      <select onchange="window.updateOrderOfferStatusQuick('${order.id}', this.value)" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
                                          <option value="In Lavorazione" ${order.offer_status === 'In Lavorazione' ? 'selected' : ''}>In Lavorazione</option>
@@ -129,7 +166,6 @@ export async function renderOrderDetail(container, orderId) {
                                      </span>
                                 </div>
 
-                                <!-- Work Status Badge -->
                                 <div class="status-badge-container" style="position: relative; cursor: pointer;">
                                      <select onchange="window.updateOrderStatusQuick('${order.id}', this.value)" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
                                      <option value="Lavoro in Attesa" ${order.status_works === 'Lavoro in Attesa' || order.status_works === 'In Attesa' ? 'selected' : ''}>In Attesa</option>
@@ -161,19 +197,22 @@ export async function renderOrderDetail(container, orderId) {
                     <button class="primary-btn secondary" onclick="window.deleteOrder('${order.id}')" style="padding: 0.6rem; border-radius: 10px; color: #ef4444; border-color: rgba(239, 68, 68, 0.2);">
                         <span class="material-icons-round">delete</span>
                     </button>
-                    <button class="primary-btn secondary" style="padding: 0.6rem; border-radius: 10px;"><span class="material-icons-round">more_vert</span></button>
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; align-items: start;">
-                <!-- Column 1: Basics & Team -->
-                <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <!-- Content Grid Layout -->
+            <div style="display: grid; grid-template-columns: 320px 1fr 340px; gap: 1.5rem; align-items: start;">
+                
+                <!-- Column 1: Client, People, Assignments -->
+                <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                    <!-- Cliente -->
                     <div class="glass-card" style="padding: 1.25rem;">
                         <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 500; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Cliente</div>
                         <div style="font-size: 0.95rem; font-weight: 600; color: var(--brand-blue); margin-bottom: 0.2rem;">${order.clients?.client_code || '-'}</div>
                         <div style="font-size: 0.8rem; color: var(--text-secondary); opacity: 0.8;">${order.clients?.business_name || '-'}</div>
                     </div>
 
+                    <!-- Persone & Team -->
                     <div class="glass-card" style="padding: 1.5rem;">
                         <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Persone & Team</h3>
                         
@@ -210,124 +249,185 @@ export async function renderOrderDetail(container, orderId) {
                             </div>
                         </div>
                     </div>
-                    </div>
 
-                    <!-- Cloud Links -->
-                    <div class="glass-card" style="padding: 1.5rem; margin-top: 1rem;">
-                        <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Risorse Cloud</h3>
-                        <div id="order-cloud-links-container"></div>
-                    </div>
-                </div>
-
-                <!-- Column 2: Team & Assignments -->
-                <div class="glass-card" style="padding: 1.5rem;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem;">
-                        <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0;">Team & Incarichi</h3>
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <span class="badge" style="background: rgba(59, 130, 246, 0.1); color: var(--brand-blue); font-weight: 600;">${linkedAssignments.length}</span>
-                            <button onclick="window.openAddAssignmentModal('${order.id}')" style="background:none; border:none; color:var(--brand-blue); font-size:0.7rem; cursor:pointer; font-weight: 600;">+ Aggiungi</button>
+                    <!-- Team & Incarichi (MOVED HERE) -->
+                    <div class="glass-card" style="padding: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem;">
+                            <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0;">Team & Incarichi</h3>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span class="badge" style="background: rgba(59, 130, 246, 0.1); color: var(--brand-blue); font-weight: 600;">${linkedAssignments.length}</span>
+                                <button onclick="window.openAddAssignmentModal('${order.id}')" style="background:none; border:none; color:var(--brand-blue); font-size:0.7rem; cursor:pointer; font-weight: 600;">+ Aggiungi</button>
+                            </div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            ${linkedAssignments.map(a => {
+        const linkedServices = (state.collaboratorServices || []).filter(s => s.assignment_id === a.id);
+        return `
+                                    <div class="glass-card clickable-card" style="padding: 1rem; background: var(--bg-secondary); cursor: pointer; display: flex; flex-direction: column; gap: 0.75rem;" onclick="window.location.hash='#assignment-detail/${a.id}'">
+                                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                            <div style="width: 36px; height: 36px; border-radius: 50%; background: ${getAvatarColor(a.collaborators?.full_name || 'C')}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; box-shadow: var(--shadow-sm);">${getInitials(a.collaborators?.full_name || 'C')}</div>
+                                            <div style="flex: 1;">
+                                                <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">${a.collaborators?.full_name || 'Collaboratore'}</div>
+                                                <div style="font-size: 0.75rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.4rem;">
+                                                    <span class="status-dot ${a.status === 'Completed' ? 'success' : (a.status === 'In Progress' ? 'warning' : 'neutral')}"></span>
+                                                    ${a.status || 'Attivo'}
+                                                </div>
+                                            </div>
+                                            <div style="text-align: right;">
+                                                 <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">${formatAmount(a.total_amount)}€</div>
+                                                 <div style="font-size: 0.7rem; color: var(--text-tertiary);">Totale</div>
+                                            </div>
+                                        </div>
+    
+                                        ${linkedServices.length > 0 ? `
+                                            <div style="border-top: 1px solid var(--glass-border); padding-top: 0.75rem;">
+                                                <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.4rem; letter-spacing: 0.05em;">Servizi Inclusi</div>
+                                                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+                                                    ${linkedServices.map(s => `
+                                                        <span style="background: white; border: 1px solid var(--glass-border); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; color: var(--text-secondary); display: inline-flex; align-items: center;">
+                                                            ${s.name} ${s.quantity > 1 ? `<span style="opacity: 0.6; margin-left: 4px; font-size: 0.7rem;">x${s.quantity}</span>` : ''}
+                                                        </span>
+                                                    `).join('')}
+                                                </div>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `;
+    }).join('')}
                         </div>
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
 
-                        ${linkedAssignments.map(a => {
-        // Find linked services for this assignment
-        // We need to ensure state.collaboratorServices is populated or available
-        const linkedServices = (state.collaboratorServices || []).filter(s => s.assignment_id === a.id);
+                    <!-- Documentation Card (Pulsante Modal) -->
+                    <div class="glass-card clickable-card" onclick="window.openOrderDocsModal('${pmSpace?.id}')" style="padding: 1.25rem; background: var(--bg-secondary); border: 1px dashed var(--brand-blue); cursor: pointer;">
+                         <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(59, 130, 246, 0.1); color: var(--brand-blue); display: flex; align-items: center; justify-content: center;">
+                                <span class="material-icons-round">description</span>
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">Documentazione</div>
+                                <div style="font-size: 0.7rem; color: var(--text-tertiary);">Note e documenti operativi</div>
+                            </div>
+                            <span class="material-icons-round" style="font-size: 18px; color: var(--brand-blue);">open_in_new</span>
+                         </div>
+                    </div>
 
-        return `
-                                <div class="glass-card clickable-card" style="padding: 1rem; background: var(--bg-secondary); cursor: pointer; display: flex; flex-direction: column; gap: 0.75rem;" onclick="window.location.hash='#assignment-detail/${a.id}'">
-                                    <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                        <div style="width: 36px; height: 36px; border-radius: 50%; background: ${getAvatarColor(a.collaborators?.full_name || 'C')}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; box-shadow: var(--shadow-sm);">${getInitials(a.collaborators?.full_name || 'C')}</div>
-                                        <div style="flex: 1;">
-                                            <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">${a.collaborators?.full_name || 'Collaboratore'}</div>
-                                            <div style="font-size: 0.75rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.4rem;">
-                                                <span class="status-dot ${a.status === 'Completed' ? 'success' : (a.status === 'In Progress' ? 'warning' : 'neutral')}"></span>
-                                                ${a.status || 'Attivo'}
-                                            </div>
-                                        </div>
-                                        <div style="text-align: right;">
-                                             <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">${formatAmount(a.total_amount)}€</div>
-                                             <div style="font-size: 0.7rem; color: var(--text-tertiary);">Totale</div>
-                                        </div>
-                                    </div>
-
-                                    ${linkedServices.length > 0 ? `
-                                        <div style="border-top: 1px solid var(--glass-border); padding-top: 0.75rem;">
-                                            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.4rem; letter-spacing: 0.05em;">Servizi Inclusi</div>
-                                            <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
-                                                ${linkedServices.map(s => `
-                                                    <span style="background: white; border: 1px solid var(--glass-border); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; color: var(--text-secondary); display: inline-flex; align-items: center;">
-                                                        ${s.name} ${s.quantity > 1 ? `<span style="opacity: 0.6; margin-left: 4px; font-size: 0.7rem;">x${s.quantity}</span>` : ''}
-                                                    </span>
-                                                `).join('')}
-                                            </div>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            `;
-    }).join('')}
+                    <!-- Account Activities Card -->
+                    <div class="glass-card clickable-card" onclick="window.openAccountActivitiesModal('${order.id}', '${pmSpace?.id}')" style="padding: 1.25rem; background: var(--bg-secondary); border: 1px dashed var(--brand-blue); cursor: pointer;">
+                         <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(59, 130, 246, 0.1); color: var(--brand-blue); display: flex; align-items: center; justify-content: center;">
+                                <span class="material-icons-round">assignment</span>
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">Attività Account</div>
+                                <div style="font-size: 0.7rem; color: var(--text-tertiary);">Task e appuntamenti account</div>
+                            </div>
+                            <span class="material-icons-round" style="font-size: 18px; color: var(--brand-blue);">open_in_new</span>
+                         </div>
                     </div>
                 </div>
 
-                <!-- Column 3: Economics & Modules -->
-                <div style="display: flex; flex-direction: column; gap: 1rem;">
-                    <!-- Prezzi Finali Card -->
-                    <div class="glass-card editable-card" onclick="window.editOrderEconomics('${order.id}')" style="padding: 1.5rem; background: var(--bg-secondary); cursor: pointer; border: 1px solid var(--glass-border);">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
-                            <div style="display: flex; align-items: center; gap: 0.6rem;">
-                                <div style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(59, 130, 246, 0.1);">
-                                    <span class="material-icons-round" style="font-size: 1.1rem; color: var(--brand-blue);">receipt_long</span>
-                                </div>
-                                <span style="font-weight: 700; font-size: 1rem; color: var(--text-primary); font-family: var(--font-titles);">Prezzi Finali</span>
-                            </div>
-                            <span class="material-icons-round" style="font-size: 1rem; color: var(--text-tertiary); opacity: 0.5;">edit</span>
+                <!-- Column 2: Health Status -->
+                <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                    <div class="glass-card" style="padding: 2rem; background: linear-gradient(135deg, white, #f8fafc); border: 1px solid var(--glass-border);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                            <h3 style="font-size: 1.5rem; font-weight: 800; margin: 0; color: var(--text-primary); font-family: var(--font-titles);">Salute Commessa</h3>
+                            <button onclick="window.location.hash='#pm/space/${pmSpace?.id}'" style="background:var(--bg-tertiary); border:1px solid var(--glass-border); color:var(--brand-blue); font-size:0.75rem; cursor:pointer; font-weight: 700; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px;">
+                                Hub Operativo <span class="material-icons-round" style="font-size: 14px;">arrow_forward</span>
+                            </button>
                         </div>
                         
-                        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
-                            <!-- Prezzi section -->
-                            <div>
-                                <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700; letter-spacing: 0.05em; margin-bottom: 0.4rem;">Prezzi</div>
-                                <div style="font-size: 1.75rem; font-weight: 800; color: #10b981; font-family: var(--font-titles); line-height: 1;">
-                                    ${priceFinal > 0 ? formatAmount(priceFinal) + '€' : '—'}
-                                </div>
-                                ${priceDelta != 0 ? `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                            <div style="padding: 2rem 1rem; background: white; border-radius: 16px; border: 1px solid var(--glass-border); text-align: center; box-shadow: var(--shadow-sm);">
+                                <div style="font-size: 2.5rem; font-weight: 900; color: ${pmKPIs.overdue > 0 ? '#ef4444' : 'var(--text-secondary)'}; line-height: 1;">${pmKPIs.overdue}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 800; margin-top: 8px; letter-spacing: 0.05em;">In Ritardo</div>
+                            </div>
+                            <div style="padding: 2rem 1rem; background: white; border-radius: 16px; border: 1px solid var(--glass-border); text-align: center; box-shadow: var(--shadow-sm);">
+                                <div style="font-size: 2.5rem; font-weight: 900; color: var(--brand-blue); line-height: 1;">${pmKPIs.progress}%</div>
+                                <div style="font-size: 0.75rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 800; margin-top: 8px; letter-spacing: 0.05em;">Avanzamento</div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div style="font-size: 0.85rem; font-weight: 800; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.1em; display: flex; align-items: center; gap: 8px;">
+                                <span class="material-icons-round" style="font-size: 1.2rem; color: var(--brand-blue);">event_note</span> Prossime Scadenze
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                ${upcomingActivities.length > 0 ? upcomingActivities.map(act => `
+                                    <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: white; border-radius: 12px; border: 1px solid var(--glass-border); transition: all 0.2s ease;">
+                                        <div style="width: 36px; height: 36px; border-radius: 10px; background: ${act.type === 'task' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(139, 92, 246, 0.1)'}; color: ${act.type === 'task' ? '#3b82f6' : '#8b5cf6'}; display: flex; align-items: center; justify-content: center;">
+                                            <span class="material-icons-round" style="font-size: 1.25rem;">
+                                                ${act.type === 'task' ? 'check_circle_outline' : 'event'}
+                                            </span>
+                                        </div>
+                                        <div style="flex: 1; min-width: 0;">
+                                            <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${act.title || act.name}</div>
+                                            <div style="font-size: 0.75rem; color: var(--text-tertiary);">${new Date(act.due_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}</div>
+                                        </div>
+                                    </div>
+                                `).join('') : '<div style="font-size: 0.85rem; color: var(--text-tertiary); text-align: center; font-style: italic; padding: 2rem; background: rgba(0,0,0,0.02); border-radius: 12px;">Nessuna attività programmata</div>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Column 3: Economics -->
+                <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <!-- Prezzi Finali Card -->
+            <div class="glass-card editable-card" onclick="window.editOrderEconomics('${order.id}')" style="padding: 1.5rem; background: var(--bg-secondary); cursor: pointer; border: 1px solid var(--glass-border);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                        <div style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(59, 130, 246, 0.1);">
+                            <span class="material-icons-round" style="font-size: 1.1rem; color: var(--brand-blue);">receipt_long</span>
+                        </div>
+                        <span style="font-weight: 700; font-size: 1rem; color: var(--text-primary); font-family: var(--font-titles);">Prezzi Finali</span>
+                    </div>
+                    <span class="material-icons-round" style="font-size: 1rem; color: var(--text-tertiary); opacity: 0.5;">edit</span>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                    <!-- Prezzi section -->
+                    <div>
+                        <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700; letter-spacing: 0.05em; margin-bottom: 0.4rem;">Prezzi</div>
+                        <div style="font-size: 1.75rem; font-weight: 800; color: #10b981; font-family: var(--font-titles); line-height: 1;">
+                            ${priceFinal > 0 ? formatAmount(priceFinal) + '€' : '—'}
+                        </div>
+                        ${priceDelta != 0 ? `
                                     <div style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: ${priceDelta < 0 ? '#ef4444' : '#10b981'}; font-weight: 600; margin-top: 0.6rem;">
                                         <span class="material-icons-round" style="font-size: 1rem;">${priceDelta < 0 ? 'arrow_downward' : 'arrow_upward'}</span>
                                         <span>${priceDelta > 0 ? '+' : ''}${priceDelta}% vs tariffario</span>
                                     </div>
                                 ` : ''}
-                            </div>
+                    </div>
 
-                            <div style="height: 1px; background: var(--glass-border); opacity: 0.6;"></div>
+                    <div style="height: 1px; background: var(--glass-border); opacity: 0.6;"></div>
 
-                            <!-- Costi section -->
-                            <div>
-                                <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700; letter-spacing: 0.05em; margin-bottom: 0.4rem;">Costi</div>
-                                <div style="font-size: 1.75rem; font-weight: 800; color: #ef4444; font-family: var(--font-titles); line-height: 1;">
-                                    ${costFinal > 0 ? formatAmount(costFinal) + '€' : '—'}
-                                </div>
-                                ${costDelta != 0 ? `
+                    <!-- Costi section -->
+                    <div>
+                        <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700; letter-spacing: 0.05em; margin-bottom: 0.4rem;">Costi</div>
+                        <div style="font-size: 1.75rem; font-weight: 800; color: #ef4444; font-family: var(--font-titles); line-height: 1;">
+                            ${costFinal > 0 ? formatAmount(costFinal) + '€' : '—'}
+                        </div>
+                        ${costDelta != 0 ? `
                                     <div style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: ${costDelta > 0 ? '#ef4444' : '#10b981'}; font-weight: 600; margin-top: 0.6rem;">
                                         <span class="material-icons-round" style="font-size: 1rem;">${costDelta > 0 ? 'arrow_upward' : 'arrow_downward'}</span>
                                         <span>${costDelta > 0 ? '+' : ''}${costDelta}% vs tariffario</span>
                                     </div>
                                 ` : ''}
-                            </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ricavi Finali Card -->
+            <div class="glass-card" style="padding: 1.25rem; background: linear-gradient(135deg, ${revenueFinal >= 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)'}, transparent); border: 2px solid ${revenueFinal >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'};">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Ricavi Finali (Margine)</div>
+                        <div style="font-size: 1.6rem; font-weight: 800; line-height: 1; color: ${revenueFinal >= 0 ? '#10b981' : '#ef4444'}; font-family: var(--font-titles);">
+                            ${priceFinal > 0 && costFinal > 0 ? formatAmount(revenueFinal) + '€' : '—'}
                         </div>
                     </div>
-
-                    <!-- Ricavi Finali Card -->
-                    <div class="glass-card" style="padding: 1.25rem; background: linear-gradient(135deg, ${revenueFinal >= 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)'}, transparent); border: 2px solid ${revenueFinal >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'};">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
-                            <div style="flex: 1;">
-                                <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Ricavi Finali (Margine)</div>
-                                <div style="font-size: 1.6rem; font-weight: 800; line-height: 1; color: ${revenueFinal >= 0 ? '#10b981' : '#ef4444'}; font-family: var(--font-titles);">
-                                    ${priceFinal > 0 && costFinal > 0 ? formatAmount(revenueFinal) + '€' : '—'}
-                                </div>
-                            </div>
-                            <!-- Circular Progress -->
-                            ${priceFinal > 0 && costFinal > 0 ? `
+                    <!-- Circular Progress -->
+                    ${priceFinal > 0 && costFinal > 0 ? `
                                 <div style="position: relative; width: 60px; height: 60px;">
                                     <svg width="60" height="60" style="transform: rotate(-90deg);">
                                         <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="5"></circle>
@@ -343,30 +443,30 @@ export async function renderOrderDetail(container, orderId) {
                                     </div>
                                 </div>
                             ` : ''}
-                        </div>
+                </div>
+            </div>
+
+
+
+            <div class="glass-card" style="padding: 1rem; background: var(--bg-tertiary); cursor: pointer;" onclick="const d = this.querySelector('.servizi-details'); d.style.display = d.style.display === 'none' ? 'block' : 'none';">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.85rem;"><span class="material-icons-round" style="font-size: 1rem; color: var(--text-secondary);">construction</span> Servizi</div>
+                    <span class="material-icons-round" style="font-size: 1.1rem; color: var(--text-tertiary);">expand_more</span>
+                </div>
+
+                <div class="servizi-summary" style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase;">
+                        <span>Prezzo da Tariffario</span>
+                        <span style="font-weight: 700; color: var(--text-primary);">${formatAmount(servicesPrice)}€</span>
                     </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase;">
+                        <span>Costi da Tariffario</span>
+                        <span style="font-weight: 700; color: var(--text-primary);">${formatAmount(servicesCost)}€</span>
+                    </div>
+                </div>
 
-
-
-                    <div class="glass-card" style="padding: 1rem; background: var(--bg-tertiary); cursor: pointer;" onclick="const d = this.querySelector('.servizi-details'); d.style.display = d.style.display === 'none' ? 'block' : 'none';">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.85rem;"><span class="material-icons-round" style="font-size: 1rem; color: var(--text-secondary);">construction</span> Servizi</div>
-                            <span class="material-icons-round" style="font-size: 1.1rem; color: var(--text-tertiary);">expand_more</span>
-                        </div>
-                        
-                        <div class="servizi-summary" style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.4rem;">
-                            <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase;">
-                                <span>Prezzo da Tariffario</span>
-                                <span style="font-weight: 700; color: var(--text-primary);">${formatAmount(servicesPrice)}€</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase;">
-                                <span>Costi da Tariffario</span>
-                                <span style="font-weight: 700; color: var(--text-primary);">${formatAmount(servicesCost)}€</span>
-                            </div>
-                        </div>
-                        
-                        <div class="servizi-details" style="display: none; margin-top: 1rem; border-top: 1px solid var(--glass-border); padding-top: 1rem;" onclick="event.stopPropagation();">
-                             ${linkedServices.map(s => {
+                <div class="servizi-details" style="display: none; margin-top: 1rem; border-top: 1px solid var(--glass-border); padding-top: 1rem;" onclick="event.stopPropagation();">
+                    ${linkedServices.map(s => {
         const serviceName = s.services?.name || s.legacy_service_name || s.name || 'Servizio';
         const collabName = s.collaborators?.full_name || s.legacy_collaborator_name || 'Non assegnato';
         return `
@@ -379,15 +479,15 @@ export async function renderOrderDetail(container, orderId) {
                                  </div>
                                  `;
     }).join('')}
-                             <button onclick="window.openCollaboratorServiceEdit(null, '${order.id}')" style="width: 100%; border: none; background: var(--brand-gradient); color: white; font-size: 0.75rem; font-weight: 500; padding: 0.7rem; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; margin-top: 0.5rem;">
-                                 <span class="material-icons-round" style="font-size: 1rem;">add</span>
-                                 <span>Aggiungi Servizio</span>
-                             </button>
-                        </div>
-                    </div>
+                    <button onclick="window.openCollaboratorServiceEdit(null, '${order.id}')" style="width: 100%; border: none; background: var(--brand-gradient); color: white; font-size: 0.75rem; font-weight: 500; padding: 0.7rem; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; margin-top: 0.5rem;">
+                        <span class="material-icons-round" style="font-size: 1rem;">add</span>
+                        <span>Aggiungi Servizio</span>
+                    </button>
+                </div>
+            </div>
 
-                    <!-- Payments Collapsible -->
-                    ${(() => {
+            <!-- Payments Collapsible -->
+            ${(() => {
             const orderPayments = state.payments ? state.payments.filter(p => p.order_id === order.id) : [];
             const activeOnes = orderPayments.filter(p => p.payment_type === 'Cliente' || !p.payment_type);
             const passiveOnes = orderPayments.filter(p => p.payment_type === 'Collaboratore');
@@ -478,7 +578,77 @@ export async function renderOrderDetail(container, orderId) {
             </div>
         </div>
     `;
+
+    // Initialize Documentation removed from here (now in modal)
 }
+
+// Order Documentation Modal
+window.openOrderDocsModal = async (spaceId) => {
+    if (!spaceId || spaceId === 'undefined') {
+        alert('Spazio PM non trovato. Assicurati che l\'ordine sia collegato a un progetto attivo.');
+        return;
+    }
+
+    const modal = document.createElement('div');
+    modal.className = 'custom-modal-overlay';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    `;
+    modal.innerHTML = `
+        <div class="custom-modal-container" style="max-width: 1200px; width: 95vw; height: 92vh; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 20px; box-shadow: var(--shadow-2xl); padding: 0; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+            <div style="padding: 1.5rem; background: white; border-bottom: 1px solid var(--surface-2); display: flex; justify-content: space-between; align-items: center; z-index: 10;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(59, 130, 246, 0.1); color: var(--brand-blue); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.15);">
+                        <span class="material-icons-round" style="font-size: 24px;">edit_note</span>
+                    </div>
+                    <div>
+                        <h2 style="font-size: 1.35rem; font-weight: 800; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.02em;">Documentazione Commessa</h2>
+                        <div style="font-size: 0.8rem; color: var(--text-tertiary); font-weight: 500;">Note, file ed editor collaborativo</div>
+                    </div>
+                </div>
+                <button onclick="this.closest('.custom-modal-overlay').remove()" style="background: var(--surface-1); border:none; cursor:pointer; color:var(--text-tertiary); display:flex; align-items:center; padding: 10px; border-radius: 50%; transition: all 0.2s;" onmouseover="this.style.background='var(--surface-2)'; this.style.color='var(--text-primary)'" onmouseout="this.style.background='var(--surface-1)'; this.style.color='var(--text-tertiary)'">
+                    <span class="material-icons-round" style="font-size: 20px;">close</span>
+                </button>
+            </div>
+            <div id="modal-docs-container" style="flex: 1; position: relative; overflow: hidden; background: white;">
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-tertiary);">
+                    <span class="loader"></span>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    try {
+        const docsContainer = modal.querySelector('#modal-docs-container');
+        const { renderDocsView } = await import('./docs/DocsView.js?v=421');
+        await renderDocsView(docsContainer, spaceId);
+    } catch (err) {
+        console.error("Error loading Docs Modal:", err);
+        modal.querySelector('#modal-docs-container').innerHTML = `<div style="padding: 2rem; color: #ef4444;">Errore nel caricamento del modulo documentazione: ${err.message}</div>`;
+    }
+};
+
+// Account Activities Modal
+window.openAccountActivitiesModal = async (orderId, spaceId) => {
+    if (!spaceId || spaceId === 'undefined') {
+        alert('Spazio PM non trovato. Assicurati che l\'ordine sia collegato a un progetto attivo.');
+        return;
+    }
+
+    const { openAccountActivitiesModal } = await import('./pm/components/AccountActivitiesModal.js?v=2');
+    await openAccountActivitiesModal(orderId, spaceId);
+};
 
 // Order Payment Config
 window.orderConfigEditState = {};
@@ -526,7 +696,7 @@ function calculateProposedOrderPayments(order, config) {
         const pct = config.deposit_percentage || order.deposit_percentage || 30;
         const deposit = total * (pct / 100);
         payments.push({
-            title: `Anticipo (${pct}%)`,
+            title: `Anticipo(${pct} %)`,
             amount: deposit,
             due_date: getDueDate(0),
             status: 'To Do',
@@ -1977,3 +2147,399 @@ window.updateOrderStatusQuick = async (id, newStatus) => {
         showGlobalAlert("Errore aggiornamento stato: " + e.message, "error");
     }
 };
+
+// ────────────────────────────────────────────────────────
+// New Order Modal
+// ────────────────────────────────────────────────────────
+
+export function initNewOrderModal() {
+    const existing = document.getElementById('new-order-modal');
+    if (existing) existing.remove(); // always re-create to get fresh state
+
+    // Internal wizard state
+    const newOrderState = {
+        selectedAccounts: [],   // { id, full_name }
+        selectedClient: null,   // { id, business_name }
+        selectedContacts: [],   // { id, full_name }
+    };
+
+    // Insert animation keyframes if not present
+    if (!document.getElementById('new-ord-animations')) {
+        document.head.insertAdjacentHTML('beforeend', `
+            <style id="new-ord-animations">
+                @keyframes dropdownSlide {
+                    from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .new-ord-item:hover {
+                    background: rgba(var(--brand-blue-rgb, 59, 130, 246), 0.05) !important;
+                }
+            </style>
+        `);
+    }
+
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="new-order-modal" class="modal">
+            <div class="modal-content" style="max-width: 600px; padding: 2rem; overflow: visible !important;">
+
+                <!-- Header -->
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(16, 185, 129, 0.1); display: flex; align-items: center; justify-content: center;">
+                            <span class="material-icons-round" style="color: #10b981;">add_circle</span>
+                        </div>
+                        <h2 style="margin: 0; font-family: var(--font-titles); font-weight: 700;">Nuovo Ordine</h2>
+                    </div>
+                    <button class="icon-btn" onclick="document.getElementById('new-order-modal').classList.remove('active')">
+                        <span class="material-icons-round">close</span>
+                    </button>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2rem;">
+
+                    <!-- 1) Titolo Commessa -->
+                    <div>
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Titolo Commessa</label>
+                        <input type="text" id="new-ord-title" class="modal-input" style="width: 100%;" placeholder="Es: Campagna Social Estate 2026">
+                    </div>
+
+                    <!-- 2) Account (multiselect) -->
+                    <div style="position: relative;">
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Account</label>
+                        <div style="position: relative;">
+                            <span class="material-icons-round" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); font-size: 1.1rem; color: var(--text-tertiary); pointer-events: none;">search</span>
+                            <input type="text" id="new-ord-acc-search" class="modal-input" placeholder="Cerca account..." style="width: 100%; padding-left: 2.5rem;" autocomplete="off">
+                        </div>
+                        <div id="new-ord-acc-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 999; max-height: 300px; overflow-y: auto; display: none; background: rgba(255, 255, 255, 0.95); border: 1px solid var(--glass-border); border-radius: 16px; box-shadow: 0 20px 40px -15px rgba(0,0,0,0.3); margin-top: 0.6rem; backdrop-filter: blur(20px); animation: dropdownSlide 0.2s ease-out;"></div>
+                        <div id="new-ord-acc-chips" style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem;"></div>
+                    </div>
+
+                    <!-- 3) Cliente (single select) -->
+                    <div style="position: relative;">
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Cliente</label>
+                        <div style="position: relative;">
+                            <span class="material-icons-round" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); font-size: 1.1rem; color: var(--text-tertiary); pointer-events: none;">business</span>
+                            <input type="text" id="new-ord-client-search" class="modal-input" placeholder="Cerca cliente..." style="width: 100%; padding-left: 2.5rem;" autocomplete="off">
+                        </div>
+                        <div id="new-ord-client-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 999; max-height: 300px; overflow-y: auto; display: none; background: rgba(255, 255, 255, 0.95); border: 1px solid var(--glass-border); border-radius: 16px; box-shadow: 0 20px 40px -15px rgba(0,0,0,0.3); margin-top: 0.6rem; backdrop-filter: blur(20px); animation: dropdownSlide 0.2s ease-out;"></div>
+                        <div id="new-ord-client-selected" style="display: none; margin-top: 0.5rem;"></div>
+                    </div>
+
+                    <!-- 4) Referente (multiselect, hidden until client selected) -->
+                    <div id="new-ord-contact-section" style="display: none; position: relative;">
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Referente</label>
+                        <div style="position: relative;">
+                            <span class="material-icons-round" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); font-size: 1.1rem; color: var(--text-tertiary); pointer-events: none;">contact_page</span>
+                            <input type="text" id="new-ord-contact-search" class="modal-input" placeholder="Cerca referente..." style="width: 100%; padding-left: 2.5rem;" autocomplete="off">
+                        </div>
+                        <div id="new-ord-contact-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 999; max-height: 300px; overflow-y: auto; display: none; background: rgba(255, 255, 255, 0.95); border: 1px solid var(--glass-border); border-radius: 16px; box-shadow: 0 20px 40px -15px rgba(0,0,0,0.3); margin-top: 0.6rem; backdrop-filter: blur(20px); animation: dropdownSlide 0.2s ease-out;"></div>
+                        <div id="new-ord-contact-chips" style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem;"></div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="flex-end" style="gap: 1rem;">
+                    <button class="primary-btn secondary" onclick="document.getElementById('new-order-modal').classList.remove('active')">Annulla</button>
+                    <button class="primary-btn" id="new-ord-btn-save">
+                        <span class="material-icons-round" style="font-size: 1.1rem;">save</span>
+                        Crea Ordine
+                    </button>
+                </div>
+            </div>
+        </div>
+    `);
+
+    // ── Helper: render account chips ──
+    const renderAccChips = () => {
+        const container = document.getElementById('new-ord-acc-chips');
+        container.innerHTML = newOrderState.selectedAccounts.map((a, i) => `
+            <span style="display: inline-flex; align-items: center; gap: 0.35rem; background: rgba(59, 130, 246, 0.1); color: var(--brand-blue); border: 1px solid rgba(59, 130, 246, 0.2); padding: 0.3rem 0.6rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">
+                ${a.full_name}
+                <span class="material-icons-round" style="font-size: 0.9rem; cursor: pointer; opacity: 0.7;" data-remove-acc="${i}">close</span>
+            </span>
+        `).join('');
+        container.querySelectorAll('[data-remove-acc]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                newOrderState.selectedAccounts.splice(parseInt(btn.dataset.removeAcc), 1);
+                renderAccChips();
+            });
+        });
+    };
+
+    // ── Helper: render contact chips ──
+    const renderContactChips = () => {
+        const container = document.getElementById('new-ord-contact-chips');
+        container.innerHTML = newOrderState.selectedContacts.map((c, i) => `
+            <span style="display: inline-flex; align-items: center; gap: 0.35rem; background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.2); padding: 0.3rem 0.6rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">
+                ${c.full_name}
+                <span class="material-icons-round" style="font-size: 0.9rem; cursor: pointer; opacity: 0.7;" data-remove-contact="${i}">close</span>
+            </span>
+        `).join('');
+        container.querySelectorAll('[data-remove-contact]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                newOrderState.selectedContacts.splice(parseInt(btn.dataset.removeContact), 1);
+                renderContactChips();
+            });
+        });
+    };
+
+    // ── Account search & dropdown ──
+    const accSearch = document.getElementById('new-ord-acc-search');
+    const accDropdown = document.getElementById('new-ord-acc-dropdown');
+
+    const filterAccounts = () => {
+        const term = accSearch.value.toLowerCase();
+        const accounts = (state.collaborators || []).filter(c => {
+            if (c.is_active === false || c.active === false) return false;
+
+            // Check in tags (array or string)
+            const tags = Array.isArray(c.tags) ? c.tags : (c.tags || '').split(',');
+            const hasAccountTag = tags.some(t => t.trim().toLowerCase().includes('account'));
+
+            // Also check in role for safety
+            const hasAccountRole = (c.role || '').toLowerCase().includes('account');
+
+            const matches = c.full_name.toLowerCase().includes(term);
+            const alreadySelected = newOrderState.selectedAccounts.some(a => a.id === c.id);
+            return (hasAccountTag || hasAccountRole) && matches && !alreadySelected;
+        });
+
+        if (accounts.length === 0) {
+            accDropdown.innerHTML = `<div style="padding: 1rem; text-align: center; color: var(--text-tertiary); font-size: 0.85rem;">Nessun account trovato</div>`;
+        } else {
+            accDropdown.innerHTML = accounts.map((c, i) => `
+                <div class="new-ord-acc-item new-ord-item" data-id="${c.id}" data-name="${c.full_name}" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.8rem 1rem; cursor: pointer; transition: all 0.2s; ${i === accounts.length - 1 ? '' : 'border-bottom: 1px solid var(--glass-border);'}">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);">
+                        ${c.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">${c.full_name}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-tertiary);">${c.role || 'Collaboratore'}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        accDropdown.style.display = 'block';
+
+        accDropdown.querySelectorAll('.new-ord-acc-item').forEach(item => {
+            item.addEventListener('click', () => {
+                newOrderState.selectedAccounts.push({ id: item.dataset.id, full_name: item.dataset.name });
+                accSearch.value = '';
+                accDropdown.style.display = 'none';
+                renderAccChips();
+            });
+        });
+    };
+
+    accSearch.addEventListener('input', filterAccounts);
+    accSearch.addEventListener('focus', filterAccounts);
+    document.addEventListener('click', (e) => {
+        if (!accSearch.contains(e.target) && !accDropdown.contains(e.target)) {
+            accDropdown.style.display = 'none';
+        }
+    });
+
+    // ── Client search & dropdown ──
+    const clientSearch = document.getElementById('new-ord-client-search');
+    const clientDropdown = document.getElementById('new-ord-client-dropdown');
+    const clientSelected = document.getElementById('new-ord-client-selected');
+    const contactSection = document.getElementById('new-ord-contact-section');
+
+    const filterClients = () => {
+        const term = clientSearch.value.toLowerCase();
+        const clients = (state.clients || []).filter(c =>
+            (c.business_name || '').toLowerCase().includes(term)
+        );
+
+        if (clients.length === 0) {
+            clientDropdown.innerHTML = `<div style="padding: 1rem; text-align: center; color: var(--text-tertiary); font-size: 0.85rem;">Nessun cliente trovato</div>`;
+        } else {
+            clientDropdown.innerHTML = clients.map((c, i) => `
+                <div class="new-ord-client-item new-ord-item" data-id="${c.id}" data-name="${c.business_name}" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.8rem 1rem; cursor: pointer; transition: all 0.2s; ${i === clients.length - 1 ? '' : 'border-bottom: 1px solid var(--glass-border);'}">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); color: #10b981; display: flex; align-items: center; justify-content: center;">
+                        <span class="material-icons-round" style="font-size: 1.2rem;">business</span>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">${c.business_name}</div>
+                        ${c.client_code ? `<div style="font-size: 0.75rem; color: var(--text-tertiary);">${c.client_code}</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+        clientDropdown.style.display = 'block';
+
+        clientDropdown.querySelectorAll('.new-ord-client-item').forEach(item => {
+            item.addEventListener('click', () => {
+                newOrderState.selectedClient = { id: item.dataset.id, business_name: item.dataset.name };
+                clientSearch.style.display = 'none';
+                clientDropdown.style.display = 'none';
+                clientSelected.style.display = 'flex';
+                clientSelected.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px;">
+                        <span class="material-icons-round" style="color: #10b981; font-size: 1.2rem;">business</span>
+                        <span style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary); flex: 1;">${item.dataset.name}</span>
+                        <span class="material-icons-round" id="new-ord-clear-client" style="font-size: 1rem; cursor: pointer; color: var(--text-tertiary);">close</span>
+                    </div>
+                `;
+                document.getElementById('new-ord-clear-client').addEventListener('click', () => {
+                    newOrderState.selectedClient = null;
+                    newOrderState.selectedContacts = [];
+                    clientSearch.style.display = 'block';
+                    clientSearch.value = '';
+                    clientSelected.style.display = 'none';
+                    contactSection.style.display = 'none';
+                    renderContactChips();
+                });
+
+                // Show referente section
+                contactSection.style.display = 'block';
+                newOrderState.selectedContacts = [];
+                renderContactChips();
+            });
+        });
+    };
+
+    clientSearch.addEventListener('input', filterClients);
+    clientSearch.addEventListener('focus', filterClients);
+    document.addEventListener('click', (e) => {
+        if (!clientSearch.contains(e.target) && !clientDropdown.contains(e.target)) {
+            clientDropdown.style.display = 'none';
+        }
+    });
+
+    // ── Contact search & dropdown ──
+    const contactSearch = document.getElementById('new-ord-contact-search');
+    const contactDropdown = document.getElementById('new-ord-contact-dropdown');
+
+    const filterContacts = () => {
+        const term = contactSearch.value.toLowerCase();
+        const clientId = newOrderState.selectedClient?.id;
+        if (!clientId) return;
+
+        const contacts = (state.contacts || []).filter(c => {
+            if (c.client_id !== clientId) return false;
+            const matches = (c.full_name || '').toLowerCase().includes(term);
+            const alreadySelected = newOrderState.selectedContacts.some(s => s.id === c.id);
+            return matches && !alreadySelected;
+        });
+
+        if (contacts.length === 0) {
+            contactDropdown.innerHTML = `<div style="padding: 1rem; text-align: center; color: var(--text-tertiary); font-size: 0.85rem;">Nessun referente trovato per questo cliente</div>`;
+        } else {
+            contactDropdown.innerHTML = contacts.map((c, i) => `
+                <div class="new-ord-contact-item new-ord-item" data-id="${c.id}" data-name="${c.full_name}" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.8rem 1rem; cursor: pointer; transition: all 0.2s; ${i === contacts.length - 1 ? '' : 'border-bottom: 1px solid var(--glass-border);'}">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #8b5cf6; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);">
+                        ${(c.full_name || '?').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">${c.full_name}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-tertiary);">${c.role || 'Referente'}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        contactDropdown.style.display = 'block';
+
+        contactDropdown.querySelectorAll('.new-ord-contact-item').forEach(item => {
+            item.addEventListener('click', () => {
+                newOrderState.selectedContacts.push({ id: item.dataset.id, full_name: item.dataset.name });
+                contactSearch.value = '';
+                contactDropdown.style.display = 'none';
+                renderContactChips();
+            });
+        });
+    };
+
+    contactSearch.addEventListener('input', filterContacts);
+    contactSearch.addEventListener('focus', filterContacts);
+    document.addEventListener('click', (e) => {
+        if (!contactSearch.contains(e.target) && !contactDropdown.contains(e.target)) {
+            contactDropdown.style.display = 'none';
+        }
+    });
+
+    // ── Save button ──
+    document.getElementById('new-ord-btn-save').addEventListener('click', async () => {
+        const title = document.getElementById('new-ord-title').value.trim();
+        if (!title) {
+            showGlobalAlert('Inserisci un titolo per la commessa', 'error');
+            return;
+        }
+
+        const saveBtn = document.getElementById('new-ord-btn-save');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="loader" style="width:20px;height:20px;"></span> Creazione...';
+
+        try {
+            // 0. Generate Order Number
+            const nextNumber = await generateNextOrderNumber();
+            const today = new Date().toISOString().split('T')[0];
+
+            // 1. Create the order
+            const orderData = {
+                title,
+                order_number: nextNumber,
+                order_date: today,
+                offer_status: 'In Lavorazione',
+                status_works: 'In Attesa',
+            };
+            if (newOrderState.selectedClient) {
+                orderData.client_id = newOrderState.selectedClient.id;
+            }
+
+            const newOrder = await upsertOrder(orderData);
+
+            // 2. Link accounts
+            for (const acc of newOrderState.selectedAccounts) {
+                try { await addOrderAccount(newOrder.id, acc.id); } catch (e) { console.warn('Error adding account:', e); }
+            }
+
+            // 3. Link contacts (referenti)
+            for (const cont of newOrderState.selectedContacts) {
+                try { await addOrderContact(newOrder.id, cont.id); } catch (e) { console.warn('Error adding contact:', e); }
+            }
+
+            // 4. Refresh & navigate
+            await fetchOrders();
+            document.getElementById('new-order-modal').classList.remove('active');
+            showGlobalAlert('Ordine creato con successo!', 'success');
+            window.location.hash = `order-detail/${newOrder.id}`;
+        } catch (e) {
+            console.error('Error creating order:', e);
+            showGlobalAlert('Errore durante la creazione dell\'ordine: ' + (e.message || e), 'error');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<span class="material-icons-round" style="font-size: 1.1rem;">save</span> Crea Ordine';
+        }
+    });
+
+    // ── Open helper ──
+    window.openNewOrderModal = async () => {
+        // Ensure data is loaded
+        if (!state.collaborators || state.collaborators.length === 0) fetchCollaborators();
+        if (!state.clients || state.clients.length === 0) fetchClients();
+        if (!state.contacts || state.contacts.length === 0) fetchContacts();
+
+        // Reset state
+        newOrderState.selectedAccounts = [];
+        newOrderState.selectedClient = null;
+        newOrderState.selectedContacts = [];
+
+        document.getElementById('new-ord-title').value = '';
+        document.getElementById('new-ord-acc-search').value = '';
+        document.getElementById('new-ord-acc-chips').innerHTML = '';
+        document.getElementById('new-ord-client-search').value = '';
+        document.getElementById('new-ord-client-search').style.display = 'block';
+        document.getElementById('new-ord-client-selected').style.display = 'none';
+        document.getElementById('new-ord-client-dropdown').style.display = 'none';
+        document.getElementById('new-ord-acc-dropdown').style.display = 'none';
+        document.getElementById('new-ord-contact-section').style.display = 'none';
+        document.getElementById('new-ord-contact-search').value = '';
+        document.getElementById('new-ord-contact-chips').innerHTML = '';
+
+        const saveBtn = document.getElementById('new-ord-btn-save');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<span class="material-icons-round" style="font-size: 1.1rem;">save</span> Crea Ordine';
+
+        document.getElementById('new-order-modal').classList.add('active');
+    };
+}
