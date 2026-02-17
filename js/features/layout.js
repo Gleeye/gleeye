@@ -184,16 +184,16 @@ const getRoleConfig = (roleTag) => {
 
     switch (tag) {
         case 'Partner':
-            return { label: 'PARTNER', icon: 'stars', style: 'color: #7C3AED; background: #F5F3FF; border: 1px solid #DDD6FE;', priority: 100 };
+            return { label: 'Partner', icon: 'stars', style: 'color: #7C3AED; background: #F5F3FF; border: 1px solid #DDD6FE;', priority: 100 };
         case 'Amministrazione':
-            return { label: 'AMMINISTRAZIONE', icon: 'analytics', style: 'color: #059669; background: #ECFDF5; border: 1px solid #A7F3D0;', priority: 90 };
+            return { label: 'Amministrazione', icon: 'analytics', style: 'color: #059669; background: #ECFDF5; border: 1px solid #A7F3D0;', priority: 90 };
         case 'Account':
-            return { label: 'ACCOUNT', icon: 'manage_accounts', style: 'color: #EA580C; background: #FFF7ED; border: 1px solid #FFEDD5;', priority: 80 };
+            return { label: 'Account', icon: 'manage_accounts', style: 'color: #EA580C; background: #FFF7ED; border: 1px solid #FFEDD5;', priority: 80 };
         case 'Project Manager':
-            return { label: 'PROJECT MANAGER', icon: 'work', style: 'color: #475569; background: #F8FAFC; border: 1px solid #E2E8F0;', priority: 70 };
+            return { label: 'Project Manager', icon: 'work', style: 'color: #475569; background: #F8FAFC; border: 1px solid #E2E8F0;', priority: 70 };
         case 'Collaborator':
         case 'Collaboratore':
-            return { label: 'COLLABORATORE', icon: 'person', style: 'color: #64748b; background: #f1f5f9; border: 1px solid #e2e8f0;', priority: 10 };
+            return { label: 'Collaboratore', icon: 'person', style: 'color: #64748b; background: #f1f5f9; border: 1px solid #e2e8f0;', priority: 10 };
         default:
             // Generic fallback for unknown tags
             return { label: tag.toUpperCase(), icon: 'label', style: 'color: #64748b; background: #f1f5f9; border: 1px solid #e2e8f0;', priority: 0 };
