@@ -373,7 +373,7 @@ export function updateSidebarVisibility() {
         }
     }
 
-    const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
+    const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione') || userTags.includes('Account');
     const isProjectManager = userTags.some(t => t.toLowerCase() === 'project manager' || t.toLowerCase() === 'pm');
 
     const sidebar = document.getElementById('sidebar');
@@ -412,8 +412,9 @@ export function updateSidebarVisibility() {
             const booking = navAccounting.querySelector('a[data-target="booking"]');
 
             if (activeRole !== 'admin') {
-                if (ordini) ordini.classList.add('hidden');
-                if (incarichi) incarichi.classList.add('hidden');
+                // Now Partners, Account and Amministrazione CAN see Ordini and Incarichi
+                if (ordini) ordini.classList.toggle('hidden', !isPrivilegedCollaborator);
+                if (incarichi) incarichi.classList.toggle('hidden', !isPrivilegedCollaborator);
                 if (booking) booking.classList.toggle('hidden', !isPrivilegedCollaborator);
             } else {
                 [ordini, incarichi, booking].forEach(i => i?.classList.remove('hidden'));
