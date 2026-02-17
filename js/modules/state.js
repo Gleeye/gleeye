@@ -1,37 +1,48 @@
-export const state = {
-    currentPage: 'dashboard',
-    authMode: 'password',
-    session: null,
-    profile: null,
-    orders: [],
-    clients: [],
-    collaborators: [],
-    contacts: [],
-    profiles: [],
-    invoices: [],
-    departments: [],
-    searchTerm: '',
-    selectedDepartment: '',
-    showInactiveCollaborators: false, // Toggle to show inactive collaborators
-    selectedTags: [], // For the multi-select component
-    currentId: null,
-    passiveInvoices: [], // New state for passive invoices
-    suppliers: [], // New state for suppliers
-    lastSelectedPassiveYearCollab: null, // Tab state for collaborators
-    lastSelectedPassiveYearSupplier: null, // Tab state for suppliers
-    dashboardYear: 2025,
-    dashboardTab: 'active',
-    dashboardPassiveFilter: 'all',
-    payments: null,
-    movements: [],
-    bankTransactions: [],
-    transactionCategories: [],
-    services: [], // Catalog of services
-    collaboratorServices: [], // Registry of services assigned to collaborators
-    assignments: [], // New state for assignments (Incarichi)
-    selectedServiceDepartment: 'all',
-    impersonatedRole: null, // 'admin' or 'collaborator' or null (default)
-    impersonatedCollaboratorId: null // UUID of the collaborator being impersonated
-};
+// ENSURE SINGLETON STATE ACROSS MODULE INSTANCES
+if (!window.__gleeye_state) {
+    window.__gleeye_state = {
+        currentPage: 'dashboard',
+        authMode: 'password',
+        session: null,
+        profile: null,
+        orders: [],
+        clients: [],
+        collaborators: [],
+        contacts: [],
+        profiles: [],
+        invoices: [],
+        departments: [],
+        searchTerm: '',
+        selectedDepartment: '',
+        showInactiveCollaborators: false,
+        selectedTags: [],
+        currentId: null,
+        passiveInvoices: [],
+        suppliers: [],
+        lastSelectedPassiveYearCollab: null,
+        lastSelectedPassiveYearSupplier: null,
+        dashboardYear: 2025,
+        dashboardTab: 'active',
+        dashboardPassiveFilter: 'all',
+        payments: null,
+        movements: [],
+        bankTransactions: [],
+        pendingBankTransactions: [],
+        transactionCategories: [],
+        services: [],
+        collaboratorServices: [],
+        assignments: [],
+        selectedServiceDepartment: 'all',
+        impersonatedRole: null,
+        impersonatedCollaboratorId: null,
+        impersonatedCollaboratorId: null,
+        sapServices: [],
+        sapServiceAreas: [],
+        sapServiceTypes: [],
+        currentSapVariant: null,
+        payments: [] // Ensure payments exists just in case
+    };
+    window.state = window.__gleeye_state;
+}
 
-window.state = state; // For debugging
+export const state = window.__gleeye_state;

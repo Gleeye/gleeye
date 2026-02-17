@@ -20,9 +20,8 @@ export class CustomSelect {
         // Create Trigger
         this.trigger = document.createElement('div');
         this.trigger.classList.add('custom-select-trigger');
-        // Initial text
-        const selectedOption = this.originalSelect.options[this.originalSelect.selectedIndex];
-        this.trigger.innerHTML = `<span>${selectedOption ? selectedOption.textContent : 'Seleziona...'}</span>`;
+        // Initial state
+        this.updateTrigger();
 
         const arrow = document.createElement('span');
         arrow.classList.add('custom-select-arrow', 'material-icons-round');
@@ -43,25 +42,46 @@ export class CustomSelect {
 
         // Event Listeners
         this.trigger.addEventListener('click', (e) => {
+            const isOpen = this.customSelect.classList.contains('open');
+
             // Close other open selects
             document.querySelectorAll('.custom-select-wrapper.open').forEach(el => {
-                if (el !== this.customSelect) el.classList.remove('open');
+                if (el !== this.customSelect) {
+                    el.classList.remove('open');
+                    const parentCard = el.closest('.glass-card');
+                    if (parentCard) parentCard.style.zIndex = '';
+                }
             });
+
             this.customSelect.classList.toggle('open');
+
+            // Manage parent card z-index to avoid clipping under sibling cards
+            const parentCard = this.customSelect.closest('.glass-card');
+            if (parentCard) {
+                if (!isOpen) { // We are opening it now
+                    parentCard.style.zIndex = '100';
+                } else {
+                    parentCard.style.zIndex = '';
+                }
+            }
+
             e.stopPropagation();
         });
 
         // Close on click outside
         window.addEventListener('click', (e) => {
             if (!this.customSelect.contains(e.target)) {
+                if (this.customSelect.classList.contains('open')) {
+                    const parentCard = this.customSelect.closest('.glass-card');
+                    if (parentCard) parentCard.style.zIndex = '';
+                }
                 this.customSelect.classList.remove('open');
             }
         });
 
-        // Listen for external changes to original select (e.g. from logic resetting value)
+        // Listen for external changes to original select
         this.originalSelect.addEventListener('change', () => {
-            const selected = this.originalSelect.options[this.originalSelect.selectedIndex];
-            this.trigger.querySelector('span').textContent = selected ? selected.textContent : 'Seleziona...';
+            this.updateTrigger();
             // Update selected visual state in custom options
             this.optionsContainer.querySelectorAll('.custom-option').forEach(opt => {
                 opt.classList.remove('selected');
@@ -79,7 +99,21 @@ export class CustomSelect {
             const customOption = document.createElement('div');
             customOption.classList.add('custom-option');
             customOption.dataset.value = option.value;
-            customOption.textContent = option.textContent;
+
+            // Add Dot if present
+            const dotColor = option.dataset.dot;
+            if (dotColor) {
+                const dot = document.createElement('div');
+                dot.classList.add('select-dot');
+                dot.style.cssText = `width: 8px; height: 8px; border-radius: 50%; background: ${dotColor}; margin-right: 12px; flex-shrink: 0; box-shadow: 0 0 8px ${dotColor}40;`;
+                customOption.appendChild(dot);
+                customOption.style.display = 'flex';
+                customOption.style.alignItems = 'center';
+            }
+
+            const text = document.createElement('span');
+            text.textContent = option.textContent;
+            customOption.appendChild(text);
 
             if (option.selected) {
                 customOption.classList.add('selected');
@@ -87,13 +121,17 @@ export class CustomSelect {
 
             customOption.addEventListener('click', (e) => {
                 this.originalSelect.value = customOption.dataset.value;
-                this.trigger.querySelector('span').textContent = customOption.textContent;
+                this.updateTrigger();
 
                 // Visual update
                 this.optionsContainer.querySelectorAll('.custom-option').forEach(el => el.classList.remove('selected'));
                 customOption.classList.add('selected');
 
                 this.customSelect.classList.remove('open');
+
+                // Reset parent z-index
+                const parentCard = this.customSelect.closest('.glass-card');
+                if (parentCard) parentCard.style.zIndex = '';
 
                 // Trigger change event on original select to fire app logic
                 const event = new Event('change', { bubbles: true });
@@ -105,15 +143,36 @@ export class CustomSelect {
         });
     }
 
-    // Public method to re-sync if options changed dynamically
-    refresh() {
-        // Update trigger text
-        const selected = this.originalSelect.options[this.originalSelect.selectedIndex];
-        if (this.trigger && this.trigger.querySelector('span')) {
-            this.trigger.querySelector('span').textContent = selected ? selected.textContent : 'Seleziona...';
+    updateTrigger() {
+        const selectedOption = this.originalSelect.options[this.originalSelect.selectedIndex];
+        if (!this.trigger) return;
+
+        // Clear content except arrow if it already exists
+        let arrow = this.trigger.querySelector('.custom-select-arrow');
+        this.trigger.innerHTML = '';
+
+        const contentWrapper = document.createElement('div');
+        contentWrapper.style.cssText = 'display: flex; align-items: center; gap: 10px; flex: 1;';
+
+        const dotColor = selectedOption?.dataset.dot;
+        if (dotColor) {
+            const dot = document.createElement('div');
+            dot.style.cssText = `width: 8px; height: 8px; border-radius: 50%; background: ${dotColor}; flex-shrink: 0; box-shadow: 0 0 8px ${dotColor}60;`;
+            contentWrapper.appendChild(dot);
         }
 
-        // Re-render options
+        const text = document.createElement('span');
+        text.textContent = selectedOption ? selectedOption.textContent : 'Seleziona...';
+        text.style.fontWeight = '700';
+        contentWrapper.appendChild(text);
+
+        this.trigger.appendChild(contentWrapper);
+        if (arrow) this.trigger.appendChild(arrow);
+    }
+
+    // Public method to re-sync if options changed dynamically
+    refresh() {
+        this.updateTrigger();
         this.refreshOptions();
     }
 }

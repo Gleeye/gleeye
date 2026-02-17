@@ -1,5 +1,5 @@
 import { supabase } from '../modules/config.js';
-import { state } from '../modules/state.js';
+import { state } from '/js/modules/state.js';
 
 export async function fetchProfile() {
     const { data: authData } = await supabase.auth.getUser();
@@ -103,13 +103,7 @@ export async function fetchProfile() {
         state.profile = profile;
         return profile;
     } else {
-        console.warn("Profile not found and could not be created.");
-        // DEBUG ALERT
-        if (error) {
-            window.alert(`DEBUG PROFILE ERROR:\nCode: ${error.code}\nMsg: ${error.message}\nHint: ${error.hint}`);
-        } else {
-            window.alert(`DEBUG PROFILE MISSING: No error, but no profile found for ID ${user.id}`);
-        }
+        console.error("Profile not found and could not be created.", error || "No error details available");
         return null;
     }
 }
@@ -202,6 +196,7 @@ export async function fetchOrders() {
             total_price,
             price_final,
             cost_final,
+            order_date,
             created_at,
             payment_mode,
             deposit_percentage,
@@ -213,7 +208,7 @@ export async function fetchOrders() {
             clients (id, business_name, client_code),
              order_collaborators (
                 role_in_order,
-                collaborators (id, full_name, role)
+                collaborators (id, full_name, role, avatar_url)
             )
         `)
         .order('order_number', { ascending: false });
@@ -254,6 +249,7 @@ export async function upsertOrder(order) {
             total_price,
             price_final,
             cost_final,
+            order_date,
             created_at,
             payment_mode,
             deposit_percentage,
@@ -265,7 +261,7 @@ export async function upsertOrder(order) {
             clients (id, business_name, client_code),
              order_collaborators (
                 role_in_order,
-                collaborators (id, full_name, role)
+                collaborators (id, full_name, role, avatar_url)
             )
         `)
         .single();
@@ -319,6 +315,9 @@ export async function updateOrder(id, updates) {
     }
     // -----------------------------------------------------------------------------
 
+    // Remove any undefined keys to avoid db errors
+    Object.keys(updates).forEach(key => updates[key] === undefined && delete updates[key]);
+
     const { data, error } = await supabase
         .from('orders')
         .update(updates)
@@ -339,6 +338,7 @@ export async function updateOrder(id, updates) {
             total_price,
             price_final,
             cost_final,
+            order_date,
             created_at,
             payment_mode,
             deposit_percentage,
@@ -349,7 +349,7 @@ export async function updateOrder(id, updates) {
             clients (id, business_name, client_code),
              order_collaborators (
                 role_in_order,
-                collaborators (id, full_name, role, user_id)
+                collaborators (id, full_name, role, user_id, avatar_url)
             )
         `)
         .single();
@@ -479,9 +479,10 @@ export async function fetchCollaborators() {
 
     if (error) {
         console.error("Collaborators fetch failed:", error);
-        return;
+        return [];
     }
     state.collaborators = collaborators || [];
+    return state.collaborators;
 }
 
 export async function fetchContacts() {
@@ -524,7 +525,7 @@ export async function fetchPassiveInvoices() {
         .select(`
             *,
             suppliers (name),
-            collaborators (full_name)
+            collaborators (full_name, type)
         `)
         .order('issue_date', { ascending: false });
 
@@ -579,6 +580,9 @@ export async function upsertCollaborator(collaborator) {
     const dbData = { ...collaborator };
     delete dbData.is_new; // internal flag if used
 
+    // Remove any undefined keys to avoid db errors
+    Object.keys(dbData).forEach(key => dbData[key] === undefined && delete dbData[key]);
+
     const { data, error } = await supabase
         .from('collaborators')
         .upsert(dbData)
@@ -626,13 +630,13 @@ export async function fetchBankTransactions(status = null) {
         .from('bank_transactions')
         .select(`
             *,
-            transaction_categories (name, type),
-            clients (business_name),
-            suppliers (name),
-            collaborators (full_name),
-            invoices (id, invoice_number),
-            passive_invoices (id, invoice_number)
-        `)
+            transaction_categories(name, type),
+            clients(business_name),
+            suppliers(name),
+            collaborators(full_name),
+            active_invoice_match:invoices(id, invoice_number),
+            passive_invoice_match:passive_invoices(id, invoice_number)
+                `)
         .order('date', { ascending: false });
 
     if (status) {
@@ -700,13 +704,13 @@ export async function upsertBankTransaction(transaction) {
         .upsert(transaction)
         .select(`
             *,
-            transaction_categories (name, type),
-            clients (business_name),
-            suppliers (name),
-            collaborators (full_name),
-            invoices (id, invoice_number),
-            passive_invoices (id, invoice_number)
-        `)
+            transaction_categories(name, type),
+            clients(business_name),
+            suppliers(name),
+            collaborators(full_name),
+            active_invoice_match:invoices(id, invoice_number),
+            passive_invoice_match:passive_invoices(id, invoice_number)
+                `)
         .single();
 
     if (error) {
@@ -714,13 +718,21 @@ export async function upsertBankTransaction(transaction) {
         throw error;
     }
 
+    // Update posted transactions
     const index = state.bankTransactions.findIndex(t => t.id === data.id);
     if (index >= 0) {
         state.bankTransactions[index] = data;
     } else {
         state.bankTransactions.push(data);
-        // Re-sort
         state.bankTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+
+    // Update pending transactions if applicable
+    if (state.pendingBankTransactions) {
+        const pIndex = state.pendingBankTransactions.findIndex(t => t.id === data.id);
+        if (pIndex >= 0) {
+            state.pendingBankTransactions[pIndex] = data;
+        }
     }
     return data;
 }
@@ -819,11 +831,11 @@ export async function fetchCollaboratorServices() {
         const { data, error } = await supabase
             .from('collaborator_services')
             .select(`
-                *,
-                orders (order_number, title),
-                services (name),
-                collaborators (full_name)
-            `)
+            *,
+            orders(order_number, title),
+            services(name),
+            collaborators(full_name)
+                `)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -841,9 +853,9 @@ export async function fetchBookingItemCollaborators(collaboratorId) {
         const { data, error } = await supabase
             .from('booking_item_collaborators')
             .select(`
-                *,
-                booking_items (id, name)
-            `)
+            *,
+            booking_items(id, name)
+                `)
             .eq('collaborator_id', collaboratorId);
 
         if (error) {
@@ -865,8 +877,8 @@ export async function fetchCollaboratorSkills(collaboratorId) {
         .from('service_collaborators')
         .select(`
             service_id,
-            services (id, name)
-        `)
+            services(id, name)
+                `)
         .eq('collaborator_id', collaboratorId);
 
     if (error) {
@@ -887,10 +899,10 @@ export async function upsertCollaboratorService(serviceData) {
         .upsert(serviceData)
         .select(`
             *,
-            orders (order_number, title),
-            services (name),
-            collaborators (full_name)
-        `)
+            orders(order_number, title),
+            services(name),
+            collaborators(full_name)
+                `)
         .single();
 
     if (error) {
@@ -953,13 +965,13 @@ export async function fetchAssignments() {
         .from('assignments')
         .select(`
             *,
-            orders (
+            orders(
                 order_number,
                 title,
-                clients (business_name)
+                clients(business_name)
             ),
-            collaborators (full_name)
-        `)
+            collaborators(full_name, avatar_url)
+                `)
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -975,12 +987,12 @@ export async function fetchAssignmentDetail(id) {
         .from('assignments')
         .select(`
             *,
-            orders (
+            orders(
                 id, order_number, title, status_works, client_id,
-                clients (business_name)
+                clients(business_name)
             ),
-            collaborators (id, full_name, role, email, phone)
-        `)
+            collaborators(id, full_name, role, email, phone, avatar_url)
+                `)
         .eq('id', id)
         .single();
 
@@ -1014,7 +1026,7 @@ export async function upsertAssignment(assignmentData) {
         const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
 
         // Format: YY-OrderNumber-Random (e.g., 25-0015-PC61g)
-        assignmentData.id = `${yy}-${orderNum}-${randomStr}`;
+        assignmentData.id = `${yy} - ${orderNum} - ${randomStr}`;
     }
 
     // Sanitize payload: remove fields that don't exist in 'assignments' table
@@ -1032,14 +1044,14 @@ export async function upsertAssignment(assignmentData) {
         .from('assignments')
         .upsert(dbPayload)
         .select(`
-            *,
-            orders (
+        *,
+            orders(
                 order_number,
                 title,
-                clients (business_name)
+                clients(business_name)
             ),
-            collaborators (full_name)
-        `)
+            collaborators(full_name)
+                `)
         .single();
 
     if (error) {
@@ -1097,13 +1109,13 @@ export async function fetchPayments() {
         .select(`
             *,
             transaction_id,
-            bank_transactions!payments_transaction_id_fkey (description, date, amount),
-            clients (business_name),
-            collaborators (full_name),
-            suppliers (name),
-            orders (order_number, title),
-            assignments (legacy_id, description)
-        `)
+            bank_transactions!payments_transaction_id_fkey(description, date, amount),
+            clients(business_name),
+            collaborators(full_name),
+            suppliers(name),
+            orders(order_number, title),
+            assignments(legacy_id, description)
+                `)
         .order('due_date', { ascending: true });
 
     if (error) {
@@ -1134,13 +1146,13 @@ export async function upsertPayment(payment) {
         .select(`
             *,
             transaction_id,
-            bank_transactions!payments_transaction_id_fkey (description, date, amount),
-            clients (business_name),
-            collaborators (full_name),
-            suppliers (name),
-            orders (order_number, title),
-            assignments (legacy_id, description)
-        `)
+            bank_transactions!payments_transaction_id_fkey(description, date, amount),
+            clients(business_name),
+            collaborators(full_name),
+            suppliers(name),
+            orders(order_number, title),
+            assignments(legacy_id, description)
+                `)
         .single();
 
     if (error) {
@@ -1181,7 +1193,7 @@ async function refreshCurrentPage() {
         const { renderPaymentsDashboard } = await import('../features/payments.js?v=317');
         renderPaymentsDashboard(container);
     } else if (hash.includes('bank-transactions')) {
-        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=317');
+        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=416');
         renderBankTransactions(container);
     } else if (hash.includes('collaborator-services')) {
         const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=317');
@@ -1270,7 +1282,7 @@ export async function saveAvailabilityRules(collaboratorId, rules) {
         // This handles cases where the user accidentally added duplicate slots in the UI
         const uniqueMap = new Map();
         payload.forEach(item => {
-            const key = `${item.day_of_week}-${item.start_time}`;
+            const key = `${item.day_of_week} - ${item.start_time}`;
             uniqueMap.set(key, item);
         });
         payload = Array.from(uniqueMap.values());
@@ -1432,7 +1444,7 @@ export async function fetchOrderContacts(orderId) {
     // Soft fetch - returns empty if table missing
     const { data, error } = await supabase
         .from('order_contacts')
-        .select('*, contacts (id, full_name, email, phone)')
+        .select('*, contacts (id, full_name, email, phone, avatar_url)')
         .eq('order_id', orderId);
 
     if (error) {
@@ -1455,7 +1467,7 @@ export async function fetchSystemConfig(key) {
 
     if (error) {
         if (error.code === 'PGRST116') return null; // Not found
-        console.error(`Failed to fetch system config for key: ${key}`, error);
+        console.error(`Failed to fetch system config for key: ${key} `, error);
         return null;
     }
     return data?.value || null;
@@ -1481,7 +1493,7 @@ export async function upsertSystemConfig(key, value, description = null) {
         .single();
 
     if (error) {
-        console.error(`Failed to upsert system config for key: ${key}`, error);
+        console.error(`Failed to upsert system config for key: ${key} `, error);
         throw error;
     }
     return data;
@@ -1592,5 +1604,140 @@ export async function updateOrderCloudLinks(orderId, links) {
     if (index >= 0) {
         state.orders[index] = { ...state.orders[index], cloud_links: links };
     }
+    return data;
+}
+
+// --- CORE SERVICES ---
+
+export async function fetchSapServices() {
+    console.log("Fetching sap services...");
+    const { data: services, error } = await supabase
+        .from('core_services')
+        .select(`
+            *,
+            core_service_types (id, name, department_id),
+
+            core_service_area_links (
+                area_id,
+                core_service_areas (id, name)
+            ),
+            core_service_department_links (
+                department_id,
+                departments (id, name)
+            )
+        `)
+        .order('name');
+
+    if (error) {
+        console.error("Core Services fetch failed:", error);
+        return;
+    }
+
+    // Transform data
+    // Transform data
+    state.sapServices = services || [];
+    console.log("Fetched Services:", state.sapServices);
+    state.sapServices.forEach(s => {
+        if (!s.core_service_department_links) console.warn("Missing department links for:", s.name);
+        else console.log(`Service ${s.name} links:`, s.core_service_department_links);
+    });
+}
+
+export async function upsertSapService(service) {
+    console.log("Upserting sap service (v2):", service);
+
+    // 1. Separate Links
+    const areaIds = service.area_ids || [];
+    const deptIds = service.department_ids || [];
+
+    // Copy and clean payload
+    const serviceData = { ...service };
+    delete serviceData.area_ids;
+    delete serviceData.department_ids;
+    delete serviceData.core_service_types;
+    delete serviceData.departments;
+    delete serviceData.core_service_area_links;
+    delete serviceData.core_service_department_links;
+
+    // Remove undefined
+    Object.keys(serviceData).forEach(key => serviceData[key] === undefined && delete serviceData[key]);
+
+    const { data, error } = await supabase
+        .from('core_services')
+        .upsert(serviceData)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Sap Service upsert failed:", error);
+        throw error;
+    }
+
+    // 2. Handle Areas (Delete all and re-insert)
+    if (areaIds) {
+        await supabase.from('core_service_area_links').delete().eq('core_service_id', data.id);
+        if (areaIds.length > 0) {
+            const links = areaIds.map(aid => ({ core_service_id: data.id, area_id: aid }));
+            const { error: linkError } = await supabase.from('core_service_area_links').insert(links);
+            if (linkError) console.error("Error linking areas:", linkError);
+        }
+    }
+
+    // 3. Handle Departments (Delete all and re-insert)
+    if (deptIds) {
+        await supabase.from('core_service_department_links').delete().eq('core_service_id', data.id);
+        if (deptIds.length > 0) {
+            const links = deptIds.map(did => ({ core_service_id: data.id, department_id: did }));
+            const { error: linkError } = await supabase.from('core_service_department_links').insert(links);
+            if (linkError) console.error("Error linking departments:", linkError);
+        }
+    }
+
+    // Refresh state fully to get relations back
+    await fetchSapServices();
+    return data;
+}
+
+export async function deleteSapService(id) {
+    console.log("Deleting sap service:", id);
+    const { error } = await supabase.from('core_services').delete().eq('id', id);
+    if (error) {
+        console.error("Sap Service deletion failed:", error);
+        throw error;
+    }
+    state.sapServices = state.sapServices.filter(s => s.id !== id);
+}
+
+export async function fetchSapServiceAreas() {
+    const { data, error } = await supabase.from('core_service_areas').select('*').order('name');
+    if (!error) state.sapServiceAreas = data || [];
+}
+
+export async function upsertSapServiceArea(name) {
+    const { data, error } = await supabase
+        .from('core_service_areas')
+        .insert({ name })
+        .select()
+        .single();
+
+    if (error) throw error;
+    state.sapServiceAreas.push(data);
+    return data;
+}
+
+export async function fetchSapServiceTypes() {
+    const { data, error } = await supabase.from('core_service_types').select('*').order('name');
+    if (!error) state.sapServiceTypes = data || [];
+}
+
+export async function upsertSapServiceType(name, departmentId) {
+    const { data, error } = await supabase
+        .from('core_service_types')
+        .insert({ name, department_id: departmentId })
+        .select()
+        .single();
+
+    if (error) throw error;
+    state.coreServiceTypes.push(data);
     return data;
 }

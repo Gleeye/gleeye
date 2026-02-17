@@ -1,7 +1,9 @@
-import { state } from '../modules/state.js';
-import { formatAmount, showGlobalAlert, showConfirm } from '../modules/utils.js?v=317';
+import { state } from '/js/modules/state.js';
+import { supabase } from '../modules/config.js';
+import { formatAmount, showGlobalAlert, showConfirm, getInitials, getAvatarColor, renderAvatar } from '../modules/utils.js?v=317';
 import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, addOrderContact, removeOrderContact, fetchOrderContacts, updateOrderCloudLinks, generateNextOrderNumber } from '../modules/api.js';
 import { CloudLinksManager } from './components/CloudLinksManager.js?v=376';
+import { CustomSelect } from '../components/CustomSelect.js';
 import { openPaymentModal } from './payments.js?v=317';
 import { fetchProjectSpaceForOrder, fetchProjectItems, fetchAppointments } from '../modules/pm_api.js?v=385';
 
@@ -89,20 +91,6 @@ export async function renderOrderDetail(container, orderId) {
         (a.legacy_order_id && a.legacy_order_id === order.order_number)
     ) : [];
 
-    const getInitials = (name) => {
-        if (!name) return '??';
-        return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-    };
-
-    const getAvatarColor = (name) => {
-        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-        let hash = 0;
-        for (let i = 0; i < name.length; i++) {
-            hash = name.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        return colors[Math.abs(hash) % colors.length];
-    };
-
     // --- PM Data Fetching ---
     const pmSpace = await fetchProjectSpaceForOrder(orderId);
     let pmKPIs = { total: 0, done: 0, overdue: 0, dueSoon: 0, progress: 0 };
@@ -140,45 +128,79 @@ export async function renderOrderDetail(container, orderId) {
         ].sort((a, b) => new Date(a.due_date) - new Date(b.due_date)).slice(0, 5);
     }
 
+    // Move Back Button to Top Bar (before Dettaglio Ordine)
+    const pageTitle = document.getElementById('page-title');
+    if (pageTitle) {
+        pageTitle.style.opacity = '1';
+        pageTitle.style.display = 'flex';
+        pageTitle.style.alignItems = 'center';
+        pageTitle.style.gap = '1.25rem';
+
+        pageTitle.innerHTML = `
+            <div onclick="window.history.back()" 
+                 style="
+                    width: 42px; 
+                    height: 42px; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    cursor: pointer; 
+                    position: relative;
+                    transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    z-index: 10;
+                 "
+                 onmouseover="this.style.transform='scale(1.12)'" 
+                 onmouseout="this.style.transform='scale(1)'">
+                
+                <!-- SVG for mathematically perfect circle with gradient -->
+                <svg width="42" height="42" style="position: absolute; top: 0; left: 0; transform: rotate(-90deg);">
+                    <defs>
+                        <linearGradient id="back-btn-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color: #4e92d8" />
+                            <stop offset="100%" style="stop-color: #614aa2" />
+                        </linearGradient>
+                    </defs>
+                    <circle cx="21" cy="21" r="19.5" 
+                            fill="none" 
+                            stroke="url(#back-btn-grad)" 
+                            stroke-width="2.5" 
+                            stroke-linecap="round" />
+                </svg>
+
+                <span class="material-icons-round" style="
+                    font-size: 1.4rem; 
+                    background: linear-gradient(135deg, #4e92d8, #614aa2);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    font-weight: 900;
+                    position: relative;
+                    z-index: 2;
+                ">arrow_back</span>
+            </div>
+            <span style="color: var(--text-primary); font-weight: 700; font-size: 1.55rem; letter-spacing: -0.015em;">Dettaglio Ordine</span>
+        `;
+    }
+
     container.innerHTML = `
         <div class="animate-fade-in" style="max-width: 1400px; margin: 0 auto; padding: 1.5rem;">
             <!-- Header Section -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; background: var(--bg-secondary); padding: 1.5rem 2rem; border-radius: 16px; border: 1px solid var(--glass-border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; background: var(--bg-secondary); padding: 1.5rem 2rem; border-radius: 16px; border: 1px solid var(--glass-border);">
                 <div style="display: flex; align-items: center; gap: 1.25rem;">
-                    <div style="width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, var(--brand-blue), #2563eb); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);">
-                        <span class="material-icons-round" style="color: white; font-size: 28px;">receipt</span>
-                    </div>
+                    ${(() => {
+            const parts = (order.order_number || '00-0000').split('-');
+            const yearPrefix = parts[0] || '00';
+            const seqNumber = parts[1] || '0000';
+            return `
+                            <div style="width: 56px; height: 56px; border-radius: 14px; background: var(--brand-gradient); display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 8px 16px rgba(97, 74, 162, 0.2); color: white; line-height: 1;">
+                                <div style="font-size: 0.85rem; font-weight: 800; opacity: 0.85; margin-bottom: 1px;">${yearPrefix}</div>
+                                <div style="font-size: 1.1rem; font-weight: 900; letter-spacing: 0.05em;">${seqNumber}</div>
+                            </div>
+                        `;
+        })()}
                     <div>
-                        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.4rem;">
-                             <h1 style="font-size: 1.75rem; font-weight: 700; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.02em;">Ordine ${order.order_number}</h1>
-                             
-                             <div style="display: flex; gap: 0.75rem; align-items: center;">
-                                <div class="status-badge-container" style="position: relative; cursor: pointer;">
-                                     <select onchange="window.updateOrderOfferStatusQuick('${order.id}', this.value)" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
-                                         <option value="In Lavorazione" ${order.offer_status === 'In Lavorazione' ? 'selected' : ''}>In Lavorazione</option>
-                                         <option value="Invio Programmato" ${order.offer_status === 'Invio Programmato' ? 'selected' : ''}>Invio Programmato</option>
-                                         <option value="In Attesa Di Risposta" ${order.offer_status === 'In Attesa Di Risposta' ? 'selected' : ''}>In Attesa Di Risposta</option>
-                                         <option value="Offerta Accettata" ${order.offer_status === 'Offerta Accettata' ? 'selected' : ''}>Offerta Accettata</option>
-                                         <option value="Offerta Rifiutata" ${order.offer_status === 'Offerta Rifiutata' ? 'selected' : ''}>Offerta Rifiutata</option>
-                                     </select>
-                                     <span class="status-badge" style="background: rgba(139, 92, 246, 0.1); color: var(--brand-viola); border: 1px solid rgba(139, 92, 246, 0.2); font-size: 0.75rem; padding: 4px 12px; border-radius: 2rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
-                                         ${order.offer_status || 'Stato Offerta...'} <span class="material-icons-round" style="font-size: 12px; opacity: 0.6;">expand_more</span>
-                                     </span>
-                                </div>
-
-                                <div class="status-badge-container" style="position: relative; cursor: pointer;">
-                                     <select onchange="window.updateOrderStatusQuick('${order.id}', this.value)" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
-                                     <option value="Lavoro in Attesa" ${order.status_works === 'Lavoro in Attesa' || order.status_works === 'In Attesa' ? 'selected' : ''}>In Attesa</option>
-                                     <option value="In Corso" ${order.status_works === 'In Corso' ? 'selected' : ''}>In Corso</option>
-                                         <option value="Completato" ${order.status_works === 'Completato' ? 'selected' : ''}>Completato</option>
-                                         <option value="Finito" ${order.status_works === 'Finito' ? 'selected' : ''}>Finito</option>
-                                         <option value="Annullato" ${order.status_works === 'Annullato' ? 'selected' : ''}>Annullato</option>
-                                     </select>
-                                     <span class="status-badge" style="background: ${statusColor}15; color: ${statusColor}; border: 1px solid ${statusColor}30; font-size: 0.75rem; padding: 4px 12px; border-radius: 2rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
-                                         ${order.status_works || 'Stato Lavori...'} <span class="material-icons-round" style="font-size: 12px; opacity: 0.6;">expand_more</span>
-                                     </span>
-                                </div>
-                             </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.15rem; margin-bottom: 0.25rem;">
+                             <div style="font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-tertiary); letter-spacing: 0.05em;">Ordine ${order.order_number}</div>
+                             <h1 style="font-size: 1.75rem; font-weight: 700; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.02em; line-height: 1.2;">${order.title || 'Senza Titolo'}</h1>
                         </div>
                         <div style="display: flex; align-items: center; gap: 1rem; color: var(--text-tertiary); font-size: 0.85rem;">
                             <span style="display: flex; align-items: center; gap: 0.4rem;"><span class="material-icons-round" style="font-size: 1rem;">calendar_today</span> ${new Date(order.created_at).toLocaleDateString()}</span>
@@ -187,16 +209,58 @@ export async function renderOrderDetail(container, orderId) {
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 0.75rem;">
-                    <button class="primary-btn secondary" onclick="window.history.back()" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
-                        <span class="material-icons-round">arrow_back</span> Indietro
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <!-- Note Button -->
+                    <button onclick="window.openOrderDocsModal('${pmSpace?.id}')" 
+                            style="padding: 0.5rem 0.85rem 0.5rem 0.5rem; border-radius: 12px; display: flex; align-items: center; gap: 0.6rem; background: white; border: 1px solid var(--glass-border); cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: var(--shadow-sm);"
+                            onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.05)'"
+                            onmouseout="this.style.borderColor='var(--glass-border)'; this.style.transform='translateY(0)'; this.style.boxShadow='var(--shadow-sm)'">
+                        <div style="width: 30px; height: 30px; border-radius: 8px; background: rgba(59, 130, 246, 0.08); display: flex; align-items: center; justify-content: center;">
+                            <span class="material-icons-round" style="font-size: 1.1rem; color: var(--brand-blue);">description</span>
+                        </div>
+                        <span style="font-weight: 700; color: var(--text-primary); font-size: 0.85rem; letter-spacing: -0.01em;">Note</span>
                     </button>
-                    <button class="primary-btn" onclick="window.editOrder('${order.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
-                        <span class="material-icons-round">edit</span> Modifica Ordine
+
+                    <!-- Attività Button -->
+                    <button onclick="window.openAccountActivitiesModal('${order.id}', '${pmSpace?.id}')" 
+                            style="padding: 0.5rem 0.85rem 0.5rem 0.5rem; border-radius: 12px; display: flex; align-items: center; gap: 0.6rem; background: white; border: 1px solid var(--glass-border); cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: var(--shadow-sm);"
+                            onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.05)'"
+                            onmouseout="this.style.borderColor='var(--glass-border)'; this.style.transform='translateY(0)'; this.style.boxShadow='var(--shadow-sm)'">
+                        <div style="width: 30px; height: 30px; border-radius: 8px; background: rgba(59, 130, 246, 0.08); display: flex; align-items: center; justify-content: center;">
+                            <span class="material-icons-round" style="font-size: 1.10rem; color: var(--brand-blue);">assignment</span>
+                        </div>
+                        <span style="font-weight: 700; color: var(--text-primary); font-size: 0.85rem; letter-spacing: -0.01em;">Attività</span>
                     </button>
-                    <button class="primary-btn secondary" onclick="window.deleteOrder('${order.id}')" style="padding: 0.6rem; border-radius: 10px; color: #ef4444; border-color: rgba(239, 68, 68, 0.2);">
-                        <span class="material-icons-round">delete</span>
+
+                    <!-- Risorse Button -->
+                    <button onclick="window.openOrderCloudResourcesModal('${order.id}')" 
+                            style="padding: 0.5rem 0.85rem 0.5rem 0.5rem; border-radius: 12px; display: flex; align-items: center; gap: 0.6rem; background: white; border: 1px solid var(--glass-border); cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: var(--shadow-sm);"
+                            onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.05)'"
+                            onmouseout="this.style.borderColor='var(--glass-border)'; this.style.transform='translateY(0)'; this.style.boxShadow='var(--shadow-sm)'">
+                        <div style="width: 30px; height: 30px; border-radius: 8px; background: rgba(59, 130, 246, 0.08); display: flex; align-items: center; justify-content: center;">
+                            <span class="material-icons-round" style="font-size: 1.10rem; color: var(--brand-blue);">cloud_queue</span>
+                        </div>
+                        <span style="font-weight: 700; color: var(--text-primary); font-size: 0.85rem; letter-spacing: -0.01em;">Risorse</span>
                     </button>
+
+                    <div class="order-actions-menu" style="position: relative;">
+                        <button class="icon-btn" onclick="const m = this.nextElementSibling; m.style.display = m.style.display === 'block' ? 'none' : 'block'; event.stopPropagation();" 
+                                style="width: 40px; height: 40px; border-radius: 12px; background: white; border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-sm);"
+                                onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.color='var(--brand-blue)'"
+                                onmouseout="this.style.borderColor='var(--glass-border)'; this.style.color='var(--text-secondary)'">
+                            <span class="material-icons-round">more_vert</span>
+                        </button>
+                        <div class="actions-dropdown-content" style="display: none; position: absolute; right: 0; top: calc(100% + 8px); background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 12px; border: 1px solid var(--glass-border); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); z-index: 1000; min-width: 190px; overflow: hidden; transform-origin: top right; animation: dropdownScale 0.2s ease-out;">
+                            <div onclick="window.editOrder('${order.id}')" style="padding: 0.85rem 1rem; display: flex; align-items: center; gap: 0.75rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.05)'" onmouseout="this.style.background='transparent'">
+                                <span class="material-icons-round" style="font-size: 1.2rem; color: var(--brand-blue);">edit</span>
+                                <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Modifica Ordine</span>
+                            </div>
+                            <div onclick="window.deleteOrder('${order.id}')" style="padding: 0.85rem 1rem; display: flex; align-items: center; gap: 0.75rem; cursor: pointer; border-top: 1px solid rgba(0,0,0,0.05); transition: all 0.2s;" onmouseover="this.style.background='rgba(239, 68, 68, 0.05)'" onmouseout="this.style.background='transparent'">
+                                <span class="material-icons-round" style="font-size: 1.2rem; color: #ef4444;">delete</span>
+                                <span style="font-size: 0.9rem; font-weight: 600; color: #ef4444;">Elimina Ordine</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -206,134 +270,145 @@ export async function renderOrderDetail(container, orderId) {
                 <!-- Column 1: Client, People, Assignments -->
                 <div style="display: flex; flex-direction: column; gap: 1.25rem;">
                     <!-- Cliente -->
-                    <div class="glass-card" style="padding: 1.25rem;">
-                        <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 500; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Cliente</div>
-                        <div style="font-size: 0.95rem; font-weight: 600; color: var(--brand-blue); margin-bottom: 0.2rem;">${order.clients?.client_code || '-'}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-secondary); opacity: 0.8;">${order.clients?.business_name || '-'}</div>
-                    </div>
-
-                    <!-- Persone & Team -->
                     <div class="glass-card" style="padding: 1.5rem;">
-                        <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Persone & Team</h3>
-                        
+                        <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.75rem; letter-spacing: 0.05em;">Soggetto Cliente</div>
                         <div style="margin-bottom: 1.5rem;">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary);">Account Manager</label>
-                                <button onclick="window.openAddOrderAccountModal('${order.id}')" style="background:none; border:none; color:var(--brand-blue); font-size:0.7rem; cursor:pointer;">+ Aggiungi</button>
-                            </div>
-                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                                ${accountList.map(acc => `
-                                    <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-secondary); padding: 0.5rem; border-radius: 8px;">
-                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                            <div style="width: 24px; height: 24px; border-radius: 50%; background: ${getAvatarColor(acc.full_name)}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.65rem;">${getInitials(acc.full_name)}</div>
-                                            <span style="font-size: 0.85rem; font-weight: 600;">${acc.full_name}</span>
-                                        </div>
-                                        <button onclick="window.removeOrderAccount('${order.id}', '${acc.id}')" style="background:none; border:none; color:var(--text-tertiary); cursor:pointer;"><span class="material-icons-round" style="font-size: 1rem;">close</span></button>
-                                    </div>
-                                `).join('')}
-                            </div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: var(--brand-blue); margin-bottom: 0.25rem;">${order.clients?.client_code || '-'}</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">${order.clients?.business_name || '-'}</div>
                         </div>
 
-                        <div>
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary);">Referenti Cliente</label>
-                                <button onclick="window.openAddOrderContactModal('${order.id}')" style="background:none; border:none; color:var(--brand-blue); font-size:0.7rem; cursor:pointer;">+ Aggiungi</button>
+                        <div style="border-top: 1px solid var(--glass-border); padding-top: 1.25rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                                <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.02em;">Referenti Cliente</label>
+                                <button onclick="window.openAddOrderContactModal('${order.id}')" style="background:none; border:none; color:var(--brand-blue); font-size:0.7rem; cursor:pointer; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                                    <span class="material-icons-round" style="font-size: 14px;">add</span> Aggiungi
+                                </button>
                             </div>
-                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                                ${contactsList.map(cont => `
-                                    <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-secondary); padding: 0.5rem; border-radius: 8px;">
-                                        <span style="font-size: 0.85rem; font-weight: 600;">${cont.full_name}</span>
-                                        <button onclick="window.removeOrderContact('${order.id}', '${cont.id}')" style="background:none; border:none; color:var(--text-tertiary); cursor:pointer;"><span class="material-icons-round" style="font-size: 1rem;">close</span></button>
+                            <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                                ${contactsList.length > 0 ? contactsList.map(cont => `
+                                    <div style="display: flex; align-items: center; justify-content: space-between; background: white; padding: 0.6rem 0.75rem; border-radius: 10px; border: 1px solid var(--glass-border);">
+                                        <div style="display: flex; align-items: center; gap: 0.6rem;">
+                                            ${renderAvatar(cont, { size: 24, borderRadius: '6px', fontSize: '0.6rem' })}
+                                            <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">${cont.full_name}</span>
+                                        </div>
+                                        <button onclick="window.removeOrderContact('${order.id}', '${cont.id}')" style="background:none; border:none; color:var(--text-tertiary); cursor:pointer; display: flex; align-items: center; opacity: 0.5; transition: all 0.2s;" onmouseenter="this.style.opacity=1" onmouseleave="this.style.opacity=0.5">
+                                            <span class="material-icons-round" style="font-size: 1.1rem;">close</span>
+                                        </button>
                                     </div>
-                                `).join('')}
+                                `).join('') : `
+                                    <div style="font-size: 0.75rem; color: var(--text-tertiary); text-align: center; padding: 1.5rem; background: rgba(0,0,0,0.02); border-radius: 12px; border: 1px dashed var(--glass-border);">
+                                        Nessun referente collegato
+                                    </div>
+                                `}
                             </div>
                         </div>
                     </div>
 
-                    <!-- Team & Incarichi (MOVED HERE) -->
+                    <!-- Team Interno ed Incarichi Unificati -->
                     <div class="glass-card" style="padding: 1.5rem;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem;">
-                            <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0;">Team & Incarichi</h3>
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <span class="badge" style="background: rgba(59, 130, 246, 0.1); color: var(--brand-blue); font-weight: 600;">${linkedAssignments.length}</span>
-                                <button onclick="window.openAddAssignmentModal('${order.id}')" style="background:none; border:none; color:var(--brand-blue); font-size:0.7rem; cursor:pointer; font-weight: 600;">+ Aggiungi</button>
+                        <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1.25rem; font-family: var(--font-titles);">Team Interno</h3>
+                        
+                        <!-- Account Manager Section -->
+                        <div style="margin-bottom: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                                <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.02em;">Account Manager</label>
+                                <button onclick="window.openAddOrderAccountModal('${order.id}')" style="background:none; border:none; color:var(--brand-blue); font-size:0.7rem; cursor:pointer; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                                    <span class="material-icons-round" style="font-size: 14px;">add</span> Aggiungi
+                                </button>
                             </div>
-                        </div>
-                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                            ${linkedAssignments.map(a => {
-        const linkedServices = (state.collaboratorServices || []).filter(s => s.assignment_id === a.id);
-        return `
-                                    <div class="glass-card clickable-card" style="padding: 1rem; background: var(--bg-secondary); cursor: pointer; display: flex; flex-direction: column; gap: 0.75rem;" onclick="window.location.hash='#assignment-detail/${a.id}'">
-                                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                            <div style="width: 36px; height: 36px; border-radius: 50%; background: ${getAvatarColor(a.collaborators?.full_name || 'C')}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; box-shadow: var(--shadow-sm);">${getInitials(a.collaborators?.full_name || 'C')}</div>
-                                            <div style="flex: 1;">
-                                                <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">${a.collaborators?.full_name || 'Collaboratore'}</div>
-                                                <div style="font-size: 0.75rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.4rem;">
-                                                    <span class="status-dot ${a.status === 'Completed' ? 'success' : (a.status === 'In Progress' ? 'warning' : 'neutral')}"></span>
-                                                    ${a.status || 'Attivo'}
-                                                </div>
-                                            </div>
-                                            <div style="text-align: right;">
-                                                 <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">${formatAmount(a.total_amount)}€</div>
-                                                 <div style="font-size: 0.7rem; color: var(--text-tertiary);">Totale</div>
-                                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                                ${accountList.length > 0 ? accountList.map(acc => `
+                                    <div style="display: flex; align-items: center; justify-content: space-between; background: white; padding: 0.6rem 0.75rem; border-radius: 10px; border: 1px solid var(--glass-border);">
+                                        <div style="display: flex; align-items: center; gap: 0.6rem;">
+                                            ${renderAvatar(acc)}
+                                            <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">${acc.full_name}</span>
                                         </div>
-    
-                                        ${linkedServices.length > 0 ? `
-                                            <div style="border-top: 1px solid var(--glass-border); padding-top: 0.75rem;">
-                                                <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.4rem; letter-spacing: 0.05em;">Servizi Inclusi</div>
-                                                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
-                                                    ${linkedServices.map(s => `
-                                                        <span style="background: white; border: 1px solid var(--glass-border); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; color: var(--text-secondary); display: inline-flex; align-items: center;">
-                                                            ${s.name} ${s.quantity > 1 ? `<span style="opacity: 0.6; margin-left: 4px; font-size: 0.7rem;">x${s.quantity}</span>` : ''}
-                                                        </span>
-                                                    `).join('')}
+                                        <button onclick="window.removeOrderAccount('${order.id}', '${acc.id}')" style="background:none; border:none; color:var(--text-tertiary); cursor:pointer; display: flex; align-items: center; opacity: 0.5; transition: all 0.2s;" onmouseenter="this.style.opacity=1" onmouseleave="this.style.opacity=0.5">
+                                            <span class="material-icons-round" style="font-size: 1.1rem;">close</span>
+                                        </button>
+                                    </div>
+                                `).join('') : `
+                                    <div style="font-size: 0.75rem; color: var(--text-tertiary); text-align: center; padding: 1rem; background: rgba(0,0,0,0.02); border-radius: 12px; border: 1px dashed var(--glass-border);">
+                                        Nessun Account assegnato
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+
+                        <!-- Incarichi Section -->
+                        <div style="border-top: 1px solid var(--glass-border); padding-top: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                                <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.02em;">Incarichi</label>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span class="badge" style="background: rgba(59, 130, 246, 0.1); color: var(--brand-blue); font-weight: 600;">${linkedAssignments.length}</span>
+                                    <button onclick="window.openAddAssignmentModal('${order.id}')" style="background:none; border:none; color:var(--brand-blue); font-size:0.7rem; cursor:pointer; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                                        <span class="material-icons-round" style="font-size: 14px;">add</span> Aggiungi
+                                    </button>
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                ${linkedAssignments.length > 0 ? linkedAssignments.map(a => {
+            const linkedServices = (state.collaboratorServices || []).filter(s => s.assignment_id === a.id);
+            return `
+                                        <div class="glass-card clickable-card" style="padding: 1rem; background: var(--bg-secondary); cursor: pointer; display: flex; flex-direction: column; gap: 0.75rem; border: 1px solid var(--glass-border);" onclick="window.location.hash='#assignment-detail/${a.id}'">
+                                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                                ${renderAvatar(a.collaborators, { size: 36, borderRadius: '50%', fontSize: '0.8rem' })}
+                                                <div style="flex: 1;">
+                                                    <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">${a.collaborators?.full_name || 'Collaboratore'}</div>
+                                                    <div style="font-size: 0.75rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.4rem;">
+                                                        <span class="status-dot ${a.status === 'Completed' ? 'status-dot-success' : (a.status === 'In Progress' ? 'status-dot-warning' : 'status-dot-info')}"></span>
+                                                        ${a.status || 'Attivo'}
+                                                    </div>
+                                                </div>
+                                                <div style="text-align: right;">
+                                                     <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary);">${formatAmount(a.total_amount)}€</div>
+                                                     <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase;">Totale</div>
                                                 </div>
                                             </div>
-                                        ` : ''}
+        
+                                            ${linkedServices.length > 0 ? `
+                                                <div style="border-top: 1px solid var(--glass-border); padding-top: 0.75rem;">
+                                                    <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.4rem; letter-spacing: 0.05em;">Servizi Inclusi</div>
+                                                    <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+                                                        ${linkedServices.map(s => `
+                                                            <span style="background: white; border: 1px solid var(--glass-border); padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; color: var(--text-secondary); display: inline-flex; align-items: center; font-weight: 500;">
+                                                                ${s.services?.name || s.name} ${s.quantity > 1 ? `<span style="opacity: 0.6; margin-left: 4px; font-size: 0.65rem;">x${s.quantity}</span>` : ''}
+                                                            </span>
+                                                        `).join('')}
+                                                    </div>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    `;
+        }).join('') : `
+                                    <div style="font-size: 0.75rem; color: var(--text-tertiary); text-align: center; padding: 1.5rem; background: rgba(0,0,0,0.02); border-radius: 12px; border: 1px dashed var(--glass-border);">
+                                        Nessun incarico creato
                                     </div>
-                                `;
-    }).join('')}
+                                `}
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Documentation Card (Pulsante Modal) -->
-                    <div class="glass-card clickable-card" onclick="window.openOrderDocsModal('${pmSpace?.id}')" style="padding: 1.25rem; background: var(--bg-secondary); border: 1px dashed var(--brand-blue); cursor: pointer;">
-                         <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(59, 130, 246, 0.1); color: var(--brand-blue); display: flex; align-items: center; justify-content: center;">
-                                <span class="material-icons-round">description</span>
-                            </div>
-                            <div style="flex: 1;">
-                                <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">Documentazione</div>
-                                <div style="font-size: 0.7rem; color: var(--text-tertiary);">Note e documenti operativi</div>
-                            </div>
-                            <span class="material-icons-round" style="font-size: 18px; color: var(--brand-blue);">open_in_new</span>
-                         </div>
-                    </div>
 
-                    <!-- Account Activities Card -->
-                    <div class="glass-card clickable-card" onclick="window.openAccountActivitiesModal('${order.id}', '${pmSpace?.id}')" style="padding: 1.25rem; background: var(--bg-secondary); border: 1px dashed var(--brand-blue); cursor: pointer;">
-                         <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(59, 130, 246, 0.1); color: var(--brand-blue); display: flex; align-items: center; justify-content: center;">
-                                <span class="material-icons-round">assignment</span>
-                            </div>
-                            <div style="flex: 1;">
-                                <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">Attività Account</div>
-                                <div style="font-size: 0.7rem; color: var(--text-tertiary);">Task e appuntamenti account</div>
-                            </div>
-                            <span class="material-icons-round" style="font-size: 18px; color: var(--brand-blue);">open_in_new</span>
-                         </div>
-                    </div>
                 </div>
 
-                <!-- Column 2: Health Status -->
+                <!-- Column 2: Status & Health -->
                 <div style="display: flex; flex-direction: column; gap: 1.25rem;">
                     <div class="glass-card" style="padding: 2rem; background: linear-gradient(135deg, white, #f8fafc); border: 1px solid var(--glass-border);">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                            <h3 style="font-size: 1.5rem; font-weight: 800; margin: 0; color: var(--text-primary); font-family: var(--font-titles);">Salute Commessa</h3>
+                            <h3 style="font-size: 1.5rem; font-weight: 800; margin: 0; color: var(--text-primary); font-family: var(--font-titles);">Stato Commessa</h3>
                             <button onclick="window.location.hash='#pm/space/${pmSpace?.id}'" style="background:var(--bg-tertiary); border:1px solid var(--glass-border); color:var(--brand-blue); font-size:0.75rem; cursor:pointer; font-weight: 700; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px;">
                                 Hub Operativo <span class="material-icons-round" style="font-size: 14px;">arrow_forward</span>
                             </button>
+                        </div>
+
+                        <!-- Stato Lavorazione (Sola Lettura) -->
+                        <div style="margin-bottom: 2rem; padding: 1.25rem; background: rgba(var(--brand-blue-rgb), 0.03); border-radius: 16px; border: 1px solid var(--glass-border);">
+                            <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.75rem; letter-spacing: 0.05em;">Stato Lavorazione</div>
+                            <div style="background: white; border: 1px solid var(--glass-border); padding: 0.75rem 1rem; border-radius: 12px; display: flex; align-items: center; gap: 0.75rem; box-shadow: var(--shadow-sm);">
+                                <div style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColor}; box-shadow: 0 0 8px ${statusColor}60;"></div>
+                                <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary);">${order.status_works || 'In Attesa'}</span>
+                            </div>
                         </div>
                         
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
@@ -372,6 +447,17 @@ export async function renderOrderDetail(container, orderId) {
 
                 <!-- Column 3: Economics -->
                 <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                    <!-- Stato Offerta Quick Control -->
+                    <div class="glass-card" style="padding: 1.25rem; background: var(--bg-secondary); border: 1px solid var(--glass-border);">
+                        <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.75rem; letter-spacing: 0.05em;">Stato Offerta</div>
+                         <select id="order-offer-status-select-${order.id}" class="order-status-select" onchange="window.updateOrderOfferStatusQuick('${order.id}', this.value)">
+                             <option value="In Lavorazione" data-dot="var(--brand-viola)" ${order.offer_status === 'In Lavorazione' ? 'selected' : ''}>In Lavorazione</option>
+                             <option value="Invio Programmato" data-dot="#3b82f6" ${order.offer_status === 'Invio Programmato' ? 'selected' : ''}>Invio Programmato</option>
+                             <option value="In Attesa Di Risposta" data-dot="#f59e0b" ${order.offer_status === 'In Attesa Di Risposta' ? 'selected' : ''}>In Attesa Di Risposta</option>
+                             <option value="Offerta Accettata" data-dot="#10b981" ${order.offer_status === 'Offerta Accettata' ? 'selected' : ''}>Offerta Accettata</option>
+                             <option value="Offerta Rifiutata" data-dot="#ef4444" ${order.offer_status === 'Offerta Rifiutata' ? 'selected' : ''}>Offerta Rifiutata</option>
+                         </select>
+                    </div>
             <!-- Prezzi Finali Card -->
             <div class="glass-card editable-card" onclick="window.editOrderEconomics('${order.id}')" style="padding: 1.5rem; background: var(--bg-secondary); cursor: pointer; border: 1px solid var(--glass-border);">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
@@ -447,6 +533,37 @@ export async function renderOrderDetail(container, orderId) {
             </div>
 
 
+            <!-- Preventivo Automation Card -->
+            <div class="glass-card" style="padding: 1.25rem; background: var(--bg-secondary); border: 1px solid var(--glass-border);">
+                <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem;">
+                    <div style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(139, 92, 246, 0.1);">
+                        <span class="material-icons-round" style="font-size: 1.1rem; color: #8b5cf6;">request_quote</span>
+                    </div>
+                    <span style="font-weight: 700; font-size: 1rem; color: var(--text-primary); font-family: var(--font-titles);">Preventivo</span>
+                </div>
+                ${(() => {
+            const quoteLinks = (order.cloud_links || []).filter(l => l.type === 'quote');
+            const latestQuote = quoteLinks.sort((a, b) => new Date(b.generated_at || b.date) - new Date(a.generated_at || a.date))[0];
+
+            if (latestQuote) {
+                return `
+                            <button onclick="window.open('${latestQuote.url}', '_blank')" class="primary-btn" style="width: 100%; justify-content: center; gap: 0.5rem; background: var(--success-color); color: white; border: none; padding: 0.8rem; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                <span class="material-icons-round">open_in_new</span> Apri Preventivo
+                            </button>
+                            <div style="margin-top: 0.6rem; text-align: center;">
+                                <button onclick="window.generateQuote('${order.id}', this.parentElement.previousElementSibling)" style="background: none; border: none; font-size: 0.75rem; color: var(--text-tertiary); cursor: pointer; text-decoration: underline;">Rigenera preventivo</button>
+                            </div>
+                        `;
+            }
+            return `
+                        <button onclick="window.generateQuote('${order.id}', this)" class="primary-btn" style="width: 100%; justify-content: center; gap: 0.5rem; background: var(--brand-gradient); color: white; border: none; padding: 0.8rem; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                            <span class="material-icons-round">bolt</span> Genera Preventivo
+                        </button>
+                    `;
+        })()}
+            </div>
+
+
 
             <div class="glass-card" style="padding: 1rem; background: var(--bg-tertiary); cursor: pointer;" onclick="const d = this.querySelector('.servizi-details'); d.style.display = d.style.display === 'none' ? 'block' : 'none';">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -467,9 +584,9 @@ export async function renderOrderDetail(container, orderId) {
 
                 <div class="servizi-details" style="display: none; margin-top: 1rem; border-top: 1px solid var(--glass-border); padding-top: 1rem;" onclick="event.stopPropagation();">
                     ${linkedServices.map(s => {
-        const serviceName = s.services?.name || s.legacy_service_name || s.name || 'Servizio';
-        const collabName = s.collaborators?.full_name || s.legacy_collaborator_name || 'Non assegnato';
-        return `
+            const serviceName = s.services?.name || s.legacy_service_name || s.name || 'Servizio';
+            const collabName = s.collaborators?.full_name || s.legacy_collaborator_name || 'Non assegnato';
+            return `
                                  <div style="padding: 0.6rem; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 0.6rem; border: 1px solid var(--glass-border); cursor: pointer;" onclick="window.openCollaboratorServiceDetail('${s.id}')">
                                      <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.15rem;">${serviceName}</div>
                                      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; color: var(--text-tertiary);">
@@ -478,7 +595,7 @@ export async function renderOrderDetail(container, orderId) {
                                      </div>
                                  </div>
                                  `;
-    }).join('')}
+        }).join('')}
                     <button onclick="window.openCollaboratorServiceEdit(null, '${order.id}')" style="width: 100%; border: none; background: var(--brand-gradient); color: white; font-size: 0.75rem; font-weight: 500; padding: 0.7rem; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; margin-top: 0.5rem;">
                         <span class="material-icons-round" style="font-size: 1rem;">add</span>
                         <span>Aggiungi Servizio</span>
@@ -579,8 +696,167 @@ export async function renderOrderDetail(container, orderId) {
         </div>
     `;
 
-    // Initialize Documentation removed from here (now in modal)
+    // Initialize Custom Selects for Status Controls
+    const s2 = container.querySelector(`#order-offer-status-select-${order.id}`);
+    if (s2) new CustomSelect(s2);
+
+    // Global click listener to close the actions dropdown
+    window.addEventListener('click', () => {
+        const dropdowns = container.querySelectorAll('.actions-dropdown-content');
+        dropdowns.forEach(d => d.style.display = 'none');
+    });
 }
+
+// Trigger Preventivo Webhook
+window.generateQuote = async (orderId, btnElement) => {
+    const confirmed = await window.showConfirm('Vuoi avviare la generazione automatica del preventivo?', 'Genera Preventivo');
+    if (!confirmed) return;
+
+    const webhookUrl = 'https://sacred-roughy-renewing.ngrok-free.app/webhook/3bf76037-4c02-4c24-a2e9-bd5790f57940';
+    const originalContent = btnElement.innerHTML;
+
+    try {
+        btnElement.innerHTML = '<span class="material-icons-round spin">sync</span> Generazione...';
+        btnElement.disabled = true;
+        btnElement.style.opacity = '0.7';
+
+        // 1. Fetch Full Data
+        const { data: orderData, error: orderError } = await supabase
+            .from('orders')
+            .select(`
+                *,
+                clients (*),
+                order_collaborators (
+                    role_in_order,
+                    collaborators (*)
+                )
+            `)
+            .eq('id', orderId)
+            .single();
+
+        if (orderError) throw orderError;
+
+        // 1b. Fetch Linked Services
+        const { data: servicesData } = await supabase
+            .from('collaborator_services')
+            .select(`
+                *,
+                services (name)
+            `)
+            .eq('order_id', orderId);
+
+        const formattedServices = (servicesData || []).map(s =>
+            s.services?.name || s.legacy_service_name || s.name || 'Servizio'
+        );
+
+        // 2. Prepare Data
+        const client = orderData.clients || {};
+        const clientAddress = [client.address, client.cap, client.city, client.province ? `(${client.province})` : '']
+            .filter(Boolean).join(' '); // Simple join
+
+        const accountRel = orderData.order_collaborators?.find(oc => oc.role_in_order === 'Account');
+        const account = accountRel?.collaborators || {};
+
+        // Find existing Quote URL in cloud_links
+        let quoteUrl = null;
+        if (orderData.cloud_links && Array.isArray(orderData.cloud_links)) {
+            const quoteLink = orderData.cloud_links.find(l =>
+                (l.label && l.label.toLowerCase().includes('preventivo')) ||
+                (l.type === 'quote')
+            );
+            if (quoteLink) quoteUrl = quoteLink.url;
+        }
+
+        const payload = {
+            order_id: orderData.id,
+            order_number: orderData.order_number,
+            order_date: orderData.created_at,
+            title: orderData.title || '', // Added
+            client_code: client.client_code || '',
+            client_business_name: client.business_name || '',
+            client_address: clientAddress,
+            client_vat_tax_code: client.vat_number || client.fiscal_code || '',
+            account_full_name: account.full_name || '',
+            account_email: account.email || '',
+            account_phone: account.phone || '',
+            price_final: orderData.price_final,
+            payment_mode: orderData.payment_mode,
+            payment_mode_label: formatPaymentMode(orderData.payment_mode),
+            deposit_percentage: orderData.deposit_percentage,
+            installment_types: orderData.installment_type,
+            installment_count: orderData.installments_count,
+            current_quote_url: quoteUrl,
+            services: formattedServices // Added
+        };
+
+        // 3. Send Webhook & Await Result
+        const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            const docUrl = result.url || result.link || (typeof result === 'string' ? result : null);
+
+            if (docUrl) {
+                // Update Cloud Links in DB
+                const currentLinks = orderData.cloud_links || [];
+                // Remove old auto-generated quotes to keep it clean? Or keep history. Let's keep history but mark new one.
+                const newLink = {
+                    label: `Preventivo ${new Date().toLocaleDateString()}`,
+                    url: docUrl,
+                    type: 'quote',
+                    generated_at: new Date().toISOString()
+                };
+
+                const { error: updateError } = await supabase
+                    .from('orders')
+                    .update({
+                        cloud_links: [...currentLinks, newLink]
+                    })
+                    .eq('id', orderId);
+
+                if (updateError) console.error('Failed to save quote link:', updateError);
+
+                showGlobalAlert('Preventivo generato con successo!', 'success');
+
+                // Update Button permanently for this session
+                btnElement.innerHTML = `
+                    <span class="material-icons-round">open_in_new</span>
+                    Apri Preventivo
+                `;
+                btnElement.onclick = () => window.open(docUrl, '_blank');
+                btnElement.classList.remove('secondary');
+                btnElement.disabled = false;
+                btnElement.style.opacity = '1';
+                btnElement.style.background = 'var(--success-color)';
+                btnElement.style.color = 'white';
+
+                return; // Skip finally reset
+            } else {
+                showGlobalAlert('Preventivo generato ma nessun link ricevuto.', 'warning');
+            }
+        } else {
+            showGlobalAlert('Errore nell\'invio della richiesta.', 'error');
+        }
+    } catch (error) {
+        console.error('Error triggering quote webhook:', error);
+        showGlobalAlert('Errore durante la generazione: ' + error.message, 'error');
+    } finally {
+        // Reset only if we didn't return early (success case)
+        if (btnElement.innerHTML.includes('Generazione')) {
+            setTimeout(() => {
+                btnElement.innerHTML = originalContent;
+                btnElement.disabled = false;
+                btnElement.style.opacity = '1';
+            }, 2000);
+        }
+    }
+};
 
 // Order Documentation Modal
 window.openOrderDocsModal = async (spaceId) => {
@@ -590,22 +866,9 @@ window.openOrderDocsModal = async (spaceId) => {
     }
 
     const modal = document.createElement('div');
-    modal.className = 'custom-modal-overlay';
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(4px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-    `;
+    modal.className = 'modal';
     modal.innerHTML = `
-        <div class="custom-modal-container" style="max-width: 1200px; width: 95vw; height: 92vh; background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 20px; box-shadow: var(--shadow-2xl); padding: 0; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+        <div class="modal-content" style="max-width: 1200px; width: 95vw; height: 92vh; padding: 0; display: flex; flex-direction: column; overflow: hidden; position: relative;">
             <div style="padding: 1.5rem; background: white; border-bottom: 1px solid var(--surface-2); display: flex; justify-content: space-between; align-items: center; z-index: 10;">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
                     <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(59, 130, 246, 0.1); color: var(--brand-blue); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.15);">
@@ -616,8 +879,8 @@ window.openOrderDocsModal = async (spaceId) => {
                         <div style="font-size: 0.8rem; color: var(--text-tertiary); font-weight: 500;">Note, file ed editor collaborativo</div>
                     </div>
                 </div>
-                <button onclick="this.closest('.custom-modal-overlay').remove()" style="background: var(--surface-1); border:none; cursor:pointer; color:var(--text-tertiary); display:flex; align-items:center; padding: 10px; border-radius: 50%; transition: all 0.2s;" onmouseover="this.style.background='var(--surface-2)'; this.style.color='var(--text-primary)'" onmouseout="this.style.background='var(--surface-1)'; this.style.color='var(--text-tertiary)'">
-                    <span class="material-icons-round" style="font-size: 20px;">close</span>
+                <button class="close-modal material-icons-round" onclick="this.closest('.modal').remove()" style="background: var(--surface-1); border:none; cursor:pointer; color:var(--text-tertiary); display:flex; align-items:center; padding: 10px; border-radius: 50%; transition: all 0.2s;" onmouseover="this.style.background='var(--surface-2)'; this.style.color='var(--text-primary)'" onmouseout="this.style.background='var(--surface-1)'; this.style.color='var(--text-tertiary)'">
+                    close
                 </button>
             </div>
             <div id="modal-docs-container" style="flex: 1; position: relative; overflow: hidden; background: white;">
@@ -628,6 +891,12 @@ window.openOrderDocsModal = async (spaceId) => {
         </div>
     `;
     document.body.appendChild(modal);
+    modal.classList.add('active');
+
+    // Background click to close
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
 
     try {
         const docsContainer = modal.querySelector('#modal-docs-container');
@@ -648,6 +917,47 @@ window.openAccountActivitiesModal = async (orderId, spaceId) => {
 
     const { openAccountActivitiesModal } = await import('./pm/components/AccountActivitiesModal.js?v=2');
     await openAccountActivitiesModal(orderId, spaceId);
+};
+
+// Cloud Resources Modal
+window.openOrderCloudResourcesModal = async (orderId) => {
+    const order = state.orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px; padding: 0; display: flex; flex-direction: column; overflow: hidden;">
+            <div style="padding: 1.5rem; background: white; border-bottom: 1px solid var(--surface-2); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(59, 130, 246, 0.1); color: var(--brand-blue); display: flex; align-items: center; justify-content: center;">
+                        <span class="material-icons-round">cloud_queue</span>
+                    </div>
+                    <div>
+                        <h2 style="font-size: 1.15rem; font-weight: 800; margin: 0; color: var(--text-primary);">Risorse Cloud</h2>
+                        <div style="font-size: 0.75rem; color: var(--text-tertiary);">Link a Drive, Dropbox e altro</div>
+                    </div>
+                </div>
+                <button class="close-modal material-icons-round" onclick="this.closest('.modal').remove()" style="background:none; border:none; cursor:pointer; color:var(--text-tertiary);">close</button>
+            </div>
+            <div id="cloud-manager-container" style="padding: 1.5rem; max-height: 70vh; overflow-y: auto;"></div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.classList.add('active');
+
+    const container = modal.querySelector('#cloud-manager-container');
+    new CloudLinksManager(container, order.cloud_links || [], async (updatedLinks) => {
+        const { error } = await supabase.from('orders').update({ cloud_links: updatedLinks }).eq('id', orderId);
+        if (error) {
+            showGlobalAlert('Errore nel salvataggio dei link', 'error');
+        } else {
+            order.cloud_links = updatedLinks;
+            // No full reload needed, state is updated
+        }
+    });
+
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 };
 
 // Order Payment Config
@@ -757,7 +1067,7 @@ function calculateProposedOrderPayments(order, config) {
         }
     } else if (mode === 'as_rate') {
         const pct = config.deposit_percentage || order.deposit_percentage || 20;
-        const balPct = 20; // 20% Saldo finale fisso per ora
+        const balPct = config.balance_percentage || order.balance_percentage || 20;
         const deposit = total * (pct / 100);
         const balance = total * (balPct / 100);
         const rest = total - deposit - balance;
@@ -832,7 +1142,12 @@ function renderOrderPaymentConfigEdit(order) {
 
                 <div id="ord-config-dep-cnt-${order.id}" style="display: none;">
                     <label style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700; display: block; margin-bottom: 0.25rem;">Anticipo (%)</label>
-                    <input type="number" id="ord-pay-dep-${order.id}" class="modal-input small" value="${order.deposit_percentage || 30}" style="width: 100%;">
+                    <input type="number" id="ord-pay-dep-${order.id}" class="modal-input small" value="${(order.deposit_percentage !== undefined && order.deposit_percentage !== null) ? order.deposit_percentage : 30}" style="width: 100%;">
+                </div>
+
+                <div id="ord-config-bal-cnt-${order.id}" style="display: none;">
+                    <label style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700; display: block; margin-bottom: 0.25rem;">Saldo (%)</label>
+                    <input type="number" id="ord-pay-bal-${order.id}" class="modal-input small" value="${(order.balance_percentage !== undefined && order.balance_percentage !== null) ? order.balance_percentage : 20}" style="width: 100%;">
                 </div>
 
                 <div id="ord-config-rate-cnt-${order.id}" style="display: none; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
@@ -843,16 +1158,19 @@ function renderOrderPaymentConfigEdit(order) {
                     <div>
                         <label style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700; display: block; margin-bottom: 0.25rem;">Freq.</label>
                         <select id="ord-pay-rate-type-${order.id}" class="modal-input small" style="width: 100%;">
-                            <option value="Mensile" ${order.installment_type === 'Mensile' ? 'selected' : ''}>Mese</option>
-                            <option value="Bimestrale" ${order.installment_type === 'Bimestrale' ? 'selected' : ''}>2 Mesi</option>
-                            <option value="Trimestrale" ${order.installment_type === 'Trimestrale' ? 'selected' : ''}>3 Mesi</option>
+                            <option value="Mensile" ${order.installment_type === 'Mensile' ? 'selected' : ''}>Mensile</option>
+                            <option value="Bimestrale" ${order.installment_type === 'Bimestrale' ? 'selected' : ''}>Bimestrale</option>
+                            <option value="Trimestrale" ${order.installment_type === 'Trimestrale' ? 'selected' : ''}>Trimestrale</option>
+                            <option value="Quadrimestrale" ${order.installment_type === 'Quadrimestrale' ? 'selected' : ''}>Quadrimestrale</option>
+                            <option value="Semestrale" ${order.installment_type === 'Semestrale' ? 'selected' : ''}>Semestrale</option>
+                            <option value="Annuale" ${order.installment_type === 'Annuale' ? 'selected' : ''}>Annuale</option>
                         </select>
                     </div>
                 </div>
             </div>
 
             <div class="flex-end" style="gap: 0.5rem; margin-top: 1rem;">
-                <button class="btn-link small" onclick="window.toggleOrderConfigEdit('${order.id}', false)">Annulla</button>
+                <button class="primary-btn secondary small" onclick="window.toggleOrderConfigEdit('${order.id}', false)">Annulla</button>
                 <button class="primary-btn small" onclick="window.saveOrderConfig('${order.id}')">Salva</button>
             </div>
         </div>
@@ -862,8 +1180,10 @@ function renderOrderPaymentConfigEdit(order) {
 window.toggleOrderConfigFields = (orderId) => {
     const mode = document.getElementById(`ord-pay-mode-${orderId}`).value;
     const depCnt = document.getElementById(`ord-config-dep-cnt-${orderId}`);
+    const balCnt = document.getElementById(`ord-config-bal-cnt-${orderId}`);
     const rateCnt = document.getElementById(`ord-config-rate-cnt-${orderId}`);
     if (depCnt) depCnt.style.display = (mode.includes('anticipo') || mode === 'as_rate') ? 'block' : 'none';
+    if (balCnt) balCnt.style.display = (mode === 'as_rate') ? 'block' : 'none';
     if (rateCnt) rateCnt.style.display = mode.includes('rate') ? 'grid' : 'none';
 };
 
@@ -874,30 +1194,92 @@ window.toggleOrderConfigEdit = (orderId, isEdit) => {
     if (container && order) {
         container.innerHTML = renderOrderPaymentConfigUI(order);
         if (isEdit) {
-            setTimeout(() => window.toggleOrderConfigFields(orderId), 0);
+            setTimeout(() => {
+                // Initialize Custom Selects
+                const selects = container.querySelectorAll('select');
+                import('../components/CustomSelect.js').then(({ CustomSelect }) => {
+                    selects.forEach(s => new CustomSelect(s));
+                });
+
+                window.toggleOrderConfigFields(orderId);
+            }, 0);
         }
     }
 };
 
 window.saveOrderConfig = async (orderId) => {
-    const mode = document.getElementById(`ord-pay-mode-${orderId}`).value;
-    const deposit = parseFloat(document.getElementById(`ord-pay-dep-${orderId}`).value) || 0;
-    const installments = parseInt(document.getElementById(`ord-pay-rate-count-${orderId}`).value) || 1;
-    const instType = document.getElementById(`ord-pay-rate-type-${orderId}`).value;
-
     try {
-        await updateOrder(orderId, {
+        const mode = document.getElementById(`ord-pay-mode-${orderId}`).value;
+        const depEl = document.getElementById(`ord-pay-dep-${orderId}`);
+        const rateCountEl = document.getElementById(`ord-pay-rate-count-${orderId}`);
+        const rateTypeEl = document.getElementById(`ord-pay-rate-type-${orderId}`);
+        const balEl = document.getElementById(`ord-pay-bal-${orderId}`);
+
+        const rawDeposit = depEl ? (parseFloat(depEl.value) || 0) : 0;
+        const rawInstallments = rateCountEl ? (parseInt(rateCountEl.value) || 1) : 1;
+        const instType = rateTypeEl ? rateTypeEl.value : 'Mensile';
+        const rawBalance = balEl ? (parseFloat(balEl.value) || 0) : 0;
+
+        let finalDeposit = 0;
+        let finalBalance = 0;
+        let finalInstallments = null;
+        let finalInstType = null;
+
+        switch (mode) {
+            case 'saldo':
+                finalDeposit = 0;
+                finalBalance = 100;
+                finalInstallments = null;
+                finalInstType = null;
+                break;
+            case 'anticipo_saldo':
+                finalDeposit = rawDeposit;
+                finalBalance = 100 - rawDeposit;
+                finalInstallments = null;
+                finalInstType = null;
+                break;
+            case 'anticipo_rate':
+                finalDeposit = rawDeposit;
+                finalBalance = 0;
+                finalInstallments = rawInstallments;
+                finalInstType = instType;
+                break;
+            case 'rate':
+                finalDeposit = 0;
+                finalBalance = 0;
+                finalInstallments = rawInstallments;
+                finalInstType = instType;
+                break;
+            case 'as_rate':
+                finalDeposit = rawDeposit;
+                finalBalance = rawBalance;
+                finalInstallments = rawInstallments;
+                finalInstType = instType;
+                break;
+            default:
+                finalBalance = 100;
+        }
+
+        const updates = {
             payment_mode: mode,
-            deposit_percentage: deposit,
-            installments_count: installments,
-            installment_type: instType
-        });
+            deposit_percentage: finalDeposit,
+            balance_percentage: finalBalance,
+            installments_count: finalInstallments,
+            installment_type: finalInstType
+        };
+
+        console.log("Saving order config for", orderId, updates);
+        const updated = await updateOrder(orderId, updates);
+        console.log("Update database result:", updated);
+
         await fetchOrders();
         window.toggleOrderConfigEdit(orderId, false);
-        showGlobalAlert('Configurazione salvata', 'success');
+        showGlobalAlert('Configurazione salvata con successo', 'success');
+
         renderOrderDetail(document.getElementById('content-area'), orderId);
     } catch (e) {
-        showGlobalAlert('Errore nel salvataggio', 'error');
+        console.error("Error in saveOrderConfig:", e);
+        showGlobalAlert('Errore nel salvataggio: ' + e.message, 'error');
     }
 };
 
@@ -929,6 +1311,11 @@ export function initOrderPaymentModals() {
                     <div id="pg-field-deposit" style="display: none;">
                         <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform: uppercase;">Anticipo (%)</label>
                         <input type="number" id="pg-deposit" class="modal-input" value="30" style="width: 100%;">
+                    </div>
+
+                    <div id="pg-field-balance" style="display: none;">
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform: uppercase;">Saldo (%)</label>
+                        <input type="number" id="pg-balance" class="modal-input" value="20" style="width: 100%;">
                     </div>
 
                     <div id="pg-field-rate" style="display: none; grid-template-columns: 1fr 1fr; gap: 1rem;">
@@ -966,6 +1353,7 @@ export function initOrderPaymentModals() {
     document.getElementById('pg-mode').addEventListener('change', (e) => {
         const mode = e.target.value;
         document.getElementById('pg-field-deposit').style.display = mode.includes('anticipo') || mode === 'as_rate' ? 'block' : 'none';
+        document.getElementById('pg-field-balance').style.display = mode === 'as_rate' ? 'block' : 'none';
         document.getElementById('pg-field-rate').style.display = mode.includes('rate') ? 'grid' : 'none';
     });
 
@@ -977,6 +1365,7 @@ export function initOrderPaymentModals() {
         if (order) {
             document.getElementById('pg-mode').value = order.payment_mode || 'saldo';
             document.getElementById('pg-deposit').value = order.deposit_percentage || 30;
+            document.getElementById('pg-balance').value = order.balance_percentage || 20;
             document.getElementById('pg-rate-count').value = order.installments_count || 3;
             document.getElementById('pg-rate-type').value = order.installment_type || 'Mensile';
             // Trigger change to update visibility
@@ -995,6 +1384,7 @@ export function initOrderPaymentModals() {
         const config = {
             mode: document.getElementById('pg-mode').value,
             deposit_percentage: parseFloat(document.getElementById('pg-deposit').value),
+            balance_percentage: parseFloat(document.getElementById('pg-balance').value),
             installments_count: parseInt(document.getElementById('pg-rate-count').value),
             installment_type: document.getElementById('pg-rate-type').value,
             startDate: document.getElementById('pg-start-date').value
@@ -1218,9 +1608,7 @@ window.filterAccountList = () => {
 
     list.innerHTML = accounts.map(c => `
         <div onclick="window.confirmAddAccount('${c.id}')" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 10px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent;" onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.background='white';" onmouseout="this.style.borderColor='transparent'; this.style.background='var(--bg-secondary)';">
-            <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600;">
-                ${c.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-            </div>
+            ${renderAvatar(c, { size: 32, borderRadius: '50%', fontSize: '0.8rem' })}
             <div style="flex: 1;">
                 <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">${c.full_name}</div>
                 <div style="font-size: 0.7rem; color: var(--text-tertiary);">${c.role || 'Collaboratore'}</div>
@@ -1260,9 +1648,7 @@ window.filterContactList = () => {
 
     list.innerHTML = filtered.map(c => `
         <div onclick="window.confirmAddContact('${c.id}')" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 10px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent;" onmouseover="this.style.borderColor='#8b5cf6'; this.style.background='white';" onmouseout="this.style.borderColor='transparent'; this.style.background='var(--bg-secondary)';">
-            <div style="width: 32px; height: 32px; border-radius: 50%; background: #8b5cf6; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600;">
-                ${c.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-            </div>
+            ${renderAvatar(c, { size: 32, borderRadius: '50%', fontSize: '0.8rem' })}
             <div style="flex: 1;">
                 <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">${c.full_name}</div>
                 <div style="font-size: 0.7rem; color: var(--text-tertiary);">${c.clients?.business_name || 'Referente'}</div>
@@ -1743,9 +2129,7 @@ window.filterAssignmentCollaborators = () => {
 
     list.innerHTML = filtered.map(c => `
         <div onclick="window.selectAssignmentCollaborator('${c.id}', '${c.full_name}')" style="padding: 0.75rem; border-bottom: 1px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; gap: 0.75rem; transition: background 0.2s;" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='white'">
-            <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--bg-secondary); color: var(--brand-blue); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.8rem;">
-                ${c.full_name.substring(0, 2).toUpperCase()}
-            </div>
+            ${renderAvatar(c, { size: 32, borderRadius: '50%', fontSize: '0.8rem' })}
             <div>
                 <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">${c.full_name}</div>
                 <div style="font-size: 0.75rem; color: var(--text-tertiary);">${c.role || 'Collaboratore'}</div>
@@ -1757,8 +2141,14 @@ window.filterAssignmentCollaborators = () => {
 
 
 window.selectAssignmentCollaborator = (id, name) => {
+    const collab = state.collaborators?.find(c => c.id === id);
     document.getElementById('asg-collab-id').value = id;
     document.getElementById('asg-collab-name').innerText = name;
+
+    const avatarContainer = document.getElementById('asg-collab-avatar').parentElement;
+    if (avatarContainer) {
+        avatarContainer.innerHTML = renderAvatar(collab || { full_name: name }, { size: 32, borderRadius: '50%', fontSize: '0.8rem' });
+    }
 
     document.getElementById('asg-collab-search').parentElement.style.display = 'none';
     document.getElementById('asg-collab-list').style.display = 'none';
@@ -2309,9 +2699,7 @@ export function initNewOrderModal() {
         } else {
             accDropdown.innerHTML = accounts.map((c, i) => `
                 <div class="new-ord-acc-item new-ord-item" data-id="${c.id}" data-name="${c.full_name}" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.8rem 1rem; cursor: pointer; transition: all 0.2s; ${i === accounts.length - 1 ? '' : 'border-bottom: 1px solid var(--glass-border);'}">
-                    <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);">
-                        ${c.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                    </div>
+                    ${renderAvatar(c, { size: 32, borderRadius: '50%', fontSize: '0.7rem' })}
                     <div style="flex: 1;">
                         <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">${c.full_name}</div>
                         <div style="font-size: 0.75rem; color: var(--text-tertiary);">${c.role || 'Collaboratore'}</div>
@@ -2428,9 +2816,7 @@ export function initNewOrderModal() {
         } else {
             contactDropdown.innerHTML = contacts.map((c, i) => `
                 <div class="new-ord-contact-item new-ord-item" data-id="${c.id}" data-name="${c.full_name}" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.8rem 1rem; cursor: pointer; transition: all 0.2s; ${i === contacts.length - 1 ? '' : 'border-bottom: 1px solid var(--glass-border);'}">
-                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #8b5cf6; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);">
-                        ${(c.full_name || '?').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                    </div>
+                    ${renderAvatar(c, { size: 32, borderRadius: '50%', fontSize: '0.8rem' })}
                     <div style="flex: 1;">
                         <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">${c.full_name}</div>
                         <div style="font-size: 0.75rem; color: var(--text-tertiary);">${c.role || 'Referente'}</div>

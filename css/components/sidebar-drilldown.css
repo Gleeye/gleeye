@@ -29,6 +29,9 @@
     transform: translateX(100%);
     opacity: 0;
     pointer-events: none;
+    background: var(--sidebar-bg);
+    min-height: 100%;
+    z-index: 10;
 }
 
 /* When drill-down is active */
@@ -49,20 +52,24 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.85rem 1.1rem;
+    padding: 0.75rem 1rem;
     text-decoration: none;
-    color: var(--brand-blue);
-    border-radius: 14px;
-    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    font-weight: 600;
+    color: var(--text-secondary);
+    border-radius: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-weight: 500;
     cursor: pointer;
-    font-size: 0.925rem;
+    font-size: 0.85rem;
     white-space: nowrap;
-    position: relative;
-    overflow: hidden;
-    margin-bottom: 0.75rem;
-    background: rgba(78, 146, 216, 0.06);
-    border: 1px solid rgba(78, 146, 216, 0.15);
+    margin-bottom: 1rem;
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme='dark'] .nav-back {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-tertiary);
 }
 
 .nav-back:hover {
@@ -82,14 +89,24 @@
 
 /* Category title in drill-down view */
 .nav-category-title {
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 1.2px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: var(--text-secondary);
-    opacity: 0.6;
-    padding: 0.5rem 1.1rem;
-    margin-bottom: 0.25rem;
+    color: var(--brand-blue);
+    opacity: 0.8;
+    padding: 0 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nav-category-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(78, 146, 216, 0.2), transparent);
 }
 
 /* Hide expand icon when using drill-down */
@@ -112,14 +129,18 @@
     transform: translateX(3px);
 }
 
-/* Ensure submenu items are visible in drill-down */
+/* Ensure submenu items are visible in drill-down if not hidden */
 .nav-layer.secondary .submenu {
-    display: flex !important;
+    display: flex;
     margin-left: 0;
     border-left: none;
     padding-left: 0;
     margin-top: 0;
     margin-bottom: 0;
+}
+
+.nav-layer.secondary .submenu.hidden {
+    display: none !important;
 }
 
 .nav-layer.secondary .submenu-section {

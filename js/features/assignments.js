@@ -1,4 +1,4 @@
-import { state } from '../modules/state.js';
+import { state } from '/js/modules/state.js';
 import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=317';
 import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment, deleteAssignment } from '../modules/api.js';
 import { openPaymentModal } from './payments.js?v=317';
@@ -558,20 +558,26 @@ function renderAssignmentPaymentConfigEdit(assignment) {
                     <label>Modalità</label>
                     <select id="pay-mode-${assignment.id}" class="modal-input" onchange="window.updateAssignmentPaymentFieldsVisibility('${assignment.id}')" style="display: block !important; visibility: visible !important; opacity: 1 !important; position: static !important; width: 100% !important; height: 45px !important; appearance: menulist !important; -webkit-appearance: menulist !important; background-color: white !important; color: black !important; border: 1px solid #ccc !important; padding: 0.5rem !important; margin-top: 0.5rem !important; pointer-events: auto !important; z-index: 10 !important;">
                         <option value="saldo" ${currentMode === 'saldo' ? 'selected' : ''}>Saldo alla chiusura del progetto</option>
-                        <option value="anticipo_saldo" ${currentMode === 'anticipo_saldo' ? 'selected' : ''}>Anticipo e saldo alla chiusura del progetto</option>
+                        <option value="anticipo_saldo" ${currentMode === 'anticipo_saldo' ? 'selected' : ''}>Anticipo + Saldo</option>
                         <option value="anticipo_rate" ${currentMode === 'anticipo_rate' ? 'selected' : ''}>Anticipo + Rate</option>
                         <option value="rate" ${currentMode === 'rate' ? 'selected' : ''}>Rate</option>
+                        <option value="as_rate" ${currentMode === 'as_rate' ? 'selected' : ''}>Anticipo + Rate + Saldo</option>
                     </select>
                 </div>
                 
                 <div class="form-group pay-field-deposit" style="display: none;">
                     <label>Anticipo %</label>
-                    <input type="number" id="pay-deposit-${assignment.id}" class="modal-input" value="${assignment.deposit_percentage || 30}" min="0" max="100">
+                    <input type="number" id="pay-deposit-${assignment.id}" class="modal-input" value="${(assignment.deposit_percentage !== undefined && assignment.deposit_percentage !== null) ? assignment.deposit_percentage : 30}" min="0" max="100">
+                </div>
+
+                <div class="form-group pay-field-balance" style="display: none;">
+                    <label>Saldo %</label>
+                    <input type="number" id="pay-balance-${assignment.id}" class="modal-input" value="${(assignment.balance_percentage !== undefined && assignment.balance_percentage !== null) ? assignment.balance_percentage : 20}" min="0" max="100">
                 </div>
 
                 <div class="form-group pay-field-installments" style="display: none;">
                     <label>Numero Rate</label>
-                    <input type="number" id="pay-installments-count-${assignment.id}" class="modal-input" value="${assignment.installments_count || 1}" min="1">
+                    <input type="number" id="pay-installments-count-${assignment.id}" class="modal-input" value="${(assignment.installments_count !== undefined && assignment.installments_count !== null) ? assignment.installments_count : 1}" min="1">
                 </div>
                 
                 <div class="form-group pay-field-installments" style="display: none;">
@@ -611,16 +617,23 @@ window.updateAssignmentPaymentFieldsVisibility = (assignmentId) => {
     if (mode === 'saldo') {
         toggle('.pay-field-deposit', false);
         toggle('.pay-field-installments', false);
+        toggle('.pay-field-balance', false);
     } else if (mode === 'anticipo_saldo') {
         toggle('.pay-field-deposit', true);
         toggle('.pay-field-installments', false);
-        // Balance is implicit rest
+        toggle('.pay-field-balance', false);
     } else if (mode === 'anticipo_rate') {
         toggle('.pay-field-deposit', true);
         toggle('.pay-field-installments', true);
+        toggle('.pay-field-balance', false);
     } else if (mode === 'rate') {
         toggle('.pay-field-deposit', false);
         toggle('.pay-field-installments', true);
+        toggle('.pay-field-balance', false);
+    } else if (mode === 'as_rate') {
+        toggle('.pay-field-deposit', true);
+        toggle('.pay-field-installments', true);
+        toggle('.pay-field-balance', true);
     }
 };
 
@@ -653,9 +666,18 @@ window.saveAssignmentConfig = async (assignmentId) => {
     const mode = document.getElementById(`pay-mode-${assignmentId}`).value;
     const updates = { id: assignmentId, payment_mode: mode };
 
-    if (mode !== 'saldo' && mode !== 'rate') {
+    if (mode.includes('anticipo') || mode === 'as_rate') {
         updates.deposit_percentage = parseFloat(document.getElementById(`pay-deposit-${assignmentId}`).value) || 0;
     }
+
+    if (mode === 'as_rate') {
+        updates.balance_percentage = parseFloat(document.getElementById(`pay-balance-${assignmentId}`).value) || 20;
+    } else if (mode === 'anticipo_saldo' || mode === 'saldo') {
+        updates.balance_percentage = 100 - (updates.deposit_percentage || 0);
+    } else {
+        updates.balance_percentage = 0;
+    }
+
     if (mode.includes('rate') || mode === 'rate') {
         updates.installments_count = parseInt(document.getElementById(`pay-installments-count-${assignmentId}`).value) || 1;
         updates.installment_type = document.getElementById(`pay-installments-type-${assignmentId}`).value;
@@ -833,6 +855,53 @@ export function calculateProposedAssignmentPayments(assignment, startDateStr) {
                 order_id: assignment.order_id
             });
         }
+    }
+    else if (mode === 'as_rate') {
+        const depPct = assignment.deposit_percentage || 20;
+        const balPct = assignment.balance_percentage || 20;
+        const depVal = total * (depPct / 100);
+        const balVal = total * (balPct / 100);
+        const remainder = total - depVal - balVal;
+        const n = assignment.installments_count || 3;
+        const rateVal = remainder / n;
+
+        payments.push({
+            title: `Anticipo (${depPct}%) Incarico ${assignment.legacy_id || ''}`,
+            amount: depVal,
+            due_date: getDueDate(0),
+            payment_mode: 'Anticipo',
+            status: 'To Do',
+            payment_type: 'Collaboratore',
+            assignment_id: assignment.id,
+            collaborator_id: assignment.collaborator_id,
+            order_id: assignment.order_id
+        });
+
+        for (let i = 0; i < n; i++) {
+            payments.push({
+                title: `Rata ${i + 1}/${n} Incarico ${assignment.legacy_id || ''}`,
+                amount: rateVal,
+                due_date: getDueDate(i + 1, assignment.installment_type),
+                payment_mode: 'Rata',
+                status: 'To Do',
+                payment_type: 'Collaboratore',
+                assignment_id: assignment.id,
+                collaborator_id: assignment.collaborator_id,
+                order_id: assignment.order_id
+            });
+        }
+
+        payments.push({
+            title: `Saldo Finale (${balPct}%) Incarico ${assignment.legacy_id || ''}`,
+            amount: balVal,
+            due_date: getDueDate(n + 1),
+            payment_mode: 'Saldo',
+            status: 'To Do',
+            payment_type: 'Collaboratore',
+            assignment_id: assignment.id,
+            collaborator_id: assignment.collaborator_id,
+            order_id: assignment.order_id
+        });
     }
 
     return payments;

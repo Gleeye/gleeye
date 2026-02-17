@@ -1,8 +1,10 @@
-import { state } from '../modules/state.js';
+import { state } from '/js/modules/state.js';
 import { supabase } from '../modules/config.js';
 import { fetchCollaborators, upsertCollaborator, fetchAvailabilityRules, saveAvailabilityRules, fetchPayments, fetchRestDays, upsertRestDay, deleteRestDay, fetchCollaboratorServices, fetchCollaboratorSkills, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchBookingItemCollaborators, fetchGoogleAuth, deleteGoogleAuth, fetchSystemConfig, upsertGoogleAuth, fetchNotificationTypes, fetchUserNotificationPreferences, upsertUserNotificationPreference } from '../modules/api.js';
 import { formatAmount } from '../modules/utils.js?v=317';
 import { loadAvailabilityIntoContainer } from './availability_manager.js?v=317';
+
+
 
 
 export async function renderUserProfile(container) {
@@ -25,25 +27,29 @@ export async function renderUserProfile(container) {
         myCollab = state.collaborators.find(c => c.id === state.impersonatedCollaboratorId);
         if (!myCollab) {
             console.error("Impersonated collaborator not found in state");
-            // Fallback to real user
+            // Fallback to real user email
             myCollab = state.collaborators.find(c => c.email === session.user.email);
-        } else {
-            console.log(`[User Dashboard] Showing impersonated profile: ${myCollab.full_name}`);
         }
     } else {
         myCollab = state.collaborators.find(c => c.email === session.user.email);
     }
 
+    // Fallback: search by user_id
+    if (!myCollab && state.profile) {
+        myCollab = state.collaborators.find(c => c.user_id === state.profile.id);
+    }
+
+    // Graceful fallback if still not found: synthesize a minimal profile
     if (!myCollab) {
-        container.innerHTML = `
-            <div style="padding: 3rem; text-align: center;">
-                <span class="material-icons-round" style="font-size: 3rem; color: var(--text-tertiary);">person_off</span>
-                <h3>Profilo non trovato</h3>
-                <p>Non risulta nessun collaboratore associato all'email <strong>${session.user.email}</strong>.</p>
-                <p>Contatta un amministratore per creare il tuo profilo.</p>
-            </div>
-        `;
-        return;
+        console.warn("[User Dashboard] Collaborator profile not found for current user. Using fallback.");
+        myCollab = {
+            id: state.profile?.id || session.user.id,
+            user_id: state.profile?.id || session.user.id,
+            first_name: state.profile?.first_name || session.user.user_metadata?.first_name || 'Utente',
+            last_name: state.profile?.last_name || session.user.user_metadata?.last_name || '',
+            full_name: state.profile ? `${state.profile.first_name} ${state.profile.last_name || ''}`.trim() : 'Utente',
+            email: session.user.email
+        };
     }
 
     container.innerHTML = `
@@ -75,10 +81,7 @@ export async function renderUserProfile(container) {
 
             <!-- Tabs Navigation -->
             <div class="tabs-container" style="margin-bottom: 2rem; border-bottom: 1px solid var(--glass-border); display: flex; gap: 1.5rem;">
-                <button class="tab-btn active" data-tab="dashboard" style="padding: 0.8rem 1rem; background: none; border: none; border-bottom: 2px solid var(--brand-blue); color: var(--brand-blue); font-weight: 500; cursor: pointer;">
-                    Dashboard
-                </button>
-                <button class="tab-btn" data-tab="settings" style="padding: 0.8rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">
+                <button class="tab-btn active" data-tab="settings" style="padding: 0.8rem 1rem; background: none; border: none; border-bottom: 2px solid var(--brand-blue); color: var(--brand-blue); font-weight: 500; cursor: pointer;">
                     Dati & Impostazioni
                 </button>
                 <button class="tab-btn" data-tab="availability" style="padding: 0.8rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">
@@ -89,20 +92,8 @@ export async function renderUserProfile(container) {
                 </button>
             </div>
 
-            <!-- Tab Content: Dashboard -->
-            <div id="tab-dashboard" class="tab-content">
-                <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
-                    <!-- Quick Stats -->
-                    <div class="glass-card" style="padding: 1.5rem;">
-                        <h3 style="margin-top:0;">Le tue attività</h3>
-                        <p style="color:var(--text-secondary);">Riepilogo ordini e pagamenti</p>
-                        <!-- TODO: Insert Stats Here -->
-                    </div>
-                </div>
-            </div>
-
             <!-- Tab Content: Settings -->
-            <div id="tab-settings" class="tab-content hidden">
+            <div id="tab-settings" class="tab-content">
                 <div class="glass-card" style="padding: 0; max-width: 1000px; overflow: hidden; background: linear-gradient(145deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6)); border: 1px solid var(--glass-border);">
                     
                     <!-- Form Header -->
@@ -399,6 +390,7 @@ export async function renderUserProfile(container) {
             </div>
         </div>
     `;
+
 
     // Initialize Timezone Select
     setTimeout(() => {

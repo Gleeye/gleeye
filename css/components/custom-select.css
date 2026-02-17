@@ -60,24 +60,23 @@
 .custom-options {
     position: absolute;
     display: block;
-    top: 100%;
+    top: calc(100% + 5px);
     left: 0;
     right: 0;
     background: var(--card-bg);
-    /* Use card bg which usually handles dark/light well */
     border: 1px solid var(--glass-border);
-    border-top: none;
-    border-bottom-left-radius: var(--border-radius-sm);
-    border-bottom-right-radius: var(--border-radius-sm);
-    box-shadow: var(--shadow-premium);
-    z-index: 100;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    z-index: 999;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
     transform: translateY(-10px);
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    max-height: 250px;
+    max-height: 260px;
     overflow-y: auto;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 /* Scrollbar refinement for options */

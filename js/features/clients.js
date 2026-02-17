@@ -1,4 +1,4 @@
-import { state } from '../modules/state.js';
+import { state } from '/js/modules/state.js';
 import { formatAmount } from '../modules/utils.js?v=317';
 // Import dependencies similar to collaborators.js
 // We assume fetch functions are available in api.js if needed, but we rely on state mostly

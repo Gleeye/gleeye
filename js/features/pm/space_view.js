@@ -5,6 +5,7 @@ import { renderHubAppointments } from './components/hub_appointments.js?v=377';
 import { CloudLinksManager } from '../components/CloudLinksManager.js?v=377';
 import { state } from '../../modules/state.js';
 import { supabase } from '../../modules/config.js';
+import { renderAvatar } from '../../modules/utils.js?v=317';
 
 console.log("[SpaceView] Module v376 loaded");
 
@@ -237,9 +238,7 @@ export async function renderSpaceView(container, spaceId) {
                                 <div id="space-pms-list" style="display: flex; align-items: center; gap: 6px;">
                                     ${pms.map(pm => `
                                         <div class="user-pill-mini pm" title="${pm.name}" style="background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2);">
-                                            <div class="avatar-circle" style="background: var(--brand-blue);">
-                                                ${pm.avatar ? `<img src="${pm.avatar}">` : pm.initial}
-                                            </div>
+                                            ${renderAvatar({ full_name: pm.name, avatar_url: pm.avatar }, { size: 20, borderRadius: '50%', fontSize: '10px' })}
                                             <span class="name" style="color: var(--brand-blue);">${pm.name.split(' ')[0]}</span>
                                             ${!pm.is_fallback ? `<span class="material-icons-round remove-space-pm-btn" data-id="${pm.id}">close</span>` : ''}
                                         </div>
@@ -260,9 +259,7 @@ export async function renderSpaceView(container, spaceId) {
                                 <div id="space-members-list" style="display: flex; align-items: center; gap: 6px;">
                                     ${members.map(m => `
                                         <div class="user-pill-mini" title="${m.name}">
-                                            <div class="avatar-circle" style="background: #94a3b8;">
-                                                ${m.avatar ? `<img src="${m.avatar}">` : m.initial}
-                                            </div>
+                                            ${renderAvatar({ full_name: m.name, avatar_url: m.avatar }, { size: 20, borderRadius: '50%', fontSize: '10px' })}
                                             <span class="name">${m.name.split(' ')[0]}</span>
                                         </div>
                                     `).join('')}
@@ -519,7 +516,7 @@ export async function renderSpaceView(container, spaceId) {
 
             picker.innerHTML = candidates.length === 0 ? '<div style="padding:1rem;">Nessun candidato</div>' : candidates.map(c => `
                 <div class="dropdown-item pm-candidate" data-uid="${c.user_id}" data-cid="${c.id}">
-                    <div class="avatar-circle" style="width:24px;height:24px;">${c.avatar_url ? `<img src="${c.avatar_url}">` : (c.full_name || 'U').charAt(0)}</div>
+                    ${renderAvatar(c, { size: 24, borderRadius: '50%', fontSize: '0.8rem' })}
                     <div class="dt" style="font-size:0.8rem;">${c.full_name}</div>
                     <div class="ds" style="margin-left:auto;">+</div>
                 </div>
@@ -642,9 +639,7 @@ function renderTeamTab(container, assignees, collaborators, spaceId) {
                             <tr style="border-bottom: 1px solid #f1f5f9;">
                                 <td style="padding: 1rem;">
                                     <div style="display: flex; align-items: center; gap: 1rem;">
-                                        <div class="avatar-circle" style="width:32px; height:32px; font-size: 0.85rem;">
-                                            ${profile.avatar_url ? `<img src="${profile.avatar_url}">` : (profile.full_name || 'U').charAt(0)}
-                                        </div>
+                                        ${renderAvatar(profile || { full_name: 'Sconosciuto' }, { size: 32, borderRadius: '50%', fontSize: '0.85rem' })}
                                         <div style="display: flex; flex-direction: column;">
                                             <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary);">${profile.full_name || 'Sconosciuto'}</div>
                                             <div style="font-size: 0.75rem; color: var(--text-tertiary);">${profile.email || ''}</div>
@@ -711,9 +706,7 @@ function renderTeamTab(container, assignees, collaborators, spaceId) {
             <div style="max-height: 250px; overflow-y: auto; padding: 0.5rem;">
                 ${candidates.map(c => `
                     <div class="dropdown-item candidate-item" data-uid="${c.user_id}" data-cid="${c.id}" style="padding: 8px; border-radius: 8px;">
-                        <div class="avatar-circle" style="width:24px; height:24px;">
-                            ${c.avatar_url ? `<img src="${c.avatar_url}">` : (c.full_name || 'U').charAt(0)}
-                        </div>
+                        ${renderAvatar(c, { size: 24, borderRadius: '50%', fontSize: '0.85rem' })}
                         <div style="flex: 1; font-size: 0.85rem; font-weight: 500;">${c.full_name}</div>
                         <span class="material-icons-round" style="font-size: 1.2rem; color: var(--brand-blue);">add_circle_outline</span>
                     </div>

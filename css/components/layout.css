@@ -39,6 +39,12 @@
     font-weight: 600;
     font-size: 1.5rem;
     letter-spacing: -0.5px;
+    transition: opacity 0.3s ease;
+}
+
+.top-bar h2.solid-title {
+    opacity: 1;
+    font-weight: 700;
 }
 
 /* Detail Page Layout */

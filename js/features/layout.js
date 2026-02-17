@@ -1,6 +1,8 @@
-import { state } from '../modules/state.js';
+import { state } from '/js/modules/state.js';
 import { supabase } from '../modules/config.js';
 import { fetchCollaborators } from '../modules/api.js';
+
+const navStack = [];
 
 export function initLayout() {
     // Sidebar Toggle Logic
@@ -14,7 +16,7 @@ export function initLayout() {
             if (sidebar.classList.contains('collapsed')) {
                 icon.textContent = 'chevron_right';
                 // Exit drill-down when collapsing
-                exitDrillDown();
+                exitDrillDown(true); // Force full exit
             } else {
                 icon.textContent = 'chevron_left';
             }
@@ -27,45 +29,51 @@ export function initLayout() {
 
 function initDrillDownNavigation() {
     const navMenu = document.querySelector('.nav-menu');
-    const hasSubmenuItems = Array.from(document.querySelectorAll('.has-submenu'));
+    if (!navMenu) return;
 
-    // Mark items for drill-down mode
+    // Attach listeners to primary layer items
+    attachDrillDownListeners(navMenu);
+
+    // FORCE FIX: Ensure normal links work
+    delegateLinkClicks(navMenu);
+}
+
+function attachDrillDownListeners(container) {
+    const hasSubmenuItems = container.querySelectorAll('.has-submenu');
+
     hasSubmenuItems.forEach(item => {
-        item.classList.add('drill-mode');
-
-        // Remove old submenu toggle behavior by cloning
+        // Remove existing listener to avoid duplicates if re-init
         const newItem = item.cloneNode(true);
         item.parentNode.replaceChild(newItem, item);
 
-        // Add drill-down click handler
         newItem.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
 
-            // Don't drill-down if sidebar is collapsed
             if (document.getElementById('sidebar').classList.contains('collapsed')) {
                 return;
             }
 
-            const submenuId = newItem.id.replace('-toggle', '-submenu');
-            const submenu = document.getElementById(submenuId);
+            // FIND SUBMENU RELATIVELY (Next sibling or within container)
+            let submenu = newItem.nextElementSibling;
+            if (submenu && !submenu.classList.contains('submenu')) {
+                // Try to find it if there's a wrapper
+                submenu = newItem.parentElement.querySelector('.submenu');
+            }
 
-            if (submenu) {
+            if (submenu && submenu.classList.contains('submenu')) {
                 activateDrillDown(newItem, submenu);
-            } else {
-                console.warn('Submenu not found for:', submenuId);
             }
         });
     });
+}
 
-    // FORCE FIX: Ensure normal links work
-    const normalLinks = document.querySelectorAll('.nav-item[href^="#"]:not(.has-submenu)');
+function delegateLinkClicks(container) {
+    const normalLinks = container.querySelectorAll('.nav-item[href^="#"]:not(.has-submenu)');
     normalLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             const target = link.getAttribute('href');
-            console.log("Force clicking link:", target);
             if (target) {
-                // Manually set hash to ensure navigation
                 window.location.hash = target;
             }
         });
@@ -74,32 +82,34 @@ function initDrillDownNavigation() {
 
 function activateDrillDown(categoryItem, submenu) {
     const navMenu = document.querySelector('.nav-menu');
-    const sidebar = document.getElementById('sidebar');
+    const categoryName = categoryItem.querySelector('span:not(.material-icons-round)')?.textContent || 'Indietro';
 
-    // Get category name
-    const categoryName = categoryItem.querySelector('span:not(.material-icons-round)').textContent;
+    // If already in a drill-down, save current state to stack
+    const secondaryLayer = navMenu.querySelector('.nav-layer.secondary');
+    if (navMenu.classList.contains('drilled-down') && secondaryLayer) {
+        navStack.push(secondaryLayer.innerHTML);
+    }
 
-    // Create secondary layer if it doesn't exist
-    let secondaryLayer = navMenu.querySelector('.nav-layer.secondary');
-    if (!secondaryLayer) {
-        // Wrap existing nav items in primary layer
+    // Prepare primary layer if it doesn't exist
+    if (!navMenu.querySelector('.nav-layer.primary')) {
         const primaryLayer = document.createElement('div');
         primaryLayer.className = 'nav-layer primary';
-
-        // Move all direct children of nav-menu to primary layer
         while (navMenu.firstChild) {
             primaryLayer.appendChild(navMenu.firstChild);
         }
         navMenu.appendChild(primaryLayer);
-
-        // Create secondary layer
-        secondaryLayer = document.createElement('div');
-        secondaryLayer.className = 'nav-layer secondary';
-        navMenu.appendChild(secondaryLayer);
     }
 
-    // Build secondary menu content
-    secondaryLayer.innerHTML = `
+    // Create or clear secondary layer
+    let secLayer = navMenu.querySelector('.nav-layer.secondary');
+    if (!secLayer) {
+        secLayer = document.createElement('div');
+        secLayer.className = 'nav-layer secondary';
+        navMenu.appendChild(secLayer);
+    }
+
+    // Build content
+    secLayer.innerHTML = `
         <div class="nav-back">
             <span class="material-icons-round">arrow_back</span>
             <span>Indietro</span>
@@ -107,47 +117,44 @@ function activateDrillDown(categoryItem, submenu) {
         <div class="nav-category-title">${categoryName}</div>
     `;
 
-    // Clone submenu items into secondary layer
     const submenuClone = submenu.cloneNode(true);
+    // Remove IDs from the clone to prevent ID collisions and accidental visibility updates
+    submenuClone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
     submenuClone.classList.remove('hidden');
-    secondaryLayer.appendChild(submenuClone);
+    secLayer.appendChild(submenuClone);
 
-    // Activate drill-down
+    // Re-attach listeners to cloned content
+    attachDrillDownListeners(secLayer);
+    delegateLinkClicks(secLayer);
+
+    // Activate transition
     navMenu.classList.add('drilled-down');
 
-    // Add back button handler
-    const backBtn = secondaryLayer.querySelector('.nav-back');
-    backBtn.addEventListener('click', () => {
-        exitDrillDown();
-    });
-
-    // Re-attach click handlers to cloned nav items to ensure they work
-    const clonedNavItems = submenuClone.querySelectorAll('.nav-item[data-target]');
-    clonedNavItems.forEach(item => {
-        item.addEventListener('click', (e) => {
-            // Keep the drill-down open when navigating between sub-items
-            // The router will handle the view change via hashchange
-            const targetHash = item.getAttribute('href');
-            console.log(`[DrillDown] Navigating to: ${targetHash}`);
-
-            if (targetHash) {
-                window.location.hash = targetHash;
-            }
-
-            // Add a slight delay for visual feedback if needed, but don't exit
-            setTimeout(() => {
-                // Update active state manually in the drill-down view
-                submenuClone.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-                item.classList.add('active');
-            }, 50);
-        });
-    });
+    // Back button
+    const backBtn = secLayer.querySelector('.nav-back');
+    backBtn.addEventListener('click', () => exitDrillDown());
 }
 
-function exitDrillDown() {
+function exitDrillDown(forceFull = false) {
     const navMenu = document.querySelector('.nav-menu');
-    if (navMenu) {
+    const secondaryLayer = navMenu?.querySelector('.nav-layer.secondary');
+
+    if (forceFull || navStack.length === 0) {
         navMenu.classList.remove('drilled-down');
+        navStack.length = 0; // Clear stack
+        if (secondaryLayer) secondaryLayer.innerHTML = ''; // Clear stale content
+    } else {
+        // Pop from stack and restore
+        const prevState = navStack.pop();
+        if (secondaryLayer) {
+            secondaryLayer.innerHTML = prevState;
+            // Re-attach listeners to the restored HTML
+            attachDrillDownListeners(secondaryLayer);
+            delegateLinkClicks(secondaryLayer);
+            // Re-attach back button listener specifically
+            const backBtn = secondaryLayer.querySelector('.nav-back');
+            backBtn?.addEventListener('click', () => exitDrillDown());
+        }
     }
 }
 
@@ -372,88 +379,63 @@ export function updateSidebarVisibility() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
 
+    const currentPrimary = sidebar.querySelector('.nav-layer.primary') || sidebar;
     const adminBtn = document.getElementById('admin-settings-btn');
-    const managementNav = sidebar.querySelector('#nav-management');
-    const navPm = sidebar.querySelector('#nav-pm');
-    const managementLabel = managementNav?.querySelector('.submenu-label');
 
-    // Section containers (subgroups) inside management
-    const accountingSection = document.querySelector('#accounting-toggle')?.closest('.nav-group');
-    const anagraficheSection = document.querySelector('#anagrafiche-menu-toggle')?.closest('.nav-group');
-    const tariffarioSection = document.querySelector('#tariffario-toggle')?.closest('.nav-group');
+    // Target groups ONLY within the primary layer (the source of truth)
+    const navManagement = currentPrimary.querySelector('#nav-management');
+    const navAccounting = currentPrimary.querySelector('#nav-accounting');
+    const navPm = currentPrimary.querySelector('#nav-pm');
 
-    // Generic items inside managementNav (e.g. Booking, Ordini)
-    // We strictly control what is visible by default
-    const genericItems = managementNav ? managementNav.querySelectorAll('a[data-target="dashboard"], a[data-target="assignments"], a[data-target="booking"]') : [];
+    // Management Section
+    if (navManagement) {
+        const toggle = navManagement.querySelector('#main-admin-toggle');
+        if (activeRole === 'admin' || isPrivilegedCollaborator) {
+            navManagement.classList.remove('hidden');
+            if (toggle) toggle.classList.remove('hidden');
+        } else {
+            navManagement.classList.add('hidden');
+        }
+    }
 
-    console.log(`[Sidebar] Updating visibility. Role: ${activeRole}, Privileged: ${isPrivilegedCollaborator}, PM: ${isProjectManager}`);
+    // Accounting Section
+    if (navAccounting) {
+        const toggle = navAccounting.querySelector('#main-accounting-toggle');
+        if (activeRole === 'admin' || isPrivilegedCollaborator) {
+            navAccounting.classList.remove('hidden');
+            if (toggle) toggle.classList.remove('hidden');
+            if (adminBtn) activeRole === 'admin' ? adminBtn.classList.remove('hidden') : adminBtn.classList.add('hidden');
 
-    console.log(`[Sidebar Visibility Check] activeRole: ${activeRole}, isProjectManager: ${isProjectManager}`);
-    // Project Management Section
+            // Access control for specific items inside accounting (still applies even in drill-down)
+            const ordini = navAccounting.querySelector('a[data-target="dashboard"]');
+            const incarichi = navAccounting.querySelector('a[data-target="assignments"]');
+            const booking = navAccounting.querySelector('a[data-target="booking"]');
+
+            if (activeRole !== 'admin') {
+                if (ordini) ordini.classList.add('hidden');
+                if (incarichi) incarichi.classList.add('hidden');
+                if (booking) booking.classList.toggle('hidden', !isPrivilegedCollaborator);
+            } else {
+                [ordini, incarichi, booking].forEach(i => i?.classList.remove('hidden'));
+            }
+        } else {
+            navAccounting.classList.add('hidden');
+        }
+    }
+
+    // PM Section
     if (navPm) {
+        const toggle = navPm.querySelector('#main-pm-toggle');
         if (activeRole === 'admin' || isProjectManager) {
-            console.log("[Sidebar] Removing hidden from nav-pm");
             navPm.classList.remove('hidden');
-            navPm.querySelectorAll('.nav-item').forEach(i => i.classList.remove('hidden'));
+            if (toggle) toggle.classList.remove('hidden');
         } else {
             navPm.classList.add('hidden');
         }
     }
 
-    if (managementNav) {
-        managementNav.classList.remove('hidden');
-
-        if (activeRole === 'admin') {
-            // Full access
-            console.log("[Sidebar] Giving Full Admin access");
-            if (adminBtn) adminBtn.classList.remove('hidden');
-            [accountingSection, anagraficheSection, tariffarioSection].forEach(s => s?.classList.remove('hidden'));
-
-            // Show all generic items (Ordini, Incarichi, Booking)
-            if (managementNav) {
-                managementNav.querySelectorAll('a.nav-item').forEach(i => i.classList.remove('hidden'));
-            }
-
-            if (managementLabel) managementLabel.classList.remove('hidden');
-        } else if (isPrivilegedCollaborator) {
-            // Partner / Amministrazione access
-            if (adminBtn) adminBtn.classList.add('hidden');
-            [accountingSection, anagraficheSection, tariffarioSection].forEach(s => s?.classList.remove('hidden'));
-
-            // Explicitly HIDE Ordini and Incarichi for now as requested
-            managementNav.querySelectorAll('a[data-target="dashboard"], a[data-target="assignments"]').forEach(i => i.classList.add('hidden'));
-
-            // SHOW Booking
-            const bookingLink = managementNav.querySelector('a[data-target="booking"]');
-            if (bookingLink) bookingLink.classList.remove('hidden');
-
-            if (managementLabel) managementLabel.classList.remove('hidden');
-        } else {
-            // Standard Collaborator
-            if (adminBtn) adminBtn.classList.add('hidden');
-
-            // Hide sensitive sections
-            [accountingSection, anagraficheSection, tariffarioSection].forEach(s => s?.classList.add('hidden'));
-
-            // Hide Ordini and Assignments global links for standard collaborators if desired, 
-            // OR keep them if they are allowed. 
-            // Based on previous user request, standard collabs usually only see Booking, Profile, Agenda.
-            // Let's hide Ordini/Incarichi from sidebar to keep it clean, as they use "I miei Incarichi"
-            managementNav.querySelectorAll('a[data-target="dashboard"], a[data-target="assignments"]').forEach(i => i.classList.add('hidden'));
-
-            // HIDE Booking for standard users (unless Project Manager or specialized roll which is handled above or elsewhere)
-            const bookingLink = managementNav.querySelector('a[data-target="booking"]');
-            if (bookingLink) bookingLink.classList.add('hidden');
-
-            // Manage label visibility
-            if (managementLabel) {
-                managementLabel.classList.add('hidden');
-            }
-        }
-    }
-
-    // Handle Admin Section Visibility (if distinct)
-    const adminNav = sidebar.querySelector('#nav-admin');
+    // Settings Profile link
+    const adminNav = currentPrimary.querySelector('#nav-admin');
     if (adminNav) {
         activeRole === 'admin' ? adminNav.classList.remove('hidden') : adminNav.classList.add('hidden');
     }

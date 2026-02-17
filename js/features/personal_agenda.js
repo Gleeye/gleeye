@@ -1,5 +1,5 @@
 import { supabase } from '../modules/config.js';
-import { state } from '../modules/state.js';
+import { state } from '/js/modules/state.js';
 import { fetchAvailabilityRules, fetchRestDays, fetchAvailabilityOverrides } from '../modules/api.js';
 import { fetchCollaboratorAppointments, fetchAppointment } from '../modules/pm_api.js';
 import { openAvailabilityModal, checkAndHandleGoogleCallback } from './availability_manager.js?v=317';
@@ -277,8 +277,7 @@ async function fetchMyBookings() {
 
             if (!collabRecord) {
                 console.warn("[Agenda] No collaborator record found for user:", authUserId);
-                updateSyncStatus('error', 'Profilo non trovato');
-                window.showGlobalAlert('Nessun profilo collaboratore associato a questo utente.', 'error');
+                updateSyncStatus('error', 'Profilo mancante');
                 eventsCache = [];
                 // Do not return immediately, allow rendering empty agenda
             } else {

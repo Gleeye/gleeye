@@ -1,5 +1,5 @@
 import { supabase } from '../modules/config.js';
-import { state } from '../modules/state.js';
+import { state } from '/js/modules/state.js';
 import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js';
 import { showGlobalAlert } from '../modules/utils.js?v=317';
 import { updateSidebarVisibility } from './layout.js?v=317';

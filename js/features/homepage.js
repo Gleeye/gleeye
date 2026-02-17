@@ -1,4 +1,4 @@
-import { state } from '../modules/state.js';
+import { state } from '/js/modules/state.js';
 import { supabase } from '../modules/config.js';
 import { formatAmount } from '../modules/utils.js?v=317';
 
@@ -134,6 +134,9 @@ async function fetchRecentProjects(collabId, userUuid) {
             return [];
         }
 
+        // SECURITY FIX: If we are impersonating or viewing as a specific collab, ensure we ONLY match that ID.
+        // We do NOT want to fallback to defaults or show admin data.
+
         // 1. Identify which orders this user technically "owns" for LINK routing only
         const { data: myManagedSpaces } = await supabase
             .from('pm_spaces')
@@ -142,6 +145,49 @@ async function fetchRecentProjects(collabId, userUuid) {
             .eq('type', 'commessa');
 
         const managedOrderIds = new Set((myManagedSpaces || []).map(s => s.ref_ordine).filter(Boolean));
+
+        // ROLE CHECK
+        const userTags = state.profile?.tags || [];
+        const isPrivileged = userTags.includes('Partner') || userTags.includes('Amministrazione') || userTags.includes('Account') || userTags.some(t => t.toLowerCase() === 'project manager' || t.toLowerCase() === 'pm');
+
+        // FOR STANDARD COLLABORATORS: Fetch Tasks (assignments), NOT Projects
+        if (!isPrivileged) {
+            const { data: myAssignments } = await supabase
+                .from('pm_items')
+                .select(`
+                    id, title, status, created_at,
+                    pm_spaces (
+                        orders (id, order_number, title, clients(business_name))
+                    ),
+                    pm_item_assignees!inner(user_ref)
+                `)
+                .eq('pm_item_assignees.user_ref', userId)
+                .neq('status', 'done')
+                .order('created_at', { ascending: false })
+                .limit(100);
+
+            if (!myAssignments) return [];
+
+            return myAssignments.map(t => {
+                let ord = null;
+                if (t.pm_spaces) {
+                    const space = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
+                    if (space && space.orders) {
+                        ord = Array.isArray(space.orders) ? space.orders[0] : space.orders;
+                    }
+                }
+                return {
+                    id: t.id,
+                    type: 'task',
+                    title: t.title,
+                    order_number: ord?.order_number || '',
+                    client: ord?.clients?.business_name || 'Incarico',
+                    status: t.status,
+                    last_active: t.created_at,
+                    link: '' // Handled by onclick
+                };
+            });
+        }
 
         // 2. Filter for "In Svolgimento" only (as requested)
         const isInSvolgimento = (status) => {
@@ -157,6 +203,7 @@ async function fetchRecentProjects(collabId, userUuid) {
             const { data: assigned } = await supabase
                 .from('order_collaborators')
                 .select(`
+                    role_in_order,
                     orders (id, title, order_number, status_works, clients(business_name), created_at)
                 `)
                 .eq('collaborator_id', collaboratorId);
@@ -167,6 +214,20 @@ async function fetchRecentProjects(collabId, userUuid) {
                     if (!o || projectsMap.has(o.id)) return;
                     if (!isInSvolgimento(o.status_works)) return;
 
+                    // FILTER: Logica Opt-In (Stretta)
+                    // Mostriamo la commessa SOLO se il ruolo è esplicitamente PM o Tecnico/Operativo.
+                    // Se il ruolo è generico ("collaboratore"), vuoto, o puramente amministrativo ("account", "partner"), LO SALTIAMO.
+                    const role = (item.role_in_order || '').toLowerCase().trim();
+
+                    // Whitelist operational roles
+                    const isPM = role.includes('pm') || role.includes('project') || role.includes('manager');
+                    const isTech = role.includes('svilupp') || role.includes('dev') || role.includes('social') || role.includes('ads') || role.includes('seo') || role.includes('copy') || role.includes('design') || role.includes('grafic') || role.includes('tecni');
+
+                    // STRICT CHECK: Must be PM or Tech. Everything else (Account, Partner, empty, generic collaborator) is hidden in this view.
+                    if (!isPM && !isTech) {
+                        return;
+                    }
+
                     projectsMap.set(o.id, {
                         id: o.id,
                         order_number: o.order_number,
@@ -174,18 +235,18 @@ async function fetchRecentProjects(collabId, userUuid) {
                         client: o.clients?.business_name || 'No Cliente',
                         status: o.status_works,
                         last_active: o.created_at,
-                        link: `#pm/commessa/${o.id}` // Always Go to Hub
+                        link: `#pm/commessa/${o.id}`
                     });
                 });
             }
         }
 
-        // --- STEP 2: Fetch Orders where specifically designated as PM (orders.pm_id) ---
-        if (collaboratorId) {
+        // --- STEP 2: Fetch Orders where user is PM (orders.pm_id) ---
+        if (collaboratorId || userId) {
             const { data: managed } = await supabase
                 .from('orders')
                 .select('id, title, order_number, status_works, clients(business_name), created_at')
-                .eq('pm_id', collaboratorId);
+                .or(`pm_id.eq.${collaboratorId},pm_id_uuid.eq.${userId}`); // Handle both potential ID types if they exist
 
             if (managed) {
                 managed.forEach(o => {
@@ -205,31 +266,24 @@ async function fetchRecentProjects(collabId, userUuid) {
             }
         }
 
-        // --- STEP 3: Recent Personal Activity (activity_logs) ---
-        if (collaboratorId) {
-            const { data: recentLogs } = await supabase
-                .from('activity_logs')
+        // --- STEP 3: Fetch Orders where user is PM in related Space or Default PM ---
+        if (collaboratorId || userId) {
+            const { data: spaceManaged } = await supabase
+                .from('pm_space_assignees')
                 .select(`
-                    created_at,
-                    orders (id, title, order_number, status_works, clients(business_name))
+                    role,
+                    pm_spaces!inner (
+                        ref_ordine,
+                        orders!inner (id, title, order_number, status_works, clients(business_name), created_at)
+                    )
                 `)
-                .eq('collaborator_id', collaboratorId)
-                .order('created_at', { ascending: false })
-                .limit(50);
+                .eq('role', 'pm')
+                .or(`user_ref.eq.${userId},collaborator_ref.eq.${collaboratorId}`);
 
-            if (recentLogs) {
-                recentLogs.forEach(log => {
-                    const o = log.orders;
-                    if (!o) return;
-
-                    if (projectsMap.has(o.id)) {
-                        const existing = projectsMap.get(o.id);
-                        if (new Date(log.created_at) > new Date(existing.last_active)) {
-                            existing.last_active = log.created_at;
-                        }
-                        return;
-                    }
-
+            if (spaceManaged) {
+                spaceManaged.forEach(sa => {
+                    const o = sa.pm_spaces?.orders;
+                    if (!o || projectsMap.has(o.id)) return;
                     if (!isInSvolgimento(o.status_works)) return;
 
                     projectsMap.set(o.id, {
@@ -238,17 +292,134 @@ async function fetchRecentProjects(collabId, userUuid) {
                         title: o.title || 'Senza Titolo',
                         client: o.clients?.business_name || 'No Cliente',
                         status: o.status_works,
-                        last_active: log.created_at,
+                        last_active: o.created_at,
                         link: `#pm/commessa/${o.id}`
                     });
+                });
+            }
+
+            // REMOVED: default_pm_user_ref check.
+            // This field often defaults to the creator or an admin, causing "false positives"
+            // where a user sees a project they technically "own" in the DB but don't manage.
+        }
+
+        // --- STEP 4: Update Last Active from Personal Activity (activity_logs) ---
+        // We only use logs to sort existing projects, NOT to add new ones.
+        // This prevents accidental "views" from cluttering the home list.
+        if (collaboratorId) {
+            const { data: recentLogs } = await supabase
+                .from('activity_logs')
+                .select(`
+                    created_at,
+                    orders (id)
+                `)
+                .eq('collaborator_id', collaboratorId)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (recentLogs) {
+                recentLogs.forEach(log => {
+                    const oId = log.orders?.id;
+                    if (!oId) return;
+
+                    if (projectsMap.has(oId)) {
+                        const existing = projectsMap.get(oId);
+                        if (new Date(log.created_at) > new Date(existing.last_active)) {
+                            existing.last_active = log.created_at;
+                        }
+                    }
                 });
             }
         }
 
         // Final sort by activity date
-        const results = Array.from(projectsMap.values())
+        let results = Array.from(projectsMap.values())
             .sort((a, b) => new Date(b.last_active) - new Date(a.last_active))
-            .slice(0, 20);
+            .slice(0, 200);
+
+        // ENRICH WITH STATS
+        if (results.length > 0) {
+            const orderIds = results.map(r => r.id);
+
+            // 1. Get Spaces for these Orders
+            const { data: spaces } = await supabase
+                .from('pm_spaces')
+                .select('id, ref_ordine')
+                .in('ref_ordine', orderIds);
+
+            if (spaces && spaces.length > 0) {
+                const spaceIds = spaces.map(s => s.id);
+                const orderToSpaces = {};
+                spaces.forEach(s => {
+                    if (!orderToSpaces[s.ref_ordine]) orderToSpaces[s.ref_ordine] = [];
+                    orderToSpaces[s.ref_ordine].push(s.id);
+                });
+
+                // 2. Get Items for these Spaces
+                const { data: items } = await supabase
+                    .from('pm_items')
+                    .select('id, space_ref, status, item_type, due_date')
+                    .in('space_ref', spaceIds)
+                    .neq('status', 'done');
+
+                if (items) {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const imminentLimit = new Date();
+                    imminentLimit.setDate(today.getDate() + 3);
+
+                    const spaceStats = {};
+                    items.forEach(it => {
+                        if (!spaceStats[it.space_ref]) spaceStats[it.space_ref] = { tasks: 0, activities: 0, overdue: 0, imminent: 0, in_progress: 0 };
+                        const s = spaceStats[it.space_ref];
+
+                        if (it.item_type === 'attivita' || it.item_type === 'activity') {
+                            s.activities++;
+                            if (it.status === 'in_progress') s.in_progress++;
+                        } else {
+                            s.tasks++;
+                        }
+
+                        if (it.due_date) {
+                            const d = new Date(it.due_date);
+                            if (d < today) s.overdue++;
+                            else if (d <= imminentLimit) s.imminent++;
+                        }
+                    });
+
+                    // 3. Get Appointments for the current user in these Orders
+                    const { data: userAppts } = await supabase
+                        .from('appointments')
+                        .select('id, order_id, appointment_internal_participants!inner(collaborator_id)')
+                        .eq('appointment_internal_participants.collaborator_id', collaboratorId)
+                        .in('order_id', orderIds)
+                        .gte('start_time', today.toISOString());
+
+                    const orderApptsCount = {};
+                    if (userAppts) {
+                        userAppts.forEach(a => {
+                            if (!orderApptsCount[a.order_id]) orderApptsCount[a.order_id] = 0;
+                            orderApptsCount[a.order_id]++;
+                        });
+                    }
+
+                    results.forEach(r => {
+                        const relatedSpaces = orderToSpaces[r.id] || [];
+                        const stats = { tasks: 0, activities: 0, overdue: 0, imminent: 0, in_progress: 0, appointments: orderApptsCount[r.id] || 0 };
+                        relatedSpaces.forEach(sid => {
+                            if (spaceStats[sid]) {
+                                stats.tasks += spaceStats[sid].tasks;
+                                stats.activities += spaceStats[sid].activities;
+                                stats.overdue += spaceStats[sid].overdue;
+                                stats.imminent += spaceStats[sid].imminent;
+                                stats.in_progress += spaceStats[sid].in_progress;
+                            }
+                        });
+                        r.stats = stats;
+                    });
+                }
+            }
+        }
 
         console.log("[Homepage] Verified Personal Projects:", results.length, results);
         return results;
@@ -258,6 +429,138 @@ async function fetchRecentProjects(collabId, userUuid) {
         return [];
     }
 }
+
+export async function fetchInternalProjects(collaboratorId, userId) {
+    try {
+        const projectsMap = new Map();
+
+        // 1. Fetch Internal Spaces (Clusters and Projects)
+        // We look for spaces assigned to the user or where PM
+        const { data: assigned } = await supabase
+            .from('pm_spaces')
+            .select(`
+                id, name, type, area, is_cluster, parent_ref, created_at,
+                cluster:parent_ref ( name ),
+                pm_space_assignees!inner ( user_ref, collaborator_ref )
+            `)
+            .eq('type', 'interno')
+            .eq('is_cluster', false)
+            .or(`pm_space_assignees.user_ref.eq.${userId},pm_space_assignees.collaborator_ref.eq.${collaboratorId}`);
+
+        if (assigned) {
+            assigned.forEach(s => {
+                const path = s.cluster?.name ? `${s.cluster.name} > ${s.name}` : s.name;
+                projectsMap.set(s.id, {
+                    id: s.id,
+                    order_number: '', // Removed prefix
+                    title: s.name,
+                    client: path, // Full path
+                    status: 'active',
+                    last_active: s.created_at,
+                    link: `#pm/space/${s.id}`
+                });
+            });
+        }
+
+        // Also fetch where is PM by default
+        const { data: managed } = await supabase
+            .from('pm_spaces')
+            .select('id, name, type, area, is_cluster, parent_ref, created_at, cluster:parent_ref ( name )')
+            .eq('type', 'interno')
+            .eq('is_cluster', false)
+            .eq('default_pm_user_ref', userId);
+
+        if (managed) {
+            managed.forEach(s => {
+                if (projectsMap.has(s.id)) return;
+                const path = s.cluster?.name ? `${s.cluster.name} > ${s.name}` : s.name;
+                projectsMap.set(s.id, {
+                    id: s.id,
+                    order_number: '', // Removed prefix
+                    title: s.name,
+                    client: path, // Full path
+                    status: 'active',
+                    last_active: s.created_at,
+                    link: `#pm/space/${s.id}`
+                });
+            });
+        }
+
+        let results = Array.from(projectsMap.values())
+            .sort((a, b) => new Date(b.last_active) - new Date(a.last_active));
+
+        // ENRICH WITH STATS
+        if (results.length > 0) {
+            const spaceIds = results.map(r => r.id);
+            const { data: items } = await supabase
+                .from('pm_items')
+                .select('id, space_ref, status, item_type, due_date')
+                .in('space_ref', spaceIds)
+                .neq('status', 'done');
+
+            if (items) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const imminentLimit = new Date();
+                imminentLimit.setDate(today.getDate() + 3);
+
+                const spaceStats = {};
+                items.forEach(it => {
+                    if (!spaceStats[it.space_ref]) spaceStats[it.space_ref] = { tasks: 0, activities: 0, overdue: 0, imminent: 0, in_progress: 0 };
+                    const s = spaceStats[it.space_ref];
+
+                    if (it.item_type === 'attivita' || it.item_type === 'activity') {
+                        s.activities++;
+                        if (it.status === 'in_progress') s.in_progress++;
+                    } else {
+                        s.tasks++;
+                    }
+
+                    if (it.due_date) {
+                        const d = new Date(it.due_date);
+                        if (d < today) s.overdue++;
+                        else if (d <= imminentLimit) s.imminent++;
+                    }
+                });
+
+                // Get User Appointments in these Spaces
+                const { data: userAppts } = await supabase
+                    .from('appointments')
+                    .select('id, pm_space_id, appointment_internal_participants!inner(collaborator_id)')
+                    .eq('appointment_internal_participants.collaborator_id', collaboratorId)
+                    .in('pm_space_id', spaceIds)
+                    .gte('start_time', today.toISOString());
+
+                const spaceApptsCount = {};
+                if (userAppts) {
+                    userAppts.forEach(a => {
+                        if (!spaceApptsCount[a.pm_space_id]) spaceApptsCount[a.pm_space_id] = 0;
+                        spaceApptsCount[a.pm_space_id]++;
+                    });
+                }
+
+                results.forEach(r => {
+                    const s = spaceStats[r.id] || { tasks: 0, activities: 0, overdue: 0, imminent: 0, in_progress: 0 };
+                    r.stats = { ...s, appointments: spaceApptsCount[r.id] || 0 };
+                });
+            }
+        }
+
+        return results;
+
+    } catch (e) {
+        console.error("Error fetching internal projects:", e);
+        return [];
+    }
+}
+
+const getFirstName = (collab, profile) => {
+    if (collab?.first_name) return collab.first_name;
+    if (collab?.full_name) return collab.full_name.split(' ')[0];
+    if (profile?.first_name) return profile.first_name;
+    if (profile?.full_name) return profile.full_name.split(' ')[0];
+    return 'Utente';
+};
 
 export async function renderHomepage(container) {
     console.log("Rendering Homepage...");
@@ -273,14 +576,38 @@ export async function renderHomepage(container) {
     if (!myCollab) {
         myCollab = state.collaborators.find(c => c.email === user.email);
     }
-
-    if (!myCollab) {
-        container.innerHTML = `<div style="padding:2rem;">Profilo non trovato. Contatta l'amministratore.</div>`;
-        return;
+    // Fallback: search by user_id
+    if (!myCollab && state.profile) {
+        myCollab = state.collaborators.find(c => c.user_id === state.profile.id);
     }
 
-    const firstName = myCollab.first_name || 'Utente';
+    // Graceful fallback if still not found: synthesize a minimal profile
+    if (!myCollab) {
+        console.warn("[Homepage] Collaborator profile not found for current user. Using fallback.");
+        myCollab = {
+            id: state.profile?.id || user.id,
+            user_id: state.profile?.id || user.id,
+            first_name: state.profile?.first_name || user.user_metadata?.first_name || 'Utente',
+            last_name: state.profile?.last_name || user.user_metadata?.last_name || '',
+            full_name: state.profile ? `${state.profile.first_name} ${state.profile.last_name || ''}`.trim() : 'Utente',
+            email: user.email
+        };
+    }
+
+    const firstName = getFirstName(myCollab, state.profile);
     const myId = myCollab.id;
+
+    // --- MANAGE TOP BAR GREETING ---
+    const pageTitle = document.getElementById('page-title');
+    if (pageTitle) {
+        const hours = new Date().getHours();
+        let greeting = 'Buongiorno';
+        if (hours >= 14 && hours < 19) greeting = 'Buon pomeriggio';
+        else if (hours >= 19 || hours < 5) greeting = 'Buonasera';
+
+        pageTitle.textContent = `${greeting}, ${firstName}!`;
+        pageTitle.classList.add('solid-title');
+    }
 
     // --- FETCH DATA FOR "MY ACTIVITIES" ---
     let myTasks = [], activeTimers = [], events = [];
@@ -288,16 +615,8 @@ export async function renderHomepage(container) {
     if (!window.hpActivityFilter) window.hpActivityFilter = 'task';
 
     try {
-        // 1. TIMERS (Active)
-        const { data: timers } = await supabase
-            .from('activity_logs')
-            .select(`
-                *,
-                orders (id, order_number, title)
-            `)
-            .eq('collaborator_id', myId)
-            .is('end_time', null);
-        activeTimers = timers || [];
+        // 1. TIMERS (Reserved for future use)
+        activeTimers = [];
 
         // 2. TASKS (From PM Items)
         // Use user_ref (Auth ID) for assignment check.
@@ -306,12 +625,20 @@ export async function renderHomepage(container) {
         const { data: pmTasks, error: pmError } = await supabase
             .from('pm_items')
             .select(`
-                *,
+                id, title, status, due_date, item_type,
+                parent_ref,
+                parent_task:parent_ref(id, title, item_type),
                 pm_spaces (
-                    ref_ordine,
-                    orders (order_number, title)
+                    id, name, type, area, is_cluster, parent_ref,
+                    orders (
+                        order_number, 
+                        title,
+                        clients (id, business_name, client_code)
+                    ),
+                    cluster:parent_ref(id, name)
                 ),
-                pm_item_assignees!inner(user_ref, role)
+                pm_item_assignees!inner(user_ref, role),
+                all_assignees:pm_item_assignees(user_ref, role)
             `)
             .eq('pm_item_assignees.user_ref', targetUserId)
             .neq('status', 'done');
@@ -324,33 +651,64 @@ export async function renderHomepage(container) {
                 const myAssignment = t.pm_item_assignees.find(a => a.user_ref === targetUserId);
                 const myRole = myAssignment ? myAssignment.role : 'viewer';
 
-                // Robustly extract order
+                // Robustly extract order and breadcrumb
                 let ord = null;
+                let breadcrumb = '';
                 if (t.pm_spaces) {
                     const space = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
                     if (space && space.orders) {
                         ord = Array.isArray(space.orders) ? space.orders[0] : space.orders;
                     }
+
+                    const path = [];
+                    // Removed area from breadcrumb to display it more clearly on the bottom line
+                    const cluster = Array.isArray(space.cluster) ? space.cluster[0] : space.cluster;
+                    if (cluster && cluster.name) path.push(cluster.name);
+
+                    if (space && space.name && (!cluster || space.name !== cluster.name)) path.push(space.name);
+
+                    const parentTask = Array.isArray(t.parent_task) ? t.parent_task[0] : t.parent_task;
+                    if (parentTask && parentTask.title) path.push(parentTask.title);
+
+                    breadcrumb = path.join(' › ');
                 }
+
+                const spaceObj = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
+                const parentTask = Array.isArray(t.parent_task) ? t.parent_task[0] : t.parent_task;
+
+                const rawType = (t.item_type || 'task').toLowerCase();
+                const parentRawType = (parentTask?.item_type || '').toLowerCase();
+
+                const isActivity = rawType === 'activity' || rawType.includes('attivit');
+                const isParentActivity = parentRawType === 'activity' || parentRawType.includes('attivit');
+                const isSubActivity = isActivity && isParentActivity;
+
                 return {
                     id: t.id,
                     title: t.title,
                     status: t.status,
                     due_date: t.due_date,
+                    parent_id: t.parent_ref,
                     orders: ord,
-                    // Use actual item_type from DB if available, else default to 'task'
-                    // Lowercase comparison to be safe
-                    raw_type: t.item_type || 'task',
+                    breadcrumb: breadcrumb,
+                    area: spaceObj?.area || '',
+                    space_type: (spaceObj?.type || '').toLowerCase(),
+                    raw_type: rawType,
+                    is_activity: isActivity,
+                    is_sub_activity: isSubActivity,
                     type: 'pm_task',
-                    role: myRole
+                    role: myRole,
+                    all_assignees: t.all_assignees || []
                 };
             });
         // Removed strict role filter. 
         // The inner join on pm_item_assignees.user_ref ensures we only fetch items assigned to the user.
         // If they are assigned (even as PM), they should see it.
 
-        // 3. EVENTS (Today/Upcoming)
-        events = await fetchDateEvents(myId, new Date());
+        // 3. EVENTS (Next 14 days for "surely see future appointments")
+        const rangeEnd = new Date();
+        rangeEnd.setDate(rangeEnd.getDate() + 14);
+        events = await fetchDateEvents(myId, new Date(), rangeEnd);
 
     } catch (err) {
         console.error("Error fetching My Activities data:", err);
@@ -359,20 +717,8 @@ export async function renderHomepage(container) {
     // Skeleton
     container.innerHTML = `
         <div class="homepage-container">
-            <!-- Header -->
-            <div class="homepage-header">
-                <div class="greeting-section">
-                    <h1>Buongiorno, ${firstName}!</h1>
-                    <p>Ecco cosa c'è in programma per oggi, ${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}.</p>
-                </div>
-                <div class="header-actions">
-                    <button class="primary-btn" onclick="window.location.hash='booking'">
-                        <span class="material-icons-round">add</span>
-                        Nuovo Evento
-                    </button>
-                    <!-- Search could act as global search focus -->
-                </div>
-            </div>
+            <!-- Content raised: Greeting in top-bar, context in timeline header -->
+            <div style="margin-top: 1rem;"></div>
 
             <!-- Top Grid: Timeline + My Activities -->
             <div style="height: 380px; display: flex; gap: 2rem; margin-top: 1rem;">
@@ -380,7 +726,7 @@ export async function renderHomepage(container) {
                 <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
                     <!-- HEADER (Date Nav) -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex: 0 0 auto;">
-                         <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-titles);">Oggi</h2>
+                         <h2 id="hp-date-description" style="font-size: 1.2rem; font-weight: 300; color: var(--text-primary); font-family: var(--font-base);">Ecco cosa c'è in programma per oggi, ${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
                          
                          <div style="display: flex; align-items: center; gap: 12px;">
                              <!-- Main Group -->
@@ -421,7 +767,7 @@ export async function renderHomepage(container) {
                     <!-- "MY ACTIVITIES" CARD -->
                     <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; height: 100%; overflow: hidden; background: #1e293b; color: white; border-radius: 16px;">
                         <!-- SEGMENTED CONTROL TABS (Icons) -->
-                        <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 4px; display: flex; gap: 4px; flex-shrink: 0;">
+                        <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 4px; display: flex; gap: 4px; flex-shrink: 0; align-items: stretch;">
                             <button onclick="window.setHpFilter('task', this)" class="tab-pill ${window.hpActivityFilter === 'task' ? 'active' : ''}" title="Task">
                                 <span class="material-icons-round" style="font-size: 18px;">check_circle</span>
                                 <span class="tab-count" style="margin-left: 4px;"></span>
@@ -430,9 +776,8 @@ export async function renderHomepage(container) {
                                 <span class="material-icons-round" style="font-size: 18px;">event</span>
                                 <span class="tab-count" style="margin-left: 4px;"></span>
                             </button>
-                            <button onclick="window.setHpFilter('timer', this)" class="tab-pill ${window.hpActivityFilter === 'timer' ? 'active' : ''}" title="Attività">
-                                <span class="material-icons-round" style="font-size: 18px;">schedule</span>
-                                <span class="tab-count" style="margin-left: 4px;"></span>
+                            <button id="hp-top-add-btn" onclick="window.toggleHpQuickEntry(this)" class="hp-add-event-btn" title="Crea Nuovo" style="flex: 1; border: none; background: var(--brand-blue); color: white; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);" onmouseover="this.style.transform='scale(1.05)'; this.style.background='#3b82f6'" onmouseout="this.style.transform='scale(1)'; this.style.background='var(--brand-blue)'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1.05)'">
+                                <span class="material-icons-round" style="font-size: 20px;">add</span>
                             </button>
                         </div>
                         
@@ -478,26 +823,72 @@ export async function renderHomepage(container) {
             </div>
 
             <!-- Bottom Grid -->
-            <div class="bottom-grid" style="margin-top: 3rem;">
+            <div class="bottom-grid" style="margin-top: 3rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem;">
 
-                <!-- Recent Projects -->
-                <div class="dashboard-widget">
-                    <div class="widget-header">
-                        <h3 class="widget-title">Progetti Recenti</h3>
-                        <button class="timeline-btn" onclick="window.location.hash='dashboard'">Vedi Tutti</button>
+                <!-- LEFT: PROJECTS -->
+                <div class="dashboard-widget" style="padding: 2rem;">
+                    <div class="widget-header" style="justify-content: flex-start; gap: 1.5rem; margin-bottom: 2rem;">
+                        <h3 class="widget-title" id="hp-bottom-title">Progetti</h3>
+                        
+                        <div style="background: var(--bg-tertiary); padding: 5px; border-radius: 12px; display: flex; gap: 4px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);">
+                            <button id="hp-bottom-tab-projects" onclick="window.setHpBottomTab('projects')" class="timeline-btn active" style="font-weight: 700;">
+                                <span id="hp-bottom-projects-label">Commesse</span>
+                            </button>
+                            <button id="hp-bottom-tab-internal" onclick="window.setHpBottomTab('internal')" class="timeline-btn" style="font-weight: 700;">
+                                Progetti Interni
+                            </button>
+                        </div>
+                        
+                        <div style="flex: 1;"></div>
+                        <button class="timeline-btn" onclick="window.location.hash='dashboard'" style="color: var(--brand-blue); font-weight: 700;">Vedi Tutti</button>
                     </div>
-                    <div id="home-recent-projects" class="custom-scrollbar" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 380px; overflow-y: auto; padding-right: 4px;">
+                    
+                    <div id="hp-bottom-kpis"></div>
+                    <div id="hp-bottom-content" class="premium-card-list custom-scrollbar" style="height: 420px; overflow-y: auto; padding-right: 8px;">
                          <span class="loader small"></span>
                     </div>
-                    <style>
-                        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-                        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-                        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
-                        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
-                    </style>
                 </div>
 
+                <!-- RIGHT: ACTIVITIES -->
+                <div class="dashboard-widget" style="padding: 2rem;">
+                    <div class="widget-header" style="justify-content: flex-start; gap: 1.5rem; margin-bottom: 2rem;">
+                        <h3 class="widget-title">Le mie attività</h3>
+                        
+                        <div style="background: var(--bg-tertiary); padding: 5px; border-radius: 12px; display: flex; gap: 4px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);">
+                            <button id="hp-act-tab-projects" onclick="window.setHpActivityTab('projects')" class="timeline-btn active" style="font-weight: 700;">
+                                Commesse
+                            </button>
+                            <button id="hp-act-tab-internal" onclick="window.setHpActivityTab('internal')" class="timeline-btn" style="font-weight: 700;">
+                                Progetti Interni
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="hp-activities-bottom-kpis"></div>
+                    <div id="hp-activities-bottom-content" class="premium-card-list custom-scrollbar" style="height: 420px; overflow-y: auto; padding-right: 8px;">
+                         <span class="loader small"></span>
+                    </div>
+                </div>
 
+                <!-- NEW: DELEGATED TASKS -->
+                <div class="dashboard-widget" style="padding: 2rem;">
+                    <div class="widget-header" style="justify-content: flex-start; gap: 1.5rem; margin-bottom: 2rem;">
+                        <h3 class="widget-title">Task Gestite</h3>
+                        <div style="background: var(--bg-tertiary); padding: 5px; border-radius: 12px; display: flex; gap: 4px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);">
+                            <button id="hp-delegated-tab-projects" onclick="window.setHpDelegatedTab('projects')" class="timeline-btn active" style="font-weight: 700;">
+                                Commesse
+                            </button>
+                            <button id="hp-delegated-tab-internal" onclick="window.setHpDelegatedTab('internal')" class="timeline-btn" style="font-weight: 700;">
+                                Progetti Interni
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="hp-delegated-bottom-kpis"></div>
+                    <div id="hp-delegated-bottom-content" class="premium-card-list custom-scrollbar" style="height: 420px; overflow-y: auto; padding-right: 8px;">
+                         <span class="loader small"></span>
+                    </div>
+                </div>
 
             </div>
         </div>
@@ -529,12 +920,8 @@ export async function renderHomepage(container) {
     // Function to update timeline and header date
     window.updateHomepageTimeline = async (date) => {
         const timelineWrapper = document.getElementById('hp-timeline-wrapper');
-        const headerTitle = container.querySelector('.homepage-header h1');
-
-        // Safety check if user navigated away
-        if (!headerTitle || !timelineWrapper) return;
-
-        const headerDate = headerTitle.nextElementSibling; // The <p> tag
+        const headerTitle = document.getElementById('page-title');
+        const headerDate = document.getElementById('hp-date-description');
 
         // Determine Start/End based on View
         let start = new Date(date);
@@ -561,7 +948,14 @@ export async function renderHomepage(container) {
 
         // Update header date
         headerDate.innerHTML = dateText;
-        headerTitle.textContent = `Buongiorno, ${firstName}!`; // Reset if it changed
+
+        // Keep Greeting in sync (especially if time passed or name changed)
+        const currentFirstName = getFirstName(null, state.profile);
+        const hours = new Date().getHours();
+        let greeting = 'Buongiorno';
+        if (hours >= 14 && hours < 19) greeting = 'Buon pomeriggio';
+        else if (hours >= 19 || hours < 5) greeting = 'Buonasera';
+        if (headerTitle) headerTitle.textContent = `${greeting}, ${currentFirstName}!`;
 
         timelineWrapper.innerHTML = `<div style="padding: 2rem; width: 100%; text-align: center; color: var(--text-tertiary);"><span class="loader small"></span> Caricamento...</div>`;
 
@@ -766,6 +1160,80 @@ export async function renderHomepage(container) {
         }, 0);
     };
 
+    // --- QUICK ENTRY MENU ---
+    window.toggleHpQuickEntry = (btn) => {
+        const existing = document.getElementById('hp-quick-entry-popover');
+        if (existing) {
+            existing.remove();
+            return;
+        }
+
+        const rect = btn.getBoundingClientRect();
+        const popoverWidth = 240;
+        const popover = document.createElement('div');
+        popover.id = 'hp-quick-entry-popover';
+        popover.className = 'glass-card';
+        popover.style.cssText = `
+            position: fixed;
+            top: ${rect.bottom + 8}px;
+            left: ${rect.right - popoverWidth}px;
+            background: white;
+            color: #1f2937;
+            padding: 8px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+            z-index: 99999;
+            width: ${popoverWidth}px;
+            border: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-family: var(--font-base, sans-serif);
+        `;
+
+        const items = [
+            { id: 'task', label: 'Nuova Task', description: 'Crea attività operativa', icon: 'check_circle', color: '#3b82f6', action: () => openHubDrawer(null, null, null, 'task') },
+            { id: 'appt', label: 'Nuovo Appuntamento', description: 'Segna incontro o evento', icon: 'event', color: '#a855f7', action: () => openAppointmentDrawer() }
+        ];
+
+        items.forEach(item => {
+            const row = document.createElement('div');
+            row.style.cssText = `
+                display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+                cursor: pointer; border-radius: 8px; transition: all 0.2s;
+            `;
+            row.onmouseover = () => { row.style.background = '#f3f4f6'; };
+            row.onmouseout = () => { row.style.background = 'transparent'; };
+            row.onclick = () => {
+                popover.remove();
+                item.action();
+            };
+
+            row.innerHTML = `
+                <div style="width: 32px; height: 32px; border-radius: 8px; background: ${item.color}15; color: ${item.color}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <span class="material-icons-round" style="font-size: 18px;">${item.icon}</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 1px;">
+                    <div style="font-weight: 700; font-size: 0.85rem; color: #111;">${item.label}</div>
+                    <div style="font-size: 0.75rem; color: #6b7280;">${item.description}</div>
+                </div>
+            `;
+            popover.appendChild(row);
+        });
+
+        document.body.appendChild(popover);
+
+        setTimeout(() => {
+            const closeHandler = (e) => {
+                if (!popover.contains(e.target) && !btn.contains(e.target)) {
+                    popover.remove();
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+            document.addEventListener('click', closeHandler);
+        }, 0);
+    };
+
     function renderCalendar(container) {
         const year = pickerCurrentDate.getFullYear();
         const month = pickerCurrentDate.getMonth(); // 0-11
@@ -892,11 +1360,148 @@ export async function renderHomepage(container) {
         // 2. Timeline (Default Today) - This also renders My Activities with filtered data
         window.updateHomepageTimeline(window.homepageCurrentDate);
 
-        // 3. Load Projects
-        const targetUserId = myCollab.user_id || state.session?.user?.id;
-        const projects = await fetchRecentProjects(myId, targetUserId);
-        const pContainer = document.getElementById('home-recent-projects');
-        if (pContainer) renderProjects(pContainer, projects);
+        // 3. Load Bottom Section
+        const userTags = state.profile?.tags || [];
+        const isPrivileged = userTags.includes('Partner') || userTags.includes('Amministrazione') || userTags.includes('Account') || userTags.some(t => t.toLowerCase() === 'project manager' || t.toLowerCase() === 'pm');
+
+        const bottomTitle = document.getElementById('hp-bottom-title');
+        const projectsLabel = document.getElementById('hp-bottom-projects-label');
+        if (bottomTitle) bottomTitle.textContent = isPrivileged ? 'Commesse in corso' : 'Incarichi in corso';
+        if (projectsLabel) projectsLabel.textContent = isPrivileged ? 'Commesse' : 'Incarichi';
+
+        const targetUserId = state.session?.user?.id;
+        const myActualCollabId = state.profile?.collaborator_id;
+
+        const projects = await fetchRecentProjects(myActualCollabId, targetUserId);
+        const internalProjects = await fetchInternalProjects(myActualCollabId, targetUserId);
+
+        // Tab switching logic
+        window.setHpBottomTab = (tab) => {
+            const projectsBtn = document.getElementById('hp-bottom-tab-projects');
+            const internalBtn = document.getElementById('hp-bottom-tab-internal');
+            const content = document.getElementById('hp-bottom-content');
+            if (!content) return;
+
+            if (tab === 'projects') {
+                projectsBtn?.classList.add('active');
+                internalBtn?.classList.remove('active');
+                renderProjects(content, projects);
+            } else {
+                internalBtn?.classList.add('active');
+                projectsBtn?.classList.remove('active');
+                renderProjects(content, internalProjects);
+            }
+        };
+
+        // Initial render: show internal if no projects, else show projects
+        if (!projects || projects.length === 0) {
+            window.setHpBottomTab('internal');
+        } else {
+            window.setHpBottomTab('projects');
+        }
+
+        // --- HIERARCHICAL SORTING ---
+        // Helper to put children under parents
+        const sortHierarchical = (items) => {
+            const result = [];
+            const roots = items.filter(t => !t.parent_id || !items.find(p => p.id === t.parent_id));
+
+            // Sort roots by date
+            roots.sort((a, b) => {
+                if (!a.due_date) return 1;
+                if (!b.due_date) return -1;
+                return new Date(a.due_date) - new Date(b.due_date);
+            });
+
+            const addChild = (parent) => {
+                result.push(parent);
+                const children = items.filter(t => t.parent_id === parent.id);
+                children.sort((a, b) => {
+                    if (!a.due_date) return 1;
+                    if (!b.due_date) return -1;
+                    return new Date(a.due_date) - new Date(b.due_date);
+                });
+                children.forEach(c => addChild(c));
+            };
+
+            roots.forEach(root => addChild(root));
+            return result;
+        };
+
+        // --- ACTIVITIES WIDGET LOGIC ---
+        // Include BOTH Activities and Tasks in the right box
+        const allFiltered = myTasks;
+        const allActivities = sortHierarchical(allFiltered);
+
+        const taskProjects = allActivities.filter(t => t.space_type.includes('commessa') || t.space_type.includes('order'));
+        const taskInternal = allActivities.filter(t => t.space_type.includes('interno') || t.space_type.includes('cluster') || t.space_type.includes('space') || t.space_type === '');
+
+        window.setHpActivityTab = (tab) => {
+            const pBtn = document.getElementById('hp-act-tab-projects');
+            const iBtn = document.getElementById('hp-act-tab-internal');
+            const content = document.getElementById('hp-activities-bottom-content');
+            if (!content) return;
+
+            if (tab === 'projects') {
+                pBtn?.classList.add('active');
+                iBtn?.classList.remove('active');
+                renderBottomTasks(content, taskProjects);
+            } else {
+                iBtn?.classList.add('active');
+                pBtn?.classList.remove('active');
+                renderBottomTasks(content, taskInternal);
+            }
+        };
+
+        // Glow Effect Handler for Premium Cards
+        const handleGlow = (e) => {
+            for (const card of document.getElementsByClassName("project-card")) {
+                const rect = card.getBoundingClientRect(),
+                    x = e.clientX - rect.left,
+                    y = e.clientY - rect.top;
+
+                card.style.setProperty("--mouse-x", `${x}px`);
+                card.style.setProperty("--mouse-y", `${y}px`);
+            }
+        };
+        container.addEventListener("mousemove", handleGlow);
+
+        // Initial render for activities
+        window.setHpActivityTab('projects');
+
+        // --- DELEGATED TASKS LOGIC ---
+        const delegatedItems = allActivities.filter(t => {
+            const isManager = t.role === 'pm' || (t.role || '').toLowerCase().includes('account');
+            if (!isManager) return false;
+
+            // At least one other person assigned
+            const otherAssignees = t.all_assignees?.filter(a => a.user_ref !== targetUserId);
+            // Must be a TASK, not an Activity
+            return !t.is_activity && otherAssignees && otherAssignees.length > 0;
+        });
+
+        const delegatedProjects = delegatedItems.filter(t => t.space_type.includes('commessa') || t.space_type.includes('order'));
+        const delegatedInternal = delegatedItems.filter(t => t.space_type.includes('interno') || t.space_type.includes('cluster') || t.space_type.includes('space') || t.space_type === '');
+
+        window.setHpDelegatedTab = (tab) => {
+            const pBtn = document.getElementById('hp-delegated-tab-projects');
+            const iBtn = document.getElementById('hp-delegated-tab-internal');
+            const content = document.getElementById('hp-delegated-bottom-content');
+            if (!content) return;
+
+            if (tab === 'projects') {
+                pBtn?.classList.add('active');
+                iBtn?.classList.remove('active');
+                renderDelegatedTasks(content, delegatedProjects);
+            } else {
+                iBtn?.classList.add('active');
+                pBtn?.classList.remove('active');
+                renderDelegatedTasks(content, delegatedInternal);
+            }
+        };
+
+        // Initial render for delegated
+        window.setHpDelegatedTab('projects');
 
         // Event Listener for Refresh (Sync with drawers)
         const reloadHandler = (e) => {
@@ -1718,14 +2323,19 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
             safeTimers.forEach(t => {
                 hasContent = true;
                 let title = 'Senza Commessa';
+                let clientShort = '';
                 let orderId = null;
                 if (t.orders) {
                     const ord = Array.isArray(t.orders) ? t.orders[0] : t.orders;
                     if (ord) {
                         title = `#${ord.order_number || '?'} - ${ord.title || '...'}`;
                         orderId = ord.id;
+                        if (ord.clients) {
+                            clientShort = ord.clients.client_code || ord.clients.business_name || '';
+                        }
                     }
                 }
+                if (!clientShort && t.area) clientShort = t.area;
                 html += `
                     <div onclick="window.location.hash = '#pm/commessa/${orderId || ''}'" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem; cursor: pointer;">
                         <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;">
@@ -1734,6 +2344,7 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                         <div style="flex: 1; min-width: 0;">
                             <div style="font-size: 0.65rem; color: #6ee7b7; font-weight: 700; text-transform: uppercase;">In Corso (Timer)</div>
                             <div style="font-weight: 600; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${title}">${title}</div>
+                            ${clientShort ? `<div style="font-size: 0.7rem; color: #94a3b8; font-weight: 500; margin-top: 1px;">${clientShort}</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -1743,27 +2354,42 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
             pmActivities.forEach(t => {
                 hasContent = true;
                 let fullTitle = 'Attività';
+                let clientShort = '';
                 let spaceId = null;
                 if (t.pm_spaces) {
                     const space = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
-                    if (space) spaceId = space.id;
+                    if (space) {
+                        spaceId = space.id;
+                        if (space.orders) {
+                            const ord = Array.isArray(space.orders) ? space.orders[0] : space.orders;
+                            if (ord) {
+                                fullTitle = `#${ord.order_number} - ${ord.title}`;
+                                if (ord.clients) {
+                                    clientShort = ord.clients.client_code || ord.clients.business_name || '';
+                                }
+                            }
+                        }
+                        if (!clientShort && space.area) clientShort = space.area;
+                    }
                 }
 
-                if (t.orders) {
-                    const ord = Array.isArray(t.orders) ? t.orders[0] : t.orders;
-                    if (ord) fullTitle = `#${ord.order_number} - ${ord.title}`;
-                }
+                const isPm = t.role === 'pm' || (t.role || '').toLowerCase().includes('manager');
+                const roleIcon = isPm ? 'stars' : 'person_outline';
+                const roleColor = isPm ? '#f59e0b' : 'rgba(255,255,255,0.4)';
+                const roleTitle = isPm ? 'Project Manager' : 'Assegnatario';
 
                 html += `
                     <div onclick="openPmItemDetails('${t.id}', '${spaceId || ''}')" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 0.5rem; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
-                        <div style="width: 32px; height: 32px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;">
+                        <div style="width: 32px; height: 32px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; position: relative;">
                             <span class="material-icons-round" style="font-size: 18px;">assignment</span>
+                            <span class="material-icons-round" title="${roleTitle}" style="position: absolute; bottom: -2px; right: -2px; font-size: 12px; color: ${roleColor}; background: #1e293b; border-radius: 50%; padding: 1px;">${roleIcon}</span>
                         </div>
                          <div style="flex: 1; min-width: 0;">
                              <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">
                                  ${fullTitle}
                             </div>
                             <div style="font-weight: 500; font-size: 0.9rem; color: white; line-height: 1.3;">${t.title}</div>
+                            ${clientShort ? `<div style="font-size: 0.7rem; color: #64748b; font-weight: 500; margin-top: 2px;">${clientShort}</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -1775,40 +2401,66 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
         // 2. EVENTS (Agenda)
         if (showEvents) {
             if (safeEvents.length > 0) {
-                // Sort by time
                 safeEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
 
+                // Group by date
+                const grouped = {};
                 safeEvents.forEach(evt => {
-                    hasContent = true;
-                    const startDate = new Date(evt.start);
-                    const endDate = new Date(evt.end);
-                    const timeStr = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const d = new Date(evt.start);
+                    d.setHours(0, 0, 0, 0);
+                    const key = d.getTime();
+                    if (!grouped[key]) grouped[key] = [];
+                    grouped[key].push(evt);
+                });
 
-                    // Visual style for past/current/future
-                    const isPast = endDate < now;
-                    const isNow = startDate <= now && endDate > now;
+                const sortedDates = Object.keys(grouped).sort((a, b) => a - b);
 
-                    let opacity = '1';
-                    let border = '1px solid rgba(255, 255, 255, 0.1)';
-                    let bg = 'transparent';
+                sortedDates.forEach(dateKey => {
+                    const d = new Date(parseInt(dateKey));
+                    const isToday = d.toDateString() === now.toDateString();
+                    const isTomorrow = d.toDateString() === new Date(now.getTime() + 86400000).toDateString();
 
-                    if (isPast) opacity = '0.5';
-                    if (isNow) {
-                        border = '1px solid #3b82f6';
-                        bg = 'rgba(59, 130, 246, 0.1)';
-                    }
+                    let dateLabel = d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+                    if (isToday) dateLabel = "OGGI";
+                    else if (isTomorrow) dateLabel = "DOMANI";
 
                     html += `
-                        <div style="background: ${bg}; border-bottom: ${border}; opacity: ${opacity}; padding: 0.5rem 0; display: flex; gap: 0.75rem; align-items: center; cursor: pointer;" onclick="openHomepageEventDetails('${evt.id}', '${evt.type}')">
-                            <div style="display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0;">
-                                <span style="font-size: 0.75rem; font-weight: 600; color: white;">${timeStr}</span>
-                            </div>
-                            <div style="flex: 1; min-width: 0;">
-                                <div style="font-weight: 600; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.title}</div>
-                                <div style="font-size: 0.7rem; color: rgba(255,255,255,0.6);">${evt.client || ''}</div>
-                            </div>
+                        <div style="font-size: 0.65rem; font-weight: 800; color: #94a3b8; margin: 1rem 0 0.5rem 0; letter-spacing: 0.05em; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
+                            ${dateLabel}
                         </div>
                     `;
+
+                    grouped[dateKey].forEach(evt => {
+                        hasContent = true;
+                        const startDate = new Date(evt.start);
+                        const endDate = new Date(evt.end);
+                        const timeStr = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                        const isPast = endDate < now;
+                        const isNow = startDate <= now && endDate > now;
+
+                        let opacity = '1';
+                        let border = '1px solid rgba(255, 255, 255, 0.05)';
+                        let bg = 'transparent';
+
+                        if (isPast) opacity = '0.4';
+                        if (isNow) {
+                            border = '1px solid var(--brand-blue)';
+                            bg = 'rgba(59, 130, 246, 0.15)';
+                        }
+
+                        html += `
+                            <div style="background: ${bg}; border-bottom: ${border}; opacity: ${opacity}; padding: 0.6rem 0.5rem; display: flex; gap: 0.75rem; align-items: center; cursor: pointer; border-radius: 6px; margin-bottom: 2px;" onclick="openHomepageEventDetails('${evt.id}', '${evt.type}')">
+                                <div style="display: flex; flex-direction: column; align-items: center; width: 42px; flex-shrink: 0; background: rgba(255,255,255,0.05); padding: 4px; border-radius: 4px;">
+                                    <span style="font-size: 0.75rem; font-weight: 700; color: white;">${timeStr}</span>
+                                </div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-weight: 600; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.title}</div>
+                                    <div style="font-size: 0.7rem; color: rgba(255,255,255,0.5); font-weight: 500;">${evt.client || ''}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
                 });
             }
             if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessun appuntamento oggi.</div>`;
@@ -1827,11 +2479,18 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                 realTasks.forEach(t => {
                     hasContent = true;
                     // Correctly access nested Order fields
-                    let fullTitle = 'Generico';
+                    let fullTitle = t.breadcrumb || 'Generico';
+                    let clientShort = '';
                     if (t.orders) {
                         const ord = Array.isArray(t.orders) ? t.orders[0] : t.orders;
-                        if (ord) fullTitle = `#${ord.order_number} - ${ord.title}`;
+                        if (ord) {
+                            // If we have an order, the breadcrumb is still useful for sub-structure
+                            fullTitle = `#${ord.order_number} - ${ord.title}`;
+                        }
                     }
+                    if (!clientShort && t.area) clientShort = t.area;
+
+                    const breadcrumb = t.breadcrumb ? ` ${t.breadcrumb}` : '';
 
                     const isLate = t.due_date && new Date(t.due_date) < new Date();
                     const dateStr = t.due_date ? new Date(t.due_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : '';
@@ -1842,14 +2501,28 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                         if (space) spaceId = space.id;
                     }
 
+                    const isPm = t.role === 'pm' || (t.role || '').toLowerCase().includes('manager');
+                    const roleIcon = isPm ? 'stars' : 'person_outline';
+                    const roleColor = isPm ? '#f59e0b' : 'rgba(255,255,255,0.4)';
+                    const roleTitle = isPm ? 'Project Manager' : 'Assegnatario';
+
                     html += `
                         <div style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.5rem 0; display: flex; gap: 0.75rem; align-items: center; justify-content: space-between;">
-                            <div onclick="openPmItemDetails('${t.id}', '${spaceId || ''}')" style="flex: 1; min-width: 0; cursor: pointer;">
-                                 <div style="font-size: 0.7rem; color: #94a3b8; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">
-                                    ${fullTitle}
-                                </div>
-                                <div style="font-weight: 500; font-size: 0.85rem; color: white; line-height: 1.2;">${t.title}</div>
-                                ${isLate ? `<div style="font-size: 0.65rem; color: #f87171; margin-top: 1px;">Scaduto: ${dateStr}</div>` : ''}
+                            <div onclick="openPmItemDetails('${t.id}', '${spaceId || ''}')" style="flex: 1; min-width: 0; cursor: pointer; display: flex; gap: 10px; align-items: flex-start;">
+                                 <div style="margin-top: 2px; color: ${roleColor}" title="${roleTitle}">
+                                     <span class="material-icons-round" style="font-size: 18px;">${roleIcon}</span>
+                                 </div>
+                                 <div style="flex: 1; min-width: 0;">
+                                     <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 500; margin-bottom: 2px;">
+                                        ${fullTitle}
+                                    </div>
+                                    <div style="font-weight: 500; font-size: 0.9rem; color: white; line-height: 1.2;">${t.title}</div>
+                                    <div style="font-size: 0.65rem; color: #64748b; margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
+                                        ${clientShort ? `<span style="color: var(--brand-blue); font-weight: 700;">${clientShort}</span>` : ''}
+                                        ${t.breadcrumb ? `<span style="opacity: 0.7;">· ${t.breadcrumb}</span>` : ''}
+                                        ${dateStr ? `<span style="color: ${isLate ? '#f87171' : 'inherit'}">· ${isLate ? 'Scaduto: ' : ''}${dateStr}</span>` : ''}
+                                    </div>
+                                 </div>
                             </div>
                              <div style="padding-left: 8px;">
                                 <input type="checkbox" style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer; border-radius: 4px;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completata">
@@ -1869,7 +2542,7 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
             const card = container.closest('.glass-card');
             if (card) {
                 const tabs = card.querySelectorAll('.tab-pill');
-                if (tabs.length === 3) {
+                if (tabs.length >= 2) {
                     // Update counts safely without killing icons
                     const setCnt = (btn, n) => {
                         const s = btn.querySelector('.tab-count');
@@ -1877,7 +2550,6 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                     };
                     setCnt(tabs[0], countTask);
                     setCnt(tabs[1], countEvent);
-                    setCnt(tabs[2], countActivity);
                 }
             }
         } catch (e) {/* ignore */ }
@@ -1889,51 +2561,414 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
 }
 
 // Helper for Task Completion
-window.quickCompleteTask = async function (id, checkbox) {
-    // NO CONFIRM - Instant Action
-
-    // Optimistic UI
-    const row = checkbox.closest('div[style*="background"]');
-    if (row) row.style.opacity = '0.3';
+window.quickCompleteTask = async function (id, element) {
+    const row = element.closest('.activity-row');
+    if (row) row.style.opacity = '0.4';
+    if (element.classList.contains('row-status')) element.classList.add('done');
 
     try {
         await updatePMItem(id, { status: 'done' });
-        // Refresh? For now just hide
-        if (row) row.remove();
-        // Update stats counter?
+        if (row) {
+            row.style.transform = 'translateX(10px)';
+            row.style.opacity = '0';
+            setTimeout(() => row.remove(), 200);
+        }
     } catch (e) {
         console.error("Task completion failed", e);
-        checkbox.checked = false;
         if (row) row.style.opacity = '1';
+        if (element.classList.contains('row-status')) element.classList.remove('done');
         alert("Errore nel completamento task.");
     }
 };
 
 function renderProjects(container, projects) {
-    if (!projects.length) {
-        container.innerHTML = `<div style="padding:1rem; color:var(--text-tertiary);">Nessun progetto recente.</div>`;
+    if (!projects || !projects.length) {
+        const kpiContainer = document.getElementById('hp-bottom-kpis');
+        if (kpiContainer) kpiContainer.innerHTML = '';
+        container.innerHTML = `
+            <div style="padding: 4rem 2rem; text-align: center; color: var(--text-tertiary);">
+                <span class="material-icons-round" style="font-size: 4rem; opacity: 0.1; margin-bottom: 1rem;">folder_open</span>
+                <p style="font-size: 1.1rem; font-weight: 500;">Nessun progetto attivo in questa categoria.</p>
+            </div>
+        `;
         return;
     }
 
-    container.innerHTML = projects.map(p => `
-        <div class="project-item" onclick="window.location.hash='${p.link.replace('#', '')}'" style="align-items: flex-start;">
-            <div class="project-icon" style="margin-top: 2px;">
-                <span class="material-icons-round">folder</span>
+    // Calculate overall stats for KPIs
+    const activeTab = document.getElementById('hp-bottom-tab-projects')?.classList.contains('active') ? 'Commesse' : 'Progetti';
+    const totalProjects = projects.length;
+    const totalActivities = projects.reduce((acc, p) => acc + (p.stats?.activities || 0), 0);
+    const totalTasks = projects.reduce((acc, p) => acc + (p.stats?.tasks || 0), 0);
+    const totalAppts = projects.reduce((acc, p) => acc + (p.stats?.appointments || 0), 0);
+    const totalOverdue = projects.reduce((acc, p) => acc + (p.stats?.overdue || 0), 0);
+
+    const kpiHtml = `
+        <div class="widget-kpi-row">
+            <div class="kpi-pill status-info">
+                <span class="kpi-label">${activeTab}</span>
+                <span class="kpi-value">${totalProjects}</span>
             </div>
-            <div style="flex: 1; min-width: 0;">
-                <div style="font-weight: 700; color: var(--text-primary); font-size: 1.05rem; line-height: 1.3; overflow-wrap: break-word;">
-                    ${p.order_number} ${p.title}
-                </div>
-                <div style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    ${p.client}
-                </div>
+            <div class="kpi-pill">
+                <span class="kpi-label">Attività</span>
+                <span class="kpi-value">${totalActivities}</span>
             </div>
-            <div style="text-align: right; flex-shrink: 0;">
-                 <div style="font-size: 0.75rem; color: var(--text-tertiary);">Stato</div>
-                 <div style="font-size: 0.8rem; font-weight: 500; color: var(--text-primary);">${p.status || 'N/D'}</div>
+            <div class="kpi-pill">
+                <span class="kpi-label">Task</span>
+                <span class="kpi-value">${totalTasks}</span>
+            </div>
+            ${totalAppts > 0 ? `
+                <div class="kpi-pill status-success">
+                    <span class="kpi-label">Appuntamenti</span>
+                    <span class="kpi-value"><i class="material-icons-round">event</i> ${totalAppts}</span>
+                </div>
+            ` : ''}
+            ${totalOverdue > 0 ? `
+                <div class="kpi-pill status-danger">
+                    <span class="kpi-label">In Ritardo</span>
+                    <span class="kpi-value"><i class="material-icons-round">history</i> ${totalOverdue}</span>
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    const kpiContainer = document.getElementById('hp-bottom-kpis');
+    if (kpiContainer) kpiContainer.innerHTML = kpiHtml;
+
+    container.innerHTML = projects.map(p => {
+        const isTask = p.type === 'task';
+        const clickAction = isTask ? `openPmItemDetails('${p.id}', null)` : `window.location.hash='${p.link.replace('#', '')}'`;
+
+        const s = p.stats || { tasks: 0, activities: 0, overdue: 0, imminent: 0, appointments: 0 };
+
+        return `
+        <div class="project-card" onclick="${clickAction}">
+            <div class="card-main">
+                <div class="card-meta">
+                    ${p.order_number ? `<span class="card-badge-id">#${p.order_number}</span>` : ''}
+                    ${p.client ? `<span>${p.client}</span>` : ''}
+                </div>
+                <div class="card-title">${p.title}</div>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                <!-- Granular Stats with Icons -->
+                ${s.overdue > 0 ? `
+                    <div title="In Ritardo" style="display: flex; align-items: center; gap: 3px; padding: 2px 6px; background: #fee2e2; color: #ef4444; border-radius: 6px; font-weight: 800; font-size: 0.65rem;">
+                        <span class="material-icons-round" style="font-size: 11px;">history</span>
+                        <span>${s.overdue}</span>
+                    </div>
+                ` : ''}
+                ${s.activities > 0 ? `
+                    <div title="Attività" style="display: flex; align-items: center; gap: 3px; padding: 2px 6px; background: #f3f4f6; color: #4b5563; border-radius: 6px; font-weight: 800; font-size: 0.65rem;">
+                        <span class="material-icons-round" style="font-size: 11px;">assignment</span>
+                        <span>${s.activities}</span>
+                    </div>
+                ` : ''}
+                ${s.tasks > 0 ? `
+                    <div title="Task" style="display: flex; align-items: center; gap: 3px; padding: 2px 6px; background: #f3e8ff; color: #7e22ce; border-radius: 6px; font-weight: 800; font-size: 0.65rem;">
+                        <span class="material-icons-round" style="font-size: 11px;">task_alt</span>
+                        <span>${s.tasks}</span>
+                    </div>
+                ` : ''}
+                ${s.appointments > 0 ? `
+                    <div title="Appuntamenti" style="display: flex; align-items: center; gap: 3px; padding: 2px 6px; background: #dcfce7; color: #15803d; border-radius: 6px; font-weight: 800; font-size: 0.65rem;">
+                        <span class="material-icons-round" style="font-size: 11px;">event</span>
+                        <span>${s.appointments}</span>
+                    </div>
+                ` : ''}
+
+                <span class="material-icons-round" style="color: var(--text-tertiary); opacity: 0.3; font-size: 16px; margin-left: 2px;">chevron_right</span>
             </div>
         </div>
-    `).join('');
+    `}).join('');
+}
+
+function renderBottomActivities(container) {
+    // We use data already fetched for the sidebar if available
+    const timers = window.hpData?.timers || [];
+    const activities = (window.hpData?.tasks || []).filter(item => {
+        const type = (item.raw_type || '').toLowerCase();
+        return type.includes('attivit') || type.includes('activity');
+    });
+
+    if (timers.length === 0 && activities.length === 0) {
+        container.innerHTML = `
+            <div style="padding: 3rem; text-align: center; color: var(--text-tertiary);">
+                <span class="material-icons-round" style="font-size: 3rem; opacity: 0.2; margin-bottom: 1rem;">history</span>
+                <p>Nessuna attività recente registrata.</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+
+    // Timers are currently not supported by the schema
+
+    // Render PM Activities
+    activities.forEach(t => {
+        let fullTitle = 'Attività';
+        let client = '';
+        let spaceId = null;
+        if (t.pm_spaces) {
+            const space = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
+            if (space) {
+                spaceId = space.id;
+                if (space.orders) {
+                    const ord = Array.isArray(space.orders) ? space.orders[0] : space.orders;
+                    if (ord) {
+                        fullTitle = `#${ord.order_number} - ${ord.title}`;
+                        client = ord.clients?.business_name || '';
+                    }
+                }
+            }
+        }
+        html += `
+            <div onclick="openPmItemDetails('${t.id}', '${spaceId || ''}')" style="background: var(--bg-card); border: 1px solid var(--glass-border); padding: 1.25rem; border-radius: 12px; display: flex; align-items: center; margin-bottom: 0.5rem; cursor: pointer;">
+                <div style="width: 44px; height: 44px; background: var(--bg-tertiary); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">
+                    <span class="material-icons-round">assignment</span>
+                </div>
+                <div style="flex: 1; min-width: 0; margin: 0 1rem;">
+                    <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 2px;">${fullTitle}</div>
+                    <div style="font-weight: 600; font-size: 1rem; color: var(--text-primary);">${t.title}</div>
+                    ${client ? `<div style="font-size: 0.8rem; color: var(--text-tertiary);">${client}</div>` : ''}
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function renderBottomTasks(container, tasks) {
+    if (!tasks || tasks.length === 0) {
+        const kpiContainer = document.getElementById('hp-activities-bottom-kpis');
+        if (kpiContainer) kpiContainer.innerHTML = '';
+        container.innerHTML = `
+            <div style="padding: 4rem 2rem; text-align: center; color: var(--text-tertiary);">
+                <span class="material-icons-round" style="font-size: 3rem; opacity: 0.1; margin-bottom: 1rem;">task_alt</span>
+                <p style="font-size: 1.1rem; font-weight: 500;">Tutte le attività completate.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Helper for toggling
+    if (!window._hp_collapse_registered) {
+        window.toggleActivityGroup = function (parentId, event) {
+            event.stopPropagation();
+            const btn = event.currentTarget;
+            const children = document.querySelectorAll(`[data-parent="${parentId}"]`);
+            const isCollapsing = Array.from(children).some(c => c.style.display !== 'none');
+            children.forEach(c => {
+                c.style.display = isCollapsing ? 'none' : 'grid';
+                // Recursive collapse if children are also parents
+                if (isCollapsing) {
+                    const subId = c.getAttribute('data-id');
+                    const subChildren = document.querySelectorAll(`[data-parent="${subId}"]`);
+                    subChildren.forEach(sc => sc.style.display = 'none');
+                    const subBtn = c.querySelector('.collapse-btn');
+                    if (subBtn) subBtn.style.transform = 'rotate(-90deg)';
+                }
+            });
+            btn.style.transform = isCollapsing ? 'rotate(-90deg)' : 'rotate(0deg)';
+        };
+        window._hp_collapse_registered = true;
+    }
+
+    // Calculate overall stats for KPIs correctly
+    const activitiesCount = tasks.filter(t => t.is_activity && !t.is_sub_activity).length;
+    const subActivitiesCount = tasks.filter(t => t.is_activity && t.is_sub_activity).length;
+    const tasksCount = tasks.filter(t => !t.is_activity).length;
+    const totalOverdue = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date()).length;
+
+    const kpiHtml = `
+        <div class="widget-kpi-row">
+            <div class="kpi-pill status-info">
+                <span class="kpi-label">Attività</span>
+                <span class="kpi-value">${activitiesCount}</span>
+            </div>
+            <div class="kpi-pill">
+                <span class="kpi-label">Sotto-Attività</span>
+                <span class="kpi-value">${subActivitiesCount}</span>
+            </div>
+            <div class="kpi-pill">
+                <span class="kpi-label">Task</span>
+                <span class="kpi-value">${tasksCount}</span>
+            </div>
+            ${totalOverdue > 0 ? `
+                <div class="kpi-pill status-danger">
+                    <span class="kpi-label">Scaduti</span>
+                    <span class="kpi-value"><i class="material-icons-round">history</i> ${totalOverdue}</span>
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    const kpiContainer = document.getElementById('hp-activities-bottom-kpis');
+    if (kpiContainer) kpiContainer.innerHTML = kpiHtml;
+
+    const listHtml = tasks.filter(t => t.is_activity).map((t) => {
+        let statusColor = '#94a3b8';
+        if (t.status === 'in_progress') statusColor = '#3b82f6';
+        else if (t.status === 'review') statusColor = '#f59e0b';
+        else if (t.status === 'blocked') statusColor = '#ef4444';
+
+        const isOverdue = t.due_date && new Date(t.due_date) < new Date();
+        const dateStr = t.due_date ? new Date(t.due_date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }) : '';
+        const dueText = isOverdue ? `Scaduto: ${dateStr}` : (dateStr ? `Scadenza: ${dateStr}` : '');
+
+        const orderCode = t.orders ? `#${t.orders.order_number}` : (t.area || '');
+        const clientPart = t.orders?.clients?.client_code || t.orders?.clients?.business_name || '';
+
+        const childActivities = tasks.filter(child => child.parent_id === t.id);
+        const childCount = childActivities.length;
+        const subOverdue = childActivities.filter(child => child.due_date && new Date(child.due_date) < new Date()).length;
+
+        const hasChildren = childCount > 0;
+        const rowClass = t.is_sub_activity ? 'activity-row sub-item' : 'activity-row is-parent';
+
+        return `
+            <div class="${rowClass}" 
+                 data-id="${t.id}" 
+                 data-parent="${t.parent_id || ''}" 
+                 onclick="openPmItemDetails('${t.id}', null)">
+                
+                <div class="collapse-btn" onclick="window.toggleActivityGroup('${t.id}', event)" style="${!hasChildren ? 'opacity: 0; pointer-events: none;' : ''}">
+                    <span class="material-icons-round" style="font-size: 18px;">expand_more</span>
+                </div>
+
+                <div class="row-main">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        ${(() => {
+                const isPm = t.role === 'pm' || (t.role || '').toLowerCase().includes('manager');
+                const roleIcon = isPm ? 'stars' : 'person_outline';
+                const roleColor = isPm ? '#f59e0b' : '#94a3b8';
+                const roleTitle = isPm ? 'Project Manager' : 'Assegnatario';
+                return `<span class="material-icons-round" title="${roleTitle}" style="font-size: 16px; color: ${roleColor}">${roleIcon}</span>`;
+            })()}
+                        <div class="row-title">${t.title}</div>
+                    </div>
+                    <div class="row-meta">
+                        <span class="row-context">${orderCode}</span>
+                        ${clientPart ? `<span>· ${clientPart}</span>` : ''}
+                        ${t.breadcrumb ? `<span class="row-breadcrumb">· ${t.breadcrumb}</span>` : ''}
+                        ${dueText ? `<span style="${isOverdue ? 'color: #ef4444; font-weight: 700;' : ''}">· ${dueText}</span>` : ''}
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                    ${subOverdue > 0 ? `
+                        <div title="Sotto-attività scadute" style="display: flex; align-items: center; gap: 3px; padding: 2px 6px; background: #fee2e2; color: #ef4444; border-radius: 6px; font-weight: 800; font-size: 0.65rem;">
+                            <span class="material-icons-round" style="font-size: 11px;">history</span>
+                            <span>${subOverdue}</span>
+                        </div>
+                    ` : ''}
+                    ${childCount > 0 ? `
+                        <div title="Sotto-attività" style="display: flex; align-items: center; gap: 3px; padding: 2px 6px; background: var(--bg-tertiary); color: var(--text-tertiary); border-radius: 6px; font-weight: 700; font-size: 0.65rem;">
+                            <span class="material-icons-round" style="font-size: 11px;">list_alt</span>
+                            <span>${childCount}</span>
+                        </div>
+                    ` : ''}
+                    <span class="material-icons-round" style="color: var(--text-tertiary); opacity: 0.3; font-size: 16px; margin-left: 2px;">chevron_right</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+    container.innerHTML = listHtml;
+}
+
+function renderDelegatedTasks(container, tasks) {
+    if (!tasks || tasks.length === 0) {
+        const kpiContainer = document.getElementById('hp-delegated-bottom-kpis');
+        if (kpiContainer) kpiContainer.innerHTML = '';
+        container.innerHTML = `
+            <div style="padding: 4rem 2rem; text-align: center; color: var(--text-tertiary);">
+                <span class="material-icons-round" style="font-size: 3rem; opacity: 0.1; margin-bottom: 1rem;">assignment_turned_in</span>
+                <p style="font-size: 1.1rem; font-weight: 500;">Nessuna delega attiva.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Calculate KPIs
+    const totalDelegated = tasks.length;
+    const totalOverdue = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date()).length;
+
+    const kpiHtml = `
+        <div class="widget-kpi-row">
+            <div class="kpi-pill status-info">
+                <span class="kpi-label">Gestite</span>
+                <span class="kpi-value">${totalDelegated}</span>
+            </div>
+            ${totalOverdue > 0 ? `
+                <div class="kpi-pill status-danger">
+                    <span class="kpi-label">Scadute</span>
+                    <span class="kpi-value"><i class="material-icons-round">history</i> ${totalOverdue}</span>
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    const kpiContainer = document.getElementById('hp-delegated-bottom-kpis');
+    if (kpiContainer) kpiContainer.innerHTML = kpiHtml;
+
+    container.innerHTML = tasks.map(t => {
+        const orderCode = t.orders ? `#${t.orders.order_number}` : (t.area || '');
+        const clientPart = t.orders?.clients?.business_name || '';
+
+        // Find other assignees (executors)
+        const executors = (t.all_assignees || [])
+            .filter(a => a.user_ref !== state.session?.user?.id && a.role !== 'pm' && a.role !== 'account')
+            .map(a => {
+                const collab = state.collaborators?.find(c => c.user_id === a.user_ref) || a.collaborator;
+                const name = collab?.first_name || collab?.full_name?.split(' ')[0] || '...';
+                const avatar = collab?.avatar_url || null;
+                return { name, avatar, id: a.user_ref };
+            })
+            .filter((v, i, a) => v.name !== '...' && a.findIndex(x => x.id === v.id) === i); // Unique
+
+        const isOverdue = t.due_date && new Date(t.due_date) < new Date();
+        const dateStr = t.due_date ? new Date(t.due_date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }) : '';
+
+        return `
+            <div class="activity-row" onclick="openPmItemDetails('${t.id}', null)" style="align-items: flex-start;">
+                <!-- 1. Icon Col (24px) -->
+                <div style="display: flex; align-items: center; justify-content: center; height: 20px; margin-top: 2px;">
+                     <span class="material-icons-round" style="font-size: 16px; color: #f59e0b">stars</span>
+                </div>
+
+                <!-- 2. Main Col (1fr) -->
+                <div class="row-main">
+                    <div class="row-title" title="${t.title}" style="margin-bottom: 2px;">${t.title}</div>
+                    <div class="row-meta" style="margin-bottom: 6px;">
+                        <span class="row-context">${orderCode}</span>
+                        ${clientPart ? `<span>· ${clientPart}</span>` : ''}
+                        ${t.breadcrumb ? `<span class="row-breadcrumb">· ${t.breadcrumb}</span>` : ''}
+                        ${dateStr ? `<span style="${isOverdue ? 'color: #ef4444; font-weight: 700;' : ''}">· ${isOverdue ? 'Scaduto: ' : 'Scadenza: '}${dateStr}</span>` : ''}
+                    </div>
+                    
+                    <!-- EXECUTORS ROW (Avatars) -->
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        ${executors.map(ex => `
+                            <div style="display: flex; align-items: center; gap: 6px; background: var(--bg-tertiary); padding: 2px 8px 2px 2px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                                ${ex.avatar ?
+                `<img src="${ex.avatar}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover;">` :
+                `<div style="width: 18px; height: 18px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700;">${ex.name.charAt(0)}</div>`
+            }
+                                <span style="font-size: 0.7rem; font-weight: 600; color: var(--text-secondary);">${ex.name}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- 3. Right Col (Auto) - Just Chevron -->
+                <div style="display: flex; align-items: center; justify-content: flex-end; height: 100%; padding-top: 4px;">
+                    <span class="material-icons-round" style="color: var(--text-tertiary); opacity: 0.3; font-size: 16px;">chevron_right</span>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 // --- GLOBAL HELPER HANDLERS ---
@@ -1942,10 +2977,8 @@ function renderProjects(container, projects) {
 
 window.openPmItemDetails = function (itemId, spaceId) {
     if (!itemId) return;
-    // Dynamic import to avoid top-level await or circular dependency issues if any
-    import('./pm/components/hub_drawer.js?v=317').then(mod => {
-        mod.openHubDrawer(itemId, spaceId === 'null' ? null : spaceId);
-    }).catch(err => console.error("Failed to load Hub Drawer:", err));
+    // openHubDrawer is already imported at the top of the module
+    openHubDrawer(itemId, spaceId === 'null' ? null : spaceId);
 };
 
 window.openHomepageEventDetails = function (evtId, type) {
@@ -1959,9 +2992,8 @@ window.openHomepageEventDetails = function (evtId, type) {
             refId = evt.orders.id;
         }
 
-        import('./pm/components/hub_appointment_drawer.js?v=317').then(mod => {
-            mod.openAppointmentDrawer(evtId, refId, refType);
-        }).catch(err => console.error("Failed to load Appointment Drawer:", err));
+        // openAppointmentDrawer is already imported at the top
+        openAppointmentDrawer(evtId, refId, refType);
     } else {
         // Fallback for non-appointment events
         window.location.hash = 'agenda';

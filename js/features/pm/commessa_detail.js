@@ -3,6 +3,7 @@ import { fetchOrders } from '../../modules/api.js';
 import { showGlobalAlert } from '../../modules/utils.js?v=317';
 import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, updateSpaceCloudLinks } from '../../modules/pm_api.js';
 import { CloudLinksManager } from '../components/CloudLinksManager.js?v=376';
+import { renderAvatar } from '../../modules/utils.js?v=317';
 
 // Status colors for "Stato Lavori"
 const STATUS_CONFIG = {
@@ -291,9 +292,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                                 padding: 2px 8px 2px 2px; border-radius: 16px; border: 1px solid transparent;
                                                 font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;
                                             ">
-                                                <div style="width: 20px; height: 20px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 10px;">
-                                                    ${avatarUrl ? `<img src="${avatarUrl}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : initial}
-                                                </div>
+                                                ${renderAvatar(collab || a.user || { full_name: userName, avatar_url: avatarUrl }, { size: 20, borderRadius: '50%', fontSize: '10px' })}
                                                 ${userName.split(' ')[0]}
                                                 <span class="material-icons-round remove-space-pm-btn" data-id="${a.id}" style="font-size: 0.9rem; cursor: pointer; opacity: 0.5;">close</span>
                                             </div>
@@ -857,20 +856,7 @@ function renderIncarichiTab(container, order) {
         return `
                         <div class="glass-card incarico-card" data-id="${a.id}" style="padding: 1.25rem; cursor: pointer; transition: all 0.2s;">
                             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                                <div style="
-                                    width: 44px; 
-                                    height: 44px; 
-                                    border-radius: 50%; 
-                                    background: linear-gradient(135deg, var(--brand-color), #7c3aed); 
-                                    color: white; 
-                                    display: flex; 
-                                    align-items: center; 
-                                    justify-content: center;
-                                    font-weight: 600;
-                                    font-size: 1rem;
-                                ">
-                                    ${(collab?.full_name || 'N/A').charAt(0).toUpperCase()}
-                                </div>
+                                    ${renderAvatar(collab || { full_name: 'Collaboratore' }, { size: 44, borderRadius: '50%', fontSize: '1rem' })}
                                 <div style="flex: 1;">
                                     <div style="font-weight: 600;">${collab?.full_name || 'Collaboratore'}</div>
                                     <div class="text-xs text-secondary">${a.description || 'Incarico'}</div>

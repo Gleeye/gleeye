@@ -1,5 +1,5 @@
-import { state } from '../modules/state.js';
-import { formatAmount } from '../modules/utils.js?v=317';
+import { state } from '/js/modules/state.js';
+import { formatAmount } from '/js/modules/utils.js?v=317';
 import {
     upsertBankTransaction,
     fetchBankTransactions,
@@ -12,54 +12,58 @@ import {
     fetchInvoices,
     fetchPassiveInvoices,
     fetchTransactionCategories
-} from '../modules/api.js';
+} from '/js/modules/api.js';
 import { renderReadOnlyView, switchToEditMode } from './bank_transaction_readonly.js?v=317';
 
 // Render ID for atomic updates
 let currentRenderId = 0;
-let pendingTransactions = [];
+// Local variable removed, using state.pendingBankTransactions
+if (state && !state.pendingBankTransactions) state.pendingBankTransactions = [];
 
 /**
  * --- RENDER PRINCIPALE CON SIDEBAR ANALYTICS (Style Screenshot) ---
  */
 export async function renderBankTransactions(container) {
-    const renderId = ++currentRenderId;
+    const thisRenderId = ++currentRenderId;
 
-    // Standardize re-render container lookup
     const contentArea = container || document.getElementById('content-area');
     if (!contentArea) return;
+
+    const s = window.state || state;
+    if (window.state && window.state !== s) {
+        console.log("[BT] Inheriting window.state");
+    }
 
     const monthNames = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
     const monthShort = ["GEN", "FEB", "MAR", "APR", "MAG", "GIU", "LUG", "AGO", "SET", "OTT", "NOV", "DIC"];
 
     // Data synchronization
-    // Abort if a newer render has started while we were fetching
-    const pending = await fetchBankTransactions('pending');
-    if (renderId !== currentRenderId) return;
-    pendingTransactions = pending;
+    const allTxs = await fetchBankTransactions();
+    if (thisRenderId !== currentRenderId) return;
 
-    await fetchBankTransactions('posted');
-    if (renderId !== currentRenderId) return;
+    s.pendingBankTransactions = allTxs.filter(t => t.status === 'pending');
+    // Reverting to only posted for the registry as per user feedback
+    s.bankTransactions = allTxs.filter(t => t.status === 'posted');
 
-    if (!state.transactionCategories || state.transactionCategories.length === 0) {
+    if (!s.transactionCategories || s.transactionCategories.length === 0) {
         await fetchTransactionCategories();
-        if (renderId !== currentRenderId) return;
+        if (thisRenderId !== currentRenderId) return;
     }
 
     // ENSURE INVOICES ARE FETCHED FOR LOOKUP
-    if (!state.invoices || state.invoices.length === 0) {
+    if (!s.invoices || s.invoices.length === 0) {
         await fetchInvoices();
-        if (renderId !== currentRenderId) return;
+        if (thisRenderId !== currentRenderId) return;
     }
-    if (!state.passiveInvoices || state.passiveInvoices.length === 0) {
+    if (!s.passiveInvoices || s.passiveInvoices.length === 0) {
         await fetchPassiveInvoices();
-        if (renderId !== currentRenderId) return;
+        if (thisRenderId !== currentRenderId) return;
     }
 
-    const year = state.bankTransactionsYear || new Date().getFullYear();
-    const currentType = state.bankTransactionsType || 'tutti';
+    const year = s.bankTransactionsYear || new Date().getFullYear();
+    const currentType = s.bankTransactionsType || 'tutti';
 
-    let movements = state.bankTransactions.filter(t => t.status !== 'pending' && new Date(t.date).getFullYear() === parseInt(year));
+    let movements = s.bankTransactions.filter(t => t.status !== 'pending' && new Date(t.date).getFullYear() === parseInt(year));
     if (currentType !== 'tutti') movements = movements.filter(t => t.type === currentType);
 
     const totalOps = movements.length;
@@ -75,7 +79,7 @@ export async function renderBankTransactions(container) {
     const sortedCats = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
 
     // Final Atomic Render
-    if (renderId !== currentRenderId) return;
+    if (thisRenderId !== currentRenderId) return;
 
     contentArea.innerHTML = `
         <div class="bank-dashboard-container" style="max-width: 1600px; width: 100%; margin: 0 auto; padding: 1rem 2rem 5rem; box-sizing: border-box;">
@@ -173,11 +177,11 @@ export async function renderBankTransactions(container) {
                     </div>
 
                     <!-- PENDING TRANSACTIONS (Fits inside left column) -->
-                    ${renderPendingSection()}
-
+                    ${renderPendingSection(monthShort, s)}
+ 
                     <!-- REGISTRY LIST -->
                     <div class="registry-container">
-                        ${renderMonthGroups(movements, monthNames, monthShort)}
+                        ${renderMonthGroups(movements, monthNames, monthShort, year, s)}
                     </div>
                 </div>
 
@@ -211,195 +215,219 @@ export async function renderBankTransactions(container) {
             </div>
         </div>
     `;
+}
 
-    // Global Handlers
-    window.setBankTransactionsYear = (y) => {
-        state.bankTransactionsYear = y;
-        renderBankTransactions(document.getElementById('content-area'));
-    };
-
-    window.setBankTransactionsType = (t) => {
-        state.bankTransactionsType = t;
-        renderBankTransactions(document.getElementById('content-area'));
-    };
-
-    function renderPendingSection() {
-        if (pendingTransactions.length === 0) return '';
-        return `
-            <div class="pending-overview-card" style="background: #fffbeb; border-radius: 24px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid #ffeeba; box-shadow: var(--shadow-sm);">
-                <h3 style="margin: 0 0 1rem 0; font-size: 0.95rem; color: #b45309; display: flex; align-items: center; gap: 0.5rem; font-weight: 700;">
-                    <span class="material-icons-round" style="font-size: 20px;">warning</span> ${pendingTransactions.length} Movimenti da Riconciliare
-                </h3>
-                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                     ${pendingTransactions.map(t => renderRow(t, true, monthShort)).join('')}
-                </div>
-            </div>`;
-    }
-
-    function renderMonthGroups(movements, monthNames, monthShort) {
-        const groups = {};
-        movements.forEach(t => { const m = new Date(t.date).getMonth(); if (!groups[m]) groups[m] = []; groups[m].push(t); });
-        const sortedMonths = Object.keys(groups).sort((a, b) => b - a);
-
-        return sortedMonths.map(m => `
-            <div class="month-block" style="margin-bottom: 2rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-left: 0.5rem;">
-                     <h3 style="font-size: 1.2rem; font-weight: 800; color: #111827; margin: 0; letter-spacing: -0.02em;">${monthNames[m]} ${year}</h3>
-                     <div style="font-size: 0.9rem; font-weight: 700;">
-                         <span style="color: #16a34a; margin-right: 1rem;">+${formatAmount(groups[m].filter(t => t.type === 'entrata').reduce((s, t) => s + parseFloat(t.amount), 0))} €</span>
-                         <span style="color: #ef4444;">-${formatAmount(groups[m].filter(t => t.type === 'uscita').reduce((s, t) => s + parseFloat(t.amount), 0))} €</span>
-                     </div>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 0.8rem;">
-                    ${groups[m].sort((a, b) => new Date(b.date) - new Date(a.date)).map(t => renderRow(t, false, monthShort)).join('')}
-                </div>
+function renderPendingSection(monthShort, s) {
+    if ((s.pendingBankTransactions?.length || 0) === 0) return '';
+    return `
+        <div class="pending-overview-card" style="background: #fffbeb; border-radius: 24px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid #ffeeba; box-shadow: var(--shadow-sm);">
+            <h3 style="margin: 0 0 1rem 0; font-size: 0.95rem; color: #b45309; display: flex; align-items: center; gap: 0.5rem; font-weight: 700;">
+                <span class="material-icons-round" style="font-size: 20px;">warning</span> ${s.pendingBankTransactions.length} Movimenti da Riconciliare
+            </h3>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                 ${s.pendingBankTransactions.map(t => renderRow(t, true, monthShort, s)).join('')}
             </div>
-        `).join('');
-    }
+        </div>`;
+}
 
-    function renderRow(t, isPending, monthShortArray) {
-        const d = new Date(t.date);
-        const day = d.getDate();
-        const month = monthShortArray ? monthShortArray[d.getMonth()] : (d.getMonth() + 1);
-        const catName = t.transaction_categories?.name || (t.type === 'uscita' ? 'Uscita Generica' : 'Entrata Generica');
-        const entityName = t.counterparty_name || t.suppliers?.name || t.clients?.business_name || 'Altra Operazione';
+function renderMonthGroups(movements, monthNames, monthShort, year, s) {
+    const groups = {};
+    movements.forEach(t => {
+        const m = new Date(t.date).getMonth();
+        if (!groups[m]) groups[m] = [];
+        groups[m].push(t);
+    });
+    const sortedMonths = Object.keys(groups).sort((a, b) => b - a);
 
-        let invoiceBadge = '';
-        if (t.active_invoice_match || t.passive_invoice_match) {
-            invoiceBadge = `<span style="background: #eff6ff; color: #3b82f6; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 500; white-space: nowrap;">Fatt. #${(t.active_invoice_match || t.passive_invoice_match).invoice_number}</span>`;
-        } else if (t.linked_invoices && t.linked_invoices.length > 0) {
-            const firstId = t.linked_invoices[0];
-            const allInvoices = [...(state.invoices || []), ...(state.passiveInvoices || [])];
-            const linkedInv = allInvoices.find(inv => inv.id == firstId);
-            const invDisplay = linkedInv ? `#${linkedInv.invoice_number}` : 'collegata';
-            invoiceBadge = `<span style="background: #eff6ff; color: #3b82f6; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 500; white-space: nowrap;">Fatt. ${invDisplay}</span>`;
-        }
-
-        // Category Badge Style - NEW BOLD STYLE
-        let catBadgeStyle = `background: #f3f4f6; color: #4b5563; border: 1px solid rgba(0,0,0,0.05);`;
-        let icon = 'horizontal_rule';
-
-        if (t.type === 'uscita') {
-            // Soft Pink/Red for Expenses
-            catBadgeStyle = `background: #fff1f2; color: #e11d48; border: 1px solid #ffe4e6;`;
-            icon = 'remove_circle_outline';
-            if (catName.toLowerCase().includes('f24')) {
-                catBadgeStyle = `background: #fff1f2; color: #be123c; border: 1px solid #ffe4e6;`;
-            }
-        } else {
-            // Soft Green for Income
-            catBadgeStyle = `background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7;`;
-            icon = 'add_circle_outline';
-        }
-
-        return `
-        <div class="transaction-card" onclick="openBankTransactionModal('${t.id}')" style="background: white; border-radius: 20px; padding: 1.25rem 1.75rem; display: flex; align-items: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02); border: 1px solid rgba(0,0,0,0.04); transition: all 0.2s; cursor: pointer; margin-bottom: 0.8rem;">
-            <!-- Date -->
-            <div style="display: flex; flex-direction: column; align-items: center; margin-right: 2rem; min-width: 45px;">
-                <span style="font-size: 1.3rem; font-weight: 500; line-height: 1; color: #111827;">${day}</span>
-                <span style="font-size: 0.7rem; font-weight: 400; text-transform: uppercase; color: #9ca3af; margin-top: 4px;">${month}</span>
+    return sortedMonths.map(m => `
+        <div class="month-block" style="margin-bottom: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-left: 0.5rem;">
+                 <h3 style="font-size: 1.2rem; font-weight: 800; color: #111827; margin: 0; letter-spacing: -0.02em;">${monthNames[m]} ${year}</h3>
+                 <div style="font-size: 0.9rem; font-weight: 700;">
+                     <span style="color: #16a34a; margin-right: 1rem;">+${formatAmount(groups[m].filter(t => t.type === 'entrata').reduce((tot, t) => tot + parseFloat(t.amount || 0), 0))} €</span>
+                     <span style="color: #ef4444;">-${formatAmount(groups[m].filter(t => t.type === 'uscita').reduce((tot, t) => tot + parseFloat(t.amount || 0), 0))} €</span>
+                 </div>
             </div>
-
-            <!-- Description & Sub -->
-            <div style="flex: 0 1 450px; min-width: 0; padding-right: 2rem;">
-                <div style="font-weight: 400; font-size: 0.95rem; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: block; text-transform: uppercase; letter-spacing: 0.01em; margin-bottom: 0.35rem;">${t.description}</div>
-                <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #6b7280; font-weight: 400;">
-                    <span class="material-icons-round" style="font-size: 16px; color: #9ca3af;">folder_open</span> ${entityName}
-                </div>
-            </div>
-
-            <!-- Spacer to push elements to the right -->
-            <div style="flex: 1;"></div>
-
-            <!-- Category Pill -->
-            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 5px 12px; border-radius: 50px; font-size: 0.8rem; font-weight: 400; margin-right: 1.5rem; flex-shrink: 0; ${catBadgeStyle}">
-                <span class="material-icons-round" style="font-size: 16px;">${icon}</span> ${catName}
-            </div>
-
-            <!-- Invoice Pill -->
-             <div style="margin-right: 2rem; flex-shrink: 0;">${invoiceBadge}</div>
-
-            <!-- Amount -->
-            <div style="text-align: right; min-width: 110px; flex-shrink: 0;">
-                <div style="font-weight: 500; font-size: 1.15rem; color: ${t.type === 'entrata' ? '#16a34a' : '#dc2626'}; letter-spacing: -0.02em;">
-                    ${t.type === 'entrata' ? '+' : '-'} ${formatAmount(Math.abs(t.amount))} €
-                </div>
-            </div>
-
-            <!-- Arrow or Actions -->
-            <div style="margin-left: 1.5rem; flex-shrink: 0;">
-                ${isPending ? `
-                    <div style="display: flex; gap: 0.5rem;">
-                        <button class="icon-btn success" onclick="event.stopPropagation(); handleApproveTx('${t.id}')" title="Approva" style="width: 32px; height: 32px; background: #dcfce7; color: #16a34a;">
-                            <span class="material-icons-round" style="font-size: 18px;">check</span>
-                        </button>
-                        <button class="icon-btn danger" onclick="event.stopPropagation(); handleRejectTx('${t.id}')" title="Scarta" style="width: 32px; height: 32px; background: #fee2e2; color: #dc2626;">
-                            <span class="material-icons-round" style="font-size: 18px;">close</span>
-                        </button>
-                    </div>
-                ` : `
-                    <span class="material-icons-round" style="font-size: 24px; color: #d1d5db;">chevron_right</span>
-                `}
+            <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+                ${groups[m].sort((a, b) => new Date(b.date) - new Date(a.date)).map(t => renderRow(t, false, monthShort, s)).join('')}
             </div>
         </div>
-        `;
+    `).join('');
+}
+
+function renderRow(t, isPending, monthShortArray, s) {
+    const d = new Date(t.date);
+    const day = d.getDate();
+    const month = monthShortArray ? monthShortArray[d.getMonth()] : (d.getMonth() + 1);
+    const catName = t.transaction_categories?.name || (t.type === 'uscita' ? 'Uscita Generica' : 'Entrata Generica');
+    const entityName = t.counterparty_name || t.suppliers?.name || t.clients?.business_name || t.collaborators?.full_name || t.description || 'Altra Operazione';
+
+    let invoiceBadge = '';
+    if (t.active_invoice_match || t.passive_invoice_match) {
+        invoiceBadge = `<span style="background: #eff6ff; color: #3b82f6; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 500; white-space: nowrap;">Fatt. #${(t.active_invoice_match || t.passive_invoice_match).invoice_number}</span>`;
+    } else if (t.linked_invoices && t.linked_invoices.length > 0) {
+        const firstId = t.linked_invoices[0];
+        const allInvoices = [...(s.invoices || []), ...(s.passiveInvoices || [])];
+        const linkedInv = allInvoices.find(inv => inv.id == firstId);
+        const invDisplay = linkedInv ? `#${linkedInv.invoice_number}` : 'collegata';
+        invoiceBadge = `<span style="background: #eff6ff; color: #3b82f6; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 500; white-space: nowrap;">Fatt. ${invDisplay}</span>`;
     }
 
-    // Attach Handlers
-    window.setBankTransactionsYear = (y) => { state.bankTransactionsYear = y; renderBankTransactions(container); };
-    window.setBankTransactionsType = (t) => { state.bankTransactionsType = t; renderBankTransactions(container); };
+    let catBadgeStyle = `background: #f3f4f6; color: #4b5563; border: 1px solid rgba(0,0,0,0.05);`;
+    let icon = 'horizontal_rule';
 
-    // Approve/Reject Handlers
-    window.handleApproveTx = async (id) => {
-        try {
-            // Find the transaction object to check for pre-calculated matches
-            const t = state.bankTransactions.find(x => x.id == id) || pendingTransactions.find(x => x.id == id);
+    if (t.type === 'uscita') {
+        catBadgeStyle = `background: #fff1f2; color: #e11d48; border: 1px solid #ffe4e6;`;
+        icon = 'remove_circle_outline';
+        if (catName.toLowerCase().includes('f24')) catBadgeStyle = `background: #fff1f2; color: #be123c; border: 1px solid #ffe4e6;`;
+    } else {
+        catBadgeStyle = `background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7;`;
+        icon = 'add_circle_outline';
+    }
 
-            const overrides = {};
-            if (t) {
-                if (t.active_invoice_match) overrides.active_invoice_id = t.active_invoice_match.id;
-                else if (t.passive_invoice_match) overrides.passive_invoice_id = t.passive_invoice_match.id;
+    return `
+    <div class="transaction-card" onclick="openBankTransactionModal('${t.id}')" style="background: white; border-radius: 20px; padding: 1.25rem 1.75rem; display: flex; align-items: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02); border: 1px solid rgba(0,0,0,0.04); transition: all 0.2s; cursor: pointer; margin-bottom: 0.8rem;">
+        <div style="display: flex; flex-direction: column; align-items: center; margin-right: 2rem; min-width: 45px;">
+            <span style="font-size: 1.3rem; font-weight: 500; line-height: 1; color: #111827;">${day}</span>
+            <span style="font-size: 0.7rem; font-weight: 400; text-transform: uppercase; color: #9ca3af; margin-top: 4px;">${month}</span>
+        </div>
+        <div style="flex: 0 1 450px; min-width: 0; padding-right: 2rem;">
+            <div style="font-weight: 400; font-size: 0.95rem; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: block; text-transform: uppercase; letter-spacing: 0.01em; margin-bottom: 0.35rem;">${t.description}</div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #6b7280; font-weight: 400;">
+                <span class="material-icons-round" style="font-size: 16px; color: #9ca3af;">folder_open</span> ${entityName}
+            </div>
+        </div>
+        <div style="flex: 1;"></div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; padding: 5px 12px; border-radius: 50px; font-size: 0.8rem; font-weight: 400; margin-right: 1.5rem; flex-shrink: 0; ${catBadgeStyle}">
+            <span class="material-icons-round" style="font-size: 16px;">${icon}</span> ${catName}
+        </div>
+        <div style="margin-right: 2rem; flex-shrink: 0;">${invoiceBadge}</div>
+        <div style="text-align: right; min-width: 110px; flex-shrink: 0;">
+            <div style="font-weight: 500; font-size: 1.15rem; color: ${t.type === 'entrata' ? '#16a34a' : '#dc2626'}; letter-spacing: -0.02em;">
+                ${t.type === 'entrata' ? '+' : '-'} ${formatAmount(Math.abs(t.amount))} €
+            </div>
+        </div>
+        <div style="margin-left: 1.5rem; flex-shrink: 0;">
+            ${isPending ? `
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="icon-btn success" onclick="event.stopPropagation(); handleApproveTx('${t.id}')" title="Approva" style="width: 32px; height: 32px; background: #dcfce7; color: #16a34a;">
+                        <span class="material-icons-round" style="font-size: 18px;">check</span>
+                    </button>
+                    <button class="icon-btn danger" onclick="event.stopPropagation(); handleRejectTx('${t.id}')" title="Scarta" style="width: 32px; height: 32px; background: #fee2e2; color: #dc2626;">
+                        <span class="material-icons-round" style="font-size: 18px;">close</span>
+                    </button>
+                </div>
+            ` : `
+                <span class="material-icons-round" style="font-size: 24px; color: #d1d5db;">chevron_right</span>
+            `}
+        </div>
+    </div>
+    `;
+}
+
+export async function handleApproveTx(id, container) {
+    try {
+        const t = (state.bankTransactions || []).find(x => String(x.id) === String(id)) ||
+            (state.pendingBankTransactions || []).find(x => String(x.id) === String(id));
+
+        const overrides = {};
+        if (t) {
+            if (t.active_invoice_match) {
+                overrides.active_invoice_id = t.active_invoice_match.id;
+                // Propagate client_id from matched invoice if not already set
+                const inv = (state.invoices || []).find(i => i.id === t.active_invoice_match.id);
+                if (inv && inv.client_id) {
+                    overrides.client_id = inv.client_id;
+                    const client = (state.clients || []).find(c => c.id === inv.client_id);
+                    if (client) overrides.counterparty_name = client.business_name;
+                }
+            } else if (t.passive_invoice_match) {
+                overrides.passive_invoice_id = t.passive_invoice_match.id;
+                // Propagate supplier or collaborator from matched invoice if not already set
+                const inv = (state.passiveInvoices || []).find(i => i.id === t.passive_invoice_match.id);
+                if (inv) {
+                    if (inv.supplier_id) {
+                        overrides.supplier_id = inv.supplier_id;
+                        const supplier = (state.suppliers || []).find(s => s.id === inv.supplier_id);
+                        if (supplier) overrides.counterparty_name = supplier.name;
+                    }
+                    if (inv.collaborator_id) {
+                        overrides.collaborator_id = inv.collaborator_id;
+                        const coll = (state.collaborators || []).find(c => c.id === inv.collaborator_id);
+                        if (coll) overrides.counterparty_name = coll.full_name;
+                    }
+                }
             }
 
-            await approveBankTransaction(id, overrides);
-            window.showAlert('Movimento approvato!', 'success');
-            await renderBankTransactions(container);
-        } catch (e) {
-            window.showAlert('Errore approvazione: ' + e.message, 'error');
+            // If we still don't have a counterparty name but we have IDs, try to set it from the direct record
+            if (!overrides.counterparty_name) {
+                if (t.client_id || t.clients?.business_name) overrides.counterparty_name = t.clients?.business_name;
+                else if (t.supplier_id || t.suppliers?.name) overrides.counterparty_name = t.suppliers?.name;
+                else if (t.collaborator_id || t.collaborators?.full_name) overrides.counterparty_name = t.collaborators?.full_name;
+            }
         }
-    };
 
-    window.handleRejectTx = async (id) => {
-        if (!await window.showConfirm("Sei sicuro di voler scartare questo movimento?")) return;
-        try {
-            await rejectBankTransaction(id);
-            window.showAlert('Movimento scartato.', 'success');
-            await renderBankTransactions(container);
-        } catch (e) {
-            window.showAlert('Errore scarto: ' + e.message, 'error');
-        }
-    };
+        await approveBankTransaction(id, overrides);
+        window.showAlert('Movimento approvato!', 'success');
+        await renderBankTransactions(container);
+    } catch (e) {
+        window.showAlert('Errore approvazione: ' + e.message, 'error');
+    }
 }
+
+export async function handleRejectTx(id, container) {
+    if (!await window.showConfirm("Sei sicuro di voler scartare questo movimento?")) return;
+    try {
+        await rejectBankTransaction(id);
+        window.showAlert('Movimento scartato.', 'success');
+        await renderBankTransactions(container);
+    } catch (e) {
+        window.showAlert('Errore scarto: ' + e.message, 'error');
+    }
+}
+
+export function setBankTransactionsYear(y, container) { state.bankTransactionsYear = y; renderBankTransactions(container); }
+export function setBankTransactionsType(t, container) { state.bankTransactionsType = t; renderBankTransactions(container); }
 
 /**
  * --- MODAL COMPONENT (Dettaglio + Sistema Categorie Affianco) ---
  */
 export async function openBankTransactionModal(id = null) {
-    if (!state.clients) await fetchClients();
-    if (!state.suppliers) await fetchSuppliers();
-    if (!state.collaborators) await fetchCollaborators();
-    if (!state.transactionCategories) await fetchTransactionCategories();
-    if (!state.invoices) await fetchInvoices();
-    if (!state.passiveInvoices) await fetchPassiveInvoices();
+    const s = window.state || state;
+    if (!s.clients || s.clients.length === 0) await fetchClients();
+    if (!s.suppliers || s.suppliers.length === 0) await fetchSuppliers();
+    if (!s.collaborators || s.collaborators.length === 0) await fetchCollaborators();
+    if (!s.transactionCategories || s.transactionCategories.length === 0) await fetchTransactionCategories();
+    if (!s.invoices || s.invoices.length === 0) await fetchInvoices();
+    if (!s.passiveInvoices || s.passiveInvoices.length === 0) await fetchPassiveInvoices();
 
     if (!document.getElementById('bank-transaction-modal')) {
         initBankTransactionModals();
     }
 
     const modal = document.getElementById('bank-transaction-modal');
+    if (!modal) return;
     const form = document.getElementById('bank-transaction-form');
+    if (!form) return;
 
-    let t = id ? (state.bankTransactions.find(x => x.id == id) || pendingTransactions.find(x => x.id == id)) : null;
+    const lookupId = id ? String(id).trim() : null;
+    console.log("[BT Modal] Opening ID:", lookupId, "with state", s === window.state ? "GLOBAL" : "LOCAL");
+
+    let t = null;
+    if (lookupId) {
+        t = (s.bankTransactions || []).find(x => String(x.id) === lookupId) ||
+            (s.pendingBankTransactions || []).find(x => String(x.id) === lookupId);
+    }
+
+    if (lookupId && !t) {
+        console.warn("[BT Modal] Transaction NOT found in state for ID:", lookupId);
+        // Emergency fallback to window.state
+        if (window.state) {
+            t = (window.state.bankTransactions || []).find(x => String(x.id) === lookupId) ||
+                (window.state.pendingBankTransactions || []).find(x => String(x.id) === lookupId);
+            if (t) console.log("[BT Modal] Found in window.state fallback");
+        }
+    }
 
     // Reset Form State
     form.reset();
@@ -448,10 +476,11 @@ export async function openBankTransactionModal(id = null) {
  * --- FORM POPULATION HELPER ---
  */
 function populateBankTransactionForm(t) {
+    if (!t) return;
     document.getElementById('bt-delete-btn').style.display = 'flex';
-    document.getElementById('bt-date').value = t.date;
-    document.getElementById('bt-amount').value = t.amount;
-    document.getElementById('bt-description').value = t.description;
+    document.getElementById('bt-date').value = t.date || '';
+    document.getElementById('bt-amount').value = (t.amount !== undefined) ? Math.abs(t.amount) : '';
+    document.getElementById('bt-description').value = t.description || '';
 
     const type = (t.type || 'entrata').toLowerCase();
     document.querySelector(`input[name="bt-type"][value="${type}"]`).checked = true;
@@ -464,6 +493,33 @@ function populateBankTransactionForm(t) {
     else if (type === 'uscita') {
         if (t.supplier_id) { entitySelect.value = `S_${t.supplier_id}`; entityFound = true; }
         else if (t.collaborator_id) { entitySelect.value = `C_${t.collaborator_id}`; entityFound = true; }
+    }
+
+    // NEW: Fuzzy name match if no ID found
+    if (!entityFound && t.counterparty_name) {
+        const searchName = t.counterparty_name.toLowerCase().trim();
+        if (type === 'entrata') {
+            const match = state.clients.find(c =>
+                c.business_name.toLowerCase().includes(searchName) ||
+                searchName.includes(c.business_name.toLowerCase())
+            );
+            if (match) { entitySelect.value = match.id; entityFound = true; }
+        } else {
+            // Suppliers first, then collaborators
+            const sMatch = state.suppliers.find(s =>
+                s.name.toLowerCase().includes(searchName) ||
+                searchName.includes(s.name.toLowerCase())
+            );
+            if (sMatch) { entitySelect.value = `S_${sMatch.id}`; entityFound = true; }
+            else {
+                const cMatch = state.collaborators.find(c =>
+                    c.full_name.toLowerCase().includes(searchName) ||
+                    searchName.includes(c.full_name.toLowerCase())
+                );
+                if (cMatch) { entitySelect.value = `C_${cMatch.id}`; entityFound = true; }
+            }
+        }
+        if (entityFound) console.log(`[BT] Auto-matched counterparty by name: ${t.counterparty_name} -> ${entitySelect.value}`);
     }
 
     if (!entityFound && t.counterparty_name) {
@@ -667,11 +723,23 @@ export function updateInvoiceOptions(preselected = []) {
 
     let invoices = [];
     if (entityVal) {
-        if (type === 'entrata') invoices = state.invoices.filter(i => i.client_id == entityVal && (i.status !== 'Saldata' || preselected.includes(i.id)));
-        else {
+        if (type === 'entrata') {
+            invoices = state.invoices.filter(i => {
+                const status = (i.status || '').toLowerCase();
+                const isSettled = status === 'saldata' || status === 'pagata' || status === 'pagato';
+                return String(i.client_id) === String(entityVal) && (!isSettled || preselected.includes(i.id));
+            });
+        } else {
             const [pref, id] = entityVal.split('_');
-            invoices = state.passiveInvoices.filter(i => ((pref === 'S' && i.supplier_id == id) || (pref === 'C' && i.collaborator_id == id)) && (i.status !== 'Pagata' || preselected.includes(i.id)));
+            invoices = state.passiveInvoices.filter(i => {
+                const match = (pref === 'S' && String(i.supplier_id) === String(id)) ||
+                    (pref === 'C' && String(i.collaborator_id) === String(id));
+                const status = (i.status || '').toLowerCase();
+                const isSettled = status === 'pagato' || status === 'pagata' || status === 'saldata';
+                return match && (!isSettled || preselected.includes(i.id));
+            });
         }
+        console.log(`[BT Picker] Found ${invoices.length} docs for ${entityVal} (Type: ${type})`);
     }
 
     if (invoices.length === 0) { list.innerHTML = '<div style="text-align: center; padding: 1.5rem; color: var(--text-tertiary); font-size: 0.85rem;">Nessun documento disponibile per questa controparte.</div>'; return; }
@@ -702,13 +770,23 @@ export async function submitBankTransaction() {
 
     const type = document.querySelector('input[name="bt-type"]:checked').value;
     const isManual = document.getElementById('bt-counterparty-text').style.display === 'block';
-    const entityVal = document.getElementById('bt-entity-select').value;
+    const entitySelect = document.getElementById('bt-entity-select');
+    const entityVal = entitySelect.value;
     const checkedInv = Array.from(document.querySelectorAll('input[name="bt-invoices"]:checked')).map(cb => cb.value);
 
     let clientId = null, supplierId = null, collaboratorId = null;
+    let counterpartyName = isManual ? document.getElementById('bt-counterparty-text').value : null;
+
     if (!isManual && entityVal) {
+        const option = entitySelect.options[entitySelect.selectedIndex];
+        counterpartyName = option ? option.text : null;
+
         if (type === 'entrata') clientId = entityVal;
-        else { const [p, id] = entityVal.split('_'); if (p === 'S') supplierId = id; else collaboratorId = id; }
+        else {
+            const [p, id] = entityVal.split('_');
+            if (p === 'S') supplierId = id;
+            else collaboratorId = id;
+        }
     }
 
     const payload = {
@@ -718,8 +796,10 @@ export async function submitBankTransaction() {
         description: document.getElementById('bt-description').value,
         type: type,
         category_id: type === 'uscita' ? document.getElementById('bt-category').value : null,
-        counterparty_name: isManual ? document.getElementById('bt-counterparty-text').value : null,
-        client_id: clientId, supplier_id: supplierId, collaborator_id: collaboratorId,
+        counterparty_name: counterpartyName,
+        client_id: clientId,
+        supplier_id: supplierId,
+        collaborator_id: collaboratorId,
         linked_invoices: checkedInv,
         active_invoice_id: (type === 'entrata' && checkedInv.length > 0) ? checkedInv[0] : null,
         passive_invoice_id: (type === 'uscita' && checkedInv.length > 0) ? checkedInv[0] : null
@@ -796,7 +876,8 @@ export function initCategoryManagerModal() {
     });
 }
 
-window.openCategoryManager = () => { initCategoryManagerModal(); document.getElementById('category-manager-modal').classList.add('active'); reloadCatList(); };
+export function openBankCategoryManager() { initCategoryManagerModal(); document.getElementById('category-manager-modal').classList.add('active'); reloadCatList(); }
+export function closeBankCategoryManager() { const m = document.getElementById('category-manager-modal'); if (m) m.classList.remove('active'); }
 
 async function reloadCatList() {
     const list = document.getElementById('cat-manager-list'), sel = document.getElementById('new-cat-parent');
@@ -896,12 +977,20 @@ window.confirmImport = async () => {
     }
 };
 
-// Global Bindings
+// Global Bindings (Critical for UI interaction)
 window.openBankTransactionModal = openBankTransactionModal;
 window.closeBankTransactionModal = closeBankTransactionModal;
 window.submitBankTransaction = submitBankTransaction;
 window.handleDeleteBT = handleDeleteBT;
-window.toggleCounterpartyManual = toggleCounterpartyManual;
+window.openCategoryManager = openBankCategoryManager;
+window.closeCategoryManager = closeBankCategoryManager;
 window.updateBankModalUI = updateBankModalUI;
 window.updateInvoiceOptions = updateInvoiceOptions;
 window.switchToEditMode = switchToEditMode;
+window.toggleCounterpartyManual = toggleCounterpartyManual;
+window.setBankTransactionsType = (t) => setBankTransactionsType(t);
+window.setBankTransactionsYear = (y) => setBankTransactionsYear(y);
+window.handleApproveTx = (id) => handleApproveTx(id);
+window.handleRejectTx = (id) => handleRejectTx(id);
+window.openImportModal = openImportModal;
+window.closeImportModal = closeImportModal;

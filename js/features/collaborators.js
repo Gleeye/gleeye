@@ -1,4 +1,4 @@
-import { state } from '../modules/state.js';
+import { state } from '/js/modules/state.js';
 import { formatAmount } from '../modules/utils.js?v=317';
 import { openDepartmentManager } from './settings.js?v=317';
 import { upsertCollaborator, fetchPayments, fetchAssignments, fetchPassiveInvoices, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js';
@@ -27,10 +27,10 @@ export function renderCollaborators(container) {
             const matchesSearch = c.full_name.toLowerCase().includes(state.searchTerm.toLowerCase());
             const tags = Array.isArray(c.tags) ? c.tags : (typeof c.tags === 'string' ? c.tags.split(',') : []);
             const matchesDept = !state.selectedDepartment || tags.includes(state.selectedDepartment);
-            // Filter by active status: show inactive only if toggle is on
-            const isActive = c.is_active !== false; // Default to true if not set
+            const isActive = c.is_active !== false;
+            const isIndividual = (c.type === 'individual' || !c.type);
             const matchesActive = state.showInactiveCollaborators || isActive;
-            return matchesSearch && matchesDept && matchesActive;
+            return matchesSearch && matchesDept && matchesActive && isIndividual;
         }).sort((a, b) => {
             const nameA = (a.last_name || a.full_name.trim().split(' ').pop() || '').toLowerCase();
             const nameB = (b.last_name || b.full_name.trim().split(' ').pop() || '').toLowerCase();
@@ -46,13 +46,17 @@ export function renderCollaborators(container) {
             
             <div style="display: flex; width: 100%; justify-content: space-between; align-items: flex-start;">
                  <div style="width: 56px; height: 56px; border-radius: 50%; background: ${isInactive ? 'var(--text-tertiary)' : 'var(--brand-gradient)'}; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.4rem; font-weight: 400; box-shadow: var(--shadow-soft); flex-shrink: 0;">
-                    ${c.avatar_url ? `<img src="${c.avatar_url}" style="width:100%; height:100%; border-radius:50%; object-fit:cover; border: 2px solid white; ${isInactive ? 'filter: grayscale(100%);' : ''}">` : c.full_name[0]}
+                    ${c.avatar_url ?
+                    `<img src="${c.avatar_url}" style="width:100%; height:100%; border-radius:50%; object-fit:cover; border: 2px solid white; ${isInactive ? 'filter: grayscale(100%);' : ''}">` :
+                    c.full_name[0]}
                 </div>
             </div>
             
             <div style="width: 100%; margin-top: 0.25rem;">
                 <h3 style="margin: 0; font-size: 1.05rem; font-weight: 400; color: var(--text-primary); text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">${c.full_name}</h3>
-                <p style="margin: 0.25rem 0 0.75rem 0; color: var(--brand-blue); font-size: 0.85rem; font-weight: 500;">${c.role || 'Collaboratore'}</p>
+                <p style="margin: 0.25rem 0 0.75rem 0; color: var(--brand-blue); font-size: 0.85rem; font-weight: 500;">
+                    ${c.role || 'Collaboratore'}
+                </p>
                 
                 <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
                     ${(() => {
@@ -210,6 +214,8 @@ window.openCollaboratorModal = (collaboratorId = null) => {
             if (label) label.textContent = isActive ? 'Attivo' : 'Inattivo';
         };
 
+        // Helper for type visibility removed
+
         if (collaboratorId) {
             title.textContent = 'Modifica Collaboratore';
             // Show delete button for existing collaborators
@@ -260,6 +266,8 @@ window.openCollaboratorModal = (collaboratorId = null) => {
             if (deleteBtn) {
                 deleteBtn.style.display = 'none';
             }
+            // Default type and visibility removed
+
             // Default is_active to true for new collaborators
             setToggleState(true);
             document.getElementById('collab-tags').value = '[]';
@@ -282,15 +290,19 @@ export function initCollaboratorModals() {
                     </div>
                     <form id="collaborator-form">
                         <input type="hidden" id="collab-id">
+                        
+                        <!-- Type Switcher Removed -->
+
                         <div class="modal-sections" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                             <!-- Left Column -->
                             <div style="display: flex; flex-direction: column; gap: 1.25rem;">
                                 <!-- Anagrafica -->
                                 <div class="modal-section">
-                                    <div class="section-title"><span class="material-icons-round">person</span><h4>Anagrafica</h4></div>
+                                    <div class="section-title anagrafica-section-title"><span class="material-icons-round">person</span><h4>Anagrafica</h4></div>
                                     <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
                                         <div class="form-group"><label>Nome *</label><input type="text" id="collab-first-name" required></div>
                                         <div class="form-group"><label>Cognome *</label><input type="text" id="collab-last-name" required></div>
+
                                         <div class="form-group"><label>Luogo di Nascita</label><input type="text" id="collab-birth-place"></div>
                                         <div class="form-group"><label>Data di Nascita</label><input type="date" id="collab-birth-date"></div>
                                     </div>
@@ -342,6 +354,9 @@ export function initCollaboratorModals() {
                                 <!-- Fiscali & Bancari -->
                                 <div class="modal-section">
                                     <div class="section-title"><span class="material-icons-round">account_balance</span><h4>Fiscali & Bancari</h4></div>
+                                    
+                                    <!-- Partner Only Fiscal Fields Removed -->
+
                                     <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
                                         <div class="form-group"><label>Cod. Fiscale</label><input type="text" id="collab-fiscal-code" style="text-transform: uppercase;"></div>
                                         <div class="form-group"><label>P.IVA</label><input type="text" id="collab-vat-number"></div>
@@ -381,9 +396,15 @@ export function initCollaboratorModals() {
         `);
 
         // Close logic
-        const close = () => document.getElementById('collaborator-modal').classList.remove('active');
+        const modal = document.getElementById('collaborator-modal');
+        const close = () => modal.classList.remove('active');
         document.getElementById('close-collab-modal-btn')?.addEventListener('click', close);
         document.getElementById('cancel-collab-modal-btn')?.addEventListener('click', close);
+
+        // Click on background to close
+        modal?.addEventListener('click', (e) => {
+            if (e.target === modal) close();
+        });
 
         // Active toggle click handler
         document.getElementById('collab-active-toggle')?.addEventListener('click', function () {
@@ -407,11 +428,14 @@ export function initCollaboratorModals() {
             }
         });
 
+        // Type Switcher Handler Removed
+
         // Submit Logic
         document.getElementById('collaborator-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = {
                 id: document.getElementById('collab-id').value || undefined,
+                type: 'individual',
                 first_name: document.getElementById('collab-first-name').value,
                 last_name: document.getElementById('collab-last-name').value,
                 birth_date: document.getElementById('collab-birth-date').value || null,
@@ -430,7 +454,7 @@ export function initCollaboratorModals() {
                 bank_name: document.getElementById('collab-bank-name').value || null,
                 iban: document.getElementById('collab-iban').value || null,
                 tags: JSON.parse(document.getElementById('collab-tags').value || '[]'),
-                full_name: `${document.getElementById('collab-first-name').value} ${document.getElementById('collab-last-name').value}`,
+                full_name: `${document.getElementById('collab-first-name').value} ${document.getElementById('collab-last-name').value}`.trim(),
                 is_active: document.getElementById('collab-is-active').value === 'true'
             };
 
@@ -439,13 +463,10 @@ export function initCollaboratorModals() {
                 close();
                 // Refresh Detail if open or Grid
                 if (window.location.hash.includes('collaborator-detail') && state.currentId == formData.id) {
-                    // Need to update local state fully first or wait for re-fetch? 
-                    // upsertCollaborator already updates state.collaborators
                     const container = document.getElementById('content-area');
                     if (container) renderCollaboratorDetail(container);
                 } else if (state.currentPage === 'employees') {
-                    const grid = document.getElementById('collaborators-grid');
-                    if (grid) renderCollaborators(document.getElementById('content-area'));
+                    renderCollaborators(document.getElementById('content-area'));
                 }
             } catch (err) {
                 window.showAlert('Errore durante il salvataggio: ' + err.message, 'error');
@@ -780,25 +801,64 @@ export function renderCollaboratorDetail(container) {
                         <div style="display: flex; flex-direction: column; gap: 1rem;">
                             <!-- Anagrafica -->
                             <div>
-                                <div style="font-size: 0.7rem; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.03em;">Anagrafica</div>
+                                <div style="font-size: 0.7rem; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.03em;">
+                                    ${c.type === 'white_label' ? 'Dati Societari' : 'Anagrafica'}
+                                </div>
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem;">
-                                    <div>
-                                        <div style="font-size: 0.7rem; color: var(--text-tertiary);">Nome</div>
-                                        <div style="font-size: 0.9rem; font-weight: 500;">${c.first_name || '-'}</div>
-                                    </div>
-                                    <div>
-                                        <div style="font-size: 0.7rem; color: var(--text-tertiary);">Cognome</div>
-                                        <div style="font-size: 0.9rem; font-weight: 500;">${c.last_name || '-'}</div>
-                                    </div>
-                                    <div>
-                                        <div style="font-size: 0.7rem; color: var(--text-tertiary);">Luogo di Nascita</div>
-                                        <div style="font-size: 0.9rem; font-weight: 500;">${c.birth_place || '-'}</div>
-                                    </div>
-                                    <div>
-                                        <div style="font-size: 0.7rem; color: var(--text-tertiary);">Data di Nascita</div>
-                                        <div style="font-size: 0.9rem; font-weight: 500;">${c.birth_date ? new Date(c.birth_date).toLocaleDateString('it-IT') : '-'}</div>
+                                    ${c.type === 'white_label' ? `
+                                        <div style="grid-column: span 2;">
+                                            <div style="font-size: 0.7rem; color: var(--text-tertiary);">Ragione Sociale</div>
+                                            <div style="font-size: 0.9rem; font-weight: 500;">${c.full_name || '-'}</div>
+                                        </div>
+                                    ` : `
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: var(--text-tertiary);">Nome</div>
+                                            <div style="font-size: 0.9rem; font-weight: 500;">${c.first_name || '-'}</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: var(--text-tertiary);">Cognome</div>
+                                            <div style="font-size: 0.9rem; font-weight: 500;">${c.last_name || '-'}</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: var(--text-tertiary);">Luogo di Nascita</div>
+                                            <div style="font-size: 0.9rem; font-weight: 500;">${c.birth_place || '-'}</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: var(--text-tertiary);">Data di Nascita</div>
+                                            <div style="font-size: 0.9rem; font-weight: 500;">${c.birth_date ? new Date(c.birth_date).toLocaleDateString('it-IT') : '-'}</div>
+                                        </div>
+                                    `}
+                                </div>
+                            </div>
+
+                            ${c.type === 'white_label' ? `
+                                <!-- Fiscal Data for Partners -->
+                                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--glass-border);">
+                                    <div style="font-size: 0.7rem; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.03em;">Dati Fiscali Partner</div>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem;">
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: var(--text-tertiary);">Regime</div>
+                                            <div style="font-size: 0.9rem; font-weight: 500; text-transform:capitalize;">${c.fiscal_regime || 'Ordinario'}</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: var(--text-tertiary);">IVA Default</div>
+                                            <div style="font-size: 0.9rem; font-weight: 500;">${c.default_vat_rate || 22}%</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: var(--text-tertiary);">Ritenuta</div>
+                                            <div style="font-size: 0.9rem; font-weight: 500;">${c.withholding_tax_rate || 0}%</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: var(--text-tertiary);">Cassa Prev.</div>
+                                            <div style="font-size: 0.9rem; font-weight: 500;">${c.cassa_previdenziale_rate || 0}%</div>
+                                        </div>
+                                        <div style="grid-column: span 2;">
+                                            <div style="font-size: 0.7rem; color: var(--text-tertiary);">Termini Pagamento</div>
+                                            <div style="font-size: 0.9rem; font-weight: 500;">${c.payment_terms || '-'}</div>
+                                        </div>
                                     </div>
                                 </div>
+                            ` : ''}
                             </div>
 
                             ${tags.length > 0 ? `

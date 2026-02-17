@@ -1,5 +1,5 @@
 import { supabase } from '../modules/config.js';
-import { state } from '../modules/state.js';
+import { state } from '/js/modules/state.js';
 import { fetchDepartments, fetchTransactionCategories, fetchAllSystemConfig, upsertSystemConfig } from '../modules/api.js';
 
 export function initSettingsModals() {

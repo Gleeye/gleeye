@@ -1,14 +1,15 @@
 import './utils/modal-utils.js?v=381';
 import { initAuth } from './features/auth.js?v=381';
-import { router } from './modules/router.js?v=381';
+import { router } from './modules/router.js?v=382';
 import { InvoiceLogic } from './features/invoices.js?v=381';
-import { state } from './modules/state.js';
+import { state } from '/js/modules/state.js';
 import { initSettingsModals } from './features/settings.js?v=381';
 import { initCollaboratorModals } from './features/collaborators.js?v=381';
 import { initCollaboratorServiceModals } from './features/collaborator_services.js?v=381';
-import { initBankTransactionModals } from './features/bank_transactions.js?v=381';
+import { initBankTransactionModals } from './features/bank_transactions.js?v=416';
 import { initPaymentModals } from './features/payments.js?v=381';
 import { initServiceModals } from './features/services.js?v=381';
+import { initWhiteLabelPartnerModals } from './features/white_label_partners.js';
 import { initLayout, renderSidebarProfile } from './features/layout.js?v=381';
 import { initNotifications } from './features/notifications.js?v=381';
 // Chat UI is loaded lazily when user navigates to #chat
@@ -57,6 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initBankTransactionModals();
     initPaymentModals(); // Init
     initServiceModals();
+    initWhiteLabelPartnerModals();
+    import('./features/sap_services.js').then(m => m.initSapServiceModals());
 
     // Init Layout (Sidebar toggles) - run immediately since UI is visible
     initLayout();

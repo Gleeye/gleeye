@@ -4,6 +4,7 @@ import {
     createPMItem,
     updatePMItem,
     deletePMItem,
+    fetchPMItem,
     fetchItemComments,
     addComment,
     fetchItemAssignees,
@@ -14,8 +15,7 @@ import {
 import { supabase } from '../../../modules/config.js';
 import { CloudLinksManager } from '../../components/CloudLinksManager.js?v=376';
 import { state } from '../../../modules/state.js';
-
-
+import { renderUserPicker } from './picker_utils.js?v=317';
 
 const ITEM_STATUS = {
     'todo': { label: 'Da Fare', color: '#94a3b8', bg: '#f1f5f9' },
@@ -25,12 +25,18 @@ const ITEM_STATUS = {
     'done': { label: 'Completata', color: '#10b981', bg: '#ecfdf5' }
 };
 
+const ITEM_PRIORITY = {
+    'low': { label: 'Bassa', color: '#64748b' },
+    'medium': { label: 'Media', color: '#3b82f6' },
+    'high': { label: 'Alta', color: '#f59e0b' },
+    'urgent': { label: 'Urgente', color: '#ef4444' }
+};
+
 export async function openHubDrawer(itemId, spaceId, parentId = null, itemType = 'task', options = {}) {
     let overlay = document.getElementById('hub-drawer-overlay');
     let drawer = document.getElementById('hub-drawer');
 
     if (!overlay || !drawer) {
-        console.warn("Drawer elements not found, injecting...");
         const html = `
             <div id="hub-drawer-overlay" class="drawer-overlay hidden" style="
                 position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -47,1307 +53,1062 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
         document.body.insertAdjacentHTML('beforeend', html);
         overlay = document.getElementById('hub-drawer-overlay');
         drawer = document.getElementById('hub-drawer');
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.classList.add('hidden');
+        });
     }
 
     const isEdit = !!itemId;
+    overlay.classList.remove('hidden');
+    drawer.innerHTML = `
+        <style>
+            .spinner-modern {
+                width: 32px; height: 32px; border: 3px solid #f3f3f3;
+                border-top: 3px solid var(--brand-blue, #3b82f6);
+                border-radius: 50%; animation: spin-hub 0.8s linear infinite;
+            }
+            @keyframes spin-hub { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        </style>
+        <div style="display: flex; flex-direction: column; height: 100%; align-items: center; justify-content: center; color: var(--text-tertiary); gap: 1rem;">
+            <div class="spinner-modern"></div>
+            <div style="font-size: 0.9rem; font-weight: 500;">Caricamento...</div>
+        </div>
+    `;
+
+    let currentSpaceId = spaceId;
+    let currentClientId = null;
+    let currentParentRef = parentId;
+
     let item = null;
     let comments = [];
     let assignees = [];
-
     let viewMode = isEdit;
-
-    // For Form Mode (Pending Assignments)
     let pendingAssignees = [];
-    // On edit, we will populate this after fetch, but usually we prefer live edit in view mode. 
-    // However, for consistency, if we allow editing in form, we should sync.
-    // For specific "Creation" request, we start empty.
-
-    // Options
     const { defaultRole = 'assignee', defaultNote = '' } = options;
 
-    // Fetch data
-    if (isEdit) {
-        const items = window._hubContext?.items || [];
-        item = items.find(i => i.id === itemId);
-        if (!item) {
-            console.error("Item not found:", itemId);
-            return;
-        }
-        try {
-            [comments, assignees] = await Promise.all([
-                fetchItemComments(itemId),
-                fetchItemAssignees(itemId)
-            ]);
-            // Sync pending assignees for Edit mode immediately after fetch
-            if (assignees) {
-                pendingAssignees = assignees.map(a => ({
-                    user_ref: a.user_ref,
-                    collaborator_ref: a.collaborator_ref,
-                    role: a.role, // 'assignee' or 'pm'
-                    user: a.user
-                }));
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Timeout caricamento (10s)")), 10000);
+    });
 
-                // Fallback: If no PM, try to default from space (Legacy Migration)
-                if (!pendingAssignees.some(a => a.role === 'pm')) {
-                    let s = state.pm_spaces?.find(x => x.id === spaceId);
-                    if (!s && window._hubContext?.space?.id === spaceId) s = window._hubContext.space;
+    try {
+        await Promise.race([
+            (async () => {
+                if (isEdit) {
+                    console.log("[HubDrawer] Loading data for item:", itemId);
 
-                    if (s && s.default_pm_user_ref) {
-                        let pm = state.profiles?.find(p => p.id === s.default_pm_user_ref);
-                        if (!pm) {
-                            const collabAsPm = state.collaborators?.find(c => c.user_id === s.default_pm_user_ref);
-                            if (collabAsPm) pm = { id: collabAsPm.user_id, first_name: collabAsPm.first_name, last_name: collabAsPm.last_name, avatar_url: collabAsPm.avatar_url };
-                        }
+                    // Parallelize main data, comments, and ensure spaces are loaded
+                    const [fullItem, itemComments] = await Promise.all([
+                        fetchPMItem(itemId).catch(e => { console.error("Item load failed", e); return null; }),
+                        fetchItemComments(itemId).catch(e => { console.warn("Comments load failed", e); return []; }),
+                        (!state.pm_spaces || state.pm_spaces.length < 5)
+                            ? supabase.from('pm_spaces').select('*').then(res => { if (res.data) state.pm_spaces = res.data; return res.data; })
+                            : Promise.resolve(state.pm_spaces)
+                    ]);
 
-                        if (pm) {
-                            const pmName = `${pm.first_name || ''} ${pm.last_name || ''}`.trim() || 'PM';
-                            pendingAssignees.unshift({
-                                user_ref: pm.id,
-                                role: 'pm',
-                                displayName: pmName,
-                                user: { first_name: pm.first_name, last_name: pm.last_name, avatar_url: pm.avatar_url, full_name: pmName }
-                            });
+                    // Use context as fallback if fetch fails, but fresh data is priority
+                    const contextItem = (window._hubContext?.items || []).find(i => String(i.id) === String(itemId));
+                    item = fullItem || contextItem;
+                    comments = itemComments || [];
+
+                    if (!item) throw new Error("Attività non trovata o non accessibile.");
+
+                    assignees = item.pm_item_assignees || [];
+                    pendingAssignees = assignees.map(a => ({
+                        user_ref: a.user_ref,
+                        collaborator_ref: a.collaborator_ref,
+                        role: a.role,
+                        user: a.user,
+                        displayName: a.user?.full_name || `${a.user?.first_name || ''} ${a.user?.last_name || ''}`.trim()
+                    }));
+                } else {
+                    item = { item_type: itemType, status: 'todo', priority: 'medium', notes: defaultNote, title: '' };
+
+                    // Ensure spaces are loaded even for new items
+                    if (!state.pm_spaces || state.pm_spaces.length < 5) {
+                        try {
+                            const { data } = await supabase.from('pm_spaces').select('*');
+                            if (data) state.pm_spaces = data;
+                        } catch (e) { console.error("Error loading spaces for new item context", e); }
+                    }
+
+                    if (state.profile?.id) {
+                        const meCollab = state.collaborators?.find(c => c.user_id === state.profile.id);
+                        if (meCollab) {
+                            pendingAssignees = [{
+                                user_ref: state.profile.id, collaborator_ref: meCollab.id, role: defaultRole,
+                                displayName: meCollab.full_name || (meCollab.first_name + ' ' + (meCollab.last_name || '')).trim(),
+                                user: meCollab
+                            }];
                         }
                     }
                 }
-            }
-        } catch (e) {
-            console.error("Error fetching details:", e);
-        }
-    } else {
-        // Init empty item for constraints
-        item = {
-            item_type: itemType,
-            status: 'todo',
-            priority: 'medium',
-            notes: defaultNote
-        };
-
-        // Default Assignee (Account role if requested)
-        if (state.profile?.id) {
-            const meCollab = state.collaborators?.find(c => c.user_id === state.profile.id);
-            if (meCollab) {
-                pendingAssignees = [{
-                    user_ref: state.profile.id,
-                    collaborator_ref: meCollab.id,
-                    role: defaultRole,
-                    displayName: meCollab.full_name,
-                    user: meCollab
-                }];
-            }
-        }
+            })(),
+            timeoutPromise
+        ]);
+    } catch (e) {
+        console.error("[HubDrawer] Load Error:", e);
+        drawer.innerHTML = `
+            <div style="padding: 2rem; text-align: center; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 1rem;">
+                <span class="material-icons-round" style="font-size: 3rem; color: #ef4444;">error_outline</span>
+                <div style="font-weight: 600; color: var(--text-primary);">Errore di Caricamento</div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); max-width: 250px;">${e.message}</div>
+                <button class="secondary-btn close-drawer-btn" style="margin-top: 1rem;">Chiudi</button>
+            </div>
+        `;
+        drawer.querySelector('.close-drawer-btn').onclick = () => overlay.classList.add('hidden');
+        return;
     }
 
-    // Sync pending on edit load
-    const syncPendingFromExisting = () => {
-        if (assignees && assignees.length) {
-            pendingAssignees = assignees.map(a => ({
-                user_ref: a.user_ref,
-                collaborator_ref: a.collaborator_ref,
-                role: a.role,
-                user: a.user
-            }));
-        }
-    };
-
-    // Helper to capture current form values into the 'item' object before re-render
     const captureFormState = () => {
         const form = drawer.querySelector('#item-form');
         if (!form) return;
         const formData = new FormData(form);
-        // Only update editable fields if we are in edit/create mode
-        if (!isEdit || !viewMode) {
-            // Create a temp item object if null
-            if (!item) item = {};
-            item.title = formData.get('title') || item.title;
-            item.status = formData.get('status') || item.status;
-            item.priority = formData.get('priority') || item.priority;
-            item.notes = formData.get('notes') || item.notes;
-
-            // Dates need care to not break format
-            const start = formData.get('start_date');
-            if (start) item.start_date = start;
-
-            const end = formData.get('due_date');
-            if (end) item.due_date = end;
-        }
+        item.title = formData.get('title') || item.title;
+        item.status = formData.get('status') || item.status;
+        item.priority = formData.get('priority') || item.priority;
+        item.notes = formData.get('notes') || item.notes;
+        if (formData.get('start_date')) item.start_date = formData.get('start_date');
+        if (formData.get('due_date')) item.due_date = formData.get('due_date');
     };
 
-    // Default PM Logic on Creation
-    if (!isEdit) {
-        // Pre-fill default PM if exists in space
-        let space = state.pm_spaces?.find(s => s.id === spaceId);
+    let breadcrumb = '';
+    const path = [];
 
-        // Fallback: If space not in global state, try window context
-        if (!space && window._hubContext?.space?.id === spaceId) {
-            space = window._hubContext.space;
-        }
-
-        console.log('[HubDrawer] Default PM check:', { spaceId, space, defaultPm: space?.default_pm_user_ref });
-
-        if (space && space.default_pm_user_ref) {
-            // Try profiles first
-            let pm = state.profiles?.find(p => p.id === space.default_pm_user_ref);
-
-            // Fallback: Find collaborator with this user_id
-            if (!pm) {
-                const collabAsPm = state.collaborators?.find(c => c.user_id === space.default_pm_user_ref);
-                if (collabAsPm) {
-                    pm = {
-                        id: collabAsPm.user_id,
-                        first_name: collabAsPm.first_name || collabAsPm.full_name,
-                        last_name: collabAsPm.last_name || '',
-                        avatar_url: collabAsPm.avatar_url
-                    };
-                    console.log('[HubDrawer] Found PM via collaborator fallback:', pm);
-                }
-            }
-
-            if (pm) {
-                const pmName = `${pm.first_name || ''} ${pm.last_name || ''}`.trim() || 'PM';
-                pendingAssignees.push({
-                    user_ref: pm.id,
-                    role: 'pm',
-                    displayName: pmName,
-                    user: { first_name: pm.first_name, last_name: pm.last_name, avatar_url: pm.avatar_url, full_name: pmName }
-                });
-                console.log('[HubDrawer] Pre-filled PM:', pmName);
-            } else {
-                console.warn('[HubDrawer] PM profile not found for id:', space.default_pm_user_ref);
-            }
-        }
+    let space = item?.pm_spaces ? (Array.isArray(item.pm_spaces) ? item.pm_spaces[0] : item.pm_spaces) : null;
+    if (!space && spaceId) {
+        space = state.pm_spaces?.find(s => s.id === spaceId) || window._hubContext?.space;
     }
 
+    if (space) {
+        // 1. Reparto / Area
+        const areaName = typeof space.area === 'object' ? space.area?.name : space.area;
+        if (areaName) path.push(areaName);
+
+        // 2. Cluster
+        const cluster = Array.isArray(space.cluster) ? space.cluster[0] : space.cluster;
+        if (cluster?.name) path.push(cluster.name);
+
+        // 3. Commessa / Space Name
+        if (space.name && space.name !== cluster?.name) path.push(space.name);
+    }
+
+    // 4. Parent Activity/Task
+    if (item.parent_item) {
+        path.push(item.parent_item.title);
+    }
+
+    // 5. Build breadcrumb string
+    breadcrumb = path.join(' › ');
+
+    const typeLabel = (item.item_type || itemType || 'task').toUpperCase();
+
     const render = () => {
-        // --- VIEW MODE (Read/Quick Edit) ---
+        if (!item) return;
+
         if (viewMode) {
             drawer.innerHTML = `
-                <!-- Header -->
-                <div class="drawer-header" style="
-                    padding: 1.25rem 1.5rem; 
-                    border-bottom: 1px solid var(--surface-2); 
-                    display: flex; 
-                    justify-content: space-between; 
-                    align-items: flex-start;
-                    background: white;
-                    flex-shrink: 0;
-                ">
-                    <div style="min-width: 0; flex: 1; margin-right: 1.5rem;">
-                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem; text-transform:uppercase; letter-spacing: 0.05em; font-weight: 600;">
-                            #${(item.item_type || itemType)}
+                <div class="drawer-header" style="padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--surface-2); display: flex; justify-content: space-between; align-items: center; background: white; flex-shrink: 0;">
+                    <div style="min-width: 0; flex: 1; margin-right: 1.25rem;">
+                        <div style="margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.35rem;">
+                            <div style="align-self: flex-start; font-size: 0.6rem; font-weight: 800; color: var(--brand-blue); background: rgba(59, 130, 246, 0.08); padding: 2px 8px; border-radius: 12px; text-transform: uppercase; border: 1px solid rgba(59, 130, 246, 0.15); flex-shrink: 0;">
+                                ${typeLabel}
+                            </div>
+                            <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform:uppercase; letter-spacing: 0.05em; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                ${breadcrumb}
+                            </div>
                         </div>
-                        <h2 style="margin: 0; font-size: 1.4rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; word-break: break-word;">${item.title}</h2>
+                        <h2 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; word-break: break-word;">${item.title || 'Dettagli'}</h2>
                     </div>
-                    <div style="display: flex; gap: 0.75rem; align-items: center; flex-shrink: 0;">
-                        <!-- Delete Button (Circular) -->
-                        <button id="delete-item-btn" class="icon-btn" title="Elimina" style="
-                            width: 38px; height: 38px; border-radius: 50%;
-                            display: flex; align-items: center; justify-content: center;
-                            background: #fff; border: 1px solid #fee2e2; color: #ef4444;
-                            cursor: pointer; box-shadow: var(--shadow-soft); transition: all 0.2s;
-                        " onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'">
-                            <span class="material-icons-round" style="font-size: 1.25rem;">delete_outline</span>
-                        </button>
-
-                        <!-- Edit Button (Circular) -->
-                        <button id="edit-mode-btn" class="icon-btn" title="Modifica" style="
-                            width: 38px; height: 38px; border-radius: 50%;
-                            display: flex; align-items: center; justify-content: center;
-                            background: #fff; border: 1px solid var(--surface-2); color: var(--text-primary);
-                            cursor: pointer; box-shadow: var(--shadow-soft); transition: all 0.2s;
-                        " onmouseover="this.style.background='var(--surface-1)'" onmouseout="this.style.background='#fff'">
-                            <span class="material-icons-round" style="font-size: 1.25rem;">edit</span>
-                        </button>
-
-                        <!-- Close Button (Circular) -->
-                        <button class="icon-btn close-drawer-btn" title="Chiudi" style="
-                            width: 38px; height: 38px; border-radius: 50%;
-                            display: flex; align-items: center; justify-content: center;
-                            background: #fff; border: 1px solid var(--surface-2); color: var(--text-secondary);
-                            cursor: pointer; box-shadow: var(--shadow-soft); transition: all 0.2s;
-                        " onmouseover="this.style.background='var(--surface-1)'" onmouseout="this.style.background='#fff'">
-                            <span class="material-icons-round" style="font-size: 1.25rem;">close</span>
-                        </button>
+                    <div style="display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0;">
+                        <button id="delete-item-btn" class="icon-btn" title="Elimina" style="width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #fee2e2; color: #ef4444; cursor: pointer;"><span class="material-icons-round" style="font-size: 1.1rem;">delete_outline</span></button>
+                        <button id="edit-mode-btn" class="icon-btn" title="Modifica" style="width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid var(--surface-2); color: var(--text-primary); cursor: pointer;"><span class="material-icons-round" style="font-size: 1.1rem;">edit</span></button>
+                        <button class="icon-btn close-drawer-btn" title="Chiudi" style="width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid var(--surface-2); color: var(--text-secondary); cursor: pointer;"><span class="material-icons-round" style="font-size: 1.1rem;">close</span></button>
                     </div>
                 </div>
-
-                <!-- Scrollable Content -->
                 <div class="drawer-scroll-container" style="flex: 1; overflow-y: auto;">
-                    <!-- Hero / Meta -->
-                    <div style="padding: 1.5rem; background: var(--surface-1); border-bottom: 1px solid var(--surface-2);">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-                            
-                            <!-- Status (Custom Dropdown) -->
-                            <div>
-                                <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">STATO</label>
-                                
+                    <div style="padding: 1rem 1.25rem; background: var(--surface-1); border-bottom: 1px solid var(--surface-2);">
+                        <!-- Row 1: Dates, Priority & Status -->
+                        <div style="display: flex; align-items: flex-start; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: nowrap;">
+                            <!-- Inizio -->
+                            <div style="flex: 0 0 auto; min-width: 90px;">
+                                <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform:uppercase; letter-spacing: 0.05em;">INIZIO</label>
+                                <div id="start-date-btn" class="date-trigger" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 4px 0;">
+                                    <span class="material-icons-round" style="font-size: 1.1rem; color: #8b5cf6;">calendar_today</span>
+                                    <span>${item.start_date ? new Date(item.start_date).toLocaleDateString('it-IT') : 'Non impostata'}</span>
+                                </div>
+                            </div>
+                            <!-- Scadenza -->
+                            <div style="flex: 0 0 auto; min-width: 100px;">
+                                <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform:uppercase; letter-spacing: 0.05em;">SCADENZA</label>
+                                <div id="due-date-btn" class="date-trigger" style="font-size: 0.85rem; font-weight: 700; color: ${item.due_date && new Date(item.due_date) < new Date() ? '#ef4444' : 'var(--text-secondary)'}; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 4px 0;">
+                                    <span class="material-icons-round" style="font-size: 1.1rem; color: #f43f5e;">event</span>
+                                    <span>${item.due_date ? new Date(item.due_date).toLocaleDateString('it-IT') : 'Non impostata'}</span>
+                                </div>
+                            </div>
+                            <!-- Priorità -->
+                            <div style="flex: 0 0 auto; min-width: 110px;">
+                                <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform:uppercase; letter-spacing: 0.05em;">PRIORITÀ</label>
                                 <div style="position: relative;">
-                                    <!-- Trigger -->
-                                    <button id="status-trigger-btn" style="
-                                        appearance: none;
-                                        border: none;
-                                        padding: 6px 16px;
-                                        padding-right: 36px;
-                                        border-radius: 20px;
-                                        font-size: 0.85rem;
-                                        font-weight: 600;
-                                        background-color: ${ITEM_STATUS[item.status]?.bg || '#f1f5f9'};
-                                        color: ${ITEM_STATUS[item.status]?.color || '#64748b'};
-                                        cursor: pointer;
-                                        transition: all 0.2s;
-                                        position: relative;
-                                        min-width: 140px;
-                                        text-align: left;
-                                    ">
+                                    <button id="priority-trigger-btn" style="appearance: none; border: none; padding: 4px 0; background: transparent; color: ${ITEM_PRIORITY[item.priority || 'medium']?.color}; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 700; transition: all 0.2s;">
+                                        <span class="material-icons-round" style="font-size: 1.1rem; color: ${ITEM_PRIORITY[item.priority || 'medium']?.color};">flag</span>
+                                        <span class="priority-label">${ITEM_PRIORITY[item.priority || 'medium']?.label}</span>
+                                        <span class="material-icons-round" style="font-size: 1.1rem; opacity: 0.5;">expand_more</span>
+                                    </button>
+                                    <div id="priority-dropdown-menu" class="hidden dropdown-menu" style="position: absolute; top: 100%; left: 0; margin-top: 8px; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid var(--surface-2); padding: 8px; z-index: 1000; min-width: 160px; display: flex; flex-direction: column; gap: 4px;">
+                                        ${Object.keys(ITEM_PRIORITY).map(k => `<div class="priority-option" data-value="${k}" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; font-weight: 600; color: #334155; transition: background 0.2s;">
+                                            <span class="material-icons-round" style="font-size: 1.1rem; color: ${ITEM_PRIORITY[k].color};">flag</span>
+                                            <span>${ITEM_PRIORITY[k].label}</span>
+                                            ${(item.priority || 'medium') === k ? `<span class="material-icons-round" style="margin-left: auto; font-size: 1.1rem; color: var(--brand-blue);">check</span>` : ''}
+                                        </div>`).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Stato -->
+                            <div style="flex: 0 0 auto; min-width: 140px;">
+                                <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform:uppercase; letter-spacing: 0.05em;">STATO</label>
+                                <div style="position: relative;">
+                                    <button id="status-trigger-btn" style="appearance: none; border: none; padding: 6px 14px; padding-right: 36px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; background-color: ${ITEM_STATUS[item.status]?.bg || '#f1f5f9'}; color: ${ITEM_STATUS[item.status]?.color || '#64748b'}; cursor: pointer; position: relative; text-align: left; transition: all 0.2s;">
                                         <span class="status-label">${ITEM_STATUS[item.status]?.label || item.status}</span>
-                                        <span class="material-icons-round" style="
-                                            position: absolute;
-                                            right: 10px;
-                                            top: 50%;
-                                            transform: translateY(-50%);
-                                            font-size: 1.1rem;
-                                            opacity: 0.7;
-                                        ">expand_more</span>
+                                        <span class="material-icons-round" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 1.14rem; opacity: 0.7;">expand_more</span>
                                     </button>
-
-                                    <!-- Dropdown Menu -->
-                                    <div id="status-dropdown-menu" class="hidden" style="
-                                        position: absolute;
-                                        top: 100%;
-                                        left: 0;
-                                        margin-top: 8px;
-                                        background: white;
-                                        border-radius: 12px;
-                                        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-                                        border: 1px solid var(--surface-2);
-                                        padding: 6px;
-                                        z-index: 1000;
-                                        min-width: 160px;
-                                        display: flex;
-                                        flex-direction: column;
-                                        gap: 2px;
-                                    ">
-                                        ${Object.keys(ITEM_STATUS).map(k => `
-                                            <div class="status-option" data-value="${k}" style="
-                                                padding: 8px 12px;
-                                                border-radius: 8px;
-                                                cursor: pointer;
-                                                display: flex;
-                                                align-items: center;
-                                                gap: 8px;
-                                                font-size: 0.85rem;
-                                                font-weight: 500;
-                                                color: #334155;
-                                                transition: background 0.1s;
-                                            " onmouseover="this.style.background='var(--surface-1)'" onmouseout="this.style.background='transparent'">
-                                                <div style="width: 8px; height: 8px; border-radius: 50%; background: ${ITEM_STATUS[k].color || '#ccc'};"></div>
-                                                ${ITEM_STATUS[k].label}
-                                                ${item.status === k ? `<span class="material-icons-round" style="margin-left: auto; font-size: 16px; color: var(--brand-color);">check</span>` : ''}
-                                            </div>
-                                        `).join('')}
+                                    <div id="status-dropdown-menu" class="hidden dropdown-menu" style="position: absolute; top: 100%; left: 0; margin-top: 8px; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid var(--surface-2); padding: 8px; z-index: 1000; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
+                                        ${Object.keys(ITEM_STATUS).map(k => `<div class="status-option" data-value="${k}" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; font-weight: 600; color: #334155; transition: background 0.2s;">
+                                            <div style="width: 10px; height: 10px; border-radius: 50%; background: ${ITEM_STATUS[k].color};"></div>
+                                            <span>${ITEM_STATUS[k].label}</span>
+                                            ${item.status === k ? `<span class="material-icons-round" style="margin-left: auto; font-size: 1.1rem; color: var(--brand-blue);">check</span>` : ''}
+                                        </div>`).join('')}
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- Project Managers -->
-                            <div style="position: relative; margin-bottom: 1.5rem;">
-                                <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">PROJECT MANAGER</label>
-                                
-                                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-                                    <!-- Current PMs -->
-                                    ${assignees.filter(a => a.role === 'pm').map(a => {
-                let userName = a.user?.full_name;
-                if (!userName && a.user?.first_name) {
-                    userName = `${a.user.first_name} ${a.user.last_name || ''}`.trim();
-                }
-                if (!userName) userName = 'Utente';
-
-                const initial = userName.charAt(0).toUpperCase();
-                return `
-                                        <div class="assignee-pill pm-pill" style="display: flex; align-items: center; gap: 8px; background: rgba(66, 133, 244, 0.1); border: 1px solid rgba(66, 133, 244, 0.2); padding: 4px 10px 4px 4px; border-radius: 24px; transition: all 0.2s;">
-                                            <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; border: 2px solid white; overflow: hidden;">
-                                                ${a.user?.avatar_url ? `<img src="${a.user.avatar_url}" style="width:100%; height:100%; object-fit:cover;">` : initial}
-                                            </div>
-                                            <div style="display: flex; flex-direction: column; line-height: 1.1;">
-                                                <span style="font-size: 0.85rem; font-weight: 500; color: var(--brand-blue);">${userName}</span>
-                                                <span style="font-size: 0.65rem; color: var(--text-tertiary); font-weight: 400;">Project Manager</span>
-                                            </div>
-                                            <span class="material-icons-round remove-assignee-btn" data-id="${a.id}" data-role="pm" style="font-size: 16px; color: var(--brand-blue); cursor: pointer; margin-left: 4px; opacity: 0.5; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">close</span>
+                        <!-- Row 2: PM & Assignees -->
+                        <div style="display: flex; align-items: flex-start; gap: 2rem; flex-wrap: wrap;">
+                            <!-- Project Manager -->
+                            <div style="flex: 0 0 auto; min-width: 160px;">
+                                <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform:uppercase; letter-spacing: 0.05em;">PROJECT MANAGER</label>
+                                <div id="pm-list" style="display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; position: relative;">
+                                    ${assignees.filter(a => a.role === 'pm').map(a => `
+                                        <div class="assignee-pill" style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; padding-left: 4px; background: white; border: 1px solid var(--brand-purple); border-radius: 20px; font-size: 0.8rem; font-weight: 700; color: var(--brand-purple); box-shadow: 0 2px 4px rgba(0,0,0,0.03); position: relative;">
+                                            <img src="${a.user?.avatar_url || '../../../assets/default-avatar.png'}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
+                                            <span>${a.user?.first_name || 'PM'}</span>
+                                            ${(state.profile?.role === 'admin' || state.profile?.tags?.some(t => t.toLowerCase().includes('pm'))) ? `
+                                            <span class="material-icons-round" onclick="event.stopPropagation(); window.quickRemoveAssignee('${itemId}', '${a.id}')" style="font-size: 14px; cursor: pointer; color: #ef4444; margin-left: 4px;">close</span>
+                                            ` : ''}
                                         </div>
-                                    `;
-            }).join('')}
-
-                                    <!-- Add PM Button -->
-                                    <button id="add-pm-btn" style="
-                                        width: 36px; height: 36px; border-radius: 50%; 
-                                        border: 1px dashed var(--brand-blue); 
-                                        display: flex; align-items: center; justify-content: center;
-                                        color: var(--brand-blue); cursor: pointer; background: transparent;
-                                        transition: background 0.2s;
-                                    ">
-                                        <span class="material-icons-round" style="font-size: 20px;">add</span>
-                                    </button>
-
-                                    <!-- PM Picker -->
-                                    <div id="pm-picker" class="hidden" style="
-                                        position: absolute; 
-                                        background: white; 
-                                        box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
-                                        border-radius: 12px; 
-                                        min-width: 260px; 
-                                        max-width: 350px;
-                                        z-index: 1000;
-                                        top: 100%;
-                                        left: 0;
-                                        margin-top: 8px;
-                                        border: 1px solid var(--surface-2);
-                                        overflow: hidden;
-                                    ">
-                                        ${renderAssigneePickerOptions(spaceId, 'pm')}
+                                    `).join('')}
+                                    <button id="add-pm-btn" style="width: 28px; height: 28px; border-radius: 50%; border: 1px dashed var(--brand-purple); background: transparent; color: var(--brand-purple); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"><span class="material-icons-round" style="font-size: 1.2rem;">add</span></button>
+                                    <div id="pm-picker" class="hidden dropdown-menu" style="position: absolute; background: white; box-shadow: 0 10px 40px rgba(0,0,0,0.15); border-radius: 12px; min-width: 260px; z-index: 1000; top: 100%; left: 0; margin-top: 8px; border: 1px solid var(--surface-2); overflow-y: auto; max-height: 300px;">
+                                        ${renderUserPicker(spaceId, 'pm', new Set(assignees.filter(a => a.role === 'pm').map(a => a.user_ref || a.collaborator_ref)))}
                                     </div>
                                 </div>
                             </div>
+                            <!-- Assegnatari -->
+                            <div style="flex: 1; min-width: 200px;">
+                                <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform:uppercase; letter-spacing: 0.05em;">ASSEGNATO A</label>
+                                <div id="assignee-list" style="display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; position: relative;">
+                                    ${assignees.filter(a => a.role !== 'pm').map(a => `
+                                        <div class="assignee-pill" title="${a.user?.full_name || ''}" style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; padding-left: 4px; background: white; border: 1px solid var(--surface-2); border-radius: 20px; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); box-shadow: 0 2px 4px rgba(0,0,0,0.03); position: relative;">
+                                            <img src="${a.user?.avatar_url || '../../../assets/default-avatar.png'}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
+                                            <span>${a.user?.first_name || 'User'}</span>
+                                            ${(state.profile?.role === 'admin' || state.profile?.tags?.some(t => t.toLowerCase().includes('pm'))) ? `
+                                            <span class="material-icons-round" onclick="event.stopPropagation(); window.quickRemoveAssignee('${itemId}', '${a.id}')" style="font-size: 14px; cursor: pointer; color: #ef4444; margin-left: 4px;">close</span>
+                                            ` : ''}
+                                        </div>
+                                    `).join('')}
+                                    <button id="add-assignee-btn" style="width: 28px; height: 28px; border-radius: 50%; border: 1px dashed var(--text-tertiary); background: transparent; color: var(--text-tertiary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"><span class="material-icons-round" style="font-size: 1.2rem;">add</span></button>
+                                    <div id="assignee-picker" class="hidden dropdown-menu" style="position: absolute; background: white; box-shadow: 0 10px 40px rgba(0,0,0,0.15); border-radius: 12px; min-width: 260px; z-index: 1000; top: 100%; left: 0; margin-top: 8px; border: 1px solid var(--surface-2); overflow-y: auto; max-height: 300px;">
+                                        ${renderUserPicker(spaceId, 'assignee', new Set(assignees.filter(a => a.role !== 'pm').map(a => a.user_ref || a.collaborator_ref)))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                            <!-- Assignees -->
+                        <!-- Row 3: Resources Button -->
+                        <div style="margin-top: 1.25rem; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 1rem; display: flex; justify-content: flex-start;">
                             <div style="position: relative;">
-                                <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">ASSEGNATO A</label>
+                                <button id="open-resources-btn" style="
+                                    display: flex; align-items: center; gap: 0.6rem; padding: 6px 14px;
+                                    background: white; border: 1px solid var(--surface-2); border-radius: 20px;
+                                    color: var(--text-secondary); font-weight: 700; font-size: 0.8rem;
+                                    cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+                                ">
+                                    <span class="material-icons-round" style="font-size: 1.14rem; color: #3b82f6;">cloud</span>
+                                    <span>Risorse</span>
+                                    ${item.cloud_links?.length > 0 ? `<span id="resource-count-badge" style="background: #3b82f6; color: white; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.7rem; font-weight: 800; border: 2px solid white;">${item.cloud_links.length}</span>` : ''}
+                                </button>
                                 
-                                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                                    ${assignees.filter(a => !a.role || a.role === 'assignee').map(a => {
-                const userName = `${a.user?.first_name || ''} ${a.user?.last_name || ''}`.trim() || 'Utente';
-                const initial = userName.charAt(0).toUpperCase();
-                return `
-                                        <div class="assignee-pill" style="display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--surface-2); padding: 4px 10px 4px 4px; border-radius: 20px; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                            <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--surface-3); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; overflow: hidden;">
-                                                ${a.user?.avatar_url ? `<img src="${a.user.avatar_url}" style="width:100%; height:100%; object-fit:cover;">` : initial}
-                                            </div>
-                                            <span style="font-size: 0.85rem; font-weight: 500;">${userName}</span>
-                                            <span class="material-icons-round remove-assignee-btn" data-id="${a.id}" data-role="assignee" style="font-size: 16px; color: var(--text-tertiary); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-tertiary)'">close</span>
+                                <!-- Resources Popover -->
+                                <div id="resources-popover" class="hidden dropdown-menu glass-card" style="
+                                    position: absolute; top: calc(100% + 10px); left: 0; width: 340px; z-index: 1000;
+                                    background: white; border: 1px solid var(--surface-2); padding: 1.25rem;
+                                    box-shadow: 0 15px 40px rgba(0,0,0,0.18); border-radius: 16px;
+                                ">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="material-icons-round" style="font-size: 1.1rem; color: #3b82f6;">cloud</span>
+                                            <h3 style="font-size: 0.9rem; font-weight: 800; margin: 0; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em;">Risorse Cloud</h3>
                                         </div>
-                                    `;
-            }).join('')}
-                                    
-                                    <button id="add-assignee-btn" style="
-                                        width: 32px; height: 32px; border-radius: 50%; 
-                                        border: 1px dashed var(--text-secondary); 
-                                        display: flex; align-items: center; justify-content: center;
-                                        color: var(--text-secondary); cursor: pointer; background: transparent;
-                                    ">
-                                        <span class="material-icons-round">add</span>
-                                    </button>
-                                    
-                                    <div id="assignee-picker" class="hidden" style="
-                                        position: absolute; 
-                                        background: white; 
-                                        box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
-                                        border-radius: 12px; 
-                                        min-width: 260px; 
-                                        max-width: 350px;
-                                        z-index: 1000;
-                                        top: 100%;
-                                        right: 0;
-                                        margin-top: 8px;
-                                        border: 1px solid var(--surface-2);
-                                        overflow: hidden;
-                                    ">
-                                        ${renderAssigneePickerOptions(spaceId, 'assignee')}
+                                        <button id="close-resources-popover-btn" style="background: none; border: none; cursor: pointer; color: var(--text-tertiary); display: flex;"><span class="material-icons-round" style="font-size: 1.2rem;">close</span></button>
                                     </div>
+                                    <div id="item-cloud-links-container"></div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Body -->
-                    <div class="drawer-body" style="padding: 1.5rem;">
-                        <!-- Dates -->
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
-                            <div>
-                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">INIZIO</label>
-                                <div style="font-size: 0.95rem;">${item.start_date ? new Date(item.start_date).toLocaleDateString() : '-'}</div>
-                            </div>
-                            <div>
-                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">SCADENZA</label>
-                                <div style="font-size: 0.95rem; color: ${item.due_date && new Date(item.due_date) < new Date() ? 'red' : 'inherit'}">
-                                    ${item.due_date ? new Date(item.due_date).toLocaleDateString() : '-'}
-                                </div>
-                            </div>
+                    <div style="padding: 1.25rem; border-bottom: 2px solid var(--surface-2); position: relative;">
+                        <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 0.6rem; text-transform:uppercase; letter-spacing: 0.05em;">DESCRIZIONE</label>
+                        <div id="item-description-container" style="min-height: 48px;">
+                            <div id="item-description-view" style="font-size: 0.9rem; color: var(--text-primary); line-height: 1.6; white-space: pre-wrap; border-radius: 8px; cursor: pointer; padding: 6px; transition: all 0.2s; border: 1px solid transparent; width: 100%; word-break: break-word; margin: 0;" onmouseover="this.style.background='var(--surface-1)'; this.style.borderColor='var(--surface-2)'" onmouseout="this.style.background='transparent'; this.style.borderColor='transparent'">${(item.notes && item.notes.trim()) || '<span style="color: #94a3b8; font-style: italic;">Clicca per aggiungere una descrizione...</span>'}</div>
                         </div>
-
-                        <!-- Description -->
-                        <div style="margin-bottom: 2rem;">
-                            <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">DESCRIZIONE</label>
-                            <div style="margin-top: 0.5rem; line-height: 1.5; white-space: pre-wrap; font-size: 0.95rem;">${item.notes || '<span style="color:var(--text-secondary); font-style:italic;">Nessuna descrizione</span>'}</div>
+                        <div id="desc-saving-indicator" class="hidden" style="position: absolute; top: 1.25rem; right: 1.25rem; font-size: 0.65rem; color: var(--brand-blue); font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                             <span class="material-icons-round" style="font-size: 0.8rem; animation: spin-hub 1s linear infinite;">sync</span> SALVATAGGIO...
                         </div>
-
-                        <!-- Cloud Links -->
-                        <div style="margin-bottom: 2rem;">
-                            <h4 style="margin:0 0 0.5rem; font-size:0.75rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase;">RISORSE CLOUD</h4>
-                            <div id="item-cloud-links-container"></div>
+                    </div>
+                    <div class="comments-section" style="padding: 1.25rem;">
+                        <h4 style="margin: 0 0 1rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">Commenti (${comments.length})</h4>
+                        <div id="comments-list" style="margin-bottom: 1rem;">
+                            ${comments.map(c => `<div style="padding: 0.75rem; background: var(--surface-1); border-radius: 8px; margin-bottom: 0.5rem; font-size: 0.85rem;"><strong>${c.profiles?.first_name || 'Utente'}</strong>: ${c.body}</div>`).join('')}
                         </div>
-
-                        <!-- Comments -->
-                        ${renderCommentsSection(comments)}
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="new-comment" placeholder="Scrivi un commento..." class="input-modern" style="flex: 1;">
+                            <button type="button" id="add-comment-btn" class="primary-btn"><span class="material-icons-round" style="font-size: 1rem;">send</span></button>
+                        </div>
                     </div>
                 </div>
-
             `;
-
             attachViewModeListeners();
-
-            // Cloud Links Manager
-            new CloudLinksManager(
-                drawer.querySelector('#item-cloud-links-container'),
-                item.cloud_links || [],
-                async (newLinks) => {
-                    try {
-                        await updateItemCloudLinks(itemId, newLinks);
-                        item.cloud_links = newLinks; // Update locally
-                    } catch (err) {
-                        alert("Errore salvataggio link: " + err.message);
-                    }
-                }
-            );
-
+            new CloudLinksManager(drawer.querySelector('#item-cloud-links-container'), item.cloud_links || [], async (newLinks) => {
+                await updateItemCloudLinks(itemId, newLinks);
+                item.cloud_links = newLinks;
+            });
         } else {
-            // --- EDIT / CREATE MODE ---
             drawer.innerHTML = `
-                <div class="drawer-header" style="
-                    padding: 1.25rem 1.5rem;
-                    border-bottom: 1px solid var(--surface-2);
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    background: white;
-                    flex-shrink: 0;
-                ">
+                <div class="drawer-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--surface-2); display: flex; justify-content: space-between; align-items: center; background: white; flex-shrink: 0;">
                     <h2 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">${isEdit ? 'Modifica' : 'Nuova'} ${itemType === 'attivita' ? 'Attività' : 'Task'}</h2>
                     <button class="icon-btn close-drawer-btn" title="Chiudi"><span class="material-icons-round">close</span></button>
                 </div>
-                
                 <div class="drawer-body" style="flex: 1; overflow-y: auto; padding: 1.5rem;">
                     <form id="item-form" style="display: flex; flex-direction: column; gap: 1.5rem;">
-                        <input type="hidden" name="space_ref" value="${spaceId}">
-                        ${parentId ? `<input type="hidden" name="parent_ref" value="${parentId}">` : ''}
-                        <input type="hidden" name="item_type" value="${item?.item_type || itemType}">
+                        <input type="hidden" id="task-space-ref" name="space_ref" value="${currentSpaceId || ''}">
                         
+                        <!-- Context Picker (Space / Commessa / Client) -->
                         <div class="form-group">
-                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem;">Titolo *</label>
-                            <input type="text" name="title" required value="${item?.title || ''}" class="input-modern" placeholder="Descrivi l'attività...">
-                        </div>
-
-                        <!-- PROJECT MANAGER (Read Only - From Commessa) -->
-                        ${(() => {
-                    // Get PM from pendingAssignees (pre-filled) or from space
-                    const pmAssignee = pendingAssignees.find(a => a.role === 'pm');
-                    if (pmAssignee) {
-                        let pmName = pmAssignee.displayName || pmAssignee.user?.full_name;
-                        if (!pmName && pmAssignee.user?.first_name) {
-                            pmName = `${pmAssignee.user.first_name} ${pmAssignee.user.last_name || ''}`.trim();
+                            <label class="label-sm">Progetto / Commessa / Cliente *</label>
+                            <div style="position: relative;">
+                                <div id="context-picker-trigger" style="
+                                    padding: 10px 12px; background: white; border: 1px solid var(--surface-3); border-radius: 8px; 
+                                    font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+                                    transition: all 0.2s;
+                                ">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span class="material-icons-round" style="font-size: 18px; color: var(--brand-blue);">
+                                            ${currentSpaceId ? (state.pm_spaces?.find(x => x.id === currentSpaceId)?.type === 'interno' ? 'folder_special' : 'style') : (currentClientId ? 'person' : 'search')}
+                                        </span>
+                                        <span style="${!currentSpaceId && !currentClientId ? 'color: var(--text-tertiary); font-style: italic;' : 'font-weight: 500;'}">
+                                            ${(() => {
+                    if (currentSpaceId) {
+                        const s = state.pm_spaces?.find(x => x.id === currentSpaceId);
+                        if (s?.type === 'commessa') {
+                            const o = state.orders?.find(x => x.id === s.ref_ordine);
+                            return o ? `#${o.order_number} ${o.title}` : s.name || 'Commessa';
                         }
-                        if (!pmName) pmName = 'PM';
-
-                        const pmAvatar = pmAssignee.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(pmName);
-                        return `
-                                    <div class="form-group">
-                                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem;">Project Manager</label>
-                                        <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; border: 1px solid rgba(66, 133, 244, 0.3); border-radius: 8px; background: rgba(66, 133, 244, 0.05);">
-                                            <div style="width: 28px; height: 28px; border-radius: 50%; background: #ccc; overflow: hidden;">
-                                                <img src="${pmAvatar}" style="width: 100%; height: 100%; object-fit: cover;">
-                                            </div>
-                                            <span style="font-size: 0.9rem; font-weight: 500; color: var(--brand-blue);">${pmName}</span>
-                                            <span class="material-icons-round" style="font-size: 14px; color: var(--brand-blue); margin-left: auto;">verified</span>
-                                        </div>
-                                    </div>
-                                `;
+                        return s?.name || 'Progetto Interno';
                     }
-                    return ''; // No PM to show
+                    if (currentClientId) {
+                        const c = state.clients?.find(x => x.id === currentClientId);
+                        return c ? `Cliente: ${c.business_name}` : 'Cliente Selezionato';
+                    }
+                    return 'Cerca Progetto, Commessa o Cliente...';
                 })()}
-
-                        <!-- ASSIGNEES IN FORM (Collaborators Only) -->
+                                        </span>
+                                    </div>
+                                    <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">expand_more</span>
+                                </div>
+                                
+                                <div id="context-picker-dropdown" class="hidden glass-card" style="
+                                    position: absolute; top: calc(100% + 6px); left: 0; width: 100%; z-index: 1000;
+                                    background: white; border: 1px solid var(--surface-3); border-radius: 12px;
+                                    box-shadow: 0 10px 30px rgba(0,0,0,0.15); padding: 8px;
+                                ">
+                                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                                        <input type="text" id="context-search" placeholder="Filtra..." class="input-modern" style="flex: 1; font-size: 0.8rem; height: 32px; padding: 0 10px;">
+                                        <button type="button" id="clear-context-btn" title="Rimuovi associazione" style="background: var(--surface-1); border: 1px solid var(--surface-3); border-radius: 8px; padding: 0 8px; cursor: pointer; color: var(--text-tertiary);">
+                                            <span class="material-icons-round" style="font-size: 18px;">backspace</span>
+                                        </button>
+                                    </div>
+                                    <div id="context-options-list" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;">
+                                        <!-- Options injected via JS -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group"><label class="label-sm">Titolo *</label><input type="text" name="title" required value="${item.title || ''}" class="input-modern" placeholder="Titolo..."></div>
                         <div class="form-group">
-                             <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem;">Assegnato a</label>
-                             <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.5rem; border: 1px solid var(--surface-2); border-radius: 8px; background: white;">
-                                 
-                                 <!-- Pending Assignees Pills (Collaborators Only - Exclude PM) -->
-                                 ${pendingAssignees.filter(a => a.role !== 'pm').map((a, idx) => {
-                    let displayName = a.user?.full_name || a.displayName;
-                    if (!displayName && a.user?.first_name) {
-                        displayName = `${a.user.first_name} ${a.user.last_name || ''}`.trim();
-                    }
-                    if (!displayName) displayName = 'Assegnatario';
-
-                    const avatarUrl = a.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(displayName);
-                    return `
-                                         <div class="pending-assignee-pill" style="display: flex; align-items: center; gap: 6px; background: var(--surface-2); padding: 4px 8px 4px 4px; border-radius: 20px;">
-                                             <div style="width: 24px; height: 24px; border-radius: 50%; background: #ccc; overflow: hidden;">
-                                                 <img src="${avatarUrl}" style="width: 100%; height: 100%; object-fit: cover;">
-                                             </div>
-                                             <span style="font-size: 0.85rem;">${displayName}</span>
-                                             <span class="material-icons-round remove-pending-btn" data-idx="${pendingAssignees.indexOf(a)}" style="font-size: 16px; cursor: pointer; opacity: 0.6;">close</span>
-                                         </div>
-                                     `;
-                }).join('')}
-
-                                 <!-- Add Button -->
-                                 <div style="position: relative;">
-                                     <button type="button" id="form-add-assignee-btn" style="width: 28px; height: 28px; border-radius: 50%; border: 1px dashed var(--text-secondary); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); background: transparent; cursor: pointer;">
-                                         <span class="material-icons-round" style="font-size: 16px;">add</span>
-                                     </button>
-
-                                     <!-- Helper Picker -->
-                                     <div id="form-assignee-picker" class="hidden" style="
-                                         position: absolute; 
-                                         top: 100%; 
-                                         left: 0; 
-                                         min-width: 260px; 
-                                         max-width: 350px;
-                                         background: white; 
-                                         border-radius: 12px; 
-                                         box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
-                                         z-index: 100; 
-                                         border: 1px solid var(--surface-2);
-                                         overflow: hidden;
-                                         margin-top: 8px;
-                                     ">
-                                         ${renderAssigneePickerOptions(spaceId, 'assignee')}
-                                     </div>
-                                 </div>
-                             </div>
+                            <label class="label-sm">Assegnato a</label>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.5rem; border: 1px solid var(--surface-2); border-radius: 8px;">
+                                ${pendingAssignees.map((a, idx) => `
+                                    <div class="pending-assignee-pill" style="display: flex; align-items: center; gap: 6px; background: var(--surface-2); padding: 4px 8px; border-radius: 20px; font-size: 0.8rem;">
+                                        <img src="${a.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(a.displayName)}" style="width: 20px; height: 20px; border-radius: 50%;">
+                                        <span>${a.displayName}</span>
+                                        <span class="material-icons-round remove-pending-btn" data-idx="${idx}" style="font-size: 14px; cursor: pointer;">close</span>
+                                    </div>
+                                `).join('')}
+                                <div style="position: relative;">
+                                    <button type="button" id="form-add-assignee-btn" style="width: 24px; height: 24px; border-radius: 50%; border: 1px dashed #ccc; background: transparent; cursor: pointer;"><span class="material-icons-round" style="font-size: 14px;">add</span></button>
+                                    <div id="form-assignee-picker" class="hidden" style="position: absolute; top: 100%; left: 0; min-width: 240px; background: white; border: 1px solid var(--surface-2); border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); z-index: 100;">
+                                        ${renderUserPicker(spaceId, 'assignee', new Set(pendingAssignees.map(a => a.user_ref || a.collaborator_ref)))}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                            <div class="form-group">
-                                <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem;">Stato</label>
-                                <select name="status" class="input-modern">
-                                    ${Object.keys(ITEM_STATUS).map(k => `
-                                        <option value="${k}" ${item?.status === k ? 'selected' : ''}>${ITEM_STATUS[k].label}</option>
-                                    `).join('')}
-                                </select>
+                            <div class="form-group"><label class="label-sm">Stato</label><select name="status" class="input-modern">${Object.keys(ITEM_STATUS).map(k => `<option value="${k}" ${item.status === k ? 'selected' : ''}>${ITEM_STATUS[k].label}</option>`).join('')}</select></div>
+                            <div class="form-group"><label class="label-sm">Priorità</label><select name="priority" class="input-modern"><option value="low" ${item.priority === 'low' ? 'selected' : ''}>Bassa</option><option value="medium" ${item.priority === 'medium' ? 'selected' : ''}>Media</option><option value="high" ${item.priority === 'high' ? 'selected' : ''}>Alta</option></select></div>
+                        </div>
+                        ${!isEdit ? `
+                        <div class="form-group" style="padding: 1.25rem; background: var(--surface-1); border-radius: 12px; border: 1px solid var(--surface-2); margin-bottom: 1rem;">
+                            <label class="label-sm" style="display: flex; align-items: center; gap: 8px; color: var(--text-primary); font-weight: 800; margin-bottom: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                                <span class="material-icons-round" style="font-size: 1.2rem; color: var(--brand-blue);">repeat</span>
+                                Impostazioni Ricorrenza
+                            </label>
+                            
+                            <!-- Row 1: Frequenza e Intervallo -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                                <div>
+                                    <label class="label-xs" style="color: var(--text-tertiary); margin-bottom: 6px; display: block; font-weight: 700;">FREQUENZA</label>
+                                    <select name="rec_freq" class="input-modern" style="height: 40px; font-size: 0.85rem;">
+                                        <option value="">Nessuna</option>
+                                        <option value="DAILY">Giornaliero</option>
+                                        <option value="WEEKLY">Settimanale</option>
+                                        <option value="MONTHLY">Mensile</option>
+                                        <option value="YEARLY">Annuale</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="label-xs" style="color: var(--text-tertiary); margin-bottom: 6px; display: block; font-weight: 700;">RIPETI OGNI</label>
+                                    <div style="display: flex; gap: 6px; align-items: center;">
+                                        <input type="number" name="rec_interval" value="1" min="1" class="input-modern" style="width: 60px; height: 40px; text-align: center;">
+                                        <select name="rec_unit" class="input-modern" style="flex: 1; height: 40px; font-size: 0.8rem;">
+                                            <option value="day">giorno solare</option>
+                                            <option value="workday">giorno lavorativo</option>
+                                            <option value="week">settimana</option>
+                                            <option value="month">mese</option>
+                                            <option value="year">anno</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem;">Priorità</label>
-                                <select name="priority" class="input-modern">
-                                    <option value="low" ${item?.priority === 'low' ? 'selected' : ''}>Bassa</option>
-                                    <option value="medium" ${item?.priority === 'medium' ? 'selected' : ''}>Media</option>
-                                    <option value="high" ${item?.priority === 'high' ? 'selected' : ''}>Alta</option>
-                                    <option value="urgent" ${item?.priority === 'urgent' ? 'selected' : ''}>Urgente</option>
-                                </select>
+
+                            <!-- Row 2: Inizio e Fine -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                                <div>
+                                    <label class="label-xs" style="color: var(--text-tertiary); margin-bottom: 6px; display: block; font-weight: 700;">INIZIO</label>
+                                    <input type="date" name="rec_start" value="${new Date().toISOString().split('T')[0]}" class="input-modern" style="height: 40px;">
+                                </div>
+                                <div>
+                                    <label class="label-xs" style="color: var(--text-tertiary); margin-bottom: 6px; display: block; font-weight: 700;">FINE</label>
+                                    <input type="date" name="rec_until" class="input-modern" style="height: 40px;" placeholder="Mai...">
+                                </div>
+                            </div>
+
+                            <!-- Row 3: Limiti e Anticipo -->
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem; border-top: 1px solid var(--surface-2); padding-top: 1rem;">
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <input type="checkbox" name="rec_limit_active" id="rec-limit-active" style="width: 16px; height: 16px;">
+                                        <label for="rec-limit-active" style="font-size: 0.85rem; color: var(--text-secondary);">Limita a</label>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <input type="number" name="rec_limit_count" value="10" min="1" class="input-modern" style="width: 70px; height: 32px; text-align: center;">
+                                        <span style="font-size: 0.8rem; color: var(--text-tertiary);">eventi</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <input type="checkbox" name="rec_advance_active" id="rec-advance-active" style="width: 16px; height: 16px;">
+                                        <label for="rec-advance-active" style="font-size: 0.85rem; color: var(--text-secondary);">Crea in anticipo</label>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <input type="number" name="rec_advance_count" value="1" min="1" class="input-modern" style="width: 70px; height: 32px; text-align: center;">
+                                        <span style="font-size: 0.8rem; color: var(--text-tertiary);">attività</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                            <div class="form-group">
-                                <label class="label-sm">Data Inizio</label>
-                                <input type="date" name="start_date" value="${item?.start_date ? item.start_date.split('T')[0] : ''}" class="input-modern">
-                            </div>
-                            <div class="form-group">
-                                <label class="label-sm">Scadenza</label>
-                                <input type="date" name="due_date" value="${item?.due_date ? item.due_date.split('T')[0] : ''}" class="input-modern">
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="label-sm">Note / Descrizione</label>
-                            <textarea name="notes" rows="4" class="input-modern" placeholder="Aggiungi dettagli...">${item?.notes || ''}</textarea>
-                        </div>
+                        ` : ''}
+
+                        <div class="form-group"><label class="label-sm">Note</label><textarea name="notes" rows="4" class="input-modern">${item.notes || ''}</textarea></div>
                     </form>
                 </div>
-                
                 <div class="drawer-footer" style="padding: 1rem 1.5rem; border-top: 1px solid var(--surface-2); display: flex; justify-content: flex-end; gap: 0.75rem;">
                     <button type="button" class="secondary-btn" id="cancel-edit-btn">Annulla</button>
-                    <button type="submit" form="item-form" class="primary-btn">${isEdit ? 'Salva Modifiche' : 'Crea'}</button>
+                    <button type="submit" form="item-form" class="primary-btn">${isEdit ? 'Salva' : 'Crea'}</button>
                 </div>
             `;
             attachEditModeListeners();
         }
     };
 
-    // --- LOGIC HELPERS ---
-
-    const renderPMInfo = (spaceId) => {
-        const space = state.pm_spaces?.find(s => s.id === spaceId) || {};
-        if (!space.default_pm_user_ref) return '';
-        const pm = state.profiles?.find(p => p.id === space.default_pm_user_ref);
-        if (!pm) return '';
-
-        return `
-            <div style="margin-bottom: 0.5rem; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-secondary);">
-                <span class="material-icons-round" style="font-size: 14px;">manage_accounts</span>
-                <strong>PM:</strong> ${pm.first_name} ${pm.last_name}
-            </div>
-        `;
-    };
-
-    const renderAssigneePickerOptions = (spaceId, targetRole = 'assignee') => {
-        const space = state.pm_spaces?.find(s => s.id === spaceId) || {};
-        const orderId = space.ref_ordine;
-
-        const assignedIds = new Set(assignees.map(a => a.user_ref));
-        const suggestedSet = new Set();
-
-        if (orderId && state.assignments) {
-            state.assignments
-                .filter(a => a.order_id === orderId)
-                .forEach(a => suggestedSet.add(a.collaborator_id));
-        }
-
-        const suggestions = [];
-        const others = [];
-        const processedUserIds = new Set();
-
-        (state.collaborators || []).forEach(c => {
-            // Filter inactive
-            if (c.is_active === false || c.active === false) return; // Strict check for false
-
-            const uid = c.user_id;
-
-            // 1. Role Filtering
-            if (targetRole === 'pm') {
-                let tags = c.tags || [];
-                if (typeof tags === 'string') {
-                    try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
-                }
-                const isProjectManager = Array.isArray(tags) &&
-                    tags.some(t => t.toLowerCase() === 'project manager' || t.toLowerCase() === 'pm');
-
-                if (!isProjectManager) return;
+    const attachViewModeListeners = () => {
+        const close = () => overlay.classList.add('hidden');
+        drawer.querySelector('.close-drawer-btn').onclick = close;
+        drawer.querySelector('#edit-mode-btn').onclick = () => { viewMode = false; render(); };
+        drawer.querySelector('#delete-item-btn').onclick = async () => {
+            if (await window.showConfirm("Eliminare?")) {
+                await deletePMItem(itemId);
+                close();
+                document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
             }
-
-            // If they have an account (uid), ensure we don't show duplicates/already assigned
-            if (uid && (assignedIds.has(uid) || processedUserIds.has(uid))) return;
-            if (uid) processedUserIds.add(uid);
-
-            // Prioritize Database Collaborator Info
-            let name = c.full_name;
-            if (!name || name === 'Utente') {
-                name = `${c.first_name || ''} ${c.last_name || ''}`.trim();
-            }
-            if (!name) name = 'Collaboratore Sconosciuto';
-
-            let avatar = c.avatar_url;
-
-            // Fallback to Profile ONLY if we have a uid and missing data
-            if ((!name || !avatar) && uid) {
-                const p = state.profiles?.find(x => x.id === uid);
-                if (p) {
-                    if (!name || name === 'Collaboratore Sconosciuto') name = `${p.first_name} ${p.last_name}`;
-                    if (!avatar) avatar = p.avatar_url;
-                }
-            }
-
-            const u = {
-                uid: uid,
-                collabId: c.id,
-                name: name,
-                avatar: avatar,
-                hasAccount: !!uid
-            };
-
-            if (suggestedSet.has(c.id)) suggestions.push(u);
-            else others.push(u);
-        });
-
-        const headerStyle = "padding: 10px 12px 6px; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--surface-2); margin-bottom: 4px;";
-
-        const renderUserOption = (u) => {
-            const initial = u.name.charAt(0).toUpperCase();
-            return `
-                <div class="user-option" 
-                    data-uid="${u.uid || ''}" 
-                    data-collab-id="${u.collabId || ''}" 
-                    data-has-account="${!!u.uid}" 
-                    data-target-role="${targetRole}" 
-                    data-name="${u.name.replace(/"/g, '&quot;')}"
-                    style="
-                        padding: 8px 12px;
-                        display: flex;
-                        align-items: center;
-                        gap: 10px;
-                        cursor: pointer;
-                        transition: background 0.1s;
-                    " 
-                    onmouseover="this.style.background='var(--surface-1)'" 
-                    onmouseout="this.style.background='transparent'"
-                >
-                    <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--surface-3); overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--text-secondary); border: 1px solid var(--surface-2);">
-                        ${u.avatar ? `<img src="${u.avatar}" style="width:100%; height:100%; object-fit:cover;">` : initial}
-                    </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.name}</div>
-                        <div style="font-size: 0.7rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 4px;">
-                            ${u.uid ? '<span class="material-icons-round" style="font-size: 10px; color: var(--brand-blue);">verified_user</span> User' : '<span class="material-icons-round" style="font-size: 10px;">person_outline</span> Guest'}
-                        </div>
-                    </div>
-                </div>
-            `;
         };
 
-        return `
-            <div style="max-height: 280px; overflow-y: auto;">
-                ${suggestions.length ? `<div style="${headerStyle}">SUGGERITI</div>${suggestions.map(renderUserOption).join('')}` : ''}
-                <div style="${headerStyle}">ALTRI</div>
-                ${others.map(renderUserOption).join('')}
-            </div>
-        `;
-    };
-
-    const renderCommentsSection = (comments) => `
-        <div class="comments-section" style="border-top: 1px solid var(--surface-2); padding-top: 1.5rem; margin-top: 0.5rem;">
-            <h4 style="margin: 0 0 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                <span class="material-icons-round" style="font-size: 1.1rem;">chat_bubble_outline</span>
-                Commenti (${comments.length})
-            </h4>
-            
-            <div id="comments-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 1rem;">
-                ${comments.length === 0 ? `
-                    <p class="text-secondary" style="font-size: 0.9rem;">Nessun commento ancora.</p>
-                ` : comments.map(c => `
-                    <div style="padding: 0.75rem; background: var(--surface-1); border-radius: 8px; margin-bottom: 0.5rem;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-                            <span style="font-weight: 600; font-size: 0.85rem;">${c.author_user_ref || 'Anonimo'}</span>
-                            <span class="text-xs text-secondary">${new Date(c.created_at).toLocaleDateString()}</span>
-                        </div>
-                        <p style="margin: 0; font-size: 0.9rem;">${c.body}</p>
-                    </div>
-                `).join('')}
-            </div>
-            
-            <div style="display: flex; gap: 0.5rem;">
-                <input type="text" id="new-comment" placeholder="Scrivi un commento..." class="input-modern" style="flex: 1;">
-                <button type="button" id="add-comment-btn" class="primary-btn" style="padding: 0.75rem 1rem;">
-                    <span class="material-icons-round" style="font-size: 1rem;">send</span>
-                </button>
-            </div>
-        </div>
-    `;
-
-    // --- EVENT LISTENERS ---
-
-    const attachViewModeListeners = () => {
-        const closeBtn = drawer.querySelector('.close-drawer-btn');
-        if (closeBtn) closeBtn.addEventListener('click', () => overlay.classList.add('hidden'));
-
-        drawer.querySelector('#edit-mode-btn').addEventListener('click', () => {
-            // Sync pendingAssignees from current assignees to ensure freshness
-            pendingAssignees = assignees.map(a => ({
-                user_ref: a.user_ref,
-                collaborator_ref: a.collaborator_ref,
-                role: a.role || 'assignee',
-                displayName: a.user?.full_name || `${a.user?.first_name || ''} ${a.user?.last_name || ''}`.trim(),
-                user: a.user // Keep the user object for avatar rendering
-            }));
-
-            viewMode = false;
-            render();
-        });
-
-        const deleteBtn = drawer.querySelector('#delete-item-btn');
-        if (deleteBtn) {
-            deleteBtn.addEventListener('click', async () => {
-                if (!await window.showConfirm("Sei sicuro di voler eliminare questa attività? Questa azione non può essere annullata.")) return;
-
-                try {
-                    deleteBtn.disabled = true;
-                    deleteBtn.innerHTML = '<span class="loader-mini"></span>';
-
-                    await deletePMItem(itemId);
-
-                    window.showAlert?.("Attività eliminata con successo", "success");
-                    overlay.classList.add('hidden');
-
-                    // Trigger refresh on the hub
-                    document.dispatchEvent(new CustomEvent('pm-item-changed', {
-                        detail: { spaceId: spaceId, action: 'delete', itemId: itemId }
-                    }));
-                } catch (err) {
-                    console.error("Delete failed:", err);
-                    window.showAlert?.("Errore durante l'eliminazione: " + err.message, "error");
-                    deleteBtn.disabled = false;
-                    deleteBtn.innerHTML = '<span class="material-icons-round" style="font-size: 1.25rem;">delete_outline</span>';
-                }
+        const statusTrigger = drawer.querySelector('#status-trigger-btn');
+        const statusMenu = drawer.querySelector('#status-dropdown-menu');
+        if (statusTrigger) {
+            statusTrigger.onclick = (e) => { e.stopPropagation(); statusMenu.classList.toggle('hidden'); drawer.querySelector('#priority-dropdown-menu')?.classList.add('hidden'); };
+            statusMenu.querySelectorAll('.status-option').forEach(opt => {
+                opt.onclick = async () => {
+                    const s = opt.dataset.value;
+                    item.status = s;
+                    await updatePMItem(itemId, { status: s });
+                    render();
+                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
+                };
             });
         }
 
-        // Custom Status Dropdown Logic
-        const statusTrigger = drawer.querySelector('#status-trigger-btn');
-        const statusDropdown = drawer.querySelector('#status-dropdown-menu');
-
-        if (statusTrigger && statusDropdown) {
-            statusTrigger.addEventListener('click', (e) => {
-                e.stopPropagation();
-                // Close others
-                drawer.querySelectorAll('.hidden').forEach(el => {
-                    if (el.id !== 'status-dropdown-menu' && !el.classList.contains('status-dropdown-menu')) {
-                        // Don't accidentally close if logic overlaps, but here we want to close assign/pm pickers
-                        if (el.id === 'pm-picker' || el.id === 'assignee-picker') el.classList.add('hidden');
-                    }
-                });
-                statusDropdown.classList.toggle('hidden');
+        const priorityTrigger = drawer.querySelector('#priority-trigger-btn');
+        const priorityMenu = drawer.querySelector('#priority-dropdown-menu');
+        if (priorityTrigger) {
+            priorityTrigger.onclick = (e) => { e.stopPropagation(); priorityMenu.classList.toggle('hidden'); statusMenu?.classList.add('hidden'); };
+            priorityMenu.querySelectorAll('.priority-option').forEach(opt => {
+                opt.onclick = async () => {
+                    const p = opt.dataset.value;
+                    item.priority = p;
+                    await updatePMItem(itemId, { priority: p });
+                    render();
+                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
+                };
             });
+        }
 
-            // Option selection
-            statusDropdown.querySelectorAll('.status-option').forEach(opt => {
-                opt.addEventListener('click', async (e) => {
-                    const newStatus = opt.dataset.value;
-                    statusDropdown.classList.add('hidden'); // Close immediately
+        const setupDate = (id, field) => {
+            const btn = drawer.querySelector(`#${id}`);
+            if (btn) btn.onclick = (e) => {
+                e.stopPropagation();
+                toggleHubDatePicker(btn, async (d) => {
+                    item[field] = d;
+                    await updatePMItem(itemId, { [field]: d });
+                    render();
+                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
+                }, item[field]);
+            };
+        };
+        setupDate('start-date-btn', 'start_date');
+        setupDate('due-date-btn', 'due_date');
 
-                    if (newStatus === item.status) return;
+        const setupPicker = (btnId, pkrId) => {
+            const btn = drawer.querySelector(`#${btnId}`);
+            const pkr = drawer.querySelector(`#${pkrId}`);
+            if (btn) btn.onclick = (e) => { e.stopPropagation(); pkr.classList.toggle('hidden'); };
+            if (pkr) pkr.querySelectorAll('.user-option').forEach(opt => {
+                opt.onclick = async () => {
+                    const uid = opt.dataset.uid;
+                    const cid = opt.dataset.collabId;
+                    const role = opt.dataset.targetRole || (btnId === 'add-pm-btn' ? 'pm' : 'assignee');
+                    await assignUserToItem(itemId, uid || cid, role, !uid);
+                    assignees = await fetchItemAssignees(itemId);
+                    render();
+                };
+            });
+        };
+        setupPicker('add-assignee-btn', 'assignee-picker');
+        setupPicker('add-pm-btn', 'pm-picker');
+
+        const addCommentBtn = drawer.querySelector('#add-comment-btn');
+        if (addCommentBtn) addCommentBtn.onclick = async () => {
+            const body = drawer.querySelector('#new-comment').value;
+            if (body) {
+                await addComment(itemId, body);
+                comments = await fetchItemComments(itemId);
+                render();
+            }
+        };
+
+        document.addEventListener('click', (e) => {
+            if (!drawer.contains(e.target)) return;
+            // Close all dropdowns if click is outside of them
+            if (!e.target.closest('#status-trigger-btn') &&
+                !e.target.closest('#priority-trigger-btn') &&
+                !e.target.closest('#add-assignee-btn') &&
+                !e.target.closest('#add-pm-btn') &&
+                !e.target.closest('#open-resources-btn') &&
+                !e.target.closest('.dropdown-menu')) {
+                drawer.querySelectorAll('.dropdown-menu').forEach(el => el.classList.add('hidden'));
+            }
+        });
+
+        // Inline Description Editing (Live Style)
+        const descView = drawer.querySelector('#item-description-view');
+        const descContainer = drawer.querySelector('#item-description-container');
+        const savingIndicator = drawer.querySelector('#desc-saving-indicator');
+
+        if (descView && descContainer) {
+            descView.onclick = () => {
+                const currentNotes = item.notes || '';
+                descContainer.innerHTML = `
+                    <textarea id="item-description-editor" class="input-modern" style="width: 100%; min-height: 120px; font-size: 0.9rem; line-height: 1.6; padding: 6px; resize: vertical; border: 1px solid var(--brand-blue); box-shadow: 0 0 0 3px var(--brand-blue-light); background: white; display: block; margin: 0;">${currentNotes}</textarea>
+                `;
+                const textarea = descContainer.querySelector('#item-description-editor');
+                textarea.focus();
+
+                // Set cursor at the end
+                textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+                let isSaving = false;
+                const saveChanges = async () => {
+                    if (isSaving) return;
+                    const newNotes = textarea.value;
+                    if (newNotes === currentNotes) {
+                        render(); // Just revert to view mode if no change
+                        return;
+                    }
+
+                    isSaving = true;
+                    if (savingIndicator) savingIndicator.classList.remove('hidden');
 
                     try {
-                        // Store old for rollback
-                        const oldStatus = item.status;
-
-                        // Optimistic UI Update
-                        item.status = newStatus;
-
-                        // Update Trigger UI
-                        const cfg = ITEM_STATUS[newStatus];
-                        statusTrigger.style.background = cfg.bg;
-                        statusTrigger.style.color = cfg.color;
-                        const labelEl = statusTrigger.querySelector('.status-label');
-                        if (labelEl) labelEl.textContent = cfg.label;
-
-                        // Trigger global refresh immediately
-                        document.dispatchEvent(new CustomEvent('pm-item-changed', {
-                            detail: { spaceId: spaceId, action: 'update', itemId: itemId }
-                        }));
-
-                        // API Call
-                        await updatePMItem(itemId, { status: newStatus });
-
-                        window.showAlert?.("Stato aggiornato", "success");
-                    } catch (err) {
-                        window.showAlert?.("Errore update stato: " + err.message, "error");
-                        // Rollback simple visual? We'd need a re-render to be clean, or just alert.
+                        item.notes = newNotes;
+                        await updatePMItem(itemId, { notes: newNotes });
+                        // We don't call render() immediately to avoid flicker, just swap the content back
+                        descContainer.innerHTML = `
+                            <div id="item-description-view" style="font-size: 0.9rem; color: var(--text-primary); line-height: 1.6; white-space: pre-wrap; border-radius: 8px; cursor: pointer; padding: 6px; transition: all 0.2s; border: 1px solid transparent; width: 100%; word-break: break-word;">
+                                ${newNotes.trim() || '<span style="color: #94a3b8; font-style: italic;">Clicca per aggiungere una descrizione...</span>'}
+                            </div>
+                        `;
+                        // Re-fetch and full render after a small delay to sync everything
+                        setTimeout(() => { if (savingIndicator) savingIndicator.classList.add('hidden'); render(); }, 500);
+                    } catch (e) {
+                        console.error(e);
+                        if (savingIndicator) savingIndicator.classList.add('hidden');
+                        render();
                     }
-                });
-            });
+                };
 
-            // Close on click outside
-            document.addEventListener('click', (e) => {
-                if (!statusTrigger.contains(e.target) && !statusDropdown.contains(e.target)) {
-                    statusDropdown.classList.add('hidden');
-                }
-            });
+                textarea.onblur = saveChanges;
+                textarea.onkeydown = (e) => {
+                    if (e.key === 'Escape') { render(); }
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { textarea.blur(); }
+                };
+            };
         }
 
-        const addBtn = drawer.querySelector('#add-assignee-btn');
-        const picker = drawer.querySelector('#assignee-picker');
-
-        if (addBtn && picker) {
-            addBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                // Close other pickers
-                drawer.querySelectorAll('.hidden').forEach(el => {
-                    if (el.id === 'pm-picker' || el.id === 'status-dropdown-menu') el.classList.add('hidden');
-                });
-                picker.classList.toggle('hidden');
-            });
-        }
-
-        const addPmBtn = drawer.querySelector('#add-pm-btn');
-        const pmPicker = drawer.querySelector('#pm-picker');
-        if (addPmBtn && pmPicker) {
-            addPmBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                // Close other pickers
-                drawer.querySelectorAll('.hidden').forEach(el => {
-                    if (el.id === 'assignee-picker' || el.id === 'status-dropdown-menu') el.classList.add('hidden');
-                });
-                pmPicker.classList.toggle('hidden');
-            });
-        }
-
-        // Global click to close pickers
-        setTimeout(() => {
-            document.addEventListener('click', (e) => {
-                if (picker && !picker.contains(e.target) && e.target !== addBtn) picker.classList.add('hidden');
-                if (pmPicker && !pmPicker.contains(e.target) && e.target !== addPmBtn) pmPicker.classList.add('hidden');
-            }, { capture: true }); // Capture to run before others? No wait, standard bubble is fine but need to be careful with removing listeners. 
-            // Simplified: The existing click listener was {once:true}, which is buggy for toggling.
-            // Better to attach a permanent listener to window or document body ONCE for the app, OR re-attach cleanly.
-            // For now, let's just stick to the specific closers inside the handler?
-            // Actually, best pattern:
-        }, 0);
-
-        // Document click close helper
-        const closePickers = (e) => {
-            if (picker && !picker.contains(e.target) && e.target !== addBtn) picker.classList.add('hidden');
-            if (pmPicker && !pmPicker.contains(e.target) && e.target !== addPmBtn) pmPicker.classList.add('hidden');
-        };
-        document.removeEventListener('click', closePickers);
-        document.addEventListener('click', closePickers);
-
-        // Add Assignee
-        drawer.querySelectorAll('.user-option').forEach(opt => {
-            opt.addEventListener('click', async (e) => {
-                const hasAccount = opt.dataset.hasAccount === 'true';
-                // No longer restricting assignment!
-
-                const userId = opt.dataset.uid; // Can be empty if no account
-                const collabId = opt.dataset.collabId; // Added this in renderUserOption 
-
-                // If hasAccount, we prefer assigning via User ID for compatibility, 
-                // BUT strictly speaking, if we want "Collaborator First", maybe we should always assign Collab ID if available?
-                // Migration supports both.
-                // Let's adopt a hybrid approach:
-                // If we have a user ID, assign as User for now to keep legacy logic safe (notifications etc often key off user_id).
-                // If NO user ID, assign as Collaborator.
-
-                // Wait, user requested: "colleghi l'utente dell'app al collaboratore... arrivi tutto".
-                // Using Collaborator Ref is the most robust way to ensure future linking works if we link User <-> Collab later.
-                // However, notifications currently look at user_id?
-                // Let's assign via Collab ID if it's a "Ghost" user (no account).
-                // If they have an account, assign via User ID (standard behavior).
-
-                const targetRole = opt.dataset.targetRole || 'assignee';
-
-                try {
-                    if (!hasAccount && collabId) {
-                        await assignUserToItem(itemId, collabId, targetRole, true); // true = isCollabId
-                    } else if (userId) {
-                        await assignUserToItem(itemId, userId, targetRole);
-                    } else if (collabId) {
-                        // Fallback
-                        await assignUserToItem(itemId, collabId, targetRole, true);
-                    } else {
-                        throw new Error("ID mancante");
-                    }
-
-                    // Refresh data
-                    assignees = await fetchItemAssignees(itemId);
-                    render();
-
-                    // Trigger global refresh
-                    document.dispatchEvent(new CustomEvent('pm-item-changed', {
-                        detail: { spaceId: spaceId, action: 'assign' }
-                    }));
-                } catch (err) {
-                    console.error(err);
-                    // Handle duplicate assignment gracefully
-                    if (err.code === '23505') {
-                        window.showAlert?.('Questo collaboratore è già assegnato a questa attività', 'warning') ||
-                            alert('Questo collaboratore è già assegnato.');
-                    } else {
-                        window.showAlert?.('Errore assegnazione: ' + err.message, 'error') ||
-                            alert("Errore assegnazione: " + err.message);
-                    }
-                }
-            });
-        });
-
-        // Remove Assignee
-        drawer.querySelectorAll('.remove-assignee-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const userId = btn.dataset.uid;
-                const collabId = btn.dataset.collabId;
-
-                if (!await window.showConfirm("Rimuovere assegnazione?")) return;
-                try {
-                    const recordId = btn.dataset.id;
-                    if (!recordId) throw new Error("ID assegnazione mancante");
-
-                    const { error } = await supabase.from('pm_item_assignees').delete().eq('id', recordId);
-                    if (error) throw error;
-
-                    // Refresh
-                    assignees = await fetchItemAssignees(itemId);
-                    render();
-
-                    // Trigger global refresh
-                    document.dispatchEvent(new CustomEvent('pm-item-changed', {
-                        detail: { spaceId: spaceId, action: 'unassign' }
-                    }));
-                } catch (err) {
-                    alert("Errore rimozione: " + err.message);
-                }
-            });
-        });
-
-        // Comments
-        const addCommentBtn = drawer.querySelector('#add-comment-btn');
-        const commentInput = drawer.querySelector('#new-comment');
-        if (addCommentBtn) {
-            addCommentBtn.addEventListener('click', async () => {
-                const body = commentInput.value.trim();
-                if (!body) return;
-                try {
-                    await addComment(itemId, body);
-                    comments = await fetchItemComments(itemId);
-                    render();
-                } catch (err) {
-                    alert("Errore commento");
-                }
-            });
+        // Resources Popover specifically
+        const resBtn = drawer.querySelector('#open-resources-btn');
+        const resPop = drawer.querySelector('#resources-popover');
+        if (resBtn && resPop) {
+            resBtn.onclick = (e) => { e.stopPropagation(); resPop.classList.toggle('hidden'); };
+            drawer.querySelector('#close-resources-popover-btn').onclick = (e) => { e.stopPropagation(); resPop.classList.add('hidden'); };
         }
     };
 
     const attachEditModeListeners = () => {
-        const closeBtn = drawer.querySelector('.close-drawer-btn');
-        if (closeBtn) closeBtn.addEventListener('click', () => overlay.classList.add('hidden'));
+        // Context Picker Listeners (New functionality for global tasks)
+        const ctxTrigger = drawer.querySelector('#context-picker-trigger');
+        const ctxDropdown = drawer.querySelector('#context-picker-dropdown');
+        const ctxSearch = drawer.querySelector('#context-search');
+        const ctxList = drawer.querySelector('#context-options-list');
 
-        drawer.querySelector('#cancel-edit-btn').addEventListener('click', () => {
-            if (isEdit) {
-                viewMode = true;
-                render();
-            } else {
-                overlay.classList.add('hidden');
-            }
-        });
-
-        const formPicker = drawer.querySelector('#form-assignee-picker');
-        const formAddBtn = drawer.querySelector('#form-add-assignee-btn');
-
-        if (formAddBtn && formPicker) {
-            formAddBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                formPicker.classList.toggle('hidden');
-            });
-
-            // Pending Add
-            formPicker.querySelectorAll('.user-option').forEach(opt => {
-                opt.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const uid = opt.dataset.uid;
-                    const collabId = opt.dataset.collabId;
-                    const name = opt.dataset.name || (opt.innerText || 'Utente');
-
-                    // Check dupe
-                    const exists = pendingAssignees.some(a => (uid && a.user_ref === uid) || (collabId && a.collaborator_ref === collabId));
-                    if (exists) {
-                        formPicker.classList.add('hidden');
-                        return;
-                    }
-
-                    // Safe Avatar Extraction
-                    const imgEl = opt.querySelector('img');
-                    const avatarUrl = imgEl ? imgEl.src : null;
-
-                    // Add to pending
-                    captureFormState(); // Capture before adding and re-rendering
-                    pendingAssignees.push({
-                        user_ref: uid || null,
-                        collaborator_ref: collabId || null,
-                        role: 'assignee', // Default to assignee for this picker
-                        displayName: name, // Store the display name explicitly
-                        user: { first_name: name, last_name: '', avatar_url: avatarUrl, full_name: name }
-                    });
-
-                    formPicker.classList.add('hidden');
-                    // Partial re-render (Full render for simplicity)
-                    render();
-                });
-            });
-
-            // Pending Remove
-            drawer.querySelectorAll('.remove-pending-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const idx = parseInt(btn.dataset.idx);
-                    if (!isNaN(idx)) {
-                        captureFormState(); // Capture before removing
-                        pendingAssignees.splice(idx, 1);
-                        render();
-                    }
-                });
-            });
-
-            document.addEventListener('click', (e) => {
-                if (formPicker && !formPicker.contains(e.target) && e.target !== formAddBtn) {
-                    formPicker.classList.add('hidden');
+        if (ctxTrigger && ctxDropdown) {
+            ctxTrigger.addEventListener('click', () => {
+                ctxDropdown.classList.toggle('hidden');
+                if (!ctxDropdown.classList.contains('hidden')) {
+                    ctxSearch.focus();
+                    renderContextOptions();
                 }
-            }, { once: true }); // Cleaner
-        }
+            });
 
-        const form = drawer.querySelector('#item-form');
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(form);
-            const payload = Object.fromEntries(formData.entries());
+            ctxSearch.addEventListener('input', () => renderContextOptions(ctxSearch.value));
 
-            // Cleanup
-            if (!payload.start_date) payload.start_date = null;
-            if (!payload.due_date) payload.due_date = null;
-            if (!payload.notes) payload.notes = null;
+            function renderContextOptions(filter = '') {
+                const query = filter.toLowerCase();
 
-            try {
-                if (isEdit) {
-                    await updatePMItem(itemId, payload);
+                // 1. Orders (Active only)
+                const activeOrders = (state.orders || []).filter(o => {
+                    const statusOffer = (o.offer_status || '').toLowerCase();
+                    const statusWork = (o.status_works || '').toLowerCase();
+                    const isNotRejected = statusOffer !== 'offerta rifiutata';
+                    const isNotCompleted = statusOffer === 'offerta accettata' ? statusWork !== 'completato' : true;
 
-                    // Sync Assignees (Form State vs DB State)
-                    // 1. Additions
-                    for (const p of pendingAssignees) {
-                        const exists = assignees.some(a =>
-                            (a.user_ref && a.user_ref === p.user_ref) ||
-                            (a.collaborator_ref && a.collaborator_ref === p.collaborator_ref)
-                        );
-                        if (!exists) {
-                            try {
-                                if (p.user_ref) await assignUserToItem(itemId, p.user_ref, p.role || 'assignee');
-                                else if (p.collaborator_ref) await assignUserToItem(itemId, p.collaborator_ref, p.role || 'assignee', true);
-                            } catch (e) {
-                                if (e.code !== '23505') console.error("Assign error", e);
+                    const matchesSearch = `#${o.order_number} ${o.title}`.toLowerCase().includes(query) || o.clients?.business_name?.toLowerCase().includes(query);
+                    const matchesClient = currentClientId ? o.client_id === currentClientId : true;
+                    return isNotRejected && isNotCompleted && matchesSearch && matchesClient;
+                });
+
+                const orderSpaces = activeOrders.map(o => {
+                    const s = state.pm_spaces?.find(x => x.ref_ordine === o.id);
+                    return s ? { ...s, order: o } : null;
+                }).filter(Boolean);
+
+                // 2. Clients
+                const clients = (state.clients || []).filter(c =>
+                    c.business_name.toLowerCase().includes(query)
+                ).slice(0, 15);
+
+                // 3. Internal Spaces (Split into Cluster vs Project)
+                const clusters = (state.pm_spaces || []).filter(s =>
+                    s.type === 'interno' && s.is_cluster && s.name.toLowerCase().includes(query)
+                ).slice(0, 30);
+
+                const projects = (state.pm_spaces || []).filter(s =>
+                    s.type === 'interno' && !s.is_cluster && s.name.toLowerCase().includes(query)
+                ).slice(0, 50);
+
+                let html = '';
+
+                // Clients
+                if (clients.length > 0 && !currentClientId) {
+                    html += `<div style="padding: 12px 8px 4px; font-size: 0.65rem; color: var(--text-tertiary); font-weight: 700; border-top: 1px solid var(--surface-2); margin-top: 4px;">CLIENTI</div>`;
+                    clients.forEach(c => {
+                        html += `
+                            <div class="ctx-option" data-id="${c.id}" data-type="client" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
+                                <span class="material-icons-round" style="font-size: 16px; color: #f59e0b;">person</span>
+                                <span style="font-size: 0.85rem; font-weight: 500;">${c.business_name}</span>
+                            </div>
+                        `;
+                    });
+                }
+
+                // Clusters
+                if (clusters.length > 0) {
+                    html += `<div style="padding: 12px 8px 4px; font-size: 0.65rem; color: var(--text-tertiary); font-weight: 700; border-top: 1px solid var(--surface-2); margin-top: 4px;">CLUSTER</div>`;
+                    clusters.forEach(s => {
+                        html += `
+                            <div class="ctx-option" data-id="${s.id}" data-type="space" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
+                                <span class="material-icons-round" style="font-size: 16px; color: var(--brand-purple);">folder_special</span>
+                                <span style="font-size: 0.85rem; font-weight: 500;">${s.name}</span>
+                            </div>
+                        `;
+                    });
+                }
+
+                // Projects
+                if (projects.length > 0) {
+                    html += `<div style="padding: 12px 8px 4px; font-size: 0.65rem; color: var(--text-tertiary); font-weight: 700; border-top: 1px solid var(--surface-2); margin-top: 4px;">PROGETTI INTERNI</div>`;
+                    projects.forEach(s => {
+                        const parent = state.pm_spaces?.find(p => p.id === s.parent_ref);
+                        html += `
+                            <div class="ctx-option" data-id="${s.id}" data-type="space" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
+                                <span class="material-icons-round" style="font-size: 16px; color: var(--brand-purple); opacity: 0.7;">folder</span>
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="font-size: 0.85rem; font-weight: 500;">${s.name}</span>
+                                    ${parent ? `<span style="font-size: 0.7rem; color: var(--text-tertiary);">Cluster: ${parent.name}</span>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+
+                // Orders
+                if (orderSpaces.length > 0) {
+                    html += `<div style="padding: 12px 8px 4px; font-size: 0.65rem; color: var(--text-tertiary); font-weight: 700; border-top: 1px solid var(--surface-2); margin-top: 4px;">COMMESSE ATTIVE</div>`;
+                    orderSpaces.forEach(os => {
+                        html += `
+                            <div class="ctx-option" data-id="${os.id}" data-type="space" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
+                                <span class="material-icons-round" style="font-size: 16px; color: var(--brand-blue);">style</span>
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="font-size: 0.85rem; font-weight: 500;">#${os.order.order_number} ${os.order.title}</span>
+                                    <span style="font-size: 0.7rem; color: var(--text-tertiary);">${os.order.clients?.business_name || ''}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+
+                if (!html) html = `<div style="padding: 20px; text-align: center; font-size: 0.8rem; color: var(--text-tertiary); font-style: italic;">Nessun risultato</div>`;
+                ctxList.innerHTML = html;
+
+                ctxList.querySelectorAll('.ctx-option').forEach(opt => {
+                    opt.onmouseover = () => opt.style.background = 'var(--surface-1)';
+                    opt.onmouseout = () => opt.style.background = 'transparent';
+                    opt.onclick = () => {
+                        const type = opt.dataset.type;
+                        const id = opt.dataset.id;
+                        captureFormState();
+                        if (type === 'client') {
+                            currentClientId = id;
+                            currentSpaceId = null;
+                        } else {
+                            currentSpaceId = id;
+                            const s = state.pm_spaces?.find(x => x.id === id);
+                            if (s?.type === 'commessa') {
+                                const o = state.orders?.find(x => x.id === s.ref_ordine);
+                                if (o) currentClientId = o.client_id;
                             }
                         }
-                    }
-
-                    // 2. Removals
-                    for (const a of assignees) {
-                        const stillExists = pendingAssignees.some(p =>
-                            (p.user_ref && p.user_ref === a.user_ref) ||
-                            (p.collaborator_ref && p.collaborator_ref === a.collaborator_ref)
-                        );
-                        if (!stillExists && a.id) {
-                            try {
-                                const { error } = await supabase.from('pm_item_assignees').delete().eq('id', a.id);
-                                if (error) throw error;
-                            } catch (e) { console.error("Remove assignee error", e); }
-                        }
-                    }
-
-                    // Refresh assignees for View Mode logic
-                    assignees = await fetchItemAssignees(itemId);
-
-                    // Update local item reference
-                    Object.assign(item, payload);
-                    viewMode = true;
-                    render();
-                    // NO RELOAD - Dispatch Event
-                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
-                } else {
-                    // DIVERGENCE CHECK (Creation Only)
-                    const space = state.pm_spaces?.find(s => s.id === spaceId);
-                    const defaultPM = space?.default_pm_user_ref;
-                    const currentUserId = state.session.user.id;
-                    let selectedPMs = [];
-
-                    if (defaultPM && currentUserId && defaultPM !== currentUserId) {
-                        // Divergence detected! Ask user.
-                        const pmProfile = state.profiles?.find(p => p.id === defaultPM);
-                        const pmName = pmProfile ? `${pmProfile.first_name} ${pmProfile.last_name}` : 'Default PM';
-
-                        const choice = await new Promise(resolve => {
-                            const modalId = `pm-choice-${Date.now()}`;
-                            const modalHTML = `
-                                <div id="${modalId}" class="modal active" style="z-index: 10001; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);">
-                                    <div class="modal-content" style="max-width: 450px; padding: 2rem; border-radius: 16px; border: 1px solid var(--surface-2); box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-                                        <div style="width: 48px; height: 48px; background: rgba(66, 133, 244, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
-                                            <span class="material-icons-round" style="color: var(--brand-blue); font-size: 24px;">manage_accounts</span>
-                                        </div>
-                                        <h3 style="margin-bottom: 0.5rem; font-family: var(--font-titles);">Chi è il Project Manager?</h3>
-                                        <p style="color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.5;">
-                                            Stai creando un'attività ma non sei il PM predefinito di questa commessa (<strong>${pmName}</strong>).
-                                        </p>
-                                        
-                                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                            <button type="button" class="choice-btn" data-choice="me" style="text-align: left; padding: 1rem; border: 1px solid var(--surface-2); border-radius: 12px; background: white; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 1rem;">
-                                                <span class="material-icons-round" style="color: var(--text-tertiary);">person</span>
-                                                <div>
-                                                    <div style="font-weight: 600; font-size: 0.95rem;">Sono io</div>
-                                                    <div style="font-size: 0.75rem; color: var(--text-tertiary);">Assegna a me come PM</div>
-                                                </div>
-                                            </button>
-                                            
-                                            <button type="button" class="choice-btn" data-choice="default" style="text-align: left; padding: 1rem; border: 1px solid var(--surface-2); border-radius: 12px; background: white; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 1rem;">
-                                                <span class="material-icons-round" style="color: var(--text-tertiary);">badge</span>
-                                                <div>
-                                                    <div style="font-weight: 600; font-size: 0.95rem;">È ${pmName}</div>
-                                                    <div style="font-size: 0.75rem; color: var(--text-tertiary);">Assegna al PM predefinito</div>
-                                                </div>
-                                            </button>
-
-                                            <button type="button" class="choice-btn" data-choice="both" style="text-align: left; padding: 1rem; border: 1px solid var(--surface-2); border-radius: 12px; background: white; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 1rem;">
-                                                <span class="material-icons-round" style="color: var(--text-tertiary);">group</span>
-                                                <div>
-                                                    <div style="font-weight: 600; font-size: 0.95rem;">Entrambi</div>
-                                                    <div style="font-size: 0.75rem; color: var(--text-tertiary);">Siamo co-gestori</div>
-                                                </div>
-                                            </button>
-
-                                            <button type="button" class="choice-btn" data-choice="skip" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; justify-content: center; margin-top: 0.5rem; color: var(--text-tertiary); font-size: 0.9rem;">
-                                                Deciderò dopo
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                            document.body.insertAdjacentHTML('beforeend', modalHTML);
-
-                            const modal = document.getElementById(modalId);
-                            modal.querySelectorAll('.choice-btn').forEach(btn => {
-                                btn.addEventListener('mouseover', () => btn.style.background = 'var(--surface-1)');
-                                btn.addEventListener('mouseout', () => btn.style.background = 'white');
-                                if (btn.dataset.choice === 'skip') {
-                                    btn.addEventListener('mouseover', () => btn.style.color = 'var(--text-primary)');
-                                    btn.addEventListener('mouseout', () => btn.style.background = 'transparent');
-                                }
-
-                                btn.addEventListener('click', (ev) => {
-                                    ev.preventDefault();
-                                    ev.stopPropagation();
-                                    resolve(btn.dataset.choice);
-                                    modal.remove();
-                                });
-                            });
-                        });
-
-                        if (choice === 'me') selectedPMs.push(currentUserId);
-                        else if (choice === 'default') selectedPMs.push(defaultPM);
-                        else if (choice === 'both') selectedPMs.push(currentUserId, defaultPM);
-                    } else if (defaultPM) {
-                        if (defaultPM === currentUserId) selectedPMs.push(currentUserId);
-                    }
-
-                    // For Creation, we also need to respect the PMs already in pendingAssignees (if any)
-                    // The "default" logic above handles the 'divergence' check if creating a generic item.
-                    // But if we pre-filled pendingAssignees with the default PM, we should use that unless user removed it.
-
-                    const newItem = await createPMItem(payload);
-
-                    // Assign PMs (from divergence check)
-                    if (selectedPMs.length > 0) {
-                        const uniquePMs = [...new Set(selectedPMs)];
-                        for (const pmId of uniquePMs) {
-                            await assignUserToItem(newItem.id, pmId, 'pm');
-                        }
-                    }
-
-                    // Assign Pending Assignees (Standard)
-                    if (pendingAssignees.length > 0) {
-                        for (const pa of pendingAssignees) {
-                            // Skip PMs if we already handled them via logic above, OR assume pending list is source of truth?
-                            // User request: "il project manager è di default il project manager della commessa".
-                            // We added it to pending list. So we should persist it.
-                            // But let's avoid duplicates with 'selectedPMs' logic.
-                            // Simplified: If it's in pendingAssignees, save it.
-
-                            // However, creation logic usually separates 'PM' from 'Assignee'. 
-                            // Let's save all.
-                            try {
-                                // Check if already assigned (e.g. by logic above)
-                                const already = await fetchItemAssignees(newItem.id);
-                                const isThere = already.some(x => (pa.user_ref && x.user_ref === pa.user_ref) || (pa.collaborator_ref && x.collaborator_ref === pa.collaborator_ref));
-
-                                if (!isThere) {
-                                    const r = pa.role || 'assignee';
-                                    if (pa.user_ref) await assignUserToItem(newItem.id, pa.user_ref, r);
-                                    else if (pa.collaborator_ref) await assignUserToItem(newItem.id, pa.collaborator_ref, r, true);
-                                }
-                            } catch (e) { console.error("Assignment error", e); }
-                        }
-                    }
-
-                    overlay.classList.add('hidden');
-                    // NO RELOAD - Dispatch Event
-                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
-                }
-            } catch (err) {
-                console.error("Save error:", err);
-                alert("Errore salvataggio: " + err.message);
+                        render();
+                    };
+                });
             }
+
+            const clearBtn = drawer.querySelector('#clear-context-btn');
+            if (clearBtn) {
+                clearBtn.onclick = () => {
+                    currentClientId = null;
+                    currentSpaceId = null;
+                    render();
+                };
+            }
+        }
+
+        drawer.querySelector('.close-drawer-btn').onclick = () => overlay.classList.add('hidden');
+        const cancelBtn = drawer.querySelector('#cancel-edit-btn');
+        if (cancelBtn) {
+            cancelBtn.onclick = () => {
+                if (isEdit) { viewMode = true; render(); }
+                else overlay.classList.add('hidden');
+            };
+        }
+
+        const formAddBtn = drawer.querySelector('#form-add-assignee-btn');
+        const formPicker = drawer.querySelector('#form-assignee-picker');
+        if (formAddBtn) {
+            formAddBtn.onclick = (e) => { e.stopPropagation(); formPicker.classList.toggle('hidden'); };
+            formPicker.querySelectorAll('.user-option').forEach(opt => {
+                opt.onclick = () => {
+                    captureFormState();
+                    pendingAssignees.push({
+                        user_ref: opt.dataset.uid,
+                        collaborator_ref: opt.dataset.collabId,
+                        role: opt.dataset.targetRole || 'assignee',
+                        displayName: opt.dataset.name,
+                        user: { avatar_url: opt.querySelector('img')?.src }
+                    });
+                    render();
+                };
+            });
+        }
+        drawer.querySelectorAll('.remove-pending-btn').forEach(btn => {
+            btn.onclick = () => {
+                captureFormState();
+                pendingAssignees.splice(parseInt(btn.dataset.idx), 1);
+                render();
+            };
         });
+
+        drawer.querySelector('#item-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const rawData = Object.fromEntries(new FormData(e.target).entries());
+
+            // Build recurrence rule if any
+            if (rawData.rec_freq) {
+                const rule = {
+                    freq: rawData.rec_freq,
+                    interval: parseInt(rawData.rec_interval) || 1,
+                    unit: rawData.rec_unit || 'day'
+                };
+
+                if (rawData.rec_until) rule.until = rawData.rec_until;
+
+                if (rawData.rec_limit_active === 'on') {
+                    rule.count = parseInt(rawData.rec_limit_count) || 0;
+                }
+
+                if (rawData.rec_advance_active === 'on') {
+                    rule.create_advance = parseInt(rawData.rec_advance_count) || 1;
+                } else {
+                    rule.create_advance = 1; // Just the main one
+                }
+
+                rawData.recurrence_rule = rule;
+
+                // If a recurrence start is specified, use it for the main task dates
+                if (rawData.rec_start) {
+                    const diff = (rawData.start_date && rawData.due_date)
+                        ? (new Date(rawData.due_date) - new Date(rawData.start_date))
+                        : 0;
+
+                    rawData.start_date = rawData.rec_start;
+                    if (diff > 0) {
+                        rawData.due_date = new Date(new Date(rawData.rec_start).getTime() + diff).toISOString().split('T')[0];
+                    } else {
+                        rawData.due_date = rawData.rec_start;
+                    }
+                }
+            }
+
+            // Cleanup form subfields
+            const toDelete = ['rec_freq', 'rec_interval', 'rec_unit', 'rec_start', 'rec_until', 'rec_limit_active', 'rec_limit_count', 'rec_advance_active', 'rec_advance_count'];
+            toDelete.forEach(k => delete rawData[k]);
+
+            if (isEdit) {
+                await updatePMItem(itemId, rawData);
+
+                // SYNC ASSIGNEES: Remove those no longer in the list
+                const { data: dbAssignees } = await supabase.from('pm_item_assignees').select('id, user_ref, collaborator_ref').eq('pm_item_ref', itemId);
+                const keepUserRefs = pendingAssignees.filter(p => p.user_ref).map(p => p.user_ref);
+                const keepCollabRefs = pendingAssignees.filter(p => p.collaborator_ref).map(p => p.collaborator_ref);
+
+                if (dbAssignees) {
+                    for (const dba of dbAssignees) {
+                        const isUserIdToKeep = dba.user_ref && keepUserRefs.includes(dba.user_ref);
+                        const isCollabIdToKeep = dba.collaborator_ref && keepCollabRefs.includes(dba.collaborator_ref);
+                        if (!isUserIdToKeep && !isCollabIdToKeep) {
+                            await supabase.from('pm_item_assignees').delete().eq('id', dba.id);
+                        }
+                    }
+                }
+
+                // Add or update current ones
+                for (const p of pendingAssignees) {
+                    await assignUserToItem(itemId, p.user_ref || p.collaborator_ref, p.role || 'assignee', !p.user_ref).catch(e => null);
+                }
+
+                viewMode = true;
+                render();
+                document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
+            } else {
+                const newItem = await createPMItem(rawData);
+                for (const p of pendingAssignees) {
+                    await assignUserToItem(newItem.id, p.user_ref || p.collaborator_ref, p.role || 'assignee', !p.user_ref).catch(e => null);
+                }
+                overlay.classList.add('hidden');
+                document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
+            }
+        };
     };
 
-    // Initial Render
-    overlay.classList.remove('hidden');
     render();
 }
+
+// --- CALENDAR PICKER HELPERS ---
+let hubPickerCurrentDate = new Date();
+let onHubDateSelect = null;
+
+function toggleHubDatePicker(btn, onSelect, initialDate) {
+    const existing = document.getElementById('hub-datepicker-popover');
+    if (existing) {
+        existing.remove();
+        return;
+    }
+
+    onHubDateSelect = onSelect;
+    hubPickerCurrentDate = initialDate ? new Date(initialDate) : new Date();
+
+    const rect = btn.getBoundingClientRect();
+    const popover = document.createElement('div');
+    popover.id = 'hub-datepicker-popover';
+    popover.style.cssText = `
+        position: fixed; 
+        top: ${rect.bottom + 12}px; 
+        left: ${rect.left}px; 
+        background: white; 
+        border: 1px solid var(--surface-2); 
+        border-radius: 16px; 
+        padding: 20px; 
+        box-shadow: 0 15px 50px rgba(0,0,0,0.18); 
+        z-index: 999999; 
+        width: 300px;
+        animation: hub-pop-in 0.2s ease-out;
+    `;
+
+    const style = document.createElement('style');
+    style.innerHTML = `
+        @keyframes hub-pop-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .hub-cal-day { 
+            width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; 
+            font-size: 0.85rem; font-weight: 500; border-radius: 50%; cursor: pointer; transition: all 0.2s;
+            color: var(--text-primary);
+        }
+        .hub-cal-day:hover { background: var(--surface-1); color: var(--brand-blue); }
+        .hub-cal-day.today { color: var(--brand-blue); font-weight: 800; border: 1px solid var(--brand-blue-light); }
+        .hub-cal-day.selected { background: var(--brand-blue) !important; color: white !important; font-weight: 700; }
+        .hub-cal-day.other-month { opacity: 0.3; pointer-events: none; }
+        .hub-cal-day-name { font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-align: center; text-transform: uppercase; padding-bottom: 8px; }
+    `;
+    document.head.appendChild(style);
+
+    renderHubCalendar(popover, initialDate);
+    document.body.appendChild(popover);
+
+    const closeHandler = (e) => {
+        if (!popover.contains(e.target) && !btn.contains(e.target)) {
+            popover.remove();
+            document.removeEventListener('mousedown', closeHandler);
+        }
+    };
+    document.addEventListener('mousedown', closeHandler);
+}
+
+function renderHubCalendar(container, selectedDateStr) {
+    const y = hubPickerCurrentDate.getFullYear();
+    const m = hubPickerCurrentDate.getMonth();
+    const names = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+
+    const firstDay = new Date(y, m, 1);
+    const lastDay = new Date(y, m + 1, 0);
+    let startIdx = firstDay.getDay() - 1;
+    if (startIdx < 0) startIdx = 6; // Monday start
+
+    const prevMonthLastDay = new Date(y, m, 0).getDate();
+    let daysHtml = '';
+
+    // Prev Month
+    for (let i = 0; i < startIdx; i++) {
+        daysHtml += `<div class="hub-cal-day other-month">${prevMonthLastDay - startIdx + i + 1}</div>`;
+    }
+
+    // Current Month
+    const today = new Date().toISOString().split('T')[0];
+    const selected = selectedDateStr ? selectedDateStr.split('T')[0] : null;
+
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+        const cur = new Date(y, m, d).toISOString().split('T')[0];
+        let cls = 'hub-cal-day';
+        if (cur === today) cls += ' today';
+        if (cur === selected) cls += ' selected';
+        daysHtml += `<div class="${cls}" data-day="${d}">${d}</div>`;
+    }
+
+    container.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div style="font-weight: 800; font-size: 0.95rem; color: var(--text-primary);">${names[m]} ${y}</div>
+            <div style="display: flex; gap: 4px;">
+                <button id="hub-prev-month" style="background: none; border: none; cursor: pointer; padding: 4px; color: var(--text-secondary);"><span class="material-icons-round">chevron_left</span></button>
+                <button id="hub-next-month" style="background: none; border: none; cursor: pointer; padding: 4px; color: var(--text-secondary);"><span class="material-icons-round">chevron_right</span></button>
+            </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">
+            <div class="hub-cal-day-name">L</div><div class="hub-cal-day-name">M</div><div class="hub-cal-day-name">M</div>
+            <div class="hub-cal-day-name">G</div><div class="hub-cal-day-name">V</div><div class="hub-cal-day-name">S</div><div class="hub-cal-day-name">D</div>
+            ${daysHtml}
+        </div>
+    `;
+
+    container.querySelector('#hub-prev-month').onclick = (e) => { e.stopPropagation(); hubPickerCurrentDate.setMonth(m - 1); renderHubCalendar(container, selectedDateStr); };
+    container.querySelector('#hub-next-month').onclick = (e) => { e.stopPropagation(); hubPickerCurrentDate.setMonth(m + 1); renderHubCalendar(container, selectedDateStr); };
+    container.querySelectorAll('.hub-cal-day:not(.other-month)').forEach(el => {
+        el.onclick = () => {
+            const d = new Date(y, m, parseInt(el.dataset.day));
+            // Set time to noon to avoid timezone shift issues when converting to ISO date string
+            d.setHours(12, 0, 0, 0);
+            onHubDateSelect(d.toISOString());
+            container.remove();
+        };
+    });
+}
+
+window.quickRemoveAssignee = async (itemId, assignmentId) => {
+    if (!confirm("Rimuovere questa persona dalla task?")) return;
+    try {
+        await supabase.from('pm_item_assignees').delete().eq('id', assignmentId);
+        // Refresh the drawer to show updated state
+        if (typeof openHubDrawer === 'function') {
+            openHubDrawer(itemId);
+        }
+    } catch (e) {
+        console.error("Error removing assignee:", e);
+        alert("Errore durante la rimozione dell'assegnatario.");
+    }
+};

@@ -1,18 +1,12 @@
-import { state } from '../../modules/state.js';
+import { state } from '/js/modules/state.js';
 import { fetchDepartments, fetchCollaborators } from '../../modules/api.js';
 import { fetchPagePermissions, addPagePermission, deletePagePermission, updateDocPage } from '../../modules/docs_api.js?v=1';
 
 export async function openPageSharingModal(page) {
     const modal = document.createElement('div');
-    modal.className = 'custom-modal-overlay';
-    modal.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(4px);
-        display: flex; align-items: center; justify-content: center; z-index: 10000;
-    `;
-
+    modal.className = 'modal';
     modal.innerHTML = `
-        <div class="custom-modal-container" style="max-width: 500px; width: 90vw; background: white; border-radius: 16px; box-shadow: var(--shadow-2xl); padding: 0; display: flex; flex-direction: column; overflow: hidden;">
+        <div class="modal-content" style="max-width: 500px; width: 90vw; border-radius: 16px; padding: 0; display: flex; flex-direction: column; overflow: hidden;">
             <div style="padding: 1.25rem 1.5rem; background: white; border-bottom: 1px solid var(--surface-2); display: flex; justify-content: space-between; align-items: center;">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
                     <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(59, 130, 246, 0.1); color: var(--brand-blue); display: flex; align-items: center; justify-content: center;">
@@ -76,6 +70,7 @@ export async function openPageSharingModal(page) {
     `;
 
     document.body.appendChild(modal);
+    modal.classList.add('active');
 
     const typeSelect = modal.querySelector('#share-type');
     const targetSelect = modal.querySelector('#share-target');
@@ -83,7 +78,13 @@ export async function openPageSharingModal(page) {
     const listContainer = modal.querySelector('#permissions-list');
     const closeBtn = modal.querySelector('.close-modal-btn');
 
-    closeBtn.onclick = () => modal.remove();
+    const close = () => modal.remove();
+    closeBtn.onclick = close;
+
+    // Background click to close
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) close();
+    });
 
     // Public Toggle Logic
     const publicToggle = modal.querySelector('#public-toggle');

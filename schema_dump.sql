@@ -102,12 +102,7 @@ CREATE TABLE IF NOT EXISTS "public"."bank_transactions" (
     "attachment_url" "text",
     "created_at" timestamp with time zone DEFAULT "now"(),
     "collaborator_id" "uuid",
-    "linked_invoices" "jsonb" DEFAULT '[]'::"jsonb",
-    "status" "text" DEFAULT 'posted'::"text" NOT NULL,
-    "reviewed_at" timestamp with time zone,
-    "reviewed_by" "uuid",
-    "review_notes" "text",
-    CONSTRAINT "bank_transactions_status_check" CHECK (("status" = ANY (ARRAY['pending'::"text", 'posted'::"text", 'rejected'::"text"])))
+    "linked_invoices" "jsonb" DEFAULT '[]'::"jsonb"
 );
 
 
@@ -121,8 +116,6 @@ CREATE OR REPLACE FUNCTION "public"."approve_bank_transaction"("p_tx_id" "uuid",
 DECLARE
   tx public.bank_transactions;
   invoice_id uuid;
-  v_collab_id uuid;
-  v_inv_amount numeric;
 BEGIN
   -- Update the transaction
   UPDATE public.bank_transactions
@@ -140,7 +133,7 @@ BEGIN
   WHERE id = p_tx_id
   RETURNING * INTO tx;
 
-  -- Handle single active_invoice_id (Legacy / Single Mode)
+  -- Handle single active_invoice_id (legacy support)
   IF tx.active_invoice_id IS NOT NULL THEN
     UPDATE public.invoices
     SET 
@@ -149,65 +142,36 @@ BEGIN
     WHERE id = tx.active_invoice_id;
   END IF;
 
-  -- Handle single passive_invoice_id (Legacy / Single Mode)
+  -- Handle single passive_invoice_id (legacy support)
   IF tx.passive_invoice_id IS NOT NULL THEN
-    -- 1. Update Invoice Link
     UPDATE public.passive_invoices
     SET 
       status = 'Pagato',
       payment_date = tx.date
     WHERE id = tx.passive_invoice_id;
-
-    -- 2. Try to find and update associated Collaborator Payment
-    -- Get collaborator and amount from invoice
-    SELECT collaborator_id, amount_tax_included INTO v_collab_id, v_inv_amount 
-    FROM public.passive_invoices WHERE id = tx.passive_invoice_id;
-    
-    -- Fallbacks
-    IF v_collab_id IS NULL THEN v_collab_id := tx.collaborator_id; END IF;
-    IF v_inv_amount IS NULL THEN v_inv_amount := tx.amount; END IF;
-
-    IF v_collab_id IS NOT NULL THEN
-       -- Update the OLDEST matching pending payment
-       -- We use a CTE to find the ID first to ensure we limit to 1
-       WITH target_payment AS (
-           SELECT p.id 
-           FROM public.payments p
-           JOIN public.assignments a ON p.assignment_id = a.id::text
-           WHERE a.collaborator_id = v_collab_id
-             AND p.status = 'pending'
-             -- Match amount with tolerance (covering net vs gross scenarios or small diffs)
-             AND (abs(p.amount - tx.amount) < 1.0 OR abs(p.amount - v_inv_amount) < 1.0)
-           ORDER BY p.payment_date ASC, p.created_at ASC
-           LIMIT 1
-       )
-       UPDATE public.payments
-       SET 
-         status = 'Done', 
-         bank_transaction_id = tx.id,
-         payment_date = tx.date, -- Set actual payment date
-         updated_at = now()
-       WHERE id IN (SELECT id FROM target_payment);
-    END IF;
   END IF;
 
   -- Handle multiple linked invoices from linked_invoices JSONB
   IF tx.linked_invoices IS NOT NULL AND jsonb_array_length(tx.linked_invoices) > 0 THEN
     FOR invoice_id IN SELECT jsonb_array_elements_text(tx.linked_invoices)::uuid
     LOOP
+      -- Try to update as active invoice first
       UPDATE public.invoices
-      SET status = 'Saldata', payment_date = tx.date
+      SET 
+        status = 'Saldata',
+        payment_date = tx.date
       WHERE id = invoice_id;
       
+      -- Also try passive invoice (one of these will match)
       UPDATE public.passive_invoices
-      SET status = 'Pagato', payment_date = tx.date
+      SET 
+        status = 'Pagato',
+        payment_date = tx.date
       WHERE id = invoice_id;
-      
-      -- We could recursively try to update payments here too but for now let's stick to the primary one
     END LOOP;
   END IF;
 
-  -- Explicit Payment override (if passed)
+  -- Existing Payment Logic
   IF p_payment_id IS NOT NULL THEN
     UPDATE public.payments
     SET
@@ -223,379 +187,6 @@ END $$;
 
 
 ALTER FUNCTION "public"."approve_bank_transaction"("p_tx_id" "uuid", "p_category_id" "uuid", "p_client_id" "uuid", "p_supplier_id" "uuid", "p_collaborator_id" "uuid", "p_active_invoice_id" "uuid", "p_passive_invoice_id" "uuid", "p_payment_id" "uuid", "p_note" "text") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_admin_notification_logs"("p_limit" integer DEFAULT 50, "p_offset" integer DEFAULT 0, "p_search" "text" DEFAULT NULL::"text") RETURNS TABLE("id" "uuid", "created_at" timestamp with time zone, "type" "text", "title" "text", "message" "text", "user_email" "text", "collaborator_name" "text", "is_read" boolean)
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    AS $$
-BEGIN
-    -- Security Check: Ensure the caller is an admin
-    IF NOT EXISTS (
-        SELECT 1 FROM profiles p
-        WHERE p.id = auth.uid() AND p.role = 'admin'
-    ) AND NOT EXISTS (
-        SELECT 1 FROM collaborators c2
-        WHERE c2.user_id = auth.uid()
-        AND c2.role IN ('admin', 'manager')
-    ) THEN
-        RAISE EXCEPTION 'Access denied: Admin privileges required';
-    END IF;
-
-    RETURN QUERY
-    SELECT 
-        n.id,
-        n.created_at,
-        n.type::TEXT,
-        n.title::TEXT,
-        n.message::TEXT,
-        COALESCE(u.email, 'Unknown')::TEXT,
-        (COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, ''))::TEXT,
-        n.is_read
-    FROM notifications n
-    LEFT JOIN auth.users u ON n.user_id = u.id
-    LEFT JOIN collaborators c ON n.collaborator_id = c.id
-    WHERE 
-        (p_search IS NULL OR 
-         n.title ILIKE '%' || p_search || '%' OR 
-         n.message ILIKE '%' || p_search || '%' OR
-         u.email ILIKE '%' || p_search || '%' OR
-         c.first_name ILIKE '%' || p_search || '%' OR
-         c.last_name ILIKE '%' || p_search || '%'
-        )
-    ORDER BY n.created_at DESC
-    LIMIT p_limit OFFSET p_offset;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_admin_notification_logs"("p_limit" integer, "p_offset" integer, "p_search" "text") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_outstanding_invoices_list"("p_client_id" "uuid" DEFAULT NULL::"uuid", "p_limit" integer DEFAULT 50, "p_offset" integer DEFAULT 0) RETURNS json
-    LANGUAGE "plpgsql" STABLE
-    AS $$
-DECLARE
-    v_result JSON;
-BEGIN
-    SELECT json_agg(t) INTO v_result FROM (
-        SELECT 
-            i.id,
-            i.invoice_number,
-            i.invoice_date,
-            i.amount_tax_excluded,
-            i.amount_tax_included,
-            i.title,
-            c.business_name as client_name,
-            CURRENT_DATE - i.invoice_date as days_open
-        FROM invoices i
-        LEFT JOIN clients c ON i.client_id = c.id
-        WHERE i.status != 'Saldata' 
-          AND i.status != 'Annullata'
-          AND (i.payment_date IS NULL) -- Truly unpaid
-          AND (p_client_id IS NULL OR i.client_id = p_client_id)
-        ORDER BY i.invoice_date ASC -- Oldest first
-        LIMIT p_limit OFFSET p_offset
-    ) t;
-
-    RETURN v_result;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_outstanding_invoices_list"("p_client_id" "uuid", "p_limit" integer, "p_offset" integer) OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_revenue_chart_data"("p_start_date" "date", "p_end_date" "date", "p_interval" "text" DEFAULT 'month'::"text", "p_client_id" "uuid" DEFAULT NULL::"uuid") RETURNS json
-    LANGUAGE "plpgsql" STABLE
-    AS $$
-DECLARE
-    v_series JSON;
-BEGIN
-    -- We generate a series of dates for the axis, then join with data
-    -- This handles gaps (months with 0 revenue)
-    IF p_interval = 'quarter' THEN
-        SELECT json_agg(t) INTO v_series FROM (
-            SELECT
-                to_char(d, 'Q-YYYY') as label, -- Q1-2024
-                date_trunc('quarter', d) as period_start,
-                -- Issued in this quarter
-                COALESCE((SELECT SUM(amount_tax_excluded) FROM invoices 
-                          WHERE date_trunc('quarter', invoice_date) = date_trunc('quarter', d)
-                          AND status != 'Annullata'
-                          AND (p_client_id IS NULL OR client_id = p_client_id)), 0) as issued,
-                -- Collected in this quarter
-                COALESCE((SELECT SUM(amount_tax_excluded) FROM invoices 
-                          WHERE date_trunc('quarter', payment_date) = date_trunc('quarter', d)
-                          AND (status = 'Saldata' OR payment_date IS NOT NULL)
-                          AND status != 'Annullata'
-                          AND (p_client_id IS NULL OR client_id = p_client_id)), 0) as collected
-            FROM generate_series(date_trunc('quarter', p_start_date), date_trunc('quarter', p_end_date), '3 months'::interval) d
-        ) t;
-    ELSE
-        SELECT json_agg(t) INTO v_series FROM (
-            SELECT
-                to_char(d, 'YYYY-MM') as label,
-                d as period_start,
-                COALESCE((SELECT SUM(amount_tax_excluded) FROM invoices 
-                          WHERE date_trunc('month', invoice_date) = date_trunc('month', d)
-                          AND status != 'Annullata'
-                          AND (p_client_id IS NULL OR client_id = p_client_id)), 0) as issued,
-                COALESCE((SELECT SUM(amount_tax_excluded) FROM invoices 
-                          WHERE date_trunc('month', payment_date) = date_trunc('month', d)
-                          AND (status = 'Saldata' OR payment_date IS NOT NULL)
-                          AND status != 'Annullata'
-                          AND (p_client_id IS NULL OR client_id = p_client_id)), 0) as collected
-            FROM generate_series(date_trunc('month', p_start_date), date_trunc('month', p_end_date), '1 month'::interval) d
-        ) t;
-    END IF;
-
-    RETURN v_series;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_revenue_chart_data"("p_start_date" "date", "p_end_date" "date", "p_interval" "text", "p_client_id" "uuid") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_revenue_chart_data"("p_start_date" "date", "p_end_date" "date", "p_interval" "text" DEFAULT 'month'::"text", "p_client_id" "uuid" DEFAULT NULL::"uuid", "p_is_gross" boolean DEFAULT false) RETURNS json
-    LANGUAGE "plpgsql" STABLE
-    AS $$
-DECLARE
-    v_series JSON;
-BEGIN
-    IF p_interval = 'quarter' THEN
-        SELECT json_agg(t) INTO v_series FROM (
-            SELECT
-                to_char(d, 'Q-YYYY') as label, -- Q1-2024
-                date_trunc('quarter', d) as period_start,
-                -- Issued in this quarter
-                COALESCE((SELECT SUM(CASE WHEN p_is_gross THEN amount_tax_included ELSE amount_tax_excluded END) FROM invoices
-                          WHERE date_trunc('quarter', invoice_date) = date_trunc('quarter', d)
-                          AND status != 'Annullata'
-                          AND (p_client_id IS NULL OR client_id = p_client_id)), 0) as issued,
-                -- Collected in this quarter
-                COALESCE((SELECT SUM(CASE WHEN p_is_gross THEN amount_tax_included ELSE amount_tax_excluded END) FROM invoices
-                          WHERE date_trunc('quarter', payment_date) = date_trunc('quarter', d)
-                          AND (status = 'Saldata' OR payment_date IS NOT NULL)
-                          AND status != 'Annullata'
-                          AND (p_client_id IS NULL OR client_id = p_client_id)), 0) as collected
-            FROM generate_series(date_trunc('quarter', p_start_date), date_trunc('quarter', p_end_date), '3 months'::interval) d
-        ) t;
-    ELSE
-        SELECT json_agg(t) INTO v_series FROM (
-            SELECT
-                to_char(d, 'YYYY-MM') as label,
-                d as period_start,
-                COALESCE((SELECT SUM(CASE WHEN p_is_gross THEN amount_tax_included ELSE amount_tax_excluded END) FROM invoices
-                          WHERE date_trunc('month', invoice_date) = date_trunc('month', d)
-                          AND status != 'Annullata'
-                          AND (p_client_id IS NULL OR client_id = p_client_id)), 0) as issued,
-                COALESCE((SELECT SUM(CASE WHEN p_is_gross THEN amount_tax_included ELSE amount_tax_excluded END) FROM invoices
-                          WHERE date_trunc('month', payment_date) = date_trunc('month', d)
-                          AND (status = 'Saldata' OR payment_date IS NOT NULL)
-                          AND status != 'Annullata'
-                          AND (p_client_id IS NULL OR client_id = p_client_id)), 0) as collected
-            FROM generate_series(date_trunc('month', p_start_date), date_trunc('month', p_end_date), '1 month'::interval) d
-        ) t;
-    END IF;
-
-    RETURN v_series;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_revenue_chart_data"("p_start_date" "date", "p_end_date" "date", "p_interval" "text", "p_client_id" "uuid", "p_is_gross" boolean) OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_revenue_kpis"("p_start_date" "date", "p_end_date" "date", "p_client_id" "uuid" DEFAULT NULL::"uuid") RETURNS json
-    LANGUAGE "plpgsql" STABLE
-    AS $$
-DECLARE
-    v_issued NUMERIC;
-    v_collected NUMERIC;
-    v_outstanding NUMERIC;
-    v_avg_days NUMERIC;
-BEGIN
-    -- Issued: Invoice Date in range, not Cancelled
-    SELECT COALESCE(SUM(amount_tax_excluded), 0)
-    INTO v_issued
-    FROM invoices
-    WHERE invoice_date BETWEEN p_start_date AND p_end_date
-      AND status != 'Annullata'
-      AND (p_client_id IS NULL OR client_id = p_client_id);
-
-    -- Collected: Payment Date in range, Status = Saldata (or has payment date)
-    -- We assume 'Collected' means the money came in during this period, regardless of when invoice was issued.
-    SELECT COALESCE(SUM(amount_tax_excluded), 0)
-    INTO v_collected
-    FROM invoices
-    WHERE payment_date BETWEEN p_start_date AND p_end_date
-      AND (status = 'Saldata' OR payment_date IS NOT NULL)
-      AND status != 'Annullata'
-      AND (p_client_id IS NULL OR client_id = p_client_id);
-
-    -- Outstanding: All time (or maybe snapshot? implementation says "sum importi delle fatture NON saldate... nel perimetro dei filtri")
-    -- Requirement: "Da incassare (Outstanding): somma importi delle fatture non saldate (data saldo assente e/o stato non “pagata”) nel perimetro dei filtri."
-    -- "Nel perimetro dei filtri" usually implies "Issued in this period but not yet paid" OR "Currently outstanding regardless of issue date"?
-    -- Common ERP logic: "Outstanding" usually refers to CURRENTLY outstanding debt.
-    -- However, if I filter for 2024, do I want to see what is STILL outstanding from 2024? Yes.
-    SELECT COALESCE(SUM(amount_tax_excluded), 0)
-    INTO v_outstanding
-    FROM invoices
-    WHERE invoice_date BETWEEN p_start_date AND p_end_date
-      AND (status != 'Saldata' AND (payment_date IS NULL OR payment_date > p_end_date)) -- If paid AFTER the period, it was outstanding AT END of period? Or just simplistic "Is currently unpaid from that period"?
-      -- UX Requirement: "Quanto mi manca da incassare". This usually implies "What is left to collect from the invoices issued in this period".
-      AND status != 'Annullata'
-      AND (p_client_id IS NULL OR client_id = p_client_id);
-
-    -- Avg Days: Payment Date - Invoice Date for invoices PAID in this period
-    SELECT COALESCE(AVG(payment_date - invoice_date), 0)
-    INTO v_avg_days
-    FROM invoices
-    WHERE payment_date BETWEEN p_start_date AND p_end_date
-      AND (status = 'Saldata' OR payment_date IS NOT NULL)
-      AND status != 'Annullata'
-      AND (p_client_id IS NULL OR client_id = p_client_id);
-
-    RETURN json_build_object(
-        'issued', v_issued,
-        'collected', v_collected,
-        'outstanding', v_outstanding,
-        'avg_days', ROUND(v_avg_days, 1)
-    );
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_revenue_kpis"("p_start_date" "date", "p_end_date" "date", "p_client_id" "uuid") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_revenue_kpis"("p_start_date" "date", "p_end_date" "date", "p_client_id" "uuid" DEFAULT NULL::"uuid", "p_is_gross" boolean DEFAULT false) RETURNS json
-    LANGUAGE "plpgsql" STABLE
-    AS $$
-DECLARE
-    v_issued NUMERIC;
-    v_collected NUMERIC;
-    v_outstanding NUMERIC;
-    v_avg_days NUMERIC;
-    
-    -- Helper to select column based on flag
-    v_col TEXT; 
-BEGIN
-    -- We can't use dynamic SQL easily for variables, so we use CASE in queries.
-    
-    -- Issued: Invoice Date in range, not Cancelled
-    SELECT COALESCE(SUM(CASE WHEN p_is_gross THEN amount_tax_included ELSE amount_tax_excluded END), 0)
-    INTO v_issued
-    FROM invoices
-    WHERE invoice_date BETWEEN p_start_date AND p_end_date
-      AND status != 'Annullata'
-      AND (p_client_id IS NULL OR client_id = p_client_id);
-
-    -- Collected: Payment Date in range, Status = Saldata (or has payment date)
-    SELECT COALESCE(SUM(CASE WHEN p_is_gross THEN amount_tax_included ELSE amount_tax_excluded END), 0)
-    INTO v_collected
-    FROM invoices
-    WHERE payment_date BETWEEN p_start_date AND p_end_date
-      AND (status = 'Saldata' OR payment_date IS NOT NULL)
-      AND status != 'Annullata'
-      AND (p_client_id IS NULL OR client_id = p_client_id);
-
-    -- Outstanding: Sum of amounts for unpaid invoices within the filtered period.
-    SELECT COALESCE(SUM(CASE WHEN p_is_gross THEN amount_tax_included ELSE amount_tax_excluded END), 0)
-    INTO v_outstanding
-    FROM invoices
-    WHERE invoice_date BETWEEN p_start_date AND p_end_date
-      AND (status != 'Saldata' AND (payment_date IS NULL OR payment_date > p_end_date))
-      AND status != 'Annullata'
-      AND (p_client_id IS NULL OR client_id = p_client_id);
-
-    -- Avg Days: Payment Date - Invoice Date for invoices PAID in this period
-    SELECT COALESCE(AVG(payment_date - invoice_date), 0)
-    INTO v_avg_days
-    FROM invoices
-    WHERE payment_date BETWEEN p_start_date AND p_end_date
-      AND (status = 'Saldata' OR payment_date IS NOT NULL)
-      AND status != 'Annullata'
-      AND (p_client_id IS NULL OR client_id = p_client_id);
-
-    RETURN json_build_object(
-        'issued', v_issued,
-        'collected', v_collected,
-        'outstanding', v_outstanding,
-        'avg_days', ROUND(v_avg_days, 1)
-    );
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_revenue_kpis"("p_start_date" "date", "p_end_date" "date", "p_client_id" "uuid", "p_is_gross" boolean) OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_top_clients_revenue"("p_start_date" "date", "p_end_date" "date") RETURNS json
-    LANGUAGE "plpgsql" STABLE
-    AS $$
-DECLARE
-    v_result JSON;
-BEGIN
-    SELECT json_agg(t) INTO v_result FROM (
-        SELECT 
-            c.business_name,
-            c.id as client_id,
-            SUM(CASE WHEN i.invoice_date BETWEEN p_start_date AND p_end_date THEN i.amount_tax_excluded ELSE 0 END) as issued,
-            SUM(CASE WHEN i.payment_date BETWEEN p_start_date AND p_end_date AND (i.status = 'Saldata' OR i.payment_date IS NOT NULL) THEN i.amount_tax_excluded ELSE 0 END) as collected,
-            -- Outstanding from invoices ISSUED in this period
-            SUM(CASE WHEN i.invoice_date BETWEEN p_start_date AND p_end_date AND i.status != 'Saldata' THEN i.amount_tax_excluded ELSE 0 END) as outstanding
-        FROM invoices i
-        JOIN clients c ON i.client_id = c.id
-        WHERE i.status != 'Annullata'
-          AND (i.invoice_date BETWEEN p_start_date AND p_end_date OR i.payment_date BETWEEN p_start_date AND p_end_date)
-        GROUP BY c.id, c.business_name
-        HAVING SUM(CASE WHEN i.invoice_date BETWEEN p_start_date AND p_end_date THEN i.amount_tax_excluded ELSE 0 END) > 0 
-            OR SUM(CASE WHEN i.payment_date BETWEEN p_start_date AND p_end_date AND (i.status = 'Saldata' OR i.payment_date IS NOT NULL) THEN i.amount_tax_excluded ELSE 0 END) > 0
-        ORDER BY issued DESC
-        LIMIT 10
-    ) t;
-    
-    RETURN v_result;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_top_clients_revenue"("p_start_date" "date", "p_end_date" "date") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_top_clients_revenue"("p_start_date" "date", "p_end_date" "date", "p_is_gross" boolean DEFAULT false) RETURNS json
-    LANGUAGE "plpgsql" STABLE
-    AS $$
-DECLARE
-    v_result JSON;
-BEGIN
-    SELECT json_agg(t) INTO v_result FROM (
-        SELECT
-            c.business_name,
-            c.id as client_id,
-            SUM(CASE WHEN i.invoice_date BETWEEN p_start_date AND p_end_date THEN (CASE WHEN p_is_gross THEN i.amount_tax_included ELSE i.amount_tax_excluded END) ELSE 0 END) as issued,
-            SUM(CASE WHEN i.payment_date BETWEEN p_start_date AND p_end_date AND (i.status = 'Saldata' OR i.payment_date IS NOT NULL) THEN (CASE WHEN p_is_gross THEN i.amount_tax_included ELSE i.amount_tax_excluded END) ELSE 0 END) as collected,
-            -- Outstanding from invoices ISSUED in this period
-            SUM(CASE WHEN i.invoice_date BETWEEN p_start_date AND p_end_date AND i.status != 'Saldata' THEN (CASE WHEN p_is_gross THEN i.amount_tax_included ELSE i.amount_tax_excluded END) ELSE 0 END) as outstanding
-        FROM invoices i
-        JOIN clients c ON i.client_id = c.id
-        WHERE i.status != 'Annullata'
-          AND (i.invoice_date BETWEEN p_start_date AND p_end_date OR i.payment_date BETWEEN p_start_date AND p_end_date)
-        GROUP BY c.id, c.business_name
-        HAVING SUM(CASE WHEN i.invoice_date BETWEEN p_start_date AND p_end_date THEN (CASE WHEN p_is_gross THEN i.amount_tax_included ELSE i.amount_tax_excluded END) ELSE 0 END) > 0
-            OR SUM(CASE WHEN i.payment_date BETWEEN p_start_date AND p_end_date AND (i.status = 'Saldata' OR i.payment_date IS NOT NULL) THEN (CASE WHEN p_is_gross THEN i.amount_tax_included ELSE i.amount_tax_excluded END) ELSE 0 END) > 0
-        ORDER BY issued DESC
-        LIMIT 10
-    ) t;
-
-    RETURN v_result;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_top_clients_revenue"("p_start_date" "date", "p_end_date" "date", "p_is_gross" boolean) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."get_unread_counts"() RETURNS TABLE("context_id" "uuid", "count" bigint, "type" "text", "last_read_message_id" "uuid")
@@ -866,149 +457,80 @@ $$;
 ALTER FUNCTION "public"."mark_message_read"("p_message_id" "uuid", "p_channel_id" "uuid", "p_conversation_id" "uuid") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."notify_collaborator_assignment"() RETURNS "trigger"
+CREATE OR REPLACE FUNCTION "public"."notify_collaborator_on_booking"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 DECLARE
-    v_booking record;
-    v_collab record;
+    v_booking RECORD;
+    v_collab RECORD;
     v_item_name TEXT;
     v_guest_name TEXT;
-    v_company_name TEXT := 'Gleeye';
-    v_title TEXT;
-    v_body TEXT;
-    v_debug_id UUID;
 BEGIN
-    -- Log Entry
-    INSERT INTO debug_logs (function_name, message, details)
-    VALUES ('notify_collaborator_assignment', 'Trigger Fired', jsonb_build_object('assignment_id', NEW.id, 'booking_id', NEW.booking_id, 'collaborator_id', NEW.collaborator_id));
-    
     -- Fetch booking details
     SELECT * INTO v_booking FROM bookings WHERE id = NEW.booking_id;
     
-    -- If no booking found (orphan assignment?), exit gracefully
-    IF NOT FOUND THEN
-        INSERT INTO debug_logs (function_name, message, details)
-        VALUES ('notify_collaborator_assignment', 'Booking NOT FOUND', jsonb_build_object('booking_id', NEW.booking_id));
-        RETURN NEW;
-    END IF;
+    IF NOT FOUND THEN RETURN NEW; END IF;
     
-    -- Fetch collaborator details (to get user_id)
+    -- Fetch collaborator details
     SELECT * INTO v_collab FROM collaborators WHERE id = NEW.collaborator_id;
     
-    -- If no collaborator found, exit gracefully
-    IF NOT FOUND THEN
-        INSERT INTO debug_logs (function_name, message, details)
-        VALUES ('notify_collaborator_assignment', 'Collaborator NOT FOUND', jsonb_build_object('collaborator_id', NEW.collaborator_id));
-        RETURN NEW;
-    END IF;
+    IF NOT FOUND THEN RETURN NEW; END IF;
     
-    -- Fetch item name (if linked)
-    IF v_booking.booking_item_id IS NOT NULL THEN
-        SELECT name INTO v_item_name FROM booking_items WHERE id = v_booking.booking_item_id;
-    END IF;
+    -- Fetch item name
+    SELECT name INTO v_item_name FROM booking_items WHERE id = v_booking.booking_item_id;
     
-    -- Construct guest name from JSON
     v_guest_name := COALESCE(
-        (v_booking.guest_info::jsonb->>'first_name') || ' ' || (v_booking.guest_info::jsonb->>'last_name'),
+        NULLIF(v_booking.guest_info->>'first_name', '') || ' ' || NULLIF(v_booking.guest_info->>'last_name', ''),
+        v_booking.guest_info->>'first_name',
+        v_booking.guest_info->>'last_name',
         'Cliente'
     );
     
-    -- Construct Message Content
-    v_title := 'Nuova prenotazione - ' || v_company_name;
-    v_body := format('%s ha prenotato %s per il %s alle %s', 
-               v_guest_name,
-               COALESCE(v_item_name, 'un servizio'), 
-               to_char(v_booking.start_time AT TIME ZONE 'Europe/Rome', 'DD/MM/YYYY'),
-               to_char(v_booking.start_time AT TIME ZONE 'Europe/Rome', 'HH24:MI')
-    );
-
-    INSERT INTO debug_logs (function_name, message, details)
-    VALUES ('notify_collaborator_assignment', 'Preparing Insert', jsonb_build_object('guest', v_guest_name, 'user_id', v_collab.user_id));
-
-    -- Insert notification linked to the specific collaborator
-    INSERT INTO notifications (collaborator_id, user_id, type, title, message, data)
+    -- Insert notification with Email channel enabled
+    INSERT INTO notifications (
+        collaborator_id, 
+        user_id, 
+        type, 
+        title, 
+        message, 
+        data,
+        channel_email,
+        channel_web,
+        email_status
+    )
     VALUES (
         NEW.collaborator_id,
         v_collab.user_id,
-        'booking_new',
-        v_title,
-        v_body,
+        'booking_new', -- Must match key in notification_types
+        'Nuova prenotazione',
+        format('%s ha prenotato %s per il %s alle %s', 
+               v_guest_name,
+               COALESCE(v_item_name, 'un servizio'), 
+               to_char(v_booking.start_time AT TIME ZONE 'Europe/Rome', 'DD/MM/YYYY'),
+               to_char(v_booking.start_time AT TIME ZONE 'Europe/Rome', 'HH24:MI')),
         jsonb_build_object(
             'booking_id', NEW.booking_id,
-            'assignment_id', NEW.id,
-            'service_name', v_item_name,
+            'booking_item_id', v_booking.booking_item_id,
+            'start_time', v_booking.start_time,
+            'end_time', v_booking.end_time,
             'guest_name', v_guest_name,
-            'guest_email', (v_booking.guest_info::jsonb->>'email')
-        )
+            'guest_email', v_booking.guest_info->>'email',
+            'service_name', v_item_name
+        ),
+        true, -- Enable Email
+        true, -- Enable Web
+        'queued' -- Mark for processing
     );
-
+    
     RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
-    -- Safety catch to prevent breaking the booking flow
-    INSERT INTO debug_logs (function_name, message, details)
-    VALUES ('notify_collaborator_assignment', 'EXCEPTION', jsonb_build_object('error', SQLERRM));
+    RAISE WARNING 'Notification trigger error: %', SQLERRM;
     RETURN NEW;
 END;
 $$;
 
 
-ALTER FUNCTION "public"."notify_collaborator_assignment"() OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."payment_invoice_link_trigger"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    AS $$
-BEGIN
-    -- When invoice_id is set and status is still 'Da Fare' or 'Invito Inviato', move to 'In Attesa'
-    IF NEW.invoice_id IS NOT NULL AND OLD.invoice_id IS NULL THEN
-        IF NEW.status IN ('Da Fare', 'Invito Inviato') THEN
-            NEW.status := 'In Attesa';
-        END IF;
-    END IF;
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."payment_invoice_link_trigger"() OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."reject_bank_transaction"("p_tx_id" "uuid", "p_note" "text" DEFAULT NULL::"text") RETURNS "public"."bank_transactions"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-declare
-  tx public.bank_transactions;
-begin
-  update public.bank_transactions
-  set
-    status = 'rejected',
-    reviewed_at = now(),
-    reviewed_by = auth.uid(),
-    review_notes = p_note
-  where id = p_tx_id
-  returning * into tx;
-
-  return tx;
-end $$;
-
-
-ALTER FUNCTION "public"."reject_bank_transaction"("p_tx_id" "uuid", "p_note" "text") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."safe_numeric"("val" "anyelement") RETURNS numeric
-    LANGUAGE "plpgsql" IMMUTABLE
-    AS $$
-BEGIN
-    RETURN COALESCE(val::numeric, 0);
-EXCEPTION WHEN OTHERS THEN
-    RETURN 0;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."safe_numeric"("val" "anyelement") OWNER TO "postgres";
+ALTER FUNCTION "public"."notify_collaborator_on_booking"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."search_messages"("query_text" "text", "limit_val" integer DEFAULT 50) RETURNS TABLE("id" "uuid", "body" "text", "created_at" timestamp with time zone, "author_id" "uuid", "channel_id" "uuid", "conversation_id" "uuid", "rank" real)
@@ -1045,48 +567,6 @@ $$;
 
 
 ALTER FUNCTION "public"."search_messages"("query_text" "text", "limit_val" integer) OWNER TO "postgres";
-
-
-CREATE TABLE IF NOT EXISTS "public"."payments" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "assignment_id" "text",
-    "amount" numeric(15,2),
-    "status" "text" DEFAULT 'pending'::"text",
-    "payment_date" "date",
-    "notes" "text",
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "type" "text" DEFAULT 'passive'::"text",
-    "invoice_id" "uuid",
-    "invited_at" timestamp with time zone,
-    "bank_transaction_id" "uuid"
-);
-
-
-ALTER TABLE "public"."payments" OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."send_payment_invite"("p_payment_id" "uuid", "p_webhook_url" "text" DEFAULT NULL::"text") RETURNS "public"."payments"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-DECLARE
-    pmt public.payments;
-BEGIN
-    UPDATE public.payments
-    SET 
-        status = 'Invito Inviato',
-        invited_at = now()
-    WHERE id = p_payment_id
-    RETURNING * INTO pmt;
-    
-    -- Webhook call would be handled by edge function or external service
-    -- This function just updates the status
-    
-    RETURN pmt;
-END $$;
-
-
-ALTER FUNCTION "public"."send_payment_invite"("p_payment_id" "uuid", "p_webhook_url" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."sync_profile_name"() RETURNS "trigger"
@@ -1156,73 +636,6 @@ $$;
 ALTER FUNCTION "public"."trigger_sync_google_calendar"() OWNER TO "postgres";
 
 
-CREATE TABLE IF NOT EXISTS "public"."appointment_client_participants" (
-    "appointment_id" "uuid" NOT NULL,
-    "contact_id" "uuid" NOT NULL,
-    "required" boolean DEFAULT true,
-    "added_at" timestamp with time zone DEFAULT "now"()
-);
-
-
-ALTER TABLE "public"."appointment_client_participants" OWNER TO "postgres";
-
-
-CREATE TABLE IF NOT EXISTS "public"."appointment_internal_participants" (
-    "appointment_id" "uuid" NOT NULL,
-    "collaborator_id" "uuid" NOT NULL,
-    "role" "text" DEFAULT 'participant'::"text",
-    "status" "text" DEFAULT 'pending'::"text",
-    "required" boolean DEFAULT true,
-    "added_at" timestamp with time zone DEFAULT "now"()
-);
-
-
-ALTER TABLE "public"."appointment_internal_participants" OWNER TO "postgres";
-
-
-CREATE TABLE IF NOT EXISTS "public"."appointment_type_links" (
-    "appointment_id" "uuid" NOT NULL,
-    "type_id" "uuid" NOT NULL
-);
-
-
-ALTER TABLE "public"."appointment_type_links" OWNER TO "postgres";
-
-
-CREATE TABLE IF NOT EXISTS "public"."appointment_types" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "name" "text" NOT NULL,
-    "color" "text" DEFAULT '#3b82f6'::"text",
-    "icon" "text" DEFAULT 'event'::"text",
-    "created_at" timestamp with time zone DEFAULT "now"()
-);
-
-
-ALTER TABLE "public"."appointment_types" OWNER TO "postgres";
-
-
-CREATE TABLE IF NOT EXISTS "public"."appointments" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "title" "text" NOT NULL,
-    "start_time" timestamp with time zone NOT NULL,
-    "end_time" timestamp with time zone NOT NULL,
-    "note" "text",
-    "status" "text" DEFAULT 'bozza'::"text",
-    "mode" "text" DEFAULT 'remoto'::"text",
-    "location" "text",
-    "order_id" "uuid",
-    "client_id" "uuid",
-    "created_by" "uuid",
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "updated_at" timestamp with time zone DEFAULT "now"(),
-    CONSTRAINT "appointments_mode_check" CHECK (("mode" = ANY (ARRAY['remoto'::"text", 'in_presenza'::"text"]))),
-    CONSTRAINT "appointments_status_check" CHECK (("status" = ANY (ARRAY['bozza'::"text", 'confermato'::"text", 'annullato'::"text"])))
-);
-
-
-ALTER TABLE "public"."appointments" OWNER TO "postgres";
-
-
 CREATE TABLE IF NOT EXISTS "public"."assignments" (
     "id" "text" NOT NULL,
     "legacy_id" "text",
@@ -1271,9 +684,7 @@ CREATE TABLE IF NOT EXISTS "public"."availability_overrides" (
     "is_available" boolean DEFAULT false NOT NULL,
     "start_time" time without time zone,
     "end_time" time without time zone,
-    "end_date" "date",
-    "is_on_call" boolean DEFAULT false,
-    "service_ids" "uuid"[]
+    "end_date" "date"
 );
 
 
@@ -1517,25 +928,7 @@ CREATE TABLE IF NOT EXISTS "public"."collaborators" (
     "role" "text",
     "user_id" "uuid",
     "created_at" timestamp with time zone DEFAULT "now"(),
-    "is_active" boolean DEFAULT true,
-    "document_health_card_back_url" "text",
-    "name" "text",
-    "first_name" "text",
-    "last_name" "text",
-    "birth_date" "date",
-    "birth_place" "text",
-    "fiscal_code" "text",
-    "address" "text",
-    "city" "text",
-    "province" "text",
-    "cap" "text",
-    "pec" "text",
-    "vat_number" "text",
-    "bank_name" "text",
-    "iban" "text",
-    "tags" "text" DEFAULT '[]'::"jsonb",
-    "avatar_url" "text",
-    "airtable_id" "text"
+    "is_active" boolean DEFAULT true
 );
 
 
@@ -1548,14 +941,7 @@ CREATE TABLE IF NOT EXISTS "public"."contacts" (
     "email" "text",
     "phone" "text",
     "client_id" "uuid",
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "first_name" "text",
-    "last_name" "text",
-    "tags" "text",
-    "comments" "text",
-    "mobile" "text",
-    "role" "text",
-    "airtable_id" "text"
+    "created_at" timestamp with time zone DEFAULT "now"()
 );
 
 
@@ -1582,20 +968,6 @@ CREATE TABLE IF NOT EXISTS "public"."conversations" (
 
 
 ALTER TABLE "public"."conversations" OWNER TO "postgres";
-
-
-CREATE TABLE IF NOT EXISTS "public"."debug_logs" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "function_name" "text" NOT NULL,
-    "message" "text" NOT NULL,
-    "details" "jsonb",
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "level" "text" DEFAULT 'info'::"text",
-    "is_resolved" boolean DEFAULT false
-);
-
-
-ALTER TABLE "public"."debug_logs" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."departments" (
@@ -1774,10 +1146,7 @@ CREATE TABLE IF NOT EXISTS "public"."orders" (
     "deposit_percentage" numeric DEFAULT 0,
     "balance_percentage" numeric DEFAULT 0,
     "installment_type" "text" DEFAULT 'Mensile'::"text",
-    "installments_count" integer DEFAULT 1,
-    "status_works" "text" DEFAULT 'In Attesa'::"text",
-    "offer_status" "text" DEFAULT 'Bozza'::"text",
-    "pm_id" "uuid"
+    "installments_count" integer DEFAULT 1
 );
 
 
@@ -1792,36 +1161,32 @@ CREATE TABLE IF NOT EXISTS "public"."passive_invoices" (
     "supplier_id" "uuid",
     "collaborator_id" "uuid",
     "created_at" timestamp with time zone DEFAULT "now"(),
-    "description" "text",
-    "service_description" "text",
-    "related_orders" "text",
-    "tax_amount" numeric(15,2) DEFAULT 0,
-    "amount_tax_included" numeric(15,2),
-    "amount_tax_excluded" numeric(15,2),
-    "vat_rate" numeric(5,2),
-    "vat_eligibility" "text",
-    "attachment_url" "text",
-    "status" "text" DEFAULT 'Da Pagare'::"text",
-    "payment_date" "date",
-    "category" "text",
-    "ritenuta" numeric(15,2) DEFAULT 0,
-    "rivalsa_inps" numeric(15,2) DEFAULT 0,
-    "stamp_duty" numeric(15,2) DEFAULT 0,
-    "iva_attiva" boolean DEFAULT false,
-    "notes" "text"
+    "cassa_previdenziale" numeric DEFAULT 0
 );
 
 
 ALTER TABLE "public"."passive_invoices" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."payments" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "assignment_id" "text",
+    "amount" numeric(15,2),
+    "status" "text" DEFAULT 'pending'::"text",
+    "payment_date" "date",
+    "notes" "text",
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."payments" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."pm_item_assignees" (
     "pm_item_ref" "uuid" NOT NULL,
-    "user_ref" "uuid",
+    "user_ref" "uuid" NOT NULL,
     "role" "text" DEFAULT 'assignee'::"text",
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "collaborator_ref" "uuid",
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL
+    "created_at" timestamp with time zone DEFAULT "now"()
 );
 
 
@@ -1885,19 +1250,6 @@ CREATE TABLE IF NOT EXISTS "public"."pm_items" (
 ALTER TABLE "public"."pm_items" OWNER TO "postgres";
 
 
-CREATE TABLE IF NOT EXISTS "public"."pm_space_assignees" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "pm_space_ref" "uuid" NOT NULL,
-    "user_ref" "uuid",
-    "collaborator_ref" "uuid",
-    "role" "text" DEFAULT 'pm'::"text",
-    "created_at" timestamp with time zone DEFAULT "now"()
-);
-
-
-ALTER TABLE "public"."pm_space_assignees" OWNER TO "postgres";
-
-
 CREATE TABLE IF NOT EXISTS "public"."pm_spaces" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "type" "public"."pm_space_type" NOT NULL,
@@ -1918,8 +1270,7 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "role" "text" DEFAULT 'user'::"text",
     "created_at" timestamp with time zone DEFAULT "now"(),
     "avatar_url" "text",
-    "full_name" "text",
-    "timezone" "text" DEFAULT 'Europe/Rome'::"text"
+    "full_name" "text"
 );
 
 
@@ -1948,11 +1299,7 @@ CREATE TABLE IF NOT EXISTS "public"."services" (
     "price" numeric(15,2),
     "created_at" timestamp with time zone DEFAULT "now"(),
     "description" "text",
-    "organization_id" "uuid",
-    "cost" numeric,
-    "margin" numeric,
-    "margin_percentage" numeric,
-    "tags" "text"
+    "organization_id" "uuid"
 );
 
 
@@ -1964,21 +1311,7 @@ CREATE TABLE IF NOT EXISTS "public"."suppliers" (
     "name" "text" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"(),
     "archived" boolean DEFAULT false,
-    "website" "text",
-    "vat_number" "text",
-    "tax_code" "text",
-    "address" "text",
-    "city" "text",
-    "zip_code" "text",
-    "province" "text",
-    "country" "text" DEFAULT 'IT'::"text",
-    "fiscal_regime" "text" DEFAULT 'ordinario'::"text",
-    "default_vat_rate" numeric(5,2) DEFAULT 22,
-    "cassa_previdenziale_rate" numeric(5,2) DEFAULT 0,
-    "withholding_tax_rate" numeric(5,2) DEFAULT 0,
-    "payment_terms" "text",
-    "bank_iban" "text",
-    "notes" "text"
+    "website" "text"
 );
 
 
@@ -2023,36 +1356,6 @@ CREATE TABLE IF NOT EXISTS "public"."user_notification_preferences" (
 
 
 ALTER TABLE "public"."user_notification_preferences" OWNER TO "postgres";
-
-
-ALTER TABLE ONLY "public"."appointment_client_participants"
-    ADD CONSTRAINT "appointment_client_participants_pkey" PRIMARY KEY ("appointment_id", "contact_id");
-
-
-
-ALTER TABLE ONLY "public"."appointment_internal_participants"
-    ADD CONSTRAINT "appointment_internal_participants_pkey" PRIMARY KEY ("appointment_id", "collaborator_id");
-
-
-
-ALTER TABLE ONLY "public"."appointment_type_links"
-    ADD CONSTRAINT "appointment_type_links_pkey" PRIMARY KEY ("appointment_id", "type_id");
-
-
-
-ALTER TABLE ONLY "public"."appointment_types"
-    ADD CONSTRAINT "appointment_types_name_key" UNIQUE ("name");
-
-
-
-ALTER TABLE ONLY "public"."appointment_types"
-    ADD CONSTRAINT "appointment_types_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."appointments"
-    ADD CONSTRAINT "appointments_pkey" PRIMARY KEY ("id");
-
 
 
 ALTER TABLE ONLY "public"."assignments"
@@ -2151,17 +1454,7 @@ ALTER TABLE ONLY "public"."collaborator_services"
 
 
 ALTER TABLE ONLY "public"."collaborators"
-    ADD CONSTRAINT "collaborators_airtable_id_key" UNIQUE ("airtable_id");
-
-
-
-ALTER TABLE ONLY "public"."collaborators"
     ADD CONSTRAINT "collaborators_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."contacts"
-    ADD CONSTRAINT "contacts_airtable_id_key" UNIQUE ("airtable_id");
 
 
 
@@ -2177,11 +1470,6 @@ ALTER TABLE ONLY "public"."conversation_members"
 
 ALTER TABLE ONLY "public"."conversations"
     ADD CONSTRAINT "conversations_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."debug_logs"
-    ADD CONSTRAINT "debug_logs_pkey" PRIMARY KEY ("id");
 
 
 
@@ -2286,7 +1574,7 @@ ALTER TABLE ONLY "public"."payments"
 
 
 ALTER TABLE ONLY "public"."pm_item_assignees"
-    ADD CONSTRAINT "pm_item_assignees_pkey" PRIMARY KEY ("id");
+    ADD CONSTRAINT "pm_item_assignees_pkey" PRIMARY KEY ("pm_item_ref", "user_ref");
 
 
 
@@ -2307,21 +1595,6 @@ ALTER TABLE ONLY "public"."pm_item_links"
 
 ALTER TABLE ONLY "public"."pm_items"
     ADD CONSTRAINT "pm_items_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."pm_space_assignees"
-    ADD CONSTRAINT "pm_space_assignees_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."pm_space_assignees"
-    ADD CONSTRAINT "pm_space_assignees_pm_space_ref_collaborator_ref_key" UNIQUE ("pm_space_ref", "collaborator_ref");
-
-
-
-ALTER TABLE ONLY "public"."pm_space_assignees"
-    ADD CONSTRAINT "pm_space_assignees_pm_space_ref_user_ref_key" UNIQUE ("pm_space_ref", "user_ref");
 
 
 
@@ -2385,26 +1658,6 @@ ALTER TABLE ONLY "public"."user_notification_preferences"
 
 
 
-CREATE INDEX "bank_transactions_status_date_idx" ON "public"."bank_transactions" USING "btree" ("status", "date" DESC);
-
-
-
-CREATE INDEX "idx_appointments_client" ON "public"."appointments" USING "btree" ("client_id");
-
-
-
-CREATE INDEX "idx_appointments_order" ON "public"."appointments" USING "btree" ("order_id");
-
-
-
-CREATE INDEX "idx_appointments_start" ON "public"."appointments" USING "btree" ("start_time");
-
-
-
-CREATE INDEX "idx_appt_internal_collab" ON "public"."appointment_internal_participants" USING "btree" ("collaborator_id");
-
-
-
 CREATE INDEX "idx_bank_trans_collaborator_id" ON "public"."bank_transactions" USING "btree" ("collaborator_id");
 
 
@@ -2414,10 +1667,6 @@ CREATE INDEX "idx_bookings_range" ON "public"."bookings" USING "btree" ("start_t
 
 
 CREATE INDEX "idx_busy_cache_range" ON "public"."external_busy_cache" USING "btree" ("collaborator_id", "start_time", "end_time");
-
-
-
-CREATE INDEX "idx_debug_logs_level" ON "public"."debug_logs" USING "btree" ("level");
 
 
 
@@ -2434,14 +1683,6 @@ CREATE INDEX "idx_notifications_email_queued" ON "public"."notifications" USING 
 
 
 CREATE INDEX "idx_notifications_user" ON "public"."notifications" USING "btree" ("user_id", "is_read", "created_at" DESC);
-
-
-
-CREATE UNIQUE INDEX "idx_pm_assignees_dedupe_collab" ON "public"."pm_item_assignees" USING "btree" ("pm_item_ref", "collaborator_ref") WHERE ("collaborator_ref" IS NOT NULL);
-
-
-
-CREATE UNIQUE INDEX "idx_pm_assignees_dedupe_user" ON "public"."pm_item_assignees" USING "btree" ("pm_item_ref", "user_ref") WHERE ("user_ref" IS NOT NULL);
 
 
 
@@ -2481,10 +1722,6 @@ CREATE INDEX "messages_fts_idx" ON "public"."messages" USING "gin" ("fts");
 
 
 
-CREATE OR REPLACE TRIGGER "notify_collaborator_assignment_trigger" AFTER INSERT ON "public"."booking_assignments" FOR EACH ROW EXECUTE FUNCTION "public"."notify_collaborator_assignment"();
-
-
-
 CREATE OR REPLACE TRIGGER "on_booking_assignment_created" AFTER INSERT ON "public"."booking_assignments" FOR EACH ROW EXECUTE FUNCTION "public"."trigger_sync_google_calendar"();
 
 
@@ -2497,60 +1734,15 @@ CREATE OR REPLACE TRIGGER "sync_profile_name_trigger" AFTER INSERT OR UPDATE OF 
 
 
 
+CREATE OR REPLACE TRIGGER "trg_booking_notification" AFTER INSERT ON "public"."booking_assignments" FOR EACH ROW EXECUTE FUNCTION "public"."notify_collaborator_on_booking"();
+
+
+
 CREATE OR REPLACE TRIGGER "trg_handle_new_message" AFTER INSERT ON "public"."messages" FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_message"();
 
 
 
-CREATE OR REPLACE TRIGGER "trg_payment_invoice_link" BEFORE UPDATE ON "public"."payments" FOR EACH ROW EXECUTE FUNCTION "public"."payment_invoice_link_trigger"();
-
-
-
 CREATE OR REPLACE TRIGGER "trg_process_notification" AFTER INSERT ON "public"."notifications" FOR EACH ROW WHEN (("new"."email_status" = 'queued'::"text")) EXECUTE FUNCTION "public"."trigger_process_notification"();
-
-
-
-ALTER TABLE ONLY "public"."appointment_client_participants"
-    ADD CONSTRAINT "appointment_client_participants_appointment_id_fkey" FOREIGN KEY ("appointment_id") REFERENCES "public"."appointments"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."appointment_client_participants"
-    ADD CONSTRAINT "appointment_client_participants_contact_id_fkey" FOREIGN KEY ("contact_id") REFERENCES "public"."contacts"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."appointment_internal_participants"
-    ADD CONSTRAINT "appointment_internal_participants_appointment_id_fkey" FOREIGN KEY ("appointment_id") REFERENCES "public"."appointments"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."appointment_internal_participants"
-    ADD CONSTRAINT "appointment_internal_participants_collaborator_id_fkey" FOREIGN KEY ("collaborator_id") REFERENCES "public"."collaborators"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."appointment_type_links"
-    ADD CONSTRAINT "appointment_type_links_appointment_id_fkey" FOREIGN KEY ("appointment_id") REFERENCES "public"."appointments"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."appointment_type_links"
-    ADD CONSTRAINT "appointment_type_links_type_id_fkey" FOREIGN KEY ("type_id") REFERENCES "public"."appointment_types"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."appointments"
-    ADD CONSTRAINT "appointments_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."appointments"
-    ADD CONSTRAINT "appointments_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
-
-
-
-ALTER TABLE ONLY "public"."appointments"
-    ADD CONSTRAINT "appointments_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE SET NULL;
 
 
 
@@ -2814,11 +2006,6 @@ ALTER TABLE ONLY "public"."orders"
 
 
 
-ALTER TABLE ONLY "public"."orders"
-    ADD CONSTRAINT "orders_pm_id_fkey" FOREIGN KEY ("pm_id") REFERENCES "auth"."users"("id");
-
-
-
 ALTER TABLE ONLY "public"."passive_invoices"
     ADD CONSTRAINT "passive_invoices_collaborator_id_fkey" FOREIGN KEY ("collaborator_id") REFERENCES "public"."collaborators"("id") ON DELETE SET NULL;
 
@@ -2831,16 +2018,6 @@ ALTER TABLE ONLY "public"."passive_invoices"
 
 ALTER TABLE ONLY "public"."payments"
     ADD CONSTRAINT "payments_assignment_id_fkey" FOREIGN KEY ("assignment_id") REFERENCES "public"."assignments"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."payments"
-    ADD CONSTRAINT "payments_bank_transaction_id_fkey" FOREIGN KEY ("bank_transaction_id") REFERENCES "public"."bank_transactions"("id");
-
-
-
-ALTER TABLE ONLY "public"."pm_item_assignees"
-    ADD CONSTRAINT "pm_item_assignees_collaborator_ref_fkey" FOREIGN KEY ("collaborator_ref") REFERENCES "public"."collaborators"("id") ON DELETE CASCADE;
 
 
 
@@ -2896,21 +2073,6 @@ ALTER TABLE ONLY "public"."pm_items"
 
 ALTER TABLE ONLY "public"."pm_items"
     ADD CONSTRAINT "pm_items_space_ref_fkey" FOREIGN KEY ("space_ref") REFERENCES "public"."pm_spaces"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."pm_space_assignees"
-    ADD CONSTRAINT "pm_space_assignees_collaborator_ref_fkey" FOREIGN KEY ("collaborator_ref") REFERENCES "public"."collaborators"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."pm_space_assignees"
-    ADD CONSTRAINT "pm_space_assignees_pm_space_ref_fkey" FOREIGN KEY ("pm_space_ref") REFERENCES "public"."pm_spaces"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."pm_space_assignees"
-    ADD CONSTRAINT "pm_space_assignees_user_ref_fkey" FOREIGN KEY ("user_ref") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
 
@@ -3031,60 +2193,16 @@ CREATE POLICY "Anyone can insert notifications" ON "public"."notifications" FOR 
 
 
 
-CREATE POLICY "Assignees: Delete" ON "public"."pm_item_assignees" FOR DELETE USING (("public"."is_admin"("auth"."uid"()) OR (EXISTS ( SELECT 1
+CREATE POLICY "Assignees: Manage" ON "public"."pm_item_assignees" USING (("public"."is_admin"("auth"."uid"()) OR (EXISTS ( SELECT 1
    FROM ("public"."pm_items" "i"
      JOIN "public"."pm_spaces" "s" ON (("s"."id" = "i"."space_ref")))
   WHERE (("i"."id" = "pm_item_assignees"."pm_item_ref") AND ("s"."default_pm_user_ref" = "auth"."uid"()))))));
 
 
 
-CREATE POLICY "Assignees: Manage" ON "public"."pm_item_assignees" FOR INSERT WITH CHECK (("public"."is_admin"("auth"."uid"()) OR (EXISTS ( SELECT 1
-   FROM ("public"."pm_items" "i"
-     JOIN "public"."pm_spaces" "s" ON (("s"."id" = "i"."space_ref")))
-  WHERE (("i"."id" = "pm_item_assignees"."pm_item_ref") AND ("s"."default_pm_user_ref" = "auth"."uid"()))))));
-
-
-
-CREATE POLICY "Assignees: Update" ON "public"."pm_item_assignees" FOR UPDATE USING (("public"."is_admin"("auth"."uid"()) OR (EXISTS ( SELECT 1
-   FROM ("public"."pm_items" "i"
-     JOIN "public"."pm_spaces" "s" ON (("s"."id" = "i"."space_ref")))
-  WHERE (("i"."id" = "pm_item_assignees"."pm_item_ref") AND ("s"."default_pm_user_ref" = "auth"."uid"()))))));
-
-
-
-CREATE POLICY "Assignees: View" ON "public"."pm_item_assignees" FOR SELECT USING (("auth"."role"() = 'authenticated'::"text"));
-
-
-
-CREATE POLICY "Auth all client" ON "public"."appointment_client_participants" TO "authenticated" USING (true) WITH CHECK (true);
-
-
-
-CREATE POLICY "Auth all internal" ON "public"."appointment_internal_participants" TO "authenticated" USING (true) WITH CHECK (true);
-
-
-
-CREATE POLICY "Auth all links" ON "public"."appointment_type_links" TO "authenticated" USING (true) WITH CHECK (true);
-
-
-
-CREATE POLICY "Auth delete appointments" ON "public"."appointments" FOR DELETE TO "authenticated" USING (true);
-
-
-
-CREATE POLICY "Auth insert appointments" ON "public"."appointments" FOR INSERT TO "authenticated" WITH CHECK (true);
-
-
-
-CREATE POLICY "Auth read appointments" ON "public"."appointments" FOR SELECT TO "authenticated" USING (true);
-
-
-
-CREATE POLICY "Auth read types" ON "public"."appointment_types" FOR SELECT TO "authenticated" USING (true);
-
-
-
-CREATE POLICY "Auth update appointments" ON "public"."appointments" FOR UPDATE TO "authenticated" USING (true);
+CREATE POLICY "Assignees: View" ON "public"."pm_item_assignees" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."pm_items" "i"
+  WHERE ("i"."id" = "pm_item_assignees"."pm_item_ref"))));
 
 
 
@@ -3124,19 +2242,7 @@ CREATE POLICY "Enable insert access for authenticated users" ON "public"."order_
 
 
 
-CREATE POLICY "Enable insert for all" ON "public"."debug_logs" FOR INSERT WITH CHECK (true);
-
-
-
-CREATE POLICY "Enable insert for authenticated users only" ON "public"."passive_invoices" FOR INSERT TO "authenticated" WITH CHECK (true);
-
-
-
 CREATE POLICY "Enable read access for all users" ON "public"."assignments" FOR SELECT USING (true);
-
-
-
-CREATE POLICY "Enable read access for all users" ON "public"."passive_invoices" FOR SELECT USING (true);
 
 
 
@@ -3148,39 +2254,20 @@ CREATE POLICY "Enable update access for authenticated users" ON "public"."order_
 
 
 
-CREATE POLICY "Enable update for users based on email" ON "public"."passive_invoices" FOR UPDATE USING (true) WITH CHECK (true);
-
-
-
-CREATE POLICY "Enable view for admins" ON "public"."debug_logs" FOR SELECT USING (((( SELECT "profiles"."role"
-   FROM "public"."profiles"
-  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin'::"text") OR (EXISTS ( SELECT 1
-   FROM "public"."collaborators"
-  WHERE (("collaborators"."email" = (( SELECT "users"."email"
-           FROM "auth"."users"
-          WHERE ("users"."id" = "auth"."uid"())))::"text") AND ("collaborators"."role" = 'admin'::"text"))))));
-
-
-
 CREATE POLICY "Enable write access for authenticated users" ON "public"."assignments" USING (("auth"."role"() = 'authenticated'::"text"));
 
 
 
-CREATE POLICY "Incarichi Link: Manage Delete" ON "public"."pm_item_incarichi" FOR DELETE USING (("public"."is_admin"("auth"."uid"()) OR (EXISTS ( SELECT 1
+CREATE POLICY "Incarichi Link: Manage" ON "public"."pm_item_incarichi" USING (("public"."is_admin"("auth"."uid"()) OR (EXISTS ( SELECT 1
    FROM ("public"."pm_items" "i"
      JOIN "public"."pm_spaces" "s" ON (("s"."id" = "i"."space_ref")))
   WHERE (("i"."id" = "pm_item_incarichi"."pm_item_ref") AND ("s"."default_pm_user_ref" = "auth"."uid"()))))));
 
 
 
-CREATE POLICY "Incarichi Link: Manage Insert" ON "public"."pm_item_incarichi" FOR INSERT WITH CHECK (("public"."is_admin"("auth"."uid"()) OR (EXISTS ( SELECT 1
-   FROM ("public"."pm_items" "i"
-     JOIN "public"."pm_spaces" "s" ON (("s"."id" = "i"."space_ref")))
-  WHERE (("i"."id" = "pm_item_incarichi"."pm_item_ref") AND ("s"."default_pm_user_ref" = "auth"."uid"()))))));
-
-
-
-CREATE POLICY "Incarichi Link: View" ON "public"."pm_item_incarichi" FOR SELECT USING (("auth"."role"() = 'authenticated'::"text"));
+CREATE POLICY "Incarichi Link: View" ON "public"."pm_item_incarichi" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."pm_items" "i"
+  WHERE ("i"."id" = "pm_item_incarichi"."pm_item_ref"))));
 
 
 
@@ -3190,18 +2277,13 @@ CREATE POLICY "Items: Admin access" ON "public"."pm_items" USING ("public"."is_a
 
 CREATE POLICY "Items: Collaborator update own" ON "public"."pm_items" FOR UPDATE USING ((EXISTS ( SELECT 1
    FROM "public"."pm_item_assignees" "a"
-  WHERE (("a"."pm_item_ref" = "pm_items"."id") AND (("a"."user_ref" = "auth"."uid"()) OR (EXISTS ( SELECT 1
-           FROM "public"."collaborators" "c"
-          WHERE (("c"."id" = "a"."collaborator_ref") AND ("c"."user_id" = "auth"."uid"())))))))));
+  WHERE (("a"."pm_item_ref" = "pm_items"."id") AND ("a"."user_ref" = "auth"."uid"())))));
 
 
 
 CREATE POLICY "Items: Collaborator visibility" ON "public"."pm_items" FOR SELECT USING (((EXISTS ( SELECT 1
    FROM "public"."pm_item_assignees" "a"
   WHERE (("a"."pm_item_ref" = "pm_items"."id") AND ("a"."user_ref" = "auth"."uid"())))) OR (EXISTS ( SELECT 1
-   FROM ("public"."pm_item_assignees" "a"
-     JOIN "public"."collaborators" "c" ON (("c"."id" = "a"."collaborator_ref")))
-  WHERE (("a"."pm_item_ref" = "pm_items"."id") AND ("c"."user_id" = "auth"."uid"())))) OR (EXISTS ( SELECT 1
    FROM (("public"."pm_item_incarichi" "i"
      JOIN "public"."assignments" "ass" ON (("i"."incarico_ref" = "ass"."id")))
      JOIN "public"."collaborators" "c" ON (("c"."id" = "ass"."collaborator_id")))
@@ -3245,71 +2327,11 @@ CREATE POLICY "Public Read Availability" ON "public"."bookings" FOR SELECT TO "a
 
 
 
-CREATE POLICY "Public access assignments" ON "public"."assignments" USING (true);
-
-
-
-CREATE POLICY "Public access availability_overrides" ON "public"."availability_overrides" USING (true);
-
-
-
-CREATE POLICY "Public access availability_rules" ON "public"."availability_rules" USING (true);
-
-
-
-CREATE POLICY "Public access bank_statements" ON "public"."bank_statements" USING (true);
-
-
-
 CREATE POLICY "Public access bank_transactions" ON "public"."bank_transactions" USING (true);
 
 
 
-CREATE POLICY "Public access booking_assignments" ON "public"."booking_assignments" USING (true);
-
-
-
-CREATE POLICY "Public access booking_categories" ON "public"."booking_categories" USING (true);
-
-
-
-CREATE POLICY "Public access booking_holds" ON "public"."booking_holds" USING (true);
-
-
-
-CREATE POLICY "Public access booking_item_collaborators" ON "public"."booking_item_collaborators" USING (true);
-
-
-
-CREATE POLICY "Public access booking_items" ON "public"."booking_items" USING (true);
-
-
-
-CREATE POLICY "Public access bookings" ON "public"."bookings" USING (true);
-
-
-
-CREATE POLICY "Public access channel_members" ON "public"."channel_members" USING (true);
-
-
-
-CREATE POLICY "Public access channels" ON "public"."channels" USING (true);
-
-
-
 CREATE POLICY "Public access clients" ON "public"."clients" USING (true);
-
-
-
-CREATE POLICY "Public access collaborator_google_auth" ON "public"."collaborator_google_auth" USING (true);
-
-
-
-CREATE POLICY "Public access collaborator_rest_days" ON "public"."collaborator_rest_days" USING (true);
-
-
-
-CREATE POLICY "Public access collaborator_services" ON "public"."collaborator_services" USING (true);
 
 
 
@@ -3321,27 +2343,7 @@ CREATE POLICY "Public access contacts" ON "public"."contacts" USING (true);
 
 
 
-CREATE POLICY "Public access conversation_members" ON "public"."conversation_members" USING (true);
-
-
-
-CREATE POLICY "Public access conversations" ON "public"."conversations" USING (true);
-
-
-
-CREATE POLICY "Public access debug_logs" ON "public"."debug_logs" USING (true);
-
-
-
 CREATE POLICY "Public access departments" ON "public"."departments" USING (true);
-
-
-
-CREATE POLICY "Public access external_busy_cache" ON "public"."external_busy_cache" USING (true);
-
-
-
-CREATE POLICY "Public access external_calendar_connections" ON "public"."external_calendar_connections" USING (true);
 
 
 
@@ -3349,31 +2351,7 @@ CREATE POLICY "Public access invoices" ON "public"."invoices" USING (true);
 
 
 
-CREATE POLICY "Public access message_attachments" ON "public"."message_attachments" USING (true);
-
-
-
-CREATE POLICY "Public access message_reads" ON "public"."message_reads" USING (true);
-
-
-
-CREATE POLICY "Public access messages" ON "public"."messages" USING (true);
-
-
-
-CREATE POLICY "Public access notification_types" ON "public"."notification_types" USING (true);
-
-
-
-CREATE POLICY "Public access notifications" ON "public"."notifications" USING (true);
-
-
-
 CREATE POLICY "Public access order_collaborators" ON "public"."order_collaborators" USING (true);
-
-
-
-CREATE POLICY "Public access order_contacts" ON "public"."order_contacts" USING (true);
 
 
 
@@ -3389,39 +2367,7 @@ CREATE POLICY "Public access payments" ON "public"."payments" USING (true);
 
 
 
-CREATE POLICY "Public access pm_item_assignees" ON "public"."pm_item_assignees" USING (true);
-
-
-
-CREATE POLICY "Public access pm_item_comments" ON "public"."pm_item_comments" USING (true);
-
-
-
-CREATE POLICY "Public access pm_item_incarichi" ON "public"."pm_item_incarichi" USING (true);
-
-
-
-CREATE POLICY "Public access pm_item_links" ON "public"."pm_item_links" USING (true);
-
-
-
-CREATE POLICY "Public access pm_items" ON "public"."pm_items" USING (true);
-
-
-
-CREATE POLICY "Public access pm_space_assignees" ON "public"."pm_space_assignees" USING (true);
-
-
-
-CREATE POLICY "Public access pm_spaces" ON "public"."pm_spaces" USING (true);
-
-
-
 CREATE POLICY "Public access profiles" ON "public"."profiles" USING (true);
-
-
-
-CREATE POLICY "Public access reactions" ON "public"."reactions" USING (true);
 
 
 
@@ -3433,15 +2379,7 @@ CREATE POLICY "Public access suppliers" ON "public"."suppliers" USING (true);
 
 
 
-CREATE POLICY "Public access system_config" ON "public"."system_config" USING (true);
-
-
-
 CREATE POLICY "Public access transaction_categories" ON "public"."transaction_categories" USING (true);
-
-
-
-CREATE POLICY "Public access user_notification_preferences" ON "public"."user_notification_preferences" USING (true);
 
 
 
@@ -3503,18 +2441,6 @@ CREATE POLICY "Service role can manage notification types" ON "public"."notifica
 
 
 
-CREATE POLICY "Space Assignees: Manage" ON "public"."pm_space_assignees" USING (("public"."is_admin"("auth"."uid"()) OR (EXISTS ( SELECT 1
-   FROM "public"."pm_spaces" "s"
-  WHERE (("s"."id" = "pm_space_assignees"."pm_space_ref") AND ("s"."default_pm_user_ref" = "auth"."uid"()))))));
-
-
-
-CREATE POLICY "Space Assignees: View" ON "public"."pm_space_assignees" FOR SELECT USING ((EXISTS ( SELECT 1
-   FROM "public"."pm_spaces" "s"
-  WHERE ("s"."id" = "pm_space_assignees"."pm_space_ref"))));
-
-
-
 CREATE POLICY "Spaces: Admin access" ON "public"."pm_spaces" USING ("public"."is_admin"("auth"."uid"()));
 
 
@@ -3559,23 +2485,23 @@ CREATE POLICY "Users can insert own preferences" ON "public"."user_notification_
 
 
 
+CREATE POLICY "Users can manage own overrides" ON "public"."availability_overrides" USING (("collaborator_id" IN ( SELECT "collaborators"."id"
+   FROM "public"."collaborators"
+  WHERE ("collaborators"."email" = ("auth"."jwt"() ->> 'email'::"text")))));
+
+
+
+CREATE POLICY "Users can manage own rest days" ON "public"."collaborator_rest_days" USING (("collaborator_id" IN ( SELECT "collaborators"."id"
+   FROM "public"."collaborators"
+  WHERE ("collaborators"."email" = ("auth"."jwt"() ->> 'email'::"text")))));
+
+
+
 CREATE POLICY "Users can read own preferences" ON "public"."user_notification_preferences" FOR SELECT USING (("auth"."uid"() = "user_id"));
 
 
 
-CREATE POLICY "Users can update own notifications" ON "public"."notifications" FOR UPDATE USING ((("auth"."uid"() = "user_id") OR ("collaborator_id" IN ( SELECT "collaborators"."id"
-   FROM "public"."collaborators"
-  WHERE ("collaborators"."user_id" = "auth"."uid"())))));
-
-
-
 CREATE POLICY "Users can update own preferences" ON "public"."user_notification_preferences" FOR UPDATE USING (("auth"."uid"() = "user_id"));
-
-
-
-CREATE POLICY "Users can view own notifications" ON "public"."notifications" FOR SELECT USING ((("auth"."uid"() = "user_id") OR ("collaborator_id" IN ( SELECT "collaborators"."id"
-   FROM "public"."collaborators"
-  WHERE ("collaborators"."user_id" = "auth"."uid"())))));
 
 
 
@@ -3585,28 +2511,10 @@ CREATE POLICY "Users view own bookings" ON "public"."bookings" FOR SELECT USING 
 
 
 
-ALTER TABLE "public"."appointment_client_participants" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."appointment_internal_participants" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."appointment_type_links" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."appointment_types" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."appointments" ENABLE ROW LEVEL SECURITY;
-
-
 ALTER TABLE "public"."assignments" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."availability_overrides" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."availability_rules" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."bank_statements" ENABLE ROW LEVEL SECURITY;
@@ -3619,12 +2527,6 @@ ALTER TABLE "public"."booking_assignments" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."booking_categories" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."booking_holds" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."booking_item_collaborators" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."booking_items" ENABLE ROW LEVEL SECURITY;
@@ -3663,16 +2565,7 @@ ALTER TABLE "public"."conversation_members" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."conversations" ENABLE ROW LEVEL SECURITY;
 
 
-ALTER TABLE "public"."debug_logs" ENABLE ROW LEVEL SECURITY;
-
-
 ALTER TABLE "public"."departments" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."external_busy_cache" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."external_calendar_connections" ENABLE ROW LEVEL SECURITY;
 
 
 CREATE POLICY "insert_channel_members" ON "public"."channel_members" FOR INSERT TO "authenticated" WITH CHECK ((("auth"."uid"() = "user_id") AND ((EXISTS ( SELECT 1
@@ -3747,9 +2640,6 @@ ALTER TABLE "public"."pm_item_links" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."pm_items" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."pm_space_assignees" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."pm_spaces" ENABLE ROW LEVEL SECURITY;
@@ -3827,54 +2717,6 @@ GRANT ALL ON FUNCTION "public"."approve_bank_transaction"("p_tx_id" "uuid", "p_c
 
 
 
-GRANT ALL ON FUNCTION "public"."get_admin_notification_logs"("p_limit" integer, "p_offset" integer, "p_search" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_admin_notification_logs"("p_limit" integer, "p_offset" integer, "p_search" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_admin_notification_logs"("p_limit" integer, "p_offset" integer, "p_search" "text") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_outstanding_invoices_list"("p_client_id" "uuid", "p_limit" integer, "p_offset" integer) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_outstanding_invoices_list"("p_client_id" "uuid", "p_limit" integer, "p_offset" integer) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_outstanding_invoices_list"("p_client_id" "uuid", "p_limit" integer, "p_offset" integer) TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_revenue_chart_data"("p_start_date" "date", "p_end_date" "date", "p_interval" "text", "p_client_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_revenue_chart_data"("p_start_date" "date", "p_end_date" "date", "p_interval" "text", "p_client_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_revenue_chart_data"("p_start_date" "date", "p_end_date" "date", "p_interval" "text", "p_client_id" "uuid") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_revenue_chart_data"("p_start_date" "date", "p_end_date" "date", "p_interval" "text", "p_client_id" "uuid", "p_is_gross" boolean) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_revenue_chart_data"("p_start_date" "date", "p_end_date" "date", "p_interval" "text", "p_client_id" "uuid", "p_is_gross" boolean) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_revenue_chart_data"("p_start_date" "date", "p_end_date" "date", "p_interval" "text", "p_client_id" "uuid", "p_is_gross" boolean) TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_revenue_kpis"("p_start_date" "date", "p_end_date" "date", "p_client_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_revenue_kpis"("p_start_date" "date", "p_end_date" "date", "p_client_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_revenue_kpis"("p_start_date" "date", "p_end_date" "date", "p_client_id" "uuid") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_revenue_kpis"("p_start_date" "date", "p_end_date" "date", "p_client_id" "uuid", "p_is_gross" boolean) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_revenue_kpis"("p_start_date" "date", "p_end_date" "date", "p_client_id" "uuid", "p_is_gross" boolean) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_revenue_kpis"("p_start_date" "date", "p_end_date" "date", "p_client_id" "uuid", "p_is_gross" boolean) TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_top_clients_revenue"("p_start_date" "date", "p_end_date" "date") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_top_clients_revenue"("p_start_date" "date", "p_end_date" "date") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_top_clients_revenue"("p_start_date" "date", "p_end_date" "date") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_top_clients_revenue"("p_start_date" "date", "p_end_date" "date", "p_is_gross" boolean) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_top_clients_revenue"("p_start_date" "date", "p_end_date" "date", "p_is_gross" boolean) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_top_clients_revenue"("p_start_date" "date", "p_end_date" "date", "p_is_gross" boolean) TO "service_role";
-
-
-
 GRANT ALL ON FUNCTION "public"."get_unread_counts"() TO "anon";
 GRANT ALL ON FUNCTION "public"."get_unread_counts"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_unread_counts"() TO "service_role";
@@ -3917,45 +2759,15 @@ GRANT ALL ON FUNCTION "public"."mark_message_read"("p_message_id" "uuid", "p_cha
 
 
 
-GRANT ALL ON FUNCTION "public"."notify_collaborator_assignment"() TO "anon";
-GRANT ALL ON FUNCTION "public"."notify_collaborator_assignment"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."notify_collaborator_assignment"() TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."payment_invoice_link_trigger"() TO "anon";
-GRANT ALL ON FUNCTION "public"."payment_invoice_link_trigger"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."payment_invoice_link_trigger"() TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."reject_bank_transaction"("p_tx_id" "uuid", "p_note" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."reject_bank_transaction"("p_tx_id" "uuid", "p_note" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."reject_bank_transaction"("p_tx_id" "uuid", "p_note" "text") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."safe_numeric"("val" "anyelement") TO "anon";
-GRANT ALL ON FUNCTION "public"."safe_numeric"("val" "anyelement") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."safe_numeric"("val" "anyelement") TO "service_role";
+GRANT ALL ON FUNCTION "public"."notify_collaborator_on_booking"() TO "anon";
+GRANT ALL ON FUNCTION "public"."notify_collaborator_on_booking"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."notify_collaborator_on_booking"() TO "service_role";
 
 
 
 GRANT ALL ON FUNCTION "public"."search_messages"("query_text" "text", "limit_val" integer) TO "anon";
 GRANT ALL ON FUNCTION "public"."search_messages"("query_text" "text", "limit_val" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."search_messages"("query_text" "text", "limit_val" integer) TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."payments" TO "anon";
-GRANT ALL ON TABLE "public"."payments" TO "authenticated";
-GRANT ALL ON TABLE "public"."payments" TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."send_payment_invite"("p_payment_id" "uuid", "p_webhook_url" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."send_payment_invite"("p_payment_id" "uuid", "p_webhook_url" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."send_payment_invite"("p_payment_id" "uuid", "p_webhook_url" "text") TO "service_role";
 
 
 
@@ -3974,36 +2786,6 @@ GRANT ALL ON FUNCTION "public"."trigger_process_notification"() TO "service_role
 GRANT ALL ON FUNCTION "public"."trigger_sync_google_calendar"() TO "anon";
 GRANT ALL ON FUNCTION "public"."trigger_sync_google_calendar"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."trigger_sync_google_calendar"() TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."appointment_client_participants" TO "anon";
-GRANT ALL ON TABLE "public"."appointment_client_participants" TO "authenticated";
-GRANT ALL ON TABLE "public"."appointment_client_participants" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."appointment_internal_participants" TO "anon";
-GRANT ALL ON TABLE "public"."appointment_internal_participants" TO "authenticated";
-GRANT ALL ON TABLE "public"."appointment_internal_participants" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."appointment_type_links" TO "anon";
-GRANT ALL ON TABLE "public"."appointment_type_links" TO "authenticated";
-GRANT ALL ON TABLE "public"."appointment_type_links" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."appointment_types" TO "anon";
-GRANT ALL ON TABLE "public"."appointment_types" TO "authenticated";
-GRANT ALL ON TABLE "public"."appointment_types" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."appointments" TO "anon";
-GRANT ALL ON TABLE "public"."appointments" TO "authenticated";
-GRANT ALL ON TABLE "public"."appointments" TO "service_role";
 
 
 
@@ -4127,12 +2909,6 @@ GRANT ALL ON TABLE "public"."conversations" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."debug_logs" TO "anon";
-GRANT ALL ON TABLE "public"."debug_logs" TO "authenticated";
-GRANT ALL ON TABLE "public"."debug_logs" TO "service_role";
-
-
-
 GRANT ALL ON TABLE "public"."departments" TO "anon";
 GRANT ALL ON TABLE "public"."departments" TO "authenticated";
 GRANT ALL ON TABLE "public"."departments" TO "service_role";
@@ -4211,6 +2987,12 @@ GRANT ALL ON TABLE "public"."passive_invoices" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."payments" TO "anon";
+GRANT ALL ON TABLE "public"."payments" TO "authenticated";
+GRANT ALL ON TABLE "public"."payments" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."pm_item_assignees" TO "anon";
 GRANT ALL ON TABLE "public"."pm_item_assignees" TO "authenticated";
 GRANT ALL ON TABLE "public"."pm_item_assignees" TO "service_role";
@@ -4238,12 +3020,6 @@ GRANT ALL ON TABLE "public"."pm_item_links" TO "service_role";
 GRANT ALL ON TABLE "public"."pm_items" TO "anon";
 GRANT ALL ON TABLE "public"."pm_items" TO "authenticated";
 GRANT ALL ON TABLE "public"."pm_items" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."pm_space_assignees" TO "anon";
-GRANT ALL ON TABLE "public"."pm_space_assignees" TO "authenticated";
-GRANT ALL ON TABLE "public"."pm_space_assignees" TO "service_role";
 
 
 

@@ -1,12 +1,13 @@
-import { state } from './state.js';
+import { state } from '/js/modules/state.js';
 import { renderDashboard } from '../features/dashboard.js?v=317';
 import { renderClients, renderClientDetail } from '../features/clients.js?v=317';
 import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=317';
+import { renderWhiteLabelPartners, renderWhiteLabelPartnerDetail, initWhiteLabelPartnerModals } from '../features/white_label_partners.js';
 import { renderContacts } from '../features/contacts.js?v=317';
 import { renderOrderDetail } from '../features/orders.js?v=500';
-import { renderActiveInvoicesSafe, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from '../features/invoices.js?v=317';
+import { renderActiveInvoicesSafe, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers, renderPassiveInvoicesPartners } from '../features/invoices.js?v=318';
 import { renderRevenueDashboard } from '../features/revenue_dashboard.js?v=317';
-import { renderBankTransactions } from '../features/bank_transactions.js?v=317';
+import { renderBankTransactions } from '../features/bank_transactions.js?v=416';
 import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=317';
 import { renderBankStatements } from '../features/bank_statements.js?v=317';
 import { renderServices } from '../features/services.js?v=317';
@@ -19,6 +20,7 @@ import { renderAgenda } from '../features/personal_agenda.js?v=317';
 import { renderHomepage } from '../features/homepage.js?v=385';
 import { renderNotificationCenter } from '../features/notifications.js?v=317';
 import { renderAdminNotifications } from '../features/admin_notifications.js?v=317';
+import { renderMyWork } from '../features/dashboard/TasksDashboard.js?v=318';
 // Chat is loaded dynamically to avoid slowing down app startup
 
 export function router() {
@@ -36,7 +38,7 @@ export function router() {
 
     // Default to home if no hash
     hash = hash || 'home';
-    const parts = hash.split('/');
+    const parts = hash.split('/').map(p => decodeURIComponent(p));
     const page = parts[0];
     const subPage = parts[1];
     const id = parts[2] || parts[1]; // Fallback for 2-level routes like 'order-detail/123' where subPage IS the id
@@ -111,12 +113,14 @@ function render() {
     contentArea.innerHTML = '';
 
     // Default Title Update
-    if (pageTitle) pageTitle.textContent = state.currentPage.charAt(0).toUpperCase() + state.currentPage.slice(1);
+    if (pageTitle) {
+        pageTitle.classList.remove('solid-title');
+        pageTitle.textContent = state.currentPage.charAt(0).toUpperCase() + state.currentPage.slice(1);
+    }
 
     try {
         switch (state.currentPage) {
             case 'home':
-                if (pageTitle) pageTitle.textContent = 'Home';
                 renderHomepage(contentArea);
                 break;
             case 'dashboard':
@@ -130,7 +134,7 @@ function render() {
                 break;
             case 'my-assignments':
                 if (pageTitle) pageTitle.textContent = 'I Miei Incarichi';
-                renderPlaceholder(contentArea, 'I Miei Incarichi');
+                renderMyWork(contentArea);
                 break;
             case 'sales': // Clients list
                 if (pageTitle) pageTitle.textContent = 'Anagrafica Clienti';
@@ -147,6 +151,15 @@ function render() {
             case 'collaborator-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Collaboratore';
                 renderCollaboratorDetail(contentArea);
+                break;
+            case 'white-label-partners':
+                if (pageTitle) pageTitle.textContent = 'Partner White Label';
+                initWhiteLabelPartnerModals();
+                renderWhiteLabelPartners(contentArea);
+                break;
+            case 'white-label-partner-detail':
+                if (pageTitle) pageTitle.textContent = 'Dettaglio Partner WL';
+                renderWhiteLabelPartnerDetail(contentArea);
                 break;
             case 'contacts':
                 if (pageTitle) pageTitle.textContent = 'Anagrafica Referenti';
@@ -167,6 +180,10 @@ function render() {
             case 'passive-invoices-suppliers':
                 if (pageTitle) pageTitle.textContent = 'Fatture Fornitori';
                 renderPassiveInvoicesSuppliers(contentArea);
+                break;
+            case 'passive-invoices-partners':
+                if (pageTitle) pageTitle.textContent = 'Fatture Partner WL';
+                renderPassiveInvoicesPartners(contentArea);
                 break;
             case 'bank-transactions':
                 if (pageTitle) pageTitle.textContent = 'Registro Movimenti';
@@ -198,6 +215,14 @@ function render() {
             case 'services':
                 if (pageTitle) pageTitle.textContent = 'Catalogo Servizi';
                 renderServices(contentArea);
+                break;
+            case 'sap-services':
+                if (pageTitle) pageTitle.textContent = 'Servizi SAP';
+                import('../features/sap_services.js').then(m => m.renderSapServices(contentArea));
+                break;
+            case 'sap-service-detail':
+                if (pageTitle) pageTitle.textContent = 'Dettaglio Servizio SAP';
+                import('../features/sap_services.js').then(m => m.renderSapServiceDetail(contentArea));
                 break;
             case 'collaborator-services':
                 if (pageTitle) pageTitle.textContent = 'Servizi Collaboratori';
@@ -278,6 +303,10 @@ function render() {
                             console.error("Failed to load internal projects:", err);
                             contentArea.innerHTML = `<div class="error-state">Errore caricamento: ${err.message}</div>`;
                         });
+
+                } else if (state.currentSubPage === 'my-work') {
+                    if (pageTitle) pageTitle.textContent = 'Le Mie Attività';
+                    renderMyWork(contentArea);
 
                 } else {
                     // Standard PM views (Dashboard)

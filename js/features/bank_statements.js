@@ -69,10 +69,16 @@ export async function renderBankStatements(container) {
                                 <h3 style="font-family: var(--font-titles); font-weight: 400; margin: 0; font-size: 1.3rem;">Archivio Estratti Conto</h3>
                                 <span style="font-size: 0.85rem; color: var(--text-secondary);" id="table-subtitle">Cronologia completa</span>
                             </div>
-                            <button class="primary-btn" id="add-statement-btn" style="border-radius: 12px; height: 44px;">
-                                <span class="material-icons-round">add</span>
-                                Nuovo Estratto
-                            </button>
+                            <div style="display: flex; gap: 1rem;">
+                                <button class="primary-btn secondary" id="generate-prima-nota-btn" style="border-radius: 12px; height: 44px; background: white; border: 1px solid var(--glass-border); color: var(--text-primary);">
+                                    <span class="material-icons-round">receipt_long</span>
+                                    Genera Prima Nota
+                                </button>
+                                <button class="primary-btn" id="add-statement-btn" style="border-radius: 12px; height: 44px;">
+                                    <span class="material-icons-round">add</span>
+                                    Nuovo Estratto
+                                </button>
+                            </div>
                         </div>
                         <div class="table-container" style="max-height: 600px; overflow-y: auto;">
                             <table class="data-table" style="width: 100%;">
@@ -98,6 +104,55 @@ export async function renderBankStatements(container) {
 
     const addBtn = document.getElementById('add-statement-btn');
     if (addBtn) addBtn.addEventListener('click', () => openStatementModal());
+
+    const primaNotaBtn = document.getElementById('generate-prima-nota-btn');
+    if (primaNotaBtn) {
+        primaNotaBtn.addEventListener('click', async () => {
+            const confirmed = await window.showConfirm("Vuoi avviare la generazione della Prima Nota per l'ufficio contabilità?");
+            if (!confirmed) return;
+
+            const originalHTML = primaNotaBtn.innerHTML;
+            primaNotaBtn.disabled = true;
+            primaNotaBtn.innerHTML = '<span class="material-icons-round rotating">sync</span> Elaborazione...';
+
+            try {
+                // Use Supabase Edge Function to proxy the request and avoid CORS issues
+                const { data: result, error: funcError } = await supabase.functions.invoke('trigger-webhook', {
+                    body: {
+                        webhookUrl: 'https://sacred-roughy-renewing.ngrok-free.app/webhook/08d69eda-8848-4c6d-9daa-a4a808eb398f',
+                        payload: {
+                            triggered_by: window.state?.profile?.full_name || 'Utente',
+                            timestamp: new Date().toISOString()
+                        }
+                    }
+                });
+
+                if (funcError) throw funcError;
+
+                // Handle both string and object responses (e.g. from n8n or proxy)
+                const resultText = typeof result === 'string' ? result : JSON.stringify(result || {});
+                const status = resultText.trim().toLowerCase();
+                const isN8nStarted = status.includes("no respond to webhook node found") || status.includes("workflow was started");
+
+                if (status.includes('done') || status.includes('accepted') || isN8nStarted) {
+                    if (status.includes('done')) {
+                        window.showAlert('Prima Nota generata con successo!', 'success');
+                    } else {
+                        window.showAlert('Generazione avviata in background. Riceverai una notifica al termine.', 'info');
+                    }
+                    // Notifications are handled by n8n calling 'notify-admins'
+                } else {
+                    throw new Error("Risposta inattesa dal server: " + resultText);
+                }
+            } catch (err) {
+                console.error("Webhook trigger failed:", err);
+                window.showAlert('Errore durante la generazione: ' + err.message, 'error');
+            } finally {
+                primaNotaBtn.disabled = false;
+                primaNotaBtn.innerHTML = originalHTML;
+            }
+        });
+    }
 
     await loadStatements();
 }

@@ -106,7 +106,6 @@
     -webkit-backdrop-filter: blur(30px);
     box-shadow: var(--shadow-soft);
     position: relative;
-    overflow: hidden;
 }
 
 .glass-card.clickable-card {
@@ -155,7 +154,6 @@
 /* Editable Economics Cards */
 .editable-card {
     position: relative;
-    overflow: hidden;
 }
 
 .editable-card::before {

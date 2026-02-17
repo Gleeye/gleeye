@@ -1,0 +1,427 @@
+{
+    "name": "Genera Prima Nota (Complete)",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "months",
+                            "triggerAtDay": [
+                                1
+                            ],
+                            "triggerAtHour": 8
+                        }
+                    ]
+                }
+            },
+            "name": "Schedule Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                100,
+                300
+            ],
+            "id": "schedule-trigger"
+        },
+        {
+            "parameters": {
+                "jsCode": "const d = new Date();\nd.setMonth(d.getMonth() - 1);\nreturn [{\n  json: {\n    month: d.getMonth() + 1,\n    year: d.getFullYear(),\n    monthString: (d.getMonth() + 1).toString().padStart(2, '0')\n  }\n}];"
+            },
+            "name": "Calculate Dates",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                300,
+                300
+            ],
+            "id": "calculate-dates"
+        },
+        {
+            "parameters": {
+                "resource": "folder",
+                "name": "=Prima Nota {{$node[\"Calculate Dates\"].json[\"monthString\"]}}/{{$node[\"Calculate Dates\"].json[\"year\"]}}",
+                "parents": [
+                    "YOUR_GDRIVE_PRIMA_NOTA_ROOT_FOLDER_ID"
+                ]
+            },
+            "name": "GDrive - Create Folder",
+            "type": "n8n-nodes-base.googleDrive",
+            "typeVersion": 2,
+            "position": [
+                500,
+                300
+            ],
+            "id": "gdrive-create-folder",
+            "credentials": {
+                "googleDriveOAuth2Api": {
+                    "id": "YOUR_GDRIVE_CREDENTIAL_ID"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "resource": "folder",
+                "name": "Versamenti F24",
+                "parents": [
+                    "={{$json.id}}"
+                ]
+            },
+            "name": "GDrive - Create Subfolder F24",
+            "type": "n8n-nodes-base.googleDrive",
+            "typeVersion": 2,
+            "position": [
+                700,
+                500
+            ],
+            "id": "gdrive-f24-folder",
+            "credentials": {
+                "googleDriveOAuth2Api": {
+                    "id": "YOUR_GDRIVE_CREDENTIAL_ID"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "mode": "copy",
+                "fileId": "YOUR_TEMPLATE_SHEET_ID_HERE",
+                "name": "=Prima Nota Gleeye Srl {{$node[\"Calculate Dates\"].json[\"monthString\"]}}/{{$node[\"Calculate Dates\"].json[\"year\"]}}",
+                "parents": [
+                    "={{$node[\"GDrive - Create Folder\"].json[\"id\"]}}"
+                ]
+            },
+            "name": "GDrive - Copy Template",
+            "type": "n8n-nodes-base.googleDrive",
+            "typeVersion": 2,
+            "position": [
+                700,
+                300
+            ],
+            "id": "gdrive-copy-template",
+            "credentials": {
+                "googleDriveOAuth2Api": {
+                    "id": "YOUR_GDRIVE_CREDENTIAL_ID"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "service": "postgres",
+                "operation": "executeQuery",
+                "query": "select * from get_monthly_passive_invoices($1, $2);",
+                "additionalFields": {
+                    "queryParams": "={{$node[\"Calculate Dates\"].json[\"year\"]}},{{$node[\"Calculate Dates\"].json[\"month\"]}}"
+                }
+            },
+            "name": "Supabase - Get Passive Invoices",
+            "type": "n8n-nodes-base.supabase",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                100
+            ],
+            "id": "supabase-passive",
+            "credentials": {
+                "supabaseApi": {
+                    "id": "YOUR_SUPABASE_CREDENTIAL_ID"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "append",
+                "sheetId": "={{$node[\"GDrive - Copy Template\"].json[\"id\"]}}",
+                "range": "Fatture Passive!A:H",
+                "options": {
+                    "valueInputOption": "USER_ENTERED"
+                }
+            },
+            "name": "GSheets - Add Passive Rows",
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 3,
+            "position": [
+                1250,
+                100
+            ],
+            "id": "gsheets-passive",
+            "credentials": {
+                "googleSheetsOAuth2Api": {
+                    "id": "YOUR_GSHEETS_CREDENTIAL_ID"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "service": "postgres",
+                "operation": "executeQuery",
+                "query": "select * from get_monthly_active_invoices($1, $2);",
+                "additionalFields": {
+                    "queryParams": "={{$node[\"Calculate Dates\"].json[\"year\"]}},{{$node[\"Calculate Dates\"].json[\"month\"]}}"
+                }
+            },
+            "name": "Supabase - Get Active Invoices",
+            "type": "n8n-nodes-base.supabase",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                300
+            ],
+            "id": "supabase-active",
+            "credentials": {
+                "supabaseApi": {
+                    "id": "YOUR_SUPABASE_CREDENTIAL_ID"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "append",
+                "sheetId": "={{$node[\"GDrive - Copy Template\"].json[\"id\"]}}",
+                "range": "Fatture Attive!A:H",
+                "options": {
+                    "valueInputOption": "USER_ENTERED"
+                }
+            },
+            "name": "GSheets - Add Active Rows",
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 3,
+            "position": [
+                1250,
+                300
+            ],
+            "id": "gsheets-active",
+            "credentials": {
+                "googleSheetsOAuth2Api": {
+                    "id": "YOUR_GSHEETS_CREDENTIAL_ID"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "service": "postgres",
+                "operation": "executeQuery",
+                "query": "select * from get_monthly_transactions($1, $2);",
+                "additionalFields": {
+                    "queryParams": "={{$node[\"Calculate Dates\"].json[\"year\"]}},{{$node[\"Calculate Dates\"].json[\"month\"]}}"
+                }
+            },
+            "name": "Supabase - Get Transactions",
+            "type": "n8n-nodes-base.supabase",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                500
+            ],
+            "id": "supabase-transactions",
+            "credentials": {
+                "supabaseApi": {
+                    "id": "YOUR_SUPABASE_CREDENTIAL_ID"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "append",
+                "sheetId": "={{$node[\"GDrive - Copy Template\"].json[\"id\"]}}",
+                "range": "Registro Movimenti!A:G",
+                "options": {
+                    "valueInputOption": "USER_ENTERED"
+                }
+            },
+            "name": "GSheets - Add Transaction Rows",
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 3,
+            "position": [
+                1250,
+                500
+            ],
+            "id": "gsheets-transactions",
+            "credentials": {
+                "googleSheetsOAuth2Api": {
+                    "id": "YOUR_GSHEETS_CREDENTIAL_ID"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "service": "postgres",
+                "operation": "executeQuery",
+                "query": "select * from get_monthly_bank_statements($1, $2);",
+                "additionalFields": {
+                    "queryParams": "={{$node[\"Calculate Dates\"].json[\"year\"]}},{{$node[\"Calculate Dates\"].json[\"month\"]}}"
+                }
+            },
+            "name": "Supabase - Get Bank Statements",
+            "type": "n8n-nodes-base.supabase",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                750
+            ],
+            "id": "supabase-statements",
+            "credentials": {
+                "supabaseApi": {
+                    "id": "YOUR_SUPABASE_CREDENTIAL_ID"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "url": "={{$json.attachment_url}}",
+                "responseFormat": "file",
+                "options": {}
+            },
+            "name": "HTTP Request - Download PDF",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1250,
+                750
+            ],
+            "id": "download-pdf"
+        },
+        {
+            "parameters": {
+                "name": "={{$node[\"Supabase - Get Bank Statements\"].json[\"attachment_name\"]}}",
+                "fileContent": "={{$node[\"HTTP Request - Download PDF\"].binary.data}}",
+                "parents": [
+                    "={{$node[\"GDrive - Create Folder\"].json[\"id\"]}}"
+                ]
+            },
+            "name": "GDrive - Upload PDF",
+            "type": "n8n-nodes-base.googleDrive",
+            "typeVersion": 2,
+            "position": [
+                1500,
+                750
+            ],
+            "id": "upload-pdf",
+            "credentials": {
+                "googleDriveOAuth2Api": {
+                    "id": "YOUR_GDRIVE_CREDENTIAL_ID"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Schedule Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Calculate Dates",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Calculate Dates": {
+            "main": [
+                [
+                    {
+                        "node": "GDrive - Create Folder",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "GDrive - Create Folder": {
+            "main": [
+                [
+                    {
+                        "node": "GDrive - Copy Template",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "GDrive - Create Subfolder F24",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "GDrive - Copy Template": {
+            "main": [
+                [
+                    {
+                        "node": "Supabase - Get Passive Invoices",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Supabase - Get Active Invoices",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Supabase - Get Transactions",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Supabase - Get Bank Statements",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Supabase - Get Bank Statements": {
+            "main": [
+                [
+                    {
+                        "node": "HTTP Request - Download PDF",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "HTTP Request - Download PDF": {
+            "main": [
+                [
+                    {
+                        "node": "GDrive - Upload PDF",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Supabase - Get Passive Invoices": {
+            "main": [
+                [
+                    {
+                        "node": "GSheets - Add Passive Rows",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Supabase - Get Active Invoices": {
+            "main": [
+                [
+                    {
+                        "node": "GSheets - Add Active Rows",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Supabase - Get Transactions": {
+            "main": [
+                [
+                    {
+                        "node": "GSheets - Add Transaction Rows",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

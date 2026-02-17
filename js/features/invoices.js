@@ -1,10 +1,10 @@
-import { state } from '../modules/state.js';
+import { state } from '/js/modules/state.js';
 import { formatAmount } from '../modules/utils.js?v=317';
 import { CustomSelect } from '../components/CustomSelect.js?v=317';
 import { DashboardData } from './dashboard.js?v=317';
 import { showGlobalAlert } from '../modules/utils.js?v=317';
 import { supabase } from '../modules/config.js';
-import { fetchInvoices, fetchPassiveInvoices, fetchPayments, fetchBankTransactions } from '../modules/api.js';
+import { fetchInvoices, fetchPassiveInvoices, fetchPayments, fetchBankTransactions, fetchCollaborators } from '../modules/api.js';
 
 // --- VIEW FUNCTIONS ---
 
@@ -902,8 +902,20 @@ async function populateCollaboratorDropdown() {
         await fetchCollaborators();
     }
     const collaborators = state.collaborators || [];
-    select.innerHTML = '<option value="">Seleziona collaboratore...</option>' +
-        collaborators.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('');
+    const modal = document.getElementById('passive-invoice-modal');
+    const isPartnerMode = modal?.dataset.mode === 'partner-wl';
+
+    const filtered = isPartnerMode
+        ? collaborators.filter(c => c.type === 'white_label')
+        : collaborators.filter(c => c.type !== 'white_label');
+
+    select.innerHTML = `<option value="">Seleziona ${isPartnerMode ? 'Partner' : 'Collaboratore'}...</option>` +
+        filtered.map(c => `<option value="${c.id}" data-settings='${JSON.stringify({
+            regime: c.fiscal_regime || 'ordinario',
+            cassaRate: c.cassa_previdenziale_rate !== undefined && c.cassa_previdenziale_rate !== null ? c.cassa_previdenziale_rate : 0,
+            vatRate: c.default_vat_rate !== undefined && c.default_vat_rate !== null ? c.default_vat_rate : 22,
+            withholdingRate: c.withholding_tax_rate !== undefined && c.withholding_tax_rate !== null ? c.withholding_tax_rate : 20
+        })}'>${c.full_name}</option>`).join('');
 
     if (state.customCollabSelect) state.customCollabSelect.refresh();
 }
@@ -976,6 +988,7 @@ function handleSupplierChange(e) {
 function updateNettoCalculation() {
     const modal = document.getElementById('passive-invoice-modal');
     const mode = modal.dataset.mode || 'collab';
+    const isPartner = mode === 'partner-wl';
 
     const importo = parseFloat(document.getElementById('pinv-amount')?.value) || 0;
     const hasVat = document.getElementById('pinv-has-vat')?.checked;
@@ -983,68 +996,112 @@ function updateNettoCalculation() {
     let netto = 0;
     let desc = '';
 
-
-
-    if (mode === 'collab') {
-        // ... existing collaborator logic ...
+    if (mode === 'collab' || isPartner) {
         const tipo = document.getElementById('pinv-type')?.value || 'ritenuta';
-        let rivalsa = 0;
+        const colSelect = document.getElementById('pinv-collaborator');
+        const colOpt = colSelect?.selectedOptions[0];
+        // Use settings from dataset or fall back to defaults
+        const settings = colOpt?.dataset.settings ? JSON.parse(colOpt.dataset.settings) : { cassaRate: 4, withholdingRate: 20 };
+
+        let cassa = 0;
         let imponibile = importo;
         let iva = 0;
         let ritenuta = 0;
         let bollo = 0;
 
+        // Cassa
+        const cassaInput = document.getElementById('pinv-cassa');
+        const cassaContainer = document.getElementById('pinv-cassa-container');
+        const rate = parseFloat(settings.cassaRate) || 0;
+
+        if (rate > 0) {
+            if (cassaContainer) cassaContainer.style.display = 'block';
+            cassa = importo * (rate / 100);
+            if (cassaInput) {
+                cassaInput.value = cassa.toFixed(2);
+                cassaInput.dataset.rate = rate;
+            }
+            imponibile = importo + cassa;
+        } else {
+            if (cassaContainer) cassaContainer.style.display = 'none';
+            cassa = 0;
+            if (cassaInput) cassaInput.value = '';
+            imponibile = importo;
+        }
+
         if (tipo === 'forfettario') {
-            rivalsa = importo * 0.04;
-            imponibile = importo + rivalsa;
             if (hasVat) iva = imponibile * 0.22;
             if (!hasVat && imponibile > 77.47) bollo = 2;
             netto = imponibile + iva + bollo;
-            desc = `(Imponibile + 4% INPS${!hasVat ? ' + Bollo' : ' + IVA'})`;
+            desc = `(Imponibile + Cassa${!hasVat ? ' + Bollo' : ' + IVA'})`;
         } else if (tipo === 'occasionale') {
-            // Occasionale: Ritenuta applies to importo
-            if (importo > 77.47) {
-                ritenuta = importo * 0.20;
+            if (imponibile > 77.47) {
+                ritenuta = imponibile * 0.20;
                 bollo = 2;
             }
-            netto = importo - ritenuta + bollo;
-            desc = `(Lordo - 20% Ritenuta${bollo ? ' + Bollo' : ''})`;
-        } else {
-            // Ordinario / Parcella
-            rivalsa = importo * 0.04;
-            imponibile = importo + rivalsa;
+            netto = imponibile - ritenuta + bollo;
+            desc = `(Imponibile - 20% Ritenuta${bollo ? ' + Bollo' : ''})`;
+        } else if (tipo === 'fattura') {
+            // Fattura Italia (B2B Standard) - Imponibile + IVA
             if (hasVat) iva = imponibile * 0.22;
-            ritenuta = imponibile * 0.20;
+            if (!hasVat && imponibile > 77.47) bollo = 2; // Keep for legacy/edge cases
+            netto = imponibile + iva + bollo;
+            desc = `(Imponibile + Cassa${hasVat ? ' + IVA' : ' + Bollo'})`;
+        } else if (tipo === 'estero') {
+            // Fattura Estera / Reverse Charge - IVA 0% (in invoice)
+            // Netto to pay is just Imponibile (plus cassa if applicable, usually no)
+            iva = 0;
+            // Note: technically reverse charge integrates VAT, but you don't pay it to supplier.
+            netto = imponibile;
+            desc = `(Imponibile - Reverse Charge/Estero)`;
+        } else if (tipo === 'nota_credito') {
+            // Nota di Credito - Usually handled as negative input, logic stays same as standard fattura essentially
+            if (hasVat) iva = imponibile * 0.22;
+            netto = imponibile + iva;
+            desc = `(Nota di Credito: Imponibile + IVA)`;
+        } else {
+            // Ritenuta / Parcella / Others
+            if (hasVat) iva = imponibile * 0.22;
+            ritenuta = imponibile * (settings.withholdingRate / 100);
             if (!hasVat && imponibile > 77.47) bollo = 2;
             netto = imponibile + iva - ritenuta + bollo;
-            desc = `(Imp. + 4% - 20% Rit. + IVA)`;
+            desc = `(Imp. + Cassa - Ret. + IVA)`;
+        }
+
+        const netInput = document.getElementById('pinv-net');
+        if (netInput) netInput.value = netto.toFixed(2);
+
+        const detailsEl = document.getElementById('pinv-calc-details');
+        if (detailsEl) {
+            detailsEl.textContent = `Dettaglio: Importo €${formatAmount(importo)} + Cassa €${formatAmount(cassa)} = Imponibile €${formatAmount(imponibile)}`;
+        }
+        const hintEl = document.getElementById('pinv-calc-hint');
+        if (hintEl) {
+            hintEl.innerHTML = `<span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle; margin-right: 0.25rem;">calculate</span> Ritenuta: €${formatAmount(ritenuta)}${iva > 0 ? ` | IVA: €${formatAmount(iva)}` : ''}`;
         }
     } else {
         // --- SUPPLIER LOGIC ---
-        // Read Cassa
         const cassaInput = document.getElementById('pinv-cassa');
         let cassa = 0;
-
-        // If field visible, auto-calc cassa if empty but rate logic, OR read value
         if (cassaInput && cassaInput.offsetParent !== null) {
             const rate = parseFloat(cassaInput.dataset.rate) || 0;
-            // If user hasn't manually typed cassa (or we want to auto-calc on amount change):
-            // Simple rule: calc cassa based on amount
             cassa = importo * (rate / 100);
             cassaInput.value = cassa.toFixed(2);
         }
 
         const imponibile = importo + cassa;
-        const iva = hasVat ? imponibile * 0.22 : 0; // Assuming 22% default, could be refined per supplier
+        const iva = hasVat ? imponibile * 0.22 : 0;
         netto = imponibile + iva;
-        desc = `(Imponibile ${cassa > 0 ? '+ Cassa ' : ''}${hasVat ? '+ IVA' : '(No IVA)'})`;
+
+        const netInput = document.getElementById('pinv-net');
+        if (netInput) netInput.value = netto.toFixed(2);
+
+        const detailsEl = document.getElementById('pinv-calc-details');
+        if (detailsEl) detailsEl.textContent = `Imponibile: €${formatAmount(imponibile)}${iva > 0 ? ` + IVA €${formatAmount(iva)}` : ''}`;
+
+        const hintEl = document.getElementById('pinv-calc-hint');
+        if (hintEl) hintEl.textContent = `(Imponibile ${cassa > 0 ? '+ Cassa ' : ''}${hasVat ? '+ IVA' : '(No IVA)'})`;
     }
-
-    const netInput = document.getElementById('pinv-net');
-    if (netInput) netInput.value = netto.toFixed(2);
-
-    const hint = document.getElementById('pinv-calc-hint');
-    if (hint) hint.textContent = desc;
 }
 
 function updateCalcHint(tipo) {
@@ -1233,13 +1290,13 @@ async function handleSavePassiveInvoice(e) {
         tax_amount: iva,
         ritenuta: ritenuta,
         rivalsa_inps: rivalsa,
+        cassa_previdenziale: parseFloat(document.getElementById('pinv-cassa')?.value) || 0,
         stamp_duty: bollo,
         iva_attiva: hasVat,
         category: tipo,
         status: status,
         payment_date: status === 'Pagata' ? document.getElementById('pinv-payment-date').value : null,
-        payment_date: status === 'Pagata' ? document.getElementById('pinv-payment-date').value : null,
-        collaborator_id: mode === 'collab' ? collaboratorId : null,
+        collaborator_id: (mode === 'collab' || mode === 'partner-wl') ? collaboratorId : null,
         supplier_id: mode === 'supplier' ? supplierId : null,
         description: mode === 'supplier' ? description : null,
         related_orders: relatedOrders,
@@ -1290,6 +1347,8 @@ async function handleSavePassiveInvoice(e) {
             renderPassiveInvoicesSuppliers(document.getElementById('content-area'));
         } else if (state.currentPage === 'passive-invoices-collab') {
             renderPassiveInvoicesCollab(document.getElementById('content-area'));
+        } else if (state.currentPage === 'passive-invoices-partners') {
+            renderPassiveInvoicesPartners(document.getElementById('content-area'));
         }
 
         window.dispatchEvent(new Event('data:updated'));
@@ -1536,9 +1595,10 @@ export async function openInvoiceDetail(id, type) {
         // But assuming amount_tax_excluded is Imponibile.
         // Let's rely on what we have.
 
-        if (invoice.rivalsa_inps > 0) grid.innerHTML += renderEcoCard('Rivalsa / Cassa', invoice.rivalsa_inps);
-        else if (type === 'passive-supplier' && (parseFloat(invoice.amount_tax_excluded) > parseFloat(invoice.importo_originale || 0))) {
-            // Heuristic if we stored original amount?? No.
+        if (invoice.rivalsa_inps > 0) {
+            grid.innerHTML += renderEcoCard('Rivalsa / Cassa', invoice.rivalsa_inps);
+        } else if (invoice.cassa_previdenziale > 0) {
+            grid.innerHTML += renderEcoCard('Cassa Prev.', invoice.cassa_previdenziale);
         }
 
         if (iva > 0) grid.innerHTML += renderEcoCard('IVA', iva);
@@ -1810,10 +1870,12 @@ export async function openInvoiceDetail(id, type) {
                     // window.location.reload(); // Too aggressive?
                     // Better:
                     const container = document.getElementById('content-area');
-                    if (state.currentPage.includes('passive')) {
-                        // Re-render current type
-                        if (type === 'passive-collab') renderPassiveInvoicesCollab(container);
-                        else renderPassiveInvoicesSuppliers(container);
+                    if (state.currentPage === 'passive-invoices-partners') {
+                        renderPassiveInvoicesPartners(container);
+                    } else if (state.currentPage === 'passive-invoices-collab' || type === 'passive-collab') {
+                        renderPassiveInvoicesCollab(container);
+                    } else {
+                        renderPassiveInvoicesSuppliers(container);
                     }
                 } else {
                     await fetchInvoices();
@@ -1854,10 +1916,38 @@ export async function openPassiveInvoiceForm(id = null, mode = 'collab') {
     state._pinvVatManuallySet = false; // Reset manual override
 
     // Populate collaborators/suppliers and UI setup
-    if (mode === 'collab') {
-        document.getElementById('passive-invoice-modal-title').textContent = id ? 'Modifica Fattura Collaboratore' : 'Nuova Fattura Collaboratore';
+    const isPartner = mode === 'partner-wl';
+
+    if (mode === 'collab' || isPartner) {
+        const entityLabel = isPartner ? 'Partner WL' : 'Collaboratore';
+        const modalHeader = document.querySelector('#passive-invoice-modal .modal-content > div:first-child');
+        const iconContainer = modalHeader?.querySelector('div > div:first-child');
+        const iconSpan = iconContainer?.querySelector('.material-icons-round');
+
+        if (isPartner) {
+            if (iconSpan) iconSpan.textContent = 'account_balance_wallet';
+            if (iconContainer) iconContainer.style.background = 'linear-gradient(135deg, #0ea5e9, #0284c7)';
+            if (modalHeader) modalHeader.style.background = 'linear-gradient(135deg, rgba(14, 165, 233, 0.08), transparent)';
+        } else {
+            if (iconSpan) iconSpan.textContent = 'person';
+            if (iconContainer) iconContainer.style.background = 'linear-gradient(135deg, #8b5cf6, #7c3aed)';
+            if (modalHeader) modalHeader.style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.08), transparent)';
+        }
+
+        document.getElementById('passive-invoice-modal-title').textContent = id ? `Modifica Fattura ${entityLabel}` : `Nuova Fattura ${entityLabel}`;
+
+        // Update label in DOM if it exists
+        const labelCollab = document.querySelector('label[for="pinv-collaborator"]') || document.querySelector('#pinv-collab-fields label:nth-of-type(1)');
+        // Actually searching by text is safer if IDs aren't present
+        const labels = document.querySelectorAll('#pinv-collab-fields label');
+        labels.forEach(l => {
+            if (l.textContent.includes('Collaboratore')) l.textContent = entityLabel + ' *';
+        });
+
         document.getElementById('pinv-collab-fields').style.display = 'grid';
         document.getElementById('pinv-supplier-fields').style.display = 'none';
+
+        modal.dataset.mode = mode; // Set mode before populating to ensure filtering
         await populateCollaboratorDropdown();
     } else {
         document.getElementById('passive-invoice-modal-title').textContent = id ? 'Modifica Fattura Fornitore' : 'Nuova Fattura Fornitore';
@@ -1872,12 +1962,30 @@ export async function openPassiveInvoiceForm(id = null, mode = 'collab') {
     document.getElementById('pinv-payments-container').style.display = 'none';
 
     // Clear dropdowns based on mode
-    if (mode === 'collab') document.getElementById('pinv-order').innerHTML = '<option value="">Seleziona prima un collaboratore</option>';
+    const typeSelect = document.getElementById('pinv-type');
+    if (isPartner) {
+        typeSelect.innerHTML = `
+            <option value="fattura">Fattura (Italia)</option>
+            <option value="estero">Fattura Estera / Reverse Charge</option>
+            <option value="nota_credito">Nota di Credito</option>
+            <option value="ritenuta">Fattura con Ritenuta (Opzionale)</option>
+        `;
+    } else {
+        typeSelect.innerHTML = `
+            <option value="ritenuta">Ritenuta d'Acconto (20%)</option>
+            <option value="forfettario">Fattura Forfettario (no ritenuta)</option>
+            <option value="fattura">Fattura Regime Ordinario (20%)</option>
+            <option value="occasionale">Prestazione Occasionale</option>
+            <option value="parcella">Parcella/Notula (20%)</option>
+        `;
+    }
+
+    if (mode === 'collab' || isPartner) document.getElementById('pinv-order').innerHTML = `<option value="">Seleziona prima un ${isPartner ? 'partner' : 'collaboratore'}</option>`;
     else document.getElementById('pinv-order').innerHTML = '<option value="">Bozza (nessun ordine collegato)</option>';
 
     document.getElementById('pinv-payments-list').innerHTML = '<p style="color: var(--text-tertiary); font-size: 0.8rem; text-align: center;">Seleziona un ordine per vedere i pagamenti</p>';
     document.getElementById('pinv-file-preview').style.display = 'none';
-    if (mode === 'collab') updateCalcHint('ritenuta');
+    if (mode === 'collab' || isPartner) updateCalcHint(isPartner ? 'fattura' : 'ritenuta');
 
     if (id) {
         const inv = state.passiveInvoices.find(i => i.id === id);
@@ -1927,6 +2035,11 @@ export function closePassiveInvoiceForm() {
     state.currentPassiveInvoiceId = null;
 }
 
+export function renderPassiveInvoicesPartners(container) {
+    const sectionTitle = 'Fatture Partner WL';
+    renderPassiveInvoicesGeneric(container, sectionTitle, 'partners');
+}
+
 export function renderPassiveInvoicesCollab(container) {
     const sectionTitle = 'Fatture Collaboratori';
     renderPassiveInvoicesGeneric(container, sectionTitle, 'collaborators');
@@ -1938,7 +2051,7 @@ export function renderPassiveInvoicesSuppliers(container) {
 }
 
 function renderPassiveInvoicesGeneric(container, title, type) {
-    const isCollab = type === 'collaborators';
+    const isCollab = type === 'collaborators' || type === 'partners';
     const iconName = isCollab ? 'person' : 'business';
     const gradientColor = isCollab ? '#8b5cf6' : '#ef4444';
     // Auto-switch Year Logic
@@ -1964,19 +2077,21 @@ function renderPassiveInvoicesGeneric(container, title, type) {
     const statusFilter = state.passiveInvoiceStatusFilter || 'all';
 
     let filtered = state.passiveInvoices.filter(inv => {
-        // Exclusive filter: collaborator invoices have collaborator_id, supplier invoices have supplier_id
-        // If both are set, prioritize based on which list we're rendering
-        if (isCollab) {
-            if (!inv.collaborator_id) return false;
+        const matchesYear = new Date(inv.issue_date).getFullYear() === currentYear;
+
+        let subTypeMatch = false;
+        if (type === 'partners') {
+            subTypeMatch = inv.collaborators?.type === 'white_label';
+        } else if (isCollab) {
+            subTypeMatch = inv.collaborator_id && inv.collaborators?.type !== 'white_label';
         } else {
-            if (!inv.supplier_id || inv.collaborator_id) return false; // Exclude if it has collaborator_id
+            subTypeMatch = !!inv.supplier_id && !inv.collaborator_id;
         }
 
-        const matchesYear = new Date(inv.issue_date).getFullYear() === currentYear;
         const search = state.searchTerm.toLowerCase();
         const name = (inv.collaborators?.full_name || inv.suppliers?.name || '').toLowerCase();
         const num = (inv.invoice_number || '').toLowerCase();
-        return matchesYear && (name.includes(search) || num.includes(search));
+        return matchesYear && subTypeMatch && (name.includes(search) || num.includes(search));
     });
 
     // Calculate KPIs using amount_tax_excluded (importo)
@@ -2205,7 +2320,12 @@ function renderPassiveInvoicesGeneric(container, title, type) {
     container.querySelectorAll('.clickable-card').forEach(card => {
         card.addEventListener('click', () => window.openInvoiceDetail(card.dataset.id, type === 'suppliers' ? 'passive-supplier' : 'passive-collab'));
     });
-    container.querySelector('#btn-new-passive')?.addEventListener('click', () => window.openPassiveInvoiceForm(null, type === 'suppliers' ? 'supplier' : 'collab'));
+    container.querySelector('#btn-new-passive')?.addEventListener('click', () => {
+        let mode = 'collab';
+        if (type === 'suppliers') mode = 'supplier';
+        if (type === 'partners') mode = 'partner-wl';
+        window.openPassiveInvoiceForm(null, mode);
+    });
     container.querySelector('#passive-year-filter')?.addEventListener('change', (e) => {
         state.passiveInvoiceYear = parseInt(e.target.value);
         state.passiveInvoiceStatusFilter = 'all';

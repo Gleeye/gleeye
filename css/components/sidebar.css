@@ -32,7 +32,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--glass-border);
+    border-bottom: none;
     background: linear-gradient(180deg,
             rgba(78, 146, 216, 0.02) 0%,
             transparent 100%);
@@ -141,12 +141,9 @@
     overflow: hidden;
 }
 
-/* Separator */
+/* Separator removed */
 .nav-separator {
-    height: 1px;
-    background: #e0e0e0;
-    margin: 1.5rem 1.25rem;
-    opacity: 1;
+    display: none;
 }
 
 /* Subtle background gradient on hover */
@@ -261,6 +258,11 @@
     transform: scale(1.02);
 }
 
+/* Section Spacing (No Lines) */
+.nav-layer-divider {
+    margin-top: 0.5rem;
+}
+
 /* ==========================
    SUBMENU & EXPANDABLE ITEMS
    ========================== */
@@ -281,8 +283,41 @@
     opacity: 1;
 }
 
-.nav-item.submenu-open .expand-icon {
+.nav-item.submenu-open .expand-icon:not(.drill-folder .expand-icon) {
     transform: rotate(180deg);
+}
+
+/* Drill Folder - Sleek Category Style */
+.nav-item.drill-folder {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0.25rem 0;
+    padding: 0.75rem 0.85rem;
+    background: transparent;
+    border-radius: 12px;
+}
+
+.nav-item.drill-folder .material-icons-round:first-child {
+    color: var(--brand-blue);
+    font-size: 1.25rem;
+}
+
+.nav-item.drill-folder .expand-icon {
+    font-size: 1.1rem;
+    margin-left: auto;
+    opacity: 0.5;
+    transition: all 0.3s ease;
+}
+
+.nav-item.drill-folder:hover {
+    background: rgba(78, 146, 216, 0.06);
+    transform: translateX(4px);
+}
+
+.nav-item.drill-folder:hover .expand-icon {
+    opacity: 1;
+    transform: translateX(2px);
 }
 
 /* Submenu Container */
@@ -391,7 +426,7 @@
     gap: 1rem;
     padding: 1.25rem 1rem;
     margin-top: auto;
-    border-top: 1px solid var(--glass-border);
+    border-top: none;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
     border-radius: 16px;
@@ -400,17 +435,7 @@
 }
 
 .user-profile::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg,
-            transparent,
-            var(--glass-border) 20%,
-            var(--glass-border) 80%,
-            transparent);
+    display: none;
 }
 
 .user-profile:hover {

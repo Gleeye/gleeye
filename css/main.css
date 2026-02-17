@@ -10,8 +10,8 @@
 @import 'components/cards.css';
 @import 'components/modals.css';
 @import 'components/tables.css';
-@import 'components/sidebar.css';
-@import 'components/sidebar-drilldown.css';
+@import 'components/sidebar.css?v=340';
+@import 'components/sidebar-drilldown.css?v=340';
 @import 'components/layout.css';
 @import 'components/dashboard.css';
 @import 'components/auth.css';

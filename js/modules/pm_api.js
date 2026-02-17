@@ -1,6 +1,7 @@
 import { supabase } from '../modules/config.js';
 import { state } from '../modules/state.js';
 import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=327';
+import { generateRecurrences } from './utils.js';
 
 export async function fetchAllCollaborators() {
     const { data, error } = await supabase
@@ -17,6 +18,71 @@ export async function fetchAllCollaborators() {
 }
 
 // --- SPACES ---
+
+export async function fetchProjectSpaceForSapService(serviceId, variantName = null) {
+    // 1. Try to find existing space
+    let query = supabase
+        .from('pm_spaces')
+        .select('*')
+        .eq('type', 'sap_service')
+        .eq('ref_sap_service', serviceId);
+
+    if (variantName) {
+        query = query.eq('variant_name', variantName);
+    } else {
+        query = query.is('variant_name', null);
+    }
+
+    const { data: spaces, error } = await query.order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching space for SAP service:", error);
+        return null;
+    }
+
+    if (spaces && spaces.length > 0) {
+        return spaces[0];
+    }
+
+    // 2. Lazy Create
+    console.log("Space not found for SAP service variant, attempting lazy creation...", serviceId, variantName);
+
+    const { data: newSpace, error: createError } = await supabase
+        .from('pm_spaces')
+        .insert({
+            type: 'sap_service',
+            ref_sap_service: serviceId,
+            variant_name: variantName,
+            default_pm_user_ref: state.profile?.id
+        })
+        .select()
+        .single();
+
+    if (createError) {
+        console.error("Lazy creation for SAP service failed:", createError);
+        return null;
+    }
+
+    if (state.profile?.id) {
+        await assignUserToSpace(newSpace.id, state.profile.id, 'pm');
+    }
+
+    return newSpace;
+}
+
+export async function fetchAllProjectSpacesForSapService(serviceId) {
+    const { data, error } = await supabase
+        .from('pm_spaces')
+        .select('*')
+        .eq('type', 'sap_service')
+        .eq('ref_sap_service', serviceId);
+
+    if (error) {
+        console.error("Error fetching all spaces for SAP service:", error);
+        return [];
+    }
+    return data || [];
+}
 
 export async function fetchProjectSpaceForOrder(orderId) {
     // 1. Try to find existing space
@@ -188,6 +254,31 @@ export async function deleteSpace(spaceId) {
 }
 
 // --- ITEMS ---
+export async function fetchPMItem(itemId) {
+    const { data, error } = await supabase
+        .from('pm_items')
+        .select(`
+            *,
+            pm_item_assignees ( id, user_ref, collaborator_ref, role, created_at ),
+            pm_item_incarichi ( incarico_ref ),
+            pm_spaces ( id, name, area, cluster:parent_ref(name) ),
+            parent_item:parent_ref ( id, title, item_type )
+        `)
+        .eq('id', itemId)
+        .single();
+
+    if (error) {
+        console.error("Error fetching PM item:", error);
+        return null;
+    }
+
+    if (data && data.pm_item_assignees) {
+        data.pm_item_assignees = await _expandAssignees(data.pm_item_assignees);
+    }
+
+    return data;
+}
+
 
 export async function fetchProjectItems(spaceId) {
     // Fetch items and their relations
@@ -227,12 +318,83 @@ export async function fetchProjectItems(spaceId) {
     return data;
 }
 
+const sanitizePMItemData = (data) => {
+    const clean = { ...data };
+    ['start_date', 'due_date'].forEach(field => {
+        if (clean[field] === '') clean[field] = null;
+    });
+    return clean;
+};
+
 export async function createPMItem(itemData) {
     // itemData: { space_ref, title, ... }
+    const cleanData = sanitizePMItemData(itemData);
+
+    // Handle recurrence if present
+    const recurrenceRule = cleanData.recurrence_rule;
+    delete cleanData.recurrence_rule;
+
+    if (recurrenceRule && recurrenceRule.freq) {
+        const recurrenceId = crypto.randomUUID();
+        const startBasis = cleanData.due_date || cleanData.start_date || new Date().toISOString();
+        let occurrences = generateRecurrences(startBasis, recurrenceRule);
+
+        // Handle "Crea in anticipo" limit
+        const createInAdvance = parseInt(recurrenceRule.create_advance) || 1;
+        if (createInAdvance > 0) {
+            // Wrike logic: create_advance includes the original? 
+            // If create_advance = 1, only the original is created.
+            // If create_advance = 2, original + 1 recurrence.
+            occurrences = occurrences.slice(0, createInAdvance - 1);
+        }
+
+        // 1. Insert First Item
+        const { data, error } = await supabase
+            .from('pm_items')
+            .insert({
+                ...cleanData,
+                recurrence_id: recurrenceId,
+                recurrence_rule: recurrenceRule, // Store the full rule in the first item
+                created_by_user_ref: state.profile?.id
+            })
+            .select();
+
+        if (error) throw error;
+        const mainItem = data[0];
+
+        // 2. Insert Occurrences
+        if (occurrences.length > 0) {
+            const dateDiff = (cleanData.start_date && cleanData.due_date)
+                ? (new Date(cleanData.due_date) - new Date(cleanData.start_date))
+                : 0;
+
+            const others = occurrences.map(occ => {
+                const item = {
+                    ...cleanData,
+                    title: `${cleanData.title} - ${occ.label}`,
+                    recurrence_id: recurrenceId,
+                    created_by_user_ref: state.profile?.id
+                };
+                if (cleanData.due_date) {
+                    item.due_date = occ.date;
+                    if (cleanData.start_date) {
+                        const newStart = new Date(new Date(occ.date).getTime() - dateDiff);
+                        item.start_date = newStart.toISOString();
+                    }
+                } else if (cleanData.start_date) {
+                    item.start_date = occ.date;
+                }
+                return item;
+            });
+            await supabase.from('pm_items').insert(others);
+        }
+        return mainItem;
+    }
+
     const { data, error } = await supabase
         .from('pm_items')
         .insert({
-            ...itemData,
+            ...cleanData,
             created_by_user_ref: state.profile?.id
         })
         .select();
@@ -242,10 +404,12 @@ export async function createPMItem(itemData) {
 }
 
 export async function updatePMItem(itemId, itemData) {
+    const cleanData = sanitizePMItemData(itemData);
+
     const { data, error } = await supabase
         .from('pm_items')
         .update({
-            ...itemData,
+            ...cleanData,
             updated_at: new Date().toISOString()
         })
         .eq('id', itemId)
@@ -280,19 +444,41 @@ export async function fetchItemAssignees(itemId) {
 }
 
 export async function assignUserToItem(itemId, userIdOrCollabId, role = 'assignee', isCollabId = false) {
-    const payload = { pm_item_ref: itemId, role };
+    // Manual check instead of upsert to avoid issues with partial unique indexes matching ON CONFLICT
+    let query = supabase.from('pm_item_assignees').select('id').eq('pm_item_ref', itemId);
     if (isCollabId) {
-        payload.collaborator_ref = userIdOrCollabId;
+        query = query.eq('collaborator_ref', userIdOrCollabId);
     } else {
-        payload.user_ref = userIdOrCollabId;
+        query = query.eq('user_ref', userIdOrCollabId);
     }
 
-    const { data, error } = await supabase
-        .from('pm_item_assignees')
-        .insert(payload)
-        .select();
-    if (error) throw error;
-    return data;
+    const { data: existing, error: fetchError } = await query;
+    if (fetchError) throw fetchError;
+
+    if (existing && existing.length > 0) {
+        // Update existing role
+        const { data, error } = await supabase
+            .from('pm_item_assignees')
+            .update({ role })
+            .eq('id', existing[0].id)
+            .select();
+        if (error) throw error;
+        return data;
+    } else {
+        // Insert new
+        const payload = { pm_item_ref: itemId, role };
+        if (isCollabId) {
+            payload.collaborator_ref = userIdOrCollabId;
+        } else {
+            payload.user_ref = userIdOrCollabId;
+        }
+        const { data, error } = await supabase
+            .from('pm_item_assignees')
+            .insert(payload)
+            .select();
+        if (error) throw error;
+        return data;
+    }
 }
 
 export async function removeUserFromItem(itemId, userIdOrCollabId, isCollabId = false) {
@@ -848,10 +1034,50 @@ export async function saveAppointment(apptData) {
     const {
         id, order_id, pm_space_id, title, start_time, end_time,
         location, mode, note, status,
-        types = [], internal_participants = [], client_participants = []
+        types = [], internal_participants = [], client_participants = [],
+        recurrence_rule, recurrence_id
     } = apptData;
 
     const isUpdate = !!id;
+
+    // Handle initial recurrence setup (only for new creations)
+    // _is_internal_recurrence avoids infinite loop during recursion
+    if (!isUpdate && recurrence_rule && recurrence_rule.freq && !apptData._is_internal_recurrence) {
+        const newRecurrenceId = crypto.randomUUID();
+        let occurrences = generateRecurrences(start_time, recurrence_rule);
+        const duration = new Date(end_time).getTime() - new Date(start_time).getTime();
+
+        // Handle "Crea in anticipo" limit
+        const createInAdvance = parseInt(recurrence_rule.create_advance) || 1;
+        if (createInAdvance > 0) {
+            occurrences = occurrences.slice(0, createInAdvance - 1);
+        }
+
+        // Save first one (main) with recurrence_rule and recurrence_id
+        const mainPayload = {
+            ...apptData,
+            recurrence_id: newRecurrenceId,
+            recurrence_rule,
+            _is_internal_recurrence: true
+        };
+        const first = await saveAppointment(mainPayload);
+
+        // Save others (without recurrence_rule to avoid loops)
+        for (const occ of occurrences) {
+            const occStart = new Date(occ.date);
+            const occEnd = new Date(occStart.getTime() + duration);
+            await saveAppointment({
+                ...apptData,
+                title: `${apptData.title} - ${occ.label}`,
+                start_time: occStart.toISOString(),
+                end_time: occEnd.toISOString(),
+                recurrence_id: newRecurrenceId,
+                _is_internal_recurrence: true
+            });
+        }
+        return first;
+    }
+
     let oldAppt = null;
 
     if (isUpdate) {
@@ -860,7 +1086,8 @@ export async function saveAppointment(apptData) {
 
     // 2. Upsert Appointment
     const payload = {
-        order_id, pm_space_id, title, start_time, end_time, location, mode, note, status
+        order_id, pm_space_id, title, start_time, end_time, location, mode, note, status,
+        recurrence_id, recurrence_rule
     };
     if (id) payload.id = id;
 

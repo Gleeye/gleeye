@@ -1,4 +1,4 @@
-import { state } from '../modules/state.js';
+import { state } from '/js/modules/state.js';
 import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=317';
 import { upsertPayment, deletePayment, upsertBankTransaction, fetchPayments } from '../modules/api.js';
 
