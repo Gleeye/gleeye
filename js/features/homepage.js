@@ -2507,7 +2507,7 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                     const roleTitle = isPm ? 'Project Manager' : 'Assegnatario';
 
                     html += `
-                        <div style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.5rem 0; display: flex; gap: 0.75rem; align-items: center; justify-content: space-between;">
+                        <div class="activity-row" style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.5rem 0; display: flex; gap: 0.75rem; align-items: center; justify-content: space-between;">
                             <div onclick="openPmItemDetails('${t.id}', '${spaceId || ''}')" style="flex: 1; min-width: 0; cursor: pointer; display: flex; gap: 10px; align-items: flex-start;">
                                  <div style="margin-top: 2px; color: ${roleColor}" title="${roleTitle}">
                                      <span class="material-icons-round" style="font-size: 18px;">${roleIcon}</span>
@@ -2563,20 +2563,50 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
 // Helper for Task Completion
 window.quickCompleteTask = async function (id, element) {
     const row = element.closest('.activity-row');
+    const container = row?.parentElement;
     if (row) row.style.opacity = '0.4';
-    if (element.classList.contains('row-status')) element.classList.add('done');
 
     try {
         await updatePMItem(id, { status: 'done' });
+
+        // Update local data to keep consistency if filters change
+        if (window.hpData && window.hpData.tasks) {
+            window.hpData.tasks = window.hpData.tasks.filter(t => t.id !== id);
+            if (window.hpData.filteredTasks) {
+                window.hpData.filteredTasks = window.hpData.filteredTasks.filter(t => t.id !== id);
+            }
+        }
+
         if (row) {
             row.style.transform = 'translateX(10px)';
             row.style.opacity = '0';
-            setTimeout(() => row.remove(), 200);
+
+            // Instantly update the counter in the tab
+            const card = row.closest('.glass-card');
+            if (card) {
+                const tabs = card.querySelectorAll('.tab-pill');
+                if (tabs.length > 0) {
+                    const countEl = tabs[0].querySelector('.tab-count'); // Task count is always first
+                    if (countEl) {
+                        const current = parseInt(countEl.textContent) || 0;
+                        countEl.textContent = Math.max(0, current - 1);
+                    }
+                }
+            }
+
+            setTimeout(() => {
+                row.remove();
+                if (container && container.children.length === 0) {
+                    container.innerHTML = `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessun task da completare.</div>`;
+                }
+            }, 200);
         }
     } catch (e) {
         console.error("Task completion failed", e);
-        if (row) row.style.opacity = '1';
-        if (element.classList.contains('row-status')) element.classList.remove('done');
+        if (row) {
+            row.style.opacity = '1';
+            row.style.transform = 'none';
+        }
         alert("Errore nel completamento task.");
     }
 };

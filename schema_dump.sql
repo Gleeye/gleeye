@@ -68,7 +68,8 @@ ALTER TYPE "public"."pm_item_type" OWNER TO "postgres";
 
 CREATE TYPE "public"."pm_space_type" AS ENUM (
     'commessa',
-    'interno'
+    'interno',
+    'sap_service'
 );
 
 
@@ -970,6 +971,54 @@ CREATE TABLE IF NOT EXISTS "public"."conversations" (
 ALTER TABLE "public"."conversations" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."core_service_area_links" (
+    "core_service_id" "uuid" NOT NULL,
+    "area_id" "uuid" NOT NULL
+);
+
+
+ALTER TABLE "public"."core_service_area_links" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."core_service_areas" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "name" "text" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    CONSTRAINT "core_service_areas_name_check" CHECK (("char_length"("name") > 0))
+);
+
+
+ALTER TABLE "public"."core_service_areas" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."core_service_types" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "name" "text" NOT NULL,
+    "department_id" "uuid",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    CONSTRAINT "core_service_types_name_check" CHECK (("char_length"("name") > 0))
+);
+
+
+ALTER TABLE "public"."core_service_types" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."core_services" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "name" "text" NOT NULL,
+    "department_id" "uuid",
+    "type_id" "uuid",
+    "description" "text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "cloud_links" "jsonb" DEFAULT '[]'::"jsonb",
+    CONSTRAINT "core_services_name_check" CHECK (("char_length"("name") > 0))
+);
+
+
+ALTER TABLE "public"."core_services" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."departments" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "name" "text" NOT NULL
@@ -1257,7 +1306,10 @@ CREATE TABLE IF NOT EXISTS "public"."pm_spaces" (
     "name" "text",
     "default_pm_user_ref" "uuid",
     "created_at" timestamp with time zone DEFAULT "now"(),
-    "updated_at" timestamp with time zone DEFAULT "now"()
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "ref_sap_service" "uuid",
+    "price_final" numeric,
+    "cost_final" numeric
 );
 
 
@@ -1470,6 +1522,31 @@ ALTER TABLE ONLY "public"."conversation_members"
 
 ALTER TABLE ONLY "public"."conversations"
     ADD CONSTRAINT "conversations_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."core_service_area_links"
+    ADD CONSTRAINT "core_service_area_links_pkey" PRIMARY KEY ("core_service_id", "area_id");
+
+
+
+ALTER TABLE ONLY "public"."core_service_areas"
+    ADD CONSTRAINT "core_service_areas_name_key" UNIQUE ("name");
+
+
+
+ALTER TABLE ONLY "public"."core_service_areas"
+    ADD CONSTRAINT "core_service_areas_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."core_service_types"
+    ADD CONSTRAINT "core_service_types_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."core_services"
+    ADD CONSTRAINT "core_services_pkey" PRIMARY KEY ("id");
 
 
 
@@ -1911,6 +1988,31 @@ ALTER TABLE ONLY "public"."conversations"
 
 
 
+ALTER TABLE ONLY "public"."core_service_area_links"
+    ADD CONSTRAINT "core_service_area_links_area_id_fkey" FOREIGN KEY ("area_id") REFERENCES "public"."core_service_areas"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."core_service_area_links"
+    ADD CONSTRAINT "core_service_area_links_core_service_id_fkey" FOREIGN KEY ("core_service_id") REFERENCES "public"."core_services"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."core_service_types"
+    ADD CONSTRAINT "core_service_types_department_id_fkey" FOREIGN KEY ("department_id") REFERENCES "public"."departments"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."core_services"
+    ADD CONSTRAINT "core_services_department_id_fkey" FOREIGN KEY ("department_id") REFERENCES "public"."departments"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."core_services"
+    ADD CONSTRAINT "core_services_type_id_fkey" FOREIGN KEY ("type_id") REFERENCES "public"."core_service_types"("id") ON DELETE SET NULL;
+
+
+
 ALTER TABLE ONLY "public"."external_busy_cache"
     ADD CONSTRAINT "external_busy_cache_collaborator_id_fkey" FOREIGN KEY ("collaborator_id") REFERENCES "public"."collaborators"("id") ON DELETE CASCADE;
 
@@ -2086,6 +2188,11 @@ ALTER TABLE ONLY "public"."pm_spaces"
 
 
 
+ALTER TABLE ONLY "public"."pm_spaces"
+    ADD CONSTRAINT "pm_spaces_ref_sap_service_fkey" FOREIGN KEY ("ref_sap_service") REFERENCES "public"."core_services"("id") ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."profiles"
     ADD CONSTRAINT "profiles_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id");
 
@@ -2246,6 +2353,22 @@ CREATE POLICY "Enable read access for all users" ON "public"."assignments" FOR S
 
 
 
+CREATE POLICY "Enable read access for all users" ON "public"."core_service_area_links" FOR SELECT USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."core_service_areas" FOR SELECT USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."core_service_types" FOR SELECT USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."core_services" FOR SELECT USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
 CREATE POLICY "Enable read access for authenticated users" ON "public"."order_contacts" FOR SELECT TO "authenticated" USING (true);
 
 
@@ -2255,6 +2378,22 @@ CREATE POLICY "Enable update access for authenticated users" ON "public"."order_
 
 
 CREATE POLICY "Enable write access for authenticated users" ON "public"."assignments" USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Enable write access for authenticated users" ON "public"."core_service_area_links" USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Enable write access for authenticated users" ON "public"."core_service_areas" USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Enable write access for authenticated users" ON "public"."core_service_types" USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Enable write access for authenticated users" ON "public"."core_services" USING (("auth"."role"() = 'authenticated'::"text"));
 
 
 
@@ -2563,6 +2702,18 @@ ALTER TABLE "public"."conversation_members" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."conversations" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."core_service_area_links" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."core_service_areas" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."core_service_types" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."core_services" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."departments" ENABLE ROW LEVEL SECURITY;
@@ -2906,6 +3057,30 @@ GRANT ALL ON TABLE "public"."conversation_members" TO "service_role";
 GRANT ALL ON TABLE "public"."conversations" TO "anon";
 GRANT ALL ON TABLE "public"."conversations" TO "authenticated";
 GRANT ALL ON TABLE "public"."conversations" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."core_service_area_links" TO "anon";
+GRANT ALL ON TABLE "public"."core_service_area_links" TO "authenticated";
+GRANT ALL ON TABLE "public"."core_service_area_links" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."core_service_areas" TO "anon";
+GRANT ALL ON TABLE "public"."core_service_areas" TO "authenticated";
+GRANT ALL ON TABLE "public"."core_service_areas" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."core_service_types" TO "anon";
+GRANT ALL ON TABLE "public"."core_service_types" TO "authenticated";
+GRANT ALL ON TABLE "public"."core_service_types" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."core_services" TO "anon";
+GRANT ALL ON TABLE "public"."core_services" TO "authenticated";
+GRANT ALL ON TABLE "public"."core_services" TO "service_role";
 
 
 

@@ -25,13 +25,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Features in development (keep local)
-js/features/pm/
-js/features/chat/
-js/modules/pm_api.js
-css/components/chat.css
-supabase/migrations/20260116*
-supabase/migrations/20260117000000_create_pm_module.sql
+# Features to deploy
+# js/features/pm/ - enabled
+# js/features/chat/ - enabled
+# js/modules/pm_api.js - enabled
+# css/components/chat.css - enabled
+# supabase/migrations/20260116* - enabled
+# supabase/migrations/20260117000000_create_pm_module.sql - enabled
 
 # Debugging and Scripts
 apply_availability_migration.js

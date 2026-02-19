@@ -320,8 +320,8 @@ export async function fetchProjectItems(spaceId) {
 
 const sanitizePMItemData = (data) => {
     const clean = { ...data };
-    ['start_date', 'due_date'].forEach(field => {
-        if (clean[field] === '') clean[field] = null;
+    Object.keys(clean).forEach(key => {
+        if (clean[key] === '') clean[key] = null;
     });
     return clean;
 };

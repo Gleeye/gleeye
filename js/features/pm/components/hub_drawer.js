@@ -79,6 +79,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
     let currentSpaceId = spaceId;
     let currentClientId = null;
     let currentParentRef = parentId;
+    let spaceAssigneesPool = []; // Pool of users assigned to the project
 
     let item = null;
     let comments = [];
@@ -94,6 +95,8 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
     try {
         await Promise.race([
             (async () => {
+                const { fetchSpaceAssignees } = await import('../../../modules/pm_api.js?v=385');
+
                 if (isEdit) {
                     console.log("[HubDrawer] Loading data for item:", itemId);
 
@@ -113,6 +116,9 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                     if (!item) throw new Error("Attività non trovata o non accessibile.");
 
+                    // Determine currentSpaceId for suggestions
+                    if (item.space_ref) currentSpaceId = item.space_ref;
+
                     assignees = item.pm_item_assignees || [];
                     pendingAssignees = assignees.map(a => ({
                         user_ref: a.user_ref,
@@ -131,16 +137,33 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             if (data) state.pm_spaces = data;
                         } catch (e) { console.error("Error loading spaces for new item context", e); }
                     }
+                }
 
-                    if (state.profile?.id) {
-                        const meCollab = state.collaborators?.find(c => c.user_id === state.profile.id);
-                        if (meCollab) {
-                            pendingAssignees = [{
-                                user_ref: state.profile.id, collaborator_ref: meCollab.id, role: defaultRole,
-                                displayName: meCollab.full_name || (meCollab.first_name + ' ' + (meCollab.last_name || '')).trim(),
-                                user: meCollab
-                            }];
-                        }
+                // Fetch space assignees pool for suggestions (common for edit/create)
+                if (currentSpaceId) {
+                    try {
+                        spaceAssigneesPool = await fetchSpaceAssignees(currentSpaceId);
+                    } catch (e) {
+                        console.warn("[HubDrawer] Could not fetch space assignees pool", e);
+                    }
+                }
+
+                // If new item, handle auto-assignment logic
+                if (!isEdit && state.profile?.id) {
+                    const meCollab = state.collaborators?.find(c => c.user_id === state.profile.id);
+                    if (meCollab) {
+                        let myRole = defaultRole;
+                        const isSpacePm = spaceAssigneesPool.some(sa =>
+                            (sa.user_ref === state.profile.id || sa.collaborator_ref === meCollab.id) &&
+                            sa.role === 'pm'
+                        );
+                        if (isSpacePm) myRole = 'pm';
+
+                        pendingAssignees = [{
+                            user_ref: state.profile.id, collaborator_ref: meCollab.id, role: myRole,
+                            displayName: meCollab.full_name || (meCollab.first_name + ' ' + (meCollab.last_name || '')).trim(),
+                            user: meCollab
+                        }];
                     }
                 }
             })(),
@@ -208,7 +231,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
         if (viewMode) {
             drawer.innerHTML = `
-                <div class="drawer-header" style="padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--surface-2); display: flex; justify-content: space-between; align-items: center; background: white; flex-shrink: 0;">
+                <div class="drawer-header" style="padding: 0.75rem 1.25rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: white; flex-shrink: 0;">
                     <div style="min-width: 0; flex: 1; margin-right: 1.25rem;">
                         <div style="margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.35rem;">
                             <div style="align-self: flex-start; font-size: 0.6rem; font-weight: 800; color: var(--brand-blue); background: rgba(59, 130, 246, 0.08); padding: 2px 8px; border-radius: 12px; text-transform: uppercase; border: 1px solid rgba(59, 130, 246, 0.15); flex-shrink: 0;">
@@ -222,12 +245,12 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     </div>
                     <div style="display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0;">
                         <button id="delete-item-btn" class="icon-btn" title="Elimina" style="width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #fee2e2; color: #ef4444; cursor: pointer;"><span class="material-icons-round" style="font-size: 1.1rem;">delete_outline</span></button>
-                        <button id="edit-mode-btn" class="icon-btn" title="Modifica" style="width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid var(--surface-2); color: var(--text-primary); cursor: pointer;"><span class="material-icons-round" style="font-size: 1.1rem;">edit</span></button>
-                        <button class="icon-btn close-drawer-btn" title="Chiudi" style="width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid var(--surface-2); color: var(--text-secondary); cursor: pointer;"><span class="material-icons-round" style="font-size: 1.1rem;">close</span></button>
+                        <button id="edit-mode-btn" class="icon-btn" title="Modifica" style="width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #e2e8f0; color: var(--text-primary); cursor: pointer;"><span class="material-icons-round" style="font-size: 1.1rem;">edit</span></button>
+                        <button class="icon-btn close-drawer-btn" title="Chiudi" style="width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #e2e8f0; color: var(--text-secondary); cursor: pointer;"><span class="material-icons-round" style="font-size: 1.1rem;">close</span></button>
                     </div>
                 </div>
                 <div class="drawer-scroll-container" style="flex: 1; overflow-y: auto;">
-                    <div style="padding: 1rem 1.25rem; background: var(--surface-1); border-bottom: 1px solid var(--surface-2);">
+                    <div style="padding: 1rem 1.25rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
                         <!-- Row 1: Dates, Priority & Status -->
                         <div style="display: flex; align-items: flex-start; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: nowrap;">
                             <!-- Inizio -->
@@ -255,7 +278,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                         <span class="priority-label">${ITEM_PRIORITY[item.priority || 'medium']?.label}</span>
                                         <span class="material-icons-round" style="font-size: 1.1rem; opacity: 0.5;">expand_more</span>
                                     </button>
-                                    <div id="priority-dropdown-menu" class="hidden dropdown-menu" style="position: absolute; top: 100%; left: 0; margin-top: 8px; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid var(--surface-2); padding: 8px; z-index: 1000; min-width: 160px; display: flex; flex-direction: column; gap: 4px;">
+                                    <div id="priority-dropdown-menu" class="hidden dropdown-menu" style="position: absolute; top: 100%; left: 0; margin-top: 8px; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; padding: 8px; z-index: 1000; min-width: 160px; display: flex; flex-direction: column; gap: 4px;">
                                         ${Object.keys(ITEM_PRIORITY).map(k => `<div class="priority-option" data-value="${k}" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; font-weight: 600; color: #334155; transition: background 0.2s;">
                                             <span class="material-icons-round" style="font-size: 1.1rem; color: ${ITEM_PRIORITY[k].color};">flag</span>
                                             <span>${ITEM_PRIORITY[k].label}</span>
@@ -272,7 +295,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                         <span class="status-label">${ITEM_STATUS[item.status]?.label || item.status}</span>
                                         <span class="material-icons-round" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 1.14rem; opacity: 0.7;">expand_more</span>
                                     </button>
-                                    <div id="status-dropdown-menu" class="hidden dropdown-menu" style="position: absolute; top: 100%; left: 0; margin-top: 8px; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid var(--surface-2); padding: 8px; z-index: 1000; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
+                                    <div id="status-dropdown-menu" class="hidden dropdown-menu" style="position: absolute; top: 100%; left: 0; margin-top: 8px; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; padding: 8px; z-index: 1000; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
                                         ${Object.keys(ITEM_STATUS).map(k => `<div class="status-option" data-value="${k}" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; font-weight: 600; color: #334155; transition: background 0.2s;">
                                             <div style="width: 10px; height: 10px; border-radius: 50%; background: ${ITEM_STATUS[k].color};"></div>
                                             <span>${ITEM_STATUS[k].label}</span>
@@ -299,8 +322,8 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                         </div>
                                     `).join('')}
                                     <button id="add-pm-btn" style="width: 28px; height: 28px; border-radius: 50%; border: 1px dashed var(--brand-purple); background: transparent; color: var(--brand-purple); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"><span class="material-icons-round" style="font-size: 1.2rem;">add</span></button>
-                                    <div id="pm-picker" class="hidden dropdown-menu" style="position: absolute; background: white; box-shadow: 0 10px 40px rgba(0,0,0,0.15); border-radius: 12px; min-width: 260px; z-index: 1000; top: 100%; left: 0; margin-top: 8px; border: 1px solid var(--surface-2); overflow-y: auto; max-height: 300px;">
-                                        ${renderUserPicker(spaceId, 'pm', new Set(assignees.filter(a => a.role === 'pm').map(a => a.user_ref || a.collaborator_ref)))}
+                                    <div id="pm-picker" class="hidden dropdown-menu" style="position: absolute; background: white; box-shadow: 0 10px 40px rgba(0,0,0,0.15); border-radius: 12px; min-width: 260px; z-index: 1000; top: 100%; left: 0; margin-top: 8px; border: 1px solid #e2e8f0; overflow-y: auto; max-height: 300px;">
+                                        ${renderUserPicker(spaceId, 'pm', new Set(assignees.filter(a => a.role === 'pm').map(a => a.user_ref || a.collaborator_ref)), new Set(spaceAssigneesPool.map(sa => sa.collaborator_ref || sa.user_ref)))}
                                     </div>
                                 </div>
                             </div>
@@ -309,7 +332,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform:uppercase; letter-spacing: 0.05em;">ASSEGNATO A</label>
                                 <div id="assignee-list" style="display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; position: relative;">
                                     ${assignees.filter(a => a.role !== 'pm').map(a => `
-                                        <div class="assignee-pill" title="${a.user?.full_name || ''}" style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; padding-left: 4px; background: white; border: 1px solid var(--surface-2); border-radius: 20px; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); box-shadow: 0 2px 4px rgba(0,0,0,0.03); position: relative;">
+                                        <div class="assignee-pill" title="${a.user?.full_name || ''}" style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; padding-left: 4px; background: white; border: 1px solid #e2e8f0; border-radius: 20px; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); box-shadow: 0 2px 4px rgba(0,0,0,0.03); position: relative;">
                                             <img src="${a.user?.avatar_url || '../../../assets/default-avatar.png'}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
                                             <span>${a.user?.first_name || 'User'}</span>
                                             ${(state.profile?.role === 'admin' || state.profile?.tags?.some(t => t.toLowerCase().includes('pm'))) ? `
@@ -318,8 +341,8 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                         </div>
                                     `).join('')}
                                     <button id="add-assignee-btn" style="width: 28px; height: 28px; border-radius: 50%; border: 1px dashed var(--text-tertiary); background: transparent; color: var(--text-tertiary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"><span class="material-icons-round" style="font-size: 1.2rem;">add</span></button>
-                                    <div id="assignee-picker" class="hidden dropdown-menu" style="position: absolute; background: white; box-shadow: 0 10px 40px rgba(0,0,0,0.15); border-radius: 12px; min-width: 260px; z-index: 1000; top: 100%; left: 0; margin-top: 8px; border: 1px solid var(--surface-2); overflow-y: auto; max-height: 300px;">
-                                        ${renderUserPicker(spaceId, 'assignee', new Set(assignees.filter(a => a.role !== 'pm').map(a => a.user_ref || a.collaborator_ref)))}
+                                    <div id="assignee-picker" class="hidden dropdown-menu" style="position: absolute; background: white; box-shadow: 0 10px 40px rgba(0,0,0,0.15); border-radius: 12px; min-width: 260px; z-index: 1000; top: 100%; left: 0; margin-top: 8px; border: 1px solid #e2e8f0; overflow-y: auto; max-height: 300px;">
+                                        ${renderUserPicker(spaceId, 'assignee', new Set(assignees.filter(a => a.role !== 'pm').map(a => a.user_ref || a.collaborator_ref)), new Set(spaceAssigneesPool.map(sa => sa.collaborator_ref || sa.user_ref)))}
                                     </div>
                                 </div>
                             </div>
@@ -330,7 +353,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             <div style="position: relative;">
                                 <button id="open-resources-btn" style="
                                     display: flex; align-items: center; gap: 0.6rem; padding: 6px 14px;
-                                    background: white; border: 1px solid var(--surface-2); border-radius: 20px;
+                                    background: white; border: 1px solid #e2e8f0; border-radius: 20px;
                                     color: var(--text-secondary); font-weight: 700; font-size: 0.8rem;
                                     cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 6px rgba(0,0,0,0.04);
                                 ">
@@ -342,7 +365,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 <!-- Resources Popover -->
                                 <div id="resources-popover" class="hidden dropdown-menu glass-card" style="
                                     position: absolute; top: calc(100% + 10px); left: 0; width: 340px; z-index: 1000;
-                                    background: white; border: 1px solid var(--surface-2); padding: 1.25rem;
+                                    background: white; border: 1px solid #e2e8f0; padding: 1.25rem;
                                     box-shadow: 0 15px 40px rgba(0,0,0,0.18); border-radius: 16px;
                                 ">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -357,10 +380,10 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             </div>
                         </div>
                     </div>
-                    <div style="padding: 1.25rem; border-bottom: 2px solid var(--surface-2); position: relative;">
+                    <div style="padding: 1.25rem; border-bottom: 2px solid #e2e8f0; position: relative;">
                         <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 0.6rem; text-transform:uppercase; letter-spacing: 0.05em;">DESCRIZIONE</label>
                         <div id="item-description-container" style="min-height: 48px;">
-                            <div id="item-description-view" style="font-size: 0.9rem; color: var(--text-primary); line-height: 1.6; white-space: pre-wrap; border-radius: 8px; cursor: pointer; padding: 6px; transition: all 0.2s; border: 1px solid transparent; width: 100%; word-break: break-word; margin: 0;" onmouseover="this.style.background='var(--surface-1)'; this.style.borderColor='var(--surface-2)'" onmouseout="this.style.background='transparent'; this.style.borderColor='transparent'">${(item.notes && item.notes.trim()) || '<span style="color: #94a3b8; font-style: italic;">Clicca per aggiungere una descrizione...</span>'}</div>
+                            <div id="item-description-view" style="font-size: 0.9rem; color: var(--text-primary); line-height: 1.6; white-space: pre-wrap; border-radius: 8px; cursor: pointer; padding: 6px; transition: all 0.2s; border: 1px solid transparent; width: 100%; word-break: break-word; margin: 0;" onmouseover="this.style.background='#f8fafc'; this.style.borderColor='#e2e8f0'" onmouseout="this.style.background='transparent'; this.style.borderColor='transparent'">${(item.notes && item.notes.trim()) || '<span style="color: #94a3b8; font-style: italic;">Clicca per aggiungere una descrizione...</span>'}</div>
                         </div>
                         <div id="desc-saving-indicator" class="hidden" style="position: absolute; top: 1.25rem; right: 1.25rem; font-size: 0.65rem; color: var(--brand-blue); font-weight: 700; display: flex; align-items: center; gap: 4px;">
                              <span class="material-icons-round" style="font-size: 0.8rem; animation: spin-hub 1s linear infinite;">sync</span> SALVATAGGIO...
@@ -369,7 +392,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     <div class="comments-section" style="padding: 1.25rem;">
                         <h4 style="margin: 0 0 1rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">Commenti (${comments.length})</h4>
                         <div id="comments-list" style="margin-bottom: 1rem;">
-                            ${comments.map(c => `<div style="padding: 0.75rem; background: var(--surface-1); border-radius: 8px; margin-bottom: 0.5rem; font-size: 0.85rem;"><strong>${c.profiles?.first_name || 'Utente'}</strong>: ${c.body}</div>`).join('')}
+                            ${comments.map(c => `<div style="padding: 0.75rem; background: #f8fafc; border-radius: 8px; margin-bottom: 0.5rem; font-size: 0.85rem;"><strong>${c.profiles?.first_name || 'Utente'}</strong>: ${c.body}</div>`).join('')}
                         </div>
                         <div style="display: flex; gap: 0.5rem;">
                             <input type="text" id="new-comment" placeholder="Scrivi un commento..." class="input-modern" style="flex: 1;">
@@ -385,166 +408,298 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
             });
         } else {
             drawer.innerHTML = `
-                <div class="drawer-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--surface-2); display: flex; justify-content: space-between; align-items: center; background: white; flex-shrink: 0;">
-                    <h2 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">${isEdit ? 'Modifica' : 'Nuova'} ${itemType === 'attivita' ? 'Attività' : 'Task'}</h2>
-                    <button class="icon-btn close-drawer-btn" title="Chiudi"><span class="material-icons-round">close</span></button>
+                <div class="drawer-header" style="padding: 1.25rem 2rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: white; flex-shrink: 0; position: sticky; top: 0; z-index: 10;">
+                    <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600; color: var(--text-primary); letter-spacing: -0.01em; font-family: var(--font-titles);">
+                        ${isEdit ? 'Modifica' : 'Nuova'} ${(() => {
+                    switch (item.item_type || itemType) {
+                        case 'task': return 'Task';
+                        case 'milestone': return 'Milestone';
+                        case 'appointment': return 'Appuntamento';
+                        case 'note': return 'Nota';
+                        default: return 'Attività';
+                    }
+                })()}
+                    </h2>
+                    <button class="icon-btn close-drawer-btn" style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; transition: all 0.2s;"><span class="material-icons-round" style="font-size: 20px;">close</span></button>
                 </div>
-                <div class="drawer-body" style="flex: 1; overflow-y: auto; padding: 1.5rem;">
-                    <form id="item-form" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                <div class="drawer-body" style="flex: 1; overflow-y: auto; padding: 1.5rem 2rem;">
+                    <form id="item-form" style="display: flex; flex-direction: column; gap: 1.75rem; max-width: 580px; margin: 0 auto;">
                         <input type="hidden" id="task-space-ref" name="space_ref" value="${currentSpaceId || ''}">
+                        <input type="hidden" name="item_type" value="${item.item_type || itemType}">
+                        <input type="hidden" name="parent_ref" value="${currentParentRef || ''}">
                         
-                        <!-- Context Picker (Space / Commessa / Client) -->
+                        <!-- Context Selection -->
+                        ${!currentSpaceId ? `
                         <div class="form-group">
-                            <label class="label-sm">Progetto / Commessa / Cliente *</label>
+                            <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Progetto o Commessa</label>
                             <div style="position: relative;">
                                 <div id="context-picker-trigger" style="
-                                    padding: 10px 12px; background: white; border: 1px solid var(--surface-3); border-radius: 8px; 
+                                    padding: 0 14px; height: 44px; background: #f8fafc; border: 1.2px solid #e2e8f0; border-radius: 10px; 
                                     font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
                                     transition: all 0.2s;
                                 ">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
                                         <span class="material-icons-round" style="font-size: 18px; color: var(--brand-blue);">
-                                            ${currentSpaceId ? (state.pm_spaces?.find(x => x.id === currentSpaceId)?.type === 'interno' ? 'folder_special' : 'style') : (currentClientId ? 'person' : 'search')}
+                                            ${currentSpaceId ? (state.pm_spaces?.find(x => x.id === currentSpaceId)?.type === 'interno' ? 'folder_special' : 'style') : (currentClientId ? 'person' : 'room_service')}
                                         </span>
-                                        <span style="${!currentSpaceId && !currentClientId ? 'color: var(--text-tertiary); font-style: italic;' : 'font-weight: 500;'}">
+                                        <span style="${!currentSpaceId && !currentClientId ? 'color: var(--text-tertiary);' : 'font-weight: 500;'}">
                                             ${(() => {
-                    if (currentSpaceId) {
-                        const s = state.pm_spaces?.find(x => x.id === currentSpaceId);
-                        if (s?.type === 'commessa') {
-                            const o = state.orders?.find(x => x.id === s.ref_ordine);
-                            return o ? `#${o.order_number} ${o.title}` : s.name || 'Commessa';
+                        if (currentSpaceId) {
+                            const s = state.pm_spaces?.find(x => x.id === currentSpaceId);
+                            if (s?.type === 'commessa') {
+                                const o = state.orders?.find(x => x.id === s.ref_ordine);
+                                return o ? `#${o.order_number} ${o.title}` : s.name || 'Commessa';
+                            }
+                            return s?.name || 'Progetto Interno';
                         }
-                        return s?.name || 'Progetto Interno';
-                    }
-                    if (currentClientId) {
-                        const c = state.clients?.find(x => x.id === currentClientId);
-                        return c ? `Cliente: ${c.business_name}` : 'Cliente Selezionato';
-                    }
-                    return 'Cerca Progetto, Commessa o Cliente...';
-                })()}
+                        if (currentClientId) {
+                            const c = state.clients?.find(x => x.id === currentClientId);
+                            return c ? `Cliente: ${c.business_name}` : 'Cliente Selezionato';
+                        }
+                        return 'Seleziona contesto...';
+                    })()}
                                         </span>
                                     </div>
                                     <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">expand_more</span>
                                 </div>
-                                
                                 <div id="context-picker-dropdown" class="hidden glass-card" style="
                                     position: absolute; top: calc(100% + 6px); left: 0; width: 100%; z-index: 1000;
-                                    background: white; border: 1px solid var(--surface-3); border-radius: 12px;
-                                    box-shadow: 0 10px 30px rgba(0,0,0,0.15); padding: 8px;
+                                    background: white; border: 1.2px solid #e2e8f0; border-radius: 12px;
+                                    box-shadow: 0 12px 48px rgba(0,0,0,0.12); padding: 10px;
                                 ">
                                     <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                                        <input type="text" id="context-search" placeholder="Filtra..." class="input-modern" style="flex: 1; font-size: 0.8rem; height: 32px; padding: 0 10px;">
-                                        <button type="button" id="clear-context-btn" title="Rimuovi associazione" style="background: var(--surface-1); border: 1px solid var(--surface-3); border-radius: 8px; padding: 0 8px; cursor: pointer; color: var(--text-tertiary);">
+                                        <input type="text" id="context-search" placeholder="Cerca progetto..." class="input-modern" style="flex: 1; font-size: 0.85rem; height: 36px; padding: 0 12px; border-radius: 8px; border: 1.2px solid #e2e8f0;">
+                                        <button type="button" id="clear-context-btn" title="Rimuovi" style="background: #f8fafc; border: 1.2px solid #e2e8f0; border-radius: 8px; padding: 0 8px; cursor: pointer; color: var(--text-tertiary);">
                                             <span class="material-icons-round" style="font-size: 18px;">backspace</span>
                                         </button>
                                     </div>
-                                    <div id="context-options-list" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;">
-                                        <!-- Options injected via JS -->
-                                    </div>
+                                    <div id="context-options-list" style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;"></div>
                                 </div>
                             </div>
                         </div>
-                        <div class="form-group"><label class="label-sm">Titolo *</label><input type="text" name="title" required value="${item.title || ''}" class="input-modern" placeholder="Titolo..."></div>
+                        <div style="height: 1px; background: #f1f5f9; margin: 0.5rem 0;"></div>
+                        ` : ''}
+
+                        <!-- Title -->
                         <div class="form-group">
-                            <label class="label-sm">Assegnato a</label>
-                            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.5rem; border: 1px solid var(--surface-2); border-radius: 8px;">
-                                ${pendingAssignees.map((a, idx) => `
-                                    <div class="pending-assignee-pill" style="display: flex; align-items: center; gap: 6px; background: var(--surface-2); padding: 4px 8px; border-radius: 20px; font-size: 0.8rem;">
-                                        <img src="${a.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(a.displayName)}" style="width: 20px; height: 20px; border-radius: 50%;">
-                                        <span>${a.displayName}</span>
-                                        <span class="material-icons-round remove-pending-btn" data-idx="${idx}" style="font-size: 14px; cursor: pointer;">close</span>
+                            <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Titolo</label>
+                            <input type="text" name="title" required value="${item.title || ''}" class="input-modern" style="height: 44px; padding: 0 14px; border-radius: 10px; font-weight: 500; font-size: 1rem; border: 1.2px solid #e2e8f0; width: 100%; box-sizing: border-box; background: white;">
+                        </div>
+
+                        <div style="height: 1px; background: #f1f5f9; margin: 0.5rem 0;"></div>
+                        
+                        <!-- People -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                            <div class="form-group">
+                                <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Project Manager</label>
+                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px; border: 1.2px solid #e2e8f0; border-radius: 10px; min-height: 44px; background: white;">
+                                    ${pendingAssignees.filter(a => a.role === 'pm').map((a) => {
+                        const originalIdx = pendingAssignees.indexOf(a);
+                        return `
+                                        <div class="pending-assignee-pill" style="display: flex; align-items: center; gap: 6px; background: #f5f3ff; color: #7c3aed; padding: 3px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 500; border: 1px solid #ddd6fe;">
+                                            <img src="${a.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(a.displayName)}" style="width: 18px; height: 18px; border-radius: 4px;">
+                                            <span>${a.displayName}</span>
+                                            <span class="material-icons-round remove-pending-btn" data-idx="${originalIdx}" style="font-size: 14px; cursor: pointer; opacity: 0.6;">close</span>
+                                        </div>
+                                        `;
+                    }).join('')}
+                                    <div style="position: relative;">
+                                        <button type="button" id="form-add-pm-btn" style="width: 28px; height: 28px; border-radius: 6px; border: 1.2px dashed #cbd5e1; background: transparent; color: var(--text-tertiary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"><span class="material-icons-round" style="font-size: 18px;">add</span></button>
+                                        <div id="form-pm-picker" class="hidden" style="position: absolute; top: calc(100% + 6px); left: 0; min-width: 260px; background: white; border: 1.2px solid #e2e8f0; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); z-index: 1000; max-height: 300px; overflow-y: auto; padding: 4px;">
+                                            ${renderUserPicker(currentSpaceId, 'pm', new Set(pendingAssignees.filter(a => a.role === 'pm').map(a => a.user_ref || a.collaborator_ref)), new Set(spaceAssigneesPool.map(sa => sa.collaborator_ref || sa.user_ref)))}
+                                        </div>
                                     </div>
-                                `).join('')}
-                                <div style="position: relative;">
-                                    <button type="button" id="form-add-assignee-btn" style="width: 24px; height: 24px; border-radius: 50%; border: 1px dashed #ccc; background: transparent; cursor: pointer;"><span class="material-icons-round" style="font-size: 14px;">add</span></button>
-                                    <div id="form-assignee-picker" class="hidden" style="position: absolute; top: 100%; left: 0; min-width: 240px; background: white; border: 1px solid var(--surface-2); border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); z-index: 100;">
-                                        ${renderUserPicker(spaceId, 'assignee', new Set(pendingAssignees.map(a => a.user_ref || a.collaborator_ref)))}
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Assegnato a</label>
+                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px; border: 1.2px solid #e2e8f0; border-radius: 10px; min-height: 44px; background: white;">
+                                    ${pendingAssignees.filter(a => a.role !== 'pm').map((a) => {
+                        const originalIdx = pendingAssignees.indexOf(a);
+                        return `
+                                        <div class="pending-assignee-pill" style="display: flex; align-items: center; gap: 6px; background: #f8fafc; padding: 3px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 500; border: 1.2px solid #e2e8f0; color: var(--text-primary);">
+                                            <img src="${a.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(a.displayName)}" style="width: 18px; height: 18px; border-radius: 4px;">
+                                            <span>${a.displayName}</span>
+                                            <span class="material-icons-round remove-pending-btn" data-idx="${originalIdx}" style="font-size: 14px; cursor: pointer; color: var(--text-tertiary);">close</span>
+                                        </div>
+                                        `;
+                    }).join('')}
+                                    <div style="position: relative;">
+                                        <button type="button" id="form-add-assignee-btn" style="width: 28px; height: 28px; border-radius: 6px; border: 1.2px dashed #cbd5e1; background: transparent; color: var(--text-tertiary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"><span class="material-icons-round" style="font-size: 18px;">add</span></button>
+                                        <div id="form-assignee-picker" class="hidden" style="position: absolute; top: calc(100% + 6px); left: 0; min-width: 260px; background: white; border: 1.2px solid #e2e8f0; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); z-index: 1000; max-height: 300px; overflow-y: auto; padding: 4px;">
+                                            ${renderUserPicker(currentSpaceId, 'assignee', new Set(pendingAssignees.filter(a => a.role !== 'pm').map(a => a.user_ref || a.collaborator_ref)), new Set(spaceAssigneesPool.map(sa => sa.collaborator_ref || sa.user_ref)))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                            <div class="form-group"><label class="label-sm">Stato</label><select name="status" class="input-modern">${Object.keys(ITEM_STATUS).map(k => `<option value="${k}" ${item.status === k ? 'selected' : ''}>${ITEM_STATUS[k].label}</option>`).join('')}</select></div>
-                            <div class="form-group"><label class="label-sm">Priorità</label><select name="priority" class="input-modern"><option value="low" ${item.priority === 'low' ? 'selected' : ''}>Bassa</option><option value="medium" ${item.priority === 'medium' ? 'selected' : ''}>Media</option><option value="high" ${item.priority === 'high' ? 'selected' : ''}>Alta</option></select></div>
-                        </div>
-                        ${!isEdit ? `
-                        <div class="form-group" style="padding: 1.25rem; background: var(--surface-1); border-radius: 12px; border: 1px solid var(--surface-2); margin-bottom: 1rem;">
-                            <label class="label-sm" style="display: flex; align-items: center; gap: 8px; color: var(--text-primary); font-weight: 800; margin-bottom: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                                <span class="material-icons-round" style="font-size: 1.2rem; color: var(--brand-blue);">repeat</span>
-                                Impostazioni Ricorrenza
-                            </label>
-                            
-                            <!-- Row 1: Frequenza e Intervallo -->
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                                <div>
-                                    <label class="label-xs" style="color: var(--text-tertiary); margin-bottom: 6px; display: block; font-weight: 700;">FREQUENZA</label>
-                                    <select name="rec_freq" class="input-modern" style="height: 40px; font-size: 0.85rem;">
-                                        <option value="">Nessuna</option>
-                                        <option value="DAILY">Giornaliero</option>
-                                        <option value="WEEKLY">Settimanale</option>
-                                        <option value="MONTHLY">Mensile</option>
-                                        <option value="YEARLY">Annuale</option>
-                                    </select>
+
+                        <div style="height: 1px; background: #f1f5f9; margin: 0.5rem 0;"></div>
+
+                        <!-- Dates & Priority -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                            <div class="form-group">
+                                <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Pianificazione</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <div id="form-start-date-trigger" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 44px; background: white; border: 1.2px solid #e2e8f0; border-radius: 10px; padding: 0 12px; font-size: 0.9rem;">
+                                        <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">play_arrow</span>
+                                        <span style="${!item.start_date ? 'color: var(--text-tertiary);' : 'font-weight: 500;'}">${item.start_date ? new Date(item.start_date).toLocaleDateString('it-IT') : 'Inizio'}</span>
+                                    </div>
+                                    <div id="form-due-date-trigger" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 44px; background: white; border: 1.2px solid #e2e8f0; border-radius: 10px; padding: 0 12px; font-size: 0.9rem;">
+                                        <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">event_available</span>
+                                        <span style="${!item.due_date ? 'color: var(--text-tertiary);' : 'font-weight: 500;'}">${item.due_date ? new Date(item.due_date).toLocaleDateString('it-IT') : 'Scadenza'}</span>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label class="label-xs" style="color: var(--text-tertiary); margin-bottom: 6px; display: block; font-weight: 700;">RIPETI OGNI</label>
-                                    <div style="display: flex; gap: 6px; align-items: center;">
-                                        <input type="number" name="rec_interval" value="1" min="1" class="input-modern" style="width: 60px; height: 40px; text-align: center;">
-                                        <select name="rec_unit" class="input-modern" style="flex: 1; height: 40px; font-size: 0.8rem;">
-                                            <option value="day">giorno solare</option>
-                                            <option value="workday">giorno lavorativo</option>
-                                            <option value="week">settimana</option>
-                                            <option value="month">mese</option>
-                                            <option value="year">anno</option>
+                                <input type="hidden" name="start_date" value="${item.start_date || ''}">
+                                <input type="hidden" name="due_date" value="${item.due_date || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Stato e Priorità</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <div style="flex: 1.2; position: relative;">
+                                        <div id="form-status-trigger" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 1.2px solid #e2e8f0; background: white; font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div style="width: 8px; height: 8px; border-radius: 50%; background: ${ITEM_STATUS[item.status || 'todo']?.color || '#94a3b8'};"></div>
+                                                <span>${ITEM_STATUS[item.status || 'todo']?.label || 'Da Fare'}</span>
+                                            </div>
+                                            <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">expand_more</span>
+                                        </div>
+                                        <div id="form-status-picker" class="hidden glass-card" style="position: absolute; top: calc(100% + 6px); left: 0; width: 100%; z-index: 1000; background: white; border: 1.2px solid #e2e8f0; border-radius: 12px; box-shadow: 0 12px 48px rgba(0,0,0,0.12); padding: 6px;">
+                                            ${Object.keys(ITEM_STATUS).map(k => `
+                                                <div class="status-option-item" data-value="${k}" style="padding: 8px 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; transition: background 0.2s;">
+                                                    <div style="width: 8px; height: 8px; border-radius: 50%; background: ${ITEM_STATUS[k].color};"></div>
+                                                    <span>${ITEM_STATUS[k].label}</span>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                        <input type="hidden" name="status" value="${item.status || 'todo'}">
+                                    </div>
+                                    <div style="flex: 1; position: relative;">
+                                        <div id="form-priority-trigger" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 1.2px solid #e2e8f0; background: white; font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <span class="material-icons-round" style="font-size: 18px; color: ${ITEM_PRIORITY[item.priority || 'medium']?.color || '#94a3b8'};">flag</span>
+                                                <span>${ITEM_PRIORITY[item.priority || 'medium']?.label || 'Media'}</span>
+                                            </div>
+                                            <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">expand_more</span>
+                                        </div>
+                                        <div id="form-priority-picker" class="hidden glass-card" style="position: absolute; top: calc(100% + 6px); left: 0; width: 100%; z-index: 1000; background: white; border: 1.2px solid #e2e8f0; border-radius: 12px; box-shadow: 0 12px 48px rgba(0,0,0,0.12); padding: 6px;">
+                                            ${Object.keys(ITEM_PRIORITY).map(k => `
+                                                <div class="priority-option-item" data-value="${k}" style="padding: 8px 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; transition: background 0.2s;">
+                                                    <span class="material-icons-round" style="font-size: 18px; color: ${ITEM_PRIORITY[k].color || '#94a3b8'};">flag</span>
+                                                    <span>${ITEM_PRIORITY[k].label}</span>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                        <input type="hidden" name="priority" value="${item.priority || 'medium'}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="height: 1px; background: #f1f5f9; margin: 0.5rem 0;"></div>
+
+                        <!-- Recurrence -->
+                        ${!isEdit ? `
+                        <div class="recurrence-section">
+                            <button type="button" id="toggle-recurrence-btn" style="
+                                width: 100%; padding: 0.75rem 1rem; background: #f8fafc; border: 1.2px solid #e2e8f0; 
+                                border-radius: 10px; display: flex; align-items: center; justify-content: space-between;
+                                cursor: pointer; transition: all 0.2s;
+                            ">
+                                <div style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-weight: 500; font-size: 0.85rem;">
+                                    <span class="material-icons-round" style="font-size: 18px; color: var(--brand-blue);">cached</span>
+                                    Pianifica come Ricorrente
+                                </div>
+                                <span class="material-icons-round toggle-icon" style="color: var(--text-tertiary); transition: transform 0.3s;">expand_more</span>
+                            </button>
+                            
+                            <div id="recurrence-settings-content" class="hidden" style="
+                                padding: 1.5rem; background: #fff; border: 1.2px solid #e2e8f0; border-top: none; 
+                                border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; margin-top: -1px;
+                            ">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.25rem;">
+                                    <div>
+                                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 0.4rem;">Frequenza</label>
+                                        <select name="rec_freq" style="height: 38px; width: 100%; border-radius: 8px; border: 1.2px solid #e2e8f0; padding: 0 8px; font-size: 0.9rem;">
+                                            <option value="">Nessuna</option>
+                                            <option value="DAILY">Ogni giorno</option>
+                                            <option value="WEEKLY">Ogni settimana</option>
+                                            <option value="MONTHLY">Ogni mese</option>
+                                            <option value="YEARLY">Ogni anno</option>
                                         </select>
                                     </div>
+                                    <div>
+                                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 0.4rem;">Ogni quanto</label>
+                                        <div style="display: flex; gap: 8px;">
+                                            <input type="number" name="rec_interval" value="1" min="1" style="width: 50px; height: 38px; text-align: center; border-radius: 8px; border: 1.2px solid #e2e8f0; padding: 0;">
+                                            <select name="rec_unit" style="flex: 1; height: 38px; border-radius: 8px; border: 1.2px solid #e2e8f0; padding: 0 8px; font-size: 0.85rem;">
+                                                <option value="day">giorno</option>
+                                                <option value="workday">giorno lav.</option>
+                                                <option value="week">settimana</option>
+                                                <option value="month">mese</option>
+                                                <option value="year">anno</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.25rem;">
+                                    <div>
+                                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 0.4rem;">Dalla data</label>
+                                        <div id="form-rec-start-trigger" style="cursor: pointer; display: flex; align-items: center; gap: 8px; height: 38px; border-radius: 8px; border: 1.2px solid #e2e8f0; padding: 0 10px; font-size: 0.9rem; background: white;">
+                                            <span class="material-icons-round" style="font-size: 16px; color: var(--text-tertiary);">event</span>
+                                            <span style="font-weight: 500;">${new Date().toLocaleDateString('it-IT')}</span>
+                                        </div>
+                                        <input type="hidden" name="rec_start" value="${new Date().toISOString().split('T')[0]}">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 0.4rem;">Fino a (opz.)</label>
+                                        <div id="form-rec-until-trigger" style="cursor: pointer; display: flex; align-items: center; gap: 8px; height: 38px; border-radius: 8px; border: 1.2px solid #e2e8f0; padding: 0 10px; font-size: 0.9rem; background: white;">
+                                            <span class="material-icons-round" style="font-size: 16px; color: var(--text-tertiary);">event_busy</span>
+                                            <span style="color: var(--text-tertiary); font-style: italic;">Sempre</span>
+                                        </div>
+                                        <input type="hidden" name="rec_until" value="">
+                                    </div>
+                                </div>
 
-                            <!-- Row 2: Inizio e Fine -->
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                                <div>
-                                    <label class="label-xs" style="color: var(--text-tertiary); margin-bottom: 6px; display: block; font-weight: 700;">INIZIO</label>
-                                    <input type="date" name="rec_start" value="${new Date().toISOString().split('T')[0]}" class="input-modern" style="height: 40px;">
-                                </div>
-                                <div>
-                                    <label class="label-xs" style="color: var(--text-tertiary); margin-bottom: 6px; display: block; font-weight: 700;">FINE</label>
-                                    <input type="date" name="rec_until" class="input-modern" style="height: 40px;" placeholder="Mai...">
-                                </div>
-                            </div>
-
-                            <!-- Row 3: Limiti e Anticipo -->
-                            <div style="display: flex; flex-direction: column; gap: 0.75rem; border-top: 1px solid var(--surface-2); padding-top: 1rem;">
-                                <div style="display: flex; align-items: center; justify-content: space-between;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <input type="checkbox" name="rec_limit_active" id="rec-limit-active" style="width: 16px; height: 16px;">
-                                        <label for="rec-limit-active" style="font-size: 0.85rem; color: var(--text-secondary);">Limita a</label>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; border-top: 1px solid #f1f5f9; padding-top: 1.25rem;">
+                                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">
+                                            <input type="checkbox" name="rec_limit_active" style="width: 16px; height: 16px;">
+                                            Termina dopo
+                                        </label>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="number" name="rec_limit_count" value="10" min="1" style="width: 60px; height: 32px; border-radius: 6px; border: 1.2px solid #e2e8f0; text-align: center; font-size: 0.85rem;">
+                                            <span style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase;">volte</span>
+                                        </div>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <input type="number" name="rec_limit_count" value="10" min="1" class="input-modern" style="width: 70px; height: 32px; text-align: center;">
-                                        <span style="font-size: 0.8rem; color: var(--text-tertiary);">eventi</span>
-                                    </div>
-                                </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <input type="checkbox" name="rec_advance_active" id="rec-advance-active" style="width: 16px; height: 16px;">
-                                        <label for="rec-advance-active" style="font-size: 0.85rem; color: var(--text-secondary);">Crea in anticipo</label>
-                                    </div>
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <input type="number" name="rec_advance_count" value="1" min="1" class="input-modern" style="width: 70px; height: 32px; text-align: center;">
-                                        <span style="font-size: 0.8rem; color: var(--text-tertiary);">attività</span>
+                                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">
+                                            <input type="checkbox" name="rec_advance_active" style="width: 16px; height: 16px;">
+                                            Crea in anticipo
+                                        </label>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="number" name="rec_advance_count" value="1" min="1" style="width: 60px; height: 32px; border-radius: 6px; border: 1.2px solid #e2e8f0; text-align: center; font-size: 0.85rem;">
+                                            <span style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase;">task</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         ` : ''}
 
-                        <div class="form-group"><label class="label-sm">Note</label><textarea name="notes" rows="4" class="input-modern">${item.notes || ''}</textarea></div>
+                        <div style="height: 1px; background: #f1f5f9; margin: 0.5rem 0;"></div>
+
+                        <!-- Notes -->
+                        <div class="form-group" style="padding-top: 0.5rem;">
+                            <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Descrizione o Note</label>
+                            <textarea name="notes" rows="4" class="input-modern" style="padding: 12px; font-size: 0.95rem; line-height: 1.6; border-radius: 10px; border: 1.2px solid #e2e8f0; width: 100%; box-sizing: border-box; resize: vertical; min-height: 100px; background: white;" placeholder="Aggiungi dettagli...">${item.notes || ''}</textarea>
+                        </div>
                     </form>
                 </div>
-                <div class="drawer-footer" style="padding: 1rem 1.5rem; border-top: 1px solid var(--surface-2); display: flex; justify-content: flex-end; gap: 0.75rem;">
-                    <button type="button" class="secondary-btn" id="cancel-edit-btn">Annulla</button>
-                    <button type="submit" form="item-form" class="primary-btn">${isEdit ? 'Salva' : 'Crea'}</button>
+                <div class="drawer-footer" style="padding: 1.25rem 2rem; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 0.75rem; background: white; flex-shrink: 0; position: sticky; bottom: 0; z-index: 10;">
+                    <button type="button" class="secondary-btn" id="cancel-edit-btn" style="padding: 0.6rem 1.25rem; font-weight: 500; border-radius: 8px; border: 1.2px solid #e2e8f0; background: white; color: var(--text-secondary); cursor: pointer; transition: all 0.2s;">Annulla</button>
+                    <button type="submit" form="item-form" class="primary-btn" style="padding: 0.6rem 1.5rem; font-weight: 600; border-radius: 8px; background: var(--brand-blue); color: white; border: none; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(78, 146, 216, 0.2);">${isEdit ? 'Salva Modifiche' : 'Crea Attività'}</button>
                 </div>
             `;
             attachEditModeListeners();
@@ -721,11 +876,14 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
         const ctxList = drawer.querySelector('#context-options-list');
 
         if (ctxTrigger && ctxDropdown) {
-            ctxTrigger.addEventListener('click', () => {
-                ctxDropdown.classList.toggle('hidden');
-                if (!ctxDropdown.classList.contains('hidden')) {
+            ctxTrigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isHidden = ctxDropdown.classList.toggle('hidden');
+                if (!isHidden) {
                     ctxSearch.focus();
                     renderContextOptions();
+                    // Close others
+                    drawer.querySelectorAll('.glass-card:not(#context-picker-dropdown), #form-pm-picker, #form-assignee-picker').forEach(el => el.classList.add('hidden'));
                 }
             });
 
@@ -769,7 +927,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                 // Clients
                 if (clients.length > 0 && !currentClientId) {
-                    html += `<div style="padding: 12px 8px 4px; font-size: 0.65rem; color: var(--text-tertiary); font-weight: 700; border-top: 1px solid var(--surface-2); margin-top: 4px;">CLIENTI</div>`;
+                    html += `<div style="padding: 12px 8px 4px; font-size: 0.65rem; color: var(--text-tertiary); font-weight: 700; border-top: 1px solid #e2e8f0; margin-top: 4px;">CLIENTI</div>`;
                     clients.forEach(c => {
                         html += `
                             <div class="ctx-option" data-id="${c.id}" data-type="client" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
@@ -782,7 +940,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                 // Clusters
                 if (clusters.length > 0) {
-                    html += `<div style="padding: 12px 8px 4px; font-size: 0.65rem; color: var(--text-tertiary); font-weight: 700; border-top: 1px solid var(--surface-2); margin-top: 4px;">CLUSTER</div>`;
+                    html += `<div style="padding: 12px 8px 4px; font-size: 0.65rem; color: var(--text-tertiary); font-weight: 700; border-top: 1px solid #e2e8f0; margin-top: 4px;">CLUSTER</div>`;
                     clusters.forEach(s => {
                         html += `
                             <div class="ctx-option" data-id="${s.id}" data-type="space" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
@@ -795,7 +953,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                 // Projects
                 if (projects.length > 0) {
-                    html += `<div style="padding: 12px 8px 4px; font-size: 0.65rem; color: var(--text-tertiary); font-weight: 700; border-top: 1px solid var(--surface-2); margin-top: 4px;">PROGETTI INTERNI</div>`;
+                    html += `<div style="padding: 12px 8px 4px; font-size: 0.65rem; color: var(--text-tertiary); font-weight: 700; border-top: 1px solid #e2e8f0; margin-top: 4px;">PROGETTI INTERNI</div>`;
                     projects.forEach(s => {
                         const parent = state.pm_spaces?.find(p => p.id === s.parent_ref);
                         html += `
@@ -812,7 +970,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                 // Orders
                 if (orderSpaces.length > 0) {
-                    html += `<div style="padding: 12px 8px 4px; font-size: 0.65rem; color: var(--text-tertiary); font-weight: 700; border-top: 1px solid var(--surface-2); margin-top: 4px;">COMMESSE ATTIVE</div>`;
+                    html += `<div style="padding: 12px 8px 4px; font-size: 0.65rem; color: var(--text-tertiary); font-weight: 700; border-top: 1px solid #e2e8f0; margin-top: 4px;">COMMESSE ATTIVE</div>`;
                     orderSpaces.forEach(os => {
                         html += `
                             <div class="ctx-option" data-id="${os.id}" data-type="space" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
@@ -830,7 +988,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 ctxList.innerHTML = html;
 
                 ctxList.querySelectorAll('.ctx-option').forEach(opt => {
-                    opt.onmouseover = () => opt.style.background = 'var(--surface-1)';
+                    opt.onmouseover = () => opt.style.background = '#f8fafc';
                     opt.onmouseout = () => opt.style.background = 'transparent';
                     opt.onclick = () => {
                         const type = opt.dataset.type;
@@ -874,7 +1032,16 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
         const formAddBtn = drawer.querySelector('#form-add-assignee-btn');
         const formPicker = drawer.querySelector('#form-assignee-picker');
         if (formAddBtn) {
-            formAddBtn.onclick = (e) => { e.stopPropagation(); formPicker.classList.toggle('hidden'); };
+            formAddBtn.onclick = (e) => {
+                e.stopPropagation();
+                const isHidden = formPicker.classList.toggle('hidden');
+                if (!isHidden) {
+                    drawer.querySelector('#form-pm-picker')?.classList.add('hidden');
+                    drawer.querySelector('#form-status-picker')?.classList.add('hidden');
+                    drawer.querySelector('#form-priority-picker')?.classList.add('hidden');
+                    drawer.querySelector('#context-picker-dropdown')?.classList.add('hidden');
+                }
+            };
             formPicker.querySelectorAll('.user-option').forEach(opt => {
                 opt.onclick = () => {
                     captureFormState();
@@ -889,6 +1056,120 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 };
             });
         }
+
+        const formAddPmBtn = drawer.querySelector('#form-add-pm-btn');
+        const formPmPicker = drawer.querySelector('#form-pm-picker');
+        if (formAddPmBtn) {
+            formAddPmBtn.onclick = (e) => {
+                e.stopPropagation();
+                const isHidden = formPmPicker.classList.toggle('hidden');
+                if (!isHidden) {
+                    drawer.querySelector('#form-assignee-picker')?.classList.add('hidden');
+                    drawer.querySelector('#form-status-picker')?.classList.add('hidden');
+                    drawer.querySelector('#form-priority-picker')?.classList.add('hidden');
+                    drawer.querySelector('#context-picker-dropdown')?.classList.add('hidden');
+                }
+            };
+            formPmPicker.querySelectorAll('.user-option').forEach(opt => {
+                opt.onclick = () => {
+                    captureFormState();
+                    pendingAssignees.push({
+                        user_ref: opt.dataset.uid,
+                        collaborator_ref: opt.dataset.collabId,
+                        role: 'pm',
+                        displayName: opt.dataset.name,
+                        user: { avatar_url: opt.querySelector('img')?.src }
+                    });
+                    render();
+                };
+            });
+        }
+
+        // Custom Pickers: Status & Priority
+        const setupCustomPicker = (triggerId, pickerId, optionClass, dataMap) => {
+            const trigger = drawer.querySelector(`#${triggerId}`);
+            const picker = drawer.querySelector(`#${pickerId}`);
+            if (trigger && picker) {
+                trigger.onclick = (e) => {
+                    e.stopPropagation();
+                    const isHidden = picker.classList.toggle('hidden');
+                    if (!isHidden) {
+                        // Close others
+                        drawer.querySelectorAll('.glass-card, #form-pm-picker, #form-assignee-picker, #context-picker-dropdown').forEach(el => {
+                            if (el !== picker) el.classList.add('hidden');
+                        });
+                    }
+                };
+                picker.querySelectorAll(`.${optionClass}`).forEach(opt => {
+                    opt.onclick = (e) => {
+                        e.stopPropagation();
+                        const val = opt.dataset.value;
+                        const hidden = trigger.parentElement.querySelector('input[type="hidden"]');
+                        if (hidden) hidden.value = val;
+
+                        // Sync with item object for re-renders
+                        if (optionClass === 'status-option-item') item.status = val;
+                        else item.priority = val;
+
+                        const obj = dataMap[val];
+                        if (optionClass === 'status-option-item') {
+                            trigger.querySelector('div').innerHTML = `
+                                <div style="width: 8px; height: 8px; border-radius: 50%; background: ${obj.color};"></div>
+                                <span>${obj.label}</span>
+                            `;
+                        } else {
+                            trigger.querySelector('div').innerHTML = `
+                                <span class="material-icons-round" style="font-size: 18px; color: ${obj.color};">flag</span>
+                                <span>${obj.label}</span>
+                            `;
+                        }
+
+                        picker.classList.add('hidden');
+                    };
+                    opt.onmouseover = () => opt.style.background = '#f8fafc';
+                    opt.onmouseout = () => opt.style.background = 'transparent';
+                });
+            }
+        };
+
+        setupCustomPicker('form-status-trigger', 'form-status-picker', 'status-option-item', ITEM_STATUS);
+        setupCustomPicker('form-priority-trigger', 'form-priority-picker', 'priority-option-item', ITEM_PRIORITY);
+
+        // Outside Click Listener (Global for the drawer)
+        const closeAllPickers = (e) => {
+            const dropdowns = drawer.querySelectorAll('.glass-card, #form-pm-picker, #form-assignee-picker, #context-picker-dropdown');
+            dropdowns.forEach(el => {
+                if (!el.classList.contains('hidden') && !el.contains(e.target)) {
+                    el.classList.add('hidden');
+                }
+            });
+        };
+        drawer.removeEventListener('click', closeAllPickers);
+        drawer.addEventListener('click', closeAllPickers);
+
+        const setupFormDate = (triggerId, hiddenName) => {
+            const trigger = drawer.querySelector(`#${triggerId}`);
+            const hidden = drawer.querySelector(`input[name="${hiddenName}"]`);
+            if (trigger && hidden) {
+                trigger.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleHubDatePicker(trigger, (d) => {
+                        hidden.value = d;
+                        item[hiddenName] = d;
+                        trigger.querySelector('span').textContent = new Date(d).toLocaleDateString('it-IT');
+                        trigger.querySelector('span').style.color = 'var(--text-primary)';
+                        trigger.querySelector('span').style.fontStyle = 'normal';
+                        trigger.querySelector('span').style.fontWeight = '500';
+                    }, hidden.value);
+                };
+            }
+        };
+
+        setupFormDate('form-start-date-trigger', 'start_date');
+        setupFormDate('form-due-date-trigger', 'due_date');
+        setupFormDate('form-rec-start-trigger', 'rec_start');
+        setupFormDate('form-rec-until-trigger', 'rec_until');
+
         drawer.querySelectorAll('.remove-pending-btn').forEach(btn => {
             btn.onclick = () => {
                 captureFormState();
@@ -896,6 +1177,21 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 render();
             };
         });
+
+        // Recurrence Toggle Logic
+        const toggleBtn = drawer.querySelector('#toggle-recurrence-btn');
+        const recurrenceContent = drawer.querySelector('#recurrence-settings-content');
+        if (toggleBtn && recurrenceContent) {
+            toggleBtn.onclick = () => {
+                const isHidden = recurrenceContent.classList.toggle('hidden');
+                const icon = toggleBtn.querySelector('.toggle-icon');
+                if (icon) {
+                    icon.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
+                }
+                toggleBtn.style.borderBottomLeftRadius = isHidden ? '10px' : '0';
+                toggleBtn.style.borderBottomRightRadius = isHidden ? '10px' : '0';
+            };
+        }
 
         drawer.querySelector('#item-form').onsubmit = async (e) => {
             e.preventDefault();
@@ -1004,7 +1300,7 @@ function toggleHubDatePicker(btn, onSelect, initialDate) {
         top: ${rect.bottom + 12}px; 
         left: ${rect.left}px; 
         background: white; 
-        border: 1px solid var(--surface-2); 
+        border: 1px solid #e2e8f0; 
         border-radius: 16px; 
         padding: 20px; 
         box-shadow: 0 15px 50px rgba(0,0,0,0.18); 
@@ -1021,7 +1317,7 @@ function toggleHubDatePicker(btn, onSelect, initialDate) {
             font-size: 0.85rem; font-weight: 500; border-radius: 50%; cursor: pointer; transition: all 0.2s;
             color: var(--text-primary);
         }
-        .hub-cal-day:hover { background: var(--surface-1); color: var(--brand-blue); }
+        .hub-cal-day:hover { background: #f8fafc; color: var(--brand-blue); }
         .hub-cal-day.today { color: var(--brand-blue); font-weight: 800; border: 1px solid var(--brand-blue-light); }
         .hub-cal-day.selected { background: var(--brand-blue) !important; color: white !important; font-weight: 700; }
         .hub-cal-day.other-month { opacity: 0.3; pointer-events: none; }

@@ -1,10 +1,10 @@
 import { state } from '../../../modules/state.js';
 
-export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set()) {
+export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(), extraSuggestedIds = new Set()) {
     const space = state.pm_spaces?.find(s => s.id === spaceId) || {};
     const orderId = space.ref_ordine;
 
-    const suggestedSet = new Set();
+    const suggestedSet = new Set(extraSuggestedIds);
 
     if (orderId && state.assignments) {
         state.assignments
@@ -68,7 +68,7 @@ export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(
             hasAccount: !!uid
         };
 
-        if (suggestedSet.has(c.id)) suggestions.push(u);
+        if (suggestedSet.has(c.id) || (uid && suggestedSet.has(uid))) suggestions.push(u);
         else others.push(u);
     });
 
@@ -129,7 +129,6 @@ export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(
 
     return `
         <div>
-           ${targetRole === 'pm' ? '<div style="padding:1rem; text-align:center; font-size:0.8rem; color:var(--brand-blue); border-bottom:1px solid var(--surface-2);">Seleziona Project Manager</div>' : ''}
            ${suggestions.length ? `<div style="${headerStyle}">SUGGERITI</div>${suggestions.map(renderOption).join('')}` : ''}
            <div style="${headerStyle}">TUTTI</div>
            ${others.map(renderOption).join('')}

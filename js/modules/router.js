@@ -1,4 +1,15 @@
 import { state } from '/js/modules/state.js';
+window.addEventListener('unhandledrejection', event => {
+    console.error('Unhandled Promise Rejection:', event.reason);
+    const contentArea = document.getElementById('content-area');
+    if (contentArea) {
+        contentArea.innerHTML = `<div style="padding: 2rem; color: red; border: 2px solid red; border-radius: 8px; background: #fff0f0;">
+            <h3 style="margin-top:0;">ERRORE FATALE (Asincrono)</h3>
+            <p>${event.reason?.message || event.reason || 'Errore sconosciuto'}</p>
+            <pre style="font-size: 0.7rem; overflow: auto; max-height: 200px;">${event.reason?.stack || ''}</pre>
+        </div>`;
+    }
+});
 import { renderDashboard } from '../features/dashboard.js?v=317';
 import { renderClients, renderClientDetail } from '../features/clients.js?v=317';
 import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=317';
@@ -272,12 +283,17 @@ function render() {
                 if (state.currentSubPage === 'commessa' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Commessa';
                     import('../features/pm/commessa_detail.js?v=318')
-                        .then(module => {
-                            module.renderCommessaDetail(contentArea, state.currentId, false);
+                        .then(async module => {
+                            try {
+                                await module.renderCommessaDetail(contentArea, state.currentId, false);
+                            } catch (renderErr) {
+                                console.error("Error rendering commessa detail:", renderErr);
+                                contentArea.innerHTML = `<div class="error-state" style="padding: 2rem; color: red;">Errore caricamento dettagli: ${renderErr.message}</div>`;
+                            }
                         })
                         .catch(err => {
-                            console.error("Failed to load commessa detail:", err);
-                            contentArea.innerHTML = `<div class="error-state">Errore caricamento: ${err.message}</div>`;
+                            console.error("Failed to load commessa detail module:", err);
+                            contentArea.innerHTML = `<div class="error-state" style="padding: 2rem; color: red;">Errore modulo: ${err.message}</div>`;
                         });
 
                     // Route: Internal Project Detail (#pm/space/:spaceId)

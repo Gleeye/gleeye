@@ -1930,12 +1930,12 @@ export function initOrderAssignmentModal() {
                                     <select id="asg-payment-mode" class="modal-input" style="width: 100%;" onchange="window.asgUpdatePaymentFields()">
                                         <option value="saldo">Saldo alla chiusura del progetto</option>
                                         <option value="anticipo_saldo" selected>Anticipo + Saldo</option>
-                                        <option value="rate">Rate Mensili (Mensile)</option>
+                                        <option value="rate">Rate</option>
                                         <option value="anticipo_rate">Anticipo + Rate</option>
                                     </select>
                                  </div>
 
-                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
                                      <div id="asg-field-deposit" style="display: block;">
                                          <label class="text-caption" style="margin-bottom: 0.5rem; display:block;">ANTICIPO (%)</label>
                                          <div class="input-group">
@@ -1946,6 +1946,18 @@ export function initOrderAssignmentModal() {
                                      <div id="asg-field-installments" style="display: none;">
                                          <label class="text-caption" style="margin-bottom: 0.5rem; display:block;">N. RATE</label>
                                          <input type="number" id="asg-installments-count" class="modal-input" value="3" min="1">
+                                     </div>
+                                     
+                                     <div id="asg-field-installments-type" style="display: none;">
+                                         <label class="text-caption" style="margin-bottom: 0.5rem; display:block;">FREQUENZA</label>
+                                         <select id="asg-installments-type" class="modal-input" style="width: 100%;">
+                                             <option value="Mensile" selected>Mensile</option>
+                                             <option value="Bimestrale">Bimestrale</option>
+                                             <option value="Trimestrale">Trimestrale</option>
+                                             <option value="Quadrimestrale">Quadrimestrale</option>
+                                             <option value="Semestrale">Semestrale</option>
+                                             <option value="Annuale">Annuale</option>
+                                         </select>
                                      </div>
                                  </div>
 
@@ -1982,19 +1994,24 @@ export function initOrderAssignmentModal() {
         const mode = document.getElementById('asg-payment-mode').value;
         const depositField = document.getElementById('asg-field-deposit');
         const instField = document.getElementById('asg-field-installments');
+        const typeField = document.getElementById('asg-field-installments-type');
 
         if (mode === 'saldo') {
             depositField.style.display = 'none';
             instField.style.display = 'none';
+            if (typeField) typeField.style.display = 'none';
         } else if (mode === 'anticipo_saldo') {
             depositField.style.display = 'block';
             instField.style.display = 'none';
+            if (typeField) typeField.style.display = 'none';
         } else if (mode === 'rate') {
             depositField.style.display = 'none';
             instField.style.display = 'block';
+            if (typeField) typeField.style.display = 'block';
         } else if (mode === 'anticipo_rate') {
             depositField.style.display = 'block';
             instField.style.display = 'block';
+            if (typeField) typeField.style.display = 'block';
         }
     };
 
@@ -2419,6 +2436,7 @@ window.saveAssignmentMultiStep = async () => {
     const paymentMode = document.getElementById('asg-payment-mode').value || 'saldo';
     const depositPct = parseFloat(document.getElementById('asg-deposit-pct').value) || 0;
     const installmentsCount = parseInt(document.getElementById('asg-installments-count').value) || 1;
+    const installmentsType = document.getElementById('asg-installments-type') ? document.getElementById('asg-installments-type').value : 'Mensile';
     const startDateStr = document.getElementById('asg-start-date').value;
 
     try {
@@ -2442,7 +2460,7 @@ window.saveAssignmentMultiStep = async () => {
             payment_mode: paymentMode,
             deposit_percentage: depositPct,
             installments_count: installmentsCount,
-            installment_type: 'Mensile' // Default for now
+            installment_type: installmentsType
         });
         console.log("Assignment Upserted:", newAssignment);
 

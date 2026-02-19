@@ -1444,7 +1444,7 @@ export async function fetchOrderContacts(orderId) {
     // Soft fetch - returns empty if table missing
     const { data, error } = await supabase
         .from('order_contacts')
-        .select('*, contacts (id, full_name, email, phone, avatar_url)')
+        .select('*, contacts (id, full_name, email, phone)')
         .eq('order_id', orderId);
 
     if (error) {

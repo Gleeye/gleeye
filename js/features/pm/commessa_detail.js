@@ -229,7 +229,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                             color: var(--text-primary); font-size: 0.9rem;
                                         ">
                                             <span class="material-icons-round" style="color: #f59e0b;">folder</span>
-                                            <div><div style="font-weight: 500;">Attività</div><div style="font-size: 0.75rem; text-secondary;">Raggruppa task</div></div>
+                                            <div><div style="font-weight: 500;">Attività</div><div style="font-size: 0.75rem; color: var(--text-secondary);">Raggruppa task</div></div>
                                         </button>
                                         <button class="dropdown-item" id="add-task-btn" style="
                                             display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; 
@@ -237,7 +237,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                             color: var(--text-primary); font-size: 0.9rem;
                                         ">
                                             <span class="material-icons-round" style="color: #3b82f6;">check_circle_outline</span>
-                                            <div><div style="font-weight: 500;">Task</div><div style="font-size: 0.75rem; text-secondary;">Singolo lavoro</div></div>
+                                            <div><div style="font-weight: 500;">Task</div><div style="font-size: 0.75rem; color: var(--text-secondary);">Singolo lavoro</div></div>
                                         </button>
                                         ${!isInternal ? `
                                         <button class="dropdown-item" id="add-appointment-btn" style="
@@ -246,7 +246,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                             color: var(--text-primary); font-size: 0.9rem;
                                         ">
                                             <span class="material-icons-round" style="color: #8b5cf6;">event</span>
-                                            <div><div style="font-weight: 500;">Appuntamento</div><div style="font-size: 0.75rem; text-secondary;">Singolo incontro</div></div>
+                                            <div><div style="font-weight: 500;">Appuntamento</div><div style="font-size: 0.75rem; color: var(--text-secondary);">Singolo incontro</div></div>
                                         </button>
                                         ` : ''}
                                     </div>
@@ -859,7 +859,7 @@ function renderIncarichiTab(container, order) {
                                     ${renderAvatar(collab || { full_name: 'Collaboratore' }, { size: 44, borderRadius: '50%', fontSize: '1rem' })}
                                 <div style="flex: 1;">
                                     <div style="font-weight: 600;">${collab?.full_name || 'Collaboratore'}</div>
-                                    <div class="text-xs text-secondary">${a.description || 'Incarico'}</div>
+                                    <div class="text-xs" style="color: var(--text-secondary);">${a.description || 'Incarico'}</div>
                                 </div>
                             </div>
                             <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 1rem; border-top: 1px solid var(--surface-2);">
