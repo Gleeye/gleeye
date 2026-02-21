@@ -1,8 +1,8 @@
 import { state } from '/js/modules/state.js';
-import { formatAmount } from '../modules/utils.js?v=317';
-import { openDepartmentManager } from './settings.js?v=317';
+import { formatAmount } from '../modules/utils.js?v=1000';
+import { openDepartmentManager } from './settings.js?v=1000';
 import { upsertCollaborator, fetchPayments, fetchAssignments, fetchPassiveInvoices, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js';
-import { loadAvailabilityIntoContainer } from './availability_manager.js?v=317';
+import { loadAvailabilityIntoContainer } from './availability_manager.js?v=1000';
 import { supabase } from '../modules/config.js';
 
 // Global signed URL opener for secure documents (if not already defined elsewhere)
@@ -482,7 +482,7 @@ export function initCollaboratorModals() {
 
             if (await window.showConfirm(`Sei sicuro di voler eliminare ${c.full_name}? Questa azione è irreversibile.`)) {
                 try {
-                    const { deleteCollaborator } = await import('../modules/api.js?v=317');
+                    const { deleteCollaborator } = await import('../modules/api.js?v=1000');
                     await deleteCollaborator(collabId);
                     close();
                     window.showAlert('Collaboratore eliminato con successo', 'success');
@@ -627,7 +627,7 @@ window.impersonateCollaborator = async (collaboratorId) => {
         state.impersonatedCollaboratorId = c.id;
 
         // Update Sidebar
-        import('./layout.js?v=317').then(({ updateSidebarVisibility, renderSidebarProfile }) => {
+        import('./layout.js?v=1000').then(({ updateSidebarVisibility, renderSidebarProfile }) => {
             updateSidebarVisibility();
             renderSidebarProfile(); // Update avatar
 
@@ -646,7 +646,7 @@ window.sendMagicLink = async (email) => {
 
     if (await window.showConfirm(`Vuoi inviare un Magic Link di accesso a ${email}?`)) {
         try {
-            const { supabase } = await import('../modules/config.js?v=317');
+            const { supabase } = await import('../modules/config.js?v=1000');
             const { error } = await supabase.auth.signInWithOtp({
                 email,
                 options: {

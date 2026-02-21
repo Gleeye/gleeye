@@ -2,7 +2,7 @@ import { supabase } from '../modules/config.js';
 import { state } from '/js/modules/state.js';
 import { fetchAvailabilityRules, fetchRestDays, fetchAvailabilityOverrides } from '../modules/api.js';
 import { fetchCollaboratorAppointments, fetchAppointment } from '../modules/pm_api.js';
-import { openAvailabilityModal, checkAndHandleGoogleCallback } from './availability_manager.js?v=317';
+import { openAvailabilityModal, checkAndHandleGoogleCallback } from './availability_manager.js?v=1000';
 
 let currentDate = new Date(); // Represents the start of the week or current view date
 let eventsCache = [];
@@ -1403,7 +1403,7 @@ function formatDate(date, full = false) {
 // Now imported from shared features/agenda_utils.js to ensure consistency with homepage
 // window.openEventDetails and window.closeEventModal are handled by the import side-effect or direct assignment below.
 
-import { openEventDetails, closeEventModal } from './agenda_utils.js?v=317';
+import { openEventDetails, closeEventModal } from './agenda_utils.js?v=1000';
 
 window.openEventDetails = openEventDetails; // Ensure global availability
 window.closeEventModal = closeEventModal;

@@ -1,6 +1,6 @@
 import { supabase } from '../modules/config.js';
 import { state } from '../modules/state.js';
-import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=327';
+import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=1000';
 import { generateRecurrences } from './utils.js';
 
 export async function fetchAllCollaborators() {
@@ -1033,7 +1033,7 @@ export async function saveAppointment(apptData) {
     // 1. Prepare Core Data
     const {
         id, order_id, pm_space_id, title, start_time, end_time,
-        location, mode, note, status,
+        location, mode, note, status, is_account_level,
         types = [], internal_participants = [], client_participants = [],
         recurrence_rule, recurrence_id
     } = apptData;
@@ -1087,6 +1087,7 @@ export async function saveAppointment(apptData) {
     // 2. Upsert Appointment
     const payload = {
         order_id, pm_space_id, title, start_time, end_time, location, mode, note, status,
+        is_account_level: !!is_account_level,
         recurrence_id, recurrence_rule
     };
     if (id) payload.id = id;

@@ -1,5 +1,5 @@
 import { state } from '../modules/state.js';
-import { formatAmount } from '../modules/utils.js?v=317';
+import { formatAmount } from '../modules/utils.js?v=1000';
 import { supabase } from '../modules/config.js';
 // Actually, usually upsert functions are imported from api.js. I'll add upsertService to api.js later.
 import { upsertService } from '../modules/api.js';

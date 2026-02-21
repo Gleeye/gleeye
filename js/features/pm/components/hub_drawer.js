@@ -1,5 +1,5 @@
 // Hub Drawer - Full item editor panel
-import '../../../utils/modal-utils.js?v=317';
+import '../../../utils/modal-utils.js?v=1000';
 import {
     createPMItem,
     updatePMItem,
@@ -11,11 +11,11 @@ import {
     assignUserToItem,
     removeUserFromItem,
     updateItemCloudLinks
-} from '../../../modules/pm_api.js?v=385';
+} from '../../../modules/pm_api.js?v=1000';
 import { supabase } from '../../../modules/config.js';
-import { CloudLinksManager } from '../../components/CloudLinksManager.js?v=376';
+import { CloudLinksManager } from '../../components/CloudLinksManager.js?v=1000';
 import { state } from '../../../modules/state.js';
-import { renderUserPicker } from './picker_utils.js?v=317';
+import { renderUserPicker } from './picker_utils.js?v=1000';
 
 const ITEM_STATUS = {
     'todo': { label: 'Da Fare', color: '#94a3b8', bg: '#f1f5f9' },
@@ -86,7 +86,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
     let assignees = [];
     let viewMode = isEdit;
     let pendingAssignees = [];
-    const { defaultRole = 'assignee', defaultNote = '' } = options;
+    const { defaultRole = 'assignee', defaultNote = '', is_account_level = false } = options;
 
     const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error("Timeout caricamento (10s)")), 10000);
@@ -95,7 +95,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
     try {
         await Promise.race([
             (async () => {
-                const { fetchSpaceAssignees } = await import('../../../modules/pm_api.js?v=385');
+                const { fetchSpaceAssignees } = await import('../../../modules/pm_api.js?v=1000');
 
                 if (isEdit) {
                     console.log("[HubDrawer] Loading data for item:", itemId);
@@ -128,7 +128,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         displayName: a.user?.full_name || `${a.user?.first_name || ''} ${a.user?.last_name || ''}`.trim()
                     }));
                 } else {
-                    item = { item_type: itemType, status: 'todo', priority: 'medium', notes: defaultNote, title: '' };
+                    item = { item_type: itemType, status: 'todo', priority: 'medium', notes: defaultNote, title: '', is_account_level };
 
                     // Ensure spaces are loaded even for new items
                     if (!state.pm_spaces || state.pm_spaces.length < 5) {
@@ -427,6 +427,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         <input type="hidden" id="task-space-ref" name="space_ref" value="${currentSpaceId || ''}">
                         <input type="hidden" name="item_type" value="${item.item_type || itemType}">
                         <input type="hidden" name="parent_ref" value="${currentParentRef || ''}">
+                        <input type="hidden" name="is_account_level" value="${item.is_account_level ? 'true' : 'false'}">
                         
                         <!-- Context Selection -->
                         ${!currentSpaceId ? `
@@ -1196,6 +1197,9 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
         drawer.querySelector('#item-form').onsubmit = async (e) => {
             e.preventDefault();
             const rawData = Object.fromEntries(new FormData(e.target).entries());
+            if (rawData.is_account_level) {
+                rawData.is_account_level = rawData.is_account_level === 'true';
+            }
 
             // Build recurrence rule if any
             if (rawData.rec_freq) {

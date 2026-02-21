@@ -1,6 +1,6 @@
 import { state } from '/js/modules/state.js';
-import { formatAmount, renderModal, closeModal } from '../modules/utils.js?v=317';
-import { initNewOrderModal } from './orders.js?v=317';
+import { formatAmount, renderModal, closeModal } from '../modules/utils.js?v=1000';
+import { initNewOrderModal } from './orders.js?v=1000';
 
 export const DashboardData = {
     getStats: (year, passiveFilter = 'all') => {

@@ -1,11 +1,11 @@
-import { fetchSpace, fetchProjectItems, fetchChildProjects, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, deleteSpace, updateSpaceCloudLinks } from '../../modules/pm_api.js?v=385';
-import { openProjectModal } from './components/project_modal.js?v=377';
-import { renderHubTree } from './components/hub_tree.js?v=377';
-import { renderHubAppointments } from './components/hub_appointments.js?v=377';
-import { CloudLinksManager } from '../components/CloudLinksManager.js?v=377';
+import { fetchSpace, fetchProjectItems, fetchChildProjects, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, deleteSpace, updateSpaceCloudLinks } from '../../modules/pm_api.js?v=1000';
+import { openProjectModal } from './components/project_modal.js?v=1000';
+import { renderHubTree } from './components/hub_tree.js?v=1000';
+import { renderHubAppointments } from './components/hub_appointments.js?v=1000';
+import { CloudLinksManager } from '../components/CloudLinksManager.js?v=1000';
 import { state } from '../../modules/state.js';
 import { supabase } from '../../modules/config.js';
-import { renderAvatar } from '../../modules/utils.js?v=317';
+import { renderAvatar } from '../../modules/utils.js?v=1000';
 
 console.log("[SpaceView] Module v376 loaded");
 
@@ -49,12 +49,24 @@ export async function renderSpaceView(container, spaceId) {
             return;
         }
 
-        const [items, spaceAssignees, appointments, appointmentTypes] = await Promise.all([
+        let [items, spaceAssignees, appointments, appointmentTypes] = await Promise.all([
             fetchProjectItems(spaceId),
             fetchSpaceAssignees(spaceId),
             fetchAppointments(spaceId, 'space'),
             fetchAppointmentTypes()
         ]);
+
+        // Filter out Account-level items
+        items = items.filter(i => {
+            const isAccount = i.is_account_level || i.pm_item_assignees?.some(a => a.role === 'account') || i.notes?.toLowerCase().includes('[account]');
+            return !isAccount;
+        });
+
+        // Filter out Account-level appointments
+        appointments = appointments.filter(appt => {
+            const isAccount = appt.is_account_level || appt.appointment_internal_participants?.some(p => p.role === 'account') || appt.note?.toLowerCase().includes('[account]');
+            return !isAccount;
+        });
 
         let childProjects = [];
         if (space.is_cluster) {
@@ -489,12 +501,12 @@ export async function renderSpaceView(container, spaceId) {
 
         addDropdown?.querySelector('#add-activity-btn')?.addEventListener('click', () => {
             addDropdown.classList.add('hidden');
-            import('./components/hub_drawer.js?v=385').then(mod => mod.openHubDrawer(null, spaceId, null, 'attivita'));
+            import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => mod.openHubDrawer(null, spaceId, null, 'attivita'));
         });
 
         addDropdown?.querySelector('#add-task-btn')?.addEventListener('click', () => {
             addDropdown.classList.add('hidden');
-            import('./components/hub_drawer.js?v=385').then(mod => mod.openHubDrawer(null, spaceId, null, 'task'));
+            import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => mod.openHubDrawer(null, spaceId, null, 'task'));
         });
 
         // PM Picker logic

@@ -1,8 +1,8 @@
 import { state } from '/js/modules/state.js';
-import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=317';
+import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=1000';
 import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment, deleteAssignment } from '../modules/api.js';
-import { openPaymentModal } from './payments.js?v=317';
-import { CustomSelect } from '../components/CustomSelect.js?v=317';
+import { openPaymentModal } from './payments.js?v=1000';
+import { CustomSelect } from '../components/CustomSelect.js?v=1000';
 
 // Helper functions
 function getStatusColor(status) {
@@ -58,7 +58,7 @@ export async function renderAssignmentDetail(container) {
         // Fetch collaborator services if not loaded
         if (!state.collaboratorServices || state.collaboratorServices.length === 0) {
             console.log('DEBUG: collaboratorServices missing or empty, fetching...');
-            const { fetchCollaboratorServices } = await import('../modules/api.js?v=317');
+            const { fetchCollaboratorServices } = await import('../modules/api.js?v=1000');
             await fetchCollaboratorServices();
         }
 
@@ -237,12 +237,13 @@ export async function renderAssignmentDetail(container) {
                     <!-- Column 3: Economics & Payments -->
                     <div style="display: flex; flex-direction: column; gap: 1rem;">
                         <!-- Budget Card -->
-                        <div class="glass-card" style="padding: 1.5rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), transparent); border: 2px solid rgba(139, 92, 246, 0.15);">
-                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div class="glass-card" style="padding: 1.5rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), transparent); border: 2px solid rgba(139, 92, 246, 0.15); cursor: pointer; transition: all 0.2s;" onclick="window.editAssignmentEconomics('${assignment.id}')" onmouseover="this.style.transform='translateY(-2px)';" onmouseout="this.style.transform='translateY(0)';">
+                            <div style="display: flex; align-items: flex-start; justify-content: space-between;">
                                 <div style="flex: 1;">
                                     <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Budget Incarico</div>
                                     <div style="font-size: 2rem; font-weight: 800; line-height: 1; color: #8b5cf6; font-family: var(--font-titles);">${formatAmount(budget)}€</div>
                                 </div>
+                                <span class="material-icons-round" style="color: #8b5cf6; font-size: 1.2rem; opacity: 0.6;">edit</span>
                             </div>
                         </div>
 
@@ -1166,6 +1167,181 @@ window.migrateLegacyAssignments = async (auto = false) => {
 
 // --- NEW INTERACTIVE FUNCTIONS ---
 
+window.editAssignment = async (id) => {
+    const assignment = state.assignments.find(a => a.id === id);
+    if (!assignment) return showGlobalAlert('Incarico non trovato', 'error');
+
+    const modalId = `edit-assignment-${Date.now()}`;
+    const modalHTML = `
+        <div id="${modalId}" class="modal active" style="z-index: 10000; align-items: center; justify-content: center;">
+            <div class="modal-content" style="max-width: 600px; padding: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h3 style="margin: 0;">Modifica Incarico</h3>
+                    <button class="icon-btn" onclick="document.getElementById('${modalId}').remove()"><span class="material-icons-round">close</span></button>
+                </div>
+                
+                <div class="form-container" style="display: flex; flex-direction: column; gap: 1rem; max-height: 70vh; overflow-y: auto; padding-right: 0.5rem;">
+                    <div class="form-group">
+                        <label>Descrizione / Dettaglio Attività</label>
+                        <textarea id="edit-asg-desc-${modalId}" class="modal-input" rows="3" placeholder="Descrizione">${assignment.description || ''}</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Note PM</label>
+                        <textarea id="edit-asg-notes-${modalId}" class="modal-input" rows="2" placeholder="Note operative">${assignment.pm_notes || ''}</textarea>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Data Inizio</label>
+                            <input type="date" id="edit-asg-start-${modalId}" class="modal-input" value="${assignment.start_date ? assignment.start_date.substring(0, 10) : ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>Termini Pagamento</label>
+                            <input type="text" id="edit-asg-terms-${modalId}" class="modal-input" placeholder="Es. Bonifico a 30gg" value="${assignment.payment_terms || ''}">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Dettagli Pagamento</label>
+                        <textarea id="edit-asg-paydetails-${modalId}" class="modal-input" rows="2" placeholder="Dettagli aggiuntivi per il pagamento">${assignment.payment_details || ''}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Cartella Google Drive (URL)</label>
+                        <input type="url" id="edit-asg-drive-${modalId}" class="modal-input" placeholder="https://drive.google.com/..." value="${assignment.drive_link || ''}">
+                    </div>
+                </div>
+
+                <div class="flex-end" style="gap: 1rem; margin-top: 1.5rem;">
+                    <button class="btn-link" onclick="document.getElementById('${modalId}').remove()">Annulla</button>
+                    <button class="primary-btn" id="save-edit-asg-${modalId}">Salva Modifiche</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    document.getElementById(`save-edit-asg-${modalId}`).addEventListener('click', async () => {
+        const btn = document.getElementById(`save-edit-asg-${modalId}`);
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="loader" style="width: 16px; height: 16px; border-width: 2px;"></span>';
+        btn.disabled = true;
+
+        const updates = {
+            id,
+            description: document.getElementById(`edit-asg-desc-${modalId}`).value,
+            pm_notes: document.getElementById(`edit-asg-notes-${modalId}`).value,
+            start_date: document.getElementById(`edit-asg-start-${modalId}`).value || null,
+            payment_terms: document.getElementById(`edit-asg-terms-${modalId}`).value,
+            payment_details: document.getElementById(`edit-asg-paydetails-${modalId}`).value,
+            drive_link: document.getElementById(`edit-asg-drive-${modalId}`).value
+        };
+
+        try {
+            const updated = await upsertAssignment(updates);
+
+            // Update local state
+            const index = state.assignments.findIndex(a => a.id === id);
+            if (index !== -1) {
+                state.assignments[index] = { ...state.assignments[index], ...updated };
+            }
+
+            document.getElementById(modalId).remove();
+            showGlobalAlert('Incarico aggiornato', 'success');
+
+            // Refresh details view
+            const container = document.getElementById('content-area');
+            if (container && window.location.hash.includes(`assignment-detail/${id}`)) {
+                await renderAssignmentDetail(container);
+            }
+        } catch (e) {
+            console.error(e);
+            showGlobalAlert('Errore durante l\'aggiornamento', 'error');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    });
+};
+
+window.editAssignmentEconomics = async (assignmentId) => {
+    const assignment = state.assignments.find(a => a.id === assignmentId);
+    if (!assignment) return showGlobalAlert('Incarico non trovato', 'error');
+
+    const modalId = `edit-assign-eco-${Date.now()}`;
+    const modalHTML = `
+        <div id="${modalId}" class="modal active" style="z-index: 10000; align-items: center; justify-content: center;">
+            <div class="modal-content" style="max-width: 450px; padding: 2rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem;">
+                    <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(139, 92, 246, 0.1); display: flex; align-items: center; justify-content: center;">
+                        <span class="material-icons-round" style="color: #8b5cf6;">account_balance_wallet</span>
+                    </div>
+                    <h2 style="margin: 0; font-family: var(--font-titles); font-weight: 700;">Budget Incarico</h2>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">Budget Totale Incarico (€)</label>
+                        <div style="position: relative;">
+                            <span class="material-icons-round" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); font-size: 1.2rem; color: #8b5cf6;">euro</span>
+                            <input type="number" id="asg-eco-amount-${modalId}" class="modal-input" style="width: 100%; padding-left: 3rem;" placeholder="0.00" value="${assignment.total_amount || 0}">
+                        </div>
+                        <p style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 0.4rem;">Il budget totale pattuito per questo incarico.</p>
+                    </div>
+                </div>
+
+                <div class="flex-end" style="gap: 1rem;">
+                    <button class="primary-btn secondary" onclick="document.getElementById('${modalId}').remove()">Annulla</button>
+                    <button class="primary-btn" id="save-asg-eco-${modalId}">Salva Modifiche</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    document.getElementById(`save-asg-eco-${modalId}`).addEventListener('click', async () => {
+        const btn = document.getElementById(`save-asg-eco-${modalId}`);
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="loader" style="width: 16px; height: 16px; border-width: 2px;"></span>';
+        btn.disabled = true;
+
+        const newAmount = parseFloat(document.getElementById(`asg-eco-amount-${modalId}`).value);
+
+        if (isNaN(newAmount)) {
+            showGlobalAlert('Inserisci un importo valido', 'error');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            return;
+        }
+
+        try {
+            const updated = await upsertAssignment({ id: assignmentId, total_amount: newAmount });
+
+            // Update local state
+            const index = state.assignments.findIndex(a => a.id === assignmentId);
+            if (index !== -1) {
+                state.assignments[index] = { ...state.assignments[index], ...updated };
+            }
+
+            document.getElementById(modalId).remove();
+            showGlobalAlert('Budget aggiornato', 'success');
+
+            // Refresh details view if we are on it
+            const container = document.getElementById('content-area');
+            if (container && window.location.hash.includes(`assignment-detail/${assignmentId}`)) {
+                await renderAssignmentDetail(container);
+            }
+        } catch (e) {
+            console.error(e);
+            showGlobalAlert('Errore durante l\'aggiornamento', 'error');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    });
+};
+
 window.deleteAssignment = async (id) => {
     const confirmed = await window.showConfirm('Sei sicuro di voler eliminare questo incarico? L\'azione è irreversibile.', 'Elimina Incarico');
     if (!confirmed) return;
@@ -1209,7 +1385,7 @@ window.handleAssignmentStatusChange = async (id, newStatus) => {
         showGlobalAlert(`Stato aggiornato a ${newStatus}`, 'success');
 
         // Refresh the current detail view if we are on it
-        const container = document.getElementById('main-content');
+        const container = document.getElementById('content-area');
         if (container && window.location.hash.includes(`assignment-detail/${id}`)) {
             // Re-render the detail page with the updated state
             // Note: renderAssignmentDetail uses fetchAssignmentDetail, which will get fresh data

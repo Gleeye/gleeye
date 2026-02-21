@@ -1,4 +1,4 @@
-import { ensureDocSpace, fetchVisiblePages, createDocPage, fetchPageBlocks, deleteDocPage } from '../../modules/docs_api.js?v=1';
+import { ensureDocSpace, fetchVisiblePages, createDocPage, fetchPageBlocks, deleteDocPage } from '../../modules/docs_api.js?v=1000';
 import { renderDocsSidebar, setupSidebarEvents } from './DocsSidebar.js';
 import { renderPageEditor } from './PageEditor.js';
 

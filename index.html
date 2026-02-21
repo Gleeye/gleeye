@@ -7,11 +7,11 @@
     <title>Gleeye Workspace</title>
     <meta name="description" content="A premium enterprise resource planning solution for modern businesses.">
     <link rel="icon" type="image/png" href="logo_gleeye_new.png">
-    <link rel="stylesheet" href="css/main.css?v=416">
-    <link rel="stylesheet" href="css/design-system.css?v=416">
-    <link rel="stylesheet" href="css/components/notifications.css?v=416">
-    <link rel="stylesheet" href="css/components/agenda.css?v=416">
-    <link rel="stylesheet" href="css/components/homepage.css?v=416">
+    <link rel="stylesheet" href="css/main.css?v=1000">
+    <link rel="stylesheet" href="css/design-system.css?v=1000">
+    <link rel="stylesheet" href="css/components/notifications.css?v=1000">
+    <link rel="stylesheet" href="css/components/agenda.css?v=1000">
+    <link rel="stylesheet" href="css/components/homepage.css?v=1000">
     <!-- Inline styles to override cache issues -->
     <style>
         .system-modal-message {
@@ -19,8 +19,8 @@
             /* Fix newlines in popups */
         }
     </style>
-    <link rel="stylesheet" href="css/components/custom-select.css?v=340">
-    <!-- <link rel="stylesheet" href="css/components/chat.css?v=317"> -->
+    <link rel="stylesheet" href="css/components/custom-select.css?v=1000">
+    <!-- <link rel="stylesheet" href="css/components/chat.css?v=1000"> -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -429,9 +429,22 @@
                             <span class="material-icons-round">diamond</span>
                             <span>Servizi SAP</span>
                         </a>
+
+                        <!-- Separatore Vendite -->
+                        <div class="submenu-label"
+                            style="display: flex; align-items: center; gap: 8px; opacity: 1; margin-top: 1.5rem; padding-top: 0; padding-bottom: 0.25rem;">
+                            <span style="color: var(--brand-blue); font-size: 0.65rem;">VENDITE</span>
+                            <div
+                                style="flex: 1; height: 1px; background: linear-gradient(90deg, var(--brand-blue) 0%, transparent 100%); opacity: 0.4;">
+                            </div>
+                        </div>
+
+                        <a href="#leads" class="nav-item sub-item" data-target="leads">
+                            <span class="material-icons-round">contact_mail</span>
+                            <span>Leads</span>
+                        </a>
                     </div>
                 </div>
-
 
                 <!-- PROJECT MANAGEMENT SECTION (Hidden in public deploy) -->
                 <div id="nav-pm" class="nav-layer-divider hidden">
@@ -524,8 +537,8 @@
     </div>
 
     <!-- Main JS Module -->
-    <script type="module" src="js/features/layout.js?v=416"></script>
-    <script type="module" src="js/app.js?v=416"></script>
+    <script type="module" src="js/features/layout.js?v=1000"></script>
+    <script type="module" src="js/app.js?v=1000"></script>
 </body>
 
 </html>

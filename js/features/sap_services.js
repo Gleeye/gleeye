@@ -19,7 +19,7 @@ import {
     updatePMItem,
     deletePMItem
 } from '../modules/pm_api.js';
-import { formatAmount } from '../modules/utils.js?v=317';
+import { formatAmount } from '../modules/utils.js?v=1000';
 import { CloudLinksManager } from '../features/components/CloudLinksManager.js';
 
 // --- HANDLERS ---
@@ -179,7 +179,8 @@ export async function renderSapServiceDetail(container, serviceId) {
     const selectedVariant = state.currentSapVariant || null;
     const allSpaces = await fetchAllProjectSpacesForSapService(serviceId);
     const spacesWithData = await Promise.all(allSpaces.map(async sp => {
-        const spItems = await fetchProjectItems(sp.id);
+        let spItems = await fetchProjectItems(sp.id);
+        spItems = spItems.filter(i => !(i.is_account_level || i.pm_item_assignees?.some(a => a.role === 'account') || i.notes?.toLowerCase().includes('[account]')));
         const totalPrice = spItems.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
         const totalCost = spItems.reduce((sum, item) => sum + (Number(item.cost) || 0) * (Number(item.quantity) || 1), 0);
         const totalCatalogPrice = spItems.reduce((sum, item) => sum + (Number(item.catalog_price || item.price) || 0) * (Number(item.quantity) || 1), 0);
@@ -200,7 +201,8 @@ export async function renderSapServiceDetail(container, serviceId) {
         container.innerHTML = `<div style="padding: 2rem; color: var(--text-tertiary);">Impossibile caricare o creare lo spazio PM per questo servizio.</div>`;
         return;
     }
-    const items = await fetchProjectItems(space.id);
+    let items = await fetchProjectItems(space.id);
+    items = items.filter(i => !(i.is_account_level || i.pm_item_assignees?.some(a => a.role === 'account') || i.notes?.toLowerCase().includes('[account]')));
 
     // Final values: Manual override from space OR Sum from items
     const priceFromItems = items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
@@ -225,6 +227,12 @@ export async function renderSapServiceDetail(container, serviceId) {
     }
     deptNames = [...new Set(deptNames)];
     const areaNames = (service.core_service_area_links || []).map(link => link.core_service_areas?.name).filter(Boolean);
+
+    // Fetch Linked Bookable Services (Booking Engine) with Categories
+    const { data: bookingLinkedItems } = await supabase
+        .from('booking_items')
+        .select('*, booking_categories(name)')
+        .eq('sap_service_id', serviceId);
 
     const pageTitle = document.getElementById('page-title');
     if (pageTitle) {
@@ -278,8 +286,53 @@ export async function renderSapServiceDetail(container, serviceId) {
                     </div>
                 </div>
 
-                <!-- Middle Column (Empty for now) -->
+                <!-- Middle Column (Linked Bookable Services) -->
                 <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                    <div class="glass-card" style="padding: 1.5rem; background: var(--bg-secondary); border: 1px solid var(--glass-border);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
+                            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                                <div style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(59, 130, 246, 0.1);">
+                                    <span class="material-icons-round" style="font-size: 1.1rem; color: var(--brand-blue);">event_available</span>
+                                </div>
+                                <span style="font-weight: 700; font-size: 1rem; color: var(--text-primary); font-family: var(--font-titles);">Servizi Prenotabili</span>
+                            </div>
+                            <span style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 600;">Booking Engine</span>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            ${bookingLinkedItems?.length === 0 ? `
+                                <div style="padding: 2rem; text-align: center; color: var(--text-tertiary); font-size: 0.85rem; background: rgba(0,0,0,0.02); border-radius: 12px; border: 1px dashed var(--glass-border);">
+                                    Nessun servizio prenotabile collegato.
+                                </div>
+                            ` : (bookingLinkedItems || []).map(bi => `
+                                <div class="glass-card" style="padding: 1rem; display: flex; justify-content: space-between; align-items: flex-start; background: white; border: 1px solid var(--glass-border); transition: all 0.2s;" onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.boxShadow='var(--shadow-sm)'" onmouseout="this.style.borderColor='var(--glass-border)'; this.style.boxShadow='none'">
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.25rem;">${bi.name}</div>
+                                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                            ${bi.booking_categories?.name ? `
+                                                <span style="font-size: 0.7rem; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; color: var(--brand-blue); background: rgba(59, 130, 246, 0.08); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.1);">
+                                                    ${bi.booking_categories.name}
+                                                </span>
+                                            ` : ''}
+                                            <span style="font-size: 0.75rem; color: var(--text-tertiary); display: flex; gap: 0.25rem; align-items: center;">
+                                                <span class="material-icons-round" style="font-size: 1rem;">schedule</span>
+                                                ${bi.duration_minutes} min
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button onclick="window.location.hash = '#booking/edit-item/${bi.id}'" class="icon-btn sm" title="Vai al Catalogo Prenotazioni" style="margin-left: 1rem;">
+                                        <span class="material-icons-round" style="font-size: 1.1rem; color: var(--text-secondary);">arrow_forward</span>
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--glass-border);">
+                            <p style="font-size: 0.75rem; color: var(--text-tertiary); line-height: 1.4; margin: 0;">
+                                I servizi prenotabili collegati permettono ai clienti di fissare appuntamenti direttamente per questo servizio SAP.
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Right Column (Economics) -->
@@ -535,7 +588,7 @@ window.openSapServiceDocsModal = async (spaceId) => {
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
     try {
         const docsContainer = modal.querySelector('#modal-docs-container');
-        const { renderDocsView } = await import('./docs/DocsView.js?v=421');
+        const { renderDocsView } = await import('./docs/DocsView.js?v=1000');
         await renderDocsView(docsContainer, spaceId);
     } catch (err) {
         console.error("Error loading Docs Modal:", err);
@@ -548,7 +601,7 @@ window.openSapServiceActivitiesModal = async (spaceId) => {
         alert('Spazio PM non trovato.');
         return;
     }
-    const { openAccountActivitiesModal } = await import('./pm/components/AccountActivitiesModal.js?v=2');
+    const { openAccountActivitiesModal } = await import('/js/features/pm/components/AccountActivitiesModal.js?v=1000');
     await openAccountActivitiesModal(null, spaceId);
 };
 

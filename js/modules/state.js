@@ -40,7 +40,8 @@ if (!window.__gleeye_state) {
         sapServiceAreas: [],
         sapServiceTypes: [],
         currentSapVariant: null,
-        payments: [] // Ensure payments exists just in case
+        payments: [], // Ensure payments exists just in case
+        leads: []
     };
     window.state = window.__gleeye_state;
 }

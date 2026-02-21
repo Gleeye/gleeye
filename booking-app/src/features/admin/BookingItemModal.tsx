@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import type { BookingCategory } from '../../types';
-import { X, Loader2, Clock, CreditCard, Eye, Home, Globe, LayoutGrid, Users, Settings, ShieldCheck, Calendar, AlertCircle, Trash2 } from 'lucide-react';
+import type { BookingCategory, SapService } from '../../types';
+import { X, Loader2, Clock, CreditCard, Eye, Home, Globe, LayoutGrid, Users, Settings, ShieldCheck, Calendar, AlertCircle, Trash2, Briefcase } from 'lucide-react';
 import BookingCategorySelect from './BookingCategorySelect';
 import CollaboratorMultiSelect from './CollaboratorMultiSelect';
 import CustomSelect from './CustomSelect';
@@ -23,6 +23,7 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
     const [loading, setLoading] = useState(false);
     const [categories, setCategories] = useState<BookingCategory[]>([]);
     const [activeTab, setActiveTab] = useState<Tab>('details');
+    const [sapServices, setSapServices] = useState<SapService[]>([]);
 
     // Form State
     const [name, setName] = useState('');
@@ -71,6 +72,7 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
     // Staff Tab Fields
     const [selectedCollaborators, setSelectedCollaborators] = useState<string[]>([]);
     const [logicType, setLogicType] = useState<'OR' | 'AND'>('OR');
+    const [sapServiceId, setSapServiceId] = useState<string | null>(null);
 
     // Confirm Dialog State
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -78,6 +80,7 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
     useEffect(() => {
         if (isOpen) {
             fetchCategories();
+            fetchSapServices();
             if (editItem) {
                 // Populate state
                 setName(editItem.name || '');
@@ -97,6 +100,7 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
                 setRequiresConfirmation(editItem.requires_confirmation || false);
                 setRecurrenceRule(editItem.recurrence_rule || 'none');
                 setLogicType(editItem.assignment_logic || 'OR');
+                setSapServiceId(editItem.sap_service_id || null);
 
                 // Fetch assigned collaborators
                 fetchAssignments(editItem.id);
@@ -122,6 +126,11 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
         if (data) setCategories(data);
     }
 
+    async function fetchSapServices() {
+        const { data } = await supabase.from('core_services').select('id, name').order('name');
+        if (data) setSapServices(data);
+    }
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setLoading(true);
@@ -144,7 +153,9 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
                 buffer_after_minutes: bufferAfter,
                 requires_confirmation: requiresConfirmation,
                 recurrence_rule: recurrenceRule,
-                assignment_logic: logicType
+                assignment_logic: logicType,
+                logic_type: logicType,
+                sap_service_id: sapServiceId
             };
 
             let itemData, itemError;
@@ -222,6 +233,7 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
         // Reset Staff
         setSelectedCollaborators([]);
         setLogicType('OR');
+        setSapServiceId(null);
 
         setActiveTab('details');
         onClose();
@@ -398,6 +410,21 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
                                                 value={categoryId}
                                                 onChange={setCategoryId}
                                                 placeholder="Scegli Categoria"
+                                            />
+                                        </div>
+
+                                        {/* Link SAP Service */}
+                                        <div>
+                                            <CustomSelect
+                                                label="Collega a Servizio SAP"
+                                                icon={Briefcase}
+                                                options={[
+                                                    { value: 'none', label: 'Nessun collegamento' },
+                                                    ...sapServices.map(s => ({ value: s.id, label: s.name }))
+                                                ]}
+                                                value={sapServiceId || 'none'}
+                                                onChange={(val) => setSapServiceId(val === 'none' ? null : val)}
+                                                placeholder="Scegli Servizio SAP"
                                             />
                                         </div>
 
@@ -737,6 +764,6 @@ export default function BookingItemModal({ isOpen, onClose, onSuccess, preselect
                 }}
                 onCancel={() => setShowDeleteConfirm(false)}
             />
-        </div>
+        </div >
     );
 }

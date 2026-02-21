@@ -172,16 +172,18 @@ export async function openAccountActivitiesModal(orderId, spaceId) {
 
     addBtn.addEventListener('click', async () => {
         if (currentTab === 'attivita' || currentTab === 'task') {
-            const { openHubDrawer } = await import('./hub_drawer.js?v=385');
+            const { openHubDrawer } = await import('/js/features/pm/components/hub_drawer.js?v=1000');
             openHubDrawer(null, spaceId, null, currentTab, {
                 defaultRole: 'account',
-                defaultNote: '[ACCOUNT]'
+                defaultNote: '[ACCOUNT]',
+                is_account_level: true
             });
         } else {
-            const { openAppointmentDrawer } = await import('./hub_appointment_drawer.js?v=317');
+            const { openAppointmentDrawer } = await import('/js/features/pm/components/hub_appointment_drawer.js?v=1000');
             openAppointmentDrawer(null, orderId || spaceId, orderId ? 'order' : 'space', {
                 defaultRole: 'account',
-                defaultNote: '[ACCOUNT]'
+                defaultNote: '[ACCOUNT]',
+                is_account_level: true
             });
         }
     });
@@ -222,7 +224,7 @@ async function renderStructure(container, spaceId, items) {
         const filterAccount = (nodes) => {
             return nodes.map(node => {
                 const children = filterAccount(node.children || []);
-                const isAccount = node.pm_item_assignees?.some(a => a.role === 'account') || node.notes?.toLowerCase().includes('[account]');
+                const isAccount = node.is_account_level || node.pm_item_assignees?.some(a => a.role === 'account') || node.notes?.toLowerCase().includes('[account]');
                 const hasAccountChild = children.some(c => c._isAccountBranch);
                 return { ...node, children, _isAccountBranch: isAccount || hasAccountChild };
             }).filter(node => node._isAccountBranch);
@@ -296,7 +298,7 @@ function renderTreeNodes(nodes, spaceId) {
 
         return `
             <div class="tree-node">
-                <div class="tree-row" onclick="import('./hub_drawer.js?v=385').then(mod => mod.openHubDrawer('${node.id}', '${spaceId}'))">
+                <div class="tree-row" onclick="import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => mod.openHubDrawer('${node.id}', '${spaceId}'))">
                     <div style="width: 24px; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary);">
                         <span class="material-icons-round" style="font-size: 18px;">
                             ${node.item_type === 'attivita' ? 'folder' : 'description'}
@@ -329,7 +331,7 @@ async function renderItems(container, spaceId, filterType, items = null) {
         if (!items) items = await fetchProjectItems(spaceId);
         const accountItems = items.filter(item => {
             const isRightType = item.item_type === filterType;
-            const isAccount = item.pm_item_assignees?.some(a => a.role === 'account') || item.notes?.toLowerCase().includes('[account]');
+            const isAccount = item.is_account_level || item.pm_item_assignees?.some(a => a.role === 'account') || item.notes?.toLowerCase().includes('[account]');
             return isRightType && isAccount;
         });
 
@@ -351,7 +353,7 @@ async function renderItems(container, spaceId, filterType, items = null) {
                 ${accountItems.map(item => {
             const isDone = item.status === 'done';
             return `
-                        <div class="activity-card" style="opacity: ${isDone ? '0.7' : '1'}; cursor: pointer;" onclick="import('./hub_drawer.js?v=385').then(mod => mod.openHubDrawer('${item.id}', '${spaceId}'))">
+                        <div class="activity-card" style="opacity: ${isDone ? '0.7' : '1'}; cursor: pointer;" onclick="import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => mod.openHubDrawer('${item.id}', '${spaceId}'))">
                             <div style="flex-shrink: 0; color: ${isDone ? '#10b981' : 'var(--brand-blue)'};">
                                 <span class="material-icons-round" style="font-size: 24px;">
                                     ${isDone ? 'check_circle' : (filterType === 'attivita' ? 'folder' : 'circle_outline')}
@@ -394,7 +396,7 @@ async function renderAppointments(container, orderId, spaceId) {
     try {
         const appointments = await fetchAppointments(orderId || spaceId, orderId ? 'order' : 'space');
         const accountAppts = appointments.filter(appt =>
-            appt.appointment_internal_participants?.some(p => p.role === 'account') || appt.note?.toLowerCase().includes('[account]')
+            appt.is_account_level || appt.appointment_internal_participants?.some(p => p.role === 'account') || appt.note?.toLowerCase().includes('[account]')
         );
 
         if (accountAppts.length === 0) {
@@ -415,7 +417,7 @@ async function renderAppointments(container, orderId, spaceId) {
                 ${accountAppts.map(appt => {
             const start = new Date(appt.start_time);
             return `
-                        <div class="activity-card" style="border-left: 4px solid #3b82f6; cursor: pointer;" onclick="import('./hub_appointment_drawer.js?v=317').then(mod => mod.openAppointmentDrawer({id: '${appt.id}'}, '${orderId}', 'order'))">
+                                                <div class="activity-card" style="border-left: 4px solid #3b82f6; cursor: pointer;" onclick="import('/js/features/pm/components/hub_appointment_drawer.js?v=1000').then(mod => mod.openAppointmentDrawer({id: '${appt.id}'}, '${orderId}', 'order'))">
                             <div style="width: 48px; border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; align-items: center; justify-content: center; margin-right: 0.5rem;">
                                 <div style="font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase;">${start.toLocaleDateString('it-IT', { weekday: 'short' })}</div>
                                 <div style="font-size: 1.25rem; font-weight: 800; color: #3b82f6; line-height: 1;">${start.getDate()}</div>

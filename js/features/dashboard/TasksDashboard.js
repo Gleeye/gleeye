@@ -1,7 +1,7 @@
 import { supabase } from '../../modules/config.js';
 import { state } from '../../modules/state.js';
-import { showGlobalAlert, formatDate, renderAvatar } from '../../modules/utils.js?v=317';
-import { openHubDrawer } from '../pm/components/hub_drawer.js?v=317';
+import { showGlobalAlert, formatDate, renderAvatar } from '../../modules/utils.js?v=1000';
+import { openHubDrawer } from '../pm/components/hub_drawer.js?v=1000';
 
 // --- VISUAL CONSTANTS ---
 const PRIORITY_ICONS = {

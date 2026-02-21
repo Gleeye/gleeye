@@ -1,7 +1,7 @@
 import { saveAppointment, deleteAppointment, fetchAppointmentTypes } from '../../../modules/pm_api.js';
 import { fetchContacts } from '../../../modules/api.js';
 import { state } from '../../../modules/state.js';
-import { renderUserPicker } from './picker_utils.js?v=317';
+import { renderUserPicker } from './picker_utils.js?v=1000';
 import { supabase } from '../../../modules/config.js';
 
 export async function openAppointmentDrawer(inputAppointment, contextId = null, contextType = 'order', options = {}) {
@@ -79,7 +79,7 @@ export async function openAppointmentDrawer(inputAppointment, contextId = null, 
     const isCreate = !appointment;
     let viewMode = !isCreate;
 
-    const { defaultRole = 'organizer', defaultNote = '' } = options;
+    const { defaultRole = 'organizer', defaultNote = '', is_account_level = false } = options;
 
     let targetId = appointment ? (appointment.order_id || appointment.pm_space_id) : contextId;
     let targetType = appointment ? (appointment.pm_space_id ? 'space' : 'order') : contextType;
@@ -100,9 +100,10 @@ export async function openAppointmentDrawer(inputAppointment, contextId = null, 
         end_time: appointment?.end_time ? new Date(appointment.end_time).toISOString().slice(0, 16) : '',
         location: appointment?.location || '',
         mode: appointment?.mode || 'in_presenza',
-        status: appointment?.status || 'bozza',
+        status: appointment?.status || 'confermato',
         note: appointment?.note || defaultNote,
-        types: new Set(appointment?.types?.map(t => t.id) || []),
+        is_account_level: appointment?.is_account_level ?? is_account_level,
+        types: appointment?.types?.map(t => t.id) || [],
         participants: {
             internal: appointment?.participants?.internal || [],
             client: appointment?.participants?.client || []
@@ -672,6 +673,7 @@ export async function openAppointmentDrawer(inputAppointment, contextId = null, 
                     mode: formState.mode,
                     status: formState.status,
                     note: rawData.note,
+                    is_account_level: formState.is_account_level,
                     types: Array.from(formState.types),
                     internal_participants: formState.participants.internal,
                     client_participants: formState.participants.client

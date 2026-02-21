@@ -1,8 +1,8 @@
 import { state } from '/js/modules/state.js';
-import { formatAmount } from '../modules/utils.js?v=317';
-import { CustomSelect } from '../components/CustomSelect.js?v=317';
-import { DashboardData } from './dashboard.js?v=317';
-import { showGlobalAlert } from '../modules/utils.js?v=317';
+import { formatAmount } from '../modules/utils.js?v=1000';
+import { CustomSelect } from '../components/CustomSelect.js?v=1000';
+import { DashboardData } from './dashboard.js?v=1000';
+import { showGlobalAlert } from '../modules/utils.js?v=1000';
 import { supabase } from '../modules/config.js';
 import { fetchInvoices, fetchPassiveInvoices, fetchPayments, fetchBankTransactions, fetchCollaborators } from '../modules/api.js';
 

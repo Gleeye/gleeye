@@ -1,5 +1,5 @@
 import { state } from '../modules/state.js';
-import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=317';
+import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=1000';
 import { supabase } from '../modules/config.js';
 
 // State local to this dashboard

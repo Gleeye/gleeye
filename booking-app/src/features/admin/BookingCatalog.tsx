@@ -7,7 +7,7 @@ import BookingCategoryModal from './BookingCategoryModal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../components/ui/Toast';
 
-export default function BookingCatalog() {
+export default function BookingCatalog({ initialEditItemId }: { initialEditItemId?: string }) {
     const { showToast } = useToast();
     const [categories, setCategories] = useState<BookingCategory[]>([]);
     const [nestedCategories, setNestedCategories] = useState<BookingCategory[]>([]);
@@ -19,6 +19,16 @@ export default function BookingCatalog() {
     const [editingCategory, setEditingCategory] = useState<BookingCategory | null>(null);
     const [editingItem, setEditingItem] = useState<BookingItem | null>(null);
     const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
+
+    useEffect(() => {
+        if (initialEditItemId && items.length > 0 && !isItemModalOpen) {
+            const item = items.find(i => i.id === initialEditItemId);
+            if (item) {
+                setEditingItem(item);
+                setIsItemModalOpen(true);
+            }
+        }
+    }, [initialEditItemId, items]);
 
     // Confirm Dialog State
     const [confirmDialog, setConfirmDialog] = useState<{
@@ -46,12 +56,12 @@ export default function BookingCatalog() {
                 setNestedCategories(nestCategories(catData));
             }
 
-            let query = supabase.from('booking_items').select('*').order('name');
+            let query = supabase.from('booking_items').select('*, core_services!sap_service_id(name)').order('name');
             if (selectedCategory) {
                 query = query.eq('category_id', selectedCategory);
             }
             const { data: itemData } = await query;
-            if (itemData) setItems(itemData);
+            if (itemData) setItems(itemData as any);
 
         } catch (error) {
             console.error('Error fetching data:', error);
@@ -262,6 +272,14 @@ export default function BookingCatalog() {
                                                 {item.duration_minutes} min
                                             </span>
                                         </div>
+                                        {item.core_services?.name && (
+                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-600 rounded-lg border border-blue-100 animate-fade-in" title={`Collegato a SAP: ${item.core_services.name}`}>
+                                                <Briefcase className="w-3 h-3" />
+                                                <span className="text-[10px] font-bold truncate max-w-[120px]">
+                                                    {item.core_services.name}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                     <h3 className="font-bold text-slate-900 mb-1">{item.name}</h3>
                                     <p className="text-sm text-slate-500 line-clamp-2 min-h-[40px]">

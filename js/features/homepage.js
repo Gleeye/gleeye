@@ -1,11 +1,11 @@
 import { state } from '/js/modules/state.js';
 import { supabase } from '../modules/config.js';
-import { formatAmount } from '../modules/utils.js?v=317';
+import { formatAmount } from '../modules/utils.js?v=1000';
 
 import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment, fetchGoogleCalendarBusy } from '../modules/api.js';
-import { fetchAppointment, updatePMItem } from '../modules/pm_api.js?v=385';
-import { openHubDrawer } from './pm/components/hub_drawer.js?v=385';
-import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=317';
+import { fetchAppointment, updatePMItem } from '../modules/pm_api.js?v=1000';
+import { openHubDrawer } from './pm/components/hub_drawer.js?v=1000';
+import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=1000';
 
 // We reuse fetchMyBookings but we might need a tighter scoped fetch for "Today"
 // Actually fetchMyBookings stores in `eventsCache` (not exported) or `window`?
@@ -2250,7 +2250,7 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
 }
 
 // --- EVENT DETAIL MODAL (Now unified via agenda_utils.js) ---
-import { openEventDetails } from './agenda_utils.js?v=317';
+import { openEventDetails } from './agenda_utils.js?v=1000';
 
 window.openHomepageEventDetails = openEventDetails; // Compatibility Alias
 

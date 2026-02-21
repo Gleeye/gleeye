@@ -1,19 +1,19 @@
-import './utils/modal-utils.js?v=381';
-import { initAuth } from './features/auth.js?v=381';
-import { router } from './modules/router.js?v=382';
-import { InvoiceLogic } from './features/invoices.js?v=381';
+import './utils/modal-utils.js?v=1000';
+import { initAuth } from './features/auth.js?v=1000';
+import { router } from './modules/router.js?v=1000';
+import { InvoiceLogic } from './features/invoices.js?v=1000';
 import { state } from '/js/modules/state.js';
-import { initSettingsModals } from './features/settings.js?v=381';
-import { initCollaboratorModals } from './features/collaborators.js?v=381';
-import { initCollaboratorServiceModals } from './features/collaborator_services.js?v=381';
-import { initBankTransactionModals } from './features/bank_transactions.js?v=416';
-import { initPaymentModals } from './features/payments.js?v=381';
-import { initServiceModals } from './features/services.js?v=381';
+import { initSettingsModals } from './features/settings.js?v=1000';
+import { initCollaboratorModals } from './features/collaborators.js?v=1000';
+import { initCollaboratorServiceModals } from './features/collaborator_services.js?v=1000';
+import { initBankTransactionModals } from './features/bank_transactions.js?v=1000';
+import { initPaymentModals } from './features/payments.js?v=1000';
+import { initServiceModals } from './features/services.js?v=1000';
 import { initWhiteLabelPartnerModals } from './features/white_label_partners.js';
-import { initLayout, renderSidebarProfile } from './features/layout.js?v=381';
-import { initNotifications } from './features/notifications.js?v=381';
+import { initLayout, renderSidebarProfile } from './features/layout.js?v=1000';
+import { initNotifications } from './features/notifications.js?v=1000';
 // Chat UI is loaded lazily when user navigates to #chat
-import { runOneTimeFix } from './fix_phantom_data.js?v=381';
+import { runOneTimeFix } from './fix_phantom_data.js?v=1000';
 // Utilities imported at top
 
 // Suppress benign ResizeObserver error

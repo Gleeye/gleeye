@@ -10,28 +10,28 @@ window.addEventListener('unhandledrejection', event => {
         </div>`;
     }
 });
-import { renderDashboard } from '../features/dashboard.js?v=317';
-import { renderClients, renderClientDetail } from '../features/clients.js?v=317';
-import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=317';
+import { renderDashboard } from '../features/dashboard.js?v=1000';
+import { renderClients, renderClientDetail } from '../features/clients.js?v=1000';
+import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=1000';
 import { renderWhiteLabelPartners, renderWhiteLabelPartnerDetail, initWhiteLabelPartnerModals } from '../features/white_label_partners.js';
-import { renderContacts } from '../features/contacts.js?v=317';
-import { renderOrderDetail } from '../features/orders.js?v=500';
-import { renderActiveInvoicesSafe, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers, renderPassiveInvoicesPartners } from '../features/invoices.js?v=318';
-import { renderRevenueDashboard } from '../features/revenue_dashboard.js?v=317';
-import { renderBankTransactions } from '../features/bank_transactions.js?v=416';
-import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=317';
-import { renderBankStatements } from '../features/bank_statements.js?v=317';
-import { renderServices } from '../features/services.js?v=317';
-import { renderCollaboratorServices } from '../features/collaborator_services.js?v=317';
-import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=317';
-import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=317';
-import { renderBooking } from '../features/booking.js?v=317';
-import { renderUserProfile } from '../features/user_dashboard.js?v=317';
-import { renderAgenda } from '../features/personal_agenda.js?v=317';
-import { renderHomepage } from '../features/homepage.js?v=385';
-import { renderNotificationCenter } from '../features/notifications.js?v=317';
-import { renderAdminNotifications } from '../features/admin_notifications.js?v=317';
-import { renderMyWork } from '../features/dashboard/TasksDashboard.js?v=318';
+import { renderContacts } from '../features/contacts.js?v=1000';
+import { renderOrderDetail } from '../features/orders.js?v=1000';
+import { renderActiveInvoicesSafe, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers, renderPassiveInvoicesPartners } from '../features/invoices.js?v=1000';
+import { renderRevenueDashboard } from '../features/revenue_dashboard.js?v=1000';
+import { renderBankTransactions } from '../features/bank_transactions.js?v=1000';
+import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=1000';
+import { renderBankStatements } from '../features/bank_statements.js?v=1000';
+import { renderServices } from '../features/services.js?v=1000';
+import { renderCollaboratorServices } from '../features/collaborator_services.js?v=1000';
+import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=1000';
+import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=1000';
+import { renderBooking } from '../features/booking.js?v=1000';
+import { renderUserProfile } from '../features/user_dashboard.js?v=1000';
+import { renderAgenda } from '../features/personal_agenda.js?v=1000';
+import { renderHomepage } from '../features/homepage.js?v=1000';
+import { renderNotificationCenter } from '../features/notifications.js?v=1000';
+import { renderAdminNotifications } from '../features/admin_notifications.js?v=1000';
+import { renderMyWork } from '../features/dashboard/TasksDashboard.js?v=1000';
 // Chat is loaded dynamically to avoid slowing down app startup
 
 export function router() {
@@ -87,7 +87,7 @@ export function router() {
     const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione') || userTags.includes('Project Manager') || userTags.includes('Account');
 
     // List of pages allowed for Collaborators (standard - no special tags)
-    const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'my-assignments', 'booking', 'notifications', 'chat', 'assignment-detail', 'assignments', 'pm'];
+    const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'my-assignments', 'booking', 'notifications', 'chat', 'assignment-detail', 'assignments', 'pm', 'leads', 'lead-detail'];
 
     // Specific check for Project Management page access
     const canAccessPM = activeRole === 'admin' || isPrivilegedCollaborator;
@@ -210,7 +210,7 @@ function render() {
                 break;
             case 'settings':
                 if (pageTitle) pageTitle.textContent = 'Impostazioni';
-                import('../features/settings.js?v=317').then(module => {
+                import('../features/settings.js?v=1000').then(module => {
                     module.renderSettings(contentArea);
                 });
                 break;
@@ -234,6 +234,14 @@ function render() {
             case 'sap-service-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Servizio SAP';
                 import('../features/sap_services.js').then(m => m.renderSapServiceDetail(contentArea));
+                break;
+            case 'leads':
+                if (pageTitle) pageTitle.textContent = 'Gestione Leads';
+                import('../features/leads.js?v=1001').then(m => m.renderLeads(contentArea));
+                break;
+            case 'lead-detail':
+                if (pageTitle) pageTitle.textContent = 'Dettaglio Lead';
+                import('../features/leads.js?v=1001').then(m => m.renderLeadDetail(contentArea));
                 break;
             case 'collaborator-services':
                 if (pageTitle) pageTitle.textContent = 'Servizi Collaboratori';
@@ -265,7 +273,7 @@ function render() {
                 break;
             case 'admin':
                 if (pageTitle) pageTitle.textContent = 'Amministrazione';
-                import('../features/admin/admin-dashboard.js?v=317').then(module => {
+                import('../features/admin/admin-dashboard.js?v=1000').then(module => {
                     module.renderAdminDashboard(contentArea);
                 });
                 break;
@@ -282,7 +290,7 @@ function render() {
                 // Route: Commessa Detail (#pm/commessa/:orderId)
                 if (state.currentSubPage === 'commessa' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Commessa';
-                    import('../features/pm/commessa_detail.js?v=318')
+                    import('../features/pm/commessa_detail.js?v=1000')
                         .then(async module => {
                             try {
                                 await module.renderCommessaDetail(contentArea, state.currentId, false);
@@ -299,7 +307,7 @@ function render() {
                     // Route: Internal Project Detail (#pm/space/:spaceId)
                 } else if (state.currentSubPage === 'space' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Progetto';
-                    import('../features/pm/space_view.js?v=385')
+                    import('../features/pm/space_view.js?v=1000')
                         .then(module => {
                             module.renderSpaceView(contentArea, state.currentId);
                         })
@@ -311,7 +319,7 @@ function render() {
                     // Route: Internal Projects List (#pm/interni)
                 } else if (state.currentSubPage === 'interni') {
                     if (pageTitle) pageTitle.textContent = 'Progetti Interni';
-                    import('../features/pm/internal_list.js?v=368')
+                    import('../features/pm/internal_list.js?v=1000')
                         .then(module => {
                             module.renderInternalProjects(contentArea);
                         })
@@ -326,7 +334,7 @@ function render() {
 
                 } else {
                     // Standard PM views (Dashboard)
-                    import('../features/pm/index.js?v=381')
+                    import('../features/pm/index.js?v=1000')
                         .then(module => {
                             module.renderPM(contentArea);
                         })

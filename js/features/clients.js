@@ -1,9 +1,9 @@
 import { state } from '/js/modules/state.js';
-import { formatAmount } from '../modules/utils.js?v=317';
+import { formatAmount } from '../modules/utils.js?v=1000';
 // Import dependencies similar to collaborators.js
 // We assume fetch functions are available in api.js if needed, but we rely on state mostly
 import { fetchOrders, fetchInvoices, fetchPayments, upsertClient, fetchClients } from '../modules/api.js';
-import { showGlobalAlert } from '../modules/utils.js?v=317';
+import { showGlobalAlert } from '../modules/utils.js?v=1000';
 
 export async function renderClients(container) {
     // Ensure we have orders for analytics

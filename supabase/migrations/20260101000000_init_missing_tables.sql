@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS public.collaborators (
     phone TEXT,
     role TEXT,
     user_id UUID REFERENCES auth.users(id),
+    tags TEXT,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 

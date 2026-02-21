@@ -2,7 +2,8 @@
 -- Adds status column, review tracking, indexes, and approval/rejection RPC functions
 
 alter table public.bank_transactions
-  add column if not exists status text;
+  add column if not exists status text,
+  add column if not exists statement_id uuid references public.bank_statements(id) on delete set null;
 
 update public.bank_transactions
 set status = 'posted'

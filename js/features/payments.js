@@ -1,5 +1,5 @@
 import { state } from '/js/modules/state.js';
-import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=317';
+import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=1000';
 import { upsertPayment, deletePayment, upsertBankTransaction, fetchPayments } from '../modules/api.js';
 
 export function renderPaymentsDashboard(container) {
@@ -587,7 +587,7 @@ export function openPaymentModal(id) {
                 if (inviteBtn) {
                     inviteBtn.addEventListener('click', async () => {
                         try {
-                            const { supabase } = await import('../modules/config.js?v=317');
+                            const { supabase } = await import('../modules/config.js?v=1000');
                             await supabase.rpc('send_payment_invite', { p_payment_id: p.id });
                             // Refresh payments and reopen modal
                             await fetchPayments();

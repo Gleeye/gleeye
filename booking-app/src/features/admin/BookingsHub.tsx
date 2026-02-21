@@ -24,6 +24,12 @@ export default function BookingsHub() {
     const [selectedBooking, setSelectedBooking] = useState<any>(null);
 
     useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const editItemId = params.get('editItem');
+        if (editItemId) {
+            setActiveView('services');
+        }
+
         checkAdmin();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -121,10 +127,13 @@ export default function BookingsHub() {
 
     // --- SUB-VIEWS ---
     if (activeView === 'services') {
+        const params = new URLSearchParams(window.location.search);
+        const editItemId = params.get('editItem');
+
         return (
             <div className="animate-fade-in" style={{ padding: '0 1.5rem 3rem', maxWidth: 1400, margin: '0 auto' }}>
                 <Header onBack={() => setActiveView('hub')} title="Catalogo Servizi" />
-                <BookingCatalog />
+                <BookingCatalog initialEditItemId={editItemId || undefined} />
             </div>
         );
     }

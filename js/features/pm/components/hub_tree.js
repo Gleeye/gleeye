@@ -463,7 +463,7 @@ function setupTreeEventHandlers(container, items, spaceId) {
             // Execute Move
             try {
                 // Optimistic UI update could go here, but let's rely on event reload for safety
-                const { updatePMItem } = await import('../../../modules/pm_api.js?v=317');
+                const { updatePMItem } = await import('../../../modules/pm_api.js?v=1000');
 
                 await updatePMItem(draggedId, { parent_ref: targetId });
 
@@ -498,7 +498,7 @@ function setupTreeEventHandlers(container, items, spaceId) {
         row.addEventListener('click', (e) => {
             if (e.target.closest('.tree-toggle') || e.target.closest('.add-child-btn')) return;
             const itemId = row.dataset.id;
-            import('./hub_drawer.js?v=385').then(mod => {
+            import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => {
                 mod.openHubDrawer(itemId, spaceId);
             });
         });
@@ -554,7 +554,7 @@ function setupTreeEventHandlers(container, items, spaceId) {
                 item.addEventListener('click', (ev) => {
                     ev.stopPropagation();
                     const type = item.dataset.type;
-                    import('./hub_drawer.js?v=385').then(mod => {
+                    import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => {
                         mod.openHubDrawer(null, spaceId, parentId, type);
                     });
                     menu.remove();
@@ -602,7 +602,7 @@ function setupTreeEventHandlers(container, items, spaceId) {
 
             // Start move to root
             try {
-                const { updatePMItem } = await import('../../../modules/pm_api.js?v=317');
+                const { updatePMItem } = await import('/js/modules/pm_api.js?v=1000');
                 await updatePMItem(draggedId, { parent_ref: null });
 
                 document.dispatchEvent(new CustomEvent('pm-item-changed', {
@@ -616,7 +616,7 @@ function setupTreeEventHandlers(container, items, spaceId) {
 
     // Create first button
     container.querySelector('.create-first-btn')?.addEventListener('click', () => {
-        import('./hub_drawer.js?v=385').then(mod => {
+        import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => {
             mod.openHubDrawer(null, spaceId, null, 'attivita');
         });
     });

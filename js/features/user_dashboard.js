@@ -1,8 +1,8 @@
 import { state } from '/js/modules/state.js';
 import { supabase } from '../modules/config.js';
 import { fetchCollaborators, upsertCollaborator, fetchAvailabilityRules, saveAvailabilityRules, fetchPayments, fetchRestDays, upsertRestDay, deleteRestDay, fetchCollaboratorServices, fetchCollaboratorSkills, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchBookingItemCollaborators, fetchGoogleAuth, deleteGoogleAuth, fetchSystemConfig, upsertGoogleAuth, fetchNotificationTypes, fetchUserNotificationPreferences, upsertUserNotificationPreference } from '../modules/api.js';
-import { formatAmount } from '../modules/utils.js?v=317';
-import { loadAvailabilityIntoContainer } from './availability_manager.js?v=317';
+import { formatAmount } from '../modules/utils.js?v=1000';
+import { loadAvailabilityIntoContainer } from './availability_manager.js?v=1000';
 
 
 
@@ -778,7 +778,7 @@ export async function renderUserProfile(container) {
             state.impersonatedRole = newRole;
 
             // Update UI
-            import('../features/layout.js?v=317').then(({ updateSidebarVisibility }) => {
+            import('../features/layout.js?v=1000').then(({ updateSidebarVisibility }) => {
                 updateSidebarVisibility();
 
                 // If switching to collaborator and currently on a restricted page, redirect

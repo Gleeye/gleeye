@@ -1,6 +1,6 @@
 import { state } from '/js/modules/state.js';
 import { fetchDepartments, fetchCollaborators } from '../../modules/api.js';
-import { fetchPagePermissions, addPagePermission, deletePagePermission, updateDocPage } from '../../modules/docs_api.js?v=1';
+import { fetchPagePermissions, addPagePermission, deletePagePermission, updateDocPage } from '../../modules/docs_api.js?v=1000';
 
 export async function openPageSharingModal(page) {
     const modal = document.createElement('div');

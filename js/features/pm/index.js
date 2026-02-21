@@ -1,7 +1,7 @@
-import { renderCommesseList } from './commesse_list.js?v=380';
-import { renderInternalProjects } from './internal_list.js?v=380';
-import { renderMyWork } from './my_work.js?v=380';
-import { renderSpaceView } from './space_view.js?v=380';
+import { renderCommesseList } from './commesse_list.js?v=1000';
+import { renderInternalProjects } from './internal_list.js?v=1000';
+import { renderMyWork } from './my_work.js?v=1000';
+import { renderSpaceView } from './space_view.js?v=1000';
 import { state } from '../../modules/state.js';
 
 export function renderPM(container) {

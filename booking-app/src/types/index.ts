@@ -17,6 +17,13 @@ export interface BookingItem {
     logic_type: ServiceLogicType;
     team_size_req?: number;
     category_id?: string;
+    sap_service_id?: string;
+    core_services?: { name: string };
+}
+
+export interface SapService {
+    id: string;
+    name: string;
 }
 
 export interface Collaborator {

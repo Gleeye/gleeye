@@ -304,7 +304,7 @@ export async function updateOrder(id, updates) {
             // We use dynamic import to avoid circular dependency with pm_api.js
             setTimeout(async () => {
                 try {
-                    const { fetchProjectSpaceForOrder } = await import('./pm_api.js?v=317');
+                    const { fetchProjectSpaceForOrder } = await import('./pm_api.js?v=1000');
                     await fetchProjectSpaceForOrder(id);
                     console.log("PM Space auto-initialized for order:", id);
                 } catch (e) {
@@ -1187,22 +1187,22 @@ async function refreshCurrentPage() {
     if (!container) return;
 
     if (hash.includes('order-detail/')) {
-        const { renderOrderDetail } = await import('../features/orders.js?v=317');
+        const { renderOrderDetail } = await import('../features/orders.js?v=1000');
         renderOrderDetail(container);
     } else if (hash.includes('payments')) {
-        const { renderPaymentsDashboard } = await import('../features/payments.js?v=317');
+        const { renderPaymentsDashboard } = await import('../features/payments.js?v=1000');
         renderPaymentsDashboard(container);
     } else if (hash.includes('bank-transactions')) {
-        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=416');
+        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=1000');
         renderBankTransactions(container);
     } else if (hash.includes('collaborator-services')) {
-        const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=317');
+        const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=1000');
         renderCollaboratorServices(container);
     } else if (hash.includes('assignment-detail/')) {
-        const { renderAssignmentDetail } = await import('../features/assignments.js?v=317');
+        const { renderAssignmentDetail } = await import('../features/assignments.js?v=1000');
         renderAssignmentDetail(container);
     } else if (hash.includes('collaborator-detail/')) {
-        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=317');
+        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=1000');
         renderCollaboratorDetail(container);
     } else if (hash.includes('client-detail/')) {
     }
@@ -1741,3 +1741,80 @@ export async function upsertSapServiceType(name, departmentId) {
     state.coreServiceTypes.push(data);
     return data;
 }
+
+// --- LEADS ---
+
+export async function fetchLeads() {
+    console.log("Fetching leads...");
+    const { data, error } = await supabase
+        .from('leads')
+        .select(`
+            *,
+            core_services(name)
+        `)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Leads fetch failed:", error);
+        return;
+    }
+    state.leads = data || [];
+}
+
+export async function fetchLeadDetail(id) {
+    const { data, error } = await supabase
+        .from('leads')
+        .select(`
+            *,
+            core_services(id, name)
+        `)
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        console.error("Fetch lead detail failed:", error);
+        return null;
+    }
+    return data;
+}
+
+export async function upsertLead(lead) {
+    let payload = { ...lead };
+    if (!payload.id) {
+        // Handle custom id or let uuid_generate_v4() handle it?
+        // Wait, default is uuid_generate_v4(), but wait: if we want to add an ID format or just let postgres do it?
+        // Let's let Postgres generate it, but lead_code needs to be generated if missing
+        if (!payload.lead_code) {
+            const yy = new Date().getFullYear().toString().slice(-2);
+            const r = Math.random().toString(36).substring(2, 6).toUpperCase();
+            payload.lead_code = `LD-${yy}-${r}`;
+        }
+    }
+
+    // cleanup
+    delete payload.core_services;
+
+    const { data, error } = await supabase
+        .from('leads')
+        .upsert(payload)
+        .select(`*, core_services(name)`)
+        .single();
+
+    if (error) throw error;
+
+    if (!state.leads) state.leads = [];
+    const index = state.leads.findIndex(l => l.id === data.id);
+    if (index >= 0) {
+        state.leads[index] = data;
+    } else {
+        state.leads.unshift(data);
+    }
+    return data;
+}
+
+export async function deleteLead(id) {
+    const { error } = await supabase.from('leads').delete().eq('id', id);
+    if (error) throw error;
+    state.leads = state.leads.filter(l => l.id !== id);
+}
+

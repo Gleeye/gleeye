@@ -4,15 +4,26 @@ export function renderBooking(container) {
     const pageTitle = document.getElementById('page-title');
     if (pageTitle) pageTitle.textContent = 'Prenotazioni';
 
+    // Check for Deep Link parameters in Router state
+    // state.currentSubPage is 'edit-item', state.currentId is the itemId
+    const editItem = (state.currentSubPage === 'edit-item' && state.currentId) ? state.currentId : null;
+
     // Use localhost in development, Vercel in production
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const BOOKING_APP_URL = isLocal ? 'http://localhost:5173' : 'https://gleeyebooking.vercel.app';
+
+    const iframeUrl = new URL(BOOKING_APP_URL);
+    iframeUrl.searchParams.set('mode', 'admin');
+    iframeUrl.searchParams.set('c', Date.now().toString());
+    if (editItem) {
+        iframeUrl.searchParams.set('editItem', editItem);
+    }
 
     container.innerHTML = `
         <div class="animate-fade-in" style="height: calc(100vh - 80px); width: 100%; overflow: hidden; border-radius: 12px; background: white; box-shadow: var(--shadow-sm);">
             <iframe 
                 id="booking-iframe"
-                src="${BOOKING_APP_URL}?mode=admin&c=${Date.now()}" 
+                src="${iframeUrl.toString()}" 
                 style="width: 100%; height: 100%; border: none;"
                 title="Booking Module"
                 loading="lazy"

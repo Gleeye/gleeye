@@ -1,5 +1,5 @@
 import { state } from '/js/modules/state.js';
-import { formatAmount } from '../modules/utils.js?v=317';
+import { formatAmount } from '../modules/utils.js?v=1000';
 import { fetchCollaborators, upsertCollaborator, deleteCollaborator } from '../modules/api.js';
 
 export async function renderWhiteLabelPartners(container) {

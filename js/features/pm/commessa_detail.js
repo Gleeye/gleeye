@@ -1,9 +1,9 @@
 import { state } from '../../modules/state.js';
 import { fetchOrders } from '../../modules/api.js';
-import { showGlobalAlert } from '../../modules/utils.js?v=317';
+import { showGlobalAlert } from '../../modules/utils.js?v=1000';
 import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, updateSpaceCloudLinks } from '../../modules/pm_api.js';
-import { CloudLinksManager } from '../components/CloudLinksManager.js?v=376';
-import { renderAvatar } from '../../modules/utils.js?v=317';
+import { CloudLinksManager } from '../components/CloudLinksManager.js?v=1000';
+import { renderAvatar } from '../../modules/utils.js?v=1000';
 
 // Status colors for "Stato Lavori"
 const STATUS_CONFIG = {
@@ -67,7 +67,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         // Only fetch orders if we are in commessa mode
         if (!isInternal && (!state.orders || state.orders.length === 0)) promises.push(fetchOrders());
 
-        const { fetchAssignments, fetchCollaborators } = await import('../../modules/api.js?v=317');
+        const { fetchAssignments, fetchCollaborators } = await import('../../modules/api.js?v=1000');
         if (!state.assignments || state.assignments.length === 0) promises.push(fetchAssignments());
         if (!state.collaborators || state.collaborators.length === 0) promises.push(fetchCollaborators());
 
@@ -80,7 +80,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
         if (isInternal) {
             // EntityId is SpaceID
-            const { fetchSpace } = await import('../../modules/pm_api.js?v=317');
+            const { fetchSpace } = await import('../../modules/pm_api.js?v=1000');
             space = await fetchSpace(entityId);
             if (!space) throw new Error("Spazio non trovato");
         } else {
@@ -108,6 +108,12 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
             spaceId ? fetchProjectItems(spaceId) : [],
             spaceId ? fetchSpaceAssignees(spaceId) : []
         ]);
+
+        // Filter out Account-specific items (they should only appear in the AccountActivitiesModal)
+        items = items.filter(i => {
+            const isAccount = i.is_account_level || i.pm_item_assignees?.some(a => a.role === 'account') || i.notes?.toLowerCase().includes('[account]');
+            return !isAccount;
+        });
 
         // 3. Calculate KPIs
         let kpis = calculateKPIs(items);
@@ -427,15 +433,15 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
             switch (tabName) {
                 case 'overview':
-                    const { renderHubOverview } = await import('./components/hub_overview.js?v=317');
+                    const { renderHubOverview } = await import('./components/hub_overview.js?v=1000');
                     renderHubOverview(tabContent, items, kpis, spaceId);
                     break;
                 case 'tree':
-                    const { renderHubTree } = await import('./components/hub_tree.js?v=317');
+                    const { renderHubTree } = await import('./components/hub_tree.js?v=1000');
                     renderHubTree(tabContent, items, space, spaceId);
                     break;
                 case 'list':
-                    const { renderHubList } = await import('./components/hub_list.js?v=317');
+                    const { renderHubList } = await import('./components/hub_list.js?v=1000');
                     renderHubList(tabContent, items, space, spaceId);
                     break;
                 case 'incarichi':
@@ -443,11 +449,16 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     else tabContent.innerHTML = '<p style="padding:2rem;">Non disponibile per progetti interni.</p>';
                     break;
                 case 'appointments':
-                    const { renderHubAppointments } = await import('./components/hub_appointments.js?v=317');
+                    const { renderHubAppointments } = await import('./components/hub_appointments.js?v=1000');
                     const refId = isInternal ? spaceId : orderId;
                     const refType = isInternal ? 'space' : 'order';
 
-                    const ap = await fetchAppointments(refId, refType);
+                    let ap = await fetchAppointments(refId, refType);
+                    // Filter out Account-specific appointments
+                    ap = ap.filter(appt => {
+                        const isAccount = appt.is_account_level || appt.appointment_internal_participants?.some(p => p.role === 'account') || appt.note?.toLowerCase().includes('[account]');
+                        return !isAccount;
+                    });
                     const types = await fetchAppointmentTypes();
                     renderHubAppointments(tabContent, ap, types, refId, refType);
                     break;
@@ -541,7 +552,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
             container.querySelector('#add-appointment-btn')?.addEventListener('click', () => {
                 addHubDropdown.classList.add('hidden');
-                import('./components/hub_appointment_drawer.js?v=317').then(mod => {
+                import('./components/hub_appointment_drawer.js?v=1000').then(mod => {
                     const refId = isInternal ? spaceId : orderId;
                     const refType = isInternal ? 'space' : 'order';
                     mod.openAppointmentDrawer(null, refId, refType);
@@ -571,7 +582,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     renderTab(activeTab);
                 }
 
-                const { fetchProjectItems, fetchSpace, fetchSpaceAssignees } = await import('../../modules/pm_api.js?v=317');
+                const { fetchProjectItems, fetchSpace, fetchSpaceAssignees } = await import('../../modules/pm_api.js?v=1000');
 
                 try {
                     console.log('[ProjectHub] Fetching fresh data to sync...');
@@ -584,7 +595,10 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     console.log('[ProjectHub] Sync complete. Items:', newItems?.length);
 
                     // Update local references
-                    items = newItems || [];
+                    items = (newItems || []).filter(i => {
+                        const isAccount = i.pm_item_assignees?.some(a => a.role === 'account') || i.notes?.toLowerCase().includes('[account]');
+                        return !isAccount;
+                    });
                     space = newSpace;
                     spaceAssignees = newAssignees || [];
                     kpis = calculateKPIs(items);
@@ -783,7 +797,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                 const newStatus = e.target.value;
                 try {
                     statusSelect.disabled = true;
-                    const { updateOrder } = await import('../../modules/api.js?v=317');
+                    const { updateOrder } = await import('../../modules/api.js?v=1000');
                     await updateOrder(orderId, { status_works: newStatus });
                     const newNormalized = normalizeStatus(newStatus);
                     const newCfg = STATUS_CONFIG[newNormalized] || { label: newStatus, color: '#64748b', bg: '#f1f5f9' };
@@ -817,7 +831,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
 // Drawer function (exported for use by child components)
 export function openItemDrawer(itemId, spaceId, parentId = null, itemType = 'task') {
-    import('./components/hub_drawer.js?v=317').then(mod => {
+    import('./components/hub_drawer.js?v=1000').then(mod => {
         mod.openHubDrawer(itemId, spaceId, parentId, itemType);
     });
 }
