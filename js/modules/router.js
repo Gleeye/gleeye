@@ -73,7 +73,7 @@ export function router() {
             if (typeof tags === 'string') {
                 try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
             }
-            userTags = Array.isArray(tags) ? tags : [];
+            userTags = (Array.isArray(tags) ? tags : []).map(t => t.toLowerCase());
         }
     } else {
         // Use real user tags
