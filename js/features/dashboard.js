@@ -226,19 +226,14 @@ export function renderDashboard(container) {
 
         const userTags = tagsToUse.map(t => typeof t === 'string' ? t.trim().toLowerCase() : '');
         const isPrivileged = userTags.some(t => t === 'partner' || t === 'amministrazione');
-        const isAccount = userTags.some(t => t === 'account');
-        const isAccountOnly = isAccount && !isPrivileged;
-
         let baseOrders = state.orders;
-        if (isAccountOnly && activeRole !== 'admin') {
+        if (!isPrivileged && activeRole !== 'admin') {
             baseOrders = state.orders.filter(o => {
-                const isMyOrder = o.order_collaborators?.some(oc =>
-                    (oc.collaborator_id == myCollabId || oc.collaborators?.id == myCollabId) &&
-                    (oc.role_in_order || '').toLowerCase().includes('account')
+                return o.order_collaborators?.some(oc =>
+                    (oc.collaborator_id == myCollabId || oc.collaborators?.id == myCollabId)
                 );
-                return isMyOrder;
             });
-            console.log(`[Dashboard] Account Filter: active=${isAccountOnly}, orders=${baseOrders.length}/${state.orders.length}`);
+            console.log(`[Dashboard] Non-privileged Filter applied: orders=${baseOrders.length}/${state.orders.length}`);
         }
 
         // Commercial Funnel - only first 3 stages

@@ -990,19 +990,19 @@ export function renderAssignmentsDashboard(container) {
         const userTags = tagsToUse.map(t => typeof t === 'string' ? t.trim().toLowerCase() : '');
         const isPrivileged = userTags.some(t => t === 'partner' || t === 'amministrazione');
         const isAccount = userTags.some(t => t === 'account');
-        const isAccountOnly = isAccount && !isPrivileged;
-
         let baseAssignments = state.assignments;
-        if (isAccountOnly && activeRole !== 'admin') {
-            // Get IDs of orders where I am the Account
+        if (!isPrivileged && activeRole !== 'admin') {
             const myOrderIds = state.orders.filter(o =>
                 o.order_collaborators?.some(oc =>
-                    (oc.collaborator_id == myCollabId || oc.collaborators?.id == myCollabId) &&
-                    (oc.role_in_order || '').toLowerCase().includes('account')
+                    (oc.collaborator_id == myCollabId || oc.collaborators?.id == myCollabId)
                 )
             ).map(o => o.id);
 
-            baseAssignments = state.assignments.filter(a => myOrderIds.includes(a.order_id));
+            baseAssignments = state.assignments.filter(a =>
+                myOrderIds.includes(a.order_id) ||
+                a.collaborator_id == myCollabId ||
+                a.collaborators?.id == myCollabId
+            );
         }
 
         const selectedStatus = state.assignmentsStatusFilter || 'all';
