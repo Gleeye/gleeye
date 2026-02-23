@@ -85,9 +85,15 @@ export function router() {
     }
 
     const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
+    const isAccount = userTags.includes('Account');
+    const isProjectManager = userTags.includes('Project Manager');
 
     // List of pages allowed for Collaborators (standard - no special tags)
     const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'my-assignments', 'booking', 'notifications', 'chat', 'assignment-detail', 'assignments', 'pm', 'leads', 'lead-detail'];
+
+    if (isPrivilegedCollaborator || isAccount || isProjectManager) {
+        allowedPagesForCollaborator.push('dashboard', 'sap-services', 'sap-service-detail');
+    }
 
     // Specific check for Project Management page access
     const canAccessPM = activeRole === 'admin' || isPrivilegedCollaborator;

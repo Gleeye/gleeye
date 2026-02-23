@@ -374,6 +374,7 @@ export function updateSidebarVisibility() {
     }
 
     const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
+    const isAccount = userTags.includes('Account');
     const isProjectManager = userTags.some(t => t.toLowerCase() === 'project manager' || t.toLowerCase() === 'pm');
 
     const sidebar = document.getElementById('sidebar');
@@ -401,7 +402,8 @@ export function updateSidebarVisibility() {
     // Accounting Section
     if (navAccounting) {
         const toggle = navAccounting.querySelector('#main-accounting-toggle');
-        if (activeRole === 'admin' || isPrivilegedCollaborator) {
+        const canSeeAccounting = activeRole === 'admin' || isPrivilegedCollaborator || isAccount || isProjectManager;
+        if (canSeeAccounting) {
             navAccounting.classList.remove('hidden');
             if (toggle) toggle.classList.remove('hidden');
             if (adminBtn) activeRole === 'admin' ? adminBtn.classList.remove('hidden') : adminBtn.classList.add('hidden');
@@ -413,9 +415,9 @@ export function updateSidebarVisibility() {
 
             if (activeRole !== 'admin') {
                 // Now Partners, Account and Amministrazione CAN see Ordini and Incarichi
-                if (ordini) ordini.classList.toggle('hidden', !isPrivilegedCollaborator);
-                if (incarichi) incarichi.classList.toggle('hidden', !isPrivilegedCollaborator);
-                if (booking) booking.classList.toggle('hidden', !isPrivilegedCollaborator);
+                if (ordini) ordini.classList.toggle('hidden', !canSeeAccounting);
+                if (incarichi) incarichi.classList.toggle('hidden', !canSeeAccounting);
+                if (booking) booking.classList.toggle('hidden', !canSeeAccounting);
             } else {
                 [ordini, incarichi, booking].forEach(i => i?.classList.remove('hidden'));
             }

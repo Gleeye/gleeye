@@ -139,8 +139,9 @@ async function handleSession(session) {
                 }
             }
 
-            const isPrivilegedCollaborator = userTags.includes('Partner') ||
-                userTags.includes('Amministrazione');
+            const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
+            const isAccount = userTags.includes('Account');
+            const isProjectManager = userTags.includes('Project Manager');
             const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
 
             // Base allowed pages for all collaborators
@@ -150,13 +151,18 @@ async function handleSession(session) {
             ];
 
             if (isPrivilegedCollaborator) {
-                // Expand allowed pages for Partner/Amministrazione/PMs
+                // Expand allowed pages for Partner/Amministrazione
                 allowedPagesForCollaborator = [...allowedPagesForCollaborator,
                     'invoices-dashboard', 'invoices', 'passive-invoices-collab', 'passive-invoices-suppliers', 'invoices-archive',
                     'bank-transactions', 'bank-statements', 'payments',
                     'sales', 'contacts', 'employees', 'suppliers',
                     'services', 'collaborator-services'
                 ];
+            }
+
+            if (isPrivilegedCollaborator || isAccount || isProjectManager) {
+                // Accounting section pages
+                allowedPagesForCollaborator = [...allowedPagesForCollaborator, 'dashboard', 'sap-services', 'sap-service-detail', 'leads', 'lead-detail'];
             }
 
             const currentHash = window.location.hash.slice(1) || 'home';
