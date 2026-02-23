@@ -373,7 +373,7 @@ export function updateSidebarVisibility() {
         }
     }
 
-    const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione') || userTags.includes('Account');
+    const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
     const isProjectManager = userTags.some(t => t.toLowerCase() === 'project manager' || t.toLowerCase() === 'pm');
 
     const sidebar = document.getElementById('sidebar');

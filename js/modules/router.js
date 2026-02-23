@@ -84,7 +84,7 @@ export function router() {
         userTags = Array.isArray(tags) ? tags : [];
     }
 
-    const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione') || userTags.includes('Project Manager') || userTags.includes('Account');
+    const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
 
     // List of pages allowed for Collaborators (standard - no special tags)
     const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'my-assignments', 'booking', 'notifications', 'chat', 'assignment-detail', 'assignments', 'pm', 'leads', 'lead-detail'];

@@ -140,9 +140,7 @@ async function handleSession(session) {
             }
 
             const isPrivilegedCollaborator = userTags.includes('Partner') ||
-                userTags.includes('Amministrazione') ||
-                userTags.includes('Project Manager') ||
-                userTags.includes('Account');
+                userTags.includes('Amministrazione');
             const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
 
             // Base allowed pages for all collaborators
