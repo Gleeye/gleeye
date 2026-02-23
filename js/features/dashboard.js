@@ -209,7 +209,37 @@ export function renderDashboard(container) {
         let currentYearFilter = null;
         let currentClientFilter = null;
         let currentStatusFilter = null;
-        const currentYear = new Date().getFullYear();
+        let activeRole = state.impersonatedRole || state.profile?.role;
+        let myCollabId = state.impersonatedCollaboratorId || state.profile?.collaborator_id;
+        let tagsToUse = state.profile?.tags || [];
+
+        if (state.impersonatedRole === 'collaborator' && state.impersonatedCollaboratorId) {
+            const c = state.collaborators?.find(x => x.id == state.impersonatedCollaboratorId);
+            if (c) {
+                let tags = c.tags;
+                if (typeof tags === 'string') {
+                    try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
+                }
+                tagsToUse = Array.isArray(tags) ? tags : [];
+            }
+        }
+
+        const userTags = tagsToUse.map(t => typeof t === 'string' ? t.trim().toLowerCase() : '');
+        const isPrivileged = userTags.some(t => t === 'partner' || t === 'amministrazione');
+        const isAccount = userTags.some(t => t === 'account');
+        const isAccountOnly = isAccount && !isPrivileged;
+
+        let baseOrders = state.orders;
+        if (isAccountOnly && activeRole !== 'admin') {
+            baseOrders = state.orders.filter(o => {
+                const isMyOrder = o.order_collaborators?.some(oc =>
+                    (oc.collaborator_id == myCollabId || oc.collaborators?.id == myCollabId) &&
+                    (oc.role_in_order || '').toLowerCase().includes('account')
+                );
+                return isMyOrder;
+            });
+            console.log(`[Dashboard] Account Filter: active=${isAccountOnly}, orders=${baseOrders.length}/${state.orders.length}`);
+        }
 
         // Commercial Funnel - only first 3 stages
         const funnelStates = [
@@ -220,7 +250,7 @@ export function renderDashboard(container) {
 
         // Process funnel stats
         const funnelStats = funnelStates.map(stateInfo => {
-            const filteredOrders = state.orders.filter(o =>
+            const filteredOrders = baseOrders.filter(o =>
                 o.offer_status?.toLowerCase() === stateInfo.key.toLowerCase()
             );
             const count = filteredOrders.length;
@@ -232,15 +262,16 @@ export function renderDashboard(container) {
         });
 
         // Special Stats for Side Box
-        const acceptedInProgress = state.orders.filter(o =>
+        const acceptedInProgress = baseOrders.filter(o =>
             (o.offer_status || '').toLowerCase() === 'offerta accettata' &&
             (o.status_works || '').toLowerCase() !== 'completato'
         );
 
-        const acceptedAll = state.orders.filter(o => (o.offer_status || '').toLowerCase() === 'offerta accettata');
-        const rejectedAll = state.orders.filter(o => (o.offer_status || '').toLowerCase() === 'offerta rifiutata');
+        const acceptedAll = baseOrders.filter(o => (o.offer_status || '').toLowerCase() === 'offerta accettata');
+        const rejectedAll = baseOrders.filter(o => (o.offer_status || '').toLowerCase() === 'offerta rifiutata');
 
         // YTD Stats
+        const currentYear = new Date().getFullYear();
         const acceptedYTD = acceptedAll.filter(o => {
             const date = o.order_date || o.created_at;
             return date && new Date(date).getFullYear() === currentYear;
@@ -254,14 +285,14 @@ export function renderDashboard(container) {
         const rejectedValueYTD = rejectedYTD.reduce((s, o) => s + (parseFloat(o.price_final) || 0), 0);
 
         // Derivate Filter Options
-        const uniqueYears = [...new Set(state.orders.map(o => {
+        const uniqueYears = [...new Set(baseOrders.map(o => {
             const d = o.order_date || o.created_at;
             return d ? new Date(d).getFullYear() : null;
         }).filter(y => y))].sort((a, b) => b - a);
 
-        const uniqueClients = [...new Set(state.orders.map(o => o.clients?.business_name || o.client_code).filter(c => c))].sort();
+        const uniqueClients = [...new Set(baseOrders.map(o => o.clients?.business_name || o.client_code).filter(c => c))].sort();
 
-        const uniqueStatuses = [...new Set(state.orders.map(o => o.offer_status || o.status_works).filter(s => s))].sort();
+        const uniqueStatuses = [...new Set(baseOrders.map(o => o.offer_status || o.status_works).filter(s => s))].sort();
 
         const renderDropdown = (id, label, icon, options, current) => {
             return `
@@ -492,7 +523,7 @@ export function renderDashboard(container) {
                                         </tr>
                                     </thead>
                                     <tbody id="orders-table-body" style="background: white;">
-                                        ${renderTableRows([...state.orders].sort((a, b) => (b.order_number || "").localeCompare(a.order_number || "")))}
+                                        ${renderTableRows([...baseOrders].sort((a, b) => (b.order_number || "").localeCompare(a.order_number || "")))}
                                     </tbody>
                                 </table>
                             </div>
@@ -537,7 +568,7 @@ export function renderDashboard(container) {
             currentClientFilter = client !== undefined ? client : currentClientFilter;
             currentStatusFilter = status !== undefined ? status : currentStatusFilter;
 
-            const filtered = state.orders.filter(o => {
+            const filtered = baseOrders.filter(o => {
                 let match = true;
                 if (currentFunnelFilter) {
                     match = match && o.offer_status?.toLowerCase() === currentFunnelFilter.toLowerCase();

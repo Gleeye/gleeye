@@ -972,10 +972,43 @@ window.openManualAssignmentPaymentModal = (assignmentId, collaboratorId) => {
 
 export function renderAssignmentsDashboard(container) {
     const updateUI = () => {
-        const selectedStatus = state.assignmentsStatusFilter || 'all';
-        const uniqueStatuses = ['all', ...new Set(state.assignments.map(a => a.status).filter(s => s))].sort();
+        let activeRole = state.impersonatedRole || state.profile?.role;
+        let myCollabId = state.impersonatedCollaboratorId || state.profile?.collaborator_id;
+        let tagsToUse = state.profile?.tags || [];
 
-        let filtered = state.assignments.filter(a => {
+        if (state.impersonatedRole === 'collaborator' && state.impersonatedCollaboratorId) {
+            const c = state.collaborators?.find(x => x.id == state.impersonatedCollaboratorId);
+            if (c) {
+                let tags = c.tags;
+                if (typeof tags === 'string') {
+                    try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
+                }
+                tagsToUse = Array.isArray(tags) ? tags : [];
+            }
+        }
+
+        const userTags = tagsToUse.map(t => typeof t === 'string' ? t.trim().toLowerCase() : '');
+        const isPrivileged = userTags.some(t => t === 'partner' || t === 'amministrazione');
+        const isAccount = userTags.some(t => t === 'account');
+        const isAccountOnly = isAccount && !isPrivileged;
+
+        let baseAssignments = state.assignments;
+        if (isAccountOnly && activeRole !== 'admin') {
+            // Get IDs of orders where I am the Account
+            const myOrderIds = state.orders.filter(o =>
+                o.order_collaborators?.some(oc =>
+                    (oc.collaborator_id == myCollabId || oc.collaborators?.id == myCollabId) &&
+                    (oc.role_in_order || '').toLowerCase().includes('account')
+                )
+            ).map(o => o.id);
+
+            baseAssignments = state.assignments.filter(a => myOrderIds.includes(a.order_id));
+        }
+
+        const selectedStatus = state.assignmentsStatusFilter || 'all';
+        const uniqueStatuses = ['all', ...new Set(baseAssignments.map(a => a.status).filter(s => s))].sort();
+
+        let filtered = baseAssignments.filter(a => {
             if (selectedStatus !== 'all' && a.status !== selectedStatus) return false;
             if (state.searchTerm) {
                 const term = state.searchTerm.toLowerCase();

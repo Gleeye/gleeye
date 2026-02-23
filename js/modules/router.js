@@ -77,16 +77,13 @@ export function router() {
         }
     } else {
         // Use real user tags
-        let tags = state.profile?.tags;
-        if (typeof tags === 'string') {
-            try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
-        }
-        userTags = Array.isArray(tags) ? tags : [];
+        const tags = state.profile?.tags;
+        userTags = (Array.isArray(tags) ? tags : []).map(t => t.toLowerCase());
     }
 
-    const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
-    const isAccount = userTags.includes('Account');
-    const isProjectManager = userTags.includes('Project Manager');
+    const isPrivilegedCollaborator = userTags.some(t => t === 'partner' || t === 'amministrazione');
+    const isAccount = userTags.includes('account');
+    const isProjectManager = userTags.includes('project manager');
 
     // List of pages allowed for Collaborators (standard - no special tags)
     const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'my-assignments', 'booking', 'notifications', 'chat', 'assignment-detail', 'assignments', 'pm', 'leads', 'lead-detail'];
