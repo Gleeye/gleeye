@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/design-system.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
     <style>
         :root {
@@ -20,6 +21,8 @@
 
         body {
             background: var(--bg-surface);
+            background-image: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            background-attachment: fixed;
             font-family: var(--font-family);
             margin: 0;
             padding: 0;
@@ -49,18 +52,28 @@
         }
 
         /* Main Container */
+        #form-wrapper {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
+            position: relative;
+        }
+
         #typeform-wrapper {
             flex: 1;
             position: relative;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
             width: 100%;
             max-width: 800px;
             margin: 0 auto;
-            padding: 2rem;
+            padding: 4rem 2rem;
             box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         /* Step Containers */
@@ -68,11 +81,11 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -45%);
             width: 100%;
             opacity: 0;
             visibility: hidden;
-            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
             pointer-events: none;
             display: flex;
             flex-direction: column;
@@ -272,6 +285,40 @@
             align-items: center;
             gap: 16px;
         }
+
+        /* New Layout Classes */
+        .tf-question-wrapper {
+            width: 100%;
+            max-width: 700px;
+            margin: 0 auto;
+            text-align: left;
+        }
+
+        .tf-input-container {
+            margin-top: 2rem;
+            width: 100%;
+        }
+
+        .tf-action-row {
+            margin-top: 2.5rem;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .question-title {
+                font-size: 1.25rem;
+            }
+
+            .tf-input {
+                font-size: 1.4rem;
+            }
+
+            .welcome-title {
+                font-size: 1.8rem;
+            }
+        }
     </style>
 </head>
 
@@ -294,32 +341,28 @@
         </style>
     </div>
 
-    <form id="public-form" style="display: none; height: 100%; width: 100%;">
-        <div id="typeform-wrapper">
-            <!-- Steps injected here -->
-        </div>
+    <div id="form-wrapper">
+        <form id="public-form" style="display: none; height: 100%; width: 100%;">
+            <div id="typeform-wrapper">
+                <!-- Steps injected here -->
+            </div>
 
-        <div class="nav-controls" id="nav-controls">
-            <button type="button" class="nav-btn" id="btn-prev" disabled>
-                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round">
-                    <path d="M18 15l-6-6-6 6" />
-                </svg>
-            </button>
-            <button type="button" class="nav-btn" id="btn-next">
-                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round">
-                    <path d="M6 9l6 6 6-6" />
-                </svg>
-            </button>
-        </div>
-    </form>
+            <div class="nav-controls" id="nav-controls">
+                <button type="button" class="nav-btn" id="btn-prev" disabled>
+                    <span class="material-icons-round">expand_less</span>
+                </button>
+                <button type="button" class="nav-btn" id="btn-next">
+                    <span class="material-icons-round">expand_more</span>
+                </button>
+            </div>
+        </form>
+    </div>
 
     <div id="error-msg"
         style="position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: white; color: #ef4444; padding: 16px 24px; border-radius: 8px; box-shadow: 0 10px 25px rgba(239, 68, 68, 0.2); font-weight: 600; display: none; z-index: 1000; border: 1px solid #fca5a5;">
     </div>
 
-    <script type="module" src="js/public_form.js?v=2000"></script>
+    <script type="module" src="js/public_form.js?v=2001"></script>
 </body>
 
 </html>

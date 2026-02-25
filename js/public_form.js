@@ -19,10 +19,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
         const { data, error } = await supabase.from('contact_forms').select('*').eq('id', formId).single();
+        console.log('Fetched Form Data:', data);
 
         if (error || !data) throw new Error('Modulo non trovato o non più disponibile.');
         if (!data.is_active) throw new Error('Questo modulo di contatto è stato disattivato.');
 
+        const fields = data.fields || [];
+        console.log('Fields count:', fields.length);
         // Apply primary color
         if (data.primary_color) {
             document.documentElement.style.setProperty('--primary-color', data.primary_color);
@@ -40,7 +43,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        const fields = data.fields || [];
         if (fields.length === 0) throw new Error('Questo modulo non ha alcun campo configurato.');
 
         fields.forEach(f => steps.push({ ...f, isField: true }));
@@ -145,22 +147,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
                 content = `
-                    <div style="width: 100%; max-width: 700px; margin: 0 auto;">
+                    <div class="tf-question-wrapper">
                         <h2 class="question-title">${stepNumText} <span>${s.label}${reqText}</span></h2>
                         ${s.description ? `<p class="question-desc">${s.description.replace(/\n/g, '<br>')}</p>` : ''}
                         
-                        <div style="margin-top: 2rem;">
+                        <div class="tf-input-container">
                             ${inputHtml}
                         </div>
 
                         ${s.type !== 'html' && s.type !== 'step' ? `
-                        <div style="margin-top: 2.5rem; display: flex; align-items: center; gap: 16px;">
+                        <div class="tf-action-row">
                             ${!isLast ? `<button type="button" class="btn-action next-btn-trigger">OK <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">check</span></button>`
                             : `<button type="button" class="btn-action submit-btn-trigger">Invia <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">send</span></button>`}
                             ${!isLast ? `<div class="next-hint">presta <strong>Invio &crarr;</strong></div>` : ''}
                         </div>
                         ` : `
-                        <div style="margin-top: 2.5rem;">
+                        <div class="tf-action-row">
                             <button type="button" class="btn-action next-btn-trigger">Continua</button>
                         </div>
                         `}
