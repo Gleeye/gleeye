@@ -88,51 +88,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isFirst = i === 0;
             const isLast = i === steps.length - 1;
 
-            // Generate Step Indicator based on settings
-            let indicatorHtml = '';
-            const totalDataSteps = steps.filter(s => s.type === 'fields').length;
-            const currentDataStepIndex = steps.slice(0, i + 1).filter(s => s.type === 'fields').length;
-
-            if (s.type === 'fields') {
-                const sType = s.step_type || 'number';
-                const sShape = s.step_shape || 'circle';
-
-                let innerContent = '';
-                if (sType === 'number' || sType === 'number_text') {
-                    innerContent = `<span style="font-size: 0.85em;">${currentDataStepIndex}</span><span style="opacity: 0.5; font-size: 0.6em; margin: 0 2px;">/</span><span style="font-size: 0.65em; opacity: 0.8;">${totalDataSteps}</span>`;
-                } else if (sType === 'icon' || sType === 'icon_text') {
-                    innerContent = `
-                        <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
-                            <span class="material-icons-round" style="font-size: 1.1rem;">label</span>
-                            <span style="font-size: 0.55rem; font-weight: 700; margin-top: -2px; opacity: 0.9;">${currentDataStepIndex}/${totalDataSteps}</span>
-                        </div>
-                    `;
-                }
-
-                const shapeClass = `shape-${sShape}`;
-
-                if (sType !== 'none' && sType !== 'text') {
-                    indicatorHtml = `
-                        <div class="tf-step-indicator ${shapeClass} ${sType}">
-                            ${innerContent}
-                        </div>
-                    `;
-                }
-
-                if (sType === 'progress') {
-                    indicatorHtml = `
-                        <div style="display: flex; flex-direction: column; gap: 6px; align-items: center;">
-                            <div class="tf-step-progress-mini">
-                                <div class="tf-step-progress-fill" style="width: ${(currentDataStepIndex / totalDataSteps) * 100}%"></div>
-                            </div>
-                            <span style="font-size: 0.65rem; font-weight: 800; color: var(--primary-color); opacity: 0.8;">${currentDataStepIndex} / ${totalDataSteps}</span>
-                        </div>
-                    `;
-                }
-            }
-
-            const stepNumText = indicatorHtml;
-
             let content = '';
 
             if (s.type === 'welcome') {
@@ -239,18 +194,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 content = `
                     <div class="tf-question-wrapper" style="max-width: 900px;">
                         ${formHeaderHtml}
-                        <div class="step-header" style="display: flex; align-items: center; gap: 16px; margin-bottom: 2rem;">
-                            ${stepNumText}
-                            <div style="flex: 1;">
-                                ${s.title ? `<h1 class="step-title" style="font-size: 2rem; font-weight: 800; margin: 0; color: var(--text-primary);">${s.title}</h1>` : ''}
-                                ${((s.step_type === 'text' || s.step_type === 'number_text' || s.step_type === 'icon_text') && s.title) ? `
-                                    <div style="font-size: 0.85rem; color: var(--primary-color); font-weight: 700; text-transform: uppercase; margin-top: 4px; opacity: 0.8; display: flex; align-items: center; gap: 8px;">
-                                        Step ${steps.slice(0, i + 1).filter(st => st.type === 'fields').length} di ${steps.filter(st => st.type === 'fields').length}
-                                        <div style="height: 1px; flex: 1; background: var(--primary-color); opacity: 0.2;"></div>
-                                    </div>` : ''}
-                            </div>
+                        <div class="step-header" style="margin-bottom: 2rem; border-bottom: 2px solid rgba(var(--primary-rgb, 13, 110, 253), 0.1); padding-bottom: 1.5rem;">
+                            ${s.title ? `<h1 class="step-title" style="font-size: 1.75rem; font-weight: 700; margin: 0; color: var(--text-primary);">${s.title}</h1>` : ''}
+                            ${((s.step_type === 'text' || s.step_type === 'number_text' || s.step_type === 'icon_text') && s.title) ? `
+                                <div style="font-size: 0.8rem; color: var(--primary-color); font-weight: 700; text-transform: uppercase; margin-top: 6px; opacity: 0.8;">
+                                    Progresso: ${steps.slice(0, i + 1).filter(st => st.type === 'fields').length} di ${steps.filter(st => st.type === 'fields').length}
+                                </div>` : ''}
                         </div>
-                        ${s.desc ? `<p class="step-desc" style="font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 3rem;">${s.desc}</p>` : ''}
+                        ${s.desc ? `<p class="step-desc" style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 2.5rem; opacity: 0.8;">${s.desc}</p>` : ''}
                         
                         <div class="fields-grid" style="display: flex; flex-wrap: wrap; width: 100%; margin: 0 -15px 0 0;">
                             ${fieldsHtml}
@@ -289,6 +240,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         let activeSteps = Array.from(stepContainers).filter(s => s.dataset.hidden !== 'true');
 
         const updateView = () => {
+            const stepper = document.getElementById('tf-stepper');
+            const dataSteps = steps.filter(s => s.type === 'fields');
+            const currentDataIdx = steps.slice(0, currentStepIndex + 1).filter(s => s.type === 'fields').length - 1;
+
+            // Render/Update Stepper
+            if (currentStepIndex === 0 && data.has_welcome_screen) {
+                stepper.style.display = 'none';
+            } else {
+                stepper.style.display = 'flex';
+                const sType = globalStepSettings.type;
+                const sShape = globalStepSettings.shape;
+
+                stepper.innerHTML = dataSteps.map((s, idx) => {
+                    const isLastNode = idx === dataSteps.length - 1;
+                    const stateClass = idx === currentDataIdx ? 'active' : (idx < currentDataIdx ? 'past' : 'future');
+
+                    let inner = '';
+                    if (sType === 'number' || sType === 'number_text') inner = idx + 1;
+                    else if (sType === 'icon' || sType === 'icon_text') inner = '<span class="material-icons-round" style="font-size: 1rem;">check</span>';
+
+                    return `
+                        <div class="tf-step-node-container">
+                            <div class="tf-step-node shape-${sShape} ${stateClass}">
+                                ${inner}
+                            </div>
+                            ${!isLastNode ? `<div class="tf-step-line ${idx < currentDataIdx ? 'past' : ''}"></div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+
             activeSteps.forEach((el, index) => {
                 el.classList.remove('active', 'past', 'future');
                 if (index === currentStepIndex) {
