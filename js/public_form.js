@@ -76,11 +76,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (s.type === 'welcome') {
                 content = `
-                    <div class="center-vh" style="width: 100%;">
-                        <h1 class="welcome-title">${s.title.replace(/"/g, '&quot;')}</h1>
-                        ${s.desc ? `<p class="question-desc" style="max-width: 600px; font-size: 1.25rem;">${s.desc.replace(/\n/g, '<br>')}</p>` : ''}
-                        <button type="button" class="btn-action next-btn-trigger" style="margin-top: 2rem;">${s.btn}</button>
-                        <div class="next-hint" style="margin-top: 1rem;">presta <strong>Invio &crarr;</strong></div>
+                    <div class="tf-question-wrapper center-vh">
+                        <h1 class="welcome-title">${s.title}</h1>
+                        <p class="question-desc">${s.desc}</p>
+                        <div class="tf-action-row" style="display: flex; align-items: center; gap: 20px;">
+                            <button type="button" class="btn-action next-btn-trigger">${s.btn || 'Inizia'}</button>
+                            ${!isFirst ? `<button type="button" class="text-btn prev-btn-trigger" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-weight:600; font-family:inherit;">&larr; Indietro</button>` : ''}
+                        </div>
+                        <div class="next-hint" style="margin-top: 1rem; opacity: 0.6; font-size: 0.8rem;">o premi <strong>Invio &crarr;</strong></div>
                     </div>
                 `;
             } else if (s.type === 'fields') {
@@ -140,10 +143,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                             ${fieldsHtml}
                         </div>
 
-                        <div class="tf-action-row" style="margin-top: 1rem; width: 100%;">
+                        <div class="tf-action-row" style="margin-top: 1rem; width: 100%; display: flex; align-items: center; gap: 20px;">
                             ${!isLast ? `<button type="button" class="btn-action next-btn-trigger">Continua <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">arrow_forward</span></button>`
                         : `<button type="button" class="btn-action submit-btn-trigger">Invia <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">send</span></button>`}
-                            ${!isLast ? `<div class="next-hint">o premi <strong>Invio &crarr;</strong></div>` : ''}
+                            
+                            ${!isFirst ? `<button type="button" class="text-btn prev-btn-trigger" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-weight:600; font-family:inherit; font-size: 1rem;">Indietro</button>` : ''}
+                            
+                            ${!isLast ? `<div class="next-hint" style="opacity: 0.6; font-size: 0.8rem;">o premi <strong>Invio &crarr;</strong></div>` : ''}
                         </div>
                     </div>
                 `;
@@ -269,6 +275,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         btnPrev.addEventListener('click', goPrev);
 
         document.querySelectorAll('.next-btn-trigger').forEach(btn => btn.addEventListener('click', goNext));
+        document.querySelectorAll('.prev-btn-trigger').forEach(btn => btn.addEventListener('click', goPrev));
 
         // Submit button trigger
         document.querySelectorAll('.submit-btn-trigger').forEach(btn => {
