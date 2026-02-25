@@ -90,7 +90,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Generate Step Indicator based on settings
             let indicatorHtml = '';
-            const stepIndexForDisplay = i + (data.has_welcome_screen ? 0 : 1);
+            const totalDataSteps = steps.filter(s => s.type === 'fields').length;
+            const currentDataStepIndex = steps.slice(0, i + 1).filter(s => s.type === 'fields').length;
 
             if (s.type === 'fields') {
                 const sType = s.step_type || 'number';
@@ -98,9 +99,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 let innerContent = '';
                 if (sType === 'number' || sType === 'number_text') {
-                    innerContent = stepIndexForDisplay;
+                    innerContent = `<span style="font-size: 0.85em;">${currentDataStepIndex}</span><span style="opacity: 0.5; font-size: 0.6em; margin: 0 2px;">/</span><span style="font-size: 0.65em; opacity: 0.8;">${totalDataSteps}</span>`;
                 } else if (sType === 'icon' || sType === 'icon_text') {
-                    innerContent = '<span class="material-icons-round" style="font-size: 1.2rem;">label</span>';
+                    innerContent = `
+                        <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
+                            <span class="material-icons-round" style="font-size: 1.1rem;">label</span>
+                            <span style="font-size: 0.55rem; font-weight: 700; margin-top: -2px; opacity: 0.9;">${currentDataStepIndex}/${totalDataSteps}</span>
+                        </div>
+                    `;
                 }
 
                 const shapeClass = `shape-${sShape}`;
@@ -115,8 +121,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (sType === 'progress') {
                     indicatorHtml = `
-                        <div class="tf-step-progress-mini">
-                            <div class="tf-step-progress-fill" style="width: ${((i + 1) / steps.length) * 100}%"></div>
+                        <div style="display: flex; flex-direction: column; gap: 6px; align-items: center;">
+                            <div class="tf-step-progress-mini">
+                                <div class="tf-step-progress-fill" style="width: ${(currentDataStepIndex / totalDataSteps) * 100}%"></div>
+                            </div>
+                            <span style="font-size: 0.65rem; font-weight: 800; color: var(--primary-color); opacity: 0.8;">${currentDataStepIndex} / ${totalDataSteps}</span>
                         </div>
                     `;
                 }
@@ -234,7 +243,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                             ${stepNumText}
                             <div style="flex: 1;">
                                 ${s.title ? `<h1 class="step-title" style="font-size: 2rem; font-weight: 800; margin: 0; color: var(--text-primary);">${s.title}</h1>` : ''}
-                                ${((s.step_type === 'text' || s.step_type === 'number_text' || s.step_type === 'icon_text') && s.title) ? `<div style="font-size: 0.85rem; color: var(--primary-color); font-weight: 700; text-transform: uppercase; margin-top: 4px; opacity: 0.8;">Step ${stepIndexForDisplay}</div>` : ''}
+                                ${((s.step_type === 'text' || s.step_type === 'number_text' || s.step_type === 'icon_text') && s.title) ? `
+                                    <div style="font-size: 0.85rem; color: var(--primary-color); font-weight: 700; text-transform: uppercase; margin-top: 4px; opacity: 0.8; display: flex; align-items: center; gap: 8px;">
+                                        Step ${steps.slice(0, i + 1).filter(st => st.type === 'fields').length} di ${steps.filter(st => st.type === 'fields').length}
+                                        <div style="height: 1px; flex: 1; background: var(--primary-color); opacity: 0.2;"></div>
+                                    </div>` : ''}
                             </div>
                         </div>
                         ${s.desc ? `<p class="step-desc" style="font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 3rem;">${s.desc}</p>` : ''}
