@@ -104,7 +104,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                         inputHtml = `<select class="tf-input step-input" id="${baseId}" name="${baseId}" ${f.required ? 'required' : ''} style="margin-bottom: 0.5rem;"><option value="" disabled selected>Scegli un'opzione...</option>${(f.options || []).map(opt => `<option value="${opt.replace(/"/g, '&quot;')}">${opt}</option>`).join('')}</select>`;
                     } else if (f.type === 'radio' || f.type === 'checkbox') {
                         const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-                        inputHtml = `<div style="display: flex; flex-direction: column; width: 100%; gap: 8px;">${(f.options || []).map((opt, idx) => `<label class="tf-choice ${f.type}-choice"><div class="tf-key-hint">${letters[idx] || ''}</div><input type="${f.type}" name="${baseId}${f.type === 'checkbox' ? '[]' : ''}" value="${opt.replace(/"/g, '&quot;')}" class="step-input visually-hidden" style="display:none;" ${f.required && f.type === 'radio' ? 'required' : ''}><span>${opt}</span></label>`).join('')}</div>`;
+                        inputHtml = `
+                            <div class="tf-choices-container" style="display: flex; flex-direction: column; width: 100%; gap: 10px;">
+                                ${(f.options || []).map((opt, idx) => `
+                                    <label class="tf-choice ${f.type}-choice" data-type="${f.type}">
+                                        <div class="tf-choice-indicator ${f.type}-indicator">
+                                            <div class="tf-key-hint" style="margin: 0; border: none; background: transparent; font-size: 0.7rem;">${letters[idx] || ''}</div>
+                                            <div class="tf-inner-mark"></div>
+                                        </div>
+                                        <input type="${f.type}" name="${baseId}${f.type === 'checkbox' ? '[]' : ''}" value="${opt.replace(/"/g, '&quot;')}" class="step-input visually-hidden" style="display:none;" ${f.required && f.type === 'radio' ? 'required' : ''}>
+                                        <span class="tf-choice-label">${opt}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                        `;
                     } else if (f.type === 'acceptance') {
                         inputHtml = `<label class="tf-choice checkbox-choice"><div class="tf-key-hint">Y</div><input type="checkbox" name="${baseId}" value="accettato" class="step-input visually-hidden" style="display:none;" ${f.required ? 'required' : ''}><span>Si, accetto</span></label>`;
                     } else if (f.type === 'html') {
@@ -290,17 +303,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.querySelectorAll('.tf-choice').forEach(choice => {
             choice.addEventListener('click', (e) => {
                 const input = choice.querySelector('input');
+                const type = choice.dataset.type;
                 if (!input) return;
 
-                if (input.type === 'radio') {
-                    const name = input.name;
-                    // trigger change
-                    choice.closest('.step-container').querySelectorAll('.tf-choice').forEach(c => c.classList.remove('selected'));
+                if (type === 'radio') {
+                    // Exclusive selection for radio
+                    choice.closest('.tf-choices-container').querySelectorAll('.tf-choice').forEach(c => c.classList.remove('selected'));
                     choice.classList.add('selected');
                     input.checked = true;
-                    // Auto advance slightly after selection
-                    setTimeout(() => goNext(), 500);
-                } else if (input.type === 'checkbox') {
+                    // Auto advance ONLY if it's the only field in the step
+                    const currentStep = steps[currentStepIndex];
+                    if (currentStep && currentStep.type === 'fields' && currentStep.fields.length === 1) {
+                        setTimeout(() => goNext(), 500);
+                    }
+                } else if (type === 'checkbox') {
+                    // Toggle for checkbox
                     if (e.target !== input) {
                         input.checked = !input.checked;
                     }
