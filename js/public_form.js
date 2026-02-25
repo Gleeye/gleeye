@@ -45,7 +45,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (fields.length === 0) throw new Error('Questo modulo non ha alcun campo configurato.');
 
-        fields.forEach(f => steps.push({ ...f, isField: true }));
+        let currentStepGroup = { type: 'fields', fields: [], title: '', desc: '' };
+        fields.forEach((f) => {
+            if (f.type === 'step') {
+                if (currentStepGroup.fields.length > 0) {
+                    steps.push(currentStepGroup);
+                }
+                currentStepGroup = { type: 'fields', fields: [], title: f.label || '', desc: f.description || '' };
+            } else {
+                currentStepGroup.fields.push(f);
+            }
+        });
+        if (currentStepGroup.fields.length > 0) {
+            steps.push(currentStepGroup);
+        }
 
         const typeformWrapper = document.getElementById('typeform-wrapper');
         const progressBar = document.getElementById('progress-bar');
@@ -70,102 +83,52 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div class="next-hint" style="margin-top: 1rem;">presta <strong>Invio &crarr;</strong></div>
                     </div>
                 `;
-            } else if (s.isField) {
-                const reqText = s.required ? ' <span style="color: #ef4444; font-size: 0.8em; vertical-align: super;">*</span>' : '';
+            } else if (s.type === 'fields') {
+                const fieldsHtml = s.fields.map((f, fRowIdx) => {
+                    if (f.type === 'hidden' || f.type === 'recaptcha' || f.type === 'recaptcha_v3' || f.type === 'honeypot') {
+                        return `<input type="hidden" name="field_${f.id}" value="hidden_or_empty">`;
+                    }
 
-                let inputHtml = '';
-                const baseId = `field_${s.id}`;
+                    const reqText = f.required ? ' <span style="color: #ef4444; font-size: 0.8em; vertical-align: super;">*</span>' : '';
+                    let inputHtml = '';
+                    const baseId = `field_${f.id}`;
 
-                if (s.type === 'text' || s.type === 'email' || s.type === 'tel' || s.type === 'url' || s.type === 'number' || s.type === 'password') {
-                    inputHtml = `
-                        <input type="${s.type === 'password' ? 'password' : s.type === 'email' ? 'email' : s.type === 'number' ? 'number' : 'text'}" 
-                               class="tf-input step-input" 
-                               id="${baseId}" name="${baseId}" 
-                               placeholder="${(s.placeholder || 'Scrivi la tua risposta qui...').replace(/"/g, '&quot;')}" 
-                               ${s.required ? 'required' : ''}>
-                    `;
-                } else if (s.type === 'textarea') {
-                    inputHtml = `
-                        <textarea class="tf-input step-input" 
-                                  id="${baseId}" name="${baseId}" 
-                                  rows="2"
-                                  placeholder="${(s.placeholder || 'Scrivi qui la tua risposta...').replace(/"/g, '&quot;')}" 
-                                  ${s.required ? 'required' : ''}
-                                  style="resize: none; overflow: hidden; min-height: 2em;"></textarea>
-                    `;
-                } else if (s.type === 'select') {
-                    inputHtml = `
-                        <div style="display: flex; flex-direction: column; width: 100%;">
-                            <select class="tf-input step-input" id="${baseId}" name="${baseId}" ${s.required ? 'required' : ''} style="margin-bottom: 1rem;">
-                                <option value="" disabled selected>Scegli un'opzione...</option>
-                                ${(s.options || []).map(opt => `<option value="${opt.replace(/"/g, '&quot;')}">${opt}</option>`).join('')}
-                            </select>
+                    if (f.type === 'text' || f.type === 'email' || f.type === 'tel' || f.type === 'url' || f.type === 'number' || f.type === 'password') {
+                        inputHtml = `<input type="${f.type === 'password' ? 'password' : f.type === 'email' ? 'email' : f.type === 'number' ? 'number' : 'text'}" class="tf-input step-input" id="${baseId}" name="${baseId}" placeholder="${(f.placeholder || 'Scrivi la tua risposta qui...').replace(/"/g, '&quot;')}" ${f.required ? 'required' : ''}>`;
+                    } else if (f.type === 'textarea') {
+                        inputHtml = `<textarea class="tf-input step-input" id="${baseId}" name="${baseId}" rows="1" placeholder="${(f.placeholder || 'Scrivi qui la tua risposta...').replace(/"/g, '&quot;')}" ${f.required ? 'required' : ''} style="resize: none; overflow: hidden; min-height: 2em;"></textarea>`;
+                    } else if (f.type === 'select') {
+                        inputHtml = `<select class="tf-input step-input" id="${baseId}" name="${baseId}" ${f.required ? 'required' : ''} style="margin-bottom: 0.5rem;"><option value="" disabled selected>Scegli un'opzione...</option>${(f.options || []).map(opt => `<option value="${opt.replace(/"/g, '&quot;')}">${opt}</option>`).join('')}</select>`;
+                    } else if (f.type === 'radio' || f.type === 'checkbox') {
+                        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                        inputHtml = `<div style="display: flex; flex-direction: column; width: 100%; gap: 8px;">${(f.options || []).map((opt, idx) => `<label class="tf-choice ${f.type}-choice"><div class="tf-key-hint">${letters[idx] || ''}</div><input type="${f.type}" name="${baseId}${f.type === 'checkbox' ? '[]' : ''}" value="${opt.replace(/"/g, '&quot;')}" class="step-input visually-hidden" style="display:none;" ${f.required && f.type === 'radio' ? 'required' : ''}><span>${opt}</span></label>`).join('')}</div>`;
+                    } else if (f.type === 'acceptance') {
+                        inputHtml = `<label class="tf-choice checkbox-choice"><div class="tf-key-hint">Y</div><input type="checkbox" name="${baseId}" value="accettato" class="step-input visually-hidden" style="display:none;" ${f.required ? 'required' : ''}><span>Si, accetto</span></label>`;
+                    } else if (f.type === 'html') {
+                        inputHtml = `<div style="color: var(--text-secondary); font-size: 1rem; line-height: 1.6; margin-top: 1rem;">${f.html_content || ''}</div>`;
+                    }
+
+                    return `
+                        <div class="field-row" style="margin-bottom: 2.5rem;">
+                            ${f.type !== 'html' ? `<h2 class="question-title" style="font-size: 1.2rem; margin-bottom: 0.75rem;">${f.label}${reqText}</h2>` : ''}
+                            ${f.description ? `<p class="question-desc" style="font-size: 0.95rem; margin-bottom: 1rem;">${f.description.replace(/\n/g, '<br>')}</p>` : ''}
+                            <div class="tf-input-container" style="margin-top: 0;">${inputHtml}</div>
                         </div>
                     `;
-                } else if (s.type === 'radio') {
-                    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-                    inputHtml = `
-                        <div style="display: flex; flex-direction: column; width: 100%;">
-                            ${(s.options || []).map((opt, idx) => `
-                                <label class="tf-choice radio-choice">
-                                    <div class="tf-key-hint">${letters[idx] || ''}</div>
-                                    <input type="radio" name="${baseId}" value="${opt.replace(/"/g, '&quot;')}" class="step-input visually-hidden" style="display:none;" ${s.required ? 'required' : ''}>
-                                    <span>${opt}</span>
-                                </label>
-                            `).join('')}
-                        </div>
-                    `;
-                } else if (s.type === 'checkbox') {
-                    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-                    inputHtml = `
-                        <div style="display: flex; flex-direction: column; width: 100%;">
-                            ${(s.options || []).map((opt, idx) => `
-                                <label class="tf-choice checkbox-choice">
-                                    <div class="tf-key-hint">${letters[idx] || ''}</div>
-                                    <input type="checkbox" name="${baseId}" value="${opt.replace(/"/g, '&quot;')}" class="step-input visually-hidden" style="display:none;">
-                                    <span>${opt}</span>
-                                </label>
-                            `).join('')}
-                        </div>
-                    `;
-                } else if (s.type === 'acceptance') {
-                    inputHtml = `
-                        <label class="tf-choice checkbox-choice">
-                            <div class="tf-key-hint">Y</div>
-                            <input type="checkbox" name="${baseId}" value="accettato" class="step-input visually-hidden" style="display:none;" ${s.required ? 'required' : ''}>
-                            <span>Si, accetto</span>
-                        </label>
-                    `;
-                } else if (s.type === 'html') {
-                    inputHtml = `<div style="color: var(--text-secondary); font-size: 1.2rem; line-height: 1.6;">${s.html_content || ''}</div>`;
-                } else if (s.type === 'step') {
-                    inputHtml = ``;
-                } else if (s.type === 'hidden' || s.type === 'recaptcha' || s.type === 'recaptcha_v3' || s.type === 'honeypot') {
-                    return `<div class="step-container" data-index="${i}" data-hidden="true"><input type="hidden" name="${baseId}" value="hidden_or_empty"></div>`;
-                } else {
-                    inputHtml = `<input type="text" class="tf-input step-input" id="${baseId}" name="${baseId}" ${s.required ? 'required' : ''}>`;
-                }
+                }).join('');
 
                 content = `
                     <div class="tf-question-wrapper">
-                        <h2 class="question-title">${stepNumText} <span>${s.label}${reqText}</span></h2>
-                        ${s.description ? `<p class="question-desc">${s.description.replace(/\n/g, '<br>')}</p>` : ''}
+                        ${s.title ? `<h1 class="step-title" style="font-size: 2.2rem; font-weight: 800; margin-bottom: 1rem; color: var(--text-primary);">${s.title}</h1>` : ''}
+                        ${s.desc ? `<p class="step-desc" style="font-size: 1.2rem; color: var(--text-secondary); margin-bottom: 3rem;">${s.desc}</p>` : ''}
                         
-                        <div class="tf-input-container">
-                            ${inputHtml}
-                        </div>
+                        ${fieldsHtml}
 
-                        ${s.type !== 'html' && s.type !== 'step' ? `
-                        <div class="tf-action-row">
-                            ${!isLast ? `<button type="button" class="btn-action next-btn-trigger">OK <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">check</span></button>`
-                            : `<button type="button" class="btn-action submit-btn-trigger">Invia <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">send</span></button>`}
-                            ${!isLast ? `<div class="next-hint">presta <strong>Invio &crarr;</strong></div>` : ''}
+                        <div class="tf-action-row" style="margin-top: 1rem;">
+                            ${!isLast ? `<button type="button" class="btn-action next-btn-trigger">Continua <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">arrow_forward</span></button>`
+                        : `<button type="button" class="btn-action submit-btn-trigger">Invia <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">send</span></button>`}
+                            ${!isLast ? `<div class="next-hint">o premi <strong>Invio &crarr;</strong></div>` : ''}
                         </div>
-                        ` : `
-                        <div class="tf-action-row">
-                            <button type="button" class="btn-action next-btn-trigger">Continua</button>
-                        </div>
-                        `}
                     </div>
                 `;
             }
