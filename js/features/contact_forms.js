@@ -281,6 +281,7 @@ function openFormModal(form = null) {
         container.innerHTML = tempFields.map((f, i) => {
             const showOptions = ['select', 'radio', 'checkbox'].includes(f.type);
             const isTextarea = f.type === 'textarea';
+            const isFile = f.type === 'file';
             const isExpanded = i === expandedIndex;
 
             const headerHtml = `
@@ -386,6 +387,13 @@ function openFormModal(form = null) {
                             <input type="number" class="fi-rows app-input" data-index="${i}" value="${f.rows || 4}" min="1" max="20" style="margin: 0; width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: #fcfcfd;">
                         </div>
                         ` : ''}
+
+                        ${isFile ? `
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: block;">Limite MB</label>
+                            <input type="number" class="fi-max-size app-input" data-index="${i}" value="${f.max_size || 10}" min="1" max="50" style="margin: 0; width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: #fcfcfd;">
+                        </div>
+                        ` : ''}
                     </div>
 
                     ${showOptions ? `
@@ -469,6 +477,10 @@ function openFormModal(form = null) {
 
         container.querySelectorAll('.fi-rows').forEach(el => el.addEventListener('input', e => {
             tempFields[e.target.dataset.index].rows = parseInt(e.target.value) || 4;
+        }));
+
+        container.querySelectorAll('.fi-max-size').forEach(el => el.addEventListener('input', e => {
+            tempFields[e.target.dataset.index].max_size = parseInt(e.target.value) || 10;
         }));
 
         container.querySelectorAll('.fi-options').forEach(el => el.addEventListener('input', e => {

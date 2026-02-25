@@ -110,9 +110,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                                         <span class="material-icons-round">cloud_upload</span>
                                         <div class="tf-file-info">
                                             <span class="tf-file-status">Scegli un file o trascinalo qui</span>
-                                            <span class="tf-file-limit">Dimensione massima: 10MB</span>
+                                            <span class="tf-file-limit">Dimensione massima: ${f.max_size || 10}MB</span>
                                         </div>
-                                        <input type="file" class="tf-file-input step-input" id="${baseId}" name="${baseId}" ${f.required ? 'required' : ''} style="display: none;">
+                                        <input type="file" class="tf-file-input step-input" id="${baseId}" name="${baseId}" data-max-size="${f.max_size || 10}" ${f.required ? 'required' : ''} style="display: none;">
                                     </label>
                                 </div>
                             `;
@@ -358,8 +358,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             input.addEventListener('change', () => {
                 const wrapper = input.closest('.tf-file-upload');
                 const status = wrapper.querySelector('.tf-file-status');
+                const maxSizeMb = parseInt(input.dataset.maxSize) || 10;
+                const maxSizeBytes = maxSizeMb * 1024 * 1024;
+
                 if (input.files && input.files[0]) {
-                    status.textContent = `File scelto: ${input.files[0].name}`;
+                    const file = input.files[0];
+
+                    if (file.size > maxSizeBytes) {
+                        alert(`Il file "${file.name}" è troppo grande. Il limite è di ${maxSizeMb}MB.`);
+                        input.value = ''; // Clear selected file
+                        status.textContent = 'Scegli un file o trascinalo qui';
+                        wrapper.classList.remove('tf-file-selected');
+                        return;
+                    }
+
+                    status.textContent = `File scelto: ${file.name}`;
                     wrapper.classList.add('tf-file-selected');
                 } else {
                     status.textContent = 'Scegli un file o trascinalo qui';
