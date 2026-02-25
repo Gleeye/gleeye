@@ -293,6 +293,6 @@ function showPrompt(message, defaultValue = '', options = {}) {
 }
 
 // Export to global scope
-window.showAlert = showAlert;
-window.showConfirm = showConfirm;
-window.showPrompt = showPrompt;
+// window.showAlert = showAlert;
+// window.showConfirm = showConfirm;
+// window.showPrompt = showPrompt;

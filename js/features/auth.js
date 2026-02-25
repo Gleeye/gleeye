@@ -139,9 +139,10 @@ async function handleSession(session) {
                 }
             }
 
-            const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
-            const isAccount = userTags.includes('Account');
-            const isProjectManager = userTags.includes('Project Manager');
+            userTags = userTags.map(t => t.toLowerCase());
+            const isPrivilegedCollaborator = userTags.includes('partner') || userTags.includes('amministrazione');
+            const isAccount = userTags.includes('account');
+            const isProjectManager = userTags.includes('project manager');
             const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
 
             // Base allowed pages for all collaborators

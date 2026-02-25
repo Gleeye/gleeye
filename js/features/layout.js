@@ -373,9 +373,10 @@ export function updateSidebarVisibility() {
         }
     }
 
-    const isPrivilegedCollaborator = userTags.includes('Partner') || userTags.includes('Amministrazione');
-    const isAccount = userTags.includes('Account');
-    const isProjectManager = userTags.some(t => t.toLowerCase() === 'project manager' || t.toLowerCase() === 'pm');
+    userTags = userTags.map(t => t.toLowerCase());
+    const isPrivilegedCollaborator = userTags.includes('partner') || userTags.includes('amministrazione');
+    const isAccount = userTags.includes('account');
+    const isProjectManager = userTags.some(t => t === 'project manager' || t === 'pm');
 
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;

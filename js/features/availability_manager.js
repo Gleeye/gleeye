@@ -17,6 +17,7 @@ import {
 } from '../modules/api.js';
 import { state } from '../modules/state.js';
 import { supabase } from '../modules/config.js';
+import { showGlobalAlert, showConfirm } from '../modules/utils.js?v=1001';
 
 
 // Reusable function to open availability in a system modal

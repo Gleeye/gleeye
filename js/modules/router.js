@@ -15,7 +15,7 @@ import { renderClients, renderClientDetail } from '../features/clients.js?v=1000
 import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=1000';
 import { renderWhiteLabelPartners, renderWhiteLabelPartnerDetail, initWhiteLabelPartnerModals } from '../features/white_label_partners.js';
 import { renderContacts } from '../features/contacts.js?v=1000';
-import { renderOrderDetail } from '../features/orders.js?v=1000';
+import { renderOrderDetail } from '../features/orders.js?v=1001';
 import { renderActiveInvoicesSafe, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers, renderPassiveInvoicesPartners } from '../features/invoices.js?v=1000';
 import { renderRevenueDashboard } from '../features/revenue_dashboard.js?v=1000';
 import { renderBankTransactions } from '../features/bank_transactions.js?v=1000';
@@ -86,7 +86,7 @@ export function router() {
     const isProjectManager = userTags.includes('project manager');
 
     // List of pages allowed for Collaborators (standard - no special tags)
-    const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'my-assignments', 'booking', 'notifications', 'chat', 'assignment-detail', 'assignments', 'pm', 'leads', 'lead-detail'];
+    const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'my-assignments', 'booking', 'notifications', 'chat', 'assignment-detail', 'assignments', 'pm', 'leads', 'lead-detail', 'contact-forms'];
 
     if (isPrivilegedCollaborator || isAccount || isProjectManager) {
         allowedPagesForCollaborator.push('dashboard', 'sap-services', 'sap-service-detail');
@@ -131,6 +131,8 @@ function render() {
         pageTitle.classList.remove('solid-title');
         pageTitle.textContent = state.currentPage.charAt(0).toUpperCase() + state.currentPage.slice(1);
     }
+
+    console.log(`[Router] Final state.currentPage before switch: "${state.currentPage}"`);
 
     try {
         switch (state.currentPage) {
@@ -246,6 +248,11 @@ function render() {
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Lead';
                 import('../features/leads.js?v=1001').then(m => m.renderLeadDetail(contentArea));
                 break;
+            case 'contact-forms':
+                console.log("[Router] Hit contact-forms case");
+                if (pageTitle) pageTitle.textContent = 'Moduli Contatto';
+                import('../features/contact_forms.js?v=1003').then(m => m.renderContactForms(contentArea));
+                break;
             case 'collaborator-services':
                 if (pageTitle) pageTitle.textContent = 'Servizi Collaboratori';
                 renderCollaboratorServices(contentArea);
@@ -349,6 +356,7 @@ function render() {
                 break;
             // ... Add other routes as needed
             default:
+                console.log(`[Router] Hit default case for page: "${state.currentPage}"`);
                 contentArea.innerHTML = '<p style="padding:2rem;">Pagina non trovata o in costruzione.</p>';
         }
     } catch (error) {

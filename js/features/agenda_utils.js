@@ -1,6 +1,7 @@
 import { state } from '../modules/state.js';
 import { fetchAppointment } from '../modules/pm_api.js';
 import { fetchCollaborators } from '../modules/api.js';
+import { showGlobalAlert, showConfirm } from '../modules/utils.js?v=1001';
 
 // Shared Event Detail Modal Logic
 export async function openEventDetails(event) {

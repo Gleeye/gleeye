@@ -1,5 +1,6 @@
 import { state } from '../modules/state.js';
 import { fetchLeads, fetchLeadDetail, upsertLead, deleteLead } from '../modules/api.js';
+import { supabase } from '../modules/config.js';
 import { fetchSapServices } from '../modules/api.js';
 import { renderModal, closeModal, showGlobalAlert, showConfirm, formatAmount } from '../modules/utils.js';
 
@@ -39,7 +40,7 @@ export async function renderLeads(container) {
                 <td style="padding: 1rem 1.5rem; font-weight: 700; font-size: 0.85rem; color: var(--text-primary);">${lead.lead_code}</td>
                 <td style="padding: 1rem 1.5rem; font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">${lead.company_name}</td>
                 <td style="padding: 1rem 1.5rem; font-size: 0.85rem; color: var(--text-secondary);">${sapServiceName}</td>
-                <td style="padding: 1rem 1.5rem; font-size: 0.85rem; color: var(--text-tertiary);">${date}</td>
+                <td style="padding: 1rem 1.5rem; font-size: 0.72rem; color: var(--text-tertiary);">${date}</td>
                 <td style="padding: 1rem 1.5rem;">
                     <div style="display: inline-flex; align-items: center; gap: 6px; background: ${color}15; color: ${color}; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;">
                         <span style="width: 6px; height: 6px; border-radius: 50%; background: ${color};"></span>
@@ -205,11 +206,22 @@ export async function renderLeadDetail(container) {
                     </div>
 
                     <!-- Delete Button Box -->
-                    <div style="text-align: right;">
+                    <div style="text-align: right; margin-bottom: 1rem;">
                         <button onclick="window.confirmDeleteLead('${lead.id}')" style="background: none; border: none; color: #ef4444; font-size: 0.8rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; opacity: 0.7; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
                             <span class="material-icons-round" style="font-size: 1rem;">delete</span>
                             Elimina Lead
                         </button>
+                    </div>
+                    
+                    <!-- Form Submissions Section -->
+                    <div class="glass-card" style="padding: 1.5rem; background: white; border: 1px solid var(--glass-border); border-radius: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="font-size: 1.1rem; font-weight: 800; margin: 0; font-family: var(--font-titles); display: flex; align-items: center; gap: 8px;"><span class="material-icons-round" style="color: var(--brand-viola); font-size: 1.2rem;">dynamic_form</span> Moduli Compilati</h3>
+                            <button onclick="window.assignFormToLead('${lead.id}')" class="text-btn small" style="color: var(--brand-blue); display: flex; align-items: center; gap: 4px; padding: 4px 8px;"><span class="material-icons-round" style="font-size: 1.1rem;">add_link</span> Richiedi Compilazione</button>
+                        </div>
+                        <div id="lead-forms-container" style="min-height: 50px;">
+                            <div class="loading-state" style="padding: 1rem;"><span class="loader small"></span></div>
+                        </div>
                     </div>
 
                 </div>
@@ -217,19 +229,59 @@ export async function renderLeadDetail(container) {
 
         </div>
     `;
+
+    // Fetch and render form submissions for this lead
+    setTimeout(async () => {
+        const subContainer = document.getElementById('lead-forms-container');
+        if (!subContainer) return;
+
+        try {
+            // Find contact_submissions where JSON data->>'lead_id' eq leadId
+            const { data: subs, error: subsErr } = await supabase.from('contact_submissions')
+                .select('*, form:contact_forms(name)')
+                .contains('data', { lead_id: leadId })
+                .order('created_at', { ascending: false });
+
+            if (subsErr) throw subsErr;
+
+            if (!subs || subs.length === 0) {
+                subContainer.innerHTML = '<div style="font-size: 0.85rem; color: var(--text-tertiary); text-align: center; padding: 1rem 0;">Nessun modulo ancora compilato.</div>';
+                return;
+            }
+
+            subContainer.innerHTML = subs.map(s => {
+                const isRead = s.is_read;
+                const date = new Date(s.created_at).toLocaleDateString('it-IT');
+                const formName = s.form?.name || 'Modulo Disconnesso';
+                return `
+                    <div id="sub-item-${s.id}" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; margin-bottom: 8px; border-radius: 8px; background: ${isRead ? 'var(--bg-surface-hover)' : 'rgba(13, 110, 253, 0.08)'}; border: 1px solid var(--border-color); ${isRead ? '' : 'border-left: 3px solid var(--brand-blue);'}">
+                        <div>
+                            <div style="font-size: 0.85rem; font-weight: ${isRead ? '600' : '800'}; color: var(--text-primary); margin-bottom: 2px;">${formName}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-tertiary);">${date}</div>
+                        </div>
+                        <button onclick="window.viewLeadSubmission('${s.id}')" class="icon-btn" style="color: var(--brand-blue); width: 32px; height: 32px;"><span class="material-icons-round" style="font-size: 1.1rem;">open_in_new</span></button>
+                    </div>
+                `;
+            }).join('');
+
+        } catch (e) {
+            console.error(e);
+            subContainer.innerHTML = '<div style="font-size: 0.85rem; color: #ef4444;">Errore fetch forms.</div>';
+        }
+    }, 100);
 }
 
 function initLeadModal() {
     window.openLeadModal = () => {
         const formHtml = `
-            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
-                <input type="hidden" id="lead-id" value="">
-                
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <input type="hidden" id="lead-id" value="">
+
                 <div class="form-group">
                     <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Azienda*</label>
                     <input type="text" id="lead-company" class="app-input" placeholder="Nome Azienda" style="width: 100%; padding: 0.75rem; border-radius: 10px; border: 1px solid var(--glass-border);" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Servizio SAP d'Interesse</label>
                     <select id="lead-service" class="app-input" style="width: 100%; padding: 0.75rem; border-radius: 10px; border: 1px solid var(--glass-border);">
@@ -242,7 +294,7 @@ function initLeadModal() {
                     <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Stato Dettaglio</label>
                     <input type="text" id="lead-status" class="app-input" placeholder="es. Call prenotata, Contratto inviato..." value="Call di onboarding prenotata" style="width: 100%; padding: 0.75rem; border-radius: 10px; border: 1px solid var(--glass-border);">
                 </div>
-                
+
                 <div class="form-group">
                     <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Macro Stato</label>
                     <select id="lead-macro-status" class="app-input" style="width: 100%; padding: 0.75rem; border-radius: 10px; border: 1px solid var(--glass-border);">
@@ -251,7 +303,7 @@ function initLeadModal() {
                         <option value="perso">Perso</option>
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Note</label>
                     <textarea id="lead-notes" class="app-input" placeholder="Aggiungi ulteriori dettagli..." rows="4" style="width: 100%; padding: 0.75rem; border-radius: 10px; border: 1px solid var(--glass-border); resize: vertical;"></textarea>
@@ -261,15 +313,15 @@ function initLeadModal() {
                     Salva Data
                 </button>
             </div>
-        `;
+    `;
         renderModal('edit-lead-modal', `
-            <div style="padding: 1.5rem; min-width: 450px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                    <h2 style="margin: 0; font-family: var(--font-titles); font-weight: 800; font-size: 1.25rem;">Nuovo Lead</h2>
-                    <button class="icon-btn close-modal" onclick="window.closeModal('edit-lead-modal')">
-                        <span class="material-icons-round">close</span>
-                    </button>
-                </div>
+        <div style="padding: 1.5rem; min-width: 450px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 style="margin: 0; font-family: var(--font-titles); font-weight: 800; font-size: 1.25rem;">Nuovo Lead</h2>
+                <button class="icon-btn close-modal" onclick="window.closeModal('edit-lead-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
                 ${formHtml}
             </div>
         `);
@@ -346,7 +398,7 @@ function initLeadModal() {
         if (!lead) return;
 
         renderModal('edit-status-modal', `
-             <div style="padding: 1.5rem; min-width: 400px;">
+            <div style="padding: 1.5rem; min-width: 400px;">
                  <h3 style="margin: 0 0 1.5rem 0; font-family: var(--font-titles);">Aggiorna Stato / Macro Stato</h3>
                  <input type="hidden" id="status-lead-id" value="${lead.id}">
                  
@@ -369,7 +421,7 @@ function initLeadModal() {
                      <button onclick="window.saveLeadStatus()" style="flex: 1; background: var(--brand-blue); color: white; padding: 0.8rem; border-radius: 10px; border: none; cursor: pointer; font-weight: 700;">Salva</button>
                  </div>
              </div>
-         `);
+        `);
     };
 
     window.saveLeadStatus = async () => {
@@ -378,7 +430,6 @@ function initLeadModal() {
         const macro_status = document.getElementById('status-macro').value;
 
         try {
-            const lead = state.leads?.find(l => l.id === id);
             await upsertLead({
                 id,
                 status,
@@ -402,9 +453,6 @@ function initLeadModal() {
             await import('./orders.js').then(m => m.initNewOrderModal());
         }
 
-        // We can pre-fill order modal using a global trick or just open it. 
-        // For now let's just trigger openNewOrderModal, optionally setting something if supported.
-        // It asks to open window.openNewOrderModal()
         window.openNewOrderModal();
 
         // Wait for modal to render and try to pre-fill client name or title
@@ -415,5 +463,91 @@ function initLeadModal() {
                 if (titleInput) titleInput.value = 'Progetto ' + lead.company_name;
             }
         }, 100);
+    };
+
+    window.assignFormToLead = async (leadId) => {
+        const { data: forms, error } = await supabase.from('contact_forms').select('id, name').eq('is_active', true);
+        if (error || !forms || forms.length === 0) {
+            return showGlobalAlert('Nessun modulo attivo trovato', 'error');
+        }
+
+        const optionsHtml = forms.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+
+        renderModal('assign-form-modal', `
+            <div style="padding: 1.5rem; min-width: 400px;">
+                 <h3 style="margin: 0 0 1.5rem 0; font-family: var(--font-titles);">Richiedi Compilazione Modulo</h3>
+                 <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem;">Scegli quale modulo far compilare a questo lead. Verrà generato un link tracciato da copiare e inviare.</p>
+                 
+                 <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Seleziona Modulo</label>
+                    <select id="assign-form-select" class="app-input" style="width: 100%; padding: 0.75rem; border-radius: 10px; border: 1px solid var(--glass-border);">
+                        ${optionsHtml}
+                    </select>
+                 </div>
+
+                 <div style="display: flex; gap: 1rem;">
+                     <button onclick="window.closeModal('assign-form-modal')" style="flex: 1; padding: 0.8rem; border-radius: 10px; border: 1px solid var(--glass-border); background: white; cursor: pointer; font-weight: 600;">Annulla</button>
+                     <button onclick="window.generateAssignedFormLink('${leadId}')" style="flex: 1; background: var(--brand-blue); color: white; padding: 0.8rem; border-radius: 10px; border: none; cursor: pointer; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px;"><span class="material-icons-round" style="font-size: 1.1rem;">link</span> Genera Link</button>
+                 </div>
+             </div>
+        `);
+    };
+
+    window.generateAssignedFormLink = (leadId) => {
+        const formId = document.getElementById('assign-form-select').value;
+        const domain = window.location.origin;
+        const link = `${domain}/form.html?id=${formId}&lead_id=${leadId}`;
+
+        navigator.clipboard.writeText(link).then(() => {
+            closeModal('assign-form-modal');
+            showGlobalAlert('Link copiato negli appunti! Ora puoi inviarlo al cliente.', 'success');
+        }).catch(err => {
+            console.error('Failed to copy', err);
+            showGlobalAlert('Errore durante la copia del link', 'error');
+        });
+    };
+
+    window.viewLeadSubmission = async (subId) => {
+        // Find form first to get labels
+        const { data: sub } = await supabase.from('contact_submissions').select('*, form:contact_forms(fields, name)').eq('id', subId).single();
+        if (!sub) return showGlobalAlert('Risposta non trovata', 'error');
+
+        const payload = sub.data || {};
+        const fields = sub.form?.fields || [];
+        const dateStr = new Date(sub.created_at).toLocaleString('it-IT', { dateStyle: 'full', timeStyle: 'short' });
+
+        const fieldsHtml = fields.map(f => {
+            const val = payload[f.id] || payload[f.label] || '- Nessun valore -';
+            return `
+                <div style="margin-bottom: 16px;">
+                    <label style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 700; display: block; margin-bottom: 4px; text-transform: uppercase;">${f.label}</label>
+                    <div style="background: var(--bg-surface-hover); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); white-space: pre-wrap; font-size: 0.9rem;">${val}</div>
+                </div>
+            `;
+        }).join('');
+
+        renderModal('view-sub-modal', `
+            <div style="padding: 1.5rem; min-width: 500px; max-width: 90vw;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0; font-family: var(--font-titles);">Risposta: ${sub.form?.name || 'Modulo'}</h3>
+                    <button class="icon-btn close-modal" onclick="window.closeModal('view-sub-modal')"><span class="material-icons-round">close</span></button>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-tertiary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 6px;"><span class="material-icons-round" style="font-size: 1rem;">calendar_today</span> Inviato il ${dateStr}</div>
+                <div style="max-height: 60vh; overflow-y: auto;">
+                    ${fieldsHtml}
+                </div>
+            </div>
+        `);
+
+        if (!sub.is_read) {
+            await supabase.from('contact_submissions').update({ is_read: true }).eq('id', subId);
+            // Re-render sub container visually
+            const el = document.getElementById(`sub-item-${subId}`);
+            if (el) {
+                el.style.fontWeight = 'normal';
+                el.style.background = 'transparent';
+                el.style.borderLeft = 'none';
+            }
+        }
     };
 }

@@ -1,5 +1,4 @@
-// Hub Drawer - Full item editor panel
-import '../../../utils/modal-utils.js?v=1000';
+// hub_drawer.js - Full item editor panel
 import {
     createPMItem,
     updatePMItem,
