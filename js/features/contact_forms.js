@@ -192,6 +192,31 @@ function openFormModal(form = null) {
                     </label>
                 </div>
 
+                <!-- Sezione Welcome Screen -->
+                <div style="background: rgba(var(--brand-viola-rgb, 156, 39, 176), 0.05); padding: 20px; border-radius: 16px; border: 1px solid rgba(var(--brand-viola-rgb, 156, 39, 176), 0.1); margin-bottom: 32px;">
+                    <label style="display: flex; align-items: center; gap: 12px; margin-bottom: ${form && form.has_welcome_screen ? '16px' : '0'}; cursor: pointer;">
+                        <input type="checkbox" id="cf-has-welcome" ${form && form.has_welcome_screen ? 'checked' : ''} style="width: 22px; height: 22px; border-radius: 6px; cursor: pointer;">
+                        <div style="flex: 1;">
+                            <span style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem; display: block;">Schermata di Benvenuto</span>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">Mostra una pagina introduttiva prima di iniziare il modulo.</span>
+                        </div>
+                    </label>
+                    
+                    <div id="welcome-settings" style="display: ${form && form.has_welcome_screen ? 'block' : 'none'}; padding-top: 16px; border-top: 1px dashed rgba(var(--brand-viola-rgb, 156, 39, 176), 0.2);">
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 6px; display: block;">Titolo Benvenuto</label>
+                                <input type="text" id="cf-welcome-title" class="app-input" value="${form ? (form.welcome_title || '').replace(/"/g, '&quot;') : ''}" placeholder="es: Ciao! Dicci di cosa hai bisogno" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: white;">
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 6px; display: block;">Descrizione (Opzionale)</label>
+                                <textarea id="cf-welcome-desc" class="app-input" rows="2" placeholder="Qualche dettaglio in più..." style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: white;">${form ? (form.welcome_description || '') : ''}</textarea>
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 6px; display: block;">Testo Pulsante</label>
+                                <input type="text" id="cf-welcome-btn" class="app-input" value="${form ? (form.welcome_button_text || '').replace(/"/g, '&quot;') : 'Inizia'}" placeholder="es: Inizia" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: white;">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
