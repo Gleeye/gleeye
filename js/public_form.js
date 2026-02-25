@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 ${(f.options || []).map((opt, idx) => `
                                     <label class="tf-choice ${f.type}-choice" data-type="${f.type}">
                                         <div class="tf-choice-indicator ${f.type}-indicator">
-                                            <div class="tf-inner-mark"></div>
+                                            <span class="material-icons-round tf-choice-mark">${f.type === 'radio' ? 'fiber_manual_record' : 'check'}</span>
                                         </div>
                                         <input type="${f.type}" name="${baseId}${f.type === 'checkbox' ? '[]' : ''}" value="${opt.replace(/"/g, '&quot;')}" class="step-input" style="position: absolute; opacity: 0; width: 0; height: 0;" ${f.required && f.type === 'radio' ? 'required' : ''}>
                                         <span class="tf-choice-label">${opt}</span>
@@ -118,13 +118,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                         `;
                     } else if (f.type === 'acceptance') {
                         inputHtml = `
-                            <label class="tf-choice acceptance-choice" data-type="checkbox">
-                                <div class="tf-choice-indicator checkbox-indicator">
-                                    <div class="tf-inner-mark"></div>
-                                </div>
-                                <input type="checkbox" name="${baseId}" value="accettato" class="step-input" style="position: absolute; opacity: 0; width: 0; height: 0;" ${f.required ? 'required' : ''}>
-                                <span class="tf-choice-label">Sì, accetto</span>
-                            </label>
+                            <div class="tf-acceptance-row">
+                                <label class="tf-acceptance-label">
+                                    <input type="checkbox" name="${baseId}" value="accettato" class="step-input" ${f.required ? 'required' : ''}>
+                                    <span class="tf-custom-checkbox">
+                                        <span class="material-icons-round">check</span>
+                                    </span>
+                                    <span class="tf-acceptance-text">Sì, accetto</span>
+                                </label>
+                            </div>
                         `;
                     } else if (f.type === 'html') {
                         inputHtml = `<div style="color: var(--text-secondary); font-size: 1rem; line-height: 1.6; margin-top: 1rem;">${f.html_content || ''}</div>`;

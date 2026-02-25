@@ -211,37 +211,21 @@
         }
 
         /* Indicators mark */
-        .tf-inner-mark {
-            width: 8px;
-            height: 8px;
-            background: white;
+        .tf-choice-mark {
+            color: white;
+            font-size: 18px;
             opacity: 0;
             transform: scale(0);
             transition: all 0.2s;
         }
 
-        .radio-indicator .tf-inner-mark {
-            border-radius: 50%;
+        .radio-indicator .tf-choice-mark {
+            font-size: 12px;
         }
 
-        .checkbox-indicator .tf-inner-mark {
-            width: 10px;
-            height: 6px;
-            background: transparent;
-            border-left: 2px solid white;
-            border-bottom: 2px solid white;
-            transform: rotate(-45deg) scale(0);
-            border-radius: 0;
-            margin-top: -2px;
-        }
-
-        .selected .tf-inner-mark {
+        .selected .tf-choice-mark {
             opacity: 1;
             transform: scale(1);
-        }
-
-        .selected.checkbox-choice .tf-inner-mark {
-            transform: rotate(-45deg) scale(1);
         }
 
         /* Buttons & Nav */
@@ -405,6 +389,66 @@
         .field-error textarea,
         .field-error select {
             border-bottom-color: #ef4444 !important;
+        }
+
+        /* Acceptance Styling */
+        .tf-acceptance-row {
+            margin-top: 1rem;
+        }
+
+        .tf-acceptance-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            user-select: none;
+            padding: 8px 0;
+        }
+
+        .tf-acceptance-label input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            height: 0;
+            width: 0;
+        }
+
+        .tf-custom-checkbox {
+            height: 24px;
+            width: 24px;
+            background-color: white;
+            border: 1.5px solid rgba(0, 0, 0, 0.15);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .tf-custom-checkbox .material-icons-round {
+            font-size: 18px;
+            color: white;
+            display: none;
+        }
+
+        .tf-acceptance-label input:checked~.tf-custom-checkbox {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .tf-acceptance-label input:checked~.tf-custom-checkbox .material-icons-round {
+            display: block;
+        }
+
+        .tf-acceptance-text {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .tf-acceptance-label:hover .tf-custom-checkbox {
+            border-color: var(--primary-color);
+            background-color: rgba(var(--primary-rgb, 13, 110, 253), 0.05);
         }
     </style>
 </head>
