@@ -117,7 +117,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                             </div>
                         `;
                     } else if (f.type === 'acceptance') {
-                        inputHtml = `<label class="tf-choice checkbox-choice"><div class="tf-key-hint">Y</div><input type="checkbox" name="${baseId}" value="accettato" class="step-input visually-hidden" style="display:none;" ${f.required ? 'required' : ''}><span>Si, accetto</span></label>`;
+                        inputHtml = `
+                            <label class="tf-choice acceptance-choice" data-type="checkbox">
+                                <div class="tf-choice-indicator checkbox-indicator">
+                                    <div class="tf-inner-mark"></div>
+                                </div>
+                                <input type="checkbox" name="${baseId}" value="accettato" class="step-input" style="position: absolute; opacity: 0; width: 0; height: 0;" ${f.required ? 'required' : ''}>
+                                <span class="tf-choice-label">Sì, accetto</span>
+                            </label>
+                        `;
                     } else if (f.type === 'html') {
                         inputHtml = `<div style="color: var(--text-secondary); font-size: 1rem; line-height: 1.6; margin-top: 1rem;">${f.html_content || ''}</div>`;
                     }
