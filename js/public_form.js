@@ -108,23 +108,28 @@ document.addEventListener('DOMContentLoaded', async () => {
                         inputHtml = `<div style="color: var(--text-secondary); font-size: 1rem; line-height: 1.6; margin-top: 1rem;">${f.html_content || ''}</div>`;
                     }
 
+                    const width = f.width || '100%';
+                    const flexBasis = width.includes('%') ? width : '100%';
+
                     return `
-                        <div class="field-row" style="margin-bottom: 2.5rem;">
-                            ${f.type !== 'html' ? `<h2 class="question-title" style="font-size: 1.2rem; margin-bottom: 0.75rem;">${f.label}${reqText}</h2>` : ''}
-                            ${f.description ? `<p class="question-desc" style="font-size: 0.95rem; margin-bottom: 1rem;">${f.description.replace(/\n/g, '<br>')}</p>` : ''}
+                        <div class="field-row" style="flex: 0 0 ${flexBasis}; max-width: ${flexBasis}; margin-bottom: 2.5rem; padding-right: ${flexBasis === '100%' ? '0' : '15px'}; box-sizing: border-box;">
+                            ${f.type !== 'html' ? `<h2 class="question-title" style="font-size: 1.15rem; margin-bottom: 0.75rem; font-weight: 500;">${f.label}${reqText}</h2>` : ''}
+                            ${f.description ? `<p class="question-desc" style="font-size: 0.9rem; margin-bottom: 0.75rem; opacity: 0.8;">${f.description.replace(/\n/g, '<br>')}</p>` : ''}
                             <div class="tf-input-container" style="margin-top: 0;">${inputHtml}</div>
                         </div>
                     `;
                 }).join('');
 
                 content = `
-                    <div class="tf-question-wrapper">
-                        ${s.title ? `<h1 class="step-title" style="font-size: 2.2rem; font-weight: 800; margin-bottom: 1rem; color: var(--text-primary);">${s.title}</h1>` : ''}
-                        ${s.desc ? `<p class="step-desc" style="font-size: 1.2rem; color: var(--text-secondary); margin-bottom: 3rem;">${s.desc}</p>` : ''}
+                    <div class="tf-question-wrapper" style="max-width: 900px;">
+                        ${s.title ? `<h1 class="step-title" style="font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; color: var(--text-primary);">${s.title}</h1>` : ''}
+                        ${s.desc ? `<p class="step-desc" style="font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 3rem;">${s.desc}</p>` : ''}
                         
-                        ${fieldsHtml}
+                        <div class="fields-grid" style="display: flex; flex-wrap: wrap; width: 100%; margin: 0 -15px 0 0;">
+                            ${fieldsHtml}
+                        </div>
 
-                        <div class="tf-action-row" style="margin-top: 1rem;">
+                        <div class="tf-action-row" style="margin-top: 1rem; width: 100%;">
                             ${!isLast ? `<button type="button" class="btn-action next-btn-trigger">Continua <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">arrow_forward</span></button>`
                         : `<button type="button" class="btn-action submit-btn-trigger">Invia <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">send</span></button>`}
                             ${!isLast ? `<div class="next-hint">o premi <strong>Invio &crarr;</strong></div>` : ''}
