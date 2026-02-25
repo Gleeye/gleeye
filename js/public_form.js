@@ -205,28 +205,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         const showErrorPulse = () => {
             const currentEl = activeSteps[currentStepIndex];
             if (currentEl) {
-                currentEl.style.transform = 'translate(-50%, -50%) translateX(10px)';
-                setTimeout(() => currentEl.style.transform = 'translate(-50%, -50%) translateX(-10px)', 100);
-                setTimeout(() => currentEl.style.transform = 'translate(-50%, -50%) translateX(10px)', 200);
-                setTimeout(() => currentEl.style.transform = 'translate(-50%, -50%) translateX(0)', 300);
+                currentEl.classList.add('shake-error');
+                setTimeout(() => currentEl.classList.remove('shake-error'), 500);
             }
         };
 
         const validateCurrentStep = () => {
             const currentEl = activeSteps[currentStepIndex];
+            if (!currentEl) return true;
+
             const inputs = currentEl.querySelectorAll('input[required], select[required], textarea[required]');
             let isValid = true;
+            let firstInvalid = null;
+
             inputs.forEach(inp => {
+                let fieldValid = true;
                 if (inp.type === 'radio' || inp.type === 'checkbox') {
                     const name = inp.name;
-                    const checked = currentEl.querySelector(`input[name="${name}"]:checked`);
-                    if (!checked) isValid = false;
+                    // For groups, check if at least one is checked
+                    const checked = currentEl.querySelector(`input[name="${name.replace(/\[\]$/, '\\[\\]')}"]:checked`);
+                    if (!checked) fieldValid = false;
                 } else {
-                    if (!inp.value.trim()) isValid = false;
+                    if (!inp.value.trim()) fieldValid = false;
+                }
+
+                if (!fieldValid) {
+                    isValid = false;
+                    if (!firstInvalid) firstInvalid = inp;
+                    // Highlight the field row
+                    const row = inp.closest('.field-row');
+                    if (row) {
+                        row.classList.add('field-error');
+                        setTimeout(() => row.classList.remove('field-error'), 2000);
+                    }
                 }
             });
 
             if (!isValid) {
+                console.log('[Validation] Step invalid. Missing fields.');
                 showErrorPulse();
                 return false;
             }

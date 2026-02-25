@@ -317,6 +317,46 @@
                 font-size: 1.8rem;
             }
         }
+
+        /* Animations */
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            20% {
+                transform: translateX(-10px);
+            }
+
+            40% {
+                transform: translateX(10px);
+            }
+
+            60% {
+                transform: translateX(-10px);
+            }
+
+            80% {
+                transform: translateX(10px);
+            }
+        }
+
+        .shake-error {
+            animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
+        }
+
+        .field-error h2 {
+            color: #ef4444 !important;
+            transition: color 0.3s;
+        }
+
+        .field-error input,
+        .field-error textarea,
+        .field-error select {
+            border-bottom-color: #ef4444 !important;
+        }
     </style>
 </head>
 
