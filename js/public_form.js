@@ -96,8 +96,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     let inputHtml = '';
                     const baseId = `field_${f.id}`;
 
-                    if (f.type === 'text' || f.type === 'email' || f.type === 'tel' || f.type === 'url' || f.type === 'number' || f.type === 'password') {
-                        inputHtml = `<input type="${f.type === 'password' ? 'password' : f.type === 'email' ? 'email' : f.type === 'number' ? 'number' : 'text'}" class="tf-input step-input" id="${baseId}" name="${baseId}" placeholder="${(f.placeholder || 'Scrivi la tua risposta qui...').replace(/"/g, '&quot;')}" ${f.required ? 'required' : ''}>`;
+                    if (['text', 'email', 'tel', 'url', 'number', 'password', 'date', 'time', 'datetime-local'].includes(f.type)) {
+                        let itype = f.type;
+                        if (itype === 'password') itype = 'password';
+                        else if (itype === 'email') itype = 'email';
+                        else if (itype === 'number') itype = 'number';
+                        // Keep the native type for date, time, etc.
+
+                        inputHtml = `<input type="${itype}" class="tf-input step-input" id="${baseId}" name="${baseId}" placeholder="${(f.placeholder || 'Scrivi la tua risposta qui...').replace(/"/g, '&quot;')}" ${f.required ? 'required' : ''}>`;
                     } else if (f.type === 'textarea') {
                         inputHtml = `<textarea class="tf-input step-input" id="${baseId}" name="${baseId}" rows="1" placeholder="${(f.placeholder || 'Scrivi qui la tua risposta...').replace(/"/g, '&quot;')}" ${f.required ? 'required' : ''} style="resize: none; overflow: hidden; min-height: 2em;"></textarea>`;
                     } else if (f.type === 'select') {
