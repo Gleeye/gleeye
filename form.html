@@ -86,17 +86,14 @@
         }
 
         #tf-global-header .header-divider {
-            height: 2px;
-            background: rgba(var(--primary-rgb, 13, 110, 253), 0.1);
-            margin: 2rem auto 0 auto;
-            max-width: 100%;
+            display: none;
         }
 
         #tf-stepper {
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 24px 20px 20px 20px;
+            padding: 20px 20px 10px 20px;
             gap: 0;
             z-index: 10;
         }
@@ -108,25 +105,27 @@
         }
 
         .tf-step-node {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             background: white;
-            border: 2px solid #e2e8f0;
+            border: 1px solid #e2e8f0;
             color: #94a3b8;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.85rem;
-            font-weight: 700;
+            font-size: 0.75rem;
+            font-weight: 600;
             z-index: 2;
-            transition: all 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             cursor: default;
         }
 
         .tf-step-node.active {
             border-color: var(--primary-color);
             color: var(--primary-color);
-            box-shadow: 0 0 0 4px rgba(var(--primary-rgb, 13, 110, 253), 0.1);
+            border-width: 2px;
+            box-shadow: 0 0 0 4px rgba(var(--primary-rgb, 13, 110, 253), 0.08);
+            transform: scale(1.1);
         }
 
         .tf-step-node.past {
@@ -136,14 +135,15 @@
         }
 
         .tf-step-line {
-            height: 2px;
-            width: 60px;
+            height: 1px;
+            width: 80px;
             background: #e2e8f0;
             transition: all 0.3s ease;
         }
 
         .tf-step-line.past {
             background: var(--primary-color);
+            opacity: 0.5;
         }
 
         /* Node Shapes */
@@ -162,6 +162,7 @@
         .tf-step-node.shape-none {
             border: none;
             background: transparent;
+            font-size: 1.1rem;
         }
 
         #typeform-wrapper {

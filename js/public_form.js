@@ -197,14 +197,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 content = `
                     <div class="tf-question-wrapper" style="max-width: 900px;">
-                        <div class="step-header" style="margin-bottom: 2rem; border-bottom: 2px solid rgba(var(--primary-rgb, 13, 110, 253), 0.1); padding-bottom: 1.5rem;">
+                        <div class="step-header" style="margin-bottom: 0.5rem;">
                             ${s.title ? `<h1 class="step-title" style="font-size: 1.75rem; font-weight: 700; margin: 0; color: var(--text-primary);">${s.title}</h1>` : ''}
                             ${((s.step_type === 'text' || s.step_type || 'number') !== 'none' && s.title) ? `
                                 <div style="font-size: 0.8rem; color: var(--primary-color); font-weight: 700; text-transform: uppercase; margin-top: 6px; opacity: 0.8;">
                                     Progresso: ${steps.slice(0, i + 1).filter(st => st.type === 'fields').length} di ${steps.filter(st => st.type === 'fields').length}
                                 </div>` : ''}
                         </div>
-                        ${s.desc ? `<p class="step-desc" style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 2.5rem; opacity: 0.8;">${s.desc}</p>` : ''}
+                        ${s.desc ? `<p class="step-desc" style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 2rem; opacity: 0.8;">${s.desc}</p>` : ''}
                         
                         <div class="fields-grid" style="display: flex; flex-wrap: wrap; width: 100%; margin: 0 -15px 0 0;">
                             ${fieldsHtml}
