@@ -103,16 +103,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     } else if (f.type === 'select') {
                         inputHtml = `<select class="tf-input step-input" id="${baseId}" name="${baseId}" ${f.required ? 'required' : ''} style="margin-bottom: 0.5rem;"><option value="" disabled selected>Scegli un'opzione...</option>${(f.options || []).map(opt => `<option value="${opt.replace(/"/g, '&quot;')}">${opt}</option>`).join('')}</select>`;
                     } else if (f.type === 'radio' || f.type === 'checkbox') {
-                        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
                         inputHtml = `
                             <div class="tf-choices-container" style="display: flex; flex-direction: column; width: 100%; gap: 10px;">
                                 ${(f.options || []).map((opt, idx) => `
                                     <label class="tf-choice ${f.type}-choice" data-type="${f.type}">
                                         <div class="tf-choice-indicator ${f.type}-indicator">
-                                            <div class="tf-key-hint" style="margin: 0; border: none; background: transparent; font-size: 0.7rem;">${letters[idx] || ''}</div>
                                             <div class="tf-inner-mark"></div>
                                         </div>
-                                        <input type="${f.type}" name="${baseId}${f.type === 'checkbox' ? '[]' : ''}" value="${opt.replace(/"/g, '&quot;')}" class="step-input visually-hidden" style="display:none;" ${f.required && f.type === 'radio' ? 'required' : ''}>
+                                        <input type="${f.type}" name="${baseId}${f.type === 'checkbox' ? '[]' : ''}" value="${opt.replace(/"/g, '&quot;')}" class="step-input" style="position: absolute; opacity: 0; width: 0; height: 0;" ${f.required && f.type === 'radio' ? 'required' : ''}>
                                         <span class="tf-choice-label">${opt}</span>
                                     </label>
                                 `).join('')}
@@ -300,41 +298,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Choice selection visual updates
-        document.querySelectorAll('.tf-choice').forEach(choice => {
-            choice.addEventListener('click', (e) => {
-                const input = choice.querySelector('input');
+        document.querySelectorAll('.tf-choice input').forEach(input => {
+            input.addEventListener('change', () => {
+                const choice = input.closest('.tf-choice');
                 const type = choice.dataset.type;
-                if (!input) return;
+                const container = choice.closest('.tf-choices-container');
 
                 if (type === 'radio') {
-                    // Exclusive selection for radio
-                    choice.closest('.tf-choices-container').querySelectorAll('.tf-choice').forEach(c => c.classList.remove('selected'));
-                    choice.classList.add('selected');
-                    input.checked = true;
-                    // Auto advance ONLY if it's the only field in the step
-                    const currentStep = steps[currentStepIndex];
-                    if (currentStep && currentStep.type === 'fields' && currentStep.fields.length === 1) {
-                        setTimeout(() => goNext(), 500);
+                    container.querySelectorAll('.tf-choice').forEach(c => c.classList.remove('selected'));
+                    if (input.checked) {
+                        choice.classList.add('selected');
+                        // Auto advance ONLY if it's the only field in the step
+                        const currentStep = steps[currentStepIndex];
+                        if (currentStep && currentStep.type === 'fields' && currentStep.fields.length === 1) {
+                            setTimeout(() => goNext(), 500);
+                        }
                     }
-                } else if (type === 'checkbox') {
-                    // Toggle for checkbox
-                    if (e.target !== input) {
-                        input.checked = !input.checked;
-                    }
+                } else {
+                    // Checkbox toggle state
                     if (input.checked) choice.classList.add('selected');
                     else choice.classList.remove('selected');
                 }
             });
-            const pInput = choice.querySelector('input');
-            if (pInput) {
-                pInput.addEventListener('click', (e) => e.stopPropagation());
-                pInput.addEventListener('change', () => {
-                    if (pInput.type === 'checkbox') {
-                        if (pInput.checked) choice.classList.add('selected');
-                        else choice.classList.remove('selected');
-                    }
-                });
-            }
         });
 
         // Keyboard navigation
@@ -356,23 +341,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             // Keyboard shortcuts A,B,C... for choices
-            if (e.key.match(/^[a-zA-Z]$/)) {
-                const activeEl = activeSteps[currentStepIndex];
-                if (!activeEl) return;
-
-                const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
-                if (activeTag === 'input' && document.activeElement.type !== 'radio' && document.activeElement.type !== 'checkbox') return;
-                if (activeTag === 'textarea') return;
-
-                const char = e.key.toUpperCase();
-                const choiceHints = activeEl.querySelectorAll('.tf-key-hint');
-                choiceHints.forEach((hint) => {
-                    if (hint.textContent === char) {
-                        const wrapper = hint.closest('.tf-choice');
-                        if (wrapper) wrapper.click();
-                    }
-                });
-            }
+            // Keyboard shortcuts removed as requested (no more letters)
         });
 
         // Show form & init view
