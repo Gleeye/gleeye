@@ -282,6 +282,7 @@ function openFormModal(form = null) {
             const showOptions = ['select', 'radio', 'checkbox'].includes(f.type);
             const isTextarea = f.type === 'textarea';
             const isFile = f.type === 'file';
+            const isStep = f.type === 'step';
             const isExpanded = i === expandedIndex;
 
             const headerHtml = `
@@ -409,6 +410,37 @@ function openFormModal(form = null) {
                         <textarea class="fi-html-code app-input" data-index="${i}" rows="3" placeholder="<p>Inserisci qui il tuo HTML custom...</p>" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: #fcfcfd; font-size: 0.85rem; font-family: monospace;">${f.html_content || ''}</textarea>
                     </div>
                     ` : ''}
+
+                    ${isStep ? `
+                    <div style="padding-top: 16px; margin-top: 16px; border-top: 1px dashed var(--glass-border);">
+                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                            <span class="material-icons-round" style="font-size: 1rem;">settings</span> Impostazioni Step
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: block;">Tipo</label>
+                                <select class="fi-step-type app-input" data-index="${i}" style="margin: 0; width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: #fcfcfd;">
+                                    <option value="none" ${f.step_type === 'none' ? 'selected' : ''}>Nessuno</option>
+                                    <option value="text" ${f.step_type === 'text' ? 'selected' : ''}>Testo</option>
+                                    <option value="icon" ${f.step_type === 'icon' ? 'selected' : ''}>Icona</option>
+                                    <option value="number" ${f.step_type === 'number' || !f.step_type ? 'selected' : ''}>Numero</option>
+                                    <option value="progress" ${f.step_type === 'progress' ? 'selected' : ''}>Barra di progressione</option>
+                                    <option value="number_text" ${f.step_type === 'number_text' ? 'selected' : ''}>Numero e testo</option>
+                                    <option value="icon_text" ${f.step_type === 'icon_text' ? 'selected' : ''}>Icona e testo</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: block;">Forma</label>
+                                <select class="fi-step-shape app-input" data-index="${i}" style="margin: 0; width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: #fcfcfd;">
+                                    <option value="circle" ${f.step_shape === 'circle' || !f.step_shape ? 'selected' : ''}>Cerchio</option>
+                                    <option value="square" ${f.step_shape === 'square' ? 'selected' : ''}>Quadrato</option>
+                                    <option value="rounded" ${f.step_shape === 'rounded' ? 'selected' : ''}>Arrotondato</option>
+                                    <option value="none" ${f.step_shape === 'none' ? 'selected' : ''}>None</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>
             ` : '';
 
@@ -489,6 +521,14 @@ function openFormModal(form = null) {
 
         container.querySelectorAll('.fi-html-code').forEach(el => el.addEventListener('input', e => {
             tempFields[e.target.dataset.index].html_content = e.target.value;
+        }));
+
+        container.querySelectorAll('.fi-step-type').forEach(el => el.addEventListener('change', e => {
+            tempFields[e.target.dataset.index].step_type = e.target.value;
+        }));
+
+        container.querySelectorAll('.fi-step-shape').forEach(el => el.addEventListener('change', e => {
+            tempFields[e.target.dataset.index].step_shape = e.target.value;
         }));
 
         container.querySelectorAll('.btn-remove-field').forEach(el => el.addEventListener('click', e => {
