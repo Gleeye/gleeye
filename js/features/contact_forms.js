@@ -46,20 +46,29 @@ function renderGrid(gridEl) {
                 </div>
                 <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 24px; min-height: 40px;">${f.description || 'Nessuna descrizione'}</p>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: auto;">
-                <button class="btn-submissions" data-id="${f.id}" style="grid-column: span 2; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; background: var(--brand-blue); border: none; padding: 14px; border-radius: 14px; color: white; cursor: pointer; box-shadow: 0 4px 12px rgba(var(--brand-blue-rgb), 0.2); transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(var(--brand-blue-rgb), 0.3)'" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 12px rgba(var(--brand-blue-rgb), 0.2)'">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: auto;">
+                <button class="btn-submissions" data-id="${f.id}" style="grid-column: span 3; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; background: var(--brand-blue); border: none; padding: 14px; border-radius: 14px; color: white; cursor: pointer; box-shadow: 0 4px 12px rgba(var(--brand-blue-rgb), 0.2); transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(var(--brand-blue-rgb), 0.3)'" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 12px rgba(var(--brand-blue-rgb), 0.2)'">
                     <span class="material-icons-round" style="font-size: 1.2rem;">list_alt</span> 
                     Vedi Risposte
                 </button>
-                <button class="btn-edit" data-id="${f.id}" style="display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; background: rgba(var(--brand-blue-rgb), 0.08); color: var(--brand-blue); border: 1px solid rgba(var(--brand-blue-rgb), 0.1); border-radius: 12px; padding: 10px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(var(--brand-blue-rgb), 0.12)'" onmouseout="this.style.background='rgba(var(--brand-blue-rgb), 0.08)'">
-                    <span class="material-icons-round" style="font-size: 1.1rem;">edit</span> Modifica
+                <button class="btn-edit" data-id="${f.id}" style="display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; background: rgba(var(--brand-blue-rgb), 0.08); color: var(--brand-blue); border: 1px solid rgba(var(--brand-blue-rgb), 0.1); border-radius: 12px; padding: 10px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(var(--brand-blue-rgb), 0.12)'" onmouseout="this.style.background='rgba(var(--brand-blue-rgb), 0.08)'" title="Modifica">
+                    <span class="material-icons-round" style="font-size: 1.1rem;">edit</span>
                 </button>
-                <button class="btn-embed" data-id="${f.id}" style="display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; background: rgba(var(--brand-viola-rgb), 0.08); color: var(--brand-viola); border: 1px solid rgba(var(--brand-viola-rgb), 0.1); border-radius: 12px; padding: 10px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(var(--brand-viola-rgb), 0.12)'" onmouseout="this.style.background='rgba(var(--brand-viola-rgb), 0.08)'">
-                    <span class="material-icons-round" style="font-size: 1.1rem;">code</span> Embed
+                <button class="btn-preview" data-id="${f.id}" style="display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; background: rgba(var(--brand-success-rgb, 34, 197, 94), 0.08); color: var(--brand-success, #22c55e); border: 1px solid rgba(var(--brand-success-rgb, 34, 197, 94), 0.1); border-radius: 12px; padding: 10px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(var(--brand-success-rgb, 34, 197, 94), 0.12)'" onmouseout="this.style.background='rgba(var(--brand-success-rgb, 34, 197, 94), 0.08)'" title="Anteprima">
+                    <span class="material-icons-round" style="font-size: 1.1rem;">visibility</span>
+                </button>
+                <button class="btn-embed" data-id="${f.id}" style="display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; background: rgba(var(--brand-viola-rgb), 0.08); color: var(--brand-viola); border: 1px solid rgba(var(--brand-viola-rgb), 0.1); border-radius: 12px; padding: 10px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(var(--brand-viola-rgb), 0.12)'" onmouseout="this.style.background='rgba(var(--brand-viola-rgb), 0.08)'" title="Codice Embed">
+                    <span class="material-icons-round" style="font-size: 1.1rem;">code</span>
                 </button>
             </div>
         </div>
     `).join('');
+
+    gridEl.querySelectorAll('.btn-preview').forEach(btn => btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.dataset.id;
+        const url = `${window.location.origin}/form.html?id=${id}`;
+        window.open(url, '_blank');
+    }));
 
     gridEl.querySelectorAll('.btn-edit').forEach(btn => btn.addEventListener('click', (e) => {
         const id = e.currentTarget.dataset.id;
