@@ -96,14 +96,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                     let inputHtml = '';
                     const baseId = `field_${f.id}`;
 
-                    if (['text', 'email', 'tel', 'url', 'number', 'password', 'date', 'time', 'datetime-local'].includes(f.type)) {
+                    if (['text', 'email', 'tel', 'url', 'number', 'password', 'date', 'time', 'datetime-local', 'file'].includes(f.type)) {
                         let itype = f.type;
                         if (itype === 'password') itype = 'password';
                         else if (itype === 'email') itype = 'email';
                         else if (itype === 'number') itype = 'number';
                         // Keep the native type for date, time, etc.
 
-                        inputHtml = `<input type="${itype}" class="tf-input step-input" id="${baseId}" name="${baseId}" placeholder="${(f.placeholder || 'Scrivi la tua risposta qui...').replace(/"/g, '&quot;')}" ${f.required ? 'required' : ''}>`;
+                        if (itype === 'file') {
+                            inputHtml = `
+                                <div class="tf-file-upload">
+                                    <label class="tf-file-label" for="${baseId}">
+                                        <span class="material-icons-round">cloud_upload</span>
+                                        <div class="tf-file-info">
+                                            <span class="tf-file-status">Scegli un file o trascinalo qui</span>
+                                            <span class="tf-file-limit">Dimensione massima: 10MB</span>
+                                        </div>
+                                        <input type="file" class="tf-file-input step-input" id="${baseId}" name="${baseId}" ${f.required ? 'required' : ''} style="display: none;">
+                                    </label>
+                                </div>
+                            `;
+                        } else {
+                            inputHtml = `<input type="${itype}" class="tf-input step-input" id="${baseId}" name="${baseId}" placeholder="${(f.placeholder || 'Scrivi la tua risposta qui...').replace(/"/g, '&quot;')}" ${f.required ? 'required' : ''}>`;
+                        }
                     } else if (f.type === 'textarea') {
                         inputHtml = `<textarea class="tf-input step-input" id="${baseId}" name="${baseId}" rows="1" placeholder="${(f.placeholder || 'Scrivi qui la tua risposta...').replace(/"/g, '&quot;')}" ${f.required ? 'required' : ''} style="resize: none; overflow: hidden; min-height: 2em;"></textarea>`;
                     } else if (f.type === 'select') {
@@ -338,6 +353,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
+        // File selection visual updates
+        document.querySelectorAll('.tf-file-input').forEach(input => {
+            input.addEventListener('change', () => {
+                const wrapper = input.closest('.tf-file-upload');
+                const status = wrapper.querySelector('.tf-file-status');
+                if (input.files && input.files[0]) {
+                    status.textContent = `File scelto: ${input.files[0].name}`;
+                    wrapper.classList.add('tf-file-selected');
+                } else {
+                    status.textContent = 'Scegli un file o trascinalo qui';
+                    wrapper.classList.remove('tf-file-selected');
+                }
+            });
+        });
+
         // Keyboard navigation
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
@@ -372,49 +402,66 @@ document.addEventListener('DOMContentLoaded', async () => {
             const btnSubmit = activeSteps[activeSteps.length - 1].querySelector('.submit-btn-trigger');
             if (btnSubmit) {
                 btnSubmit.disabled = true;
-                btnSubmit.innerHTML = '<span class="loader small" style="width: 20px; height: 20px; border-width: 2px; border-top-color: white;"></span>';
+                btnSubmit.innerHTML = 'Invio in corso... <span class="loader small" style="width: 20px; height: 20px; border-width: 2px; border-top-color: white;"></span>';
             }
             errorEl.style.display = 'none';
 
-            const formData = new FormData(formEl);
-            const payload = {};
+            try {
+                const formData = new FormData(formEl);
+                const payload = {};
+                const fileUploads = [];
 
-            // hidden inputs mapping
-            document.querySelectorAll('.step-container[data-hidden="true"] input').forEach(inp => {
-                payload[inp.name] = inp.value;
-            });
-
-            // Capture extra URL params 
-            for (const [paramKey, paramVal] of urlParams.entries()) {
-                if (paramKey !== 'id') payload[paramKey] = paramVal;
-            }
-
-            for (let [key, value] of formData.entries()) {
-                if (payload[key]) {
-                    if (Array.isArray(payload[key])) {
-                        payload[key].push(value);
-                    } else {
-                        payload[key] = [payload[key], value];
+                // Identify and separate files
+                for (let [key, value] of formData.entries()) {
+                    if (value instanceof File && value.name && value.size > 0) {
+                        fileUploads.push({ key, file: value });
+                    } else if (!(value instanceof File)) {
+                        if (payload[key]) {
+                            if (Array.isArray(payload[key])) payload[key].push(value);
+                            else payload[key] = [payload[key], value];
+                        } else {
+                            payload[key] = value;
+                        }
                     }
-                } else {
-                    payload[key] = value;
                 }
-            }
 
-            const { error: submitErr } = await supabase.from('contact_submissions').insert([{
-                form_id: formId,
-                data: payload,
-                is_read: false
-            }]);
+                // Upload files to Supabase Storage
+                if (fileUploads.length > 0) {
+                    console.log(`Uploading ${fileUploads.length} files...`);
+                    for (const item of fileUploads) {
+                        const fileExt = item.file.name.split('.').pop();
+                        const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+                        const filePath = `${formId}/${fileName}`;
 
-            if (submitErr) {
-                if (btnSubmit) {
-                    btnSubmit.disabled = false;
-                    btnSubmit.innerHTML = 'Riprova <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">send</span>';
+                        const { data: uploadData, error: uploadError } = await supabase.storage
+                            .from('form-attachments')
+                            .upload(filePath, item.file);
+
+                        if (uploadError) throw new Error(`Errore caricamento file: ${uploadError.message}`);
+
+                        const { data: publicUrlData } = supabase.storage
+                            .from('form-attachments')
+                            .getPublicUrl(filePath);
+
+                        payload[item.key] = publicUrlData.publicUrl;
+                    }
                 }
-                showError('Si è verificato un errore durante l\'invio. Riprova tra poco.');
-                console.error(submitErr);
-            } else {
+
+                // Add URL params
+                for (const [paramKey, paramVal] of urlParams.entries()) {
+                    if (paramKey !== 'id') payload[paramKey] = paramVal;
+                }
+
+                const { error: submitErr } = await supabase.from('contact_submissions').insert([{
+                    form_id: formId,
+                    data: payload,
+                    is_read: false
+                }]);
+
+                if (submitErr) {
+                    throw new Error(submitErr.message);
+                }
+
                 formEl.style.display = 'none';
                 document.getElementById('progress-container').style.display = 'none';
 
@@ -427,6 +474,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 notifyResize();
                 window.parent.postMessage({ type: 'form_submitted', success: true }, '*');
+
+            } catch (err) {
+                console.error('Submit Error:', err);
+                if (btnSubmit) {
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = 'Riprova <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">send</span>';
+                }
+                showError('Si è verificato un errore durante l\'invio. ' + err.message);
             }
         });
 

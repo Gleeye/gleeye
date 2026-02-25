@@ -450,6 +450,64 @@
             border-color: var(--primary-color);
             background-color: rgba(var(--primary-rgb, 13, 110, 253), 0.05);
         }
+
+        /* File Upload Styling */
+        .tf-file-upload {
+            margin-top: 1rem;
+            width: 100%;
+        }
+
+        .tf-file-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            border: 2px dashed rgba(0, 0, 0, 0.1);
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .tf-file-label:hover {
+            border-color: var(--primary-color);
+            background: rgba(var(--primary-rgb, 13, 110, 253), 0.05);
+            transform: translateY(-2px);
+        }
+
+        .tf-file-label .material-icons-round {
+            font-size: 48px;
+            color: var(--primary-color);
+            margin-bottom: 12px;
+            opacity: 0.7;
+        }
+
+        .tf-file-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .tf-file-status {
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .tf-file-limit {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        .tf-file-selected .tf-file-label {
+            border-style: solid;
+            border-color: var(--primary-color);
+            background: white;
+            box-shadow: 0 10px 30px rgba(var(--primary-rgb, 13, 110, 253), 0.1);
+        }
     </style>
 </head>
 
