@@ -45,13 +45,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (fields.length === 0) throw new Error('Questo modulo non ha alcun campo configurato.');
 
-        let currentStepGroup = { type: 'fields', fields: [], title: '', desc: '' };
+        const globalStepSettings = data.step_settings || { type: 'number', shape: 'circle' };
+
+        let currentStepGroup = {
+            type: 'fields',
+            fields: [],
+            title: '',
+            desc: '',
+            step_type: globalStepSettings.type,
+            step_shape: globalStepSettings.shape
+        };
+
         fields.forEach((f) => {
             if (f.type === 'step') {
                 if (currentStepGroup.fields.length > 0) {
                     steps.push(currentStepGroup);
                 }
-                currentStepGroup = { type: 'fields', fields: [], title: f.label || '', desc: f.description || '' };
+                currentStepGroup = {
+                    type: 'fields',
+                    fields: [],
+                    title: f.label || '',
+                    desc: f.description || '',
+                    step_type: globalStepSettings.type,
+                    step_shape: globalStepSettings.shape
+                };
             } else {
                 currentStepGroup.fields.push(f);
             }
@@ -70,7 +87,42 @@ document.addEventListener('DOMContentLoaded', async () => {
         const stepsHtml = steps.map((s, i) => {
             const isFirst = i === 0;
             const isLast = i === steps.length - 1;
-            const stepNumText = s.type === 'welcome' || s.type === 'step' || s.type === 'html' ? '' : `<span class="question-number">${i + (data.has_welcome_screen ? 0 : 1)} <span style="color:rgba(0,0,0,0.2);">&rarr;</span></span>`;
+
+            // Generate Step Indicator based on settings
+            let indicatorHtml = '';
+            const stepIndexForDisplay = i + (data.has_welcome_screen ? 0 : 1);
+
+            if (s.type === 'fields') {
+                const sType = s.step_type || 'number';
+                const sShape = s.step_shape || 'circle';
+
+                let innerContent = '';
+                if (sType === 'number' || sType === 'number_text') {
+                    innerContent = stepIndexForDisplay;
+                } else if (sType === 'icon' || sType === 'icon_text') {
+                    innerContent = '<span class="material-icons-round" style="font-size: 1.2rem;">label</span>';
+                }
+
+                const shapeClass = `shape-${sShape}`;
+
+                if (sType !== 'none' && sType !== 'text') {
+                    indicatorHtml = `
+                        <div class="tf-step-indicator ${shapeClass} ${sType}">
+                            ${innerContent}
+                        </div>
+                    `;
+                }
+
+                if (sType === 'progress') {
+                    indicatorHtml = `
+                        <div class="tf-step-progress-mini">
+                            <div class="tf-step-progress-fill" style="width: ${((i + 1) / steps.length) * 100}%"></div>
+                        </div>
+                    `;
+                }
+            }
+
+            const stepNumText = indicatorHtml;
 
             let content = '';
 
@@ -178,7 +230,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 content = `
                     <div class="tf-question-wrapper" style="max-width: 900px;">
                         ${formHeaderHtml}
-                        ${s.title ? `<h1 class="step-title" style="font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; color: var(--text-primary);">${s.title}</h1>` : ''}
+                        <div class="step-header" style="display: flex; align-items: center; gap: 16px; margin-bottom: 2rem;">
+                            ${stepNumText}
+                            <div style="flex: 1;">
+                                ${s.title ? `<h1 class="step-title" style="font-size: 2rem; font-weight: 800; margin: 0; color: var(--text-primary);">${s.title}</h1>` : ''}
+                                ${((s.step_type === 'text' || s.step_type === 'number_text' || s.step_type === 'icon_text') && s.title) ? `<div style="font-size: 0.85rem; color: var(--primary-color); font-weight: 700; text-transform: uppercase; margin-top: 4px; opacity: 0.8;">Step ${stepIndexForDisplay}</div>` : ''}
+                            </div>
+                        </div>
                         ${s.desc ? `<p class="step-desc" style="font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 3rem;">${s.desc}</p>` : ''}
                         
                         <div class="fields-grid" style="display: flex; flex-wrap: wrap; width: 100%; margin: 0 -15px 0 0;">

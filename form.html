@@ -132,6 +132,56 @@
             font-weight: 400;
         }
 
+        /* Step Indicators */
+        .tf-step-indicator {
+            width: 42px;
+            height: 42px;
+            background: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(var(--primary-rgb, 13, 110, 253), 0.2);
+        }
+
+        .shape-circle {
+            border-radius: 50%;
+        }
+
+        .shape-square {
+            border-radius: 4px;
+        }
+
+        .shape-rounded {
+            border-radius: 12px;
+        }
+
+        .shape-none {
+            background: transparent;
+            color: var(--primary-color);
+            box-shadow: none;
+            font-size: 1.5rem;
+        }
+
+        .tf-step-progress-mini {
+            width: 60px;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 10px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .tf-step-progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            border-radius: 10px;
+            transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
         /* Inputs */
         .tf-input {
             width: 100%;
