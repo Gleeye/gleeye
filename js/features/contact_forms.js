@@ -192,30 +192,35 @@ function openFormModal(form = null) {
                     </label>
                 </div>
 
-                <!-- Sezione Welcome Screen -->
-                <div style="background: rgba(var(--brand-viola-rgb, 156, 39, 176), 0.05); padding: 20px; border-radius: 16px; border: 1px solid rgba(var(--brand-viola-rgb, 156, 39, 176), 0.1); margin-bottom: 32px;">
-                    <label style="display: flex; align-items: center; gap: 12px; margin-bottom: ${form && form.has_welcome_screen ? '16px' : '0'}; cursor: pointer;">
-                        <input type="checkbox" id="cf-has-welcome" ${form && form.has_welcome_screen ? 'checked' : ''} style="width: 22px; height: 22px; border-radius: 6px; cursor: pointer;">
-                        <div style="flex: 1;">
-                            <span style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem; display: block;">Schermata di Benvenuto</span>
-                            <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">Mostra una pagina introduttiva prima di iniziare il modulo.</span>
+                    </div>
+                </div>
+
+                <!-- Sezione Configurazione Step (Globale) -->
+                <div style="background: rgba(var(--brand-blue-rgb), 0.03); padding: 20px; border-radius: 16px; border: 1px solid var(--glass-border); margin-bottom: 32px;">
+                    <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                        <span class="material-icons-round" style="color: var(--brand-blue);">settings</span> Impostazioni Step (Globali)
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: block;">Tipo Indicatore</label>
+                            <select id="cf-step-type" class="app-input" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: white;">
+                                <option value="none" ${form?.step_settings?.type === 'none' ? 'selected' : ''}>Nessuno</option>
+                                <option value="text" ${form?.step_settings?.type === 'text' ? 'selected' : ''}>Testo</option>
+                                <option value="icon" ${form?.step_settings?.type === 'icon' ? 'selected' : ''}>Icona</option>
+                                <option value="number" ${(!form?.step_settings?.type || form?.step_settings?.type === 'number') ? 'selected' : ''}>Numero</option>
+                                <option value="progress" ${form?.step_settings?.type === 'progress' ? 'selected' : ''}>Barra di progressione</option>
+                                <option value="number_text" ${form?.step_settings?.type === 'number_text' ? 'selected' : ''}>Numero e testo</option>
+                                <option value="icon_text" ${form?.step_settings?.type === 'icon_text' ? 'selected' : ''}>Icona e testo</option>
+                            </select>
                         </div>
-                    </label>
-                    
-                    <div id="welcome-settings" style="display: ${form && form.has_welcome_screen ? 'block' : 'none'}; padding-top: 16px; border-top: 1px dashed rgba(var(--brand-viola-rgb, 156, 39, 176), 0.2);">
-                        <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
-                            <div class="form-group" style="margin: 0;">
-                                <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 6px; display: block;">Titolo Benvenuto</label>
-                                <input type="text" id="cf-welcome-title" class="app-input" value="${form ? (form.welcome_title || '').replace(/"/g, '&quot;') : ''}" placeholder="es: Ciao! Dicci di cosa hai bisogno" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: white;">
-                            </div>
-                            <div class="form-group" style="margin: 0;">
-                                <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 6px; display: block;">Descrizione (Opzionale)</label>
-                                <textarea id="cf-welcome-desc" class="app-input" rows="2" placeholder="Qualche dettaglio in più..." style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: white;">${form ? (form.welcome_description || '') : ''}</textarea>
-                            </div>
-                            <div class="form-group" style="margin: 0;">
-                                <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 6px; display: block;">Testo Pulsante</label>
-                                <input type="text" id="cf-welcome-btn" class="app-input" value="${form ? (form.welcome_button_text || '').replace(/"/g, '&quot;') : 'Inizia'}" placeholder="es: Inizia" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: white;">
-                            </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: block;">Forma Indicatore</label>
+                            <select id="cf-step-shape" class="app-input" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: white;">
+                                <option value="circle" ${(!form?.step_settings?.shape || form?.step_settings?.shape === 'circle') ? 'selected' : ''}>Cerchio</option>
+                                <option value="square" ${form?.step_settings?.shape === 'square' ? 'selected' : ''}>Quadrato</option>
+                                <option value="rounded" ${form?.step_settings?.shape === 'rounded' ? 'selected' : ''}>Arrotondato</option>
+                                <option value="none" ${form?.step_settings?.shape === 'none' ? 'selected' : ''}>None</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -410,37 +415,6 @@ function openFormModal(form = null) {
                         <textarea class="fi-html-code app-input" data-index="${i}" rows="3" placeholder="<p>Inserisci qui il tuo HTML custom...</p>" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: #fcfcfd; font-size: 0.85rem; font-family: monospace;">${f.html_content || ''}</textarea>
                     </div>
                     ` : ''}
-
-                    ${isStep ? `
-                    <div style="padding-top: 16px; margin-top: 16px; border-top: 1px dashed var(--glass-border);">
-                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-                            <span class="material-icons-round" style="font-size: 1rem;">settings</span> Impostazioni Step
-                        </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                            <div class="form-group" style="margin: 0;">
-                                <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: block;">Tipo</label>
-                                <select class="fi-step-type app-input" data-index="${i}" style="margin: 0; width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: #fcfcfd;">
-                                    <option value="none" ${f.step_type === 'none' ? 'selected' : ''}>Nessuno</option>
-                                    <option value="text" ${f.step_type === 'text' ? 'selected' : ''}>Testo</option>
-                                    <option value="icon" ${f.step_type === 'icon' ? 'selected' : ''}>Icona</option>
-                                    <option value="number" ${f.step_type === 'number' || !f.step_type ? 'selected' : ''}>Numero</option>
-                                    <option value="progress" ${f.step_type === 'progress' ? 'selected' : ''}>Barra di progressione</option>
-                                    <option value="number_text" ${f.step_type === 'number_text' ? 'selected' : ''}>Numero e testo</option>
-                                    <option value="icon_text" ${f.step_type === 'icon_text' ? 'selected' : ''}>Icona e testo</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin: 0;">
-                                <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: block;">Forma</label>
-                                <select class="fi-step-shape app-input" data-index="${i}" style="margin: 0; width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: #fcfcfd;">
-                                    <option value="circle" ${f.step_shape === 'circle' || !f.step_shape ? 'selected' : ''}>Cerchio</option>
-                                    <option value="square" ${f.step_shape === 'square' ? 'selected' : ''}>Quadrato</option>
-                                    <option value="rounded" ${f.step_shape === 'rounded' ? 'selected' : ''}>Arrotondato</option>
-                                    <option value="none" ${f.step_shape === 'none' ? 'selected' : ''}>None</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    ` : ''}
                 </div>
             ` : '';
 
@@ -523,14 +497,6 @@ function openFormModal(form = null) {
             tempFields[e.target.dataset.index].html_content = e.target.value;
         }));
 
-        container.querySelectorAll('.fi-step-type').forEach(el => el.addEventListener('change', e => {
-            tempFields[e.target.dataset.index].step_type = e.target.value;
-        }));
-
-        container.querySelectorAll('.fi-step-shape').forEach(el => el.addEventListener('change', e => {
-            tempFields[e.target.dataset.index].step_shape = e.target.value;
-        }));
-
         container.querySelectorAll('.btn-remove-field').forEach(el => el.addEventListener('click', e => {
             const idx = parseInt(e.currentTarget.dataset.index);
             tempFields.splice(idx, 1);
@@ -573,6 +539,10 @@ function openFormModal(form = null) {
             welcome_title: modal.querySelector('#cf-welcome-title').value.trim(),
             welcome_description: modal.querySelector('#cf-welcome-desc').value.trim(),
             welcome_button_text: modal.querySelector('#cf-welcome-btn').value.trim(),
+            step_settings: {
+                type: modal.querySelector('#cf-step-type').value,
+                shape: modal.querySelector('#cf-step-shape').value
+            },
             fields: tempFields
         };
 
