@@ -59,66 +59,64 @@
             display: flex;
             flex-direction: column;
             overflow-y: auto;
-            overflow-x: hidden;
             position: relative;
+            background: #f8fafc;
         }
 
         #typeform-wrapper {
             flex: 1;
-            position: relative;
             width: 100%;
             max-width: 800px;
             margin: 0 auto;
-            padding: 4rem 2rem;
+            padding: 80px 24px;
             box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: relative;
         }
 
         /* Step Containers */
         .step-container {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -45%);
-            width: 100%;
+            top: 80px;
+            left: 24px;
+            right: 24px;
             opacity: 0;
             visibility: hidden;
             transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
             pointer-events: none;
             display: flex;
             flex-direction: column;
-            gap: 2rem;
+            z-index: 1;
         }
 
         .step-container.active {
             opacity: 1;
             visibility: visible;
             pointer-events: auto;
-            transform: translate(-50%, -50%);
+            transform: translateY(0);
             z-index: 10;
         }
 
         .step-container.past {
-            transform: translate(-50%, -100%);
+            transform: translateY(-40px);
             opacity: 0;
         }
 
         .step-container.future {
-            transform: translate(-50%, 0%);
+            transform: translateY(40px);
             opacity: 0;
         }
 
         /* Typography */
         .question-title {
-            font-size: 1.5rem;
+            font-size: 1.75rem;
             font-weight: 600;
-            margin: 0 0 0.5rem 0;
-            line-height: 1.3;
+            margin: 0 0 1rem 0;
+            line-height: 1.2;
             display: flex;
-            align-items: baseline;
+            align-items: flex-start;
             gap: 12px;
+            color: #1e293b !important;
+            /* Force visibility */
         }
 
         .question-number {
