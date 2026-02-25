@@ -80,8 +80,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <h1 class="welcome-title">${s.title}</h1>
                         <p class="question-desc">${s.desc}</p>
                         <div class="tf-action-row" style="display: flex; align-items: center; gap: 20px;">
+                            ${!isFirst ? `<button type="button" class="text-btn prev-btn-trigger" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-weight:600; font-family:inherit; display: flex; align-items: center; gap: 4px;"><span class="material-icons-round" style="font-size:1.1rem;">arrow_back</span> Indietro</button>` : ''}
                             <button type="button" class="btn-action next-btn-trigger">${s.btn || 'Inizia'}</button>
-                            ${!isFirst ? `<button type="button" class="text-btn prev-btn-trigger" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-weight:600; font-family:inherit;">&larr; Indietro</button>` : ''}
                         </div>
                         <div class="next-hint" style="margin-top: 1rem; opacity: 0.6; font-size: 0.8rem;">o premi <strong>Invio &crarr;</strong></div>
                     </div>
@@ -165,10 +165,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </div>
 
                         <div class="tf-action-row" style="margin-top: 1rem; width: 100%; display: flex; align-items: center; gap: 20px;">
+                            ${!isFirst ? `<button type="button" class="text-btn prev-btn-trigger" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-weight:600; font-family:inherit; font-size: 1rem; display: flex; align-items: center; gap: 4px;"><span class="material-icons-round" style="font-size:1.1rem;">arrow_back</span> Indietro</button>` : ''}
+
                             ${!isLast ? `<button type="button" class="btn-action next-btn-trigger">Continua <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">arrow_forward</span></button>`
                         : `<button type="button" class="btn-action submit-btn-trigger">Invia <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">send</span></button>`}
-                            
-                            ${!isFirst ? `<button type="button" class="text-btn prev-btn-trigger" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-weight:600; font-family:inherit; font-size: 1rem;">Indietro</button>` : ''}
                             
                             ${!isLast ? `<div class="next-hint" style="opacity: 0.6; font-size: 0.8rem;">o premi <strong>Invio &crarr;</strong></div>` : ''}
                         </div>
