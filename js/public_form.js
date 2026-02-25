@@ -120,8 +120,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                     `;
                 }).join('');
 
+                let formHeaderHtml = '';
+                if (i === 0 && !data.has_welcome_screen) {
+                    formHeaderHtml = `
+                        <div style="margin-bottom: 3.5rem; padding-bottom: 2rem; border-bottom: 2px solid rgba(var(--primary-rgb, 13, 110, 253), 0.1);">
+                            <h1 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 0.5rem; color: var(--text-primary);">${data.name}</h1>
+                            ${data.description ? `<p style="font-size: 1.1rem; color: var(--text-secondary); margin: 0; opacity: 0.7;">${data.description}</p>` : ''}
+                        </div>
+                    `;
+                }
+
                 content = `
                     <div class="tf-question-wrapper" style="max-width: 900px;">
+                        ${formHeaderHtml}
                         ${s.title ? `<h1 class="step-title" style="font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; color: var(--text-primary);">${s.title}</h1>` : ''}
                         ${s.desc ? `<p class="step-desc" style="font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 3rem;">${s.desc}</p>` : ''}
                         
