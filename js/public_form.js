@@ -26,9 +26,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const fields = data.fields || [];
         console.log('Fields count:', fields.length);
+        const isEmbed = urlParams.get('embed') === 'true';
+
         // Apply primary color
         if (data.primary_color) {
             document.documentElement.style.setProperty('--primary-color', data.primary_color);
+        }
+
+        // Global Header logic
+        const globalHeader = document.getElementById('tf-global-header');
+        if (!isEmbed) {
+            globalHeader.innerHTML = `
+                <h1>${data.name}</h1>
+                ${data.description ? `<p>${data.description}</p>` : ''}
+                <div class="header-divider"></div>
+            `;
+        } else {
+            globalHeader.style.display = 'none';
         }
 
         let steps = [];
@@ -181,22 +195,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     `;
                 }).join('');
 
-                let formHeaderHtml = '';
-                if (i === 0 && !data.has_welcome_screen) {
-                    formHeaderHtml = `
-                        <div style="margin-bottom: 3.5rem; padding-bottom: 2rem; border-bottom: 2px solid rgba(var(--primary-rgb, 13, 110, 253), 0.1);">
-                            <h1 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 0.5rem; color: var(--text-primary);">${data.name}</h1>
-                            ${data.description ? `<p style="font-size: 1.1rem; color: var(--text-secondary); margin: 0; opacity: 0.7;">${data.description}</p>` : ''}
-                        </div>
-                    `;
-                }
-
                 content = `
                     <div class="tf-question-wrapper" style="max-width: 900px;">
-                        ${formHeaderHtml}
                         <div class="step-header" style="margin-bottom: 2rem; border-bottom: 2px solid rgba(var(--primary-rgb, 13, 110, 253), 0.1); padding-bottom: 1.5rem;">
                             ${s.title ? `<h1 class="step-title" style="font-size: 1.75rem; font-weight: 700; margin: 0; color: var(--text-primary);">${s.title}</h1>` : ''}
-                            ${((s.step_type === 'text' || s.step_type === 'number_text' || s.step_type === 'icon_text') && s.title) ? `
+                            ${((s.step_type === 'text' || s.step_type || 'number') !== 'none' && s.title) ? `
                                 <div style="font-size: 0.8rem; color: var(--primary-color); font-weight: 700; text-transform: uppercase; margin-top: 6px; opacity: 0.8;">
                                     Progresso: ${steps.slice(0, i + 1).filter(st => st.type === 'fields').length} di ${steps.filter(st => st.type === 'fields').length}
                                 </div>` : ''}
@@ -240,12 +243,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         let activeSteps = Array.from(stepContainers).filter(s => s.dataset.hidden !== 'true');
 
         const updateView = () => {
+            const globalHeader = document.getElementById('tf-global-header');
             const stepper = document.getElementById('tf-stepper');
             const dataSteps = steps.filter(s => s.type === 'fields');
             const currentDataIdx = steps.slice(0, currentStepIndex + 1).filter(s => s.type === 'fields').length - 1;
 
+            const isWelcome = steps[currentStepIndex].type === 'welcome';
+
+            // Global Header visibility
+            if (globalHeader) {
+                globalHeader.style.display = (isWelcome || isEmbed) ? 'none' : 'block';
+            }
+
             // Render/Update Stepper
-            if (currentStepIndex === 0 && data.has_welcome_screen) {
+            if (isWelcome) {
                 stepper.style.display = 'none';
             } else {
                 stepper.style.display = 'flex';

@@ -63,11 +63,40 @@
             background: #f8fafc;
         }
 
+        #tf-global-header {
+            padding: 40px 20px 0 20px;
+            text-align: center;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        #tf-global-header h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        #tf-global-header p {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin: 0;
+            opacity: 0.7;
+        }
+
+        #tf-global-header .header-divider {
+            height: 2px;
+            background: rgba(var(--primary-rgb, 13, 110, 253), 0.1);
+            margin: 2rem auto 0 auto;
+            max-width: 100%;
+        }
+
         #tf-stepper {
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 40px 20px 20px 20px;
+            padding: 24px 20px 20px 20px;
             gap: 0;
             z-index: 10;
         }
@@ -603,6 +632,7 @@
     </div>
 
     <div id="form-wrapper">
+        <div id="tf-global-header"></div>
         <div id="tf-stepper"></div>
         <form id="public-form" style="display: none; height: 100%; width: 100%;">
             <div id="typeform-wrapper">
