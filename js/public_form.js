@@ -203,10 +203,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         ${(s.title && !isEmbed) ? `
                         <div class="step-header" style="margin-bottom: 0.75rem;">
                             <h1 class="step-title" style="font-size: 1.75rem; font-weight: 700; margin: 0; color: var(--text-primary);">${s.title}</h1>
-                            ${((s.step_type === 'text' || s.step_type || 'number') !== 'none') ? `
-                                <div style="font-size: 0.8rem; color: var(--primary-color); font-weight: 700; text-transform: uppercase; margin-top: 4px; opacity: 0.8;">
-                                    Progresso: ${steps.slice(0, i + 1).filter(st => st.type === 'fields').length} di ${steps.filter(st => st.type === 'fields').length}
-                                </div>` : ''}
                         </div>` : ''}
                         ${(s.desc && !isEmbed) ? `<p class="step-desc" style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 1.5rem; opacity: 0.8;">${s.desc}</p>` : ''}
                         
