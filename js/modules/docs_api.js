@@ -72,7 +72,7 @@ export async function fetchVisiblePages(docSpaceId) {
         return fetchDocPages(docSpaceId);
     }
 
-    const userId = state.user?.id;
+    const userId = state.session?.user?.id;
     const collabId = profile?.collaborator_id;
     const deptNames = profile?.tags || [];
 
@@ -144,7 +144,7 @@ export async function createDocPage(docSpaceId, parentRef = null, title = 'Pagin
             space_ref: docSpaceId,
             parent_ref: parentRef,
             title: title || 'Untitled',
-            created_by: state.user?.id,
+            created_by: state.session?.user?.id,
             order_index: Date.now() // Simple sorting strategy for MVP
         }])
         .select()
@@ -206,7 +206,7 @@ export async function createBlock(pageId, type = 'paragraph', content = {}, orde
             type,
             content: content || {},
             order_index: orderIndex,
-            created_by: state.user?.id
+            created_by: state.session?.user?.id
         }])
         .select()
         .single();
