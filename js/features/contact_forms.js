@@ -135,7 +135,7 @@ function showEmbedCode(formId) {
 let tempFields = [];
 
 function openFormModal(form = null) {
-    tempFields = form ? [...(form.fields || [])] : [];
+    tempFields = form ? JSON.parse(JSON.stringify(form.fields || [])) : [];
     let expandedIndex = null;
 
 
@@ -157,40 +157,19 @@ function openFormModal(form = null) {
         <div class="modal-body" style="padding: 32px; background: linear-gradient(180deg, rgba(255,255,255,0.5) 0%, transparent 100%);">
             <form id="contact-form-builder">
                 <!-- Sezione Info Base -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
-                    <div class="form-group" style="grid-column: span 2;">
+                <div style="display: grid; grid-template-columns: 1fr; gap: 20px; margin-bottom: 24px;">
+                    <div class="form-group">
                         <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">Identificativo Modulo *</label>
                         <input type="text" id="cf-name" class="app-input" value="${form ? form.name.replace(/"/g, '&quot;') : ''}" required placeholder="es: Form Contatti Sito Indaco" style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-surface); font-size: 0.95rem; transition: all 0.2s;">
                     </div>
                     
-                    <div class="form-group" style="grid-column: span 2;">
-                        <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">Descrizione Interna</label>
+                    <div class="form-group">
+                        <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">Descrizione Interna (Promemoria)</label>
                         <textarea id="cf-desc" class="app-input" rows="2" placeholder="Note per uso interno..." style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-surface); font-size: 0.95rem; resize: vertical; min-height: 60px;">${form ? (form.description || '') : ''}</textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">Messaggio di Successo</label>
-                        <input type="text" id="cf-success" class="app-input" value="${form ? (form.success_message || 'Grazie!') : 'Grazie per averci contattato!'}" style="width:100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-surface);">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">Colore Pulsante Action</label>
-                        <div style="display: flex; gap: 12px; align-items: center;">
-                            <input type="color" id="cf-color" value="${form ? (form.primary_color || '#0d6efd') : '#0d6efd'}" style="height: 48px; width: 64px; padding: 4px; border-radius: 10px; border: 1px solid var(--glass-border); cursor: pointer; background: var(--bg-surface);">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Scegli il colore principale del modulo</div>
-                        </div>
                     </div>
                 </div>
                 
-                <div class="form-group" style="background: rgba(var(--brand-blue-rgb), 0.05); padding: 16px; border-radius: 16px; border: 1px solid rgba(var(--brand-blue-rgb), 0.1); margin-bottom: 32px;">
-                    <label style="display: flex; align-items: center; gap: 12px; margin: 0; cursor: pointer;">
-                        <input type="checkbox" id="cf-active" ${(!form || form.is_active) ? 'checked' : ''} style="width: 22px; height: 22px; border-radius: 6px; cursor: pointer;">
-                        <div style="flex: 1;">
-                            <span style="font-weight: 700; color: var(--text-primary); font-size: 0.9rem; display: block;">Modulo Attivo</span>
-                            <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">Se attivo, il modulo sarà accessibile pubblicamente tramite il link di incorporamento.</span>
-                        </div>
-                    </label>
-                </div>
+
 
                 <!-- Sezione Welcome Screen -->
                 <div style="background: rgba(var(--brand-viola-rgb, 156, 39, 176), 0.05); padding: 20px; border-radius: 16px; border: 1px solid rgba(var(--brand-viola-rgb, 156, 39, 176), 0.1); margin-bottom: 32px;">
@@ -220,56 +199,90 @@ function openFormModal(form = null) {
                     </div>
                 </div>
 
-                <!-- Sezione Configurazione Step (Globale) -->
-                <div style="background: rgba(var(--brand-blue-rgb), 0.03); padding: 20px; border-radius: 16px; border: 1px solid var(--glass-border); margin-bottom: 32px;">
-                    <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-                        <span class="material-icons-round" style="color: var(--brand-blue);">settings</span> Impostazioni Step (Globali)
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                        <div class="form-group" style="margin: 0;">
-                            <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: block;">Tipo Indicatore</label>
-                            <select id="cf-step-type" class="app-input" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: white;">
-                                <option value="none" ${form?.step_settings?.type === 'none' ? 'selected' : ''}>Nessuno</option>
-                                <option value="text" ${form?.step_settings?.type === 'text' ? 'selected' : ''}>Testo</option>
-                                <option value="icon" ${form?.step_settings?.type === 'icon' ? 'selected' : ''}>Icona</option>
-                                <option value="number" ${(!form?.step_settings?.type || form?.step_settings?.type === 'number') ? 'selected' : ''}>Numero</option>
-                                <option value="progress" ${form?.step_settings?.type === 'progress' ? 'selected' : ''}>Barra di progressione</option>
-                                <option value="number_text" ${form?.step_settings?.type === 'number_text' ? 'selected' : ''}>Numero e testo</option>
-                                <option value="icon_text" ${form?.step_settings?.type === 'icon_text' ? 'selected' : ''}>Icona e testo</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin: 0;">
-                            <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: block;">Forma Indicatore</label>
-                            <select id="cf-step-shape" class="app-input" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: white;">
-                                <option value="circle" ${(!form?.step_settings?.shape || form?.step_settings?.shape === 'circle') ? 'selected' : ''}>Cerchio</option>
-                                <option value="square" ${form?.step_settings?.shape === 'square' ? 'selected' : ''}>Quadrato</option>
-                                <option value="rounded" ${form?.step_settings?.shape === 'rounded' ? 'selected' : ''}>Arrotondato</option>
-                                <option value="none" ${form?.step_settings?.shape === 'none' ? 'selected' : ''}>None</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Sezione Campi -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-top: 12px; border-top: 1px dashed var(--glass-border);">
-                    <div>
-                        <h4 style="margin: 0; font-family: var(--font-titles); font-weight: 800; font-size: 1.1rem; color: var(--text-primary);">Configura Campi</h4>
-                        <p style="font-size: 0.8rem; color: var(--text-tertiary); margin: 0; font-weight: 500;">Definisci i dati che vuoi raccogliere dagli utenti.</p>
-                    </div>
-                    <button type="button" class="btn-add-field" style="display: flex; align-items: center; gap: 8px; padding: 10px 18px; font-size: 0.85rem; font-weight: 700; background: var(--brand-blue); color: white; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2); transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
-                        <span class="material-icons-round" style="font-size: 1.2rem;">add_circle</span> 
-                        Nuovo Campo
-                    </button>
+                <div style="margin-bottom: 20px; padding-top: 12px; border-top: 1px dashed var(--glass-border);">
+                    <h4 style="margin: 0; font-family: var(--font-titles); font-weight: 800; font-size: 1.1rem; color: var(--text-primary);">Configura Campi</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-tertiary); margin: 0; font-weight: 500;">Definisci i dati che vuoi raccogliere dagli utenti.</p>
                 </div>
                 
                 <div id="fields-container" style="display: flex; flex-direction: column; gap: 12px;"></div>
+
+                <div style="padding: 12px 0 32px 0;">
+                    <button type="button" class="btn-add-field" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 16px; background: rgba(var(--brand-blue-rgb), 0.03); color: var(--brand-blue); border: 2px dashed rgba(var(--brand-blue-rgb), 0.2); border-radius: 16px; cursor: pointer; font-weight: 700; transition: all 0.2s;" onmouseover="this.style.background='rgba(var(--brand-blue-rgb), 0.08)'; this.style.borderColor='var(--brand-blue)';" onmouseout="this.style.background='rgba(var(--brand-blue-rgb), 0.03)'; this.style.borderColor='rgba(var(--brand-blue-rgb), 0.2)';">
+                        <span class="material-icons-round">add_circle_outline</span>
+                        Aggiungi Nuovo Campo o Divisore
+                    </button>
+                </div>
+
+                <!-- Sezione Impostazioni Avanzate (Collapsible) -->
+                <details style="background: #f8fafc; border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden; margin-bottom: 20px;">
+                    <summary style="padding: 16px 20px; cursor: pointer; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; justify-content: space-between; list-style: none; user-select: none;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="material-icons-round" style="color: var(--text-secondary); font-size: 1.2rem;">tune</span>
+                            Impostazioni Avanzate Modulo
+                        </div>
+                        <span class="material-icons-round" style="font-size: 1.2rem; transition: transform 0.3s;" id="adv-arrow">expand_more</span>
+                    </summary>
+                    <div style="padding: 24px; border-top: 1px solid var(--glass-border); background: white; display: flex; flex-direction: column; gap: 32px;">
+                        <!-- Branding & Feedback -->
+                        <div>
+                            <div style="font-weight: 700; color: var(--text-primary); font-size: 0.9rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                                <span class="material-icons-round" style="color: var(--brand-blue); font-size: 1.1rem;">palette</span> Branding e Feedback
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+                                <div class="form-group">
+                                    <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 6px; display: block;">Messaggio di Successo</label>
+                                    <input type="text" id="cf-success" class="app-input" value="${form ? (form.success_message || 'Grazie!') : 'Grazie per averci contattato!'}" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: #fcfcfd;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stato e Percorso -->
+                        <div>
+                            <div style="font-weight: 700; color: var(--text-primary); font-size: 0.9rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                                <span class="material-icons-round" style="color: var(--brand-blue); font-size: 1.1rem;">settings</span> Stato e Percorso Progressivo
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 6px; display: block;">Tipo Indicatore Step</label>
+                                    <select id="cf-step-type" class="app-input" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: #fcfcfd;">
+                                        <option value="none" ${form?.step_settings?.type === 'none' ? 'selected' : ''}>Nessuno</option>
+                                        <option value="text" ${form?.step_settings?.type === 'text' ? 'selected' : ''}>Solo Testo</option>
+                                        <option value="icon" ${form?.step_settings?.type === 'icon' ? 'selected' : ''}>Icona</option>
+                                        <option value="number" ${(!form?.step_settings?.type || form?.step_settings?.type === 'number') ? 'selected' : ''}>Numero</option>
+                                        <option value="progress" ${form?.step_settings?.type === 'progress' ? 'selected' : ''}>Barra di progressione</option>
+                                        <option value="number_text" ${form?.step_settings?.type === 'number_text' ? 'selected' : ''}>Numero e testo</option>
+                                        <option value="icon_text" ${form?.step_settings?.type === 'icon_text' ? 'selected' : ''}>Icona e testo</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 6px; display: block;">Forma Nodi</label>
+                                    <select id="cf-step-shape" class="app-input" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: #fcfcfd;">
+                                        <option value="circle" ${(!form?.step_settings?.shape || form?.step_settings?.shape === 'circle') ? 'selected' : ''}>Cerchio</option>
+                                        <option value="square" ${form?.step_settings?.shape === 'square' ? 'selected' : ''}>Quadrato</option>
+                                        <option value="rounded" ${form?.step_settings?.shape === 'rounded' ? 'selected' : ''}>Arrotondato</option>
+                                        <option value="none" ${form?.step_settings?.shape === 'none' ? 'selected' : ''}>Invisibile</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <label style="display: flex; align-items: center; gap: 12px; margin: 0; cursor: pointer; background: #f1f5f9; padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                                <input type="checkbox" id="cf-active" ${(!form || form.is_active) ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+                                <div style="flex: 1;">
+                                    <span style="font-weight: 700; color: var(--text-primary); font-size: 0.85rem; display: block;">Modulo Pubblicato</span>
+                                    <span style="font-size: 0.75rem; color: var(--text-secondary);">Rendi il modulo accessibile online.</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </details>
             </form>
         </div>
         
-        <div class="modal-footer" style="padding: 24px 32px; border-top: 1px solid var(--glass-border); display: flex; justify-content: flex-end; gap: 16px; background: rgba(255,255,255,0.3); backdrop-filter: blur(10px);">
-            ${form ? `<button type="button" class="btn-delete" style="background: none; border: none; color: #ef4444; font-weight: 700; font-size: 0.85rem; cursor: pointer; margin-right: auto; display: flex; align-items: center; gap: 6px; opacity: 0.8; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'"><span class="material-icons-round" style="font-size: 1.2rem;">delete_outline</span> Elimina Modulo</button>` : ''}
-            <button type="button" class="close-modal" style="background: var(--bg-surface-hover); border: 1px solid var(--glass-border); color: var(--text-secondary); padding: 10px 24px; border-radius: 12px; font-weight: 700; cursor: pointer; font-size: 0.9rem;">Annulla</button>
-            <button type="button" class="btn-save" style="background: linear-gradient(135deg, var(--brand-blue), var(--brand-viola)); color: white; border: none; padding: 10px 32px; border-radius: 12px; font-weight: 800; cursor: pointer; font-size: 0.9rem; box-shadow: 0 8px 16px rgba(13, 110, 253, 0.2); transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">Salva Modulo</button>
+        <div class="modal-footer" style="padding: 20px 32px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: flex-end; gap: 12px; background: white; border-bottom-left-radius: 24px; border-bottom-right-radius: 24px;">
+            ${form ? `<button type="button" class="btn-delete" style="background: none; border: none; color: #ef4444; font-weight: 700; font-size: 0.85rem; cursor: pointer; margin-right: auto; display: flex; align-items: center; gap: 6px; opacity: 0.8; transition: all 0.2s;"><span class="material-icons-round" style="font-size: 1.2rem;">delete_outline</span> Elimina Modulo</button>` : ''}
+            <button type="button" onclick="closeModal('${modalId}')" style="background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; padding: 10px 20px; border-radius: 12px; font-weight: 700; cursor: pointer; font-size: 0.9rem; flex-shrink: 0;">Annulla</button>
+            <button type="button" class="btn-save" style="background: linear-gradient(135deg, var(--brand-blue), var(--brand-viola)); color: white; border: none; padding: 10px 28px; border-radius: 12px; font-weight: 800; cursor: pointer; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2); flex-shrink: 0; transition: opacity 0.2s;">Salva Modulo</button>
         </div>
     `;
 
@@ -440,6 +453,50 @@ function openFormModal(form = null) {
                         <textarea class="fi-html-code app-input" data-index="${i}" rows="3" placeholder="<p>Inserisci qui il tuo HTML custom...</p>" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: #fcfcfd; font-size: 0.85rem; font-family: monospace;">${f.html_content || ''}</textarea>
                     </div>
                     ` : ''}
+
+                    <!-- Sezione Logica Condizionale -->
+                    ${!isStep ? `
+                    <div style="margin-top: 24px; padding: 20px; background: #f1f5f9; border-radius: 16px; border: 1px solid var(--glass-border);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                            <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text-primary); font-size: 0.85rem;">
+                                <span class="material-icons-round" style="color: var(--brand-viola); font-size: 1.1rem;">call_split</span>
+                                Logica Condizionale
+                            </div>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">
+                                <input type="checkbox" class="fi-logic-enabled" data-index="${i}" ${f.logic?.enabled ? 'checked' : ''} style="width: 16px; height: 16px; cursor: pointer;">
+                                Attiva Logica
+                            </label>
+                        </div>
+
+                        <div id="logic-settings-${i}" style="display: ${f.logic?.enabled ? 'block' : 'none'};">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: flex-end;">
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-size: 0.6rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 4px; display: block;">Mostra se il campo...</label>
+                                    <select class="fi-logic-dep app-input" data-index="${i}" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--glass-border); font-size: 0.85rem; background: white;">
+                                        <option value="">Seleziona campo...</option>
+                                        ${tempFields.slice(0, i).filter(prev => !['step', 'html', 'hidden'].includes(prev.type)).map(prev => `
+                                            <option value="${prev.id}" ${f.logic?.dependency_id === prev.id ? 'selected' : ''}>${prev.label || '(senza etichetta)'}</option>
+                                        `).join('')}
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-size: 0.6rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 4px; display: block;">Operatore</label>
+                                    <select class="fi-logic-op app-input" data-index="${i}" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--glass-border); font-size: 0.85rem; background: white;">
+                                        <option value="equals" ${f.logic?.operator === 'equals' ? 'selected' : ''}>è uguale a</option>
+                                        <option value="not_equals" ${f.logic?.operator === 'not_equals' ? 'selected' : ''}>è diverso da</option>
+                                        <option value="contains" ${f.logic?.operator === 'contains' ? 'selected' : ''}>contiene</option>
+                                        <option value="not_empty" ${f.logic?.operator === 'not_empty' ? 'selected' : ''}>non è vuoto</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-size: 0.6rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 4px; display: block;">Valore</label>
+                                    <input type="text" class="fi-logic-val app-input" data-index="${i}" value="${(f.logic?.value || '').replace(/"/g, '&quot;')}" placeholder="es: Sì" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--glass-border); font-size: 0.85rem; background: white;">
+                                </div>
+                            </div>
+                            <p style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 10px;">Il campo sarà nascosto di default e apparirà solo se la condizione è soddisfatta.</p>
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>
             ` : '';
 
@@ -522,6 +579,31 @@ function openFormModal(form = null) {
             tempFields[e.target.dataset.index].html_content = e.target.value;
         }));
 
+        container.querySelectorAll('.fi-logic-enabled').forEach(el => el.addEventListener('change', e => {
+            const idx = e.target.dataset.index;
+            if (!tempFields[idx].logic) tempFields[idx].logic = { enabled: false, dependency_id: '', operator: 'equals', value: '' };
+            tempFields[idx].logic.enabled = e.target.checked;
+            container.querySelector(`#logic-settings-${idx}`).style.display = e.target.checked ? 'block' : 'none';
+        }));
+
+        container.querySelectorAll('.fi-logic-dep').forEach(el => el.addEventListener('change', e => {
+            const idx = e.target.dataset.index;
+            if (!tempFields[idx].logic) tempFields[idx].logic = { enabled: true, dependency_id: '', operator: 'equals', value: '' };
+            tempFields[idx].logic.dependency_id = e.target.value;
+        }));
+
+        container.querySelectorAll('.fi-logic-op').forEach(el => el.addEventListener('change', e => {
+            const idx = e.target.dataset.index;
+            if (!tempFields[idx].logic) tempFields[idx].logic = { enabled: true, dependency_id: '', operator: 'equals', value: '' };
+            tempFields[idx].logic.operator = e.target.value;
+        }));
+
+        container.querySelectorAll('.fi-logic-val').forEach(el => el.addEventListener('input', e => {
+            const idx = e.target.dataset.index;
+            if (!tempFields[idx].logic) tempFields[idx].logic = { enabled: true, dependency_id: '', operator: 'equals', value: '' };
+            tempFields[idx].logic.value = e.target.value;
+        }));
+
         container.querySelectorAll('.btn-remove-field').forEach(el => el.addEventListener('click', e => {
             const idx = parseInt(e.currentTarget.dataset.index);
             tempFields.splice(idx, 1);
@@ -530,8 +612,6 @@ function openFormModal(form = null) {
             renderFields();
         }));
     };
-
-    renderFields();
 
     renderFields();
 
@@ -558,7 +638,6 @@ function openFormModal(form = null) {
             name,
             description: modal.querySelector('#cf-desc').value.trim(),
             success_message: modal.querySelector('#cf-success').value.trim(),
-            primary_color: modal.querySelector('#cf-color').value,
             is_active: modal.querySelector('#cf-active').checked,
             has_welcome_screen: modal.querySelector('#cf-has-welcome').checked,
             welcome_title: modal.querySelector('#cf-welcome-title').value.trim(),
@@ -568,33 +647,50 @@ function openFormModal(form = null) {
                 type: modal.querySelector('#cf-step-type').value,
                 shape: modal.querySelector('#cf-step-shape').value
             },
-            fields: tempFields
+            fields: JSON.parse(JSON.stringify(tempFields)) // Deep clone to be safe
         };
 
-        if (form) {
-            const { error } = await supabase.from('contact_forms').update(payload).eq('id', form.id);
-            if (error) {
-                showGlobalAlert(error.message, 'error');
-                saveBtn.disabled = false;
-                saveBtn.innerHTML = 'Salva Modulo';
+        console.log('[Builder] Saving Payload:', payload);
+
+        const safePayload = {
+            name: payload.name,
+            description: payload.description,
+            success_message: payload.success_message,
+            is_active: payload.is_active,
+            fields: payload.fields
+        };
+
+        const trySave = async (data, isUpdate) => {
+            if (isUpdate) {
+                return await supabase.from('contact_forms').update(data).eq('id', form.id);
             } else {
-                showGlobalAlert('Modulo aggiornato', 'success');
-                closeModal(modalId);
+                return await supabase.from('contact_forms').insert([data]);
             }
-        } else {
-            const { error } = await supabase.from('contact_forms').insert([payload]);
-            if (error) {
-                showGlobalAlert(error.message, 'error');
-                saveBtn.disabled = false;
-                saveBtn.innerHTML = 'Salva Modulo';
-            } else {
-                showGlobalAlert('Modulo creato', 'success');
-                closeModal(modalId);
+        };
+
+        let { error } = await trySave(payload, !!form);
+
+        // Fallback: If columns are missing, try saving only core data
+        if (error && error.code === 'PGRST204') {
+            console.warn('[Builder] New columns missing in DB, falling back to core payload...');
+            const retry = await trySave(safePayload, !!form);
+            error = retry.error;
+            if (!error) {
+                showGlobalAlert('Salvato con successo (alcune opzioni avanzate non supportate dal DB)', 'warning');
             }
         }
 
-        await loadForms();
-        renderGrid(document.getElementById('forms-grid'));
+        if (error) {
+            console.error('[Builder] Save Error:', error);
+            showGlobalAlert(error.message, 'error');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Salva Modulo';
+        } else {
+            if (!showGlobalAlert.active) showGlobalAlert(form ? 'Modulo aggiornato' : 'Modulo creato', 'success');
+            closeModal(modalId);
+            await loadForms();
+            renderGrid(document.getElementById('forms-grid'));
+        }
     };
 
     if (form) {

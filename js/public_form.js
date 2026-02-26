@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!data.is_active) throw new Error('Questo modulo di contatto è stato disattivato.');
 
         const fields = data.fields || [];
-        console.log('Fields count:', fields.length);
+        console.log('[Form] Fetched fields with logic:', fields.filter(f => f.logic?.enabled).map(f => ({ label: f.label, dep: f.logic.dependency_id })));
         const isEmbed = urlParams.get('embed') === 'true';
 
         // Apply primary color
@@ -107,9 +107,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (s.type === 'welcome') {
                 content = `
                     <div class="tf-question-wrapper center-vh">
-                        <h1 class="welcome-title">${s.title}</h1>
-                        <p class="question-desc">${s.desc}</p>
-                        <div class="tf-action-row" style="display: flex; align-items: center; gap: 20px;">
+                        ${!isEmbed ? `
+                            <h1 class="welcome-title">${s.title}</h1>
+                            <p class="question-desc">${s.desc}</p>
+                        ` : ''}
+                        <div class="tf-action-row" style="display: flex; align-items: center; justify-content: flex-end; gap: 20px;">
                             ${!isFirst ? `<button type="button" class="text-btn prev-btn-trigger" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-weight:600; font-family:inherit; display: flex; align-items: center; gap: 4px;"><span class="material-icons-round" style="font-size:1.1rem;">arrow_back</span> Indietro</button>` : ''}
                             <button type="button" class="btn-action next-btn-trigger">${s.btn || 'Inizia'}</button>
                         </div>
@@ -122,9 +124,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         return `<input type="hidden" name="field_${f.id}" value="hidden_or_empty">`;
                     }
 
-                    const reqText = f.required ? ' <span style="color: #ef4444; font-size: 0.8em; vertical-align: super;">*</span>' : '';
+                    const reqText = f.required ? ' <span class="required-star" style="color: var(--primary-color); font-size: 0.8em; vertical-align: super;">*</span>' : '';
                     let inputHtml = '';
-                    const baseId = `field_${f.id}`;
+                    const baseId = f.id; // f.id already contains the 'field_' prefix from the builder
 
                     if (['text', 'email', 'tel', 'url', 'number', 'password', 'date', 'time', 'datetime-local', 'file'].includes(f.type)) {
                         let itype = f.type;
@@ -186,9 +188,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const width = f.width || '100%';
                     const flexBasis = width.includes('%') ? width : '100%';
 
+                    const labelText = f.label ? (f.label.charAt(0).toUpperCase() + f.label.slice(1).toLowerCase()) : '';
                     return `
-                        <div class="field-row" style="flex: 0 0 ${flexBasis}; max-width: ${flexBasis}; margin-bottom: 2.5rem; padding-right: ${flexBasis === '100%' ? '0' : '15px'}; box-sizing: border-box;">
-                            ${f.type !== 'html' ? `<h2 class="question-title" style="font-size: 1.15rem; margin-bottom: 0.75rem; font-weight: 500;">${f.label}${reqText}</h2>` : ''}
+                        <div class="field-row" data-field-id="${f.id}" style="flex: 0 0 ${flexBasis}; max-width: ${flexBasis}; margin-bottom: 2.5rem; padding-right: ${flexBasis === '100%' ? '0' : '15px'}; box-sizing: border-box; display: ${f.logic?.enabled ? 'none' : 'block'};">
+                            ${f.type !== 'html' ? `<h2 class="question-title" style="font-size: 0.95rem; margin-bottom: 0.6rem; font-weight: 500;">${labelText}${reqText}</h2>` : ''}
                             ${f.description ? `<p class="question-desc" style="font-size: 0.9rem; margin-bottom: 0.75rem; opacity: 0.8;">${f.description.replace(/\n/g, '<br>')}</p>` : ''}
                             <div class="tf-input-container" style="margin-top: 0;">${inputHtml}</div>
                         </div>
@@ -196,8 +199,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }).join('');
 
                 content = `
-                    <div class="tf-question-wrapper" style="max-width: 900px;">
-                        ${s.title ? `
+                    <div class="tf-question-wrapper" style="max-width: 900px; padding-bottom: 80px;">
+                        ${(s.title && !isEmbed) ? `
                         <div class="step-header" style="margin-bottom: 0.75rem;">
                             <h1 class="step-title" style="font-size: 1.75rem; font-weight: 700; margin: 0; color: var(--text-primary);">${s.title}</h1>
                             ${((s.step_type === 'text' || s.step_type || 'number') !== 'none') ? `
@@ -205,19 +208,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     Progresso: ${steps.slice(0, i + 1).filter(st => st.type === 'fields').length} di ${steps.filter(st => st.type === 'fields').length}
                                 </div>` : ''}
                         </div>` : ''}
-                        ${s.desc ? `<p class="step-desc" style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 1.5rem; opacity: 0.8;">${s.desc}</p>` : ''}
+                        ${(s.desc && !isEmbed) ? `<p class="step-desc" style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 1.5rem; opacity: 0.8;">${s.desc}</p>` : ''}
                         
                         <div class="fields-grid" style="display: flex; flex-wrap: wrap; width: 100%; margin: 0 -15px 0 0;">
                             ${fieldsHtml}
                         </div>
 
-                        <div class="tf-action-row" style="margin-top: 1rem; width: 100%; display: flex; align-items: center; gap: 20px;">
+                        <div class="tf-action-row" style="margin-top: 1rem; width: 100%; display: flex; align-items: center; justify-content: flex-end; gap: 20px;">
                             ${!isFirst ? `<button type="button" class="text-btn prev-btn-trigger" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-weight:600; font-family:inherit; font-size: 1rem; display: flex; align-items: center; gap: 4px;"><span class="material-icons-round" style="font-size:1.1rem;">arrow_back</span> Indietro</button>` : ''}
 
                             ${!isLast ? `<button type="button" class="btn-action next-btn-trigger">Continua <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">arrow_forward</span></button>`
                         : `<button type="button" class="btn-action submit-btn-trigger">Invia <span class="material-icons-round" style="font-size:1.2rem; margin-left:8px;">send</span></button>`}
-                            
-                            ${!isLast ? `<div class="next-hint" style="opacity: 0.6; font-size: 0.8rem;">o premi <strong>Invio &crarr;</strong></div>` : ''}
                         </div>
                     </div>
                 `;
@@ -247,40 +248,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             const globalHeader = document.getElementById('tf-global-header');
             const stepper = document.getElementById('tf-stepper');
             const dataSteps = steps.filter(s => s.type === 'fields');
-            const currentDataIdx = steps.slice(0, currentStepIndex + 1).filter(s => s.type === 'fields').length - 1;
 
-            const isWelcome = steps[currentStepIndex].type === 'welcome';
-
-            // Global Header visibility
-            if (globalHeader) {
-                globalHeader.style.display = (isWelcome || isEmbed) ? 'none' : 'block';
-            }
-
-            // Render/Update Stepper
-            if (isWelcome) {
+            // If there's only one step, don't show the stepper at all
+            if (dataSteps.length <= 1) {
                 stepper.style.display = 'none';
             } else {
-                stepper.style.display = 'flex';
-                const sType = globalStepSettings.type;
-                const sShape = globalStepSettings.shape;
+                const currentDataIdx = steps.slice(0, currentStepIndex + 1).filter(s => s.type === 'fields').length - 1;
+                const isWelcome = steps[currentStepIndex].type === 'welcome';
 
-                stepper.innerHTML = dataSteps.map((s, idx) => {
-                    const isLastNode = idx === dataSteps.length - 1;
-                    const stateClass = idx === currentDataIdx ? 'active' : (idx < currentDataIdx ? 'past' : 'future');
+                // Global Header visibility
+                if (globalHeader) {
+                    globalHeader.style.display = (isWelcome || isEmbed) ? 'none' : 'block';
+                }
 
-                    let inner = '';
-                    if (sType === 'number' || sType === 'number_text') inner = idx + 1;
-                    else if (sType === 'icon' || sType === 'icon_text') inner = '<span class="material-icons-round" style="font-size: 1rem;">check</span>';
+                // Render/Update Stepper
+                if (isWelcome) {
+                    stepper.style.display = 'none';
+                } else {
+                    stepper.style.display = 'flex';
+                    const sType = globalStepSettings.type;
+                    const sShape = globalStepSettings.shape;
 
-                    return `
-                        <div class="tf-step-node-container">
-                            <div class="tf-step-node shape-${sShape} ${stateClass}">
-                                ${inner}
+                    stepper.innerHTML = dataSteps.map((s, idx) => {
+                        const isLastNode = idx === dataSteps.length - 1;
+                        const stateClass = idx === currentDataIdx ? 'active' : (idx < currentDataIdx ? 'past' : 'future');
+
+                        let inner = '';
+                        if (sType === 'number' || sType === 'number_text') inner = idx + 1;
+                        else if (sType === 'icon' || sType === 'icon_text') inner = '<span class="material-icons-round" style="font-size: 1rem;">check</span>';
+
+                        return `
+                            <div class="tf-step-node-container">
+                                <div class="tf-step-node shape-${sShape} ${stateClass}">
+                                    ${inner}
+                                </div>
+                                ${!isLastNode ? `<div class="tf-step-line ${idx < currentDataIdx ? 'past' : ''}"></div>` : ''}
                             </div>
-                            ${!isLastNode ? `<div class="tf-step-line ${idx < currentDataIdx ? 'past' : ''}"></div>` : ''}
-                        </div>
-                    `;
-                }).join('');
+                        `;
+                    }).join('');
+                }
             }
 
             activeSteps.forEach((el, index) => {
@@ -312,6 +318,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             btnPrev.disabled = currentStepIndex === 0;
             btnNext.disabled = currentStepIndex === activeSteps.length - 1;
 
+            if (typeof applyConditionalLogic === 'function') applyConditionalLogic();
             notifyResize();
         };
 
@@ -446,6 +453,79 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
+        // --- Logic Condizionale ---
+        const getFieldValue = (fieldId) => {
+            const row = document.querySelector(`[data-field-id="${fieldId}"]`);
+            if (!row) return '';
+            const inputs = row.querySelectorAll('.step-input');
+            if (!inputs.length) return '';
+
+            if (inputs[0].type === 'radio') {
+                const checked = Array.from(inputs).find(i => i.checked);
+                return checked ? checked.value : '';
+            } else if (inputs[0].type === 'checkbox') {
+                return Array.from(inputs).filter(i => i.checked).map(i => i.value).join(',');
+            } else {
+                return inputs[0].value || '';
+            }
+        };
+
+        const evaluateRule = (dependencyVal, operator, targetVal) => {
+            const dVal = (dependencyVal || '').toString().toLowerCase().trim();
+            const tVal = (targetVal || '').toString().toLowerCase().trim();
+
+            if (!dVal && operator !== 'not_empty') return false;
+
+            switch (operator) {
+                case 'equals': return dVal === tVal;
+                case 'not_equals': return dVal !== tVal;
+                case 'contains': return dVal.includes(tVal);
+                case 'not_empty': return dVal.length > 0;
+                default: return false;
+            }
+        };
+
+        const applyConditionalLogic = () => {
+            console.log('[Logic] Evaluating all fields...');
+            let changesOccurred = false;
+            steps.forEach(s => {
+                if (s.type !== 'fields') return;
+                s.fields.forEach(f => {
+                    if (f.logic && f.logic.enabled && f.logic.dependency_id) {
+                        const depVal = getFieldValue(f.logic.dependency_id);
+                        const isVisible = evaluateRule(depVal, f.logic.operator, f.logic.value);
+
+                        const row = document.querySelector(`[data-field-id="${f.id}"]`);
+                        if (row) {
+                            const wasVisible = row.style.display !== 'none';
+                            const targetDisplay = isVisible ? 'block' : 'none';
+
+                            if (row.style.display !== targetDisplay) {
+                                console.log(`[Logic] Field "${f.label}" -> ${isVisible ? 'SHOW' : 'HIDE'} (Dep: ${f.logic.dependency_id}, Value: "${depVal}")`);
+                                row.style.display = targetDisplay;
+                                row.querySelectorAll('input, select, textarea').forEach(inp => {
+                                    inp.disabled = !isVisible;
+                                });
+                                changesOccurred = true;
+                            }
+                        }
+                    }
+                });
+            });
+            return changesOccurred;
+        };
+
+        // Attach to window for easier debugging
+        window.evaluateLogic = applyConditionalLogic;
+
+        // Listen for ANY change in the form to re-evaluate logic
+        formEl.addEventListener('input', () => applyConditionalLogic());
+        formEl.addEventListener('change', () => applyConditionalLogic());
+
+        // Run once at start
+        applyConditionalLogic();
+        // --------------------------
+
         // Keyboard navigation
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
@@ -577,23 +657,55 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Auto-resize logic to inform parent iframe
     function notifyResize() {
-        const height = document.body.scrollHeight;
+        // Calculate the full height including margins
+        const height = Math.max(
+            document.body.scrollHeight, document.documentElement.scrollHeight,
+            document.body.offsetHeight, document.documentElement.offsetHeight
+        );
         window.parent.postMessage({ type: 'resize_iframe', height }, '*');
     }
 
     const resizeObserver = new ResizeObserver(() => notifyResize());
     resizeObserver.observe(document.body);
+    const formWrapper = document.getElementById('form-wrapper');
+    if (formWrapper) resizeObserver.observe(formWrapper);
 
     // Listen for style sync from parent
     window.addEventListener('message', (event) => {
         if (event.data.type === 'apply_styles' && event.data.styles) {
             const s = event.data.styles;
-            if (s.fontFamily) document.documentElement.style.setProperty('--font-family', s.fontFamily);
+            if (s.fontFamily) {
+                document.documentElement.style.setProperty('--font-family', s.fontFamily);
+                document.body.style.fontFamily = s.fontFamily;
+            }
             if (s.primaryColor) document.documentElement.style.setProperty('--primary-color', s.primaryColor);
-            if (s.textColor) document.documentElement.style.setProperty('--text-primary', s.textColor);
+            if (s.textColor) {
+                document.documentElement.style.setProperty('--text-primary', s.textColor);
+                document.body.style.color = s.textColor;
+                // Estimate secondary color (70% opacity)
+                document.documentElement.style.setProperty('--text-secondary', s.textColor + 'b3'); // 'b3' is approx 70% in hex
+            }
             if (s.bgColor) {
-                document.getElementById('form-wrapper').style.background = s.bgColor;
-                // If background is very dark, tweak text as well if needed
+                if (formWrapper) {
+                    formWrapper.style.background = s.bgColor;
+                    formWrapper.style.backgroundImage = 'none';
+                }
+                document.body.style.background = s.bgColor;
+                document.body.style.backgroundImage = 'none';
+            }
+            if (s.isFullHeightEmbed) {
+                document.body.style.height = 'auto';
+                document.body.style.overflow = 'visible';
+                if (formWrapper) {
+                    formWrapper.style.height = 'auto';
+                    formWrapper.style.overflow = 'visible';
+                }
+                const nav = document.getElementById('nav-controls');
+                if (nav) nav.style.display = 'none';
+                const progress = document.getElementById('progress-container');
+                if (progress) progress.style.display = 'none';
+
+                setTimeout(notifyResize, 100);
             }
         }
     });
