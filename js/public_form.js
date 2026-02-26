@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             inputHtml = `<input type="${itype}" class="tf-input step-input" id="${baseId}" name="${baseId}" placeholder="${(f.placeholder || 'Scrivi la tua risposta qui...').replace(/"/g, '&quot;')}" ${f.required ? 'required' : ''}>`;
                         }
                     } else if (f.type === 'textarea') {
-                        inputHtml = `<textarea class="tf-input step-input" id="${baseId}" name="${baseId}" rows="1" placeholder="${(f.placeholder || 'Scrivi qui la tua risposta...').replace(/"/g, '&quot;')}" ${f.required ? 'required' : ''} style="resize: none; overflow: hidden; min-height: 2em;"></textarea>`;
+                        inputHtml = `<textarea class="tf-input step-input" id="${baseId}" name="${baseId}" rows="${f.rows || 4}" placeholder="${(f.placeholder || 'Scrivi qui la tua risposta...').replace(/"/g, '&quot;')}" ${f.required ? 'required' : ''} style="resize: none; overflow: auto; min-height: auto;"></textarea>`;
                     } else if (f.type === 'select') {
                         inputHtml = `<select class="tf-input step-input" id="${baseId}" name="${baseId}" ${f.required ? 'required' : ''} style="margin-bottom: 0.5rem;"><option value="" disabled selected>Scegli un'opzione...</option>${(f.options || []).map(opt => `<option value="${opt.replace(/"/g, '&quot;')}">${opt}</option>`).join('')}</select>`;
                     } else if (f.type === 'radio' || f.type === 'checkbox') {
@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const width = f.width || '100%';
                     const flexBasis = width.includes('%') ? width : '100%';
 
-                    const labelText = f.label ? (f.label.charAt(0).toUpperCase() + f.label.slice(1).toLowerCase()) : '';
+                    const labelText = f.label || '';
                     return `
                         <div class="field-row" data-field-id="${f.id}" style="flex: 0 0 ${flexBasis}; max-width: ${flexBasis}; margin-bottom: 2.5rem; padding-right: ${flexBasis === '100%' ? '0' : '15px'}; box-sizing: border-box; display: ${f.logic?.enabled ? 'none' : 'block'};">
                             ${f.type !== 'html' ? `<h2 class="question-title" style="font-size: 0.95rem; margin-bottom: 0.6rem; font-weight: 500;">${labelText}${reqText}</h2>` : ''}
