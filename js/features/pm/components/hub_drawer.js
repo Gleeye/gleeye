@@ -8,13 +8,14 @@ import {
     addComment,
     fetchItemAssignees,
     assignUserToItem,
-    removeUserFromItem,
-    updateItemCloudLinks
+    updateItemCloudLinks,
+    fetchChildItems
 } from '../../../modules/pm_api.js?v=1000';
 import { supabase } from '../../../modules/config.js';
 import { CloudLinksManager } from '../../components/CloudLinksManager.js?v=1000';
 import { state } from '../../../modules/state.js';
 import { renderUserPicker } from './picker_utils.js?v=1000';
+import { renderAvatar } from '../../../modules/utils.js?v=1000';
 
 const ITEM_STATUS = {
     'todo': { label: 'Da Fare', color: '#94a3b8', bg: '#f1f5f9' },
@@ -83,6 +84,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
     let item = null;
     let comments = [];
     let assignees = [];
+    let subItems = [];
     let viewMode = isEdit;
     let pendingAssignees = [];
     const { defaultRole = 'assignee', defaultNote = '', is_account_level = false } = options;
@@ -100,9 +102,10 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     console.log("[HubDrawer] Loading data for item:", itemId);
 
                     // Parallelize main data, comments, and ensure spaces are loaded
-                    const [fullItem, itemComments] = await Promise.all([
+                    const [fullItem, itemComments, fetchedSubItems] = await Promise.all([
                         fetchPMItem(itemId).catch(e => { console.error("Item load failed", e); return null; }),
                         fetchItemComments(itemId).catch(e => { console.warn("Comments load failed", e); return []; }),
+                        fetchChildItems(itemId).catch(e => { console.warn("Subitems load failed", e); return []; }),
                         (!state.pm_spaces || state.pm_spaces.length < 5)
                             ? supabase.from('pm_spaces').select('*').then(res => { if (res.data) state.pm_spaces = res.data; return res.data; })
                             : Promise.resolve(state.pm_spaces)
@@ -112,6 +115,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     const contextItem = (window._hubContext?.items || []).find(i => String(i.id) === String(itemId));
                     item = fullItem || contextItem;
                     comments = itemComments || [];
+                    subItems = fetchedSubItems || [];
 
                     if (!item) throw new Error("Attività non trovata o non accessibile.");
 
@@ -127,7 +131,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         displayName: a.user?.full_name || `${a.user?.first_name || ''} ${a.user?.last_name || ''}`.trim()
                     }));
                 } else {
-                    item = { item_type: itemType, status: 'todo', priority: 'medium', notes: defaultNote, title: '', is_account_level };
+                    item = { item_type: itemType, status: 'todo', priority: 'medium', notes: defaultNote, title: '', is_account_level, parent_ref: currentParentRef };
 
                     // Ensure spaces are loaded even for new items
                     if (!state.pm_spaces || state.pm_spaces.length < 5) {
@@ -136,6 +140,15 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             if (data) state.pm_spaces = data;
                         } catch (e) { console.error("Error loading spaces for new item context", e); }
                     }
+                }
+
+                // FETCH PARENT DATA if missing but ref is present
+                const effectiveParentRef = item.parent_ref || currentParentRef;
+                if (effectiveParentRef && !item.parent_item) {
+                    try {
+                        const { data: pData } = await supabase.from('pm_items').select('id, title, item_type').eq('id', effectiveParentRef).single();
+                        if (pData) item.parent_item = pData;
+                    } catch (e) { console.warn("[HubDrawer] Parent fetch failed", e); }
                 }
 
                 // Fetch space assignees pool for suggestions (common for edit/create)
@@ -233,6 +246,12 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 <div class="drawer-header" style="padding: 0.75rem 1.25rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: white; flex-shrink: 0;">
                     <div style="min-width: 0; flex: 1; margin-right: 1.25rem;">
                         <div style="margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.35rem;">
+                            ${item && item.parent_item ? `
+                            <div id="back-to-parent-btn" style="display: flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 800; color: var(--brand-blue); cursor: pointer; margin-bottom: 4px; text-transform: uppercase; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
+                                <span class="material-icons-round" style="font-size: 1rem;">arrow_back</span>
+                                Torna a ${item.parent_item.title}
+                            </div>
+                            ` : ''}
                             <div style="align-self: flex-start; font-size: 0.6rem; font-weight: 800; color: var(--brand-blue); background: rgba(59, 130, 246, 0.08); padding: 2px 8px; border-radius: 12px; text-transform: uppercase; border: 1px solid rgba(59, 130, 246, 0.15); flex-shrink: 0;">
                                 ${typeLabel}
                             </div>
@@ -378,14 +397,66 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div style="padding: 1.25rem; border-bottom: 2px solid #e2e8f0; position: relative;">
+                    <div style="padding: 1.25rem; border-bottom: 1px solid #e2e8f0; position: relative;">
                         <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 0.6rem; text-transform:uppercase; letter-spacing: 0.05em;">DESCRIZIONE</label>
                         <div id="item-description-container" style="min-height: 48px;">
                             <div id="item-description-view" style="font-size: 0.9rem; color: var(--text-primary); line-height: 1.6; white-space: pre-wrap; border-radius: 8px; cursor: pointer; padding: 6px; transition: all 0.2s; border: 1px solid transparent; width: 100%; word-break: break-word; margin: 0;" onmouseover="this.style.background='#f8fafc'; this.style.borderColor='#e2e8f0'" onmouseout="this.style.background='transparent'; this.style.borderColor='transparent'">${(item.notes && item.notes.trim()) || '<span style="color: #94a3b8; font-style: italic;">Clicca per aggiungere una descrizione...</span>'}</div>
                         </div>
                         <div id="desc-saving-indicator" class="hidden" style="position: absolute; top: 1.25rem; right: 1.25rem; font-size: 0.65rem; color: var(--brand-blue); font-weight: 700; display: flex; align-items: center; gap: 4px;">
                              <span class="material-icons-round" style="font-size: 0.8rem; animation: spin-hub 1s linear infinite;">sync</span> SALVATAGGIO...
+                        </div>
+                    </div>
+
+                    <div class="sub-items-section" style="padding: 1.25rem; border-bottom: 2px solid #e2e8f0; background: #fff;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                            <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); text-transform:uppercase; letter-spacing: 0.05em;">SOTTO-ATTIVITÀ</label>
+                        <div style="position: relative;">
+                            <button id="add-sub-item-btn" style="display: flex; align-items: center; gap: 4px; border: none; background: transparent; color: var(--brand-blue); font-size: 0.75rem; font-weight: 700; cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: all 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.05)'" onmouseout="this.style.background='transparent'">
+                                <span class="material-icons-round" style="font-size: 1rem;">add</span> AGGIUNGI
+                            </button>
+                            <div id="add-sub-item-menu" class="hidden dropdown-menu glass-card" style="position: absolute; top: calc(100% + 4px); right: 0; width: 180px; z-index: 1000; background: white; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding: 4px;">
+                                <div class="menu-item add-sub-item-opt" data-type="attivita" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; border-radius: 8px; transition: 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                                    <span class="material-icons-round" style="font-size: 1.1rem; color: #f59e0b;">folder</span>
+                                    <span style="font-size: 0.85rem; font-weight: 500;">Sotto-attività</span>
+                                </div>
+                                <div class="menu-item add-sub-item-opt" data-type="task" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; border-radius: 8px; transition: 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                                    <span class="material-icons-round" style="font-size: 1.1rem; color: #3b82f6;">check_circle_outline</span>
+                                    <span style="font-size: 0.85rem; font-weight: 500;">Task</span>
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+                        <div id="sub-items-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; padding-right: 4px; scrollbar-width: thin;">
+                            ${(() => {
+                    const activeSubItems = subItems.filter(si => si.status !== 'done');
+                    if (activeSubItems.length === 0) {
+                        return `<div style="font-size: 0.8rem; color: #94a3b8; font-style: italic; padding: 12px; background: #f8fafc; border-radius: 10px; border: 1px dashed #e2e8f0; text-align: center;">Nessuna sotto-attività aperta.</div>`;
+                    }
+                    return activeSubItems.map(si => `
+                                    <div class="sub-item-row" data-id="${si.id}" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.05)'; this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.boxShadow='none'; this.style.transform='none'">
+                                        <div style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; background: ${si.item_type === 'attivita' ? '#fff7ed' : '#eff6ff'}; flex-shrink: 0;">
+                                            <span class="material-icons-round" style="font-size: 1.1rem; color: ${si.item_type === 'attivita' ? '#f59e0b' : '#3b82f6'};">
+                                                ${si.item_type === 'attivita' ? 'folder' : 'check_circle_outline'}
+                                            </span>
+                                        </div>
+                                        <div style="flex: 1; font-size: 0.9rem; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${si.title}</div>
+                                        <div style="display: flex; align-items: center; margin: 0 4px;">
+                                            ${(si.pm_item_assignees || []).slice(0, 3).map((a, idx) => `
+                                                <div style="margin-left: ${idx === 0 ? '0' : '-8px'}; z-index: ${5 - idx};">
+                                                    ${renderAvatar(a.user, { size: 24, borderRadius: '50%', border: true, fontSize: '9px' })}
+                                                </div>
+                                            `).join('')}
+                                            ${si.pm_item_assignees?.length > 3 ? `<span style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; margin-left: 6px;">+${si.pm_item_assignees.length - 3}</span>` : ''}
+                                        </div>
+                                        ${si.due_date ? `
+                                            <div style="font-size: 0.75rem; color: ${new Date(si.due_date) < new Date() ? '#ef4444' : '#64748b'}; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: ${new Date(si.due_date) < new Date() ? '#fef2f2' : '#f1f5f9'}; border-radius: 6px;">
+                                                <span class="material-icons-round" style="font-size: 0.95rem;">${new Date(si.due_date) < new Date() ? 'history' : 'event'}</span>
+                                                ${new Date(si.due_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `).join('');
+                })()}
                         </div>
                     </div>
                     <div class="comments-section" style="padding: 1.25rem;">
@@ -408,8 +479,15 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
         } else {
             drawer.innerHTML = `
                 <div class="drawer-header" style="padding: 1.25rem 2rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: white; flex-shrink: 0; position: sticky; top: 0; z-index: 10;">
-                    <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600; color: var(--text-primary); letter-spacing: -0.01em; font-family: var(--font-titles);">
-                        ${isEdit ? 'Modifica' : 'Nuova'} ${(() => {
+                    <div style="display: flex; flex-direction: column; overflow: hidden;">
+                        ${item && item.parent_item ? `
+                        <div id="back-to-parent-btn" style="display: flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 800; color: var(--brand-blue); cursor: pointer; margin-bottom: 4px; text-transform: uppercase; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
+                            <span class="material-icons-round" style="font-size: 1rem;">arrow_back</span>
+                            Torna a ${item.parent_item.title}
+                        </div>
+                        ` : ''}
+                        <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600; color: var(--text-primary); letter-spacing: -0.01em; font-family: var(--font-titles); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${isEdit ? 'Modifica' : 'Nuova'} ${(() => {
                     switch (item.item_type || itemType) {
                         case 'task': return 'Task';
                         case 'milestone': return 'Milestone';
@@ -418,7 +496,8 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         default: return 'Attività';
                     }
                 })()}
-                    </h2>
+                        </h2>
+                    </div>
                     <button class="icon-btn close-drawer-btn" style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; transition: all 0.2s;"><span class="material-icons-round" style="font-size: 20px;">close</span></button>
                 </div>
                 <div class="drawer-body" style="flex: 1; overflow-y: auto; padding: 1.5rem 2rem;">
@@ -781,6 +860,31 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
         setupPicker('add-assignee-btn', 'assignee-picker');
         setupPicker('add-pm-btn', 'pm-picker');
 
+        const addSubBtn = drawer.querySelector('#add-sub-item-btn');
+        if (addSubBtn) addSubBtn.onclick = (e) => {
+            e.stopPropagation();
+            drawer.querySelector('#add-sub-item-menu').classList.toggle('hidden');
+        };
+
+        drawer.querySelectorAll('.add-sub-item-opt').forEach(opt => {
+            opt.onclick = () => {
+                const type = opt.dataset.type;
+                openHubDrawer(null, currentSpaceId, itemId, type, { is_account_level: item.is_account_level });
+            };
+        });
+
+        const backBtn = drawer.querySelector('#back-to-parent-btn');
+        if (backBtn) backBtn.onclick = () => {
+            openHubDrawer(item.parent_item.id, currentSpaceId);
+        };
+
+        drawer.querySelectorAll('.sub-item-row').forEach(row => {
+            row.onclick = () => {
+                const sid = row.dataset.id;
+                openHubDrawer(sid, currentSpaceId);
+            };
+        });
+
         const addCommentBtn = drawer.querySelector('#add-comment-btn');
         if (addCommentBtn) addCommentBtn.onclick = async () => {
             const body = drawer.querySelector('#new-comment').value;
@@ -1018,6 +1122,13 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     render();
                 };
             }
+        }
+
+        const backBtn = drawer.querySelector('#back-to-parent-btn');
+        if (backBtn && item.parent_item) {
+            backBtn.onclick = () => {
+                openHubDrawer(item.parent_item.id, currentSpaceId);
+            };
         }
 
         drawer.querySelector('.close-drawer-btn').onclick = () => overlay.classList.add('hidden');

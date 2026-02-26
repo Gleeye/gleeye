@@ -1738,7 +1738,7 @@ export async function upsertSapServiceType(name, departmentId) {
         .single();
 
     if (error) throw error;
-    state.coreServiceTypes.push(data);
+    state.sapServiceTypes.push(data);
     return data;
 }
 

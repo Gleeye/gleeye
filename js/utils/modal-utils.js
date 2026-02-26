@@ -6,6 +6,7 @@
 // Export to global scope
 window.showAlert = showAlert;
 window.showConfirm = showConfirm;
+window.showPrompt = showPrompt;
 
 // OVERRIDE NATIVE ALERT
 // This ensures that any third-party library or legacy code using alert() 
@@ -292,7 +293,3 @@ function showPrompt(message, defaultValue = '', options = {}) {
     });
 }
 
-// Export to global scope
-// window.showAlert = showAlert;
-// window.showConfirm = showConfirm;
-// window.showPrompt = showPrompt;

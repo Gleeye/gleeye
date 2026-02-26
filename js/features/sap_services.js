@@ -650,22 +650,22 @@ function renderMultiselectDropdown(containerId, options, selectedIds, placeholde
     const triggerText = selectedNames.length > 0 ? selectedNames.join(', ') : placeholder;
     const triggerClass = selectedNames.length > 0 ? 'text-primary' : 'text-secondary';
     container.innerHTML = `
-        <div class="custom-select-wrapper" id="${containerId}-wrapper">
-            <div class="custom-select-trigger" onclick="window.toggleDropdown('${containerId}')">
-                <span class="${triggerClass}" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 1rem;">${triggerText}</span>
-                <span class="custom-select-arrow material-icons-round">expand_more</span>
+        <div class="custom-select-wrapper" id="${containerId}-wrapper" style="width: 100%;">
+            <div class="custom-select-trigger" onclick="window.toggleDropdown('${containerId}')" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: var(--bg-color); border: 1px solid var(--glass-border); border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                <span class="${triggerClass}" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 1rem; font-size: 0.9rem; font-weight: 500;">${triggerText}</span>
+                <span class="custom-select-arrow material-icons-round" style="font-size: 1.25rem; color: var(--text-tertiary);">expand_more</span>
             </div>
-            <div class="custom-options" id="${containerId}-options">
+            <div class="custom-options" id="${containerId}-options" style="display: none; position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 2000; background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 12px; box-shadow: var(--shadow-xl); max-height: 250px; overflow-y: auto; backdrop-filter: blur(10px);">
                 ${options.map(opt => `
-                    <label class="custom-option" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem;">
-                        <input type="checkbox" value="${opt.id}" ${selectedIds.includes(opt.id) ? 'checked' : ''} style="width: 16px; height: 16px; margin: 0; accent-color: var(--brand-blue);" data-name="${opt.name}">
-                        <span>${opt.name}</span>
+                    <label class="custom-option" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; cursor: pointer; transition: background 0.2s; border-radius: 8px; margin: 2px 4px;">
+                        <input type="checkbox" value="${opt.id}" ${selectedIds.includes(opt.id) ? 'checked' : ''} style="width: 18px; height: 18px; margin: 0; accent-color: var(--brand-blue);" data-name="${opt.name}">
+                        <span style="font-size: 0.9rem; color: var(--text-primary); font-weight: 500;">${opt.name}</span>
                     </label>
                 `).join('')}
-                ${containerId.includes('area') ? `
-                    <div style="padding: 0.5rem; border-top: 1px solid var(--glass-border); display: flex; gap: 0.5rem;">
-                         <input type="text" id="${containerId}-new-input" placeholder="Nuova..." style="flex:1; padding: 0.4rem; font-size: 0.85rem; border: 1px solid var(--glass-border); border-radius: 6px;">
-                         <button type="button" class="primary-btn secondary" id="${containerId}-add-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Add</button>
+                ${(containerId.includes('area') || containerId.includes('type')) ? `
+                    <div style="padding: 0.75rem; border-top: 1px solid var(--glass-border); display: flex; gap: 0.5rem; position: sticky; bottom: 0; background: var(--card-bg); border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+                         <input type="text" id="${containerId}-new-input" placeholder="Nuova..." style="flex:1; padding: 0.5rem 0.75rem; font-size: 0.85rem; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--bg-color); color: var(--text-primary); outline: none;">
+                         <button type="button" class="primary-btn sm" id="${containerId}-add-btn" style="padding: 0.5rem 1rem; font-size: 0.8rem; background: var(--brand-gradient); border: none; color: white; border-radius: 8px; font-weight: 600;">Aggiungi</button>
                     </div>
                 ` : ''}
             </div>
@@ -674,7 +674,11 @@ function renderMultiselectDropdown(containerId, options, selectedIds, placeholde
     if (!window[`${containerId}-listener`]) {
         document.addEventListener('click', (e) => {
             const wrapper = document.getElementById(`${containerId}-wrapper`);
-            if (wrapper && !wrapper.contains(e.target)) wrapper.classList.remove('open');
+            if (wrapper && !wrapper.contains(e.target)) {
+                wrapper.classList.remove('open');
+                const optionsList = wrapper.querySelector('.custom-options');
+                if (optionsList) optionsList.style.display = 'none';
+            }
         });
         window[`${containerId}-listener`] = true;
     }
@@ -697,20 +701,121 @@ function renderMultiselectDropdown(containerId, options, selectedIds, placeholde
             const name = input.value.trim();
             if (!name) return;
             try {
-                const newArea = await upsertSapServiceArea(name);
+                let newItem;
+                if (containerId.includes('area')) {
+                    newItem = await upsertSapServiceArea(name);
+                } else if (containerId.includes('type')) {
+                    newItem = await upsertSapServiceType(name);
+                }
                 input.value = '';
-                const newOptions = [...options, newArea];
+                const newOptions = [...options, newItem];
                 const currentSel = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
                 renderMultiselectDropdown(containerId, newOptions, currentSel, placeholder, onSelectionChange);
-                document.getElementById(`${containerId}-wrapper`).classList.add('open');
-            } catch (e) { console.error(e); }
+                const wrapper = document.getElementById(`${containerId}-wrapper`);
+                wrapper.classList.add('open');
+                wrapper.querySelector('.custom-options').style.display = 'block';
+            } catch (e) {
+                console.error(e);
+                window.showAlert('Errore: ' + e.message, 'error');
+            }
         });
     }
 }
 
+function renderSingleSelectDropdown(containerId, options, selectedId, placeholder = 'Seleziona...', onSelectionChange) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const selectedOption = options.find(o => o.id === selectedId);
+    const triggerText = selectedOption ? selectedOption.name : placeholder;
+    const triggerClass = selectedOption ? 'text-primary' : 'text-secondary';
+
+    container.innerHTML = `
+        <div class="custom-select-wrapper" id="${containerId}-wrapper" style="width: 100%;">
+            <div class="custom-select-trigger" onclick="window.toggleDropdown('${containerId}')" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: var(--bg-color); border: 1px solid var(--glass-border); border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                <span class="${triggerClass}" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 1rem; font-size: 0.9rem; font-weight: 500;">${triggerText}</span>
+                <span class="custom-select-arrow material-icons-round" style="font-size: 1.25rem; color: var(--text-tertiary);">expand_more</span>
+            </div>
+            <div class="custom-options" id="${containerId}-options" style="display: none; position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 2000; background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 12px; box-shadow: var(--shadow-xl); max-height: 250px; overflow-y: auto; backdrop-filter: blur(10px);">
+                ${options.map(opt => `
+                    <div class="custom-option" onclick="window.selectSingleOption('${containerId}', '${opt.id}', '${opt.name.replace(/'/g, "\\'")}')" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; cursor: pointer; transition: background 0.2s; border-radius: 8px; margin: 2px 4px; ${opt.id === selectedId ? 'background: rgba(var(--brand-blue-rgb), 0.05); color: var(--brand-blue); font-weight: 600;' : ''}">
+                        <span style="font-size: 0.9rem; font-weight: 500;">${opt.name}</span>
+                        ${opt.id === selectedId ? '<span class="material-icons-round" style="font-size: 1.1rem; margin-left: auto;">check</span>' : ''}
+                    </div>
+                `).join('')}
+                <div style="padding: 0.75rem; border-top: 1px solid var(--glass-border); display: flex; gap: 0.5rem; position: sticky; bottom: 0; background: var(--card-bg); border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+                     <input type="text" id="${containerId}-new-input" placeholder="Nuovo tipo..." style="flex:1; padding: 0.5rem 0.75rem; font-size: 0.85rem; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--bg-color); color: var(--text-primary); outline: none;">
+                     <button type="button" class="primary-btn sm" id="${containerId}-add-btn" style="padding: 0.5rem 1rem; font-size: 0.8rem; background: var(--brand-gradient); border: none; color: white; border-radius: 8px; font-weight: 600;">Aggiungi</button>
+                </div>
+            </div>
+            <input type="hidden" name="${containerId.includes('type') ? 'type_id' : containerId}" value="${selectedId || ''}" id="${containerId}-hidden-input">
+        </div>
+    `;
+
+    if (!window[`${containerId}-listener`]) {
+        document.addEventListener('click', (e) => {
+            const wrapper = document.getElementById(`${containerId}-wrapper`);
+            if (wrapper && !wrapper.contains(e.target)) {
+                wrapper.classList.remove('open');
+                const optionsList = wrapper.querySelector('.custom-options');
+                if (optionsList) optionsList.style.display = 'none';
+            }
+        });
+        window[`${containerId}-listener`] = true;
+    }
+
+    const addBtn = document.getElementById(`${containerId}-add-btn`);
+    if (addBtn) {
+        addBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const input = document.getElementById(`${containerId}-new-input`);
+            const name = input.value.trim();
+            if (!name) return;
+            try {
+                const newItem = await upsertSapServiceType(name);
+                input.value = '';
+                const newOptions = [...options, newItem];
+                renderSingleSelectDropdown(containerId, newOptions, newItem.id, placeholder, onSelectionChange);
+                if (onSelectionChange) onSelectionChange(newItem.id);
+            } catch (e) {
+                console.error(e);
+                window.showAlert('Errore: ' + e.message, 'error');
+            }
+        });
+    }
+
+    window.selectSingleOption = (cid, id, name) => {
+        const hiddenInput = document.getElementById(`${cid}-hidden-input`);
+        const triggerSpan = document.getElementById(`${cid}-wrapper`).querySelector('.custom-select-trigger span');
+        if (hiddenInput) hiddenInput.value = id;
+        if (triggerSpan) {
+            triggerSpan.textContent = name;
+            triggerSpan.className = 'text-primary';
+        }
+        const optionsList = document.getElementById(`${cid}-options`);
+        if (optionsList) optionsList.style.display = 'none';
+        document.getElementById(`${cid}-wrapper`).classList.remove('open');
+        if (onSelectionChange) onSelectionChange(id);
+    };
+}
+
 window.toggleDropdown = (id) => {
     const wrapper = document.getElementById(`${id}-wrapper`);
-    if (wrapper) wrapper.classList.toggle('open');
+    const optionsList = document.getElementById(`${id}-options`);
+    if (!wrapper || !optionsList) return;
+
+    const isOpen = wrapper.classList.contains('open');
+
+    // Close all other dropdowns
+    document.querySelectorAll('.custom-select-wrapper').forEach(w => {
+        w.classList.remove('open');
+        const opts = w.querySelector('.custom-options');
+        if (opts) opts.style.display = 'none';
+    });
+
+    if (!isOpen) {
+        wrapper.classList.add('open');
+        optionsList.style.display = 'block';
+    }
 };
 
 // --- SAP SERVICE MODAL (CREATE/EDIT) ---
@@ -726,53 +831,97 @@ export function openSapServiceModal(serviceId = null) {
         document.body.appendChild(modalEl);
     }
     modalEl.innerHTML = `
-        <div class="modal-content" style="max-width: 600px; padding: 2rem;">
-            <h2>${service ? 'Modifica' : 'Nuovo'} Servizio SAP</h2>
-            <form id="sap-service-form">
-                <div class="form-group">
-                    <label>Nome Servizio</label>
-                    <input type="text" name="name" value="${service?.name || ''}" required>
-                </div>
-                <div class="form-row">
-                    <div class="form-group flex-1">
-                        <label>Tipo Servizio</label>
-                        <select name="type_id" required>
-                             <option value="">Seleziona...</option>
-                             ${state.sapServiceTypes.map(t => `<option value="${t.id}" ${service?.type_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
-                        </select>
+        <div class="modal-content" style="max-width: 580px; padding: 0; background: var(--card-bg); border-radius: 20px; border: 1px solid var(--glass-border); box-shadow: var(--shadow-2xl); overflow: visible;">
+            <div class="modal-header" style="padding: 1.5rem 2rem; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.85rem;">
+                    <div style="width: 44px; height: 44px; border-radius: 12px; background: var(--brand-gradient); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(var(--brand-blue-rgb), 0.25);">
+                        <span class="material-icons-round" style="color: white; font-size: 1.4rem;">diamond</span>
+                    </div>
+                    <div>
+                        <h2 style="margin: 0; font-family: var(--font-titles); font-weight: 800; font-size: 1.25rem; color: var(--text-primary); letter-spacing: -0.01em;">${service ? 'Modifica' : 'Nuovo'} Servizio SAP</h2>
+                        <div style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px;">Configurazione del valore aziendale</div>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Aree di Competenza</label>
-                    <div id="service-areas-multiselect"></div>
+                <button class="material-icons-round" onclick="document.getElementById('${modalId}').classList.remove('active')" style="background: var(--bg-secondary); border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; transition: all 0.2s;">close</button>
+            </div>
+
+            <form id="sap-service-form" style="padding: 2rem;">
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <div class="form-group">
+                        <label style="display: block; font-size: 0.7rem; font-weight: 800; color: var(--text-tertiary); margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em;">Nome Servizio</label>
+                        <input type="text" name="name" value="${service?.name || ''}" placeholder="Esempio: Podcast da Remoto Essential" required style="width: 100%; padding: 0.85rem 1.25rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-color); color: var(--text-primary); font-weight: 600; font-size: 0.95rem; transition: all 0.2s; outline: none;" onfocus="this.style.borderColor='var(--brand-blue)'; this.style.boxShadow='0 0 0 4px rgba(var(--brand-blue-rgb), 0.1)'" onblur="this.style.borderColor='var(--glass-border)'; this.style.boxShadow='none'">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        <div class="form-group" style="position: relative;">
+                            <label style="display: block; font-size: 0.7rem; font-weight: 800; color: var(--text-tertiary); margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em;">Tipo Servizio</label>
+                            <div id="service-type-dropdown"></div>
+                        </div>
+                        <div class="form-group" style="position: relative;">
+                            <label style="display: block; font-size: 0.7rem; font-weight: 800; color: var(--text-tertiary); margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em;">Reparti</label>
+                            <div id="service-departments-multiselect"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="position: relative;">
+                        <label style="display: block; font-size: 0.7rem; font-weight: 800; color: var(--text-tertiary); margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em;">Aree di Competenza</label>
+                        <div id="service-areas-multiselect"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="display: block; font-size: 0.7rem; font-weight: 800; color: var(--text-tertiary); margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em;">Descrizione</label>
+                        <textarea name="description" rows="4" placeholder="Inserisci una breve descrizione..." style="width: 100%; padding: 0.85rem 1.25rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-color); color: var(--text-primary); font-weight: 500; font-size: 0.95rem; transition: all 0.2s; outline: none; resize: none;" onfocus="this.style.borderColor='var(--brand-blue)'; this.style.boxShadow='0 0 0 4px rgba(var(--brand-blue-rgb), 0.1)'" onblur="this.style.borderColor='var(--glass-border)'; this.style.boxShadow='none'">${service?.description || ''}</textarea>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Descrizione</label>
-                    <textarea name="description" rows="3">${service?.description || ''}</textarea>
-                </div>
-                <div style="display:flex; gap:1rem; justify-content:flex-end; margin-top:2rem;">
-                    <button type="button" class="secondary-btn" onclick="document.getElementById('${modalId}').classList.remove('active')">Annulla</button>
-                    <button type="submit" class="primary-btn">Salva</button>
+
+                <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--glass-border);">
+                    <button type="button" class="primary-btn secondary" onclick="document.getElementById('${modalId}').classList.remove('active')" style="padding: 0.85rem 1.75rem; border-radius: 12px; font-weight: 700; font-size: 0.9rem; transition: all 0.2s;">Annulla</button>
+                    <button type="submit" class="primary-btn" style="padding: 0.85rem 2.5rem; border-radius: 12px; background: var(--brand-gradient); color: white; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 15px rgba(var(--brand-blue-rgb), 0.3);">Salva Servizio</button>
                 </div>
             </form>
         </div>
     `;
+
     const selectedAreas = (service?.core_service_area_links || []).map(l => l.area_id);
+    const selectedDepts = (service?.core_service_department_links || []).map(l => l.department_id);
     let currentSelectedAreas = [...selectedAreas];
-    renderMultiselectDropdown('service-areas-multiselect', state.sapServiceAreas, selectedAreas, 'Seleziona aree...', (newIds) => { currentSelectedAreas = newIds; });
+    let currentSelectedDepts = [...selectedDepts];
+    let selectedTypeId = service?.type_id || null;
+
+    renderMultiselectDropdown('service-areas-multiselect', state.sapServiceAreas, selectedAreas, 'Seleziona aree...', (newIds) => {
+        currentSelectedAreas = newIds;
+    });
+
+    renderMultiselectDropdown('service-departments-multiselect', state.departments, selectedDepts, 'Seleziona reparti...', (newIds) => {
+        currentSelectedDepts = newIds;
+    });
+
+    renderSingleSelectDropdown('service-type-dropdown', state.sapServiceTypes, selectedTypeId, 'Seleziona tipo...', (newId) => {
+        selectedTypeId = newId;
+    });
+
     modalEl.querySelector('form').onsubmit = async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
+
         data.area_ids = currentSelectedAreas;
+        data.department_ids = currentSelectedDepts;
+        data.type_id = selectedTypeId;
+
+        if (serviceId) data.id = serviceId;
+
         try {
-            await upsertSapService(serviceId, data);
+            await upsertSapService(data);
             await fetchSapServices();
             renderSapServices(document.getElementById('content-area'));
             modalEl.classList.remove('active');
-            window.showAlert('Servizio SAP salvato', 'success');
-        } catch (err) { window.showAlert('Errore: ' + err.message, 'error'); }
+            window.showAlert('Servizio SAP salvato con successo', 'success');
+        } catch (err) {
+            window.showAlert('Errore: ' + err.message, 'error');
+        }
     };
+
     modalEl.classList.add('active');
 }
 

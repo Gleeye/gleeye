@@ -56,7 +56,7 @@ export function renderHubTree(container, items, space, spaceId) {
                 
                 <!-- Toggle completed -->
                 <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
-                    <input type="checkbox" id="show-completed" checked>
+                    <input type="checkbox" id="show-completed">
                     Mostra completate
                 </label>
             </div>
@@ -179,7 +179,7 @@ function buildTree(items) {
 }
 
 function renderTreeContainer(tree, spaceId) {
-    const showCompleted = document.getElementById('show-completed')?.checked !== false;
+    const showCompleted = document.getElementById('show-completed')?.checked === true;
     const activeFilter = document.querySelector('.filter-chip.active')?.dataset.filter || 'all';
     const searchTerm = document.getElementById('tree-search')?.value.toLowerCase() || '';
 

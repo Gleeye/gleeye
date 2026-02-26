@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }).join('');
 
                 content = `
-                    <div class="tf-question-wrapper" style="max-width: 900px; padding-bottom: 80px;">
+                    <div class="tf-question-wrapper" style="max-width: 900px; padding-bottom: 120px;">
                         ${(s.title && !isEmbed) ? `
                         <div class="step-header" style="margin-bottom: 0.75rem;">
                             <h1 class="step-title" style="font-size: 1.75rem; font-weight: 700; margin: 0; color: var(--text-primary);">${s.title}</h1>
@@ -682,8 +682,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (s.textColor) {
                 document.documentElement.style.setProperty('--text-primary', s.textColor);
                 document.body.style.color = s.textColor;
-                // Estimate secondary color (70% opacity)
-                document.documentElement.style.setProperty('--text-secondary', s.textColor + 'b3'); // 'b3' is approx 70% in hex
+
+                // Safe check: only append hex opacity if it looks like a hex color
+                if (s.textColor.startsWith('#') && s.textColor.length === 7) {
+                    document.documentElement.style.setProperty('--text-secondary', s.textColor + 'b3');
+                } else {
+                    document.documentElement.style.setProperty('--text-secondary', s.textColor);
+                }
             }
             if (s.bgColor) {
                 if (formWrapper) {

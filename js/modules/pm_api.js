@@ -279,6 +279,39 @@ export async function fetchPMItem(itemId) {
     return data;
 }
 
+export async function fetchChildItems(parentId) {
+    const { data, error } = await supabase
+        .from('pm_items')
+        .select(`
+            *,
+            pm_item_assignees ( id, user_ref, collaborator_ref, role, created_at ),
+            pm_item_incarichi ( incarico_ref )
+        `)
+        .eq('parent_ref', parentId)
+        .order('created_at', { ascending: true });
+
+    if (error) {
+        console.error("Error fetching child items:", error);
+        return [];
+    }
+
+    if (data && data.length > 0) {
+        const allAssignees = data.flatMap(item => item.pm_item_assignees || []);
+        if (allAssignees.length > 0) {
+            const expandedAll = await _expandAssignees(allAssignees);
+            data.forEach(item => {
+                if (item.pm_item_assignees) {
+                    item.pm_item_assignees = expandedAll.filter(a =>
+                        item.pm_item_assignees.some(raw => raw.id === a.id)
+                    );
+                }
+            });
+        }
+    }
+
+    return data || [];
+}
+
 
 export async function fetchProjectItems(spaceId) {
     // Fetch items and their relations

@@ -14,6 +14,7 @@ import { initNotifications } from './features/notifications.js?v=1000';
 // Chat UI is loaded lazily when user navigates to #chat
 import { runOneTimeFix } from './fix_phantom_data.js?v=1000';
 // Utilities imported at top
+import './utils/modal-utils.js';
 
 // Suppress benign ResizeObserver error
 const resizeObserverLoopErr = 'ResizeObserver loop completed with undelivered notifications.';
