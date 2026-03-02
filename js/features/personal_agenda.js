@@ -35,7 +35,7 @@ export async function renderAgenda(container) {
     }
 
     container.innerHTML = `
-        <div class="agenda-container animate-fade-in" id="agenda-view-wrapper" style="display: flex !important; flex-direction: row !important;">
+        <div class="agenda-container animate-fade-in agenda-mobile-wrap" id="agenda-view-wrapper" style="display: flex !important; flex-direction: row !important;">
             
             <!-- MAIN CONTENT (Now on Left) -->
             <div class="agenda-main" style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
@@ -139,6 +139,15 @@ export async function renderAgenda(container) {
                 </div>
             </aside>
         </div>
+        <style>
+            @media (max-width: 992px) {
+                .agenda-mobile-wrap { flex-direction: column-reverse !important; overflow-y: auto !important; }
+                .agenda-sidebar { width: 100% !important; height: auto !important; border-left: none !important; border-bottom: 1px solid rgba(0,0,0,0.05); }
+                .agenda-main { min-height: 600px; }
+                .agenda-main-header { flex-direction: column; align-items: flex-start !important; gap: 1rem; }
+                .header-actions { width: 100%; flex-wrap: wrap; justify-content: flex-start !important; }
+            }
+        </style>
     `;
 
     // Bind Global Controls

@@ -11,6 +11,7 @@ let notifications = [];
 let unreadCount = 0;
 let subscription = null;
 let isDropdownOpen = false;
+const VAPID_PUBLIC_KEY = 'BNEWfpEPRK2FKhpvKk--ZUzvbDZt9tLVwpq4bAuK0FjAnW-NXh3fZcTDYDYcLwLOaxrj00EZwhdhpiQVS18w1d8';
 
 /**
  * Initialize the notification system
@@ -25,7 +26,7 @@ export async function initNotifications() {
         return;
     }
 
-    console.log(`Notifications: User ${state.session.user.email} verified. Fetching history...`);
+    console.log(`Notifications: User ${state.session.user.id} verified. Fetching history...`);
     await fetchNotifications();
     subscribeToRealtime();
     renderNotificationBell();
@@ -125,48 +126,46 @@ function handleNewNotification(notification) {
 /**
  * Render the notification bell icon in header
  */
-function renderNotificationBell() {
-    const headerActions = document.querySelector('.header-actions');
-    if (!headerActions) {
-        console.warn('Header actions not found for notification bell, retrying in 500ms...');
+export function renderNotificationBell() {
+    const bellBtn = document.getElementById('notifications-btn');
+    if (!bellBtn) {
+        console.warn('Notifications button not found, retrying in 500ms...');
         setTimeout(renderNotificationBell, 500);
         return;
     }
 
-    // Always ensure the container exists
-    let bellContainer = document.getElementById('notification-container-wrapper');
-    if (!bellContainer) {
-        bellContainer = document.createElement('div');
-        bellContainer.id = 'notification-container-wrapper';
-        bellContainer.className = 'notification-container';
-
-        // Prepended so it's the first icon in the list
-        headerActions.prepend(bellContainer);
+    // Ensure we don't double render more than needed, but we need the dropdown
+    let dropdown = document.getElementById('notification-dropdown');
+    if (!dropdown) {
+        dropdown = document.createElement('div');
+        dropdown.id = 'notification-dropdown';
+        dropdown.className = 'notification-dropdown hidden';
+        // Append near the button's parent (header-actions)
+        bellBtn.parentElement.appendChild(dropdown);
     }
 
-    bellContainer.innerHTML = `
-        <button id="notification-bell" class="notification-bell icon-btn" title="Notifiche">
-            <span class="material-icons-round">notifications</span>
-            <span id="notification-badge" class="notification-badge hidden">0</span>
-        </button>
-        <div id="notification-dropdown" class="notification-dropdown hidden">
-            <div class="notification-header">
-                <h4>Notifiche</h4>
-                <button id="mark-all-read" class="notification-mark-all" title="Segna tutte come lette">
-                    <span class="material-icons-round">done_all</span>
-                </button>
-            </div>
-            <div id="notification-list" class="notification-list">
-                <div class="notification-empty">Nessuna notifica non letta</div>
-            </div>
-            <div class="notification-footer">
-                <a href="#notifications" class="view-all-btn">Vedi tutte</a>
-            </div>
+    dropdown.innerHTML = `
+        <div class="notification-header">
+            <h4>Notifiche</h4>
+            <button id="mark-all-read" class="notification-mark-all" title="Segna tutte come lette">
+                <span class="material-icons-round">done_all</span>
+            </button>
+        </div>
+        <div id="notification-list" class="notification-list">
+            <div class="notification-empty">Nessuna notifica non letta</div>
+        </div>
+        <div class="notification-footer">
+            <a href="#notifications" class="view-all-btn">Vedi tutte</a>
         </div>
     `;
 
     updateBadge();
-    setupEventListeners(); // Re-bind after innerHTML replace
+
+    // Ensure listeners are only attached once to the static button
+    if (!bellBtn._hasListener) {
+        setupEventListeners();
+        bellBtn._hasListener = true;
+    }
 }
 
 /**
@@ -174,7 +173,7 @@ function renderNotificationBell() {
  */
 function setupEventListeners() {
     // Bell click - toggle dropdown
-    const bell = document.getElementById('notification-bell');
+    const bell = document.getElementById('notifications-btn');
     if (bell) {
         bell.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -193,8 +192,9 @@ function setupEventListeners() {
 
     // Close dropdown on outside click
     document.addEventListener('click', (e) => {
-        const container = document.querySelector('.notification-container');
-        if (container && !container.contains(e.target)) {
+        const bell = document.getElementById('notifications-btn');
+        const dropdown = document.getElementById('notification-dropdown');
+        if (dropdown && !dropdown.contains(e.target) && bell && !bell.contains(e.target)) {
             closeDropdown();
         }
     });
@@ -361,8 +361,15 @@ async function markAllAsRead() {
  * Update the badge count
  */
 function updateBadge() {
-    const badge = document.getElementById('notification-badge');
-    if (!badge) return;
+    const bellBtn = document.getElementById('notifications-btn');
+    if (!bellBtn) return;
+
+    let badge = bellBtn.querySelector('.notification-badge');
+    if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'notification-badge hidden';
+        bellBtn.appendChild(badge);
+    }
 
     if (unreadCount > 0) {
         badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
@@ -428,6 +435,15 @@ function getIcon(type) {
         'booking_cancel': 'event_busy',
         'payment_due': 'payments',
         'payment_received': 'paid',
+        'pm_space_created': 'folder_special',
+        'pm_space_assigned': 'assignment_ind',
+        'pm_item_created': 'add_task',
+        'pm_item_status': 'published_with_changes',
+        'pm_comment_added': 'forum',
+        'pm_item_assigned': 'person_add',
+        'pm_document_created': 'note_add',
+        'pm_document_updated': 'edit_document',
+        'pm_appointment_invited': 'event_available',
         'default': 'notifications'
     };
     return icons[type] || icons.default;
@@ -440,6 +456,15 @@ function getIconClass(type) {
         'booking_cancel': 'type-cancel',
         'payment_due': 'type-payment',
         'payment_received': 'type-success',
+        'pm_space_created': 'type-info',
+        'pm_space_assigned': 'type-info',
+        'pm_item_created': 'type-success',
+        'pm_item_status': 'type-warning',
+        'pm_comment_added': 'type-info',
+        'pm_item_assigned': 'type-booking',
+        'pm_document_created': 'type-primary',
+        'pm_document_updated': 'type-info',
+        'pm_appointment_invited': 'type-warning',
         'default': 'type-default'
     };
     return classes[type] || classes.default;
@@ -486,10 +511,16 @@ export function renderNotificationCenter(container) {
                         <button class="filter-tab active" data-filter="all">Tutte</button>
                         <button class="filter-tab" data-filter="unread">Da leggere</button>
                     </div>
-                    <button id="center-mark-all" class="secondary-btn small">
-                        <span class="material-icons-round">done_all</span>
-                        Segna tutte come lette
-                    </button>
+                    <div style="display: flex; gap: 0.8rem;">
+                        <button id="enable-push-btn" class="secondary-btn small" title="Ricevi notifiche sul cellulare">
+                            <span class="material-icons-round">notifications_active</span>
+                            <span>Caricamento...</span>
+                        </button>
+                        <button id="center-mark-all" class="secondary-btn small">
+                            <span class="material-icons-round">done_all</span>
+                            Segna tutte come lette
+                        </button>
+                    </div>
                 </div>
             </div>
             
@@ -651,6 +682,53 @@ export function renderNotificationCenter(container) {
             renderList();
         });
     }
+
+    // Push Notification Logic
+    const pushBtn = container.querySelector('#enable-push-btn');
+    if (pushBtn) {
+        updatePushBtnStatus(pushBtn);
+
+        pushBtn.addEventListener('click', async () => {
+            const isSubscribed = pushBtn.classList.contains('active');
+            pushBtn.disabled = true;
+
+            if (isSubscribed) {
+                await unsubscribeFromPush();
+            } else {
+                await subscribeToPush();
+            }
+
+            updatePushBtnStatus(pushBtn);
+            pushBtn.disabled = false;
+        });
+    }
+}
+
+/**
+ * Update the push button text and class based on current subscription
+ */
+async function updatePushBtnStatus(btn) {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        btn.style.display = 'none';
+        return;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+
+    if (subscription) {
+        btn.classList.add('active');
+        btn.classList.add('success-btn');
+        btn.classList.remove('secondary-btn');
+        btn.querySelector('span:last-child').textContent = 'Notifiche Mobile Attive';
+        btn.querySelector('.material-icons-round').textContent = 'notifications_active';
+    } else {
+        btn.classList.remove('active');
+        btn.classList.remove('success-btn');
+        btn.classList.add('secondary-btn');
+        btn.querySelector('span:last-child').textContent = 'Attiva Notifiche Mobile';
+        btn.querySelector('.material-icons-round').textContent = 'notifications_none';
+    }
 }
 
 /**
@@ -702,7 +780,7 @@ export function renderAdminNotifications(container) {
                         <div style="font-size: 0.85rem; color: var(--text-secondary);">Notifiche desktop quando l'app è aperta</div>
                     </div>
                     <label class="switch">
-                        <input type="checkbox" checked>
+                        <input type="checkbox" id="push-toggle">
                         <span class="slider round"></span>
                     </label>
                 </div>
@@ -743,6 +821,26 @@ export function renderAdminNotifications(container) {
                         <span class="checkmark"></span>
                         <span style="color: var(--text-primary);">Assegnazione Incarichi</span>
                     </label>
+                    <label class="checkbox-container" style="display: flex; align-items: center; gap: 0.8rem; cursor: pointer; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed var(--glass-border);">
+                        <input type="checkbox" checked>
+                        <span class="checkmark"></span>
+                        <span style="color: var(--text-primary);"><b>[PM]</b> Nuovi Progetti / Commesse</span>
+                    </label>
+                    <label class="checkbox-container" style="display: flex; align-items: center; gap: 0.8rem; cursor: pointer;">
+                        <input type="checkbox" checked>
+                        <span class="checkmark"></span>
+                        <span style="color: var(--text-primary);"><b>[PM]</b> Assegnazione Task e Modifiche Stato</span>
+                    </label>
+                    <label class="checkbox-container" style="display: flex; align-items: center; gap: 0.8rem; cursor: pointer;">
+                        <input type="checkbox" checked>
+                        <span class="checkmark"></span>
+                        <span style="color: var(--text-primary);"><b>[PM]</b> Nuovi Commenti sui Task</span>
+                    </label>
+                    <label class="checkbox-container" style="display: flex; align-items: center; gap: 0.8rem; cursor: pointer;">
+                        <input type="checkbox" checked>
+                        <span class="checkmark"></span>
+                        <span style="color: var(--text-primary);"><b>[PM]</b> Nuovi Documenti e Appuntamenti</span>
+                    </label>
                 </div>
             </div>
             
@@ -751,4 +849,105 @@ export function renderAdminNotifications(container) {
             </div>
         </div>
     `;
+
+    // Handle Toggles
+    const pushToggle = container.querySelector('input[type="checkbox"][id="push-toggle"]');
+    if (pushToggle) {
+        // Initial state
+        if ('Notification' in window) {
+            pushToggle.checked = Notification.permission === 'granted';
+        }
+
+        pushToggle.addEventListener('change', async () => {
+            if (pushToggle.checked) {
+                const success = await subscribeToPush();
+                if (!success) pushToggle.checked = false;
+            } else {
+                await unsubscribeFromPush();
+            }
+        });
+    }
+}
+
+/**
+ * Subscribe to Web Push Notifications
+ */
+export async function subscribeToPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        console.warn('Push Notifications not supported by this browser');
+        return false;
+    }
+
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            alert('Permesso per le notifiche negato.');
+            return false;
+        }
+
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+
+        console.log('Push: Subscribed successfully:', subscription);
+
+        // Store in DB
+        const { error } = await supabase
+            .from('push_subscriptions')
+            .upsert({
+                user_id: state.session.user.id,
+                endpoint: subscription.endpoint,
+                p256dh: btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('p256dh')))),
+                auth: btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('auth')))),
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id, endpoint' });
+
+        if (error) throw error;
+        return true;
+    } catch (err) {
+        console.error('Push: Error subscribing:', err);
+        return false;
+    }
+}
+
+/**
+ * Unsubscribe from Web Push
+ */
+export async function unsubscribeFromPush() {
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+            await subscription.unsubscribe();
+
+            // Remove from DB
+            await supabase
+                .from('push_subscriptions')
+                .delete()
+                .eq('user_id', state.session.user.id)
+                .eq('endpoint', subscription.endpoint);
+        }
+    } catch (err) {
+        console.error('Push: Error unsubscribing:', err);
+    }
+}
+
+/**
+ * Helper: Convert Base64 URL to Uint8Array
+ */
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
 }

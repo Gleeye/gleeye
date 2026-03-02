@@ -380,9 +380,21 @@ export function renderDashboard(container) {
         `).join('');
 
         container.innerHTML = `
+            <style>
+                @media (max-width: 992px) {
+                    .dashboard-main-grid { grid-template-columns: 1fr !important; }
+                    .dashboard-funnel-grid { grid-template-columns: 1fr !important; }
+                    .funnel-card { margin-bottom: 0.5rem; }
+                    .filter-bar-container { flex-direction: column; align-items: stretch !important; gap: 1rem !important; }
+                    .filter-bar-container > div:last-child { flex-wrap: wrap; width: 100%; }
+                    .filter-bar-container .custom-dropdown { flex: 1 1 calc(50% - 0.5rem); }
+                    .dashboard-header-actions { flex-direction: column; align-items: flex-start !important; gap: 1rem; }
+                    .dashboard-header-actions > div:last-child { width: 100%; justify-content: space-between; flex-wrap: wrap; }
+                }
+            </style>
             <div style="padding: 1.5rem; max-width: 1600px; margin: 0 auto;">
                 
-                <div style="display: grid; grid-template-columns: 360px 1fr; gap: 2rem; align-items: start;">
+                <div class="dashboard-main-grid" style="display: grid; grid-template-columns: 360px 1fr; gap: 2rem; align-items: start;">
                     
                     <!-- Side Column: Active Box & Stats -->
                     <div style="display: flex; flex-direction: column; gap: 1.5rem;">
@@ -474,12 +486,12 @@ export function renderDashboard(container) {
 
                     <!-- Main Column: Funnel & Table -->
                     <div style="display: flex; flex-direction: column; gap: 2rem;">
-                        <div id="funnel-container" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;">
+                        <div id="funnel-container" class="dashboard-funnel-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;">
                             ${funnelHTML}
                         </div>
 
                         <div class="glass-card" style="padding: 0; overflow: hidden; border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; max-height: 600px;">
-                            <div style="padding: 1.5rem; border-bottom: 1px solid var(--glass-border); background: var(--bg-secondary); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                            <div class="dashboard-header-actions" style="padding: 1.5rem; border-bottom: 1px solid var(--glass-border); background: var(--bg-secondary); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
                                 <div style="display: flex; align-items: center; gap: 1rem;">
                                     <h3 id="table-title" style="margin: 0; font-size: 1.2rem; font-weight: 800; font-family: var(--font-titles); color: var(--text-primary);">Elenco Ordini</h3>
                                     <span id="active-filter-badge" style="display: none; font-size: 0.7rem; background: var(--brand-viola); color: white; padding: 3px 12px; border-radius: 20px; font-weight: 700; letter-spacing: 0.05em;">FILTRO ATTIVO</span>
@@ -494,7 +506,7 @@ export function renderDashboard(container) {
                             </div>
 
                             <!-- Filter Bar -->
-                            <div id="table-filter-bar" style="padding: 1rem 1.5rem; background: #fcfcfd; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; gap: 1.5rem;">
+                            <div id="table-filter-bar" class="filter-bar-container" style="padding: 1rem 1.5rem; background: #fcfcfd; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; gap: 1.5rem;">
                                 <div style="font-size: 0.7rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;">
                                     <span class="material-icons-round" style="font-size: 1rem;">filter_list</span>
                                     Filtra per:
@@ -505,7 +517,7 @@ export function renderDashboard(container) {
                                     ${renderDropdown('status', 'Stato', 'flag', uniqueStatuses, currentStatusFilter)}
                                 </div>
                             </div>
-                            <div style="overflow-y: auto; flex: 1; position: relative;">
+                            <div class="table-container" style="overflow-x: auto; overflow-y: auto; flex: 1; position: relative;">
                                 <table style="width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed;">
                                     <thead style="position: sticky; top: 0; z-index: 10;">
                                         <tr>
@@ -548,7 +560,7 @@ export function renderDashboard(container) {
         const handleRowInteractions = (body) => {
             body.querySelectorAll('.clickable-row').forEach(row => {
                 row.addEventListener('click', () => {
-                    if (row.dataset.id) window.location.hash = `order-detail/${row.dataset.id}`;
+                    if (row.dataset.id) window.location.hash = `order - detail / ${row.dataset.id} `;
                 });
                 row.addEventListener('mouseenter', () => { row.style.background = 'var(--bg-secondary)'; row.style.cursor = 'pointer'; });
                 row.addEventListener('mouseleave', () => { row.style.background = 'white'; });
@@ -586,7 +598,7 @@ export function renderDashboard(container) {
 
             // UI elements for the dropdowns
             const updateDropdownUI = (type, value, label) => {
-                const drop = container.querySelector(`#${type}-dropdown`);
+                const drop = container.querySelector(`#${type} -dropdown`);
                 if (!drop) return;
                 const trigger = drop.querySelector('.dropdown-trigger');
                 const menu = drop.querySelector('.dropdown-menu');
@@ -606,7 +618,7 @@ export function renderDashboard(container) {
             updateDropdownUI('status', currentStatusFilter, 'Stato');
 
             const hasAnyFilter = currentFunnelFilter || currentYearFilter || currentClientFilter || currentStatusFilter;
-            tableTitle.textContent = currentFunnelFilter ? `Ordini: ${currentFunnelFilter}` : 'Elenco Ordini';
+            tableTitle.textContent = currentFunnelFilter ? `Ordini: ${currentFunnelFilter} ` : 'Elenco Ordini';
             resetBtn.style.display = hasAnyFilter ? 'block' : 'none';
             filterBadge.style.display = hasAnyFilter ? 'block' : 'none';
 
@@ -631,7 +643,7 @@ export function renderDashboard(container) {
         };
 
         const setupDropdownEvents = (type) => {
-            const drop = container.querySelector(`#${type}-dropdown`);
+            const drop = container.querySelector(`#${type} -dropdown`);
             if (!drop) return;
             const trigger = drop.querySelector('.dropdown-trigger');
             const menu = drop.querySelector('.dropdown-menu');
@@ -718,59 +730,60 @@ export function renderDashboard(container) {
             const sorted = [...filtered].sort((a, b) => (b.order_number || "").localeCompare(a.order_number || ""));
 
             const rows = sorted.map(o => `
-                <tr class="modal-clickable-row" data-id="${o.id}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer; transition: background 0.2s;">
+            < tr class="modal-clickable-row" data - id="${o.id}" style = "border-bottom: 1px solid var(--glass-border); cursor: pointer; transition: background 0.2s;" >
                     <td style="padding: 1rem; font-size: 0.85rem; font-weight: 600;">${o.order_number}</td>
                     <td style="padding: 1rem; font-size: 0.85rem;">${o.title || 'Senza Titolo'}</td>
                     <td style="padding: 1rem; font-size: 0.85rem; color: var(--text-secondary);">${o.clients?.business_name || 'N/D'}</td>
                     <td style="padding: 1rem; font-size: 0.85rem; text-align: right; font-weight: 700;">€ ${formatAmount(o.price_final || 0)}</td>
-                </tr>
-            `).join('');
+                </tr >
+        `).join('');
 
             const years = getYears();
             const yearTabs = `
-                <div style="display: flex; gap: 8px; margin-bottom: 1.5rem; overflow-x: auto; padding-bottom: 4px;">
-                    <button class="year-tab ${yearFilter === 'all' ? 'active' : ''}" data-year="all" style="
+        < div style = "display: flex; gap: 8px; margin-bottom: 1.5rem; overflow-x: auto; padding-bottom: 4px;" >
+            <button class="year-tab ${yearFilter === 'all' ? 'active' : ''}" data-year="all" style="
                         padding: 6px 14px; border-radius: 20px; border: 1px solid var(--glass-border); background: ${yearFilter === 'all' ? 'var(--brand-viola)' : 'white'}; color: ${yearFilter === 'all' ? 'white' : 'var(--text-secondary)'}; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;
                     ">Tutti</button>
                     ${years.map(y => `
                         <button class="year-tab ${yearFilter == y ? 'active' : ''}" data-year="${y}" style="
                             padding: 6px 14px; border-radius: 20px; border: 1px solid var(--glass-border); background: ${yearFilter == y ? 'var(--brand-viola)' : 'white'}; color: ${yearFilter == y ? 'white' : 'var(--text-secondary)'}; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;
                         ">${y}</button>
-                    `).join('')}
-                </div>
-            `;
+                    `).join('')
+                }
+                </div >
+        `;
 
             return `
-                <div style="padding: 1.5rem; min-width: 850px; max-width: 95vw;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <div>
-                            <h2 style="margin: 0; font-family: var(--font-titles); font-weight: 700; color: var(--text-primary);">${title}</h2>
-                            <div style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 4px;">Risultati trovati: ${filtered.length}</div>
-                        </div>
-                        <button class="icon-btn close-modal" onclick="window.closeModal('${modalId}')">
-                            <span class="material-icons-round">close</span>
-                        </button>
-                    </div>
+        < div style = "padding: 1.5rem; min-width: 850px; max-width: 95vw;" >
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div>
+                    <h2 style="margin: 0; font-family: var(--font-titles); font-weight: 700; color: var(--text-primary);">${title}</h2>
+                    <div style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 4px;">Risultati trovati: ${filtered.length}</div>
+                </div>
+                <button class="icon-btn close-modal" onclick="window.closeModal('${modalId}')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
 
                     ${yearTabs}
-                    
-                    <div style="max-height: 450px; overflow-y: auto; border: 1px solid var(--glass-border); border-radius: 12px; background: white;">
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead style="position: sticky; top: 0; background: var(--bg-tertiary); z-index: 10;">
-                                <tr style="border-bottom: 1px solid var(--glass-border);">
-                                    <th style="text-align: left; padding: 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary);">N. Ordine</th>
-                                    <th style="text-align: left; padding: 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary);">Titolo</th>
-                                    <th style="text-align: left; padding: 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary);">Cliente</th>
-                                    <th style="text-align: right; padding: 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary);">Prezzo</th>
-                                </tr>
-                            </thead>
-                            <tbody id="modal-orders-body">
-                                ${rows || '<tr><td colspan="4" style="padding: 3rem; text-align: center; color: var(--text-tertiary);">Nessun ordine presente per questo periodo</td></tr>'}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
+
+    <div style="max-height: 450px; overflow-y: auto; border: 1px solid var(--glass-border); border-radius: 12px; background: white;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead style="position: sticky; top: 0; background: var(--bg-tertiary); z-index: 10;">
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    <th style="text-align: left; padding: 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary);">N. Ordine</th>
+                    <th style="text-align: left; padding: 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary);">Titolo</th>
+                    <th style="text-align: left; padding: 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary);">Cliente</th>
+                    <th style="text-align: right; padding: 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary);">Prezzo</th>
+                </tr>
+            </thead>
+            <tbody id="modal-orders-body">
+                ${rows || '<tr><td colspan="4" style="padding: 3rem; text-align: center; color: var(--text-tertiary);">Nessun ordine presente per questo periodo</td></tr>'}
+            </tbody>
+        </table>
+    </div>
+                </div >
+        `;
         };
 
         const attachModalEvents = () => {
@@ -781,7 +794,7 @@ export function renderDashboard(container) {
             modal.querySelectorAll('.modal-clickable-row').forEach(row => {
                 row.addEventListener('click', () => {
                     closeModal(modalId);
-                    window.location.hash = `order-detail/${row.dataset.id}`;
+                    window.location.hash = `order - detail / ${row.dataset.id} `;
                 });
                 row.addEventListener('mouseenter', () => { row.style.background = 'var(--bg-secondary)'; });
                 row.addEventListener('mouseleave', () => { row.style.background = 'white'; });
@@ -824,7 +837,7 @@ export function renderInvoicesDashboard(container) {
     const passiveStats = DashboardData.getStats(state.dashboardYear, state.dashboardPassiveFilter || 'all');
 
     container.innerHTML = `
-        <div class="animate-fade-in dashboard-container">
+        < div class="animate-fade-in dashboard-container" >
             <div class="dashboard-stats-grid">
                 <div class="stats-card">
                     <div class="stats-header"><span>Fatturato Attivo (${state.dashboardYear})</span></div>
@@ -838,6 +851,6 @@ export function renderInvoicesDashboard(container) {
                 </div>
             </div>
             <div style="padding:2rem; text-align:center; opacity:0.6;">Grafici di dettaglio in caricamento...</div>
-        </div>
-     `;
+        </div >
+        `;
 }

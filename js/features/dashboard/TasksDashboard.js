@@ -161,12 +161,12 @@ export class TasksDashboard {
         this.container.innerHTML = `
             <div class="tasks-dashboard fade-in">
                 <!-- PULSE HEADER -->
-                <div class="pulse-header glass-panel" style="
+                <div class="pulse-header glass-panel dashboard-pulse-header" style="
                     display: flex; justify-content: space-between; align-items: center; 
                     padding: 1rem 1.5rem; margin-bottom: 2rem; border-radius: 16px; 
                     background: white; box-shadow: var(--shadow-sm); border: 1px solid var(--surface-2);
                 ">
-                    <div style="display: flex; gap: 2rem;">
+                    <div class="kpi-group" style="display: flex; gap: 2rem;">
                         <!-- KPI: Expired -->
                         <div class="kpi-card ${kpi.expired > 0 ? 'active-red' : ''}" onclick="window._dash.setFilter('expired')" style="cursor: pointer; display: flex; align-items: center; gap: 0.75rem;">
                             <div style="
@@ -242,6 +242,14 @@ export class TasksDashboard {
                 .kpi-card:hover { transform: translateY(-1px); }
                 .kpi-card.active-red div:first-child { box-shadow: 0 0 0 2px #fecaca; }
                 .kpi-card.active-blue div:first-child { box-shadow: 0 0 0 2px #dbeafe; }
+                
+                @media (max-width: 768px) {
+                    .dashboard-pulse-header { flex-direction: column; align-items: stretch !important; gap: 1rem; }
+                    .kpi-group { flex-direction: column; gap: 1rem !important; }
+                    .kpi-card { padding-left: 0 !important; border-left: none !important; }
+                    .kanban-board { flex-direction: column; gap: 1rem; }
+                    .kanban-col { min-width: 100% !important; }
+                }
             </style>
         `;
 
@@ -293,9 +301,9 @@ export class TasksDashboard {
         const headStyle = "font-size: 0.9rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;";
 
         return `
-            <div style="display: flex; gap: 1.5rem; overflow-x: auto; padding-bottom: 1rem;">
+            <div class="kanban-board" style="display: flex; gap: 1.5rem; overflow-x: auto; padding-bottom: 1rem;">
                 <!-- URGENT -->
-                <div style="${colStyle}">
+                <div class="kanban-col" style="${colStyle}">
                     <div style="${headStyle} color: #ef4444;">
                         <span class="material-icons-round">local_fire_department</span> Scadute / Urgenti
                         <span style="background: #fee2e2; color: #ef4444; padding: 2px 6px; border-radius: 8px; font-size: 0.75rem;">${buckets.urgent.length}</span>
@@ -305,7 +313,7 @@ export class TasksDashboard {
                 </div>
 
                 <!-- TODAY -->
-                <div style="${colStyle}">
+                <div class="kanban-col" style="${colStyle}">
                     <div style="${headStyle} color: #f97316;">
                         <span class="material-icons-round">bolt</span> Oggi
                         <span style="background: #ffedd5; color: #f97316; padding: 2px 6px; border-radius: 8px; font-size: 0.75rem;">${buckets.today.length}</span>
@@ -315,7 +323,7 @@ export class TasksDashboard {
                 </div>
 
                 <!-- WEEK -->
-                <div style="${colStyle}">
+                <div class="kanban-col" style="${colStyle}">
                     <div style="${headStyle} color: var(--brand-blue);">
                         <span class="material-icons-round">date_range</span> Questa settimana
                         <span style="background: #eff6ff; color: var(--brand-blue); padding: 2px 6px; border-radius: 8px; font-size: 0.75rem;">${buckets.week.length}</span>
@@ -324,7 +332,7 @@ export class TasksDashboard {
                 </div>
 
                 <!-- FUTURE -->
-                <div style="${colStyle}">
+                <div class="kanban-col" style="${colStyle}">
                     <div style="${headStyle}">
                         <span class="material-icons-round">event_note</span> Futuro / Backlog
                         <span style="background: #f1f5f9; padding: 2px 6px; border-radius: 8px; font-size: 0.75rem;">${buckets.future.length}</span>

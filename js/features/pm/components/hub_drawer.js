@@ -469,6 +469,10 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             <button type="button" id="add-comment-btn" class="primary-btn"><span class="material-icons-round" style="font-size: 1rem;">send</span></button>
                         </div>
                     </div>
+                    <!-- Activity Log Section -->
+                    ${state.profile?.role === 'admin' ? `
+                    <div id="drawer-activity-log-container" style="border-top: 1px solid #e2e8f0;"></div>
+                    ` : ''}
                 </div>
             `;
             attachViewModeListeners();
@@ -476,6 +480,14 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 await updateItemCloudLinks(itemId, newLinks);
                 item.cloud_links = newLinks;
             });
+
+            // Init Activity Log
+            if (state.profile?.role === 'admin') {
+                import('./activity_log.js?v=1000').then(mod => {
+                    const logContainer = drawer.querySelector('#drawer-activity-log-container');
+                    if (logContainer) mod.renderActivityLog(logContainer, null, itemId);
+                }).catch(e => console.error("Error loading Activity Log", e));
+            }
         } else {
             drawer.innerHTML = `
                 <div class="drawer-header" style="padding: 1.25rem 2rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: white; flex-shrink: 0; position: sticky; top: 0; z-index: 10;">

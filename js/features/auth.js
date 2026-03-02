@@ -91,7 +91,10 @@ export async function checkSession() {
     }
 
     supabase.auth.onAuthStateChange((_event, session) => {
-        handleSession(session);
+        // Only trigger handleSession if session changed to avoid boot loops
+        if (session?.access_token !== state.session?.access_token) {
+            handleSession(session);
+        }
     });
 }
 

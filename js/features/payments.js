@@ -214,7 +214,7 @@ export function renderPaymentsDashboard(container) {
                     </div>
                 </div>
 
-                <div class="grid-3 mb-4">
+                <div class="payment-kpi-grid grid-3 mb-4">
                     <div class="glass-card flex-column" style="gap: 1rem;">
                         <div class="flex-start" style="gap: 1rem;">
                             <div class="icon-container icon-success icon-container-sm">
@@ -252,7 +252,15 @@ export function renderPaymentsDashboard(container) {
                     </div>
                 </div>
 
-                <div class="grid-3" style="align-items: start;">
+                <style>
+                    @media (max-width: 768px) {
+                        .payment-kpi-grid { grid-template-columns: 1fr; gap: 1rem; }
+                        .payment-main-grid { grid-template-columns: 1fr; gap: 1rem; }
+                        .pill-group { margin-top: 1rem; width: 100%; display: flex; justify-content: center; }
+                    }
+                </style>    
+
+                <div class="payment-main-grid grid-3" style="align-items: start;">
                     ${renderSection('In Ritardo', 'warning', 'var(--error-soft)', overdue)}
                     ${renderSection('Senza Data', 'help_outline', 'var(--text-tertiary)', nodate)}
                     ${renderSection('In Programma', 'event_available', 'var(--success-soft)', scheduled)}
@@ -294,8 +302,8 @@ export function initPaymentModals() {
                         <div id="pm-code-badge" class="badge badge-neutral" style="width: fit-content; margin-bottom: 1rem; font-size: 0.85rem; padding: 0.4rem 0.85rem; text-transform: none; letter-spacing: 0; font-weight: 500;">-</div>
                         
                         <!-- Amount & Entity -->
-                        <div class="flex-between" style="align-items: flex-start; gap: 2rem;">
-                            <div class="flex-column" style="gap: 0.75rem; flex: 1;">
+                        <div class="payment-modal-header-actions flex-between" style="align-items: flex-start; gap: 2rem;">
+                            <div class="flex-column payment-header-infos" style="gap: 0.75rem; flex: 1;">
                                 <div id="pm-amount" class="text-display" style="font-size: 2.5rem; margin: 0; line-height: 1; font-weight: 700;">€ 0,00</div>
                                 <div class="flex-start" style="gap: 0.5rem; align-items: center;">
                                     <span class="material-icons-round" id="pm-subject-icon" style="font-size: 1.1rem; color: var(--text-tertiary);">person</span>
@@ -313,7 +321,7 @@ export function initPaymentModals() {
                         <div class="flex-column" style="gap: 1.5rem; margin-bottom: 2rem;">
                             <h3 style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); margin: 0;">Informazioni Pagamento</h3>
                             
-                            <div class="grid-2" style="gap: 1.5rem;">
+                            <div class="payment-modal-grid grid-2" style="gap: 1.5rem;">
                                 <div class="flex-column" style="gap: 0.4rem;">
                                     <label class="text-caption" style="font-weight: 500; color: var(--text-tertiary);">Causale</label>
                                     <div id="info-desc" class="text-body" style="font-weight: 500; color: var(--text-primary);">-</div>
@@ -341,7 +349,7 @@ export function initPaymentModals() {
                         <div id="order-details-section" class="flex-column" style="gap: 1.5rem; margin-bottom: 2rem; padding-top: 2rem; border-top: 1px solid var(--glass-border);">
                             <h3 style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); margin: 0;">Dettagli Ordine</h3>
                             
-                            <div class="grid-2" style="gap: 1.5rem;">
+                            <div class="payment-modal-grid grid-2" style="gap: 1.5rem;">
                                 <div class="flex-column" style="gap: 0.4rem;">
                                     <label class="text-caption" style="font-weight: 500; color: var(--text-tertiary);">N. Ordine</label>
                                     <div id="det-order-num" class="text-body" style="font-weight: 500; color: var(--text-primary);">-</div>
@@ -379,6 +387,15 @@ export function initPaymentModals() {
                             Modifica
                         </button>
                     </div>
+                    
+                    <style>
+                        @media (max-width: 768px) {
+                            .payment-modal-header-actions { flex-direction: column; align-items: stretch !important; gap: 1.5rem; }
+                            .payment-header-infos { align-items: center; text-align: center; }
+                            .payment-modal-grid { grid-template-columns: 1fr !important; }
+                            .payment-modal-footer-actions { width: 100%; justify-content: space-between !important; }
+                        }
+                    </style>
 
                 </div>
             </div>

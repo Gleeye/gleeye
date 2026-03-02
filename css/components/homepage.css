@@ -15,6 +15,310 @@
     align-items: flex-end;
 }
 
+/* NEW HOMEPAGE V5 CLASSES */
+.hp-top-section {
+    display: flex;
+    gap: 2rem;
+    margin-top: 1rem;
+    height: 380px;
+}
+
+.hp-main-timeline {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.hp-nav-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex: 0 0 auto;
+}
+
+.hp-date-text {
+    font-size: 1.2rem;
+    font-weight: 300;
+    color: var(--text-primary);
+    font-family: var(--font-base);
+}
+
+.hp-nav-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.hp-pill-group {
+    display: flex;
+    background: #e5e7eb;
+    border-radius: 14px;
+    padding: 4px;
+    gap: 2px;
+}
+
+.nav-pill {
+    padding: 6px 16px;
+    border-radius: 10px;
+    border: none;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    background: transparent;
+    color: #6b7280;
+    transition: all 0.2s;
+}
+
+.nav-pill:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.nav-pill.active-pill {
+    background: white !important;
+    color: #111 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.hp-pill-divider {
+    width: 1px;
+    background: #d1d5db;
+    margin: 4px 2px;
+}
+
+.hp-date-btn {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 6px 14px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #4b5563;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s;
+}
+
+.hp-timeline-card {
+    flex: 1;
+    position: relative;
+    background: white;
+    border-radius: 16px;
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-sm);
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.hp-sidebar-panel {
+    width: 340px;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.side-activities-card {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    height: 100%;
+    overflow: hidden;
+    background: #1e293b;
+    color: white;
+    border-radius: 16px;
+}
+
+.hp-tab-controls {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    padding: 4px;
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    align-items: stretch;
+}
+
+.hp-add-event-btn {
+    flex: 1;
+    border: none;
+    background: var(--brand-blue);
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.hp-activities-list-container {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-right: 4px;
+    min-height: 0;
+}
+
+.vedi-agenda-btn {
+    width: 100%;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+}
+
+.hp-bottom-grid {
+    margin-top: 3rem;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+}
+
+.hp-widget-header {
+    justify-content: flex-start;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.hp-widget-tabs {
+    background: var(--bg-tertiary);
+    padding: 5px;
+    border-radius: 12px;
+    display: flex;
+    gap: 4px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.vedi-tutti-btn {
+    color: var(--brand-blue);
+    font-weight: 700;
+}
+
+.hp-list-content {
+    height: 420px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* Agenda Mobile V5004 */
+.mobile-agenda-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 1rem;
+    height: 100%;
+}
+
+.agenda-mobile-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.agenda-mobile-card:active {
+    background: #f1f5f9;
+    transform: scale(0.98);
+}
+
+.agenda-time {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 60px;
+}
+
+.agenda-time .start {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.agenda-time .end {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.agenda-content {
+    flex: 1;
+}
+
+.agenda-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.type-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.booking .type-badge {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.appointment .type-badge {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+
+.client-name {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.agenda-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0;
+    color: #1e293b;
+}
+
+.agenda-meta {
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.empty-agenda {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    text-align: center;
+}
+
+.empty-agenda span {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.3;
+}
+
 .greeting-section h1 {
     font-size: 2.5rem;
     font-weight: 700;
@@ -581,5 +885,169 @@
     .dashboard-grid,
     .bottom-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+    .hp-top-section {
+        flex-direction: column;
+        height: auto;
+        gap: 1.5rem;
+    }
+
+    .hp-nav-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .hp-date-text {
+        font-size: 1.1rem;
+    }
+
+    .hp-timeline-card {
+        height: 350px;
+        /* Fixed height on mobile to prevent infinite vertical growth */
+    }
+
+    .hp-sidebar-panel {
+        width: 100%;
+    }
+
+    .side-activities-card {
+        height: 450px;
+    }
+
+    .hp-bottom-grid {
+        grid-template-columns: 1fr;
+        margin-top: 2rem;
+        gap: 1.5rem;
+    }
+
+    .hp-widget-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .hp-list-content {
+        height: auto;
+        max-height: 400px;
+    }
+
+    .dashboard-widget {
+        padding: 1.25rem;
+        background: white;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e2e8f0;
+    }
+
+    .project-card {
+        padding: 14px;
+        margin-bottom: 8px;
+        border-radius: 12px;
+        background: #f8fafc;
+        border: 1px solid #f1f5f9 !important;
+    }
+
+    .project-card:last-child {
+        margin-bottom: 0;
+    }
+
+    .hp-date-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .nav-pill {
+        flex: 1;
+        text-align: center;
+        padding: 8px 12px;
+    }
+
+    .hp-pill-group {
+        width: 100%;
+    }
+
+    .hp-nav-controls {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .greeting-section h1 {
+        font-size: 2rem;
+    }
+
+    .greeting-section p {
+        font-size: 0.95rem;
+    }
+
+    .dashboard-grid {
+        gap: 1rem;
+    }
+
+    .dashboard-widget {
+        padding: 1.25rem;
+    }
+
+    .widget-title {
+        font-size: 1.15rem;
+    }
+
+    /* Make timeline scrollable appropriately */
+    .timeline-scroll-area {
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 1rem;
+    }
+
+    /* Make chart bars horizontally scrollable */
+    .chart-bars {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 0.5rem;
+        justify-content: flex-start;
+        /* Prevent shrinking on small screens */
+    }
+
+    .chart-bar {
+        min-width: 30px;
+        /* Ensure they don't get too thin */
+    }
+
+    .project-card {
+        padding: 10px 8px;
+    }
+
+    /* KPI Adjustments */
+    .widget-kpi-row {
+        flex-direction: column;
+        gap: 0;
+        padding: 0;
+        align-items: stretch;
+    }
+
+    .kpi-pill {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px dashed var(--glass-border);
+        padding: 0.75rem 0;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0;
+    }
+
+    .kpi-pill:last-child {
+        border-bottom: none;
+    }
+
+    .kpi-pill .kpi-label {
+        margin-bottom: 0;
+    }
+
+    .bottom-grid {
+        gap: 1rem;
     }
 }

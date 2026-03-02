@@ -25,22 +25,28 @@ window.addEventListener('error', (e) => {
     }
 });
 
-// Init Theme
 function initThemeLogic() {
     const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
-    const icon = document.querySelector('#theme-toggle span');
-    if (icon) {
-        icon.textContent = savedTheme === 'light' ? 'dark_mode' : 'light_mode';
-    }
+
+    // Theme toggle can be in sidebar now
     const themeBtn = document.getElementById('theme-toggle');
+    const updateThemeIcon = (theme) => {
+        const icon = themeBtn?.querySelector('span');
+        if (icon) {
+            icon.textContent = theme === 'light' ? 'dark_mode' : 'light_mode';
+        }
+    };
+
+    updateThemeIcon(savedTheme);
+
     if (themeBtn) {
         themeBtn.addEventListener('click', () => {
             const current = document.documentElement.getAttribute('data-theme');
             const next = current === 'light' ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', next);
             localStorage.setItem('theme', next);
-            if (icon) icon.textContent = next === 'light' ? 'dark_mode' : 'light_mode';
+            updateThemeIcon(next);
         });
     }
 }

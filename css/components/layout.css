@@ -24,22 +24,33 @@
 }
 
 .top-bar {
-    height: 80px;
-    padding: 0 3rem;
+    height: 60px;
+    padding: 0 1.5rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: transparent;
-    z-index: 50;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    z-index: 100;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+:root[data-theme='dark'] .top-bar {
+    background: #0f172a;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .top-bar h2 {
     color: var(--text-primary);
-    opacity: 0.25;
-    font-weight: 600;
-    font-size: 1.5rem;
-    letter-spacing: -0.5px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: -0.3px;
     transition: opacity 0.3s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .top-bar h2.solid-title {
@@ -249,4 +260,133 @@
     color: white;
     border-color: var(--brand-blue);
     box-shadow: 0 4px 10px rgba(var(--brand-blue-rgb), 0.3);
+}
+
+/* ==========================
+   MOBILE RESPONSIVENESS (App-like approach)
+   ========================== */
+@media (max-width: 768px) {
+
+    /* Hide scrollbars for a cleaner app feel */
+    ::-webkit-scrollbar {
+        width: 0px;
+        background: transparent;
+    }
+
+    .top-bar {
+        padding-top: env(safe-area-inset-top, 44px);
+        padding-left: 1rem;
+        padding-right: 1rem;
+        height: calc(48px + env(safe-area-inset-top, 44px));
+        /* 48px is the bar, the rest is safe area */
+        background: #ffffff;
+        /* Solid white for absolute clarity */
+        border-bottom: 2px solid #f1f1f1;
+        /* clearly visible separator */
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+        position: relative;
+        display: flex;
+        align-items: center;
+        /* This will center icons in the 48px remaining space */
+    }
+
+    /* Fallback if safe area is not supported/detected but notch exists */
+    @media screen and (max-aspect-ratio: 1/1) {
+
+        /* likely mobile */
+        .top-bar {
+            padding-top: max(25px, env(safe-area-inset-top));
+            height: calc(48px + max(25px, env(safe-area-inset-top)));
+        }
+    }
+
+    .top-bar h2 {
+        font-size: 1.05rem;
+        font-weight: 800;
+        opacity: 1 !important;
+        position: static;
+        transform: none;
+        flex: 1;
+        margin-left: 0.5rem;
+        color: var(--text-primary);
+    }
+
+    .top-bar #mobile-menu-btn {
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: -0.25rem;
+        color: var(--text-primary);
+    }
+
+    .top-bar .actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .top-bar .icon-btn {
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .hp-mobile-spacer {
+        display: none !important;
+    }
+
+    .hidden-desktop {
+        display: flex !important;
+    }
+
+    .content-area {
+        padding: 0 0.5rem 1rem 0.5rem;
+        /* Reduced padding on mobile */
+    }
+
+    .detail-layout {
+        gap: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    .detail-section {
+        padding: 1rem;
+        /* Smaller padding on child sections inside detail layouts */
+        border-radius: var(--border-radius-md);
+    }
+
+    .info-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .dept-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .search-bar {
+        display: none;
+        /* Hide search on mobile top-bar to save space */
+    }
+
+    .top-bar .actions {
+        gap: 0.25rem;
+    }
+
+    /* Whitelist notifications button visibility */
+    .header-actions #notifications-btn {
+        display: flex !important;
+    }
+
+    .pills-container {
+        pointer-events: auto;
+        /* Ensure horizontal scroll works */
+        -webkit-overflow-scrolling: touch;
+        /* Smooth scrolling on iOS */
+    }
 }

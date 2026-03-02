@@ -8,7 +8,7 @@
 }
 
 #pm-amount {
-    font-family: 'Questrial', sans-serif;
+    font-family: var(--font-titles);
     letter-spacing: -1px;
 }
 

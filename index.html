@@ -3,15 +3,34 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Gleeye Workspace</title>
     <meta name="description" content="A premium enterprise resource planning solution for modern businesses.">
     <link rel="icon" type="image/png" href="logo_gleeye_new.png">
-    <link rel="stylesheet" href="css/main.css?v=1000">
-    <link rel="stylesheet" href="css/design-system.css?v=1000">
-    <link rel="stylesheet" href="css/components/notifications.css?v=1000">
-    <link rel="stylesheet" href="css/components/agenda.css?v=1000">
-    <link rel="stylesheet" href="css/components/homepage.css?v=1000">
+
+    <!-- PWA & Mobile Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4e92d8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Gleeye">
+    <link rel="apple-touch-icon" href="logo_gleeye_new.png">
+
+    <!-- FONTS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+
+    <!-- STYLES -->
+    <link rel="stylesheet" href="css/main.css?v=5004">
+    <link rel="stylesheet" href="css/design-system.css?v=5004">
+    <link rel="stylesheet" href="css/components/notifications.css?v=5004">
+    <link rel="stylesheet" href="css/components/agenda.css?v=5004">
+    <link rel="stylesheet" href="css/components/homepage.css?v=5004">
     <!-- Inline styles to override cache issues -->
     <style>
         .system-modal-message {
@@ -19,12 +38,8 @@
             /* Fix newlines in popups */
         }
     </style>
-    <link rel="stylesheet" href="css/components/custom-select.css?v=1000">
-    <!-- <link rel="stylesheet" href="css/components/chat.css?v=1000"> -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="stylesheet" href="css/components/custom-select.css?v=5004">
+    <!-- <link rel="stylesheet" href="css/components/chat.css?v=3000"> -->
 
     <!-- CRITICAL CSS OVERRIDES FOR AGENDA -->
     <style>
@@ -479,19 +494,35 @@
                 <div style="flex: 1;"></div>
             </nav>
 
-            <div class="user-profile">
-                <div class="avatar" id="user-avatar">??</div>
-                <div class="user-info">
-                    <div class="name" id="user-name" style="min-width: 120px; min-height: 18px; margin-bottom: 4px;">
-                        <div class="skeleton-text"></div>
-                    </div>
-                    <div class="role" id="user-role" style="min-width: 80px; min-height: 12px;">
-                        <div class="skeleton-text" style="height: 12px;"></div>
-                    </div>
+            <div class="sidebar-bottom">
+                <div class="sidebar-actions">
+                    <button id="theme-toggle" class="sidebar-action-btn" title="Cambia Tema">
+                        <span class="material-icons-round">dark_mode</span>
+                    </button>
+                    <button id="admin-settings-btn" class="sidebar-action-btn hidden"
+                        title="Impostazioni Amministratore">
+                        <span class="material-icons-round">admin_panel_settings</span>
+                    </button>
+                    <button class="sidebar-action-btn" title="Aiuto">
+                        <span class="material-icons-round">help_outline</span>
+                    </button>
                 </div>
-                <button id="logout-btn" class="icon-btn" title="Logout">
-                    <span class="material-icons-round">logout</span>
-                </button>
+
+                <div class="user-profile">
+                    <div class="avatar" id="user-avatar">??</div>
+                    <div class="user-info">
+                        <div class="name" id="user-name"
+                            style="min-width: 120px; min-height: 18px; margin-bottom: 4px;">
+                            <div class="skeleton-text"></div>
+                        </div>
+                        <div class="role" id="user-role" style="min-width: 80px; min-height: 12px;">
+                            <div class="skeleton-text" style="height: 12px;"></div>
+                        </div>
+                    </div>
+                    <button id="logout-btn" class="icon-btn" title="Logout">
+                        <span class="material-icons-round">logout</span>
+                    </button>
+                </div>
             </div>
 
         </aside>
@@ -499,6 +530,9 @@
         <!-- Main Content -->
         <main class="main-content">
             <header class="top-bar">
+                <button id="mobile-menu-btn" class="icon-btn hidden-desktop" style="display: none; margin-right: 12px;">
+                    <span class="material-icons-round">menu</span>
+                </button>
                 <h2 id="page-title">Ordini</h2>
                 <div class="actions">
                     <div class="search-bar">
@@ -506,14 +540,12 @@
                         <input type="text" id="global-search" placeholder="Cerca...">
                     </div>
                     <div class="header-actions">
-                        <button id="admin-settings-btn" class="icon-btn hidden" title="Impostazioni Amministratore">
-                            <span class="material-icons-round">admin_panel_settings</span>
-                        </button>
-                        <button id="theme-toggle" class="icon-btn" title="Cambia Tema">
-                            <span class="material-icons-round">dark_mode</span>
-                        </button>
-                        <button class="icon-btn" title="Aiuto"><span
-                                class="material-icons-round">help_outline</span></button>
+                        <div class="notification-container">
+                            <button id="notifications-btn" class="icon-btn" title="Notifiche">
+                                <span class="material-icons-round">notifications</span>
+                                <span class="notification-badge hidden"></span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -542,8 +574,23 @@
     </div>
 
     <!-- Main JS Module -->
-    <script type="module" src="js/features/layout.js?v=1000"></script>
-    <script type="module" src="js/app.js?v=1000"></script>
+    <script type="module" src="js/features/layout.js?v=5004"></script>
+    <script type="module" src="js/app.js?v=5004"></script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('SW registered with scope:', registration.scope);
+                    })
+                    .catch(err => {
+                        console.error('SW registration failed:', err);
+                    });
+            });
+        }
+    </script>
 </body>
 
 </html>

@@ -82,30 +82,25 @@ export function renderInvoices(container) {
 export function renderActiveInvoicesSafe(container) {
     let currentYear = state.dashboardYear;
 
-    // Auto-Switch Active Year Logic (Enhanced)
-    // Check if we have a year set, and if that year actually has data.
+    // Auto-Switch Active Year Logic
     const hasDataForCurrent = currentYear && state.invoices.some(inv => new Date(inv.invoice_date).getFullYear() === parseInt(currentYear));
 
     if ((!currentYear || !hasDataForCurrent) && state.invoices.length > 0) {
-        const def = new Date().getFullYear();
-        // Prioritize current year IF it has data
+        const def = 2026;
         const hasDataDef = state.invoices.some(inv => new Date(inv.invoice_date).getFullYear() === def);
-
         if (hasDataDef) {
             currentYear = def;
         } else {
-            // Otherwise pick latest year with data
             const allYears = [...new Set(state.invoices.map(inv => new Date(inv.invoice_date).getFullYear()))].sort((a, b) => b - a);
-            if (allYears.length > 0) currentYear = allYears[0];
-            else currentYear = def;
+            currentYear = allYears.length > 0 ? allYears[0] : def;
         }
         state.dashboardYear = currentYear;
     } else if (!currentYear) {
-        currentYear = new Date().getFullYear();
+        currentYear = 2026;
         state.dashboardYear = currentYear;
     }
 
-    const statusFilter = state.invoiceStatusFilter || 'all'; // 'all', 'pending', 'paid'
+    const statusFilter = state.invoiceStatusFilter || 'all';
 
     let filteredInvoices = state.invoices.filter(inv => {
         const matchesSearch = inv.invoice_number.toLowerCase().includes(state.searchTerm.toLowerCase()) ||
@@ -114,14 +109,12 @@ export function renderActiveInvoicesSafe(container) {
         return matchesSearch && matchesYear;
     });
 
-    // Sort by invoice number (descending - newest first)
     filteredInvoices.sort((a, b) => {
         const numA = a.invoice_number || '';
         const numB = b.invoice_number || '';
         return numB.localeCompare(numA, undefined, { numeric: true });
     });
 
-    // Calculate KPIs using amount_tax_excluded (importo)
     const totalFatturato = filteredInvoices.reduce((sum, i) => sum + (parseFloat(i.amount_tax_excluded) || 0), 0);
     const nonSaldate = filteredInvoices.filter(i => i.status !== 'Saldata');
     const saldate = filteredInvoices.filter(i => i.status === 'Saldata');
@@ -129,20 +122,14 @@ export function renderActiveInvoicesSafe(container) {
     const incassato = saldate.reduce((sum, i) => sum + (parseFloat(i.amount_tax_excluded) || 0), 0);
     const percIncasso = totalFatturato > 0 ? Math.round((incassato / totalFatturato) * 100) : 0;
 
-    // Apply status filter
-    if (statusFilter === 'pending') {
-        filteredInvoices = nonSaldate;
-    } else if (statusFilter === 'paid') {
-        filteredInvoices = saldate;
-    }
+    if (statusFilter === 'pending') filteredInvoices = nonSaldate;
+    else if (statusFilter === 'paid') filteredInvoices = saldate;
 
     const getStatusStyle = (status) => {
         if (status === 'Saldata') return 'background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2);';
         if (status === 'Inviata') return 'background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2);';
         return 'background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2);';
     };
-
-    const kpiActiveStyle = (filter) => statusFilter === filter ? 'box-shadow: 0 0 0 2px var(--brand-blue); transform: scale(1.02);' : '';
 
     const formatDateBlock = (dateStr) => {
         if (!dateStr) return '';
@@ -162,104 +149,223 @@ export function renderActiveInvoicesSafe(container) {
         const importo = parseFloat(inv.amount_tax_excluded) || 0;
         const iva = parseFloat(inv.tax_amount) || 0;
         const isSplit = inv.vat_eligibility && inv.vat_eligibility.toLowerCase().includes('scissione');
-        // Netto a pagare: if split payment, client keeps the IVA so netto = importo; otherwise netto = importo + iva
         const nettoAPagare = isSplit ? importo : (importo + iva);
         const settlementDate = inv.payment_date ? new Date(inv.payment_date).toLocaleDateString('it-IT') : null;
 
         return `
-        <div class="glass-card clickable-card" data-id="${inv.id}" style="padding: 1rem 1.25rem; cursor: pointer; transition: all 0.2s; border: 1px solid var(--glass-border); display: flex; align-items: center; gap: 1.25rem;">
-            <!-- Date Block -->
-            ${formatDateBlock(inv.invoice_date)}
-            
-            <!-- Separator -->
-            <div style="width: 1px; height: 40px; background: var(--glass-border);"></div>
-            
-            <!-- Invoice Number Block (styled like date) -->
-            <div style="text-align: center; min-width: 50px; padding: 0.25rem 0.5rem; background: rgba(59, 130, 246, 0.05); border-radius: 8px;">
-                <div style="font-size: 1.25rem; font-weight: 600; line-height: 1; color: var(--brand-blue);">${inv.invoice_number || '-'}</div>
-                <div style="font-size: 0.6rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.02em;">Fattura</div>
-            </div>
-            
-            <!-- Client Name -->
-            <div style="flex: 1; min-width: 0;">
-                <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${inv.clients?.business_name || inv.clienti || inv.nome_cliente || '-'}</div>
-            </div>
-            
-            <!-- Status + Settlement Date (fixed width for alignment) -->
-            <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 180px; justify-content: flex-end;">
-                <span style="padding: 0.3rem 0.75rem; border-radius: 2rem; font-size: 0.7rem; font-weight: 600; white-space: nowrap; ${getStatusStyle(inv.status)}">${inv.status || 'Bozza'}</span>
-                <span style="font-size: 0.75rem; color: var(--text-tertiary); min-width: 75px; text-align: right;">${settlementDate || ''}</span>
-            </div>
-            
-            <!-- Amounts -->
-            <div style="text-align: right; min-width: 120px;">
-                <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">€ ${formatAmount(importo)}</div>
-                <div style="font-size: 0.7rem; color: var(--text-tertiary); display: flex; align-items: center; justify-content: flex-end; gap: 0.3rem;">
-                    ${iva > 0 ? `IVA € ${formatAmount(iva)}` : 'esente IVA'}
-                    ${isSplit ? '<span class="material-icons-round" style="font-size: 0.9rem; color: #8b5cf6;" title="Split Payment">call_split</span>' : ''}
+        <div class="glass-card clickable-card inv-mobile-card" data-id="${inv.id}">
+            <!-- Desktop Layout (Standard horizontal) -->
+            <div class="inv-card-desktop">
+                <div class="card-left">
+                    ${formatDateBlock(inv.invoice_date)}
+                    <div class="card-separator"></div>
+                    <div class="invoice-number-badge">
+                        <div class="inv-num">${inv.invoice_number || '-'}</div>
+                        <div class="inv-label">Fattura</div>
+                    </div>
                 </div>
-                <div style="font-size: 0.7rem; color: #10b981; font-weight: 600;">Netto € ${formatAmount(nettoAPagare)}</div>
+                <div class="card-center">
+                    <div class="client-name">${inv.clients?.business_name || inv.clienti || inv.nome_cliente || '-'}</div>
+                </div>
+                <div class="card-right">
+                    <div class="status-wrapper">
+                        <span class="status-badge" style="${getStatusStyle(inv.status)}">${inv.status || 'Bozza'}</span>
+                        <span class="settlement-date">${settlementDate || ''}</span>
+                    </div>
+                    <div class="amount-wrapper">
+                        <div class="amount-total">€ ${formatAmount(importo)}</div>
+                        <div class="amount-details">
+                            ${iva > 0 ? `IVA € ${formatAmount(iva)}` : 'esente IVA'}
+                            ${isSplit ? '<span class="material-icons-round split-icon">call_split</span>' : ''}
+                        </div>
+                        <div style="font-size: 0.7rem; color: #10b981; font-weight: 600;">Netto € ${formatAmount(nettoAPagare)}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Layout (Custom stacking as requested) -->
+            <div class="inv-card-mobile">
+                <div class="mob-row-top">
+                    <div class="mob-date-num">
+                        <div class="mob-num">#${inv.invoice_number}</div>
+                        <div class="mob-date">
+                            <strong>${new Date(inv.invoice_date).getDate()}</strong>
+                            ${new Date(inv.invoice_date).toLocaleDateString('it-IT', { month: 'short' }).toUpperCase()}
+                        </div>
+                    </div>
+                    <div class="mob-client-info">
+                        <div class="mob-client-name">${inv.clients?.business_name || inv.clienti || inv.nome_cliente || '-'}</div>
+                        <div class="mob-status-row">
+                            <span class="status-badge" style="${getStatusStyle(inv.status)}">${inv.status || 'Bozza'}</span>
+                            <span class="mob-settlement">${settlementDate || ''}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mob-row-bottom">
+                    <div class="mob-amounts-left">
+                        <span class="mob-importo">€ ${formatAmount(importo)}</span>
+                        <span class="mob-iva">${iva > 0 ? `IVA € ${formatAmount(iva)}` : 'esente IVA'}</span>
+                    </div>
+                    <div class="mob-netto">€ ${formatAmount(nettoAPagare)}</div>
+                </div>
             </div>
         </div>`;
     }).join('');
 
     container.innerHTML = `
         <div class="animate-fade-in" style="max-width: 1100px; margin: 0 auto; padding: 1rem;">
-            <!-- Header -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <div style="width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, #10b981, #059669); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 16px rgba(16, 185, 129, 0.2);">
-                        <span class="material-icons-round" style="color: white; font-size: 24px;">receipt_long</span>
+            <div class="invoice-page-header">
+                <div class="header-main">
+                    <div class="title-group">
+                         <span class="material-icons-round header-icon">receipt_long</span>
+                         <h1 class="page-title desktop-only-title">Fatture Attive</h1>
+                         <div class="year-badge">${currentYear}</div>
                     </div>
-                    <div>
-                        <h1 style="font-size: 1.5rem; font-weight: 700; margin: 0; font-family: var(--font-titles);">Fatture Attive</h1>
-                        <p style="font-size: 0.85rem; color: var(--text-tertiary); margin: 0;">${filteredInvoices.length} fatture ${statusFilter !== 'all' ? `(${statusFilter === 'pending' ? 'da incassare' : 'incassate'})` : `nel ${currentYear}`}</p>
-                    </div>
+                    <p class="header-subtitle">${filteredInvoices.length} documenti emessi</p>
                 </div>
-                <div style="display: flex; gap: 0.75rem; align-items: center;">
-                    <select id="inv-year-filter" style="padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--glass-border); background: white; font-size: 0.85rem; cursor: pointer;">
-                        <option value="2026" ${currentYear === 2026 ? 'selected' : ''}>2026</option>
-                        <option value="2025" ${currentYear === 2025 ? 'selected' : ''}>2025</option>
-                        <option value="2024" ${currentYear === 2024 ? 'selected' : ''}>2024</option>
-                    </select>
-                    <button class="primary-btn" id="btn-new-invoice" style="padding: 0.6rem 1.25rem; border-radius: 10px; white-space: nowrap;">
-                        <span class="material-icons-round" style="font-size: 1.1rem;">add</span> Nuova
+                <div class="header-actions-row">
+                    <div class="year-select-wrapper">
+                        <select id="inv-year-filter" class="clean-select">
+                             <option value="2026" ${currentYear === 2026 ? 'selected' : ''}>2026</option>
+                             <option value="2025" ${currentYear === 2025 ? 'selected' : ''}>2025</option>
+                             <option value="2024" ${currentYear === 2024 ? 'selected' : ''}>2024</option>
+                        </select>
+                        <span class="material-icons-round select-icon">expand_more</span>
+                    </div>
+                    <button class="primary-btn fab-btn" id="btn-new-invoice" title="Nuova Fattura">
+                        <span class="material-icons-round">add</span>
                     </button>
                 </div>
             </div>
 
-            <!-- KPI Summary (clickable) -->
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem;">
-                <div class="glass-card kpi-card" data-filter="all" style="padding: 1.25rem; background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), transparent); cursor: pointer; transition: all 0.2s; ${kpiActiveStyle('all')}">
-                    <div style="font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Totale Fatturato</div>
-                    <div style="font-size: 1.5rem; font-weight: 800; color: #10b981; font-family: var(--font-titles);">€ ${formatAmount(totalFatturato)}</div>
+            <div class="inv-kpi-grid">
+                <div class="glass-card kpi-card ${statusFilter === 'all' ? 'active-filter' : ''}" data-filter="all" style="--kpi-color: #10b981;">
+                    <div class="kpi-label">Totale Fatturato</div>
+                    <div class="kpi-value" style="color: #10b981;">€ ${formatAmount(totalFatturato)}</div>
                 </div>
-                <div class="glass-card kpi-card" data-filter="pending" style="padding: 1.25rem; background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), transparent); cursor: pointer; transition: all 0.2s; ${kpiActiveStyle('pending')}">
-                    <div style="font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Da Incassare</div>
-                    <div style="font-size: 1.5rem; font-weight: 800; color: #f59e0b; font-family: var(--font-titles);">€ ${formatAmount(daIncassare)}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">${nonSaldate.length} fatture</div>
+                <div class="glass-card kpi-card ${statusFilter === 'pending' ? 'active-filter' : ''}" data-filter="pending" style="--kpi-color: #f59e0b;">
+                    <div class="kpi-label">Da Incassare</div>
+                    <div class="kpi-value" style="color: #f59e0b;">€ ${formatAmount(daIncassare)}</div>
+                    <div class="kpi-subtext">${nonSaldate.length} fatture</div>
                 </div>
-                <div class="glass-card kpi-card" data-filter="paid" style="padding: 1.25rem; background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), transparent); cursor: pointer; transition: all 0.2s; ${kpiActiveStyle('paid')}">
-                    <div style="font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Incassato</div>
-                    <div style="font-size: 1.5rem; font-weight: 800; color: #3b82f6; font-family: var(--font-titles);">€ ${formatAmount(incassato)}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">${saldate.length} fatture</div>
+                <div class="glass-card kpi-card ${statusFilter === 'paid' ? 'active-filter' : ''}" data-filter="paid" style="--kpi-color: #3b82f6;">
+                    <div class="kpi-label">Incassato</div>
+                    <div class="kpi-value" style="color: #3b82f6;">€ ${formatAmount(incassato)}</div>
+                    <div class="kpi-subtext">${saldate.length} fatture</div>
                 </div>
-                <div class="glass-card" style="padding: 1.25rem; position: relative; overflow: hidden;">
-                    <div style="font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 0.5rem;">% Incasso</div>
-                    <div style="font-size: 1.5rem; font-weight: 800; color: ${percIncasso >= 75 ? '#10b981' : percIncasso >= 50 ? '#f59e0b' : '#ef4444'}; font-family: var(--font-titles);">${percIncasso}%</div>
-                    <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: rgba(0,0,0,0.05);">
-                        <div style="height: 100%; width: ${percIncasso}%; background: ${percIncasso >= 75 ? '#10b981' : percIncasso >= 50 ? '#f59e0b' : '#ef4444'}; transition: width 0.3s;"></div>
+                <div class="glass-card kpi-static">
+                    <div class="kpi-label">% Incasso</div>
+                    <div class="kpi-value" style="color: ${percIncasso >= 75 ? '#10b981' : percIncasso >= 50 ? '#f59e0b' : '#ef4444'};">${percIncasso}%</div>
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: ${percIncasso}%; background: ${percIncasso >= 75 ? '#10b981' : percIncasso >= 50 ? '#f59e0b' : '#ef4444'};"></div>
                     </div>
                 </div>
             </div>
+            <style>
+                /* Header & Layout */
+                .invoice-page-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; gap: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem; }
+                .title-group { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.25rem; }
+                .header-icon { color: #10b981; font-size: 1.25rem; }
+                .page-title { font-size: 1.25rem; font-weight: 700; margin: 0; font-family: var(--font-titles); color: var(--text-primary); }
+                .year-badge { background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+                .header-subtitle { font-size: 0.85rem; color: var(--text-tertiary); margin: 0; }
+                .header-actions-row { display: flex; gap: 0.75rem; align-items: center; }
+                .year-select-wrapper { position: relative; }
+                .clean-select { padding: 0.5rem 2.2rem 0.5rem 0.75rem; border-radius: 10px; border: 1px solid var(--glass-border); background: var(--card-bg); font-size: 0.9rem; font-weight: 600; cursor: pointer; appearance: none; min-width: 100px; color: var(--text-primary); }
+                .select-icon { position: absolute; right: 0.6rem; top: 50%; transform: translateY(-50%); font-size: 1.2rem; pointer-events: none; opacity: 0.3; }
+                .fab-btn { width: 44px; height: 44px; border-radius: 50% !important; padding: 0 !important; min-width: 0 !important; box-shadow: 0 4px 12px rgba(97, 74, 162, 0.25); display: flex; align-items: center; justify-content: center; }
+                
+                /* KPI Grid */
+                .inv-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+                .kpi-card, .kpi-static { padding: 1.25rem; background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: var(--border-radius-lg); transition: all 0.2s; position: relative; overflow: hidden; }
+                .kpi-card:hover { transform: translateY(-2px); border-color: var(--kpi-color); }
+                .kpi-card.active-filter { border-color: var(--kpi-color); background: var(--glass-bg); }
+                .kpi-label { font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+                .kpi-value { font-size: 1.5rem; font-weight: 800; font-family: var(--font-titles); }
+                .kpi-subtext { font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem; }
+                .progress-container { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: rgba(0,0,0,0.05); }
+                .progress-bar { height: 100%; transition: width 0.3s; }
 
-            <!-- Invoice List (single column) -->
+                /* Invoice Cards Layout Control */
+                .inv-card-desktop { display: flex; align-items: center; width: 100%; gap: 1.25rem; }
+                .inv-card-mobile { display: none; width: 100%; flex-direction: column; gap: 0.75rem; }
+
+                .clickable-card { 
+                    padding: 1rem 1.25rem; 
+                    cursor: pointer; 
+                    transition: all 0.2s; 
+                    border: 1px solid var(--glass-border); 
+                    background: var(--card-bg);
+                }
+                .clickable-card:hover { border-color: var(--brand-blue); background: var(--glass-bg); }
+                
+                .card-left { display: flex; align-items: center; gap: 0.75rem; }
+                .card-separator { width: 1px; height: 36px; background: var(--glass-border); }
+                .invoice-number-badge { text-align: center; min-width: 50px; padding: 0.25rem 0.5rem; background: rgba(59, 130, 246, 0.05); border-radius: 8px; }
+                .inv-num { font-size: 1.1rem; font-weight: 600; line-height: 1; color: var(--brand-blue); }
+                .inv-label { font-size: 0.6rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.02em; }
+                
+                .card-center { flex: 1; min-width: 0; }
+                .client-name { font-size: 1rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                
+                .card-right { display: flex; align-items: center; gap: 2rem; }
+                .status-wrapper { display: flex; align-items: center; gap: 0.5rem; min-width: 160px; justify-content: flex-end; }
+                .status-badge { padding: 0.3rem 0.75rem; border-radius: 2rem; font-size: 0.7rem; font-weight: 600; white-space: nowrap; }
+                .settlement-date { font-size: 0.75rem; color: var(--text-tertiary); min-width: 75px; text-align: right; }
+                
+                .amount-wrapper { text-align: right; min-width: 110px; }
+                .amount-total { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+                .amount-details { font-size: 0.7rem; color: var(--text-tertiary); display: flex; align-items: center; justify-content: flex-end; gap: 0.3rem; }
+                .split-icon { font-size: 0.9rem; color: #8b5cf6; }
+
+                @media (max-width: 768px) {
+                    .inv-card-desktop { display: none; }
+                    .inv-card-mobile { display: flex; }
+                    
+                    .clickable-card { padding: 0.75rem 0.85rem !important; }
+                    
+                    /* Mobile Stacking Logic */
+                    .mob-row-top { display: flex; gap: 0.85rem; align-items: flex-start; }
+                    .mob-date-num { text-align: center; min-width: 50px; padding-right: 0.75rem; border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; justify-content: center; }
+                    .mob-num { font-size: 0.75rem; color: var(--brand-blue); font-weight: 600; margin-bottom: 4px; }
+                    .mob-date { font-size: 1.1rem; line-height: 1.1; color: var(--text-tertiary); font-weight: 300; }
+                    .mob-date strong { display: block; font-weight: 700; color: var(--text-primary); font-size: 1.25rem; }
+                    
+                    .mob-client-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+                    .mob-client-name { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem; line-height: 1.2; word-break: break-word; }
+                    .mob-status-row { display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; }
+                    .mob-status-row .status-badge { font-size: 0.65rem; padding: 0.2rem 0.6rem; }
+                    .mob-settlement { font-size: 0.7rem; color: var(--text-tertiary); }
+                    
+                    .mob-row-bottom { 
+                        display: flex; 
+                        justify-content: space-between; 
+                        align-items: center; 
+                        margin-top: 0.6rem; 
+                        padding-top: 0.6rem; 
+                        border-top: 1px solid rgba(0,0,0,0.03); 
+                    }
+                    .mob-amounts-left { display: flex; align-items: center; gap: 0.6rem; }
+                    .mob-importo { font-size: 0.75rem; color: var(--text-tertiary); }
+                    .mob-iva { font-size: 0.75rem; color: var(--text-tertiary); }
+                    .mob-netto { font-size: 1.1rem; font-weight: 800; color: #10b981; }
+
+                    .desktop-only-title { display: none; }
+                    .invoice-page-header { align-items: center; padding-bottom: 0.75rem; }
+                    .inv-kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-bottom: 1.25rem; }
+                    .kpi-card, .kpi-static { padding: 0.85rem; border-radius: 12px; }
+                    .kpi-label { font-size: 0.6rem; }
+                    .kpi-value { font-size: 1.1rem; }
+                    .fab-btn { width: 40px; height: 40px; }
+                    .clean-select { padding: 0.45rem 2rem 0.45rem 0.6rem; font-size: 0.85rem; min-width: 85px; }
+                }
+            </style>
+
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                 ${cards || '<div style="text-align: center; padding: 3rem; color: var(--text-tertiary);">Nessuna fattura trovata</div>'}
             </div>
         </div>`;
 
-    // Event listeners
     container.querySelectorAll('.clickable-card').forEach(card => {
         card.addEventListener('click', () => window.openInvoiceDetail(card.dataset.id, 'active'));
     });
@@ -269,7 +375,6 @@ export function renderActiveInvoicesSafe(container) {
         state.invoiceStatusFilter = 'all';
         renderActiveInvoicesSafe(container);
     });
-    // KPI click handlers
     container.querySelectorAll('.kpi-card').forEach(kpi => {
         kpi.addEventListener('click', () => {
             state.invoiceStatusFilter = kpi.dataset.filter;
@@ -279,135 +384,135 @@ export function renderActiveInvoicesSafe(container) {
 }
 
 
-// --- INVOICE FORM MODAL LOGIC (Simplified for refactor) ---
+// --- INVOICE FORM MODAL LOGIC ---
 
 export function initInvoiceModals() {
     if (!document.getElementById('invoice-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
             <div id="invoice-modal" class="modal">
                 <div class="modal-content glass-card" style="max-width: 700px; padding: 0; overflow: hidden;">
-                    <!-- Header -->
-                    <div style="padding: 1.5rem 2rem; background: var(--bg-secondary); border-bottom: 1px solid var(--glass-border);">
-                        <div style="display: flex; align-items: center; justify-content: space-between;">
-                            <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, var(--brand-blue), #2563eb); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
-                                    <span class="material-icons-round" style="color: white; font-size: 1.4rem;">receipt</span>
-                                </div>
-                                <div>
-                                    <h2 id="invoice-modal-title" style="margin: 0; font-family: var(--font-titles); font-weight: 700; font-size: 1.25rem; color: var(--text-primary);">Nuova Fattura</h2>
-                                    <p style="margin: 0.2rem 0 0; font-size: 0.75rem; color: var(--text-tertiary);">Compila i dettagli del documento fiscale</p>
-                                </div>
+                <!-- Header -->
+                <div style="padding: 1.5rem 2rem; background: var(--bg-secondary); border-bottom: 1px solid var(--glass-border);">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, var(--brand-blue), #2563eb); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
+                                <span class="material-icons-round" style="color: white; font-size: 1.4rem;">receipt</span>
                             </div>
-                            <button class="icon-btn" id="close-invoice-modal-btn" style="width: 36px; height: 36px; border-radius: 10px; background: white; border: 1px solid var(--glass-border);">
-                                <span class="material-icons-round" style="font-size: 1.25rem; color: var(--text-tertiary);">close</span>
-                            </button>
+                            <div>
+                                <h2 id="invoice-modal-title" style="margin: 0; font-family: var(--font-titles); font-weight: 700; font-size: 1.25rem; color: var(--text-primary);">Nuova Fattura</h2>
+                                <p style="margin: 0.2rem 0 0; font-size: 0.75rem; color: var(--text-tertiary);">Compila i dettagli del documento fiscale</p>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <!-- Body -->
-                    <div id="invoice-modal-body" style="padding: 1.5rem 2rem; max-height: 70vh; overflow-y: auto;">
-                        <form id="invoice-form" style="display: flex; flex-direction: column; gap: 1.5rem;">
-                            
-                            <!-- Row 1: Numero + Data -->
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                                <div>
-                                    <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Numero Fattura *</label>
-                                    <input type="text" id="inv-number" class="modal-input" required placeholder="Es. 25-01" style="width: 100%;">
-                                </div>
-                                <div>
-                                    <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Data Invio *</label>
-                                    <input type="date" id="inv-date" class="modal-input" required style="width: 100%;">
-                                </div>
-                            </div>
-                            
-                            <!-- Row 2: Cliente -->
-                            <div>
-                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Cliente *</label>
-                                <div style="position: relative;">
-                                    <select id="inv-client" class="modal-input" required style="width: 100%;">
-                                        <option value="">Seleziona cliente...</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <!-- Row 3: Importo + Esigibilità IVA -->
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                                <div>
-                                    <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Importo Imponibile *</label>
-                                    <div style="position: relative;">
-                                        <span style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); font-size: 0.9rem; color: var(--text-tertiary);">€</span>
-                                        <input type="number" id="inv-amount" class="modal-input" step="0.01" required placeholder="0.00" style="width: 100%; padding-left: 2rem;">
-                                    </div>
-                                </div>
-                                <div>
-                                    <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Esigibilità IVA *</label>
-                                    <select id="inv-vat-eligibility" class="modal-input" required style="width: 100%;">
-                                        <option value="Immediata">Immediata (I)</option>
-                                        <option value="Differita">Differita (D)</option>
-                                        <option value="Scissione dei pagamenti">Scissione dei pagamenti (S)</option>
-                                        <option value="Esente art. 10">Esente art. 10 (N2.1)</option>
-                                        <option value="Escluso art. 15">Escluso art. 15 - Anticipi (N2.2)</option>
-                                        <option value="Non imponibile">Non imponibile (N3)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <!-- Row 4: Spese Anticipate -->
-                            <div style="padding: 1rem; background: rgba(139, 92, 246, 0.05); border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.15);">
-                                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                    <input type="checkbox" id="inv-has-expenses" style="width: 18px; height: 18px; cursor: pointer;">
-                                    <label for="inv-has-expenses" style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); cursor: pointer;">Spese anticipate per conto cliente</label>
-                                </div>
-                                <p style="margin: 0.5rem 0 0 1.75rem; font-size: 0.7rem; color: var(--text-tertiary);">Art. 15 DPR 633/72 - Escluse da base imponibile IVA</p>
-                                <div id="inv-expenses-amount-container" style="display: none; margin-top: 0.75rem; margin-left: 1.75rem;">
-                                    <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase;">Importo Spese €</label>
-                                    <input type="number" id="inv-expenses-amount" class="modal-input" step="0.01" placeholder="0.00" style="max-width: 200px;">
-                                </div>
-                            </div>
-                            
-                            <!-- Row 5: Ordini (filtrati per cliente) -->
-                            <div>
-                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Ordini Collegati</label>
-                                <select id="inv-order" class="modal-input" style="width: 100%;">
-                                    <option value="">Seleziona prima un cliente</option>
-                                </select>
-                                <p style="margin: 0.4rem 0 0; font-size: 0.65rem; color: var(--text-tertiary);">Filtrato per cliente selezionato</p>
-                            </div>
-                            
-                            <!-- Row 6: Stato + Data Saldo -->
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                                <div>
-                                    <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Stato Fattura</label>
-                                    <select id="inv-status" class="modal-input" style="width: 100%;">
-                                        <option value="Inviata">Inviata</option>
-                                        <option value="Saldata">Saldata</option>
-                                    </select>
-                                </div>
-                                <div id="inv-payment-date-container" style="display: none;">
-                                    <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Data Saldo</label>
-                                    <input type="date" id="inv-payment-date" class="modal-input" style="width: 100%;">
-                                </div>
-                            </div>
-                            
-                            <!-- Row 7: Pagamenti (filtrati per ordini) -->
-                            <div id="inv-payments-container" style="display: none;">
-                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Collega Pagamenti</label>
-                                <div id="inv-payments-list" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 150px; overflow-y: auto; padding: 0.5rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--glass-border);">
-                                    <p style="color: var(--text-tertiary); font-size: 0.8rem; text-align: center;">Seleziona un ordine per vedere i pagamenti</p>
-                                </div>
-                            </div>
-                            
-                            <!-- Actions -->
-                            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--glass-border);">
-                                <button type="button" class="primary-btn secondary" id="cancel-invoice-btn" style="padding: 0.6rem 1.25rem;">Annulla</button>
-                                <button type="submit" class="primary-btn" style="padding: 0.6rem 1.5rem;">
-                                    <span class="material-icons-round" style="font-size: 1.1rem;">save</span>
-                                    Salva Fattura
-                                </button>
-                            </div>
-                        </form>
+                        <button class="icon-btn" id="close-invoice-modal-btn" style="width: 36px; height: 36px; border-radius: 10px; background: white; border: 1px solid var(--glass-border);">
+                            <span class="material-icons-round" style="font-size: 1.25rem; color: var(--text-tertiary);">close</span>
+                        </button>
                     </div>
                 </div>
+
+                <!-- Body -->
+                <div id="invoice-modal-body" style="padding: 1.5rem 2rem; max-height: 70vh; overflow-y: auto;">
+                    <form id="invoice-form" style="display: flex; flex-direction: column; gap: 1.5rem;">
+
+                        <!-- Row 1: Numero + Data -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Numero Fattura *</label>
+                                <input type="text" id="inv-number" class="modal-input" required placeholder="Es. 25-01" style="width: 100%;">
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Data Invio *</label>
+                                <input type="date" id="inv-date" class="modal-input" required style="width: 100%;">
+                            </div>
+                        </div>
+
+                        <!-- Row 2: Cliente -->
+                        <div>
+                            <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Cliente *</label>
+                            <div style="position: relative;">
+                                <select id="inv-client" class="modal-input" required style="width: 100%;">
+                                    <option value="">Seleziona cliente...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Row 3: Importo + Esigibilità IVA -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Importo Imponibile *</label>
+                                <div style="position: relative;">
+                                    <span style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); font-size: 0.9rem; color: var(--text-tertiary);">€</span>
+                                    <input type="number" id="inv-amount" class="modal-input" step="0.01" required placeholder="0.00" style="width: 100%; padding-left: 2rem;">
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Esigibilità IVA *</label>
+                                <select id="inv-vat-eligibility" class="modal-input" required style="width: 100%;">
+                                    <option value="Immediata">Immediata (I)</option>
+                                    <option value="Differita">Differita (D)</option>
+                                    <option value="Scissione dei pagamenti">Scissione dei pagamenti (S)</option>
+                                    <option value="Esente art. 10">Esente art. 10 (N2.1)</option>
+                                    <option value="Escluso art. 15">Escluso art. 15 - Anticipi (N2.2)</option>
+                                    <option value="Non imponibile">Non imponibile (N3)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Row 4: Spese Anticipate -->
+                        <div style="padding: 1rem; background: rgba(139, 92, 246, 0.05); border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.15);">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <input type="checkbox" id="inv-has-expenses" style="width: 18px; height: 18px; cursor: pointer;">
+                                    <label for="inv-has-expenses" style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); cursor: pointer;">Spese anticipate per conto cliente</label>
+                            </div>
+                            <p style="margin: 0.5rem 0 0 1.75rem; font-size: 0.7rem; color: var(--text-tertiary);">Art. 15 DPR 633/72 - Escluse da base imponibile IVA</p>
+                            <div id="inv-expenses-amount-container" style="display: none; margin-top: 0.75rem; margin-left: 1.75rem;">
+                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase;">Importo Spese €</label>
+                                <input type="number" id="inv-expenses-amount" class="modal-input" step="0.01" placeholder="0.00" style="max-width: 200px;">
+                            </div>
+                        </div>
+
+                        <!-- Row 5: Ordini (filtrati per cliente) -->
+                        <div>
+                            <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Ordini Collegati</label>
+                            <select id="inv-order" class="modal-input" style="width: 100%;">
+                                <option value="">Seleziona prima un cliente</option>
+                            </select>
+                            <p style="margin: 0.4rem 0 0; font-size: 0.65rem; color: var(--text-tertiary);">Filtrato per cliente selezionato</p>
+                        </div>
+
+                        <!-- Row 6: Stato + Data Saldo -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Stato Fattura</label>
+                                <select id="inv-status" class="modal-input" style="width: 100%;">
+                                    <option value="Inviata">Inviata</option>
+                                    <option value="Saldata">Saldata</option>
+                                </select>
+                            </div>
+                            <div id="inv-payment-date-container" style="display: none;">
+                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Data Saldo</label>
+                                <input type="date" id="inv-payment-date" class="modal-input" style="width: 100%;">
+                            </div>
+                        </div>
+
+                        <!-- Row 7: Pagamenti (filtrati per ordini) -->
+                        <div id="inv-payments-container" style="display: none;">
+                            <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Collega Pagamenti</label>
+                            <div id="inv-payments-list" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 150px; overflow-y: auto; padding: 0.5rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--glass-border);">
+                                <p style="color: var(--text-tertiary); font-size: 0.8rem; text-align: center;">Seleziona un ordine per vedere i pagamenti</p>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--glass-border);">
+                            <button type="button" class="primary-btn secondary" id="cancel-invoice-btn" style="padding: 0.6rem 1.25rem;">Annulla</button>
+                            <button type="submit" class="primary-btn" style="padding: 0.6rem 1.5rem;">
+                                <span class="material-icons-round" style="font-size: 1.1rem;">save</span>
+                                Salva Fattura
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
             </div>
             
             <!-- Passive Invoice Modal - Collaborators (Premium Design) -->
@@ -580,13 +685,13 @@ export function initInvoiceModals() {
             </div>
             
             <!-- Unpaid Modal -->
-            <div id="unpaid-modal" class="modal">
-                <div class="modal-content">
-                    <div class="modal-header"><h2 id="unpaid-modal-title">Fatture Non Saldate</h2><button class="close-modal" onclick="this.closest('.modal').classList.remove('active')">x</button></div>
-                    <div id="unpaid-list"></div>
-                </div>
+        <div id="unpaid-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header"><h2 id="unpaid-modal-title">Fatture Non Saldate</h2><button class="close-modal" onclick="this.closest('.modal').classList.remove('active')">x</button></div>
+                <div id="unpaid-list"></div>
             </div>
-        `);
+        </div>
+    `);
 
         // Attach Close Listeners
         document.getElementById('close-invoice-modal-btn')?.addEventListener('click', closeInvoiceForm);
@@ -690,7 +795,7 @@ function populateClientDropdown() {
 
     const clients = state.clients || [];
     select.innerHTML = '<option value="">Seleziona cliente...</option>' +
-        clients.map(c => `<option value="${c.id}">${c.client_code} - ${c.business_name}</option>`).join('');
+        clients.map(c => `< option value = "${c.id}" > ${c.client_code} - ${c.business_name}</option > `).join('');
 }
 
 function updateOrdersDropdown(clientId) {
@@ -707,7 +812,7 @@ function updateOrdersDropdown(clientId) {
 
     const orders = (state.orders || []).filter(o => o.client_id === clientId);
     select.innerHTML = '<option value="">Nessun ordine</option>' +
-        orders.map(o => `<option value="${o.id}">${o.order_number} - ${o.title || 'Senza titolo'}</option>`).join('');
+        orders.map(o => `< option value = "${o.id}" > ${o.order_number} - ${o.title || 'Senza titolo'}</option > `).join('');
 
     // Show payments container if orders available
     if (paymentsContainer) paymentsContainer.style.display = orders.length > 0 ? 'block' : 'none';
@@ -734,14 +839,14 @@ function updatePaymentsForOrder(orderId) {
     }
 
     list.innerHTML = payments.map(p => `
-        <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: white; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer;">
+        < label style = "display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: white; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer;" >
             <input type="checkbox" class="inv-payment-check" value="${p.id}" style="width: 16px; height: 16px;">
-            <div style="flex: 1;">
-                <div style="font-size: 0.85rem; font-weight: 600;">${p.title || 'Pagamento'}</div>
-                <div style="font-size: 0.7rem; color: var(--text-tertiary);">${p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT') : 'Senza scadenza'}</div>
-            </div>
-            <div style="font-weight: 700; color: var(--brand-blue);">€ ${formatAmount(p.amount)}</div>
-        </label>
+                <div style="flex: 1;">
+                    <div style="font-size: 0.85rem; font-weight: 600;">${p.title || 'Pagamento'}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-tertiary);">${p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT') : 'Senza scadenza'}</div>
+                </div>
+                <div style="font-weight: 700; color: var(--brand-blue);">€ ${formatAmount(p.amount)}</div>
+            </label>
     `).join('');
 }
 
@@ -889,7 +994,7 @@ function getNextInvoiceNumber() {
         .filter(n => !isNaN(n));
 
     const maxNum = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
-    return `${year}-${String(maxNum + 1).padStart(2, '0')}`;
+    return `${year} -${String(maxNum + 1).padStart(2, '0')} `;
 }
 
 // ========== PASSIVE INVOICE MODAL FUNCTIONS ==========
@@ -909,8 +1014,8 @@ async function populateCollaboratorDropdown() {
         ? collaborators.filter(c => c.type === 'white_label')
         : collaborators.filter(c => c.type !== 'white_label');
 
-    select.innerHTML = `<option value="">Seleziona ${isPartnerMode ? 'Partner' : 'Collaboratore'}...</option>` +
-        filtered.map(c => `<option value="${c.id}" data-settings='${JSON.stringify({
+    select.innerHTML = `< option value = "" > Seleziona ${isPartnerMode ? 'Partner' : 'Collaboratore'}...</option > ` +
+        filtered.map(c => `< option value = "${c.id}" data - settings='${JSON.stringify({
             regime: c.fiscal_regime || 'ordinario',
             cassaRate: c.cassa_previdenziale_rate !== undefined && c.cassa_previdenziale_rate !== null ? c.cassa_previdenziale_rate : 0,
             vatRate: c.default_vat_rate !== undefined && c.default_vat_rate !== null ? c.default_vat_rate : 22,
@@ -1368,43 +1473,101 @@ export function initInvoiceDetailModals() {
 
     document.body.insertAdjacentHTML('beforeend', `
         <div id="invoice-detail-modal" class="modal" style="z-index: 10000;">
-            <div class="modal-content glass-card" style="max-width: 800px; padding: 0; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;">
+            <style>
+                #invoice-detail-modal .modal-content { max-width: 800px; padding: 0; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; }
+                
+                @media (max-width: 768px) {
+                    #invoice-detail-modal .modal-content { 
+                        max-height: 90vh; 
+                        width: 95vw; 
+                        margin: 5vh auto; 
+                        border-radius: 20px; 
+                        border: 1px solid var(--glass-border);
+                        box-shadow: var(--shadow-premium);
+                    }
+                    
+                    /* Header Clean & Accessible */
+                    #invoice-detail-modal .detail-header { padding: 1.25rem !important; background: white !important; }
+                    #invoice-detail-modal .header-top-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.25rem; }
+                    #invoice-detail-modal #idm-type-badge { font-size: 0.6rem !important; padding: 0.15rem 0.4rem !important; border-radius: 4px; border: 1px solid var(--glass-border); background: #f8fafc !important; color: #64748b !important; }
+                    
+                    #invoice-detail-modal .header-main-info { display: flex; flex-direction: column; gap: 0.1rem; }
+                    #invoice-detail-modal .num-date-row { display: flex; align-items: baseline; gap: 0.5rem; }
+                    #invoice-detail-modal #idm-number { font-size: 1.2rem !important; font-weight: 800 !important; }
+                    #invoice-detail-modal #idm-date { font-size: 0.8rem !important; color: var(--text-tertiary); }
+                    
+                    #invoice-detail-modal .entity-row { display: flex; align-items: center; gap: 0.4rem; }
+                    #invoice-detail-modal #idm-entity-icon { font-size: 0.9rem !important; color: #94a3b8; }
+                    #invoice-detail-modal #idm-entity { font-size: 0.9rem !important; font-weight: 600 !important; color: var(--text-secondary); }
+
+                    #invoice-detail-modal .detail-body { padding: 1rem 1.25rem !important; background: #fbfbfc; }
+                    
+                    /* Status moved to body top */
+                    #invoice-detail-modal #idm-status-badge { font-size: 0.65rem !important; padding: 0.2rem 0.6rem !important; border-radius: 4px; margin-top: 0; margin-bottom: 0.75rem; width: fit-content; }
+                    
+                    /* Amount Card Refinement */
+                    #invoice-detail-modal .amount-card { 
+                        padding: 0.75rem !important; 
+                        margin-bottom: 0.75rem !important; 
+                        border-radius: 12px; 
+                        background: white !important; 
+                        border: 1px solid rgba(0,0,0,0.04) !important;
+                    }
+                    #invoice-detail-modal #idm-total { font-size: 1.25rem !important; font-weight: 800 !important; }
+                    #invoice-detail-modal .amount-card .text-caption { font-size: 0.55rem !important; font-weight: 600; color: #94a3b8 !important; }
+                    #invoice-detail-modal #idm-pay-date { font-size: 0.8rem !important; }
+                    
+                    /* Secondary cards */
+                    #invoice-detail-modal .section-title-mob { font-size: 0.6rem !important; margin-bottom: 0.4rem; }
+                    #invoice-detail-modal .glass-card.p-3 { padding: 0.6rem !important; border-radius: 10px; background: white !important; border: 1px solid rgba(0,0,0,0.03) !important; }
+                    #invoice-detail-modal .glass-card.p-3 .text-body { font-size: 0.85rem !important; }
+                    
+                    /* Grid and Spacing */
+                    #invoice-detail-modal .grid-3 { grid-template-columns: repeat(2, 1fr) !important; gap: 0.5rem !important; }
+                    #invoice-detail-modal .grid-3 > div:first-child { grid-column: span 2; background: #eff6ff !important; border: 1px solid #dbeafe !important; } 
+                    
+                    #invoice-detail-modal #idm-related-section { margin-top: 1rem !important; padding-top: 0.75rem !important; }
+                    #invoice-detail-modal .grid-2 { grid-template-columns: 1fr !important; gap: 0.75rem !important; }
+                    #invoice-detail-modal .link-label-mob { font-size: 0.6rem !important; }
+                    
+                    /* Action Footer */
+                    #invoice-detail-modal .detail-footer { padding: 0.75rem 1.25rem !important; background: white !important; }
+                    #invoice-detail-modal #idm-btn-edit { padding: 0.6rem 1.5rem !important; font-size: 0.85rem; border-radius: 8px; }
+                    #invoice-detail-modal #idm-btn-delete { font-size: 0.8rem; }
+                }
+            </style>
+            <div class="modal-content glass-card">
                 
                 <!-- Header (Sticky) -->
-                <div style="padding: 2rem 2.5rem; background: var(--glass-highlight); border-bottom: 1px solid var(--glass-border);">
-                    <div class="flex-between" style="align-items: flex-start;">
-                        <div class="flex-column" style="gap: 0.5rem;">
-                            <!-- Type Badge -->
-                            <div id="idm-type-badge" class="badge badge-neutral" style="width: fit-content; text-transform: uppercase; letter-spacing: 1px; font-size: 0.7rem;">FATTURA</div>
-                            
-                            <!-- Title & Entity -->
-                            <div class="flex-column" style="gap: 0.25rem;">
-                                <div class="flex-start" style="gap: 1rem; align-items: baseline;">
-                                    <h2 id="idm-number" class="text-display" style="font-size: 2rem; margin: 0;">#</h2>
-                                    <span id="idm-date" class="text-caption" style="font-size: 1rem;"></span>
-                                </div>
-                                <div class="flex-start" style="gap: 0.5rem; align-items: center;">
-                                    <span id="idm-entity-icon" class="material-icons-round text-tertiary" style="font-size: 1.2rem;">business</span>
-                                    <h3 id="idm-entity" style="font-size: 1.1rem; font-weight: 600; color: var(--text-secondary); margin: 0;">-</h3>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Status & Action -->
-                        <div class="flex-column" style="align-items: flex-end; gap: 1rem;">
-                            <button class="close-modal" style="background: var(--card-bg); width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <div class="detail-header" style="padding: 2rem 2.5rem; background: var(--glass-highlight); border-bottom: 1px solid var(--glass-border);">
+                    <div class="header-top-row">
+                        <div id="idm-type-badge" class="badge badge-neutral" style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.7rem;">FATTURA</div>
+                        <div class="flex-column" style="align-items: flex-end;">
+                           <button class="close-modal" style="background: var(--card-bg); width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: center; cursor: pointer;">
                                 <span class="material-icons-round">close</span>
                             </button>
-                            <div id="idm-status-badge" class="badge" style="font-size: 0.9rem; padding: 0.5rem 1rem;">-</div>
                         </div>
                     </div>
+
+                    <div class="header-main-info">
+                        <div class="num-date-row">
+                            <h2 id="idm-number" class="text-display" style="font-size: 2rem; margin: 0;">#</h2>
+                            <span id="idm-date" class="text-caption" style="font-size: 1rem;"></span>
+                        </div>
+                        <div class="entity-row">
+                            <span id="idm-entity-icon" class="material-icons-round text-tertiary" style="font-size: 1.2rem;">business</span>
+                            <h3 id="idm-entity" style="font-size: 1.1rem; font-weight: 600; color: var(--text-secondary); margin: 0;">-</h3>
+                        </div>
+                    </div>
+                    
+                    <div id="idm-status-badge" class="badge" style="font-size: 0.9rem; padding: 0.5rem 1rem; margin-top: 0.85rem; width: fit-content;">-</div>
                 </div>
 
                 <!-- Scrollable Content -->
-                <div style="padding: 2rem 2.5rem; overflow-y: auto; flex: 1;">
+                <div class="detail-body" style="padding: 2rem 2.5rem; overflow-y: auto; flex: 1;">
                     
                     <!-- Top Summary: Amount -->
-                    <div class="flex-between mb-4" style="background: var(--glass-highlight); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--glass-border);">
+                    <div class="amount-card flex-between mb-4" style="background: var(--glass-highlight); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--glass-border);">
                         <div class="flex-column">
                             <span class="text-caption">Totale Documento</span>
                             <div id="idm-total" class="text-display" style="font-size: 2rem; font-weight: 700;">€ 0,00</div>
@@ -1417,47 +1580,47 @@ export function initInvoiceDetailModals() {
 
                     <!-- Economics Grid -->
                     <div class="mb-4">
-                        <h4 class="text-caption mb-2 uppercase">Dettaglio Economico</h4>
+                        <h4 class="section-title-mob">Dettaglio Economico</h4>
                         <div id="idm-economics-grid" class="grid-3" style="gap: 1rem;">
                             <!-- Injected dynamically -->
                         </div>
                     </div>
 
                     <!-- Related Items Section -->
-                    <div id="idm-related-section" class="flex-column gap-3 mb-4" style="border-top: 1px solid var(--glass-border); padding-top: 2rem;">
-                        <h4 class="text-caption uppercase">Collegamenti</h4>
+                    <div id="idm-related-section" class="flex-column gap-3 mb-4">
+                        <h4 class="section-title-mob">Collegamenti</h4>
                         
                         <div class="grid-2 gap-4">
                             <!-- Orders -->
                             <div class="flex-column gap-2">
-                                <span class="text-caption flex-start gap-1"><span class="material-icons-round text-small">folder</span> Ordini / Incarichi</span>
+                                <span class="link-label-mob"><span class="material-icons-round text-small">folder</span> Ordini / Incarichi</span>
                                 <div id="idm-related-orders" class="flex-column gap-1"></div>
                             </div>
 
                             <!-- Payments -->
                             <div class="flex-column gap-2">
-                                <span class="text-caption flex-start gap-1"><span class="material-icons-round text-small">payments</span> Pagamenti</span>
+                                <span class="link-label-mob"><span class="material-icons-round text-small">payments</span> Pagamenti</span>
                                 <div id="idm-related-payments" class="flex-column gap-1"></div>
                             </div>
                         </div>
 
                          <!-- Transactions -->
                          <div class="flex-column gap-2 mt-2">
-                             <span class="text-caption flex-start gap-1"><span class="material-icons-round text-small">account_balance</span> Movimenti Bancari</span>
+                             <span class="link-label-mob"><span class="material-icons-round text-small">account_balance</span> Movimenti Bancari</span>
                              <div id="idm-related-transactions" class="flex-column gap-1"></div>
                          </div>
                     </div>
 
                     <!-- Attachments (Passive Only) -->
                     <div id="idm-attachments-section" class="flex-column gap-2 mb-4" style="display: none; border-top: 1px solid var(--glass-border); padding-top: 2rem;">
-                         <h4 class="text-caption uppercase">Allegati</h4>
+                         <h4 class="section-title-mob">Allegati</h4>
                          <div id="idm-attachment-list" class="flex-start gap-2"></div>
                     </div>
 
                 </div>
 
                 <!-- Footer Actions -->
-                <div class="flex-between" style="padding: 1.5rem 2.5rem; background: var(--glass-highlight); border-top: 1px solid var(--glass-border);">
+                <div class="detail-footer flex-between" style="padding: 1.5rem 2.5rem; background: var(--glass-highlight); border-top: 1px solid var(--glass-border);">
                      <button id="idm-btn-delete" class="text-danger flex-center gap-1" style="background: none; border: none; font-weight: 600; cursor: pointer;">
                         <span class="material-icons-round">delete</span> Elimina
                      </button>
@@ -2053,7 +2216,7 @@ export function renderPassiveInvoicesSuppliers(container) {
 function renderPassiveInvoicesGeneric(container, title, type) {
     const isCollab = type === 'collaborators' || type === 'partners';
     const iconName = isCollab ? 'person' : 'business';
-    const gradientColor = isCollab ? '#8b5cf6' : '#ef4444';
+    const gradientColor = '#ef4444'; // Always red for passive (costs) as per user rules
     // Auto-switch Year Logic
     let currentYear = state.passiveInvoiceYear;
     if (!currentYear && state.passiveInvoices.length > 0) {
@@ -2141,169 +2304,251 @@ function renderPassiveInvoicesGeneric(container, title, type) {
 
     const cards = filtered.map(inv => {
         let name = '-';
-        if (isCollab) {
-            name = inv.collaborators?.full_name || 'Collaboratore Sconosciuto';
-        } else {
-            name = inv.suppliers?.name || 'Fornitore Sconosciuto';
-        }
+        if (isCollab) name = inv.collaborators?.full_name || 'Collaboratore Sconosciuto';
+        else name = inv.suppliers?.name || 'Fornitore Sconosciuto';
 
         const importo = parseFloat(inv.amount_tax_excluded) || 0;
         const iva = parseFloat(inv.tax_amount) || 0;
         const nettoAPagare = parseFloat(inv.amount_tax_included) || importo;
         const settlementDate = inv.payment_date ? new Date(inv.payment_date).toLocaleDateString('it-IT') : null;
 
+        const isRitenuta = isCollab && nettoAPagare < importo;
+        const invoiceType = isRitenuta ? 'Ritenuta' : 'Fattura';
+
+        let linkedOrdersDisplay = [];
         if (isCollab) {
-            // Collaborator invoice template
-            // Detect ritenuta by checking if netto < importo (withholding tax deducted)
-            const isRitenuta = nettoAPagare < importo;
-            const invoiceType = isRitenuta ? 'Ritenuta' : 'Fattura';
-            // Resolve Linked Orders (IDs -> Numbers)
-            let linkedOrdersDisplay = [];
             let linkedOrders = inv.related_orders || [];
-
-            if (!Array.isArray(linkedOrders)) {
-                if (typeof linkedOrders === 'string') {
-                    try {
-                        linkedOrders = JSON.parse(linkedOrders);
-                    } catch (e) {
-                        // Fallback if it's a single raw string (not JSON)
-                        // But usually it's JSON from our script
-                        linkedOrders = [linkedOrders];
-                    }
-                } else {
-                    linkedOrders = [];
-                }
+            if (!Array.isArray(linkedOrders) && typeof linkedOrders === 'string') {
+                try { linkedOrders = JSON.parse(linkedOrders); } catch (e) { linkedOrders = [linkedOrders]; }
             }
-
-            if (linkedOrders.length > 0) {
+            if (Array.isArray(linkedOrders) && linkedOrders.length > 0) {
                 linkedOrdersDisplay = linkedOrders.map(id => {
                     const ord = state.orders ? state.orders.find(o => o.id === id) : null;
                     if (!ord) return '';
-                    const clientName = ord.clients?.client_code || '';
-                    return clientName ? `${clientName} ${ord.order_number}` : ord.order_number;
-                }).filter(n => n); // Filter out empty
+                    const clientCode = ord.clients?.client_code || '';
+                    return clientCode ? `${clientCode} ${ord.order_number}` : ord.order_number;
+                }).filter(n => n);
             }
-
-            return `
-            <div class="glass-card clickable-card" data-id="${inv.id}" style="padding: 1rem 1.25rem; cursor: pointer; transition: all 0.2s; border: 1px solid var(--glass-border); display: flex; align-items: center; gap: 1.25rem;">
-                <!-- Date Block -->
-                ${formatDateBlock(inv.issue_date)}
-                
-                <!-- Separator -->
-                <div style="width: 1px; height: 40px; background: var(--glass-border);"></div>
-                
-                <!-- Main Info -->
-                <div style="flex: 1; min-width: 0;">
-                    <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-tertiary); display: flex; gap: 0.75rem; align-items: center;">
-                        <span>N. ${inv.invoice_number || '-'}</span>
-                        <span style="padding: 0.15rem 0.5rem; background: ${isRitenuta ? 'rgba(139, 92, 246, 0.1)' : 'rgba(59, 130, 246, 0.1)'}; color: ${isRitenuta ? '#8b5cf6' : '#3b82f6'}; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">${invoiceType}</span>
-                    </div>
-                </div>
-                
-                <!-- Linked Orders -->
-                ${linkedOrdersDisplay.length > 0 ? `
-                <div style="font-size: 0.7rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.3rem;">
-                    <span class="material-icons-round" style="font-size: 0.9rem;">link</span>
-                    ${linkedOrdersDisplay.slice(0, 2).join(', ')}${linkedOrdersDisplay.length > 2 ? ` +${linkedOrdersDisplay.length - 2}` : ''}
-                </div>` : ''}
-                
-                <!-- Status + Settlement Date (fixed width for alignment) -->
-                <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 170px; justify-content: flex-end;">
-                    <span style="padding: 0.3rem 0.75rem; border-radius: 2rem; font-size: 0.7rem; font-weight: 600; white-space: nowrap; ${getStatusStyle(inv.status)}">${inv.status || 'Bozza'}</span>
-                    <span style="font-size: 0.75rem; color: var(--text-tertiary); min-width: 75px; text-align: right;">${settlementDate || ''}</span>
-                </div>
-                
-                <!-- Amounts: Pagato (Big) + Importo (Small under) -->
-                <div style="text-align: right; min-width: 140px;">
-                    <div style="font-size: 1.1rem; font-weight: 700; color: #ef4444;">€ ${formatAmount(nettoAPagare)}</div>
-                    <div style="font-size: 0.7rem; color: var(--text-tertiary);">Importo € ${formatAmount(importo)}</div>
-                </div>
-            </div>`;
-        } else {
-            // Supplier invoice template
-            const description = inv.service_description || inv.description || '';
-
-            return `
-            <div class="glass-card clickable-card" data-id="${inv.id}" style="padding: 1rem 1.25rem; cursor: pointer; transition: all 0.2s; border: 1px solid var(--glass-border); display: flex; align-items: center; gap: 1.25rem;">
-                <!-- Date Block -->
-                ${formatDateBlock(inv.issue_date)}
-                
-                <!-- Separator -->
-                <div style="width: 1px; height: 40px; background: var(--glass-border);"></div>
-                
-                <!-- Main Info -->
-                <div style="flex: 1; min-width: 0;">
-                    <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-tertiary); display: flex; gap: 0.75rem; align-items: center;">
-                        <span>N. ${inv.invoice_number || '-'}</span>
-                        ${description ? `<span style="opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;">${description}</span>` : ''}
-                    </div>
-                </div>
-                
-                <!-- Status + Settlement Date (fixed width for alignment) -->
-                <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 170px; justify-content: flex-end;">
-                    <span style="padding: 0.3rem 0.75rem; border-radius: 2rem; font-size: 0.7rem; font-weight: 600; white-space: nowrap; ${getStatusStyle(inv.status)}">${inv.status || 'Bozza'}</span>
-                    <span style="font-size: 0.75rem; color: var(--text-tertiary); min-width: 75px; text-align: right;">${settlementDate || ''}</span>
-                </div>
-                
-                <!-- Amounts: Pagato (Big) + Importo/IVA (Small under) -->
-                <div style="text-align: right; min-width: 140px;">
-                    <div style="font-size: 1.1rem; font-weight: 700; color: #ef4444;">€ ${formatAmount(nettoAPagare)}</div>
-                    <div style="font-size: 0.7rem; color: var(--text-tertiary);">Importo € ${formatAmount(importo)}${iva > 0 ? ` + IVA € ${formatAmount(iva)}` : ''}</div>
-                </div>
-            </div>`;
         }
+
+        const description = !isCollab ? (inv.service_description || inv.description || '') : '';
+
+        return `
+        <div class="glass-card clickable-card inv-mobile-card" data-id="${inv.id}">
+            <!-- Desktop Layout -->
+            <div class="inv-card-desktop">
+                <div class="card-left">
+                    ${formatDateBlock(inv.issue_date)}
+                    <div class="card-separator"></div>
+                    <div class="invoice-number-badge">
+                        <div class="inv-num">${inv.invoice_number || '-'}</div>
+                        <div class="inv-label">${invoiceType}</div>
+                    </div>
+                </div>
+                <div class="card-center">
+                    <div class="client-name">${name}</div>
+                    ${description ? `<div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.2rem;">${description}</div>` : ''}
+                    ${linkedOrdersDisplay.length > 0 ? `
+                        <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 0.2rem; display: flex; align-items: center; gap: 0.3rem;">
+                            <span class="material-icons-round" style="font-size: 0.9rem;">link</span>
+                            ${linkedOrdersDisplay.slice(0, 2).join(', ')}${linkedOrdersDisplay.length > 2 ? ` +${linkedOrdersDisplay.length - 2}` : ''}
+                        </div>` : ''}
+                </div>
+                <div class="card-right">
+                    <div class="status-wrapper">
+                        <span class="status-badge" style="${getStatusStyle(inv.status)}">${inv.status || 'Bozza'}</span>
+                        <span class="settlement-date">${settlementDate || ''}</span>
+                    </div>
+                    <div class="amount-wrapper">
+                        <div class="amount-total" style="color: #ef4444;">€ ${formatAmount(nettoAPagare)}</div>
+                        <div class="amount-details">
+                            Importo € ${formatAmount(importo)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Layout -->
+            <div class="inv-card-mobile">
+                <div class="mob-row-top">
+                    <div class="mob-date-num">
+                        <div class="mob-num">#${inv.invoice_number || '-'}</div>
+                        <div class="mob-date">
+                            <strong>${new Date(inv.issue_date).getDate()}</strong>
+                            ${new Date(inv.issue_date).toLocaleDateString('it-IT', { month: 'short' }).toUpperCase()}
+                        </div>
+                    </div>
+                    <div class="mob-client-info">
+                        <div class="mob-client-name">${name}</div>
+                        <div class="mob-status-row">
+                            <span class="status-badge" style="${getStatusStyle(inv.status)}">${inv.status || 'Bozza'}</span>
+                            <span class="mob-settlement">${settlementDate || ''}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mob-row-bottom">
+                    <div class="mob-amounts-left">
+                        <span class="mob-importo">€ ${formatAmount(importo)}</span>
+                        ${iva > 0 ? `<span class="mob-iva">IVA € ${formatAmount(iva)}</span>` : ''}
+                    </div>
+                    <div class="mob-netto" style="color: #ef4444;">€ ${formatAmount(nettoAPagare)}</div>
+                </div>
+            </div>
+        </div>`;
     }).join('');
 
     container.innerHTML = `
-        <div class="animate-fade-in" style="max-width: 1100px; margin: 0 auto; padding: 1rem;">
+        <div class="animate-fade-in invoices-management-view" style="max-width: 1100px; margin: 0 auto; padding: 1rem;">
+            <style>
+                /* Scoped Header & Layout */
+                .invoices-management-view .invoice-page-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; gap: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem; }
+                .invoices-management-view .title-group { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.25rem; }
+                .invoices-management-view .header-icon { color: ${gradientColor}; font-size: 1.25rem; }
+                .invoices-management-view .page-title { font-size: 1.25rem; font-weight: 700; margin: 0; font-family: var(--font-titles); color: var(--text-primary); }
+                .invoices-management-view .year-badge { background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+                .invoices-management-view .header-subtitle { font-size: 0.85rem; color: var(--text-tertiary); margin: 0; }
+                .invoices-management-view .header-actions-row { display: flex; gap: 0.75rem; align-items: center; }
+                .invoices-management-view .year-select-wrapper { position: relative; }
+                .invoices-management-view .clean-select { padding: 0.5rem 2.2rem 0.5rem 0.75rem; border-radius: 10px; border: 1px solid var(--glass-border); background: var(--card-bg); font-size: 0.9rem; font-weight: 600; cursor: pointer; appearance: none; min-width: 100px; color: var(--text-primary); }
+                .invoices-management-view .select-icon { position: absolute; right: 0.6rem; top: 50%; transform: translateY(-50%); font-size: 1.2rem; pointer-events: none; opacity: 0.3; }
+                .invoices-management-view .fab-btn { width: 44px; height: 44px; border-radius: 50% !important; padding: 0 !important; min-width: 0 !important; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25); display: flex; align-items: center; justify-content: center; background: ${gradientColor} !important; border: none !important; color: white !important; }
+                
+                /* Scoped KPI Grid */
+                .invoices-management-view .inv-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+                .invoices-management-view .kpi-card, .invoices-management-view .kpi-static { padding: 1.25rem; background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: var(--border-radius-lg); transition: all 0.2s; position: relative; overflow: hidden; }
+                .invoices-management-view .kpi-card:hover { transform: translateY(-2px); border-color: var(--kpi-color); }
+                .invoices-management-view .kpi-card.active-filter { border-color: var(--kpi-color); background: var(--glass-bg); }
+                .invoices-management-view .kpi-label { font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+                .invoices-management-view .kpi-value { font-size: 1.5rem; font-weight: 800; font-family: var(--font-titles); }
+                .invoices-management-view .kpi-subtext { font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem; }
+                .invoices-management-view .progress-container { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: rgba(0,0,0,0.05); }
+                .invoices-management-view .progress-bar { height: 100%; transition: width 0.3s; }
+
+                /* Scoped Invoice Cards Layout Control */
+                .invoices-management-view .inv-card-desktop { display: flex; align-items: center; width: 100%; gap: 1.25rem; }
+                .invoices-management-view .inv-card-mobile { display: none; width: 100%; flex-direction: column; gap: 0.75rem; }
+
+                .invoices-management-view .clickable-card { 
+                    padding: 1rem 1.25rem; 
+                    cursor: pointer; 
+                    transition: all 0.2s; 
+                    border: 1px solid var(--glass-border); 
+                    background: var(--card-bg);
+                }
+                .invoices-management-view .clickable-card:hover { border-color: var(--brand-blue); background: var(--glass-bg); }
+                
+                .invoices-management-view .card-left { display: flex; align-items: center; gap: 0.75rem; }
+                .invoices-management-view .card-separator { width: 1px; height: 36px; background: var(--glass-border); }
+                .invoices-management-view .invoice-number-badge { text-align: center; min-width: 50px; padding: 0.25rem 0.5rem; background: rgba(59, 130, 246, 0.05); border-radius: 8px; }
+                .invoices-management-view .inv-num { font-size: 1.1rem; font-weight: 600; line-height: 1; color: var(--brand-blue); }
+                .invoices-management-view .inv-label { font-size: 0.6rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.02em; }
+                
+                .invoices-management-view .card-center { flex: 1; min-width: 0; }
+                .invoices-management-view .client-name { font-size: 1rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                
+                .invoices-management-view .card-right { display: flex; align-items: center; gap: 2rem; }
+                .invoices-management-view .status-wrapper { display: flex; align-items: center; gap: 0.5rem; min-width: 160px; justify-content: flex-end; }
+                .invoices-management-view .status-badge { padding: 0.3rem 0.75rem; border-radius: 2rem; font-size: 0.7rem; font-weight: 600; white-space: nowrap; }
+                .invoices-management-view .settlement-date { font-size: 0.75rem; color: var(--text-tertiary); min-width: 75px; text-align: right; }
+                
+                .invoices-management-view .amount-wrapper { text-align: right; min-width: 110px; }
+                .invoices-management-view .amount-total { font-size: 1.1rem; font-weight: 700; }
+                .invoices-management-view .amount-details { font-size: 0.7rem; color: var(--text-tertiary); }
+
+                @media (max-width: 768px) {
+                    .invoices-management-view .inv-card-desktop { display: none !important; }
+                    .invoices-management-view .inv-card-mobile { display: flex !important; margin: 0; padding: 0.25rem 0.15rem; }
+                    
+                    .invoices-management-view .clickable-card { padding: 0.75rem 1rem !important; border-radius: 14px; }
+                    
+                    /* Mobile Stacking Logic */
+                    .invoices-management-view .mob-row-top { display: flex; gap: 0.85rem; align-items: flex-start; }
+                    .invoices-management-view .mob-date-num { text-align: center; min-width: 50px; padding-right: 0.75rem; border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; justify-content: center; }
+                    .invoices-management-view .mob-num { font-size: 0.75rem; color: var(--brand-blue); font-weight: 600; margin-bottom: 4px; }
+                    .invoices-management-view .mob-date { font-size: 1.1rem; line-height: 1.1; color: var(--text-tertiary); font-weight: 300; }
+                    .invoices-management-view .mob-date strong { display: block; font-weight: 700; color: var(--text-primary); font-size: 1.25rem; }
+                    
+                    .invoices-management-view .mob-client-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+                    .invoices-management-view .mob-client-name { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem; line-height: 1.2; word-break: break-word; }
+                    .invoices-management-view .mob-status-row { display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; }
+                    .invoices-management-view .mob-status-row .status-badge { font-size: 0.65rem; padding: 0.2rem 0.6rem; }
+                    .invoices-management-view .mob-settlement { font-size: 0.7rem; color: var(--text-tertiary); }
+                    
+                    .invoices-management-view .mob-row-bottom { 
+                        display: flex; 
+                        justify-content: space-between; 
+                        align-items: center; 
+                        margin-top: 0.6rem; 
+                        padding-top: 0.6rem; 
+                        border-top: 1px solid rgba(0,0,0,0.03); 
+                    }
+                    .invoices-management-view .mob-amounts-left { display: flex; align-items: center; gap: 0.6rem; }
+                    .invoices-management-view .mob-importo { font-size: 0.75rem; color: var(--text-tertiary); }
+                    .invoices-management-view .mob-iva { font-size: 0.75rem; color: var(--text-tertiary); }
+                    .invoices-management-view .mob-netto { font-size: 1.1rem; font-weight: 800; color: #ef4444; }
+
+                    .invoices-management-view .desktop-only-title { display: none; }
+                    .invoices-management-view .invoice-page-header { align-items: center; border-bottom: none; padding-bottom: 0.75rem; }
+                    .invoices-management-view .header-actions-row { width: 100%; justify-content: space-between; }
+                    .invoices-management-view .inv-kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-bottom: 1.25rem; }
+                    .invoices-management-view .kpi-card, .invoices-management-view .kpi-static { padding: 0.85rem; border-radius: 12px; }
+                    .invoices-management-view .kpi-label { font-size: 0.6rem; }
+                    .invoices-management-view .kpi-value { font-size: 1.1rem; }
+                    .invoices-management-view .fab-btn { width: 40px; height: 40px; }
+                    .invoices-management-view .clean-select { padding: 0.45rem 2rem 0.45rem 0.6rem; font-size: 0.85rem; min-width: 85px; }
+                }
+            </style>
+            
             <!-- Header -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <div style="width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, ${gradientColor}, ${gradientColor}cc); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 16px ${gradientColor}33;">
-                        <span class="material-icons-round" style="color: white; font-size: 24px;">${iconName}</span>
+            <div class="invoice-page-header">
+                <div class="header-main">
+                    <div class="title-group">
+                         <span class="material-icons-round header-icon">receipt_long</span>
+                         <h1 class="page-title desktop-only-title">${title}</h1>
+                         <div class="year-badge">${currentYear}</div>
                     </div>
-                    <div>
-                        <h1 style="font-size: 1.5rem; font-weight: 700; margin: 0; font-family: var(--font-titles);">${title}</h1>
-                        <p style="font-size: 0.85rem; color: var(--text-tertiary); margin: 0;">${filtered.length} fatture ${statusFilter !== 'all' ? `(${statusFilter === 'pending' ? 'da pagare' : 'pagate'})` : `nel ${currentYear}`}</p>
-                    </div>
+                    <p class="header-subtitle">${filtered.length} documenti registrati</p>
                 </div>
-                <div style="display: flex; gap: 0.75rem; align-items: center;">
-                    <select id="passive-year-filter" style="padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--glass-border); background: white; font-size: 0.85rem; cursor: pointer;">
-                        <option value="2026" ${currentYear === 2026 ? 'selected' : ''}>2026</option>
-                        <option value="2025" ${currentYear === 2025 ? 'selected' : ''}>2025</option>
-                        <option value="2024" ${currentYear === 2024 ? 'selected' : ''}>2024</option>
-                    </select>
-                    <button class="primary-btn" id="btn-new-passive" style="padding: 0.6rem 1.25rem; border-radius: 10px; white-space: nowrap;">
-                        <span class="material-icons-round" style="font-size: 1.1rem;">add</span> Nuova
+                <div class="header-actions-row">
+                    <div class="year-select-wrapper">
+                        <select id="pinv-year-filter" class="clean-select">
+                             ${[...new Set(state.passiveInvoices.map(inv => new Date(inv.issue_date).getFullYear()))].sort((a, b) => b - a).map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('')}
+                        </select>
+                        <span class="material-icons-round select-icon">expand_more</span>
+                    </div>
+                    <button class="primary-btn fab-btn" id="btn-new-passive" title="Nuovo Documento">
+                        <span class="material-icons-round">add</span>
                     </button>
                 </div>
             </div>
 
-            <!-- KPI Summary (clickable) -->
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem;">
-                <div class="glass-card kpi-card" data-filter="all" style="padding: 1.25rem; background: linear-gradient(135deg, rgba(239, 68, 68, 0.05), transparent); cursor: pointer; transition: all 0.2s; ${kpiActiveStyle('all')}">
-                    <div style="font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Totale Costi</div>
-                    <div style="font-size: 1.5rem; font-weight: 800; color: #ef4444; font-family: var(--font-titles);">€ ${formatAmount(totalCosti)}</div>
+            <!-- KPI Summary -->
+            <div class="inv-kpi-grid">
+                <div class="glass-card kpi-card ${statusFilter === 'all' ? 'active-filter' : ''}" data-filter="all" style="--kpi-color: ${gradientColor};">
+                    <div class="kpi-label">Totale Costi</div>
+                    <div class="kpi-value" style="color: ${gradientColor};">€ ${formatAmount(totalCosti)}</div>
                 </div>
-                <div class="glass-card kpi-card" data-filter="pending" style="padding: 1.25rem; background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), transparent); cursor: pointer; transition: all 0.2s; ${kpiActiveStyle('pending')}">
-                    <div style="font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Da Pagare</div>
-                    <div style="font-size: 1.5rem; font-weight: 800; color: #f59e0b; font-family: var(--font-titles);">€ ${formatAmount(daPagare)}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">${nonPagate.length} fatture</div>
+                <div class="glass-card kpi-card ${statusFilter === 'pending' ? 'active-filter' : ''}" data-filter="pending" style="--kpi-color: #f59e0b;">
+                    <div class="kpi-label">Da Pagare</div>
+                    <div class="kpi-value" style="color: #f59e0b;">€ ${formatAmount(daPagare)}</div>
+                    <div class="kpi-subtext">${nonPagate.length} documenti</div>
                 </div>
-                <div class="glass-card kpi-card" data-filter="paid" style="padding: 1.25rem; background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), transparent); cursor: pointer; transition: all 0.2s; ${kpiActiveStyle('paid')}">
-                    <div style="font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Pagato</div>
-                    <div style="font-size: 1.5rem; font-weight: 800; color: #10b981; font-family: var(--font-titles);">€ ${formatAmount(pagato)}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">${pagate.length} fatture</div>
+                <div class="glass-card kpi-card ${statusFilter === 'paid' ? 'active-filter' : ''}" data-filter="paid" style="--kpi-color: #10b981;">
+                    <div class="kpi-label">Pagato</div>
+                    <div class="kpi-value" style="color: #10b981;">€ ${formatAmount(pagato)}</div>
+                    <div class="kpi-subtext">${pagate.length} documenti</div>
                 </div>
-                <div class="glass-card" style="padding: 1.25rem;">
-                    <div style="font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Fatture Pendenti</div>
-                    <div style="font-size: 1.5rem; font-weight: 800; color: ${nonPagate.length > 0 ? '#f59e0b' : '#10b981'}; font-family: var(--font-titles);">${nonPagate.length}</div>
+                <div class="glass-card kpi-static" style="border-bottom: 3px solid #f59e0b;">
+                    <div class="kpi-label">Pendenti</div>
+                    <div class="kpi-value" style="color: ${nonPagate.length > 0 ? '#f59e0b' : '#10b981'};">${nonPagate.length}</div>
+                    <div class="kpi-subtext" style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">${nonPagate.length} documenti</div>
+                    <div class="progress-container" style="height: 4px; background: rgba(0,0,0,0.05); border-radius: 2px; margin-top: 0.5rem; overflow: hidden;">
+                        <div class="progress-bar" style="width: ${filtered.length > 0 ? (nonPagate.length / filtered.length * 100) : 0}%; height: 100%; background: #f59e0b;"></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Invoice List (single column) -->
+            <!-- Invoice List -->
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                 ${cards ? cards : `
                     <div style="text-align: center; padding: 4rem 2rem; border: 2px dashed var(--glass-border); border-radius: 12px; background: rgba(255,255,255,0.02);">
@@ -2326,7 +2571,7 @@ function renderPassiveInvoicesGeneric(container, title, type) {
         if (type === 'partners') mode = 'partner-wl';
         window.openPassiveInvoiceForm(null, mode);
     });
-    container.querySelector('#passive-year-filter')?.addEventListener('change', (e) => {
+    container.querySelector('#pinv-year-filter')?.addEventListener('change', (e) => {
         state.passiveInvoiceYear = parseInt(e.target.value);
         state.passiveInvoiceStatusFilter = 'all';
         renderPassiveInvoicesGeneric(container, title, type);

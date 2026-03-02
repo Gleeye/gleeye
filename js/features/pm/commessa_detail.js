@@ -182,13 +182,13 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                         </div>
 
                         <!-- Row 2: Title & Main Actions -->
-                        <div style="display: flex; justify-content: space-between; align-items: start; gap: 1rem;">
+                        <div class="hub-header-main" style="display: flex; justify-content: space-between; align-items: start; gap: 1rem;">
                             <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin: 0; line-height: 1.2;">
                                 ${isInternal ? (space?.name || 'Progetto senza nome') : (order?.title || 'Senza Titolo')}
                             </h1>
 
                             <!-- Actions -->
-                            <div style="display: flex; gap: 0.5rem;">
+                            <div class="hub-header-actions" style="display: flex; gap: 0.5rem;">
                                 <!-- Risorse Button (Added) -->
                                 <div style="position: relative;">
                                     <button id="open-resources-btn" style="
@@ -267,7 +267,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                         </div>
 
                         <!-- Row 3: Meta Info (Client + PMs) -->
-                        <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+                        <div class="hub-header-meta" style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
                             ${!isInternal && order?.clients ? `
                                 <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">
                                     <span class="material-icons-round" style="font-size: 1.1rem;">business</span>
@@ -386,6 +386,16 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
             </div>
             
             <style>
+                @media (max-width: 768px) {
+                    .hub-header-main { flex-direction: column; gap: 1rem !important; }
+                    .hub-header-actions { width: 100%; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+                    .hub-header-actions > div { flex: 1; }
+                    .hub-header-actions button { width: 100%; justify-content: center; }
+                    .hub-header-meta { flex-direction: column; align-items: flex-start !important; gap: 0.5rem !important; }
+                    .hub-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+                    .hub-tabs::-webkit-scrollbar { display: none; }
+                    .hub-tab { white-space: nowrap; padding: 1rem 1rem !important; }
+                }
                 .hub-tab {
                     display: flex;
                     align-items: center;

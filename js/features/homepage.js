@@ -3,9 +3,9 @@ import { supabase } from '../modules/config.js';
 import { formatAmount } from '../modules/utils.js?v=1000';
 
 import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment, fetchGoogleCalendarBusy } from '../modules/api.js';
-import { fetchAppointment, updatePMItem } from '../modules/pm_api.js?v=1000';
-import { openHubDrawer } from './pm/components/hub_drawer.js?v=1000';
-import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=1000';
+import { fetchAppointment, updatePMItem } from '../modules/pm_api.js?v=5004';
+import { openHubDrawer } from './pm/components/hub_drawer.js?v=5004';
+import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=5004';
 
 // We reuse fetchMyBookings but we might need a tighter scoped fetch for "Today"
 // Actually fetchMyBookings stores in `eventsCache` (not exported) or `window`?
@@ -599,13 +599,20 @@ export async function renderHomepage(container) {
 
     // --- MANAGE TOP BAR GREETING ---
     const pageTitle = document.getElementById('page-title');
-    if (pageTitle) {
-        const hours = new Date().getHours();
-        let greeting = 'Buongiorno';
-        if (hours >= 14 && hours < 19) greeting = 'Buon pomeriggio';
-        else if (hours >= 19 || hours < 5) greeting = 'Buonasera';
+    const hours = new Date().getHours();
+    let greeting = 'Buongiorno';
+    if (hours >= 14 && hours < 19) greeting = 'Buon pomeriggio';
+    else if (hours >= 19 || hours < 5) greeting = 'Buonasera';
 
-        pageTitle.textContent = `${greeting}, ${firstName}!`;
+    window.greetingText = greeting; // Store for inner content
+
+    if (pageTitle) {
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) {
+            pageTitle.textContent = "Gleeye";
+        } else {
+            pageTitle.textContent = `${greeting}, ${firstName}!`;
+        }
         pageTitle.classList.add('solid-title');
     }
 
@@ -718,31 +725,32 @@ export async function renderHomepage(container) {
     container.innerHTML = `
         <div class="homepage-container">
             <!-- Content raised: Greeting in top-bar, context in timeline header -->
-            <div style="margin-top: 1rem;"></div>
+            <div class="hp-mobile-spacer" style="height: 0.5rem;"></div>
 
             <!-- Top Grid: Timeline + My Activities -->
-            <div style="height: 380px; display: flex; gap: 2rem; margin-top: 1rem;">
+            <!-- Top Grid: Timeline + My Activities -->
+            <div class="hp-top-section">
                 <!-- LEFT: TIMELINE (Main) -->
-                <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                <div class="hp-main-timeline">
                     <!-- HEADER (Date Nav) -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex: 0 0 auto;">
-                         <h2 id="hp-date-description" style="font-size: 1.2rem; font-weight: 300; color: var(--text-primary); font-family: var(--font-base);">Ecco cosa c'è in programma per oggi, ${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
+                    <div class="hp-nav-header">
+                         <div class="greeting-mobile-only" style="display: none; margin-bottom: 0.5rem;">
+                            <h1 style="font-size: 1.5rem; margin: 0;">${greetingText}, ${firstName}!</h1>
+                         </div>
+                         <h2 id="hp-date-description" class="hp-date-text">Ecco cosa c'è in programma per oggi, ${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
                          
-                         <div style="display: flex; align-items: center; gap: 12px;">
+                         <div class="hp-nav-controls">
                              <!-- Main Group -->
-                             <div style="display: flex; background: #e5e7eb; border-radius: 14px; padding: 4px; gap: 2px;">
-                                 <button onclick="setHomepageMode('today')" id="btn-mode-today" class="nav-pill active-pill" style="padding: 6px 16px; border-radius: 10px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; background: white; color: #111; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">Oggi</button>
-                                 <button onclick="setHomepageMode('tomorrow')" id="btn-mode-tomorrow" class="nav-pill" style="padding: 6px 16px; border-radius: 10px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; background: transparent; color: #6b7280;">Domani</button>
-                                 <div style="width: 1px; background: #d1d5db; margin: 4px 2px;"></div>
-                                 <button onclick="setHomepageMode('week')" id="btn-mode-week" class="nav-pill" style="padding: 6px 16px; border-radius: 10px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; background: transparent; color: #6b7280;">Settimana</button>
+                             <div class="hp-pill-group">
+                                 <button onclick="setHomepageMode('today')" id="btn-mode-today" class="nav-pill active-pill">Oggi</button>
+                                 <button onclick="setHomepageMode('tomorrow')" id="btn-mode-tomorrow" class="nav-pill">Domani</button>
+                                 <div class="hp-pill-divider"></div>
+                                 <button onclick="setHomepageMode('week')" id="btn-mode-week" class="nav-pill">Settimana</button>
                              </div>
 
                              <!-- Separated Date Button -->
                              <div style="position: relative;">
-                                <button id="hp-date-picker-btn" onclick="toggleCustomDatePicker(this)"
-                                   style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 6px 14px; font-weight: 600; font-size: 0.85rem; color: #4b5563; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: all 0.2s;"
-                                   onmouseover="this.style.borderColor='#d1d5db'; this.style.color='#111'"
-                                   onmouseout="this.style.borderColor='#e5e7eb'; this.style.color='#4b5563'">
+                                <button id="hp-date-picker-btn" onclick="toggleCustomDatePicker(this)" class="hp-date-btn">
                                    <span class="material-icons-round" style="font-size: 18px; color: #8b5cf6;">calendar_today</span> 
                                    <span>Data</span>
                                 </button>
@@ -750,24 +758,18 @@ export async function renderHomepage(container) {
                          </div>
                     </div>
 
-                    <style>
-                        .nav-pill:hover { background: rgba(255,255,255,0.5); }
-                        .active-pill { background: white !important; color: #111 !important; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-                        /* Helper to update UI state specifically for pill highlighting would require more JS, simple toggle for now */
-                    </style>
-
                     <!-- TIMELINE WRAPPER -->
-                    <div id="hp-timeline-wrapper" style="flex: 1; position: relative; background: white; border-radius: 16px; border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm); overflow-x: auto; overflow-y: hidden;">
+                    <div id="hp-timeline-wrapper" class="hp-timeline-card">
                         <!-- Rendered by JS -->
                     </div>
                 </div>
 
                 <!-- RIGHT: MY ACTIVITIES (Side Panel) -->
-                <div style="width: 340px; flex: 0 0 auto; display: flex; flex-direction: column;">
+                <div class="hp-sidebar-panel">
                     <!-- "MY ACTIVITIES" CARD -->
-                    <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; height: 100%; overflow: hidden; background: #1e293b; color: white; border-radius: 16px;">
+                    <div class="glass-card side-activities-card">
                         <!-- SEGMENTED CONTROL TABS (Icons) -->
-                        <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 4px; display: flex; gap: 4px; flex-shrink: 0; align-items: stretch;">
+                        <div class="hp-tab-controls">
                             <button onclick="window.setHpFilter('task', this)" class="tab-pill ${window.hpActivityFilter === 'task' ? 'active' : ''}" title="Task">
                                 <span class="material-icons-round" style="font-size: 18px;">check_circle</span>
                                 <span class="tab-count" style="margin-left: 4px;"></span>
@@ -776,46 +778,16 @@ export async function renderHomepage(container) {
                                 <span class="material-icons-round" style="font-size: 18px;">event</span>
                                 <span class="tab-count" style="margin-left: 4px;"></span>
                             </button>
-                            <button id="hp-top-add-btn" onclick="window.toggleHpQuickEntry(this)" class="hp-add-event-btn" title="Crea Nuovo" style="flex: 1; border: none; background: var(--brand-blue); color: white; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);" onmouseover="this.style.transform='scale(1.05)'; this.style.background='#3b82f6'" onmouseout="this.style.transform='scale(1)'; this.style.background='var(--brand-blue)'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1.05)'">
+                            <button id="hp-top-add-btn" onclick="window.toggleHpQuickEntry(this)" class="hp-add-event-btn" title="Crea Nuovo">
                                 <span class="material-icons-round" style="font-size: 20px;">add</span>
                             </button>
                         </div>
                         
-                        <style>
-                            .tab-pill {
-                                flex: 1;
-                                border: none;
-                                background: transparent;
-                                color: rgba(255,255,255,0.4); /* Dimmer inactive */
-                                padding: 8px 0;
-                                border-radius: 8px;
-                                cursor: pointer;
-                                transition: all 0.2s ease;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                            }
-                            .tab-pill:hover {
-                                color: white;
-                                background: rgba(255,255,255,0.05);
-                            }
-                            .tab-pill.active {
-                                background: rgba(255,255,255,0.15) !important;
-                                color: white !important;
-                                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-                            }
-                            .tab-count {
-                                font-size: 0.75rem;
-                                font-weight: 700;
-                                opacity: 0.8;
-                            }
-                        </style>
-
-                        <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; padding-right: 4px; min-height: 0;" id="hp-activities-list">
+                        <div class="hp-activities-list-container" id="hp-activities-list">
                             <!-- Content Injected Below -->
                         </div>
 
-                        <button class="btn btn-primary" style="width: 100%; justify-content: center; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); flex-shrink: 0;" onclick="window.location.hash='agenda'">
+                        <button class="btn btn-primary vedi-agenda-btn" onclick="window.location.hash='agenda'">
                             Vedi Agenda
                         </button>
                     </div>
@@ -823,69 +795,69 @@ export async function renderHomepage(container) {
             </div>
 
             <!-- Bottom Grid -->
-            <div class="bottom-grid" style="margin-top: 3rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem;">
+            <div class="bottom-grid hp-bottom-grid">
 
                 <!-- LEFT: PROJECTS -->
-                <div class="dashboard-widget" style="padding: 2rem;">
-                    <div class="widget-header" style="justify-content: flex-start; gap: 1.5rem; margin-bottom: 2rem;">
+                <div class="dashboard-widget">
+                    <div class="widget-header hp-widget-header">
                         <h3 class="widget-title" id="hp-bottom-title">Progetti</h3>
                         
-                        <div style="background: var(--bg-tertiary); padding: 5px; border-radius: 12px; display: flex; gap: 4px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);">
-                            <button id="hp-bottom-tab-projects" onclick="window.setHpBottomTab('projects')" class="timeline-btn active" style="font-weight: 700;">
+                        <div class="hp-widget-tabs">
+                            <button id="hp-bottom-tab-projects" onclick="window.setHpBottomTab('projects')" class="timeline-btn active">
                                 <span id="hp-bottom-projects-label">Commesse</span>
                             </button>
-                            <button id="hp-bottom-tab-internal" onclick="window.setHpBottomTab('internal')" class="timeline-btn" style="font-weight: 700;">
+                            <button id="hp-bottom-tab-internal" onclick="window.setHpBottomTab('internal')" class="timeline-btn">
                                 Progetti Interni
                             </button>
                         </div>
                         
                         <div style="flex: 1;"></div>
-                        <button class="timeline-btn" onclick="window.location.hash='dashboard'" style="color: var(--brand-blue); font-weight: 700;">Vedi Tutti</button>
+                        <button class="timeline-btn vedi-tutti-btn" onclick="window.location.hash='dashboard'">Vedi Tutti</button>
                     </div>
                     
                     <div id="hp-bottom-kpis"></div>
-                    <div id="hp-bottom-content" class="premium-card-list custom-scrollbar" style="height: 420px; overflow-y: auto; padding-right: 8px;">
+                    <div id="hp-bottom-content" class="premium-card-list custom-scrollbar hp-list-content">
                          <span class="loader small"></span>
                     </div>
                 </div>
 
-                <!-- RIGHT: ACTIVITIES -->
-                <div class="dashboard-widget" style="padding: 2rem;">
-                    <div class="widget-header" style="justify-content: flex-start; gap: 1.5rem; margin-bottom: 2rem;">
+                <!-- MIDDLE: ACTIVITIES -->
+                <div class="dashboard-widget">
+                    <div class="widget-header hp-widget-header">
                         <h3 class="widget-title">Le mie attività</h3>
                         
-                        <div style="background: var(--bg-tertiary); padding: 5px; border-radius: 12px; display: flex; gap: 4px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);">
-                            <button id="hp-act-tab-projects" onclick="window.setHpActivityTab('projects')" class="timeline-btn active" style="font-weight: 700;">
+                        <div class="hp-widget-tabs">
+                            <button id="hp-act-tab-projects" onclick="window.setHpActivityTab('projects')" class="timeline-btn active">
                                 Commesse
                             </button>
-                            <button id="hp-act-tab-internal" onclick="window.setHpActivityTab('internal')" class="timeline-btn" style="font-weight: 700;">
+                            <button id="hp-act-tab-internal" onclick="window.setHpActivityTab('internal')" class="timeline-btn">
                                 Progetti Interni
                             </button>
                         </div>
                     </div>
                     
                     <div id="hp-activities-bottom-kpis"></div>
-                    <div id="hp-activities-bottom-content" class="premium-card-list custom-scrollbar" style="height: 420px; overflow-y: auto; padding-right: 8px;">
+                    <div id="hp-activities-bottom-content" class="premium-card-list custom-scrollbar hp-list-content">
                          <span class="loader small"></span>
                     </div>
                 </div>
 
-                <!-- NEW: DELEGATED TASKS -->
-                <div class="dashboard-widget" style="padding: 2rem;">
-                    <div class="widget-header" style="justify-content: flex-start; gap: 1.5rem; margin-bottom: 2rem;">
+                <!-- RIGHT: DELEGATED TASKS -->
+                <div class="dashboard-widget">
+                    <div class="widget-header hp-widget-header">
                         <h3 class="widget-title">Task Gestite</h3>
-                        <div style="background: var(--bg-tertiary); padding: 5px; border-radius: 12px; display: flex; gap: 4px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);">
-                            <button id="hp-delegated-tab-projects" onclick="window.setHpDelegatedTab('projects')" class="timeline-btn active" style="font-weight: 700;">
+                        <div class="hp-widget-tabs">
+                            <button id="hp-delegated-tab-projects" onclick="window.setHpDelegatedTab('projects')" class="timeline-btn active">
                                 Commesse
                             </button>
-                            <button id="hp-delegated-tab-internal" onclick="window.setHpDelegatedTab('internal')" class="timeline-btn" style="font-weight: 700;">
+                            <button id="hp-delegated-tab-internal" onclick="window.setHpDelegatedTab('internal')" class="timeline-btn">
                                 Progetti Interni
                             </button>
                         </div>
                     </div>
                     
                     <div id="hp-delegated-bottom-kpis"></div>
-                    <div id="hp-delegated-bottom-content" class="premium-card-list custom-scrollbar" style="height: 420px; overflow-y: auto; padding-right: 8px;">
+                    <div id="hp-delegated-bottom-content" class="premium-card-list custom-scrollbar hp-list-content">
                          <span class="loader small"></span>
                     </div>
                 </div>
@@ -978,7 +950,13 @@ export async function renderHomepage(container) {
                 // Determine day ID for Daily View
                 const dayId = date.getDay();
                 const dayRules = rules.filter(r => r.day_of_week === dayId);
-                renderTimeline(timelineWrapper, events, date, dayRules, googleBusy, overrides);
+
+                // MOBILE UX FIX: Check screen width
+                if (window.innerWidth <= 768) {
+                    renderMobileAgenda(timelineWrapper, events, date, dayRules);
+                } else {
+                    renderTimeline(timelineWrapper, events, date, dayRules, googleBusy, overrides);
+                }
             }
 
             // Sync My Activities Side Panel (Events Tab AND Tasks) with the new date/range
@@ -1844,6 +1822,57 @@ function renderWeeklyTimeline(container, events, startDate, rules, googleBusy, o
 }
 
 // --- MAIN RENDER LOGIC ---
+
+function renderMobileAgenda(container, events, date, rules) {
+    container.innerHTML = '';
+
+    const agendaContainer = document.createElement('div');
+    agendaContainer.className = 'mobile-agenda-list';
+
+    if (!events || events.length === 0) {
+        agendaContainer.innerHTML = `
+            <div class="empty-agenda">
+                <span class="material-icons-round">bedtime</span>
+                <p>Nessun impegno programmato per oggi</p>
+            </div>
+        `;
+        container.appendChild(agendaContainer);
+        return;
+    }
+
+    events.forEach(ev => {
+        const card = document.createElement('div');
+        card.className = `agenda-mobile-card ${ev.type}`;
+
+        const startTime = ev.start.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+        const endTime = ev.end.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+
+        card.innerHTML = `
+            <div class="agenda-time">
+                <span class="start">${startTime}</span>
+                <span class="end">${endTime}</span>
+            </div>
+            <div class="agenda-content">
+                <div class="agenda-header">
+                    <span class="type-badge">${ev.type === 'booking' ? 'Prenotazione' : 'Appuntamento'}</span>
+                    ${ev.client ? `<span class="client-name">${ev.client}</span>` : ''}
+                </div>
+                <h4 class="agenda-title">${ev.title}</h4>
+                ${ev.location ? `<div class="agenda-meta"><span class="material-icons-round">place</span> ${ev.location}</div>` : ''}
+            </div>
+            <span class="material-icons-round arrow">chevron_right</span>
+        `;
+
+        card.onclick = () => {
+            if (ev.type === 'appointment') openAppointmentDrawer(ev.id);
+            else if (ev.type === 'booking') { /* Handle booking detail? */ }
+        };
+
+        agendaContainer.appendChild(card);
+    });
+
+    container.appendChild(agendaContainer);
+}
 
 function renderTimeline(container, events, date = new Date(), availabilityRules = [], googleBusy = [], overrides = []) {
     // 1. Range Config: Full Day 00:00 - 24:00 (user request)

@@ -36,6 +36,7 @@
 }
 
 .primary-btn {
+    font-family: var(--font-titles);
     background: var(--brand-gradient);
     color: white;
     border: none;
@@ -128,6 +129,7 @@
 }
 
 .segmented-btn {
+    font-family: var(--font-titles);
     padding: 0.55rem 1.25rem;
     border-radius: 8px;
     border: none;

@@ -322,6 +322,11 @@ export async function renderSpaceView(container, spaceId) {
                     <button class="tab-btn ${activeView === 'docs' ? 'active' : ''}" data-view="docs">
                         <span class="material-icons-round">description</span> Documenti
                     </button>
+                    ${state.profile?.role === 'admin' ? `
+                    <button class="tab-btn ${activeView === 'activity_log' ? 'active' : ''}" data-view="activity_log">
+                        <span class="material-icons-round">history</span> Log Attività
+                    </button>
+                    ` : ''}
                 </div>
 
                 <!-- View Content -->
@@ -407,6 +412,8 @@ export async function renderSpaceView(container, spaceId) {
                     viewContent.innerHTML = '<div style="text-align:center; padding: 2rem; color: #94a3b8;">Vista lista in arrivo...</div>';
                 } else if (view === 'docs') {
                     import('../docs/DocsView.js').then(mod => mod.renderDocsView(viewContent, spaceId));
+                } else if (view === 'activity_log') {
+                    import('./components/activity_log.js?v=1000').then(mod => mod.renderActivityLog(viewContent, spaceId));
                 }
             });
         });
@@ -581,6 +588,8 @@ export async function renderSpaceView(container, spaceId) {
             renderHubAppointments(viewContent, appointments, appointmentTypes, spaceId, 'space');
         } else if (activeView === 'docs') {
             import('../docs/DocsView.js').then(mod => mod.renderDocsView(viewContent, spaceId));
+        } else if (activeView === 'activity_log') {
+            import('./components/activity_log.js?v=1000').then(mod => mod.renderActivityLog(viewContent, spaceId));
         } else {
             renderHubTree(viewContent, items, space, spaceId);
         }

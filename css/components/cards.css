@@ -33,6 +33,17 @@
     .card-grid {
         grid-template-columns: 1fr;
     }
+
+    .grid-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
 }
 
 .stats-card {
@@ -74,6 +85,7 @@
 }
 
 .stats-value {
+    font-family: var(--font-titles);
     font-size: 2.5rem;
     font-weight: 500;
     color: var(--text-primary);
@@ -138,6 +150,7 @@
 }
 
 .premium-total {
+    font-family: var(--font-titles);
     font-size: 2.5rem;
     font-weight: 800;
     color: var(--brand-viola);

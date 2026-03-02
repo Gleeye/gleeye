@@ -32,6 +32,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 1rem 1.25rem;
+    padding-top: calc(1rem + env(safe-area-inset-top, 0px));
     border-bottom: none;
     background: linear-gradient(180deg,
             rgba(78, 146, 216, 0.02) 0%,
@@ -125,6 +126,7 @@
    ========================== */
 
 .nav-item {
+    font-family: var(--font-titles);
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -361,6 +363,7 @@
 
 /* Submenu Labels/Sections */
 .submenu-label {
+    font-family: var(--font-titles);
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 1.2px;
@@ -420,18 +423,80 @@
    USER PROFILE SECTION
    ========================== */
 
+
+
+.sidebar-bottom {
+    margin-top: auto;
+    padding: 0 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.sidebar-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0.5rem;
+    background: rgba(78, 146, 216, 0.04);
+    border-radius: 12px;
+    margin-bottom: 0.5rem;
+}
+
+.sidebar-action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    border-radius: 8px;
+}
+
+.sidebar-action-btn:hover {
+    background: rgba(78, 146, 216, 0.1);
+    color: var(--brand-blue);
+}
+
+.sidebar-action-btn .material-icons-round {
+    font-size: 1.2rem;
+}
+
+.sidebar.collapsed .sidebar-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+}
+
+.sidebar.collapsed .sidebar-action-btn {
+    width: 100%;
+}
+
 .user-profile {
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 1.25rem 1rem;
-    margin-top: auto;
-    border-top: none;
+    padding: 0.75rem;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
     border-radius: 16px;
     position: relative;
     background: rgba(78, 146, 216, 0.02);
+}
+
+.notification-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    background: #ef4444;
+    border-radius: 50%;
+    border: 2px solid var(--card-bg);
 }
 
 .user-profile::before {
@@ -523,6 +588,7 @@
 }
 
 .user-info .name {
+    font-family: var(--font-titles);
     font-size: 0.95rem;
     font-weight: 600;
     color: var(--text-primary);
@@ -551,4 +617,90 @@
     opacity: 1;
     color: #ef4444;
     transform: scale(1.1);
+}
+
+/* ==========================
+   MOBILE RESPONSIVENESS (Drawer)
+   ========================== */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        z-index: 1000;
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.15);
+        border-right: none;
+        width: 280px !important;
+        /* Force width on mobile */
+    }
+
+    .sidebar.mobile-open {
+        transform: translateX(0);
+    }
+
+    /* Hide the normal toggle button on mobile inside the sidebar */
+    .sidebar-toggle {
+        display: none;
+    }
+
+    /* Add a close button for mobile */
+    .sidebar-header {
+        padding: 1rem;
+        padding-top: calc(0.5rem + env(safe-area-inset-top, 44px));
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .sidebar-mobile-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.05);
+        color: var(--text-primary);
+        cursor: pointer;
+        order: -1;
+        /* Place at the very beginning of header */
+    }
+
+    .sidebar-mobile-close span {
+        font-size: 22px;
+    }
+
+    /* Logo adjustment in header */
+    .sidebar-header .brand {
+        flex: 1;
+    }
+
+    .sidebar-header .brand-logo {
+        height: 34px;
+        max-width: 120px;
+    }
+}
+
+/* Mobile Overlay Background */
+.sidebar-mobile-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.sidebar-mobile-overlay.active {
+    opacity: 1;
+    visibility: visible;
 }

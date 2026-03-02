@@ -1295,3 +1295,43 @@ export async function updateItemCloudLinks(itemId, links) {
     if (error) throw error;
     return data;
 }
+
+// --- ACTIVITY LOGS ---
+export async function fetchPMActivityLogs(spaceId, itemId = null) {
+    let query = supabase
+        .from('pm_activity_logs')
+        .select(`
+            id, action_type, details, created_at,
+            actor:actor_user_ref ( first_name, last_name, avatar_url, email )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+    if (itemId) {
+        query = query.eq('item_ref', itemId);
+    } else if (spaceId) {
+        query = query.eq('space_ref', spaceId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+        console.error("Error fetching activity logs:", error);
+        return [];
+    }
+
+    // Map authors for UI
+    return data.map(log => {
+        let authorName = 'Sistema';
+        let avatarUrl = 'https://ui-avatars.com/api/?name=Sistema&background=random';
+        
+        if (log.actor) {
+            const first = log.actor.first_name || '';
+            const last = log.actor.last_name || '';
+            authorName = `${first} ${last}`.trim();
+            if (!authorName) authorName = log.actor.email?.split('@')[0] || 'Utente';
+            avatarUrl = log.actor.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random`;
+        }
+
+        return { ...log, authorName, avatarUrl };
+    });
+}

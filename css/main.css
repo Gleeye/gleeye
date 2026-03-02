@@ -1,6 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&family=Questrial&display=swap');
-
-@import 'variables.css';
+@import 'variables-v2.css';
 @import 'design-system.css';
 @import 'base.css';
 @import 'components/animations.css';
@@ -13,6 +11,7 @@
 @import 'components/sidebar.css?v=340';
 @import 'components/sidebar-drilldown.css?v=340';
 @import 'components/layout.css';
+@import 'components/homepage.css';
 @import 'components/dashboard.css';
 @import 'components/auth.css';
 @import 'components/bank_transactions.css';

@@ -433,7 +433,7 @@ export async function renderInternalProjects(container) {
 
                         /* MAIN AREA */
                         .dashboard-main { padding: 2rem 3rem; overflow-y: auto; }
-                        .dashboard-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; }
+                        .dashboard-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; gap: 1rem; }
                         .dashboard-header h1 { font-size: 1.8rem; font-weight: 700; color: #1e293b; margin: 0; letter-spacing: -0.02em; }
                         .dashboard-header p { color: #64748b; font-size: 0.95rem; margin-top: 0.25rem; font-weight: 500; }
 
@@ -553,6 +553,22 @@ export async function renderInternalProjects(container) {
                         }
                         .dropdown-content a:hover { background: #f1f5f9; color: var(--brand-blue); }
                         .dropdown-content a .material-icons-round { color: #94a3b8; font-size: 1.2rem; }
+                        
+                        /* RESPONSIVE */
+                        @media (max-width: 992px) {
+                            .internal-projects-dashboard { grid-template-columns: 1fr; overflow-y: auto; }
+                            .dashboard-sidebar { border-left: none; border-top: 1px solid #e2e8f0; max-height: max-content; }
+                            .dashboard-main { padding: 1.5rem; overflow-y: visible; }
+                            .hero-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+                            .dashboard-header { flex-direction: column; align-items: stretch; }
+                            .dropdown { width: 100%; }
+                            .dropdown .primary-btn-premium { width: 100%; justify-content: center; }
+                        }
+
+                        @media (max-width: 600px) {
+                            .hero-stats-grid { grid-template-columns: 1fr; }
+                            .projects-grid { grid-template-columns: 1fr; }
+                        }
                     </style>
                 </div>
             `;

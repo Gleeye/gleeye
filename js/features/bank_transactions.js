@@ -130,6 +130,126 @@ export async function renderBankTransactions(container) {
             </div>
 
             <!-- MAIN CONTENT GRID -->
+            <style>
+                @media (max-width: 768px) {
+                    /* FORCE GLOBAL OVERFLOW FIX */
+                    html, body { overflow-x: hidden !important; position: relative !important; width: 100% !important; }
+                    
+                    .bank-dashboard-container { 
+                        padding: 0.5rem !important; 
+                        width: 100% !important;
+                        max-width: 100vw !important;
+                        overflow-x: hidden !important;
+                        box-sizing: border-box !important;
+                        margin: 0 !important;
+                        display: block !important;
+                    }
+                    
+                    .bank-content-grid { 
+                        display: block !important;
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                    }
+                    
+                    .bank-list-side {
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        box-sizing: border-box !important;
+                        display: block !important;
+                    }
+
+                    .registry-container {
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        margin: 0 !important;
+                        padding: 1rem !important;
+                        box-sizing: border-box !important;
+                        border-radius: 20px !important;
+                    }
+
+                    /* KPI Compact Column for Mobile */
+                    .bank-kpi-grid { 
+                        display: flex !important;
+                        flex-direction: column !important;
+                        gap: 0.75rem !important; 
+                        margin-bottom: 1.5rem !important; 
+                        width: 100% !important;
+                    }
+                    .bank-kpi-grid > div { 
+                        width: 100% !important;
+                        padding: 1rem !important; 
+                        border-radius: 16px !important; 
+                        display: flex !important;
+                        flex-direction: row !important;
+                        align-items: center !important; 
+                        gap: 1rem !important; 
+                        box-sizing: border-box !important;
+                    }
+                    .bank-kpi-grid > div > div:first-of-type { width: 40px !important; height: 40px !important; flex-shrink: 0 !important; }
+                    .bank-kpi-grid > div > div:last-child { flex: 1; }
+                    .bank-kpi-grid > div > div:last-child div:last-child { font-size: 1.25rem !important; }
+
+                    /* Header & Filter Area - Stacking Fix */
+                    .bank-header-actions { 
+                        padding: 1.25rem !important; 
+                        margin-bottom: 1.25rem !important; 
+                        border-radius: 20px !important; 
+                        flex-direction: column !important;
+                        align-items: stretch !important;
+                        gap: 1.5rem !important;
+                        width: 100% !important;
+                        box-sizing: border-box !important;
+                    }
+                    .bank-header-actions > div:first-child { width: 100% !important; }
+                    .bank-header-actions > div:last-child { 
+                        flex-direction: column !important;
+                        align-items: stretch !important;
+                        gap: 0.75rem !important;
+                        width: 100% !important;
+                    }
+
+                    .segmented-control { 
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        box-sizing: border-box !important;
+                        padding: 4px !important;
+                        display: flex !important;
+                        gap: 4px !important;
+                    }
+                    .segmented-control label, .segmented-control div { flex: 1; text-align: center; white-space: nowrap; padding: 8px 4px !important; font-size: 0.8rem !important; }
+                    
+                    .primary-btn { width: 100% !important; justify-content: center !important; height: 44px !important; }
+                    .primary-btn.secondary { border: 1px solid #e2e8f0 !important; }
+
+                    /* Movements List High Density - Width Constrained */
+                    .transaction-card { 
+                        padding: 1rem !important; 
+                        margin-bottom: 0.75rem !important; 
+                        border-radius: 16px !important;
+                        gap: 1rem !important;
+                        width: 100% !important;
+                        box-sizing: border-box !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        overflow: hidden !important;
+                    }
+                    .bt-date-col { min-width: 42px !important; margin-right: 0 !important; flex-shrink: 0 !important; }
+                    .bt-info-col { flex: 1 !important; min-width: 0 !important; padding-right: 0.5rem !important; overflow: hidden !important; }
+                    .bt-info-col .bt-desc { font-size: 0.9rem !important; font-weight: 600 !important; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+                    .bt-info-col .bt-entity { font-size: 0.75rem !important; }
+                    .bt-amount-col { min-width: auto !important; text-align: right !important; flex-shrink: 0 !important; }
+                    .bt-amount-col div { font-size: 1.05rem !important; font-weight: 700 !important; }
+                    
+                    .bt-action-col { display: none !important; } /* Hidden on mobile list to save horizontal space, click card instead */
+
+                    /* Hide Analytics Sidebar */
+                    #bt-analytics-root { display: none !important; }
+                }
+            </style>
             <div class="bank-content-grid" style="display: grid; grid-template-columns: 1fr 360px; gap: 3rem; align-items: start;">
                 
                 <!-- LEFT CONTENT AREA -->
@@ -287,27 +407,27 @@ function renderRow(t, isPending, monthShortArray, s) {
 
     return `
     <div class="transaction-card" onclick="openBankTransactionModal('${t.id}')" style="background: white; border-radius: 20px; padding: 1.25rem 1.75rem; display: flex; align-items: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02); border: 1px solid rgba(0,0,0,0.04); transition: all 0.2s; cursor: pointer; margin-bottom: 0.8rem;">
-        <div style="display: flex; flex-direction: column; align-items: center; margin-right: 2rem; min-width: 45px;">
+        <div class="bt-date-col" style="display: flex; flex-direction: column; align-items: center; margin-right: 2rem; min-width: 45px;">
             <span style="font-size: 1.3rem; font-weight: 500; line-height: 1; color: #111827;">${day}</span>
             <span style="font-size: 0.7rem; font-weight: 400; text-transform: uppercase; color: #9ca3af; margin-top: 4px;">${month}</span>
         </div>
-        <div style="flex: 0 1 450px; min-width: 0; padding-right: 2rem;">
-            <div style="font-weight: 400; font-size: 0.95rem; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: block; text-transform: uppercase; letter-spacing: 0.01em; margin-bottom: 0.35rem;">${t.description}</div>
-            <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #6b7280; font-weight: 400;">
+        <div class="bt-info-col" style="flex: 0 1 450px; min-width: 0; padding-right: 2rem;">
+            <div class="bt-desc" style="font-weight: 400; font-size: 0.95rem; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: block; text-transform: uppercase; letter-spacing: 0.01em; margin-bottom: 0.35rem;">${t.description}</div>
+            <div class="bt-entity" style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #6b7280; font-weight: 400;">
                 <span class="material-icons-round" style="font-size: 16px; color: #9ca3af;">folder_open</span> ${entityName}
             </div>
         </div>
-        <div style="flex: 1;"></div>
-        <div style="display: flex; align-items: center; gap: 0.5rem; padding: 5px 12px; border-radius: 50px; font-size: 0.8rem; font-weight: 400; margin-right: 1.5rem; flex-shrink: 0; ${catBadgeStyle}">
+        <div class="bt-spacer" style="flex: 1;"></div>
+        <div class="bt-badge-col" style="display: flex; align-items: center; gap: 0.5rem; padding: 5px 12px; border-radius: 50px; font-size: 0.8rem; font-weight: 400; margin-right: 1.5rem; flex-shrink: 0; ${catBadgeStyle}">
             <span class="material-icons-round" style="font-size: 16px;">${icon}</span> ${catName}
         </div>
-        <div style="margin-right: 2rem; flex-shrink: 0;">${invoiceBadge}</div>
-        <div style="text-align: right; min-width: 110px; flex-shrink: 0;">
+        <div class="bt-invoice-col" style="margin-right: 2rem; flex-shrink: 0;">${invoiceBadge}</div>
+        <div class="bt-amount-col" style="text-align: right; min-width: 110px; flex-shrink: 0;">
             <div style="font-weight: 500; font-size: 1.15rem; color: ${t.type === 'entrata' ? '#16a34a' : '#dc2626'}; letter-spacing: -0.02em;">
                 ${t.type === 'entrata' ? '+' : '-'} ${formatAmount(Math.abs(t.amount))} €
             </div>
         </div>
-        <div style="margin-left: 1.5rem; flex-shrink: 0;">
+        <div class="bt-action-col" style="margin-left: 1.5rem; flex-shrink: 0;">
             ${isPending ? `
                 <div style="display: flex; gap: 0.5rem;">
                     <button class="icon-btn success" onclick="event.stopPropagation(); handleApproveTx('${t.id}')" title="Approva" style="width: 32px; height: 32px; background: #dcfce7; color: #16a34a;">
@@ -659,20 +779,20 @@ export function initBankTransactionModals() {
                     </div>
                 </div>
 
-                <div class="modal-footer" style="padding: 1.5rem 2rem; border-top: 1px solid var(--glass-border); display: flex; justify-content: space-between; background: #fff;">
+                <div class="modal-footer" style="padding: 1.5rem 2rem; border-top: 1px solid var(--glass-border); display: flex; justify-content: space-between; background: #fff; flex-wrap: wrap; gap: 1rem;">
                     <!-- READ ONLY BUTTONS -->
-                    <div id="bt-footer-read" style="display: none; width: 100%; justify-content: space-between;">
+                    <div id="bt-footer-read" style="display: none; width: 100%; justify-content: space-between; gap: 0.5rem;">
                         <button class="primary-btn secondary danger" id="bt-delete-btn-read" onclick="handleDeleteBT()">Elimina</button>
-                        <div style="display: flex; gap: 1rem;">
+                        <div style="display: flex; gap: 0.5rem;">
                             <button class="primary-btn secondary" onclick="closeBankTransactionModal()">Chiudi</button>
                             <button class="primary-btn" onclick="switchToEditMode()">Modifica</button>
                         </div>
                     </div>
 
                     <!-- EDIT BUTTONS -->
-                    <div id="bt-footer-edit" style="display: flex; width: 100%; justify-content: space-between;">
+                    <div id="bt-footer-edit" style="display: flex; width: 100%; justify-content: space-between; gap: 0.5rem;">
                          <button class="primary-btn secondary danger" id="bt-delete-btn" onclick="handleDeleteBT()">Elimina Movimento</button>
-                         <div style="display: flex; gap: 1rem; margin-left: auto;">
+                         <div style="display: flex; gap: 0.5rem; margin-left: auto;">
                             <button class="primary-btn secondary" onclick="closeBankTransactionModal()">Annulla</button>
                             <button class="primary-btn" onclick="submitBankTransaction()">Conferma e Salva</button>
                         </div>

@@ -10,6 +10,7 @@ export function initLayout() {
     const sidebar = document.getElementById('sidebar');
 
     if (toggleBtn && sidebar) {
+        // Desktop Toggle
         toggleBtn.addEventListener('click', () => {
             sidebar.classList.toggle('collapsed');
             const icon = toggleBtn;
@@ -23,8 +24,62 @@ export function initLayout() {
         });
     }
 
+    // Mobile Sidebar Logic
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn'); // Needs to be added to top-bar
+
+    // Create mobile overlay if it doesn't exist
+    let mobileOverlay = document.querySelector('.sidebar-mobile-overlay');
+    if (!mobileOverlay) {
+        mobileOverlay = document.createElement('div');
+        mobileOverlay.className = 'sidebar-mobile-overlay';
+        document.body.appendChild(mobileOverlay);
+    }
+
+    const closeMobileSidebar = () => {
+        if (sidebar) sidebar.classList.remove('mobile-open');
+        mobileOverlay.classList.remove('active');
+        document.body.style.overflow = ''; // Restore scrolling
+    };
+
+    const openMobileSidebar = () => {
+        if (sidebar) sidebar.classList.add('mobile-open');
+        mobileOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    };
+
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', openMobileSidebar);
+    }
+
+    mobileOverlay.addEventListener('click', closeMobileSidebar);
+
+    // Optionally add a close button inside sidebar header for mobile
+    let mobileCloseBtn = sidebar?.querySelector('.sidebar-mobile-close');
+    if (sidebar && !mobileCloseBtn) {
+        const header = sidebar.querySelector('.sidebar-header');
+        if (header) {
+            mobileCloseBtn = document.createElement('div');
+            mobileCloseBtn.className = 'sidebar-mobile-close';
+            mobileCloseBtn.innerHTML = '<span class="material-icons-round">close</span>';
+            mobileCloseBtn.addEventListener('click', closeMobileSidebar);
+            // Insert before brand or append
+            header.insertBefore(mobileCloseBtn, header.firstChild);
+        }
+    }
+
     // Initialize Drill-Down Navigation
     initDrillDownNavigation();
+
+    // Auto-close mobile sidebar when a normal link is clicked
+    const navMenu = document.querySelector('.nav-menu');
+    if (navMenu) {
+        navMenu.addEventListener('click', (e) => {
+            const link = e.target.closest('.nav-item:not(.has-submenu)');
+            if (link && window.innerWidth <= 768) {
+                closeMobileSidebar();
+            }
+        });
+    }
 }
 
 function initDrillDownNavigation() {

@@ -3,9 +3,11 @@
 **Goal**: Maintain a premium, modern, and cohesive aesthetic. "Ragionato e meno banale".
 
 ## 1. Typography
-- **Primary Font**: `Outfit` (sans-serif)
-    - Used for both Titles and Body.
-    - Weights: Light usage of bold. Prefer font-weight 400/500.
+- **Primary Font (Body)**: `Plus Jakarta Sans` (sans-serif)
+    - Used for normal text, paragraphs, labels, and inputs.
+- **Title Font (Brand)**: `Satoshi` (sans-serif)
+    - Used for headings (h1-h6), navigation items, and brand-heavy UI elements.
+    - Weights: 300, 400, 500, 700. Prefer 400/500 for a cleaner look.
 
 ## 2. Color Palette
 ### Brand Identity

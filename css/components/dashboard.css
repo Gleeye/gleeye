@@ -41,6 +41,17 @@
     }
 }
 
+@media (max-width: 768px) {
+    .dashboard-controls-row {
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+    }
+
+    .dashboard-controls-row>* {
+        width: 100%;
+    }
+}
+
 /* Ranking UI (Standardized) */
 .ranking-container {
     display: flex;
@@ -92,6 +103,19 @@
     gap: 1.5rem;
     padding-top: 1.5rem;
     border-top: 1px solid var(--glass-border);
+}
+
+@media (max-width: 768px) {
+    .fiscal-breakdown {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .fiscal-breakdown {
+        grid-template-columns: 1fr;
+    }
 }
 
 .breakdown-item {

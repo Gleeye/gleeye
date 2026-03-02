@@ -1,14 +1,14 @@
 /* Tables */
+/* Table Container Styling */
 .table-container {
     background: var(--card-bg);
     border: 1px solid var(--glass-border);
     border-radius: var(--border-radius-lg);
-    padding: 2rem;
-    backdrop-filter: blur(30px);
-    -webkit-backdrop-filter: blur(30px);
-    box-shadow: var(--shadow-soft);
-    position: relative;
-    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    /* Mobile-first: allow horizontal scrolling immediately */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
 }
 
 table {

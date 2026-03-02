@@ -724,6 +724,12 @@ export function initNewClientModal() {
                     from { opacity: 0; transform: scale(0.95) translateY(20px); }
                     to { opacity: 1; transform: scale(1) translateY(0); }
                 }
+                .mobile-col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+                .mobile-inline-grid { display: grid; grid-template-columns: 1fr 70px 100px; gap: 0.75rem; }
+                @media (max-width: 768px) {
+                    .mobile-col-grid { grid-template-columns: 1fr; gap: 1rem; }
+                    .mobile-inline-grid { grid-template-columns: 1fr 1fr 1fr; }
+                }
             </style>
         `);
     }
@@ -749,7 +755,7 @@ export function initNewClientModal() {
                 </div>
 
                 <!-- Form Body -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2.5rem;">
+                <div class="mobile-col-grid" style="margin-bottom: 2.5rem;">
                     
                     <!-- Left Column: Anagrafica & Contatti -->
                     <div style="display: flex; flex-direction: column; gap: 1.5rem;">
@@ -781,7 +787,7 @@ export function initNewClientModal() {
                             <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; letter-spacing: 0.5px; text-transform: uppercase;">Sede Legale</label>
                             <div style="display: flex; flex-direction: column; gap: 1rem;">
                                 <input type="text" id="new-cli-address" class="modal-input" placeholder="Indirizzo e n. civico" style="width: 100%; border-radius: 12px; padding: 0.75rem 1rem;">
-                                <div style="display: grid; grid-template-columns: 1fr 70px 100px; gap: 0.75rem;">
+                                <div class="mobile-inline-grid">
                                     <input type="text" id="new-cli-city" class="modal-input" placeholder="Città" style="width: 100%; border-radius: 12px;">
                                     <input type="text" id="new-cli-prov" class="modal-input" placeholder="PR" maxlength="2" style="width: 100%; border-radius: 12px; text-align: center; padding-left: 0.25rem; padding-right: 0.25rem;">
                                     <input type="text" id="new-cli-cap" class="modal-input" placeholder="CAP" maxlength="5" style="width: 100%; border-radius: 12px; text-align: center; padding-left: 0.25rem; padding-right: 0.25rem;">
