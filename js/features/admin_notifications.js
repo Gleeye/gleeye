@@ -35,6 +35,9 @@ export async function renderAdminNotifications(container) {
                 <button class="admin-tab-btn" data-tab="email" style="padding: 0.8rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">
                     Configurazione Email
                 </button>
+                <button class="admin-tab-btn" data-tab="reminders" style="padding: 0.8rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); font-weight: 500; cursor: pointer;">
+                    Avvisi Programmati
+                </button>
             </div>
 
             <!-- Tab: Notification Types -->
@@ -101,6 +104,30 @@ export async function renderAdminNotifications(container) {
                     </form>
                 </div>
             </div>
+
+            <!-- Tab: Reminders Configuration -->
+            <div id="admin-tab-reminders" class="admin-tab-content hidden">
+                <div class="glass-card" style="padding: 2rem; max-width: 800px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span class="material-icons-round" style="color: var(--brand-blue);">schedule</span>
+                                Avvisi Programmati
+                            </h3>
+                            <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">
+                                Configura promemoria ricorrenti per eventi in sospeso. (Richiede l'attivazione globale in Tipi di Notifica)
+                            </p>
+                        </div>
+                        <button class="primary-btn small" id="save-reminders-btn">
+                            Salva Preferenze
+                        </button>
+                    </div>
+                    
+                    <div id="reminders-list-container" style="display: flex; flex-direction: column; gap: 1rem;">
+                        <div style="padding: 2rem; text-align: center;"><span class="loader"></span></div>
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 
@@ -132,12 +159,19 @@ export async function renderAdminNotifications(container) {
     // Load SMTP config
     loadSMTPConfig();
 
+    // Load Reminders
+    loadRemindersConfig();
+
     // Bind form submit
     const smtpForm = container.querySelector('#smtp-config-form');
     smtpForm.addEventListener('submit', saveSMTPConfig);
 
     // Test email button
     container.querySelector('#test-email-btn').addEventListener('click', sendTestEmail);
+
+    // Save reminders button
+    const saveRemBtn = container.querySelector('#save-reminders-btn');
+    if (saveRemBtn) saveRemBtn.addEventListener('click', saveRemindersConfig);
 }
 
 // --- RENDER LOGIC ---
@@ -629,6 +663,112 @@ async function sendTestEmail() {
     } catch (err) {
         console.error('Test email error:', err);
         window.showAlert('Errore invio test: ' + err.message, 'error');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+// --- CUSTOM REMINDERS LOGIC ---
+async function loadRemindersConfig() {
+    const list = document.getElementById('reminders-list-container');
+    if (!list) return;
+
+    try {
+        const { data, error } = await supabase
+            .from('custom_reminders')
+            .select('*')
+            .eq('user_id', state.session.user.id);
+
+        if (error) throw error;
+
+        // Default definitions
+        const definitions = [
+            { type: 'unpaid_invoices', label: 'Fatture Insolute', desc: 'Avviso se ci sono fatture scadute e non ancora saldate.', icon: 'receipt_long' },
+            { type: 'unreconciled_transactions', label: 'Movimenti da Riconciliare', desc: 'Avviso se ci sono movimenti di cassa non ancora associati a fatture.', icon: 'account_balance' },
+            { type: 'stale_leads', label: 'Lead In Sospeso', desc: 'Avviso per preventivi o contatti fermi da troppo tempo.', icon: 'person_search' }
+        ];
+
+        let html = '';
+        definitions.forEach(def => {
+            const userConfig = (data || []).find(d => d.type === def.type) || { is_active: false, frequency: 'daily', threshold_days: 0 };
+
+            html += `
+                <div class="reminder-row" style="padding: 1.5rem; background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--glass-border); display: flex; align-items: flex-start; gap: 1.5rem;" data-type="${def.type}">
+                    <div style="padding: 12px; background: rgba(78, 146, 216, 0.1); border-radius: 50%; color: var(--brand-blue); display: flex; align-items: center; justify-content: center;">
+                        <span class="material-icons-round">${def.icon}</span>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <h4 style="margin: 0; font-size: 1.05rem;">${def.label}</h4>
+                            <label class="switch">
+                                <input type="checkbox" class="rem-active" ${userConfig.is_active ? 'checked' : ''}>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <p style="margin: 0 0 1rem 0; color: var(--text-secondary); font-size: 0.9rem;">${def.desc}</p>
+                        
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap; background: var(--bg-primary); padding: 1rem; border-radius: 8px; border: 1px solid var(--glass-border);">
+                            <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
+                                <label style="font-size: 0.8rem; font-weight: 500;">Frequenza</label>
+                                <select class="rem-freq" style="padding: 0.5rem; font-size: 0.9rem; margin-top: 0.5rem;">
+                                    <option value="daily" ${userConfig.frequency === 'daily' ? 'selected' : ''}>Giornaliera (09:00)</option>
+                                    <option value="weekly" ${userConfig.frequency === 'weekly' ? 'selected' : ''}>Settimanale (Lunedì 09:00)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
+                                <label style="font-size: 0.8rem; font-weight: 500;">Soglia Avviso (Giorni)</label>
+                                <input type="number" class="rem-threshold" value="${userConfig.threshold_days}" min="0" style="padding: 0.5rem; font-size: 0.9rem; margin-top: 0.5rem;">
+                                <span style="font-size: 0.75rem; color: var(--text-tertiary); display: block; margin-top: 4px;">Ignora se passato meno di X giorni.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        list.innerHTML = html;
+
+    } catch (err) {
+        console.error('Error loading reminders:', err);
+        list.innerHTML = `<p style="color:var(--error-color);">Errore: ${err.message}</p>`;
+    }
+}
+
+async function saveRemindersConfig() {
+    const list = document.getElementById('reminders-list-container');
+    const btn = document.getElementById('save-reminders-btn');
+    if (!list || !btn) return;
+
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="loader small"></span>';
+    btn.disabled = true;
+
+    try {
+        const rows = list.querySelectorAll('.reminder-row');
+        const updates = [];
+
+        rows.forEach(row => {
+            updates.push({
+                user_id: state.session.user.id,
+                type: row.dataset.type,
+                is_active: row.querySelector('.rem-active').checked,
+                frequency: row.querySelector('.rem-freq').value,
+                threshold_days: parseInt(row.querySelector('.rem-threshold').value) || 0,
+                updated_at: new Date().toISOString()
+            });
+        });
+
+        const { error } = await supabase
+            .from('custom_reminders')
+            .upsert(updates, { onConflict: 'user_id, type' });
+
+        if (error) throw error;
+
+        window.showAlert('Promemoria configurati con successo!', 'success');
+    } catch (err) {
+        console.error(err);
+        window.showAlert('Errore: non sei autorizzato o si è verificato un errore di rete.', 'error');
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
