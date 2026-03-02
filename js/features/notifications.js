@@ -435,6 +435,8 @@ function getIcon(type) {
         'booking_cancel': 'event_busy',
         'payment_due': 'payments',
         'payment_received': 'paid',
+
+        // PM Module
         'pm_space_created': 'folder_special',
         'pm_space_assigned': 'assignment_ind',
         'pm_item_created': 'add_task',
@@ -444,6 +446,23 @@ function getIcon(type) {
         'pm_document_created': 'note_add',
         'pm_document_updated': 'edit_document',
         'pm_appointment_invited': 'event_available',
+
+        // CRM Module
+        'crm_new_lead': 'person_add_alt_1',
+        'crm_lead_status': 'swap_horiz',
+        'crm_contact_form': 'contact_mail',
+
+        // Accounting Module
+        'accounting_invoice_created': 'receipt',
+        'accounting_invoice_overdue': 'event_busy',
+        'accounting_payment_received': 'price_check',
+        'accounting_bank_transaction': 'account_balance',
+
+        // Admin Module
+        'admin_new_user': 'manage_accounts',
+        'admin_system_alert': 'warning',
+        'admin_new_order': 'shopping_cart_checkout',
+
         'default': 'notifications'
     };
     return icons[type] || icons.default;
@@ -456,6 +475,8 @@ function getIconClass(type) {
         'booking_cancel': 'type-cancel',
         'payment_due': 'type-payment',
         'payment_received': 'type-success',
+
+        // PM Module
         'pm_space_created': 'type-info',
         'pm_space_assigned': 'type-info',
         'pm_item_created': 'type-success',
@@ -465,6 +486,23 @@ function getIconClass(type) {
         'pm_document_created': 'type-primary',
         'pm_document_updated': 'type-info',
         'pm_appointment_invited': 'type-warning',
+
+        // CRM Module
+        'crm_new_lead': 'type-success',
+        'crm_lead_status': 'type-info',
+        'crm_contact_form': 'type-primary',
+
+        // Accounting Module
+        'accounting_invoice_created': 'type-info',
+        'accounting_invoice_overdue': 'type-cancel',
+        'accounting_payment_received': 'type-success',
+        'accounting_bank_transaction': 'type-primary',
+
+        // Admin Module
+        'admin_new_user': 'type-info',
+        'admin_system_alert': 'type-cancel',
+        'admin_new_order': 'type-success',
+
         'default': 'type-default'
     };
     return classes[type] || classes.default;
