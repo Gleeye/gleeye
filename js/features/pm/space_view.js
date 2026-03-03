@@ -276,9 +276,12 @@ export async function renderSpaceView(container, spaceId) {
                                         </div>
                                     `).join('')}
                                     ${members.length === 0 ? '<span style="font-size: 0.75rem; color: var(--text-tertiary); font-style: italic;">Nessuno</span>' : ''}
-                                    <button id="add-space-member-btn" class="add-pm-circle" title="Gestisci Team" style="border-color: #cbd5e1; color: #64748b;">
-                                        <span class="material-icons-round">group_add</span>
-                                    </button>
+                                    <div style="position: relative;">
+                                        <button id="add-space-member-btn" class="add-pm-circle" title="Gestisci Team" style="border-color: #64748b; color: #64748b;">
+                                            <span class="material-icons-round">group_add</span>
+                                        </button>
+                                        <div id="space-member-picker" class="hidden glass-card picker-popover" style="margin-top: 10px; right: 0; left: auto;"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -418,27 +421,40 @@ export async function renderSpaceView(container, spaceId) {
             });
         });
 
-        // Dropdowns Toggle
-        const toggleDropdown = (triggerId, dropdownId) => {
+        // Robust Popover Toggle Helper
+        const setupPopover = (triggerId, popoverId) => {
             const btn = container.querySelector(triggerId);
-            const drop = container.querySelector(dropdownId);
-            if (btn && drop) {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    container.querySelectorAll('.glass-card.hidden').forEach(el => {
-                        if (el !== drop && !el.classList.contains('picker-popover')) el.classList.add('hidden');
-                    });
-                    drop.classList.toggle('hidden');
+            const pop = container.querySelector(popoverId);
+            if (!btn || !pop) return;
+
+            const clickHandler = (e) => {
+                e.stopPropagation();
+                // Close all other popovers
+                container.querySelectorAll('.picker-popover, .glass-card').forEach(el => {
+                    if (el !== pop) el.classList.add('hidden');
                 });
-                document.addEventListener('click', (e) => {
-                    if (!btn.contains(e.target) && !drop.contains(e.target)) drop.classList.add('hidden');
-                });
-            }
-            return drop;
+                pop.classList.toggle('hidden');
+            };
+
+            btn.addEventListener('click', clickHandler);
+
+            // Cleanup handled by re-render (since elements are removed)
+            // But we need a document listener for closing when clicking outside
+            // We use a shared listener on document if possible, or a specific one that checks existence
+            const outsideClick = (e) => {
+                if (!btn.contains(e.target) && !pop.contains(e.target)) {
+                    pop.classList.add('hidden');
+                }
+                // If pop is removed from DOM, auto-remove this listener
+                if (!document.contains(pop)) {
+                    document.removeEventListener('click', outsideClick);
+                }
+            };
+            document.addEventListener('click', outsideClick);
         };
 
-        const addDropdown = toggleDropdown('#add-new-hub-btn', '#add-hub-dropdown');
-        const settingsDropdown = toggleDropdown('#space-settings-btn', '#space-settings-dropdown');
+        setupPopover('#add-new-hub-btn', '#add-hub-dropdown');
+        setupPopover('#space-settings-btn', '#space-settings-dropdown');
 
         // Cloud Resources
         const cloudBtn = container.querySelector('#cloud-resources-btn');
@@ -447,8 +463,9 @@ export async function renderSpaceView(container, spaceId) {
             cloudBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 // Close others
-                addDropdown?.classList.add('hidden');
-                settingsDropdown?.classList.add('hidden');
+                container.querySelectorAll('.picker-popover, .glass-card').forEach(el => {
+                    if (el !== cloudPopover) el.classList.add('hidden');
+                });
 
                 cloudPopover.classList.toggle('hidden');
 
@@ -496,8 +513,8 @@ export async function renderSpaceView(container, spaceId) {
         });
 
         // Add Actions
-        addDropdown?.querySelector('#add-project-btn')?.addEventListener('click', () => {
-            addDropdown.classList.add('hidden');
+        container.querySelector('#add-project-btn')?.addEventListener('click', () => {
+            container.querySelector('#add-hub-dropdown').classList.add('hidden');
             openProjectModal({
                 prefilledParentId: spaceId,
                 forceType: 'project',
@@ -506,61 +523,114 @@ export async function renderSpaceView(container, spaceId) {
             });
         });
 
-        addDropdown?.querySelector('#add-activity-btn')?.addEventListener('click', () => {
-            addDropdown.classList.add('hidden');
+        container.querySelector('#add-activity-btn')?.addEventListener('click', () => {
+            container.querySelector('#add-hub-dropdown').classList.add('hidden');
             import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => mod.openHubDrawer(null, spaceId, null, 'attivita'));
         });
 
-        addDropdown?.querySelector('#add-task-btn')?.addEventListener('click', () => {
-            addDropdown.classList.add('hidden');
+        container.querySelector('#add-task-btn')?.addEventListener('click', () => {
+            container.querySelector('#add-hub-dropdown').classList.add('hidden');
             import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => mod.openHubDrawer(null, spaceId, null, 'task'));
         });
 
-        // PM Picker logic
-        container.querySelector('#add-space-pm-btn')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const picker = container.querySelector('#space-pm-picker');
-            // ... (rest of PM picker logic)
-            // Render options (excluding already assigned)
-            const assignedUserIds = new Set(spaceAssignees.map(a => a.user_ref).filter(Boolean));
-            const assignedCollabIds = new Set(spaceAssignees.map(a => a.collaborator_ref).filter(Boolean));
+        // Unified Assignee Picker Logic
+        const setupAssigneePicker = (btnId, pickerId, role) => {
+            const btn = container.querySelector(btnId);
+            const picker = container.querySelector(pickerId);
+            if (!btn || !picker) return;
 
-            // Sort by name
-            const candidates = (latestCollabs || [])
-                .filter(c => {
-                    const isAssigned = (c.user_id && assignedUserIds.has(c.user_id)) || assignedCollabIds.has(c.id);
-                    return !isAssigned && c.active !== false;
-                })
-                .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
-
-            picker.innerHTML = candidates.length === 0 ? '<div style="padding:1rem;">Nessun candidato</div>' : candidates.map(c => `
-                <div class="dropdown-item pm-candidate" data-uid="${c.user_id}" data-cid="${c.id}">
-                    ${renderAvatar(c, { size: 24, borderRadius: '50%', fontSize: '0.8rem' })}
-                    <div class="dt" style="font-size:0.8rem;">${c.full_name}</div>
-                    <div class="ds" style="margin-left:auto;">+</div>
-                </div>
-             `).join('');
-
-            picker.querySelectorAll('.pm-candidate').forEach(el => {
-                el.addEventListener('click', async () => {
-                    // ...
-                    const uid = el.dataset.uid !== 'undefined' ? el.dataset.uid : null;
-                    const cid = el.dataset.cid;
-                    try {
-                        if (uid) await assignUserToSpace(spaceId, uid, 'pm');
-                        else await assignUserToSpace(spaceId, cid, 'pm', true);
-                        renderSpaceView(container, spaceId);
-                    } catch (err) { window.showAlert(err.message, 'error'); }
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Close others
+                container.querySelectorAll('.picker-popover, .glass-card').forEach(el => {
+                    if (el !== picker) el.classList.add('hidden');
                 });
+
+                if (picker.classList.contains('hidden')) {
+                    const assignedUserIds = new Set(spaceAssignees.map(a => a.user_ref).filter(Boolean));
+                    const assignedCollabIds = new Set(spaceAssignees.map(a => a.collaborator_ref).filter(Boolean));
+
+                    const candidates = (latestCollabs || [])
+                        .filter(c => {
+                            const isAssigned = (c.user_id && assignedUserIds.has(c.user_id)) || assignedCollabIds.has(c.id);
+                            return !isAssigned && c.active !== false;
+                        })
+                        .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
+
+                    const renderList = (filter = '') => {
+                        const filtered = candidates.filter(c =>
+                            c.full_name?.toLowerCase().includes(filter.toLowerCase()) ||
+                            c.email?.toLowerCase().includes(filter.toLowerCase())
+                        );
+
+                        const listHtml = filtered.length === 0
+                            ? '<div style="padding:1.5rem; text-align:center; color: var(--text-tertiary); font-size: 0.85rem;">Nessun collaboratore trovato</div>'
+                            : filtered.map(c => `
+                                <div class="dropdown-item assignee-candidate" data-uid="${c.user_id}" data-cid="${c.id}">
+                                    ${renderAvatar(c, { size: 28, borderRadius: '50%', fontSize: '0.85rem' })}
+                                    <div class="dt" style="font-size:0.85rem;">${c.full_name}</div>
+                                    <div class="ds" style="margin-left:auto;"><span class="material-icons-round" style="font-size: 1.25rem; color: var(--brand-blue);">add_circle_outline</span></div>
+                                </div>
+                            `).join('');
+
+                        const listContainer = picker.querySelector('.picker-list');
+                        if (listContainer) {
+                            listContainer.innerHTML = listHtml;
+                            listContainer.querySelectorAll('.assignee-candidate').forEach(el => {
+                                el.onclick = async () => {
+                                    const uid = (el.dataset.uid && el.dataset.uid !== 'undefined' && el.dataset.uid !== 'null') ? el.dataset.uid : null;
+                                    const cid = el.dataset.cid;
+                                    el.style.opacity = '0.5';
+                                    el.style.pointerEvents = 'none';
+                                    try {
+                                        if (uid) await assignUserToSpace(spaceId, uid, role);
+                                        else await assignUserToSpace(spaceId, cid, role, true);
+                                        renderSpaceView(container, spaceId);
+                                    } catch (err) {
+                                        window.showAlert(err.message, 'error');
+                                        el.style.opacity = '1';
+                                        el.style.pointerEvents = 'auto';
+                                    }
+                                };
+                            });
+                        }
+                    };
+
+                    picker.innerHTML = `
+                        <div style="padding: 0.75rem; border-bottom: 1px solid var(--surface-2); background: #f8fafc;">
+                            <div style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;">
+                                Aggiungi ${role === 'pm' ? 'Responsabile' : 'Membro Team'}
+                            </div>
+                            <div class="search-box-mini" style="display: flex; align-items: center; gap: 0.5rem; background: white; border: 1px solid var(--surface-2); padding: 4px 8px; border-radius: 8px;">
+                                <span class="material-icons-round" style="font-size: 1rem; color: #94a3b8;">search</span>
+                                <input type="text" placeholder="Cerca..." style="border: none; outline: none; font-size: 0.8rem; width: 100%;" id="picker-search-input">
+                            </div>
+                        </div>
+                        <div class="picker-list" style="max-height: 280px; overflow-y: auto; padding: 0.25rem;"></div>
+                    `;
+
+                    const searchInput = picker.querySelector('#picker-search-input');
+                    searchInput.addEventListener('input', (e) => renderList(e.target.value));
+                    renderList();
+
+                    setTimeout(() => searchInput.focus(), 50);
+                }
+                picker.classList.toggle('hidden');
             });
 
-            picker.classList.toggle('hidden');
-        });
+            const outsideClick = (e) => {
+                if (!btn.contains(e.target) && !picker.contains(e.target)) {
+                    picker.classList.add('hidden');
+                }
+                if (!document.contains(picker)) {
+                    document.removeEventListener('click', outsideClick);
+                }
+            };
+            document.addEventListener('click', outsideClick);
+        };
 
-        // Add Member Button (Header) Logic
-        container.querySelector('#add-space-member-btn')?.addEventListener('click', () => {
-            container.querySelector('.tab-btn[data-view="people"]')?.click();
-        });
+        setupAssigneePicker('#add-space-pm-btn', '#space-pm-picker', 'pm');
+        setupAssigneePicker('#add-space-member-btn', '#space-member-picker', 'assignee');
 
         // Remove PM (Use Custom Modal)
         container.querySelectorAll('.remove-space-pm-btn').forEach(btn => {
@@ -703,64 +773,94 @@ function renderTeamTab(container, assignees, collaborators, spaceId) {
         </div>
     `;
 
-    // Attach listeners
+    // Attach listeners - Reusing Header Picker Logic pattern but for the tab
     const addBtn = container.querySelector('#add-team-member-btn');
     const picker = container.querySelector('#team-member-picker-container');
 
-    addBtn?.addEventListener('click', (e) => {
-        e.stopPropagation();
+    if (addBtn && picker) {
+        addBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (picker.classList.contains('hidden')) {
+                const assignedUserIds = new Set(assignees.map(a => a.user_ref).filter(Boolean));
+                const assignedCollabIds = new Set(assignees.map(a => a.collaborator_ref).filter(Boolean));
 
-        const assignedUserIds = new Set(assignees.map(a => a.user_ref).filter(Boolean));
-        const assignedCollabIds = new Set(assignees.map(a => a.collaborator_ref).filter(Boolean));
+                const candidates = (collaborators || [])
+                    .filter(c => {
+                        const isAssigned = (c.user_id && assignedUserIds.has(c.user_id)) || assignedCollabIds.has(c.id);
+                        return !isAssigned && c.active !== false;
+                    })
+                    .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
 
-        const candidates = (collaborators || [])
-            .filter(c => {
-                const isAssigned = (c.user_id && assignedUserIds.has(c.user_id)) || assignedCollabIds.has(c.id);
-                return !isAssigned && c.active !== false;
-            })
-            .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
+                const renderTabList = (filter = '') => {
+                    const filtered = candidates.filter(c =>
+                        c.full_name?.toLowerCase().includes(filter.toLowerCase()) ||
+                        c.email?.toLowerCase().includes(filter.toLowerCase())
+                    );
 
-        picker.innerHTML = `
-            <div style="padding: 0.75rem; border-bottom: 1px solid var(--surface-2); font-size: 0.75rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase;">
-                Aggiungi al Team
-            </div>
-            <div style="max-height: 250px; overflow-y: auto; padding: 0.5rem;">
-                ${candidates.map(c => `
-                    <div class="dropdown-item candidate-item" data-uid="${c.user_id}" data-cid="${c.id}" style="padding: 8px; border-radius: 8px;">
-                        ${renderAvatar(c, { size: 24, borderRadius: '50%', fontSize: '0.85rem' })}
-                        <div style="flex: 1; font-size: 0.85rem; font-weight: 500;">${c.full_name}</div>
-                        <span class="material-icons-round" style="font-size: 1.2rem; color: var(--brand-blue);">add_circle_outline</span>
+                    const listHtml = filtered.length === 0
+                        ? '<div style="padding:1.5rem; text-align:center; color: var(--text-tertiary); font-size: 0.85rem;">Nessun collaboratore trovato</div>'
+                        : filtered.map(c => `
+                            <div class="dropdown-item candidate-item" data-uid="${c.user_id}" data-cid="${c.id}" style="padding: 10px; border-radius: 8px;">
+                                ${renderAvatar(c, { size: 30, borderRadius: '50%', fontSize: '0.85rem' })}
+                                <div style="flex: 1; font-size: 0.85rem; font-weight: 500; margin-left: 0.5rem;">${c.full_name}</div>
+                                <span class="material-icons-round" style="font-size: 1.3rem; color: var(--brand-blue);">add_circle_outline</span>
+                            </div>
+                        `).join('');
+
+                    const listContainer = picker.querySelector('.picker-list');
+                    if (listContainer) {
+                        listContainer.innerHTML = listHtml;
+                        listContainer.querySelectorAll('.candidate-item').forEach(el => {
+                            el.onclick = async () => {
+                                const uid = (el.dataset.uid && el.dataset.uid !== 'undefined' && el.dataset.uid !== 'null') ? el.dataset.uid : null;
+                                const cid = el.dataset.cid;
+                                el.style.opacity = '0.5';
+                                el.style.pointerEvents = 'none';
+                                try {
+                                    if (uid) await assignUserToSpace(spaceId, uid, 'assignee');
+                                    else await assignUserToSpace(spaceId, cid, 'assignee', true);
+                                    document.querySelector('.tab-btn.active')?.click();
+                                } catch (err) {
+                                    window.showAlert(err.message, 'error');
+                                    el.style.opacity = '1';
+                                    el.style.pointerEvents = 'auto';
+                                }
+                            };
+                        });
+                    }
+                };
+
+                picker.innerHTML = `
+                    <div style="padding: 0.75rem; border-bottom: 1px solid var(--surface-2); background: #f8fafc;">
+                        <div style="font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;">
+                            Aggiungi al Team
+                        </div>
+                        <div class="search-box-mini" style="display: flex; align-items: center; gap: 0.5rem; background: white; border: 1px solid var(--surface-2); padding: 4px 8px; border-radius: 8px;">
+                            <span class="material-icons-round" style="font-size: 1rem; color: #94a3b8;">search</span>
+                            <input type="text" placeholder="Cerca..." style="border: none; outline: none; font-size: 0.8rem; width: 100%;" id="tab-picker-search">
+                        </div>
                     </div>
-                `).join('')}
-                ${candidates.length === 0 ? '<div style="padding: 1rem; color: var(--text-tertiary); font-size: 0.85rem; text-align: center;">Nessun altro collaboratore</div>' : ''}
-            </div>
-        `;
+                    <div class="picker-list" style="max-height: 250px; overflow-y: auto; padding: 0.25rem;"></div>
+                `;
 
-        picker.querySelectorAll('.candidate-item').forEach(el => {
-            el.onclick = async () => {
-                const uid = el.dataset.uid !== 'undefined' ? el.dataset.uid : null;
-                const cid = el.dataset.cid;
-                try {
-                    // Default to 'assignee' (Member) when adding from here
-                    if (uid) await assignUserToSpace(spaceId, uid, 'assignee');
-                    else await assignUserToSpace(spaceId, cid, 'assignee', true);
-
-                    // Trigger a re-render of the whole space view to update everything
-                    // Or just re-click the tab
-                    document.querySelector('.tab-btn.active')?.click();
-                } catch (err) { window.showAlert(err.message, 'error'); }
-            };
+                const searchInput = picker.querySelector('#tab-picker-search');
+                searchInput.addEventListener('input', (e) => renderTabList(e.target.value));
+                renderTabList();
+                setTimeout(() => searchInput.focus(), 50);
+            }
+            picker.classList.toggle('hidden');
         });
 
-        picker.classList.toggle('hidden');
-    });
-
-    // Close picker when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!picker.contains(e.target) && !addBtn.contains(e.target)) {
-            picker.classList.add('hidden');
-        }
-    }, { once: true });
+        const outsideClick = (e) => {
+            if (!addBtn.contains(e.target) && !picker.contains(e.target)) {
+                picker.classList.add('hidden');
+            }
+            if (!document.contains(picker)) {
+                document.removeEventListener('click', outsideClick);
+            }
+        };
+        document.addEventListener('click', outsideClick);
+    }
 
     container.querySelectorAll('.remove-member-btn').forEach(btn => {
         btn.addEventListener('click', async () => {

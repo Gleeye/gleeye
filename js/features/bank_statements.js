@@ -2,6 +2,7 @@ import { supabase } from '../modules/config.js';
 import { renderModal, closeModal, showConfirm, formatAmount } from '../modules/utils.js?v=1001';
 
 let chartInstance = null;
+let statementsData = [];
 
 export async function renderBankStatements(container) {
     const monthNames = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
@@ -16,86 +17,74 @@ export async function renderBankStatements(container) {
 
             <!-- MAIN CONTENT -->
             <div id="statements-content" style="display: none;">
-                <!-- KPI CARDS -->
-                <div class="bank-kpi-grid" style="margin-bottom: 2rem;">
-                    <div class="bank-kpi-card balance" id="latest-balance-card">
-                        <div class="icon-box"><span class="material-icons-round">account_balance</span></div>
-                        <div class="content">
-                            <span class="label">Saldo Ultimo Estratto</span>
-                            <span class="value" id="latest-balance-value">€ 0,00</span>
-                            <span class="meta" id="latest-balance-date"></span>
+                <!-- TOP SECTION: UNIFIED BALANCE & CHART -->
+                <div class="card" style="padding: 2rem; border-radius: 24px; border: 1px solid rgba(0,0,0,0.04); background: white; box-shadow: var(--shadow-sm); margin-bottom: 2rem;">
+                    <div class="unified-chart-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
+                        <div>
+                            <div style="font-family: var(--font-titles); font-weight: 600; margin: 0 0 0.5rem 0; font-size: 0.85rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1px;">Saldo Ultimo Estratto</div>
+                            <div style="display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap;">
+                                <div id="latest-balance-value" style="font-size: 3.2rem; font-weight: 700; letter-spacing: -0.04em; line-height: 1; color: var(--text-primary);">€ 0,00</div>
+                                <div style="color: var(--text-secondary); font-size: 0.95rem; font-weight: 500; display: flex; align-items: center; gap: 0.4rem; background: #f8fafc; padding: 0.4rem 0.8rem; border-radius: 50px; border: 1px solid #f1f5f9;">
+                                    <span class="material-icons-round" style="font-size: 16px; color: var(--brand-blue);">event_available</span>  
+                                    Registrato: <span id="latest-balance-date" style="color: var(--text-primary); font-weight: 600;">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-header-icon" style="width: 42px; height: 42px; background: #eff6ff; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                            <span class="material-icons-round" style="color: #3b82f6; font-size: 22px;">show_chart</span>
                         </div>
                     </div>
-                    <div class="bank-kpi-card income" id="trend-card">
-                        <div class="icon-box"><span class="material-icons-round">trending_up</span></div>
-                        <div class="content">
-                            <span class="label">Variazione Media</span>
-                            <span class="value" id="avg-trend-value">€ 0,00</span>
-                            <span class="meta">Ultimo anno</span>
-                        </div>
-                    </div>
-                    <div class="bank-kpi-card" id="count-card">
-                        <div class="icon-box"><span class="material-icons-round">description</span></div>
-                        <div class="content">
-                            <span class="label">Estratti Archiviati</span>
-                            <span class="value" id="count-value">0</span>
-                            <span class="meta">Documenti totali</span>
-                        </div>
+                    
+                    <div style="height: 300px; width: 100%;">
+                        <canvas id="balanceChart"></canvas>
                     </div>
                 </div>
 
-                <!-- MAIN GRID: Chart + Table -->
-                <div style="display: grid; grid-template-columns: 1fr; gap: 2rem;">
-                    
-                    <!-- CHART SECTION -->
-                    <div class="card" style="padding: 2rem; border-radius: 20px; border: 1px solid var(--glass-border); backdrop-filter: blur(10px);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                            <h3 style="font-family: var(--font-titles); font-weight: 400; margin: 0; font-size: 1.3rem; display: flex; align-items: center; gap: 0.75rem;">
-                                <span class="material-icons-round" style="color: var(--brand-blue);">show_chart</span>
-                                Andamento Saldo
-                            </h3>
-                            <span style="font-size: 0.85rem; color: var(--text-secondary);">Ultimi 12 mesi</span>
-                        </div>
-                        <div style="height: 350px; width: 100%;">
-                            <canvas id="balanceChart"></canvas>
-                        </div>
+                <style>
+                    @media (max-width: 768px) {
+                        #latest-balance-value { font-size: 2.4rem !important; }
+                        .unified-chart-header { flex-direction: column-reverse; align-items: flex-start; }
+                        .chart-header-icon { display: none !important; } /* Hide icon on mobile to save space */
+                    }
+                </style>
+
+                    <!-- ACTIONS ROW -->
+                    <div class="bs-actions-row" style="display: flex; gap: 1rem; width: 100%;">
+                        <button class="primary-btn secondary action-card-btn" id="generate-prima-nota-btn" style="border-radius: 16px; padding: 1.25rem; background: white; border: 1px solid rgba(0,0,0,0.04); color: var(--text-primary); font-size: 1rem; flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.75rem; box-shadow: var(--shadow-sm); cursor: pointer;">
+                            <span class="material-icons-round" style="color: var(--brand-blue);">receipt_long</span>
+                            <span style="font-weight: 500;">Genera Prima Nota</span>
+                        </button>
+                        <button class="primary-btn secondary action-card-btn" id="archive-btn" style="border-radius: 16px; padding: 1.25rem; background: white; border: 1px solid rgba(0,0,0,0.04); color: var(--text-primary); font-size: 1rem; flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.75rem; box-shadow: var(--shadow-sm); cursor: pointer;">
+                            <span class="material-icons-round" style="color: #64748b;">inventory_2</span>
+                            <span style="font-weight: 500;">Archivio Estratti</span>
+                        </button>
+                        <button class="primary-btn action-card-btn" id="add-statement-btn" style="border-radius: 16px; padding: 1.25rem; font-size: 1rem; flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.75rem; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); cursor: pointer;">
+                            <span class="material-icons-round">add</span>
+                            <span style="font-weight: 500;">Nuovo Estratto</span>
+                        </button>
                     </div>
 
-                    <!-- TABLE SECTION -->
-                    <div class="card" style="padding: 0; border-radius: 20px; border: 1px solid var(--glass-border); overflow: hidden; backdrop-filter: blur(10px);">
-                        <div class="section-header" style="background: var(--card-bg); padding: 1.5rem 2rem; border-bottom: 1px solid var(--glass-border);">
-                            <div>
-                                <h3 style="font-family: var(--font-titles); font-weight: 400; margin: 0; font-size: 1.3rem;">Archivio Estratti Conto</h3>
-                                <span style="font-size: 0.85rem; color: var(--text-secondary);" id="table-subtitle">Cronologia completa</span>
-                            </div>
-                            <div style="display: flex; gap: 1rem;">
-                                <button class="primary-btn secondary" id="generate-prima-nota-btn" style="border-radius: 12px; height: 44px; background: white; border: 1px solid var(--glass-border); color: var(--text-primary);">
-                                    <span class="material-icons-round">receipt_long</span>
-                                    Genera Prima Nota
-                                </button>
-                                <button class="primary-btn" id="add-statement-btn" style="border-radius: 12px; height: 44px;">
-                                    <span class="material-icons-round">add</span>
-                                    Nuovo Estratto
-                                </button>
-                            </div>
-                        </div>
-                        <div class="table-container" style="max-height: 600px; overflow-y: auto;">
-                            <table class="data-table" style="width: 100%;">
-                                <thead style="position: sticky; top: 0; background: var(--card-bg); z-index: 10; border-bottom: 2px solid var(--glass-border);">
-                                    <tr>
-                                        <th style="padding: 1rem 2rem; text-align: left; font-weight: 400; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Periodo</th>
-                                        <th style="padding: 1rem 2rem; text-align: left; font-weight: 400; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Data</th>
-                                        <th style="padding: 1rem 2rem; text-align: right; font-weight: 400; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Saldo</th>
-                                        <th style="padding: 1rem 2rem; text-align: left; font-weight: 400; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Allegato</th>
-                                        <th style="width: 60px;"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="statements-tbody">
-                                    <tr><td colspan="5" style="text-align:center; padding: 3rem; color: var(--text-tertiary);">Caricamento...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <style>
+                        .action-card-btn { transition: all 0.2s ease; }
+                        .action-card-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+                        @media (max-width: 768px) {
+                            .bs-actions-row { 
+                                gap: 0.5rem !important; 
+                            }
+                            .action-card-btn {
+                                flex-direction: column !important;
+                                padding: 0.75rem 0.5rem !important;
+                                gap: 0.4rem !important;
+                                border-radius: 12px !important;
+                            }
+                            .action-card-btn span:last-child {
+                                font-size: 0.7rem !important;
+                                text-align: center;
+                                line-height: 1.1;
+                                white-space: normal;
+                            }
+                        }
+                    </style>
                 </div>
             </div>
         </div>
@@ -103,6 +92,9 @@ export async function renderBankStatements(container) {
 
     const addBtn = document.getElementById('add-statement-btn');
     if (addBtn) addBtn.addEventListener('click', () => openStatementModal());
+
+    const archiveBtn = document.getElementById('archive-btn');
+    if (archiveBtn) archiveBtn.addEventListener('click', () => openArchiveModal());
 
     const primaNotaBtn = document.getElementById('generate-prima-nota-btn');
     if (primaNotaBtn) {
@@ -175,6 +167,7 @@ async function loadStatements() {
 
     // Filter out auto-generated Imports
     const filteredData = data.filter(item => !item.name.startsWith('Import '));
+    statementsData = filteredData;
 
     // Hide loading, show content
     document.getElementById('statements-loading').style.display = 'none';
@@ -194,28 +187,14 @@ async function loadStatements() {
 function updateKPIs(data) {
     if (!data.length) {
         document.getElementById('latest-balance-value').textContent = '€ 0,00';
-        document.getElementById('latest-balance-date').textContent = 'Nessun dato';
-        document.getElementById('avg-trend-value').textContent = '€ 0,00';
-        document.getElementById('count-value').textContent = '0';
+        document.getElementById('latest-balance-date').textContent = '-';
         return;
     }
 
     // Latest balance (first item since sorted desc)
     const latest = data[0];
     document.getElementById('latest-balance-value').textContent = `€ ${formatAmount(latest.balance)}`;
-    document.getElementById('latest-balance-date').textContent = latest.statement_date ? new Date(latest.statement_date).toLocaleDateString('it-IT', { month: 'short', year: 'numeric' }) : '';
-
-    // Calculate average trend (last 12 months)
-    const last12 = data.slice(0, 12);
-    if (last12.length >= 2) {
-        const diff = last12[0].balance - last12[last12.length - 1].balance;
-        const avg = diff / (last12.length - 1);
-        const color = avg >= 0 ? '#16a34a' : '#dc2626';
-        document.getElementById('avg-trend-value').innerHTML = `<span style="color: ${color}">${avg >= 0 ? '+' : ''}€ ${formatAmount(Math.abs(avg))}</span>`;
-    }
-
-    // Count
-    document.getElementById('count-value').textContent = data.length;
+    document.getElementById('latest-balance-date').textContent = latest.statement_date ? new Date(latest.statement_date).toLocaleDateString('it-IT', { month: 'short', year: 'numeric' }) : '-';
 }
 
 function renderChart(data) {
@@ -290,6 +269,12 @@ function renderChart(data) {
                         color: '#64748b',
                         padding: 8,
                         callback: function (value) {
+                            if (window.innerWidth < 768) {
+                                if (value >= 1000 || value <= -1000) {
+                                    return '€ ' + (value / 1000).toLocaleString('it-IT', { maximumFractionDigits: 0 }) + 'k';
+                                }
+                                return '€ ' + value;
+                            }
                             return '€ ' + formatAmount(value);
                         }
                     }
@@ -406,6 +391,43 @@ async function deleteStatement(id) {
     } else {
         await loadStatements();
     }
+}
+
+function openArchiveModal() {
+    const modalContent = `
+        <div class="modal-header" style="padding: 2rem; border-bottom: 1px solid var(--glass-border);">
+            <div>
+                <h3 style="margin: 0; font-family: var(--font-titles); font-weight: 600; font-size: 1.4rem;">Archivio Estratti</h3>
+                <p style="margin: 0.5rem 0 0; font-size: 0.9rem; color: var(--text-secondary);">Storico documenti ricaricati</p>
+            </div>
+            <button class="close-modal" style="width: 36px; height: 36px; border-radius: 50%; background: rgba(0,0,0,0.05); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                <span class="material-icons-round" style="color: var(--text-secondary);">close</span>
+            </button>
+        </div>
+        <div class="modal-body" style="padding: 0; max-height: 70vh; overflow-y: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead style="position: sticky; top: 0; background: var(--card-bg); z-index: 10; border-bottom: 2px solid var(--glass-border);">
+                    <tr>
+                        <th style="padding: 1rem 2rem; text-align: left; font-weight: 500; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Periodo</th>
+                        <th style="padding: 1rem 2rem; text-align: left; font-weight: 500; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Data</th>
+                        <th style="padding: 1rem 2rem; text-align: right; font-weight: 500; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Saldo</th>
+                        <th style="padding: 1rem 2rem; text-align: left; font-weight: 500; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Allegato</th>
+                        <th style="width: 60px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="statements-tbody">
+                    <tr><td colspan="5" style="text-align:center; padding: 3rem; color: var(--text-tertiary);">Caricamento...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    renderModal('archive-modal', modalContent);
+    renderTable(statementsData);
+
+    document.querySelectorAll('#archive-modal .close-modal').forEach(btn => {
+        btn.addEventListener('click', () => closeModal('archive-modal'));
+    });
 }
 
 function openStatementModal() {

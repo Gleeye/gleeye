@@ -433,6 +433,10 @@
     gap: 0.5rem;
 }
 
+.sidebar-mobile-close {
+    display: none !important;
+}
+
 .sidebar-actions {
     display: flex;
     align-items: center;
@@ -656,7 +660,7 @@
     }
 
     .sidebar-mobile-close {
-        display: flex;
+        display: flex !important;
         align-items: center;
         justify-content: center;
         width: 38px;

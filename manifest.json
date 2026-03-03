@@ -9,13 +9,13 @@
     "orientation": "portrait-primary",
     "icons": [
         {
-            "src": "logo_gleeye_new.png",
+            "src": "logo_gleeye.png",
             "sizes": "192x192",
             "type": "image/png",
             "purpose": "any maskable"
         },
         {
-            "src": "logo_gleeye_new.png",
+            "src": "logo_gleeye.png",
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "any maskable"

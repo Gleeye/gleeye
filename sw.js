@@ -1,7 +1,8 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v4'; // Version bump for purge
+const CACHE_NAME = 'gleeye-pwa-cache-v5'; // Version bump for icon fix
 const urlsToCache = [
     '/',
     '/index.html',
+    '/logo_gleeye.png',
     '/logo_gleeye_new.png'
 ];
 
@@ -76,8 +77,8 @@ self.addEventListener('push', function (event) {
     }
     const options = {
         body: data.body,
-        icon: data.icon || '/logo_gleeye_new.png',
-        badge: data.badge || '/logo_gleeye_new.png',
+        icon: data.icon || '/logo_gleeye.png',
+        badge: data.badge || '/logo_gleeye.png',
         data: data.url || '/'
     };
     event.waitUntil(

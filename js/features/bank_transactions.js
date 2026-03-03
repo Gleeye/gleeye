@@ -132,122 +132,243 @@ export async function renderBankTransactions(container) {
             <!-- MAIN CONTENT GRID -->
             <style>
                 @media (max-width: 768px) {
-                    /* FORCE GLOBAL OVERFLOW FIX */
-                    html, body { overflow-x: hidden !important; position: relative !important; width: 100% !important; }
+                    /* BLOCK HORIZONTAL SPILL AT ROOT */
+                    html, body { overflow-x: hidden !important; width: 100% !important; margin: 0 !important; }
                     
                     .bank-dashboard-container { 
-                        padding: 0.5rem !important; 
+                        padding: 0.5rem 0.5rem 5rem !important; 
                         width: 100% !important;
-                        max-width: 100vw !important;
-                        overflow-x: hidden !important;
                         box-sizing: border-box !important;
-                        margin: 0 !important;
                         display: block !important;
                     }
                     
-                    .bank-content-grid { 
-                        display: block !important;
-                        width: 100% !important;
-                        max-width: 100% !important;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                    }
-                    
-                    .bank-list-side {
-                        width: 100% !important;
-                        max-width: 100% !important;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                        box-sizing: border-box !important;
-                        display: block !important;
-                    }
+                    .bank-content-grid { display: block !important; width: 100% !important; }
+                    .bank-list-side { width: 100% !important; padding: 0 !important; }
+                    .registry-container { width: 100% !important; padding: 0 !important; margin: 0 !important; }
 
-                    .registry-container {
-                        width: 100% !important;
-                        max-width: 100% !important;
-                        margin: 0 !important;
-                        padding: 1rem !important;
-                        box-sizing: border-box !important;
-                        border-radius: 20px !important;
-                    }
-
-                    /* KPI Compact Column for Mobile */
-                    .bank-kpi-grid { 
-                        display: flex !important;
+                    /* FIX HEADER ACTIONS OVERFLOW */
+                    .bank-header-actions {
                         flex-direction: column !important;
-                        gap: 0.75rem !important; 
-                        margin-bottom: 1.5rem !important; 
+                        align-items: stretch !important;
+                        gap: 1.25rem !important;
+                        padding: 1.5rem 1.25rem !important;
+                    }
+                    .bank-header-actions > div:last-child {
+                        flex-direction: column !important;
+                        align-items: stretch !important;
                         width: 100% !important;
+                        gap: 1rem !important;
+                    }
+                    .bank-header-actions .segmented-control {
+                        width: 100% !important;
+                        display: flex !important;
+                        box-sizing: border-box !important;
+                    }
+                    .bank-header-actions .segmented-control label {
+                        flex: 1 !important;
+                        text-align: center !important;
+                        justify-content: center !important;
+                        display: flex !important;
+                    }
+                    .bh-mobile-row {
+                        width: 100% !important;
+                        justify-content: space-between !important;
+                        gap: 0.5rem !important;
+                    }
+
+                    /* COMPACT KPI FOR MOBILE */
+                    .bank-kpi-grid { 
+                        display: grid !important; 
+                        grid-template-columns: 1fr 1fr !important; 
+                        gap: 0.75rem !important; 
+                        margin-bottom: 2rem !important; 
                     }
                     .bank-kpi-grid > div { 
-                        width: 100% !important;
                         padding: 1rem !important; 
-                        border-radius: 16px !important; 
                         display: flex !important;
-                        flex-direction: row !important;
-                        align-items: center !important; 
-                        gap: 1rem !important; 
-                        box-sizing: border-box !important;
-                    }
-                    .bank-kpi-grid > div > div:first-of-type { width: 40px !important; height: 40px !important; flex-shrink: 0 !important; }
-                    .bank-kpi-grid > div > div:last-child { flex: 1; }
-                    .bank-kpi-grid > div > div:last-child div:last-child { font-size: 1.25rem !important; }
-
-                    /* Header & Filter Area - Stacking Fix */
-                    .bank-header-actions { 
-                        padding: 1.25rem !important; 
-                        margin-bottom: 1.25rem !important; 
-                        border-radius: 20px !important; 
-                        flex-direction: column !important;
-                        align-items: stretch !important;
-                        gap: 1.5rem !important;
-                        width: 100% !important;
-                        box-sizing: border-box !important;
-                    }
-                    .bank-header-actions > div:first-child { width: 100% !important; }
-                    .bank-header-actions > div:last-child { 
-                        flex-direction: column !important;
-                        align-items: stretch !important;
+                        flex-direction: column !important; 
+                        align-items: flex-start !important; 
                         gap: 0.75rem !important;
-                        width: 100% !important;
-                    }
-
-                    .segmented-control { 
-                        width: 100% !important;
-                        max-width: 100% !important;
-                        box-sizing: border-box !important;
-                        padding: 4px !important;
-                        display: flex !important;
-                        gap: 4px !important;
-                    }
-                    .segmented-control label, .segmented-control div { flex: 1; text-align: center; white-space: nowrap; padding: 8px 4px !important; font-size: 0.8rem !important; }
-                    
-                    .primary-btn { width: 100% !important; justify-content: center !important; height: 44px !important; }
-                    .primary-btn.secondary { border: 1px solid #e2e8f0 !important; }
-
-                    /* Movements List High Density - Width Constrained */
-                    .transaction-card { 
-                        padding: 1rem !important; 
-                        margin-bottom: 0.75rem !important; 
                         border-radius: 16px !important;
-                        gap: 1rem !important;
-                        width: 100% !important;
-                        box-sizing: border-box !important;
+                        box-shadow: none !important;
+                        border: 1px solid rgba(0,0,0,0.05) !important;
+                    }
+                    /* Icon container */
+                    .bank-kpi-grid > div > div:nth-child(2) { 
+                        width: 34px !important; 
+                        height: 34px !important; 
+                        border-radius: 10px !important;
+                    }
+                    .bank-kpi-grid > div > div:nth-child(2) span {
+                        font-size: 18px !important;
+                    }
+                    /* Titles */
+                    .bank-kpi-grid > div > div:last-child > div:first-child { 
+                        font-size: 0.65rem !important; 
+                        margin-bottom: 0.15rem !important;
+                    }
+                    /* Amounts */
+                    .bank-kpi-grid > div > div:last-child > div:last-child { 
+                        font-size: 1.1rem !important; 
+                    }
+
+                    /* 3rd Card: Saldo (Span full width, keep horizontal) */
+                    .bank-kpi-grid > div:last-child {
+                        grid-column: span 2 !important;
+                        flex-direction: row !important;
+                        align-items: center !important;
+                        padding: 0.85rem 1rem !important;
+                    }
+                    .bank-kpi-grid > div:last-child > div:last-child {
                         display: flex !important;
                         align-items: center !important;
-                        overflow: hidden !important;
+                        gap: 0.5rem !important;
                     }
-                    .bt-date-col { min-width: 42px !important; margin-right: 0 !important; flex-shrink: 0 !important; }
-                    .bt-info-col { flex: 1 !important; min-width: 0 !important; padding-right: 0.5rem !important; overflow: hidden !important; }
-                    .bt-info-col .bt-desc { font-size: 0.9rem !important; font-weight: 600 !important; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
-                    .bt-info-col .bt-entity { font-size: 0.75rem !important; }
-                    .bt-amount-col { min-width: auto !important; text-align: right !important; flex-shrink: 0 !important; }
-                    .bt-amount-col div { font-size: 1.05rem !important; font-weight: 700 !important; }
-                    
-                    .bt-action-col { display: none !important; } /* Hidden on mobile list to save horizontal space, click card instead */
+                    .bank-kpi-grid > div:last-child > div:last-child > div:first-child {
+                        margin-bottom: 0 !important;
+                    }
 
-                    /* Hide Analytics Sidebar */
-                    #bt-analytics-root { display: none !important; }
+                    /* RE-DESIGNED MONTH HEADER */
+                    .month-block { margin-bottom: 2rem !important; }
+                    .month-block > div:first-child { 
+                        flex-direction: column !important; 
+                        align-items: flex-start !important; 
+                        gap: 0.5rem !important;
+                        margin-bottom: 1rem !important;
+                    }
+                    .month-block h3 { font-size: 1.15rem !important; }
+                    .month-block h3 + div { font-size: 1.15rem !important; } /* Year */
+                    .month-block > div:first-child > div:last-child { 
+                        width: 100%;
+                        display: flex !important;
+                        justify-content: flex-start !important;
+                        gap: 1.5rem !important;
+                        text-align: left !important;
+                        border-top: 1px solid #f1f5f9;
+                        padding-top: 0.5rem;
+                    }
+                    .month-block > div:first-child > div:last-child div { font-size: 0.9rem !important; font-weight: 700 !important; }
+
+                    /* CLEAN & READABLE TRANSACTION CARD */
+                    .transaction-card { 
+                        display: flex !important;
+                        flex-direction: row !important; 
+                        flex-wrap: wrap !important;
+                        align-items: flex-start !important; 
+                        padding: 1rem !important;
+                        margin-bottom: 0.75rem !important;
+                        border-radius: 16px !important;
+                        width: 100% !important;
+                        background: white !important;
+                        position: relative !important;
+                        box-sizing: border-box !important;
+                    }
+
+                    /* Date Block - Left Column */
+                    .bt-date-col { 
+                        display: flex !important;
+                        flex-direction: column !important; 
+                        align-items: center !important; 
+                        gap: 2px !important; 
+                        width: 40px !important;
+                        flex-shrink: 0 !important;
+                        margin-right: 12px !important;
+                    }
+                    .bt-date-col span:first-child { 
+                        font-size: 1.25rem !important; 
+                        font-weight: 700 !important; 
+                        color: #111827 !important; 
+                        line-height: 1 !important; 
+                    }
+                    .bt-date-col span:last-child { 
+                        font-size: 0.6rem !important; 
+                        color: #94a3b8 !important; 
+                        font-weight: 700 !important; 
+                        text-transform: uppercase !important;
+                    }
+
+                    /* Info Column - Takes remaining space */
+                    .bt-info-col { 
+                        flex: 1 1 0% !important;
+                        min-width: 0 !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        gap: 0.3rem !important;
+                        padding-right: 0 !important;
+                        box-sizing: border-box !important;
+                    }
+                    .bt-info-col .bt-desc { 
+                        font-size: 0.85rem !important; 
+                        font-weight: 600 !important; 
+                        color: #0f172a !important;
+                        line-height: 1.3 !important;
+                        white-space: normal !important;
+                        overflow: visible !important;
+                        text-overflow: unset !important;
+                        word-break: break-word !important;
+                        overflow-wrap: break-word !important;
+                        margin: 0 0 0.15rem 0 !important;
+                        text-transform: none !important;
+                        padding-right: 85px !important; /* Reserve space for absolute amount */
+                    }
+                    .bt-info-col .bt-entity { 
+                        font-size: 0.75rem !important; 
+                        color: #64748b !important; 
+                        display: flex !important;
+                        align-items: center !important;
+                        gap: 0.4rem !important;
+                        margin: 0 !important;
+                    }
+
+                    /* Badges Row - Now INSIDE info-col, naturally below text */
+                    .bt-badges-row {
+                        display: flex !important;
+                        flex-wrap: wrap !important;
+                        gap: 0.4rem !important;
+                        margin-top: 0.4rem !important;
+                    }
+                    .bt-badge-col, .bt-invoice-col { 
+                        padding: 3px 10px !important; 
+                        font-size: 0.7rem !important; 
+                        border-radius: 8px !important;
+                        width: fit-content !important;
+                        display: inline-flex !important;
+                        margin: 0 !important;
+                    }
+                    
+                    /* Amount - Top Right, absolute */
+                    .bt-amount-col { 
+                        position: absolute !important;
+                        top: 1rem !important;
+                        right: 1rem !important;
+                        text-align: right !important;
+                        z-index: 2 !important;
+                        min-width: 0 !important;
+                    }
+                    .bt-amount-col div { 
+                        font-size: 0.9rem !important; 
+                        font-weight: 800 !important;
+                        white-space: nowrap !important;
+                    }
+
+                    /* Actions - Restored for Mobile Reconciliation */
+                    .bt-action-col { 
+                        display: flex !important;
+                        flex: 0 0 100% !important;
+                        justify-content: flex-end !important;
+                        margin: 0.75rem 0 0 0 !important;
+                        padding: 0.5rem 0 0 0 !important;
+                        border-top: 1px solid #f1f5f9 !important;
+                        box-sizing: border-box !important;
+                    }
+                    .bt-action-col .material-icons-round:not(.bt-action-col button .material-icons-round) { 
+                        display: none !important; /* Hide chevron, keep buttons */
+                    }
+                    .bt-action-col:empty { display: none !important; }
+
+                    .bt-spacer { display: none !important; }
+                    
+                    #bt-analytics-root, .bank-analytics-side { display: none !important; }
                 }
             </style>
             <div class="bank-content-grid" style="display: grid; grid-template-columns: 1fr 360px; gap: 3rem; align-items: start;">
@@ -278,20 +399,27 @@ export async function renderBankTransactions(container) {
                                 </label>
                             </div>
 
-                            <!-- Year Selector -->
-                             <div class="segmented-control glass" style="background: #f1f5f9; padding: 4px; border-radius: 12px; display: flex;">
-                                <div onclick="setBankTransactionsYear(2026)" style="padding: 6px 12px; border-radius: 10px; cursor: pointer; font-size: 0.8rem; font-weight: 600; ${year == 2026 ? 'background: #3b82f6; color:white; box-shadow:0 3px 8px rgba(59,130,246,0.3);' : 'color:var(--text-tertiary);'}">2026</div>
-                                <div onclick="setBankTransactionsYear(2025)" style="padding: 6px 12px; border-radius: 10px; cursor: pointer; font-size: 0.8rem; font-weight: 600; ${year == 2025 ? 'background: #3b82f6; color:white; box-shadow:0 3px 8px rgba(59,130,246,0.3);' : 'color:var(--text-tertiary);'}">2025</div>
-                                <div onclick="setBankTransactionsYear(2024)" style="padding: 6px 12px; border-radius: 10px; cursor: pointer; font-size: 0.8rem; font-weight: 600; ${year == 2024 ? 'background: #3b82f6; color:white; box-shadow:0 3px 8px rgba(59,130,246,0.3);' : 'color:var(--text-tertiary);'}">2024</div>
-                            </div>
+                            <div class="bh-mobile-row" style="display: flex; align-items: center; gap: 1.25rem;">
+                                <!-- Year Selector (Dropdown replacement) -->
+                                <div style="position: relative; display: flex; align-items: center;">
+                                    <select onchange="setBankTransactionsYear(parseInt(this.value))" style="background: #eff6ff; padding: 6px 32px 6px 14px; border-radius: 50px; border: 1px solid rgba(59,130,246,0.1); font-size: 0.8rem; font-weight: 700; color: #2563eb; cursor: pointer; outline: none; -webkit-appearance: none; appearance: none; box-shadow: 0 2px 6px rgba(59,130,246,0.1);">
+                                        <option value="2027" ${year == 2027 ? 'selected' : ''}>2027</option>
+                                        <option value="2026" ${year == 2026 ? 'selected' : ''}>2026</option>
+                                        <option value="2025" ${year == 2025 ? 'selected' : ''}>2025</option>
+                                        <option value="2024" ${year == 2024 ? 'selected' : ''}>2024</option>
+                                        <option value="2023" ${year == 2023 ? 'selected' : ''}>2023</option>
+                                    </select>
+                                    <span class="material-icons-round" style="position: absolute; right: 8px; font-size: 16px; color: #2563eb; pointer-events: none;">expand_more</span>
+                                </div>
 
-                            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                <button class="primary-btn secondary" onclick="openImportModal()" style="border-radius: 12px; padding: 0.5rem 1rem; border: 1px solid #e2e8f0; background: white; font-weight: 600; font-size: 0.8rem;">
-                                     <span class="material-icons-round" style="font-size: 1rem; margin-right: 0.4rem;">upload_file</span> Importa
-                                </button>
-                                <button class="primary-btn" onclick="openBankTransactionModal()" style="border-radius: 12px; width: 38px; height: 38px; padding: 0; background: #4f46e5; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);">
-                                    <span class="material-icons-round" style="font-size: 20px;">add</span>
-                                </button>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <button class="primary-btn secondary" onclick="openImportModal()" style="border-radius: 12px; padding: 0.5rem 1rem; border: 1px solid #e2e8f0; background: white; font-weight: 600; font-size: 0.8rem;">
+                                        <span class="material-icons-round" style="font-size: 1rem; margin-right: 0.4rem;">upload_file</span> Importa
+                                    </button>
+                                    <button class="primary-btn" onclick="openBankTransactionModal()" style="border-radius: 12px; width: 38px; height: 38px; padding: 0; background: #4f46e5; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);">
+                                        <span class="material-icons-round" style="font-size: 20px;">add</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -411,18 +539,20 @@ function renderRow(t, isPending, monthShortArray, s) {
             <span style="font-size: 1.3rem; font-weight: 500; line-height: 1; color: #111827;">${day}</span>
             <span style="font-size: 0.7rem; font-weight: 400; text-transform: uppercase; color: #9ca3af; margin-top: 4px;">${month}</span>
         </div>
-        <div class="bt-info-col" style="flex: 0 1 450px; min-width: 0; padding-right: 2rem;">
-            <div class="bt-desc" style="font-weight: 400; font-size: 0.95rem; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: block; text-transform: uppercase; letter-spacing: 0.01em; margin-bottom: 0.35rem;">${t.description}</div>
+        <div class="bt-info-col" style="flex: 1 1 0%; min-width: 0; padding-right: 2rem;">
+            <div class="bt-desc" style="font-weight: 400; font-size: 0.95rem; color: #111827; max-width: 100%; display: block; text-transform: uppercase; letter-spacing: 0.01em; margin-bottom: 0.35rem;">${t.description}</div>
             <div class="bt-entity" style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #6b7280; font-weight: 400;">
                 <span class="material-icons-round" style="font-size: 16px; color: #9ca3af;">folder_open</span> ${entityName}
             </div>
+            <div class="bt-badges-row" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap;">
+                <div class="bt-badge-col" style="display: flex; align-items: center; gap: 0.5rem; padding: 5px 12px; border-radius: 50px; font-size: 0.8rem; font-weight: 400; flex-shrink: 0; ${catBadgeStyle}">
+                    <span class="material-icons-round" style="font-size: 16px;">${icon}</span> ${catName}
+                </div>
+                <div class="bt-invoice-col" style="flex-shrink: 0;">${invoiceBadge}</div>
+            </div>
         </div>
         <div class="bt-spacer" style="flex: 1;"></div>
-        <div class="bt-badge-col" style="display: flex; align-items: center; gap: 0.5rem; padding: 5px 12px; border-radius: 50px; font-size: 0.8rem; font-weight: 400; margin-right: 1.5rem; flex-shrink: 0; ${catBadgeStyle}">
-            <span class="material-icons-round" style="font-size: 16px;">${icon}</span> ${catName}
-        </div>
-        <div class="bt-invoice-col" style="margin-right: 2rem; flex-shrink: 0;">${invoiceBadge}</div>
-        <div class="bt-amount-col" style="text-align: right; min-width: 110px; flex-shrink: 0;">
+        <div class="bt-amount-col" style="text-align: right; min-width: 0; flex-shrink: 0;">
             <div style="font-weight: 500; font-size: 1.15rem; color: ${t.type === 'entrata' ? '#16a34a' : '#dc2626'}; letter-spacing: -0.02em;">
                 ${t.type === 'entrata' ? '+' : '-'} ${formatAmount(Math.abs(t.amount))} €
             </div>

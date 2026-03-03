@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
 
         console.log(`Processing notification ${record.id} for user ${record.user_id}`);
 
-        const { data: typeData } = await supabase.from('notification_types').select('*').eq('key', record.type).single();
+        const { data: typeData } = await supabase.from('notification_types').select('*').eq('key', record.type).maybeSingle();
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', record.user_id).single();
         if (!profile) throw new Error("Profilo utente non trovato");
 

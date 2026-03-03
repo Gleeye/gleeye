@@ -13,6 +13,7 @@ export function renderPaymentsDashboard(container) {
 
     // Setup state filters if not exists
     if (!state.paymentsFilterType) state.paymentsFilterType = 'all';
+    if (!state.paymentsDeviceTab) state.paymentsDeviceTab = 'ritardo';
 
     const monthNames = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
 
@@ -98,15 +99,15 @@ export function renderPaymentsDashboard(container) {
                         flex-direction: column;
                         align-items: center;
                         justify-content: center;
-                        padding: 0.5rem 0.65rem;
+                        padding: 0.4rem 0.6rem;
                         border-radius: 12px;
                         background: ${dateBgColor};
                         border: 1px solid var(--glass-border);
-                        min-width: 52px;
+                        min-width: 48px;
                     ">
-                        <div style="font-size: 1.3rem; font-weight: 700; line-height: 1; color: ${dateTextColor};">${day}</div>
-                        <div style="font-size: 0.7rem; font-weight: 600; line-height: 1.2; color: ${dateTextColor}; margin-top: 2px;">${month}</div>
-                        <div style="font-size: 0.65rem; font-weight: 500; line-height: 1; color: var(--text-tertiary); margin-top: 3px; opacity: 0.7;">${year}</div>
+                        <div style="font-size: 1.1rem; font-weight: 700; line-height: 1; color: ${dateTextColor};">${day}</div>
+                        <div style="font-size: 0.65rem; font-weight: 600; line-height: 1.2; color: ${dateTextColor}; margin-top: 2px;">${month}</div>
+                        <div style="font-size: 0.6rem; font-weight: 500; line-height: 1; color: var(--text-tertiary); margin-top: 3px; opacity: 0.7;">${year}</div>
                     </div>
                 `;
             } else {
@@ -116,16 +117,15 @@ export function renderPaymentsDashboard(container) {
                         flex-direction: column;
                         align-items: center;
                         justify-content: center;
-                        padding: 0.5rem 0.65rem;
+                        padding: 0.4rem 0.6rem;
                         border-radius: 12px;
                         background: ${dateBgColor};
                         border: 1px solid var(--glass-border);
-                        min-width: 52px;
-                        font-size: 0.7rem;
+                        min-width: 48px;
                     ">
-                        <div style="font-size: 1.3rem; font-weight: 700; line-height: 1; color: ${dateTextColor};">--</div>
-                        <div style="font-size: 0.7rem; font-weight: 600; line-height: 1.2; color: ${dateTextColor}; margin-top: 2px;">N/D</div>
-                        <div style="font-size: 0.65rem; font-weight: 500; line-height: 1; color: var(--text-tertiary); margin-top: 3px; opacity: 0.7;">----</div>
+                        <div style="font-size: 1.1rem; font-weight: 700; line-height: 1; color: ${dateTextColor};">--</div>
+                        <div style="font-size: 0.65rem; font-weight: 600; line-height: 1.2; color: ${dateTextColor}; margin-top: 2px;">N/D</div>
+                        <div style="font-size: 0.6rem; font-weight: 500; line-height: 1; color: var(--text-tertiary); margin-top: 3px; opacity: 0.7;">----</div>
                     </div>
                 `;
             }
@@ -144,11 +144,11 @@ export function renderPaymentsDashboard(container) {
                     
                     <!-- Content: Entity (PRIMARY), Description, Order -->
                     <div class="flex-column" style="flex: 1; min-width: 0; gap: 0.35rem;">
-                        <div class="text-body text-truncate" style="font-weight: 600; font-size: 1rem; color: var(--text-primary);" title="${entity}">${entity}</div>
-                        <div class="text-caption text-truncate" style="opacity: 0.65; font-size: 0.85rem;">${description}</div>
+                        <div class="text-body text-truncate" style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);" title="${entity}">${entity}</div>
+                        <div class="text-caption text-truncate" style="opacity: 0.65; font-size: 0.8rem;">${description}</div>
                         ${orderCode ? `
                             <div class="payment-order-code" style="position: relative; width: fit-content;">
-                                <div class="text-caption" style="opacity: 0.6; font-size: 0.75rem; cursor: help;">Ordine: ${orderCode}</div>
+                                <div class="text-caption" style="opacity: 0.6; font-size: 0.7rem; cursor: help;">Ordine: ${orderCode}</div>
                                 ${orderTooltip ? `
                                     <div class="order-tooltip" style="
                                         position: absolute;
@@ -178,7 +178,7 @@ export function renderPaymentsDashboard(container) {
                     <!-- Amount with subtle dot indicator -->
                     <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
                         <div style="width: 6px; height: 6px; background: ${statusDotColor}; border-radius: 50%;"></div>
-                        <div style="font-weight: 600; font-size: 1rem; color: ${amountColor};">${sign} € ${formatAmount(p.amount)}</div>
+                        <div style="font-weight: 600; font-size: 0.9rem; color: ${amountColor};">${sign} € ${formatAmount(p.amount)}</div>
                     </div>
 
                 </div>
@@ -186,79 +186,153 @@ export function renderPaymentsDashboard(container) {
         };
 
         const renderSection = (title, icon, color, items) => {
-            if (items.length === 0) return '';
+            const tabId = title === 'In Ritardo' ? 'ritardo' : (title === 'Senza Data' ? 'nodate' : 'programma');
             return `
-                <div class="flex-column" style="background: var(--card-bg); border-radius: 16px; padding: 1.5rem; border: 1px solid var(--glass-border); gap: 1rem; height: 100%;">
-                    <h3 class="flex-start" style="gap: 0.5rem; font-size: 1rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                <div class="flex-column payment-section-col tab-${tabId} ${items.length === 0 ? 'empty-section' : ''}" style="background: var(--card-bg); border-radius: 16px; padding: 1.5rem; border: 1px solid var(--glass-border); gap: 1rem; height: 100%;">
+                    <h3 class="flex-start desktop-title" style="gap: 0.5rem; font-size: 1rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">
                         <span class="material-icons-round" style="color: ${color}; font-size: 1.2rem;">${icon}</span> ${title} <span class="badge badge-neutral" style="margin-left: auto;">${items.length}</span>
                     </h3>
                     <div style="overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; padding-right: 4px;">
-                        ${items.map(renderCard).join('')}
+                        ${items.length > 0 ? items.map(renderCard).join('') : `<div style="text-align: center; color: var(--text-tertiary); padding: 2rem 0; font-size: 0.85rem;">Nessun elemento</div>`}
                     </div>
                 </div>
              `;
         };
 
         container.innerHTML = `
-            <div class="animate-fade-in p-3" style="max-width: 1400px; margin: 0 auto; padding-bottom: 4rem;">
-                <div class="flex-between mb-4">
-                    <div>
-                        <h2 class="text-display">Scadenziario</h2>
-                        <span class="text-caption">Gestione flussi finanziari</span>
+            <div class="animate-fade-in p-3" style="max-width: 1400px; margin: 0 auto; padding-bottom: 4rem; padding-top: 1rem;">
+
+                <div class="payment-kpi-grid grid-3 mb-4">
+                    <div class="glass-card flex-column p-kpi-card" style="gap: 1rem;">
+                        <div class="icon-container icon-success icon-container-sm">
+                            <span class="material-icons-round">trending_up</span>
+                        </div>
+                        <div class="flex-column" style="gap: 0.25rem;">
+                            <div class="text-caption" style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">Entrate Attese</div>
+                            <div class="text-title" style="color: var(--text-primary); font-weight: 700;">€ ${formatAmount(entrateTotal)}</div>
+                        </div>
                     </div>
-                    
-                    <div class="pill-group">
-                        <button class="pill-item ${state.paymentsFilterType === 'all' ? 'active' : ''}" data-type="all">Tutti</button>
-                        <button class="pill-item ${state.paymentsFilterType === 'entrate' ? 'active' : ''}" data-type="entrate">Entrate</button>
-                        <button class="pill-item ${state.paymentsFilterType === 'uscite' ? 'active' : ''}" data-type="uscite">Uscite</button>
+
+                    <div class="glass-card flex-column p-kpi-card" style="gap: 1rem;">
+                        <div class="icon-container icon-error icon-container-sm">
+                            <span class="material-icons-round">trending_down</span>
+                        </div>
+                        <div class="flex-column" style="gap: 0.25rem;">
+                            <div class="text-caption" style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">Uscite Attese</div>
+                            <div class="text-title" style="color: var(--text-primary); font-weight: 700;">€ ${formatAmount(usciteTotal)}</div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card flex-column p-kpi-card" style="gap: 1rem;">
+                        <div class="icon-container icon-info icon-container-sm">
+                            <span class="material-icons-round">account_balance</span>
+                        </div>
+                        <div class="flex-column" style="gap: 0.25rem;">
+                            <div class="text-caption" style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">Flusso Netto</div>
+                            <div class="text-title" style="color: var(--text-primary); font-weight: 700;">${nettoTotal >= 0 ? '+' : ''} € ${formatAmount(nettoTotal)}</div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="payment-kpi-grid grid-3 mb-4">
-                    <div class="glass-card flex-column" style="gap: 1rem;">
-                        <div class="flex-start" style="gap: 1rem;">
-                            <div class="icon-container icon-success icon-container-sm">
-                                <span class="material-icons-round">trending_up</span>
-                            </div>
-                            <div class="flex-column">
-                                <div class="text-caption">Entrate Attese</div>
-                                <div class="text-title" style="color: var(--text-primary); font-weight: 600;">€ ${formatAmount(entrateTotal)}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="glass-card flex-column" style="gap: 1rem;">
-                        <div class="flex-start" style="gap: 1rem;">
-                            <div class="icon-container icon-error icon-container-sm">
-                                <span class="material-icons-round">trending_down</span>
-                            </div>
-                            <div class="flex-column">
-                                <div class="text-caption">Uscite Attese</div>
-                                <div class="text-title" style="color: var(--text-primary); font-weight: 600;">€ ${formatAmount(usciteTotal)}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="glass-card flex-column" style="gap: 1rem;">
-                        <div class="flex-start" style="gap: 1rem;">
-                            <div class="icon-container icon-info icon-container-sm">
-                                <span class="material-icons-round">account_balance</span>
-                            </div>
-                            <div class="flex-column">
-                                <div class="text-caption">Flusso Netto</div>
-                                <div class="text-title" style="color: var(--text-primary); font-weight: 600;">${nettoTotal >= 0 ? '+' : ''} € ${formatAmount(nettoTotal)}</div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="pill-group" style="margin-bottom: 2rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="pill-item ${state.paymentsFilterType === 'all' ? 'active' : ''}" data-type="all">Tutti</button>
+                    <button class="pill-item ${state.paymentsFilterType === 'entrate' ? 'active' : ''}" data-type="entrate">Entrate</button>
+                    <button class="pill-item ${state.paymentsFilterType === 'uscite' ? 'active' : ''}" data-type="uscite">Uscite</button>
                 </div>
 
                 <style>
-                    @media (max-width: 768px) {
-                        .payment-kpi-grid { grid-template-columns: 1fr; gap: 1rem; }
-                        .payment-main-grid { grid-template-columns: 1fr; gap: 1rem; }
-                        .pill-group { margin-top: 1rem; width: 100%; display: flex; justify-content: center; }
+                    .p-kpi-card { flex-direction: row; align-items: center; }
+                    @media (min-width: 769px) {
+                        .empty-section { display: none !important; }
                     }
-                </style>    
+                    .mobile-tab-btn {
+                        flex: 1;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 0.5rem;
+                        padding: 0.75rem 0.5rem;
+                        border-radius: 12px;
+                        border: 1px solid rgba(0,0,0,0.05);
+                        background: var(--card-bg);
+                        color: var(--text-primary);
+                        transition: all 0.2s;
+                        cursor: pointer;
+                        box-shadow: var(--shadow-sm);
+                        flex-direction: column;
+                    }
+                    .mobile-tab-btn.active {
+                        background: var(--brand-blue);
+                        color: white !important;
+                        border-color: var(--brand-blue);
+                        box-shadow: 0 4px 12px rgba(59,130,246,0.25);
+                    }
+                    .mobile-tab-btn.active span, .mobile-tab-btn.active .flex-column span {
+                        color: white !important;
+                        opacity: 1 !important;
+                    }
+                    .tab-label-text { font-size: 0.65rem; line-height: 1; text-transform: uppercase; font-weight: 600; opacity: 0.7; }
+                    .tab-count-text { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+                    .mobile-tab-btn.active .tab-count-text { color: white !important; }
+                    
+                    @media (max-width: 768px) {
+                        .payment-kpi-grid { 
+                            display: grid !important;
+                            grid-template-columns: 1fr 1fr !important; 
+                            gap: 0.75rem !important; 
+                        }
+                        .p-kpi-card {
+                            flex-direction: column !important;
+                            align-items: flex-start !important;
+                            padding: 1rem !important;
+                            gap: 0.75rem !important;
+                        }
+                        /* Shrink title font on mobile to fit */
+                        .p-kpi-card .text-title { font-size: 1.15rem !important; }
+                        .p-kpi-card .text-caption { font-size: 0.65rem !important; }
+                        
+                        /* Icon sizing */
+                        .p-kpi-card .icon-container-sm { width: 34px !important; height: 34px !important; border-radius: 10px !important; }
+                        .p-kpi-card .icon-container-sm span { font-size: 18px !important; }
+
+                        /* Spread third card */
+                        .payment-kpi-grid > div:last-child {
+                            grid-column: span 2 !important;
+                            flex-direction: row !important;
+                            align-items: center !important;
+                        }
+                        
+                        .payment-main-grid { display: flex !important; flex-direction: column; gap: 1rem; }
+                        .payment-section-col:not(.tab-${state.paymentsDeviceTab}) { display: none !important; }
+                        .desktop-title { display: none !important; }
+                        .payment-tabs-mobile { display: flex !important; }
+                        .pill-group { margin-top: 0; margin-bottom: 1.5rem !important; justify-content: flex-start; }
+                    }
+                </style>
+
+                <div class="payment-tabs-mobile" style="display: none; gap: 0.5rem; margin-bottom: 1.5rem; width: 100%;">
+                    <button class="mobile-tab-btn ${state.paymentsDeviceTab === 'ritardo' ? 'active' : ''}" data-tab="ritardo">
+                        <span class="material-icons-round text-small" style="color: var(--error-soft);">warning</span>
+                        <div class="flex-column" style="align-items: center; gap: 2px;">
+                            <span class="tab-label-text">In Ritardo</span>
+                            <span class="tab-count-text">${overdue.length}</span>
+                        </div>
+                    </button>
+                    <button class="mobile-tab-btn ${state.paymentsDeviceTab === 'nodate' ? 'active' : ''}" data-tab="nodate">
+                        <span class="material-icons-round text-small" style="color: var(--text-tertiary);">help_outline</span>
+                        <div class="flex-column" style="align-items: center; gap: 2px;">
+                            <span class="tab-label-text">Senza Data</span>
+                            <span class="tab-count-text">${nodate.length}</span>
+                        </div>
+                    </button>
+                    <button class="mobile-tab-btn ${state.paymentsDeviceTab === 'programma' ? 'active' : ''}" data-tab="programma">
+                        <span class="material-icons-round text-small" style="color: var(--success-soft);">event_available</span>
+                        <div class="flex-column" style="align-items: center; gap: 2px;">
+                            <span class="tab-label-text">In Prog.</span>
+                            <span class="tab-count-text">${scheduled.length}</span>
+                        </div>
+                    </button>
+                </div>
 
                 <div class="payment-main-grid grid-3" style="align-items: start;">
                     ${renderSection('In Ritardo', 'warning', 'var(--error-soft)', overdue)}
@@ -271,6 +345,13 @@ export function renderPaymentsDashboard(container) {
         container.querySelectorAll('.pill-item').forEach(btn => {
             btn.addEventListener('click', () => {
                 state.paymentsFilterType = btn.dataset.type;
+                updateUI();
+            });
+        });
+
+        container.querySelectorAll('.mobile-tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                state.paymentsDeviceTab = e.currentTarget.dataset.tab;
                 updateUI();
             });
         });

@@ -322,3 +322,45 @@ export async function deletePagePermission(permissionId) {
     if (error) throw error;
     return true;
 }
+
+/* ==========================================================================
+   NOTIFICATIONS / SUBSCRIPTIONS
+   ========================================================================== */
+
+export async function fetchDocSubscription(pageId) {
+    const userId = state.session?.user?.id;
+    if (!userId) return null;
+
+    const { data, error } = await supabase
+        .from('doc_subscriptions')
+        .select('*')
+        .eq('page_id', pageId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (error) throw error;
+    return data;
+}
+
+export async function toggleDocSubscription(pageId, subscribe) {
+    const userId = state.session?.user?.id;
+    if (!userId) throw new Error("Utente non autenticato");
+
+    if (subscribe) {
+        const { data, error } = await supabase
+            .from('doc_subscriptions')
+            .upsert([{ page_id: pageId, user_id: userId }], { onConflict: 'page_id,user_id' })
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    } else {
+        const { error } = await supabase
+            .from('doc_subscriptions')
+            .delete()
+            .eq('page_id', pageId)
+            .eq('user_id', userId);
+        if (error) throw error;
+        return null;
+    }
+}

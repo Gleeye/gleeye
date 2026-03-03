@@ -1,5 +1,5 @@
--- Migration: Accounting Triggers (Invoices, Payments, Transactions)
--- Description: Adds triggers to create notifications for Accounting events
+-- Migration: Fix Accounting Triggers (Invoices, Payments, Transactions)
+-- Description: Fixes total_amount error in accounting triggers
 
 -- 1. Trigger for Active and Passive Invoices
 CREATE OR REPLACE FUNCTION public.trg_invoices_notify()
@@ -62,51 +62,3 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS trg_invoices_notify ON public.invoices;
-CREATE TRIGGER trg_invoices_notify
-AFTER INSERT OR UPDATE ON public.invoices
-FOR EACH ROW EXECUTE FUNCTION public.trg_invoices_notify();
-
-DROP TRIGGER IF EXISTS trg_passive_invoices_notify ON public.passive_invoices;
-CREATE TRIGGER trg_passive_invoices_notify
-AFTER INSERT OR UPDATE ON public.passive_invoices
-FOR EACH ROW EXECUTE FUNCTION public.trg_invoices_notify();
-
-
--- 2. Trigger for Bank Transactions
--- Note: bank_transactions are generally imported or synced, notifying on every insert could be noisy, but a summary is good.
--- For now, we will notify on every insert, but we can refine to only notify on large amounts or specific categories later.
-CREATE OR REPLACE FUNCTION public.trg_bank_transactions_notify()
-RETURNS TRIGGER AS $$
-DECLARE
-    v_actor_id UUID;
-    v_admin_users UUID[];
-    v_recipients UUID[];
-BEGIN
-    v_actor_id := auth.uid();
-
-    SELECT array_agg(id) INTO v_admin_users FROM auth.users WHERE EXISTS (
-        SELECT 1 FROM profiles WHERE profiles.id = auth.users.id AND profiles.role = 'admin'
-    );
-    v_recipients := v_admin_users;
-
-    IF TG_OP = 'INSERT' THEN
-        PERFORM public.broadcast_pm_notification(
-            v_recipients,
-            'accounting_bank_transaction',
-            'Nuovo Movimento Bancario',
-            'Registrato movimento: ' || NEW.description || ' (' || NEW.amount || '€)',
-            jsonb_build_object('transaction_id', NEW.id, 'description', NEW.description, 'amount', NEW.amount, 'date', NEW.date),
-            v_actor_id
-        );
-    END IF;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS trg_bank_transactions_notify ON public.bank_transactions;
-CREATE TRIGGER trg_bank_transactions_notify
-AFTER INSERT ON public.bank_transactions
-FOR EACH ROW EXECUTE FUNCTION public.trg_bank_transactions_notify();

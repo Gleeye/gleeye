@@ -1,4 +1,4 @@
-import { ensureDocSpace, fetchVisiblePages, createDocPage, fetchPageBlocks, deleteDocPage } from '../../modules/docs_api.js?v=1000';
+import { ensureDocSpace, fetchVisiblePages, createDocPage, fetchPageBlocks, deleteDocPage, fetchDocSubscription, toggleDocSubscription } from '../../modules/docs_api.js?v=1000';
 import { renderDocsSidebar, setupSidebarEvents } from './DocsSidebar.js';
 import { renderPageEditor } from './PageEditor.js';
 
@@ -56,7 +56,10 @@ export async function renderDocsView(container, spaceId) {
 
                 <!-- Main Editor Area -->
                 <div id="docs-main" style="flex: 1; display: flex; flex-direction: column; background: white; position: relative;">
-                     <div style="padding: 12px 24px; display: flex; justify-content: flex-end; gap: 10px; border-bottom: 1px solid #f1f5f9;">
+                     <div style="padding: 12px 24px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; border-bottom: 1px solid #f1f5f9;">
+                         <button id="docs-notify-btn" class="btn-sm" style="display: none; align-items: center; justify-content: center; padding: 6px; background: white; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; color: #64748b;" title="Ricevi notifiche per questa pagina">
+                            <span class="material-icons-round" style="font-size: 20px;">notifications_none</span>
+                         </button>
                          <button id="docs-share-btn" class="btn-sm" style="display: flex; align-items: center; gap: 4px; padding: 6px 12px; background: white; border: 1px solid var(--brand-blue); border-radius: 6px; cursor: pointer; color: var(--brand-blue); font-weight: 600;">
                             <span class="material-icons-round" style="font-size: 16px;">share</span>
                             <span style="font-size: 13px;">Condividi</span>
@@ -199,7 +202,41 @@ export async function renderDocsView(container, spaceId) {
             };
         }
 
-        // 8. Auto-load first page
+        // 9. Notify Toggle Logic
+        const notifyBtn = currentContainer.querySelector('#docs-notify-btn');
+        if (notifyBtn) {
+            notifyBtn.onclick = async () => {
+                if (!activePageId) return;
+                const icon = notifyBtn.querySelector('span');
+                const isSubscribed = icon.innerText === 'notifications_active';
+
+                try {
+                    notifyBtn.style.opacity = '0.5';
+                    notifyBtn.style.pointerEvents = 'none';
+
+                    await toggleDocSubscription(activePageId, !isSubscribed);
+
+                    if (!isSubscribed) {
+                        icon.innerText = 'notifications_active';
+                        notifyBtn.style.color = 'var(--brand-blue)';
+                        notifyBtn.style.borderColor = 'var(--brand-blue)';
+                        notifyBtn.title = 'Notifiche attivate';
+                    } else {
+                        icon.innerText = 'notifications_none';
+                        notifyBtn.style.color = '#64748b';
+                        notifyBtn.style.borderColor = '#cbd5e1';
+                        notifyBtn.title = 'Notifiche disattivate (Clicca per attivare)';
+                    }
+                } catch (err) {
+                    console.error("Toggle sub error:", err);
+                } finally {
+                    notifyBtn.style.opacity = '1';
+                    notifyBtn.style.pointerEvents = 'all';
+                }
+            };
+        }
+
+        // 10. Auto-load first page
         if (currentPages.length > 0 && !activePageId) {
             loadPage(currentPages[0].id);
         }
@@ -227,6 +264,28 @@ async function loadPage(pageId) {
     const page = currentPages.find(p => p.id === pageId);
 
     if (page) {
+        // Update notification bell state
+        const notifyBtn = currentContainer.querySelector('#docs-notify-btn');
+        if (notifyBtn) {
+            notifyBtn.style.display = 'flex';
+            const icon = notifyBtn.querySelector('span');
+            try {
+                const sub = await fetchDocSubscription(pageId);
+                if (sub) {
+                    icon.innerText = 'notifications_active';
+                    notifyBtn.style.color = 'var(--brand-blue)';
+                    notifyBtn.style.borderColor = 'var(--brand-blue)';
+                    notifyBtn.title = 'Notifiche attivate';
+                } else {
+                    icon.innerText = 'notifications_none';
+                    notifyBtn.style.color = '#64748b';
+                    notifyBtn.style.borderColor = '#cbd5e1';
+                    notifyBtn.title = 'Notifiche disattivate (Clicca per attivare)';
+                }
+            } catch (err) {
+                console.error("Fetch sub error:", err);
+            }
+        }
         await renderPageEditor(editorContainer, page);
     }
 }

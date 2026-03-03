@@ -55,7 +55,7 @@ export function initLayout() {
 
     // Optionally add a close button inside sidebar header for mobile
     let mobileCloseBtn = sidebar?.querySelector('.sidebar-mobile-close');
-    if (sidebar && !mobileCloseBtn) {
+    if (sidebar && !mobileCloseBtn && window.innerWidth <= 768) {
         const header = sidebar.querySelector('.sidebar-header');
         if (header) {
             mobileCloseBtn = document.createElement('div');
