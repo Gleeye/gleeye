@@ -950,13 +950,15 @@ export async function handleSaveInvoice(e) {
     };
 
     try {
+        let result;
         if (state.currentInvoiceId) {
-            await supabase.from('invoices').update(data).eq('id', state.currentInvoiceId);
-            showGlobalAlert('Fattura aggiornata!', 'success');
+            result = await supabase.from('invoices').update(data).eq('id', state.currentInvoiceId).select();
         } else {
-            await supabase.from('invoices').insert([data]);
-            showGlobalAlert('Fattura creata!', 'success');
+            result = await supabase.from('invoices').insert([data]).select();
         }
+
+        if (result.error) throw result.error;
+        showGlobalAlert(state.currentInvoiceId ? 'Fattura aggiornata!' : 'Fattura creata!', 'success');
 
         // Update linked payments status if invoice is Saldata
         if (status === 'Saldata' && selectedPayments.length > 0) {
@@ -966,19 +968,26 @@ export async function handleSaveInvoice(e) {
         }
 
         closeInvoiceForm();
+
+        // Small delay to ensure Supabase persistence before fetch
+        await new Promise(r => setTimeout(r, 500));
         await fetchInvoices();
+
+        // Auto-switch year to the new invoice's year to ensure it's visible
+        const invYear = new Date(data.invoice_date).getFullYear();
+        if (invYear !== state.dashboardYear) {
+            state.dashboardYear = invYear;
+        }
 
         // Refresh UI immediately
         if (state.currentPage === 'invoices') {
             renderActiveInvoicesSafe(document.getElementById('content-area'));
-        } else if (state.currentPage === 'invoices-dashboard') {
-            // Maybe refresh dashboard too if needed, but list is priority
         }
 
         window.dispatchEvent(new Event('data:updated'));
     } catch (err) {
-        console.error("Save error:", err);
-        showGlobalAlert("Errore salvataggio fattura", 'error');
+        console.error("Save error details:", JSON.stringify(err, null, 2));
+        showGlobalAlert("Errore salvataggio: " + (err.message || "Controlla la console"), 'error');
     }
 }
 
