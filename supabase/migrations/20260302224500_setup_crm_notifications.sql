@@ -25,8 +25,8 @@ BEGIN
             v_recipients,
             'crm_new_lead',
             'Nuovo Lead',
-            'È stato registrato un nuovo lead: ' || NEW.first_name || ' ' || NEW.last_name,
-            jsonb_build_object('lead_id', NEW.id, 'lead_first_name', NEW.first_name, 'lead_last_name', NEW.last_name, 'lead_email', NEW.email),
+            'È stato registrato un nuovo lead: ' || COALESCE(NEW.company_name, NEW.lead_code),
+            jsonb_build_object('lead_id', NEW.id, 'company_name', NEW.company_name, 'lead_code', NEW.lead_code),
             v_actor_id
         );
     ELSIF TG_OP = 'UPDATE' THEN
@@ -35,8 +35,8 @@ BEGIN
                 v_recipients,
                 'crm_lead_status',
                 'Cambio Stato Lead',
-                'Il lead ' || NEW.first_name || ' ' || NEW.last_name || ' è passato a: ' || NEW.status,
-                jsonb_build_object('lead_id', NEW.id, 'lead_first_name', NEW.first_name, 'lead_last_name', NEW.last_name, 'new_status', NEW.status),
+                'Il lead ' || COALESCE(NEW.company_name, NEW.lead_code) || ' è passato a: ' || NEW.status,
+                jsonb_build_object('lead_id', NEW.id, 'company_name', NEW.company_name, 'lead_code', NEW.lead_code, 'new_status', NEW.status),
                 v_actor_id
             );
         END IF;

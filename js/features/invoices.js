@@ -795,7 +795,7 @@ function populateClientDropdown() {
 
     const clients = state.clients || [];
     select.innerHTML = '<option value="">Seleziona cliente...</option>' +
-        clients.map(c => `< option value = "${c.id}" > ${c.client_code} - ${c.business_name}</option > `).join('');
+        clients.map(c => `<option value="${c.id}">${c.client_code} - ${c.business_name}</option>`).join('');
 }
 
 function updateOrdersDropdown(clientId) {
@@ -812,7 +812,7 @@ function updateOrdersDropdown(clientId) {
 
     const orders = (state.orders || []).filter(o => o.client_id === clientId);
     select.innerHTML = '<option value="">Nessun ordine</option>' +
-        orders.map(o => `< option value = "${o.id}" > ${o.order_number} - ${o.title || 'Senza titolo'}</option > `).join('');
+        orders.map(o => `<option value="${o.id}">${o.order_number} - ${o.title || 'Senza titolo'}</option>`).join('');
 
     // Show payments container if orders available
     if (paymentsContainer) paymentsContainer.style.display = orders.length > 0 ? 'block' : 'none';
@@ -839,7 +839,7 @@ function updatePaymentsForOrder(orderId) {
     }
 
     list.innerHTML = payments.map(p => `
-        < label style = "display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: white; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer;" >
+        <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: white; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer;">
             <input type="checkbox" class="inv-payment-check" value="${p.id}" style="width: 16px; height: 16px;">
                 <div style="flex: 1;">
                     <div style="font-size: 0.85rem; font-weight: 600;">${p.title || 'Pagamento'}</div>
@@ -1014,8 +1014,8 @@ async function populateCollaboratorDropdown() {
         ? collaborators.filter(c => c.type === 'white_label')
         : collaborators.filter(c => c.type !== 'white_label');
 
-    select.innerHTML = `< option value = "" > Seleziona ${isPartnerMode ? 'Partner' : 'Collaboratore'}...</option > ` +
-        filtered.map(c => `< option value = "${c.id}" data - settings='${JSON.stringify({
+    select.innerHTML = `<option value="">Seleziona ${isPartnerMode ? 'Partner' : 'Collaboratore'}...</option>` +
+        filtered.map(c => `<option value="${c.id}" data-settings='${JSON.stringify({
             regime: c.fiscal_regime || 'ordinario',
             cassaRate: c.cassa_previdenziale_rate !== undefined && c.cassa_previdenziale_rate !== null ? c.cassa_previdenziale_rate : 0,
             vatRate: c.default_vat_rate !== undefined && c.default_vat_rate !== null ? c.default_vat_rate : 22,

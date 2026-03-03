@@ -28,7 +28,7 @@ import { renderPaymentsDashboard, initPaymentModals } from '../features/payments
 import { renderBooking } from '../features/booking.js?v=1000';
 import { renderUserProfile } from '../features/user_dashboard.js?v=1000';
 import { renderAgenda } from '../features/personal_agenda.js?v=1000';
-import { renderHomepage } from '../features/homepage.js?v=1000';
+import { renderHomepage } from '../features/homepage.js?v=1003';
 import { renderNotificationCenter } from '../features/notifications.js?v=1000';
 import { renderAdminNotifications } from '../features/admin_notifications.js?v=1000';
 import { renderMyWork } from '../features/dashboard/TasksDashboard.js?v=1000';

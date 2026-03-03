@@ -769,18 +769,18 @@ export async function renderHomepage(container) {
                     <!-- "MY ACTIVITIES" CARD -->
                     <div class="glass-card side-activities-card">
                         <!-- SEGMENTED CONTROL TABS (Icons) -->
-                        <div class="hp-tab-controls">
-                            <button onclick="window.setHpFilter('task', this)" class="tab-pill ${window.hpActivityFilter === 'task' ? 'active' : ''}" title="Task">
-                                <span class="material-icons-round" style="font-size: 18px;">check_circle</span>
-                                <span class="tab-count" style="margin-left: 4px;"></span>
-                            </button>
-                            <button onclick="window.setHpFilter('event', this)" class="tab-pill ${window.hpActivityFilter === 'event' ? 'active' : ''}" title="Appuntamenti">
-                                <span class="material-icons-round" style="font-size: 18px;">event</span>
-                                <span class="tab-count" style="margin-left: 4px;"></span>
-                            </button>
-                            <button id="hp-top-add-btn" onclick="window.toggleHpQuickEntry(this)" class="hp-add-event-btn" title="Crea Nuovo">
-                                <span class="material-icons-round" style="font-size: 20px;">add</span>
-                            </button>
+                        <div class="hp-v6-controls">
+                            <div onclick="window.setHpFilter('task', this)" class="hp-v6-pill ${window.hpActivityFilter === 'task' ? 'active' : ''}" title="Task">
+                                <span class="material-icons-round">check_circle</span>
+                                <span class="tab-count"></span>
+                            </div>
+                            <div onclick="window.setHpFilter('event', this)" class="hp-v6-pill ${window.hpActivityFilter === 'event' ? 'active' : ''}" title="Appuntamenti">
+                                <span class="material-icons-round">calendar_today</span>
+                                <span class="tab-count"></span>
+                            </div>
+                            <div id="hp-top-add-btn" onclick="window.toggleHpQuickEntry(this)" class="hp-v6-add-btn" title="Crea Nuovo">
+                                <span class="material-icons-round">add</span>
+                            </div>
                         </div>
                         
                         <div class="hp-activities-list-container" id="hp-activities-list">
@@ -2296,7 +2296,7 @@ window.setHpFilter = function (filter, btn) {
     // Update UI buttons
     const container = btn.closest('div');
     if (container) {
-        container.querySelectorAll('.tab-pill').forEach(b => b.classList.remove('active'));
+        container.querySelectorAll('.hp-v6-pill').forEach(b => b.classList.remove('active'));
     }
     btn.classList.add('active');
 
@@ -2536,25 +2536,26 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                     const roleTitle = isPm ? 'Project Manager' : 'Assegnatario';
 
                     html += `
-                        <div class="activity-row" style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 0.5rem 0; display: flex; gap: 0.75rem; align-items: center; justify-content: space-between;">
-                            <div onclick="openPmItemDetails('${t.id}', '${spaceId || ''}')" style="flex: 1; min-width: 0; cursor: pointer; display: flex; gap: 10px; align-items: flex-start;">
-                                 <div style="margin-top: 2px; color: ${roleColor}" title="${roleTitle}">
-                                     <span class="material-icons-round" style="font-size: 18px;">${roleIcon}</span>
-                                 </div>
-                                 <div style="flex: 1; min-width: 0;">
-                                     <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 500; margin-bottom: 2px;">
-                                        ${fullTitle}
-                                    </div>
-                                    <div style="font-weight: 500; font-size: 0.9rem; color: white; line-height: 1.2;">${t.title}</div>
-                                    <div style="font-size: 0.65rem; color: #64748b; margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
-                                        ${clientShort ? `<span style="color: var(--brand-blue); font-weight: 700;">${clientShort}</span>` : ''}
-                                        ${t.breadcrumb ? `<span style="opacity: 0.7;">· ${t.breadcrumb}</span>` : ''}
-                                        ${dateStr ? `<span style="color: ${isLate ? '#f87171' : 'inherit'}">· ${isLate ? 'Scaduto: ' : ''}${dateStr}</span>` : ''}
-                                    </div>
-                                 </div>
+                        <div class="activity-row" style="padding: 1.25rem 0; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: flex-start; gap: 1rem;">
+                            <div style="margin-top: 4px; color: ${roleColor}; flex-shrink: 0;" title="${roleTitle}">
+                                <span class="material-icons-round" style="font-size: 20px;">${roleIcon}</span>
                             </div>
-                             <div style="padding-left: 8px;">
-                                <input type="checkbox" style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer; border-radius: 4px;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completata">
+                            <div style="flex: 1; min-width: 0; cursor: pointer;" onclick="openPmItemDetails('${t.id}', '${spaceId || ''}')">
+                                <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 600; margin-bottom: 2px;">${clientShort || 'Incarico'}</div>
+                                <div style="font-weight: 700; font-size: 1.05rem; color: white; line-height: 1.3; margin-bottom: 4px; letter-spacing: -0.01em;">${t.title}</div>
+                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                    <span style="font-size: 0.75rem; color: var(--brand-blue); font-weight: 700;">${t.area || ''}</span>
+                                    <span style="font-size: 0.75rem; color: #64748b;">· ${t.breadcrumb || ''}</span>
+                                </div>
+                                ${dateStr ? `
+                                <div style="margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+                                    <span style="font-size: 0.75rem; color: ${isLate ? '#f87171' : '#94a3b8'}; font-weight: 500;">
+                                        · ${isLate ? 'Scaduto: ' : ''}${dateStr}
+                                    </span>
+                                </div>` : ''}
+                            </div>
+                            <div style="padding-top: 4px;">
+                                <input type="checkbox" class="task-checkbox" style="width: 20px; height: 20px; accent-color: #10b981; cursor: pointer; opacity: 0.3;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completata">
                             </div>
                         </div>
                     `;
@@ -2570,7 +2571,7 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
         try {
             const card = container.closest('.glass-card');
             if (card) {
-                const tabs = card.querySelectorAll('.tab-pill');
+                const tabs = card.querySelectorAll('.hp-v6-pill');
                 if (tabs.length >= 2) {
                     // Update counts safely without killing icons
                     const setCnt = (btn, n) => {
@@ -2613,7 +2614,7 @@ window.quickCompleteTask = async function (id, element) {
             // Instantly update the counter in the tab
             const card = row.closest('.glass-card');
             if (card) {
-                const tabs = card.querySelectorAll('.tab-pill');
+                const tabs = card.querySelectorAll('.hp-v6-pill');
                 if (tabs.length > 0) {
                     const countEl = tabs[0].querySelector('.tab-count'); // Task count is always first
                     if (countEl) {

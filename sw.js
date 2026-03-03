@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v3'; // Version bump for purge
+const CACHE_NAME = 'gleeye-pwa-cache-v4'; // Version bump for purge
 const urlsToCache = [
     '/',
     '/index.html',

@@ -133,28 +133,74 @@
     border-radius: 16px;
 }
 
-.hp-tab-controls {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 12px;
-    padding: 4px;
-    display: flex;
-    gap: 4px;
-    flex-shrink: 0;
-    align-items: stretch;
+.hp-sidebar-panel .hp-v6-controls {
+    display: flex !important;
+    background: #0f172a !important;
+    padding: 6px !important;
+    border-radius: 14px !important;
+    gap: 8px !important;
+    width: 100% !important;
+    margin-bottom: 24px !important;
+    box-sizing: border-box !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 
-.hp-add-event-btn {
-    flex: 1;
-    border: none;
-    background: var(--brand-blue);
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+.hp-sidebar-panel .hp-v6-pill {
+    flex: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    height: 40px !important;
+    border-radius: 10px !important;
+    color: #94a3b8 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    background: transparent !important;
+    user-select: none !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
+.hp-sidebar-panel .hp-v6-pill.active {
+    background: #334155 !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.hp-sidebar-panel .hp-v6-pill:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.hp-sidebar-panel .hp-v6-add-btn {
+    flex: 1.2 !important;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #4e92d8 !important;
+    color: white !important;
+    border-radius: 10px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    border: none !important;
+}
+
+.hp-sidebar-panel .hp-v6-add-btn:hover {
+    background: #3b82f6 !important;
+    transform: translateY(-1px) !important;
+}
+
+.hp-v6-pill .material-icons-round {
+    font-size: 20px !important;
+    color: inherit !important;
+}
+
+.hp-v6-pill .tab-count {
+    font-size: 1rem !important;
+    font-weight: 800 !important;
+    font-family: var(--font-titles) !important;
+    color: inherit !important;
 }
 
 .hp-activities-list-container {
@@ -162,9 +208,43 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
     padding-right: 4px;
     min-height: 0;
+}
+
+.task-checkbox {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 6px !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    outline: none;
+}
+
+.task-checkbox:hover {
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.task-checkbox:checked {
+    background: #10b981 !important;
+    border-color: #10b981 !important;
+}
+
+.task-checkbox:checked::after {
+    content: 'check';
+    font-family: 'Material Icons Round';
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
 }
 
 .vedi-agenda-btn {
