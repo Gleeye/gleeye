@@ -137,48 +137,29 @@ export function renderPaymentsDashboard(container) {
             ` : '';
 
             return `
-                <div class="glass-card clickable-card" style="padding: 1rem 1.25rem; margin-bottom: 0.75rem; display: flex; gap: 1rem; align-items: center;" onclick="openPaymentModal('${p.id}')">
+                <div class="glass-card clickable-card payment-item-card" style="padding: 1rem 1.25rem; margin-bottom: 0.75rem; display: flex; gap: 1rem; align-items: center;" onclick="openPaymentModal('${p.id}')">
                     
                     <!-- Date Badge -->
                     ${dateBadgeHTML}
                     
-                    <!-- Content: Entity (PRIMARY), Description, Order -->
-                    <div class="flex-column" style="flex: 1; min-width: 0; gap: 0.35rem;">
-                        <div class="text-body text-truncate" style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);" title="${entity}">${entity}</div>
-                        <div class="text-caption text-truncate" style="opacity: 0.65; font-size: 0.8rem;">${description}</div>
-                        ${orderCode ? `
-                            <div class="payment-order-code" style="position: relative; width: fit-content;">
-                                <div class="text-caption" style="opacity: 0.6; font-size: 0.7rem; cursor: help;">Ordine: ${orderCode}</div>
-                                ${orderTooltip ? `
-                                    <div class="order-tooltip" style="
-                                        position: absolute;
-                                        bottom: calc(100% + 8px);
-                                        left: 0;
-                                        background: var(--card-bg);
-                                        border: 1px solid var(--glass-border);
-                                        border-radius: 12px;
-                                        padding: 0.75rem 1rem;
-                                        box-shadow: var(--shadow-premium);
-                                        backdrop-filter: blur(20px);
-                                        opacity: 0;
-                                        visibility: hidden;
-                                        transition: all 0.2s ease;
-                                        pointer-events: none;
-                                        z-index: 1000;
-                                        min-width: 200px;
-                                        white-space: normal;
-                                    ">
-                                        ${orderTooltip}
-                                    </div>
-                                ` : ''}
-                            </div>
-                        ` : ''}
-                    </div>
+                    <!-- Card Content Wrapper -->
+                    <div class="payment-card-body" style="flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-width: 0;">
+                        <!-- Content: Entity (PRIMARY), Description, Order -->
+                        <div class="flex-column" style="flex: 1; min-width: 0; gap: 0.25rem;">
+                            <div class="text-body text-truncate" style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);" title="${entity}">${entity}</div>
+                            <div class="text-caption text-truncate" style="opacity: 0.65; font-size: 0.8rem;">${description}</div>
+                            ${orderCode ? `
+                                <div class="payment-order-code" style="position: relative; width: fit-content;">
+                                    <div class="text-caption" style="opacity: 0.6; font-size: 0.7rem;">Ordine: ${orderCode}</div>
+                                </div>
+                            ` : ''}
+                        </div>
 
-                    <!-- Amount with subtle dot indicator -->
-                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
-                        <div style="width: 6px; height: 6px; background: ${statusDotColor}; border-radius: 50%;"></div>
-                        <div style="font-weight: 600; font-size: 0.9rem; color: ${amountColor};">${sign} € ${formatAmount(p.amount)}</div>
+                        <!-- Amount with subtle dot indicator -->
+                        <div class="payment-card-amount" style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; white-space: nowrap;">
+                            <div style="width: 6px; height: 6px; background: ${statusDotColor}; border-radius: 50%;"></div>
+                            <div style="font-weight: 600; font-size: 0.9rem; color: ${amountColor};">${sign} € ${formatAmount(p.amount)}</div>
+                        </div>
                     </div>
 
                 </div>
@@ -307,6 +288,11 @@ export function renderPaymentsDashboard(container) {
                         .desktop-title { display: none !important; }
                         .payment-tabs-mobile { display: flex !important; }
                         .pill-group { margin-top: 0; margin-bottom: 1.5rem !important; justify-content: flex-start; }
+
+                        /* Card Responsive Fixes */
+                        .payment-item-card { align-items: flex-start !important; padding: 0.85rem 1rem !important; }
+                        .payment-card-body { flex-direction: column !important; align-items: flex-start !important; gap: 0.4rem !important; }
+                        .payment-card-amount { margin-top: 0.15rem; }
                     }
                 </style>
 

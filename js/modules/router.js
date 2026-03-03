@@ -266,7 +266,7 @@ function render() {
                 renderAssignmentsDashboard(contentArea);
                 break;
             case 'payments':
-                if (pageTitle) pageTitle.textContent = 'Scadenziario Pagamenti';
+                if (pageTitle) pageTitle.textContent = '';
                 initPaymentModals();
                 renderPaymentsDashboard(contentArea);
                 break;
