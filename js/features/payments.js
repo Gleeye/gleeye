@@ -686,14 +686,39 @@ export function openPaymentModal(id) {
                 if (inviteBtn) {
                     inviteBtn.addEventListener('click', async () => {
                         try {
+                            const webhookUrl = 'https://sacred-roughy-renewing.ngrok-free.app/webhook/aa9c1f66-e6aa-4d2c-991c-2d3003c8d1a5';
+
+                            // Mostriamo un feedback immediato
+                            inviteBtn.disabled = true;
+                            inviteBtn.innerHTML = `<span class="material-icons-round rotating" style="font-size: 1rem;">sync</span> Invio in corso...`;
+
+                            // Chiamata al Webhook n8n con tutti i dati del record
+                            const response = await fetch(webhookUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    ...p,
+                                    action: 'invite_to_invoice',
+                                    sent_at: new Date().toISOString()
+                                })
+                            });
+
+                            if (!response.ok) throw new Error('Webhook n8n fallito');
+
+                            // Procediamo all'aggiornamento dello stato nel DB
                             const { supabase } = await import('../modules/config.js?v=1000');
                             await supabase.rpc('send_payment_invite', { p_payment_id: p.id });
-                            // Refresh payments and reopen modal
+
+                            // Refresh dei dati e aggiornamento UI
                             await fetchPayments();
                             openPaymentModal(p.id);
-                            showGlobalAlert('Invito inviato al collaboratore!', 'success');
+                            showGlobalAlert('Invito inviato correttamente tramite n8n!', 'success');
                         } catch (e) {
-                            showGlobalAlert('Errore invio invito: ' + e.message, 'error');
+                            console.error('Error sending invite:', e);
+                            showGlobalAlert('Errore durante l\'invio: ' + e.message, 'error');
+                            // Ripristiniamo il tasto in caso di errore
+                            inviteBtn.disabled = false;
+                            inviteBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1rem;">send</span> Invia Invito a Fatturare`;
                         }
                     });
                 }

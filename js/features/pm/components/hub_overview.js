@@ -416,19 +416,41 @@ function renderActivityFeed(logs) {
 function renderLogItem(log, isLast) {
     const time = new Date(log.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
-    let description = log.details?.description || log.details || log.action_type;
-    if (typeof description === 'object') {
-        description = log.action_type === 'updated' ? 'Modifica dati' : log.action_type;
+    let description = log.details?.description || log.details;
+    const actionType = log.action_type || '';
+
+    // Humanize technical fallbacks
+    if (!description || typeof description === 'object' || description === 'status_changed' || description === 'UPDATE') {
+        if (actionType.includes('status')) description = '📊 Ha aggiornato lo stato';
+        else if (actionType.includes('create')) description = '✨ Ha creato una nuova voce';
+        else if (actionType.includes('comment')) description = '💬 Ha lasciato un commento';
+        else if (actionType.includes('assign')) description = '👥 Ha assegnato un incarico';
+        else description = '📝 Ha aggiornato i dettagli';
     }
 
-    // Clean up
-    description = description
-        .replace(/in_progress/g, 'In Corso')
-        .replace(/todo/g, 'Da Fare')
-        .replace(/done/g, 'Completato')
-        .replace(/blocked/g, 'Bloccato')
-        .replace(/review/g, 'In Revisione')
-        .replace(/^Ha /, '');
+    // Vocabulary replacement
+    const vocabulary = {
+        'todo': 'Da Fare',
+        'in_progress': 'In Corso',
+        'review': 'In Revisione',
+        'done': 'Completata',
+        'blocked': 'Bloccata',
+        'in_svolgimento': 'In Lavorazione',
+        'lavoro_in_attesa': 'In Sospeso',
+        'accettata': 'Accettata ✅',
+        'rifiutata': 'Rifiutata ❌',
+        'offer_status': 'Stato Offerta',
+        'status_works': 'Avanzamento Lavori',
+        'status_changed': '📦 Stato Aggiornato'
+    };
+
+    Object.entries(vocabulary).forEach(([key, value]) => {
+        const regex = new RegExp(`\\b${key}\\b`, 'g');
+        description = description.replace(regex, value);
+    });
+
+    // Final cleanups
+    description = description.replace(/^Ha Ha /, 'Ha ').replace(/^Ha ha /, 'Ha ');
 
     const authorName = log.actor?.full_name || 'Collaboratore';
     const avatarUrl = log.actor?.avatar_url || '';

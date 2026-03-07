@@ -122,24 +122,44 @@ export async function renderActivityLog(container, options = {}) {
 function renderMinimalLog(log) {
     const time = new Date(log.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
-    let description = log.details?.description || log.details || log.action_type;
-    if (typeof description === 'object') {
-        description = log.action_type === 'updated' ? 'Modifica dati' : log.action_type;
+    let description = log.details?.description || log.details;
+    const actionType = log.action_type || '';
+
+    // If description is missing or technical, let's fix it
+    if (!description || typeof description === 'object' || description === 'status_changed' || description === 'UPDATE') {
+        if (actionType.includes('status')) description = '📊 Ha aggiornato lo stato';
+        else if (actionType.includes('create')) description = '✨ Ha creato una nuova voce';
+        else if (actionType.includes('comment')) description = '💬 Ha lasciato un commento';
+        else if (actionType.includes('assign')) description = '👥 Ha assegnato un incarico';
+        else description = '📝 Ha aggiornato i dettagli';
     }
 
     const authorName = log.actor?.full_name || 'Sistema';
     const avatarUrl = log.actor?.avatar_url || '';
 
-    // Standard statuses override
-    description = description
-        .replace(/in_progress/g, 'In Corso')
-        .replace(/todo/g, 'Da Fare')
-        .replace(/done/g, 'Completato')
-        .replace(/blocked/g, 'Bloccato')
-        .replace(/review/g, 'In Revisione');
+    // Master replacement for ANY technical codes leaked (failsafe)
+    const vocabulary = {
+        'todo': 'Da Fare',
+        'in_progress': 'In Corso',
+        'review': 'In Revisione',
+        'done': 'Completata',
+        'blocked': 'Bloccata',
+        'in_svolgimento': 'In Lavorazione',
+        'lavoro_in_attesa': 'In Sospeso',
+        'accettata': 'Accettata ✅',
+        'rifiutata': 'Rifiutata ❌',
+        'offer_status': 'Stato Offerta',
+        'status_works': 'Avanzamento Lavori',
+        'status_changed': '📦 Stato Aggiornato'
+    };
 
-    // Remove "Ha " for consistency
-    description = description.replace(/^Ha /, '');
+    Object.entries(vocabulary).forEach(([key, value]) => {
+        const regex = new RegExp(`\\b${key}\\b`, 'g');
+        description = description.replace(regex, value);
+    });
+
+    // Cleanup prefix redundancy
+    description = description.replace(/^Ha Ha /, 'Ha ').replace(/^Ha ha /, 'Ha ');
 
     return `
         <div class="log-row">
@@ -148,10 +168,10 @@ function renderMinimalLog(log) {
             </div>
             <div style="flex: 1; min-width: 0;">
                 <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.2rem;">
-                    <span style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">${authorName}</span>
-                    <span style="font-size: 0.75rem; color: var(--text-tertiary);">${time}</span>
+                    <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary); font-family: var(--font-body);">${authorName}</span>
+                    <span style="font-size: 0.7rem; color: var(--text-tertiary); font-family: var(--font-body);">${time}</span>
                 </div>
-                <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+                <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; font-family: var(--font-body);">
                     ${description}
                 </div>
             </div>
