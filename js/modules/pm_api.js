@@ -1355,3 +1355,15 @@ export async function toggleActivityRegistryStatus(registryId, isActive) {
     }
 }
 
+export async function updateActivityRegistry(registryId, updates) {
+    const { data, error } = await supabase
+        .from('pm_activity_registry')
+        .update(updates)
+        .eq('id', registryId);
+
+    if (error) {
+        console.error("Error updating activity registry:", error);
+        throw error;
+    }
+    return data;
+}
