@@ -29,7 +29,10 @@ serve(async (req) => {
         try {
             const response = await fetch(webhookUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true' // Bypass ngrok landing page
+                },
                 body: JSON.stringify(payload || {}),
                 signal: controller.signal
             })
