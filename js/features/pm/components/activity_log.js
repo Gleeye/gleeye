@@ -119,11 +119,11 @@ export async function renderActivityLog(container, spaceIdOrOptions = null, item
                         <div style="position: absolute; left: -1.35rem; top: 0.25rem; width: 0.6rem; height: 0.6rem; border-radius: 50%; background: ${iconColor}; border: 2px solid var(--bg-primary);"></div>
                         
                         <div style="display: flex; gap: 0.75rem; align-items: flex-start; background: var(--bg-secondary); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color);">
-                            <img src="${log.avatarUrl}" alt="${log.authorName}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;">
+                            <img src="${avatarUrl}" alt="${authorName}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: #e2e8f0;" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\'><path fill=\'%2364748b\' d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/></svg>';">
                             
                             <div style="flex: 1; min-width: 0;">
                                 <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.25rem;">
-                                    <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">${log.authorName}</span>
+                                    <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">${authorName}</span>
                                     <span style="font-size: 0.75rem; color: var(--text-tertiary);" title="${dateString} alle ${timeString}">${dateString} ${timeString}</span>
                                 </div>
                                 <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
