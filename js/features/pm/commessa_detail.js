@@ -6,12 +6,13 @@ import { CloudLinksManager } from '../components/CloudLinksManager.js?v=1000';
 import { renderAvatar } from '../../modules/utils.js?v=1000';
 
 // Status colors for "Stato Lavori"
+// Status colors for "Stato Lavori"
 const STATUS_CONFIG = {
-    'in_svolgimento': { label: 'In Svolgimento', color: '#3b82f6', bg: '#eff6ff' },
-    'lavoro_in_attesa': { label: 'Lavoro in Attesa', color: '#f59e0b', bg: '#fffbeb' },
-    'finito_da_fatturare': { label: 'Finito da Fatturare', color: '#8b5cf6', bg: '#f5f3ff' },
-    'completato': { label: 'Completato', color: '#10b981', bg: '#ecfdf5' },
-    'contratto_da_inviare': { label: 'Contratto da Inviare', color: '#64748b', bg: '#f1f5f9' }
+    'in_svolgimento': { label: 'In Svolgimento', color: '#3b82f6', bg: '#eff6ff', icon: 'play_circle' },
+    'lavoro_in_attesa': { label: 'In Attesa', color: '#f59e0b', bg: '#fffbeb', icon: 'hourglass_empty' },
+    'in_pausa': { label: 'In Pausa', color: '#64748b', bg: '#f1f5f9', icon: 'pause_circle' },
+    'manutenzione': { label: 'Ongoing', color: '#06b6d4', bg: '#ecfeff', icon: 'published_with_changes' },
+    'completato': { label: 'Completato', color: '#10b981', bg: '#ecfdf5', icon: 'check_circle' }
 };
 
 // Item status colors
@@ -26,12 +27,12 @@ const ITEM_STATUS = {
 function normalizeStatus(status) {
     if (!status) return 'altro';
     const s = status.toLowerCase().trim().replace(/_/g, ' ');
+    if (s.includes('completato') || s.includes('concluso') || s.includes('finito')) return 'completato';
+    if (s.includes('pausa') || s.includes('sospeso')) return 'in_pausa';
+    if (s.includes('manutenzione') || s.includes('assistenza')) return 'manutenzione';
     if (s.includes('svolgimento') || s.includes('in corso')) return 'in_svolgimento';
     if (s.includes('attesa')) return 'lavoro_in_attesa';
-    if (s.includes('fatturare') || s.includes('finito')) return 'finito_da_fatturare';
-    if (s.includes('completato')) return 'completato';
-    if (s.includes('contratto')) return 'contratto_da_inviare';
-    return 'altro';
+    return 'lavoro_in_attesa';
 }
 
 // Calculate KPIs from items
@@ -162,19 +163,38 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                 <span style="font-family: monospace; color: var(--text-secondary); font-weight: 600; font-size: 0.85rem;">${order?.order_number || ''}</span>
                                 ${(() => {
                 const normalized = normalizeStatus(order?.status_works);
-                const statusConfig = STATUS_CONFIG[normalized] || { label: order?.status_works || 'N/A', color: '#64748b', bg: '#f1f5f9' };
+                const statusConfig = STATUS_CONFIG[normalized] || STATUS_CONFIG['in_svolgimento'];
                 return `
-                                        <div style="position: relative;">
-                                            <select id="hub-order-status-select" style="
-                                                appearance: none; border: none; padding: 2px 24px 2px 10px; border-radius: 12px;
-                                                font-size: 0.75rem; font-weight: 600; background-color: ${statusConfig.bg}; color: ${statusConfig.color};
-                                                cursor: pointer; outline: none;
+                                        <div class="custom-status-dropdown" style="position: relative; z-index: 100;">
+                                            <button id="hub-status-trigger" style="
+                                                background: ${statusConfig.bg}; color: ${statusConfig.color};
+                                                padding: 4px 12px; border: 1px solid transparent; border-radius: 100px;
+                                                font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; gap: 6px;
+                                                cursor: pointer; transition: all 0.2s;
+                                            ">
+                                                <span class="material-icons-round" style="font-size: 1rem;">${statusConfig.icon}</span>
+                                                ${statusConfig.label}
+                                                <span class="material-icons-round" style="font-size: 1rem; opacity: 0.7;">unfold_more</span>
+                                            </button>
+                                            
+                                            <div id="hub-status-menu" class="hidden" style="
+                                                position: absolute; top: calc(100% + 8px); left: 0; min-width: 180px;
+                                                background: white; border-radius: 12px; box-shadow: var(--shadow-lg);
+                                                border: 1px solid var(--surface-2); padding: 6px; overflow: hidden;
                                             ">
                                                 ${Object.entries(STATUS_CONFIG).map(([key, cfg]) => `
-                                                    <option value="${key}" ${normalized === key ? 'selected' : ''}>${cfg.label}</option>
+                                                    <div class="status-option ${normalized === key ? 'active' : ''}" data-status="${key}" style="
+                                                        padding: 8px 12px; border-radius: 8px; cursor: pointer;
+                                                        display: flex; align-items: center; gap: 10px; font-size: 0.8rem; font-weight: 600;
+                                                        color: ${normalized === key ? cfg.color : 'var(--text-secondary)'};
+                                                        background: ${normalized === key ? cfg.bg : 'transparent'};
+                                                        transition: all 0.2s;
+                                                    " onmouseover="this.style.background='${cfg.bg}'; this.style.color='${cfg.color}'" onmouseout="if(!this.classList.contains('active')){this.style.background='transparent'; this.style.color='var(--text-secondary)'}">
+                                                        <span class="material-icons-round" style="font-size: 1.1rem;">${cfg.icon}</span>
+                                                        ${cfg.label}
+                                                    </div>
                                                 `).join('')}
-                                            </select>
-                                            <span class="material-icons-round" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 0.9rem; color: ${statusConfig.color}; pointer-events: none;">expand_more</span>
+                                            </div>
                                         </div>
                                     `;
             })()}
@@ -800,27 +820,64 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
             document.addEventListener('click', window._commessaPickerOutside);
         }
 
-        // 13. Status Update Logic
-        const statusSelect = container.querySelector('#hub-order-status-select');
-        if (statusSelect) {
-            statusSelect.addEventListener('change', async (e) => {
-                const newStatus = e.target.value;
-                try {
-                    statusSelect.disabled = true;
-                    const { updateOrder } = await import('../../modules/api.js?v=1000');
-                    await updateOrder(orderId, { status_works: newStatus });
-                    const newNormalized = normalizeStatus(newStatus);
-                    const newCfg = STATUS_CONFIG[newNormalized] || { label: newStatus, color: '#64748b', bg: '#f1f5f9' };
-                    statusSelect.style.backgroundColor = newCfg.bg;
-                    statusSelect.style.color = newCfg.color;
-                    const icon = statusSelect.nextElementSibling;
-                    if (icon) icon.style.color = newCfg.color;
-                    statusSelect.disabled = false;
-                } catch (err) {
-                    alert("Errore stato: " + err.message);
-                    statusSelect.disabled = false;
-                    statusSelect.value = order.status_works;
-                }
+        // 13. Status Update Logic (Custom Dropdown)
+        const statusTrigger = container.querySelector('#hub-status-trigger');
+        const statusMenu = container.querySelector('#hub-status-menu');
+
+        if (statusTrigger && statusMenu) {
+            statusTrigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                statusMenu.classList.toggle('hidden');
+            });
+
+            document.addEventListener('click', () => statusMenu.classList.add('hidden'));
+
+            statusMenu.querySelectorAll('.status-option').forEach(opt => {
+                opt.addEventListener('click', async (e) => {
+                    const newStatusKey = opt.dataset.status;
+                    const cfg = STATUS_CONFIG[newStatusKey];
+
+                    try {
+                        statusTrigger.style.opacity = '0.5';
+                        statusTrigger.style.pointerEvents = 'none';
+
+                        const { updateOrder } = await import('../../modules/api.js?v=1000');
+                        await updateOrder(orderId, { status_works: newStatusKey });
+
+                        // Update Trigger UI
+                        statusTrigger.style.background = cfg.bg;
+                        statusTrigger.style.color = cfg.color;
+                        statusTrigger.innerHTML = `
+                            <span class="material-icons-round" style="font-size: 1rem;">${cfg.icon}</span>
+                            ${cfg.label}
+                            <span class="material-icons-round" style="font-size: 1rem; opacity: 0.7;">unfold_more</span>
+                        `;
+
+                        // Update Menu Active State
+                        statusMenu.querySelectorAll('.status-option').forEach(s => {
+                            s.classList.remove('active');
+                            s.style.background = 'transparent';
+                            s.style.color = 'var(--text-secondary)';
+                        });
+                        opt.classList.add('active');
+                        opt.style.background = cfg.bg;
+                        opt.style.color = cfg.color;
+
+                        showGlobalAlert('Stato aggiornato', 'success');
+
+                        // Refresh active tab to show the new log entry in the activity feed if in Overview
+                        const activeTab = Array.from(tabs).find(t => t.classList.contains('active'))?.dataset.tab || 'overview';
+                        if (activeTab === 'overview') {
+                            renderTab('overview');
+                        }
+                    } catch (err) {
+                        showGlobalAlert("Errore: " + err.message, 'error');
+                    } finally {
+                        statusTrigger.style.opacity = '1';
+                        statusTrigger.style.pointerEvents = 'auto';
+                        statusMenu.classList.add('hidden');
+                    }
+                });
             });
         }
     } catch (e) {

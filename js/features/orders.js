@@ -455,6 +455,11 @@ export async function renderOrderDetail(container, orderId) {
                             </div>
                         </div>
                     </div>
+
+                    <!-- Activity Log Section -->
+                    <div id="order-activity-log-container-${order.id}" class="glass-card" style="background: white; border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden; margin-top: 0.25rem;">
+                        <!-- Logs will be loaded here -->
+                    </div>
                 </div>
 
                 <!-- Column 3: Economics -->
@@ -717,6 +722,14 @@ export async function renderOrderDetail(container, orderId) {
         const dropdowns = container.querySelectorAll('.actions-dropdown-content');
         dropdowns.forEach(d => d.style.display = 'none');
     });
+
+    // Render Activity Log
+    const logContainer = container.querySelector(`#order-activity-log-container-${order.id}`);
+    if (logContainer) {
+        import('./pm/components/activity_log.js?v=' + Date.now()).then(mod => {
+            mod.renderActivityLog(logContainer, { orderId: order.id });
+        }).catch(err => console.error("Error loading activity log module:", err));
+    }
 }
 
 // Trigger Preventivo Webhook

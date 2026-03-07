@@ -24,7 +24,7 @@ import { renderBankStatements } from '../features/bank_statements.js?v=1000';
 import { renderServices } from '../features/services.js?v=1000';
 import { renderCollaboratorServices } from '../features/collaborator_services.js?v=1000';
 import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=1000';
-import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=1000';
+import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=1001';
 import { renderBooking } from '../features/booking.js?v=1000';
 import { renderUserProfile } from '../features/user_dashboard.js?v=1000';
 import { renderAgenda } from '../features/personal_agenda.js?v=1000';
@@ -266,7 +266,7 @@ function render() {
                 renderAssignmentsDashboard(contentArea);
                 break;
             case 'payments':
-                if (pageTitle) pageTitle.textContent = '';
+                if (pageTitle) pageTitle.textContent = 'Scadenzario Pagamenti';
                 initPaymentModals();
                 renderPaymentsDashboard(contentArea);
                 break;

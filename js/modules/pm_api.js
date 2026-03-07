@@ -7,7 +7,7 @@ export async function fetchAllCollaborators() {
     const { data, error } = await supabase
         .from('collaborators')
         .select('*')
-        .neq('status', 'archived')
+        .not('status', 'eq', 'archived')
         .order('full_name');
 
     if (error) {
@@ -262,6 +262,7 @@ export async function fetchPMItem(itemId) {
             pm_item_assignees ( id, user_ref, collaborator_ref, role, created_at ),
             pm_item_incarichi ( incarico_ref ),
             pm_spaces ( id, name, area, cluster:parent_ref(name) ),
+            clients:client_ref ( id, business_name, client_code ),
             parent_item:parent_ref ( id, title, item_type )
         `)
         .eq('id', itemId)
@@ -796,10 +797,23 @@ export async function fetchMyWorkItems() {
 // --- TEAM AGGREGATION FOR COMMESSE DASHBOARD ---
 
 export async function fetchCommesseTeamSummary() {
-    // 1. Get all spaces linked to orders
+    // 1. Get all spaces linked to orders with their PMs and active items/assignees in ONE query
+    // Scaling note: if there are thousands of commesse, we might need a stored function. 
+    // For now, joined select is much better than separate 'in' queries.
     const { data: spaces, error: spaceError } = await supabase
         .from('pm_spaces')
-        .select('id, ref_ordine, default_pm_user_ref, pm_space_assignees(user_ref, collaborator_ref, role)')
+        .select(`
+            id, ref_ordine, 
+            pm_space_assignees(user_ref, collaborator_ref, role),
+            pm_items(
+                id, status,
+                pm_item_assignees(user_ref, collaborator_ref),
+                pm_item_incarichi(
+                    incarico_ref,
+                    assignments(collaborator_id)
+                )
+            )
+        `)
         .eq('type', 'commessa');
 
     if (spaceError) {
@@ -807,33 +821,10 @@ export async function fetchCommesseTeamSummary() {
         return {};
     }
 
-    const spaceIds = spaces.map(s => s.id);
-    if (spaceIds.length === 0) return {};
+    if (!spaces || spaces.length === 0) return {};
 
-    // 2. Get active items and their assignees/assignments
-    // We want to know who is ACTIVELY working.
-    // Definition of active worker:
-    // - Is a PM of the space
-    // - Is assigned to a task that is NOT done/completed
-    // - Is linked via an assignment to a task that is NOT done/completed
-
-    const { data: activeItems, error: itemError } = await supabase
-        .from('pm_items')
-        .select(`
-            id, 
-            pm_space_ref,
-            status,
-            pm_item_assignees (user_ref, collaborator_ref),
-            pm_item_incarichi (
-                incarico_ref,
-                assignments (collaborator_id)
-            )
-        `)
-        .in('pm_space_ref', spaceIds)
-        .neq('status', 'done'); // exclude finished tasks
-
-    // 3. Aggregate by Order ID
-    const teamByOrder = {}; // { orderId: [ { userId, collabId, role } ] }
+    // 2. Aggregate by Order ID
+    const teamByOrder = {};
 
     // Helper to get collab info from state (assume state.collaborators is loaded)
     const getCollabInfo = (uid, cid) => {
@@ -869,8 +860,8 @@ export async function fetchCommesseTeamSummary() {
             });
         }
 
-        // B. Add Active Item Assignees
-        const spaceItems = activeItems?.filter(i => i.pm_space_ref === space.id) || [];
+        // B. Add Active Item Assignees (filter items client-side since we did full join)
+        const spaceItems = space.pm_items?.filter(i => i.status !== 'done') || [];
 
         spaceItems.forEach(item => {
             // Direct assignees
@@ -1297,17 +1288,21 @@ export async function updateItemCloudLinks(itemId, links) {
 }
 
 // --- ACTIVITY LOGS ---
-export async function fetchPMActivityLogs(spaceId, itemId = null) {
+export async function fetchPMActivityLogs(spaceId = null, itemId = null, orderId = null, itemIds = null) {
     let query = supabase
         .from('pm_activity_logs')
         .select(`
             id, action_type, details, created_at,
-            actor:actor_user_ref ( first_name, last_name, avatar_url, email )
+            actor:actor_user_ref ( full_name, avatar_url, email )
         `)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(100);
 
-    if (itemId) {
+    if (orderId) {
+        query = query.eq('order_ref', orderId);
+    } else if (itemIds && itemIds.length > 0) {
+        query = query.in('item_ref', itemIds);
+    } else if (itemId) {
         query = query.eq('item_ref', itemId);
     } else if (spaceId) {
         query = query.eq('space_ref', spaceId);
@@ -1323,11 +1318,9 @@ export async function fetchPMActivityLogs(spaceId, itemId = null) {
     return data.map(log => {
         let authorName = 'Sistema';
         let avatarUrl = 'https://ui-avatars.com/api/?name=Sistema&background=random';
-        
+
         if (log.actor) {
-            const first = log.actor.first_name || '';
-            const last = log.actor.last_name || '';
-            authorName = `${first} ${last}`.trim();
+            authorName = log.actor.full_name || '';
             if (!authorName) authorName = log.actor.email?.split('@')[0] || 'Utente';
             avatarUrl = log.actor.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random`;
         }

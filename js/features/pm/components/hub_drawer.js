@@ -45,7 +45,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
             ">
                 <div id="hub-drawer" style="
                     width: 600px; max-width: 100%; height: 100%; 
-                    background: white; box-shadow: -10px 0 40px rgba(0,0,0,0.2);
+                    background: var(--card-bg); box-shadow: -10px 0 40px rgba(0,0,0,0.2);
                     display: flex; flex-direction: column;
                 "></div>
             </div>
@@ -55,11 +55,13 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
         drawer = document.getElementById('hub-drawer');
 
         overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) overlay.classList.add('hidden');
+            if (e.target === overlay) closeHubDrawer();
         });
     }
 
     const isEdit = !!itemId;
+    const closeHubDrawer = () => overlay.classList.add('hidden');
+
     overlay.classList.remove('hidden');
     drawer.innerHTML = `
         <style>
@@ -191,7 +193,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 <button class="secondary-btn close-drawer-btn" style="margin-top: 1rem;">Chiudi</button>
             </div>
         `;
-        drawer.querySelector('.close-drawer-btn').onclick = () => overlay.classList.add('hidden');
+        drawer.querySelector('.close-drawer-btn').onclick = closeHubDrawer;
         return;
     }
 
@@ -243,7 +245,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
         if (viewMode) {
             drawer.innerHTML = `
-                <div class="drawer-header" style="padding: 0.75rem 1.25rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: white; flex-shrink: 0;">
+                <div class="drawer-header" style="padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); flex-shrink: 0;">
                     <div style="min-width: 0; flex: 1; margin-right: 1.25rem;">
                         <div style="margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.35rem;">
                             ${item && item.parent_item ? `
@@ -296,7 +298,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                         <span class="priority-label">${ITEM_PRIORITY[item.priority || 'medium']?.label}</span>
                                         <span class="material-icons-round" style="font-size: 1.1rem; opacity: 0.5;">expand_more</span>
                                     </button>
-                                    <div id="priority-dropdown-menu" class="hidden dropdown-menu" style="position: absolute; top: 100%; left: 0; margin-top: 8px; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; padding: 8px; z-index: 1000; min-width: 160px; display: flex; flex-direction: column; gap: 4px;">
+                                    <div id="priority-dropdown-menu" class="hidden dropdown-menu" style="position: absolute; top: 100%; left: 0; margin-top: 8px; background: var(--card-bg); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid var(--glass-border); padding: 8px; z-index: 1000; min-width: 160px; display: flex; flex-direction: column; gap: 4px;">
                                         ${Object.keys(ITEM_PRIORITY).map(k => `<div class="priority-option" data-value="${k}" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; font-weight: 600; color: #334155; transition: background 0.2s;">
                                             <span class="material-icons-round" style="font-size: 1.1rem; color: ${ITEM_PRIORITY[k].color};">flag</span>
                                             <span>${ITEM_PRIORITY[k].label}</span>
@@ -313,7 +315,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                         <span class="status-label">${ITEM_STATUS[item.status]?.label || item.status}</span>
                                         <span class="material-icons-round" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 1.14rem; opacity: 0.7;">expand_more</span>
                                     </button>
-                                    <div id="status-dropdown-menu" class="hidden dropdown-menu" style="position: absolute; top: 100%; left: 0; margin-top: 8px; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; padding: 8px; z-index: 1000; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
+                                    <div id="status-dropdown-menu" class="hidden dropdown-menu" style="position: absolute; top: 100%; left: 0; margin-top: 8px; background: var(--card-bg); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid var(--glass-border); padding: 8px; z-index: 1000; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
                                         ${Object.keys(ITEM_STATUS).map(k => `<div class="status-option" data-value="${k}" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; font-weight: 600; color: #334155; transition: background 0.2s;">
                                             <div style="width: 10px; height: 10px; border-radius: 50%; background: ${ITEM_STATUS[k].color};"></div>
                                             <span>${ITEM_STATUS[k].label}</span>
@@ -331,7 +333,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform:uppercase; letter-spacing: 0.05em;">PROJECT MANAGER</label>
                                 <div id="pm-list" style="display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; position: relative;">
                                     ${assignees.filter(a => a.role === 'pm').map(a => `
-                                        <div class="assignee-pill" style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; padding-left: 4px; background: white; border: 1px solid var(--brand-purple); border-radius: 20px; font-size: 0.8rem; font-weight: 700; color: var(--brand-purple); box-shadow: 0 2px 4px rgba(0,0,0,0.03); position: relative;">
+                                        <div class="assignee-pill" style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; padding-left: 4px; background: var(--input-bg); border: 1px solid var(--brand-purple); border-radius: 20px; font-size: 0.8rem; font-weight: 700; color: var(--brand-purple); box-shadow: 0 2px 4px rgba(0,0,0,0.03); position: relative;">
                                             <img src="${a.user?.avatar_url || '../../../assets/default-avatar.png'}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
                                             <span>${a.user?.first_name || 'PM'}</span>
                                             ${(state.profile?.role === 'admin' || state.profile?.tags?.some(t => t.toLowerCase().includes('pm'))) ? `
@@ -483,14 +485,20 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
             // Init Activity Log
             if (state.profile?.role === 'admin') {
-                import('./activity_log.js?v=1000').then(mod => {
+                import('./activity_log.js?v=' + Date.now()).then(mod => {
                     const logContainer = drawer.querySelector('#drawer-activity-log-container');
-                    if (logContainer) mod.renderActivityLog(logContainer, null, itemId);
+
+                    let targetItemIds = [itemId];
+                    if (subItems && subItems.length > 0) {
+                        targetItemIds = targetItemIds.concat(subItems.map(s => s.id));
+                    }
+
+                    if (logContainer) mod.renderActivityLog(logContainer, { itemIds: targetItemIds });
                 }).catch(e => console.error("Error loading Activity Log", e));
             }
         } else {
             drawer.innerHTML = `
-                <div class="drawer-header" style="padding: 1.25rem 2rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: white; flex-shrink: 0; position: sticky; top: 0; z-index: 10;">
+                <div class="drawer-header" style="padding: 1.25rem 2rem; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); flex-shrink: 0; position: sticky; top: 0; z-index: 10;">
                     <div style="display: flex; flex-direction: column; overflow: hidden;">
                         ${item && item.parent_item ? `
                         <div id="back-to-parent-btn" style="display: flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 800; color: var(--brand-blue); cursor: pointer; margin-bottom: 4px; text-transform: uppercase; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
@@ -574,7 +582,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         <!-- Title -->
                         <div class="form-group">
                             <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Titolo</label>
-                            <input type="text" name="title" required value="${item.title || ''}" class="input-modern" style="height: 44px; padding: 0 14px; border-radius: 10px; font-weight: 500; font-size: 1rem; border: 1.2px solid #e2e8f0; width: 100%; box-sizing: border-box; background: white;">
+                            <input type="text" name="title" required value="${item.title || ''}" class="input-modern" style="height: 44px; padding: 0 14px; border-radius: 10px; font-weight: 500; font-size: 1rem; border: 1.2px solid #e2e8f0; width: 100%; box-sizing: border-box; background: var(--input-bg);">
                         </div>
 
                         <div style="height: 1px; background: #f1f5f9; margin: 0.5rem 0;"></div>
@@ -618,7 +626,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     }).join('')}
                                     <div style="position: relative;">
                                         <button type="button" id="form-add-assignee-btn" style="width: 28px; height: 28px; border-radius: 6px; border: 1.2px dashed #cbd5e1; background: transparent; color: var(--text-tertiary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"><span class="material-icons-round" style="font-size: 18px;">add</span></button>
-                                        <div id="form-assignee-picker" class="hidden" style="position: absolute; top: calc(100% + 6px); left: 0; min-width: 260px; background: white; border: 1.2px solid #e2e8f0; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); z-index: 1000; max-height: 300px; overflow-y: auto; padding: 4px;">
+                                        <div id="form-assignee-picker" class="hidden" style="position: absolute; top: calc(100% + 6px); left: 0; min-width: 260px; background: var(--card-bg); border: 1.2px solid var(--glass-border); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); z-index: 1000; max-height: 300px; overflow-y: auto; padding: 4px;">
                                             ${renderUserPicker(currentSpaceId, 'assignee', new Set(pendingAssignees.filter(a => a.role !== 'pm').map(a => a.user_ref || a.collaborator_ref)), new Set(spaceAssigneesPool.map(sa => sa.collaborator_ref || sa.user_ref)))}
                                         </div>
                                     </div>
@@ -633,11 +641,11 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             <div class="form-group">
                                 <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Pianificazione</label>
                                 <div style="display: flex; gap: 8px;">
-                                    <div id="form-start-date-trigger" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 44px; background: white; border: 1.2px solid #e2e8f0; border-radius: 10px; padding: 0 12px; font-size: 0.9rem;">
+                                    <div id="form-start-date-trigger" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 44px; background: var(--input-bg); border: 1.2px solid #e2e8f0; border-radius: 10px; padding: 0 12px; font-size: 0.9rem;">
                                         <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">play_arrow</span>
                                         <span style="${!item.start_date ? 'color: var(--text-tertiary);' : 'font-weight: 500;'}">${item.start_date ? new Date(item.start_date).toLocaleDateString('it-IT') : 'Inizio'}</span>
                                     </div>
-                                    <div id="form-due-date-trigger" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 44px; background: white; border: 1.2px solid #e2e8f0; border-radius: 10px; padding: 0 12px; font-size: 0.9rem;">
+                                    <div id="form-due-date-trigger" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 44px; background: var(--input-bg); border: 1.2px solid #e2e8f0; border-radius: 10px; padding: 0 12px; font-size: 0.9rem;">
                                         <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">event_available</span>
                                         <span style="${!item.due_date ? 'color: var(--text-tertiary);' : 'font-weight: 500;'}">${item.due_date ? new Date(item.due_date).toLocaleDateString('it-IT') : 'Scadenza'}</span>
                                     </div>
@@ -648,15 +656,15 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             <div class="form-group">
                                 <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Stato e Priorità</label>
                                 <div style="display: flex; gap: 8px;">
-                                    <div style="flex: 1.2; position: relative;">
-                                        <div id="form-status-trigger" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 1.2px solid #e2e8f0; background: white; font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                                     <div style="flex: 1.2; position: relative;">
+                                        <div id="form-status-trigger" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 1.2px solid var(--glass-border); background: var(--input-bg); font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
                                             <div style="display: flex; align-items: center; gap: 8px;">
                                                 <div style="width: 8px; height: 8px; border-radius: 50%; background: ${ITEM_STATUS[item.status || 'todo']?.color || '#94a3b8'};"></div>
                                                 <span>${ITEM_STATUS[item.status || 'todo']?.label || 'Da Fare'}</span>
                                             </div>
                                             <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">expand_more</span>
                                         </div>
-                                        <div id="form-status-picker" class="hidden glass-card" style="position: absolute; top: calc(100% + 6px); left: 0; width: 100%; z-index: 1000; background: white; border: 1.2px solid #e2e8f0; border-radius: 12px; box-shadow: 0 12px 48px rgba(0,0,0,0.12); padding: 6px;">
+                                        <div id="form-status-picker" class="hidden glass-card" style="position: absolute; top: calc(100% + 6px); left: 0; width: 100%; z-index: 1000; background: var(--card-bg); border: 1.2px solid var(--glass-border); border-radius: 12px; box-shadow: 0 12px 48px rgba(0,0,0,0.12); padding: 6px;">
                                             ${Object.keys(ITEM_STATUS).map(k => `
                                                 <div class="status-option-item" data-value="${k}" style="padding: 8px 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; transition: background 0.2s;">
                                                     <div style="width: 8px; height: 8px; border-radius: 50%; background: ${ITEM_STATUS[k].color};"></div>
@@ -667,14 +675,14 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                         <input type="hidden" name="status" value="${item.status || 'todo'}">
                                     </div>
                                     <div style="flex: 1; position: relative;">
-                                        <div id="form-priority-trigger" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 1.2px solid #e2e8f0; background: white; font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                                        <div id="form-priority-trigger" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 1.2px solid var(--glass-border); background: var(--input-bg); font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
                                             <div style="display: flex; align-items: center; gap: 8px;">
                                                 <span class="material-icons-round" style="font-size: 18px; color: ${ITEM_PRIORITY[item.priority || 'medium']?.color || '#94a3b8'};">flag</span>
                                                 <span>${ITEM_PRIORITY[item.priority || 'medium']?.label || 'Media'}</span>
                                             </div>
                                             <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">expand_more</span>
                                         </div>
-                                        <div id="form-priority-picker" class="hidden glass-card" style="position: absolute; top: calc(100% + 6px); left: 0; width: 100%; z-index: 1000; background: white; border: 1.2px solid #e2e8f0; border-radius: 12px; box-shadow: 0 12px 48px rgba(0,0,0,0.12); padding: 6px;">
+                                        <div id="form-priority-picker" class="hidden glass-card" style="position: absolute; top: calc(100% + 6px); left: 0; width: 100%; z-index: 1000; background: var(--card-bg); border: 1.2px solid var(--glass-border); border-radius: 12px; box-shadow: 0 12px 48px rgba(0,0,0,0.12); padding: 6px;">
                                             ${Object.keys(ITEM_PRIORITY).map(k => `
                                                 <div class="priority-option-item" data-value="${k}" style="padding: 8px 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; transition: background 0.2s;">
                                                     <span class="material-icons-round" style="font-size: 18px; color: ${ITEM_PRIORITY[k].color || '#94a3b8'};">flag</span>
@@ -737,7 +745,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.25rem;">
                                     <div>
                                         <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 0.4rem;">Dalla data</label>
-                                        <div id="form-rec-start-trigger" style="cursor: pointer; display: flex; align-items: center; gap: 8px; height: 38px; border-radius: 8px; border: 1.2px solid #e2e8f0; padding: 0 10px; font-size: 0.9rem; background: white;">
+                                        <div id="form-rec-start-trigger" style="cursor: pointer; display: flex; align-items: center; gap: 8px; height: 38px; border-radius: 8px; border: 1.2px solid var(--glass-border); padding: 0 10px; font-size: 0.9rem; background: var(--input-bg);">
                                             <span class="material-icons-round" style="font-size: 16px; color: var(--text-tertiary);">event</span>
                                             <span style="font-weight: 500;">${new Date().toLocaleDateString('it-IT')}</span>
                                         </div>
@@ -745,7 +753,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                     </div>
                                     <div>
                                         <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 0.4rem;">Fino a (opz.)</label>
-                                        <div id="form-rec-until-trigger" style="cursor: pointer; display: flex; align-items: center; gap: 8px; height: 38px; border-radius: 8px; border: 1.2px solid #e2e8f0; padding: 0 10px; font-size: 0.9rem; background: white;">
+                                        <div id="form-rec-until-trigger" style="cursor: pointer; display: flex; align-items: center; gap: 8px; height: 38px; border-radius: 8px; border: 1.2px solid var(--glass-border); padding: 0 10px; font-size: 0.9rem; background: var(--input-bg);">
                                             <span class="material-icons-round" style="font-size: 16px; color: var(--text-tertiary);">event_busy</span>
                                             <span style="color: var(--text-tertiary); font-style: italic;">Sempre</span>
                                         </div>
@@ -784,12 +792,12 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         <!-- Notes -->
                         <div class="form-group" style="padding-top: 0.5rem;">
                             <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Descrizione o Note</label>
-                            <textarea name="notes" rows="4" class="input-modern" style="padding: 12px; font-size: 0.95rem; line-height: 1.6; border-radius: 10px; border: 1.2px solid #e2e8f0; width: 100%; box-sizing: border-box; resize: vertical; min-height: 100px; background: white;" placeholder="Aggiungi dettagli...">${item.notes || ''}</textarea>
+                            <textarea name="notes" rows="4" class="input-modern" style="padding: 12px; font-size: 0.95rem; line-height: 1.6; border-radius: 10px; border: 1.2px solid var(--glass-border); width: 100%; box-sizing: border-box; resize: vertical; min-height: 100px; background: var(--input-bg);" placeholder="Aggiungi dettagli...">${item.notes || ''}</textarea>
                         </div>
                     </form>
                 </div>
-                <div class="drawer-footer" style="padding: 1.25rem 2rem; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 0.75rem; background: white; flex-shrink: 0; position: sticky; bottom: 0; z-index: 10;">
-                    <button type="button" class="secondary-btn" id="cancel-edit-btn" style="padding: 0.6rem 1.25rem; font-weight: 500; border-radius: 8px; border: 1.2px solid #e2e8f0; background: white; color: var(--text-secondary); cursor: pointer; transition: all 0.2s;">Annulla</button>
+                <div class="drawer-footer" style="padding: 1.25rem 2rem; border-top: 1px solid var(--glass-border); display: flex; justify-content: flex-end; gap: 0.75rem; background: var(--card-bg); flex-shrink: 0; position: sticky; bottom: 0; z-index: 10;">
+                    <button type="button" class="secondary-btn" id="cancel-edit-btn" style="padding: 0.6rem 1.25rem; font-weight: 500; border-radius: 8px; border: 1.2px solid var(--glass-border); background: var(--input-bg); color: var(--text-secondary); cursor: pointer; transition: all 0.2s;">Annulla</button>
                     <button type="submit" form="item-form" class="primary-btn" style="padding: 0.6rem 1.5rem; font-weight: 600; border-radius: 8px; background: var(--brand-blue); color: white; border: none; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(78, 146, 216, 0.2);">${isEdit ? 'Salva Modifiche' : 'Crea Attività'}</button>
                 </div>
             `;
@@ -798,7 +806,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
     };
 
     const attachViewModeListeners = () => {
-        const close = () => overlay.classList.add('hidden');
+        const close = closeHubDrawer;
         drawer.querySelector('.close-drawer-btn').onclick = close;
         drawer.querySelector('#edit-mode-btn').onclick = () => { viewMode = false; render(); };
         drawer.querySelector('#delete-item-btn').onclick = async () => {
@@ -1113,6 +1121,28 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         if (type === 'client') {
                             currentClientId = id;
                             currentSpaceId = null;
+
+                            // OPTIONALLY: Pre-select the latest project for this client if exists
+                            if (state.orders && state.pm_spaces) {
+                                const clientOrders = state.orders.filter(o => o.client_id === id);
+                                if (clientOrders.length > 0) {
+                                    const latestOrder = clientOrders[0];
+                                    const space = state.pm_spaces.find(s => s.ref_ordine === latestOrder.id);
+                                    if (space) {
+                                        currentSpaceId = space.id;
+                                    }
+                                }
+                            }
+
+                            render();
+                            setTimeout(() => {
+                                const trigger = document.getElementById('context-picker-trigger');
+                                if (trigger) {
+                                    trigger.click(); // Re-open to let them choose the commessa for this client
+                                    const searchInput = document.getElementById('context-search');
+                                    if (searchInput) searchInput.focus();
+                                }
+                            }, 50);
                         } else {
                             currentSpaceId = id;
                             const s = state.pm_spaces?.find(x => x.id === id);
@@ -1120,8 +1150,8 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 const o = state.orders?.find(x => x.id === s.ref_ordine);
                                 if (o) currentClientId = o.client_id;
                             }
+                            render();
                         }
-                        render();
                     };
                 });
             }
@@ -1143,12 +1173,12 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
             };
         }
 
-        drawer.querySelector('.close-drawer-btn').onclick = () => overlay.classList.add('hidden');
+        drawer.querySelector('.close-drawer-btn').onclick = closeHubDrawer;
         const cancelBtn = drawer.querySelector('#cancel-edit-btn');
         if (cancelBtn) {
             cancelBtn.onclick = () => {
                 if (isEdit) { viewMode = true; render(); }
-                else overlay.classList.add('hidden');
+                else closeHubDrawer();
             };
         }
 
@@ -1279,10 +1309,12 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     toggleHubDatePicker(trigger, (d) => {
                         hidden.value = d;
                         item[hiddenName] = d;
-                        trigger.querySelector('span').textContent = new Date(d).toLocaleDateString('it-IT');
-                        trigger.querySelector('span').style.color = 'var(--text-primary)';
-                        trigger.querySelector('span').style.fontStyle = 'normal';
-                        trigger.querySelector('span').style.fontWeight = '500';
+                        const labelSpan = trigger.querySelector('span:not(.material-icons-round)');
+                        if (labelSpan) {
+                            labelSpan.textContent = new Date(d).toLocaleDateString('it-IT');
+                            labelSpan.style.color = 'var(--text-primary)';
+                            labelSpan.style.fontWeight = '500';
+                        }
                     }, hidden.value);
                 };
             }
@@ -1364,39 +1396,68 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
             const toDelete = ['rec_freq', 'rec_interval', 'rec_unit', 'rec_start', 'rec_until', 'rec_limit_active', 'rec_limit_count', 'rec_advance_active', 'rec_advance_count'];
             toDelete.forEach(k => delete rawData[k]);
 
+            if (!rawData.space_ref && !currentClientId) {
+                alert("Seleziona un Cliente o una Commessa dal menu a tendina in alto prima di salvare.");
+                return;
+            }
+
+            // If we have a client but no space, add client_ref
+            if (!rawData.space_ref && currentClientId) {
+                rawData.client_ref = currentClientId;
+            }
+
             if (isEdit) {
-                await updatePMItem(itemId, rawData);
+                try {
+                    await updatePMItem(itemId, rawData);
 
-                // SYNC ASSIGNEES: Remove those no longer in the list
-                const { data: dbAssignees } = await supabase.from('pm_item_assignees').select('id, user_ref, collaborator_ref').eq('pm_item_ref', itemId);
-                const keepUserRefs = pendingAssignees.filter(p => p.user_ref).map(p => p.user_ref);
-                const keepCollabRefs = pendingAssignees.filter(p => p.collaborator_ref).map(p => p.collaborator_ref);
+                    // SYNC ASSIGNEES: Remove those no longer in the list
+                    const { data: dbAssignees } = await supabase.from('pm_item_assignees').select('id, user_ref, collaborator_ref').eq('pm_item_ref', itemId);
+                    const keepUserRefs = pendingAssignees.filter(p => p.user_ref).map(p => p.user_ref);
+                    const keepCollabRefs = pendingAssignees.filter(p => p.collaborator_ref).map(p => p.collaborator_ref);
 
-                if (dbAssignees) {
-                    for (const dba of dbAssignees) {
-                        const isUserIdToKeep = dba.user_ref && keepUserRefs.includes(dba.user_ref);
-                        const isCollabIdToKeep = dba.collaborator_ref && keepCollabRefs.includes(dba.collaborator_ref);
-                        if (!isUserIdToKeep && !isCollabIdToKeep) {
-                            await supabase.from('pm_item_assignees').delete().eq('id', dba.id);
+                    if (dbAssignees) {
+                        for (const dba of dbAssignees) {
+                            const isUserIdToKeep = dba.user_ref && keepUserRefs.includes(dba.user_ref);
+                            const isCollabIdToKeep = dba.collaborator_ref && keepCollabRefs.includes(dba.collaborator_ref);
+                            if (!isUserIdToKeep && !isCollabIdToKeep) {
+                                await supabase.from('pm_item_assignees').delete().eq('id', dba.id);
+                            }
                         }
                     }
-                }
 
-                // Add or update current ones
-                for (const p of pendingAssignees) {
-                    await assignUserToItem(itemId, p.user_ref || p.collaborator_ref, p.role || 'assignee', !p.user_ref).catch(e => null);
-                }
+                    // Add or update current ones
+                    for (const p of pendingAssignees) {
+                        await assignUserToItem(itemId, p.user_ref || p.collaborator_ref, p.role || 'assignee', !p.user_ref).catch(e => null);
+                    }
 
-                viewMode = true;
-                render();
-                document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
+                    viewMode = true;
+                    render();
+                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId: rawData.space_ref || spaceId } }));
+                } catch (error) {
+                    console.error("Error updating PM item:", error);
+                    alert("Errore durante il salvataggio: " + error.message);
+                }
             } else {
-                const newItem = await createPMItem(rawData);
-                for (const p of pendingAssignees) {
-                    await assignUserToItem(newItem.id, p.user_ref || p.collaborator_ref, p.role || 'assignee', !p.user_ref).catch(e => null);
+                try {
+                    const newItem = await createPMItem(rawData);
+
+                    if (newItem && pendingAssignees.length > 0) {
+                        for (const p of pendingAssignees) {
+                            await assignUserToItem(newItem.id, p.user_ref || p.collaborator_ref, p.role || 'assignee', !p.user_ref).catch(e => null);
+                        }
+                    }
+
+                    document.dispatchEvent(new CustomEvent('pm-item-changed', {
+                        detail: {
+                            spaceId: rawData.space_ref || null,
+                            clientId: currentClientId || null
+                        }
+                    }));
+                    closeHubDrawer();
+                } catch (error) {
+                    console.error("Error creating PM item:", error);
+                    alert("Errore durante la creazione: " + error.message);
                 }
-                overlay.classList.add('hidden');
-                document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
             }
         };
     };
@@ -1425,7 +1486,7 @@ function toggleHubDatePicker(btn, onSelect, initialDate) {
         position: fixed; 
         top: ${rect.bottom + 12}px; 
         left: ${rect.left}px; 
-        background: white; 
+        background: var(--card-bg); 
         border: 1px solid #e2e8f0; 
         border-radius: 16px; 
         padding: 20px; 

@@ -146,7 +146,7 @@ export function renderPaymentsDashboard(container) {
                     <div class="payment-card-body" style="flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-width: 0;">
                         <!-- Content: Entity (PRIMARY), Description, Order -->
                         <div class="flex-column" style="flex: 1; min-width: 0; gap: 0.25rem;">
-                            <div class="text-body text-truncate" style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);" title="${entity}">${entity}</div>
+                            <div class="text-body text-truncate" style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">${entity}</div>
                             <div class="text-caption text-truncate" style="opacity: 0.65; font-size: 0.8rem;">${description}</div>
                             ${orderCode ? `
                                 <div class="payment-order-code" style="position: relative; width: fit-content;">
@@ -169,7 +169,7 @@ export function renderPaymentsDashboard(container) {
         const renderSection = (title, icon, color, items) => {
             const tabId = title === 'In Ritardo' ? 'ritardo' : (title === 'Senza Data' ? 'nodate' : 'programma');
             return `
-                <div class="flex-column payment-section-col tab-${tabId} ${items.length === 0 ? 'empty-section' : ''}" style="background: var(--card-bg); border-radius: 16px; padding: 1.5rem; border: 1px solid var(--glass-border); gap: 1rem; height: 100%;">
+                <div class="flex-column payment-section-col tab-${tabId} ${items.length === 0 ? 'empty-section' : ''}" style="gap: 1rem; height: 100%;">
                     <h3 class="flex-start desktop-title" style="gap: 0.5rem; font-size: 1rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">
                         <span class="material-icons-round" style="color: ${color}; font-size: 1.2rem;">${icon}</span> ${title} <span class="badge badge-neutral" style="margin-left: auto;">${items.length}</span>
                     </h3>
@@ -181,7 +181,7 @@ export function renderPaymentsDashboard(container) {
         };
 
         container.innerHTML = `
-            <div class="animate-fade-in p-3" style="max-width: 1400px; margin: 0 auto; padding-bottom: 4rem; padding-top: 1rem;">
+            <div class="animate-fade-in payments-container" style="max-width: 1400px; margin: 0 auto; padding: 2rem 1.5rem; padding-bottom: 4rem; padding-top: 1rem;">
 
                 <div class="payment-kpi-grid grid-3 mb-4">
                     <div class="glass-card flex-column p-kpi-card" style="gap: 1rem;">
@@ -283,16 +283,31 @@ export function renderPaymentsDashboard(container) {
                             align-items: center !important;
                         }
                         
-                        .payment-main-grid { display: flex !important; flex-direction: column; gap: 1rem; }
+                        .payment-main-grid { display: flex !important; flex-direction: column; gap: 0.75rem; }
                         .payment-section-col:not(.tab-${state.paymentsDeviceTab}) { display: none !important; }
                         .desktop-title { display: none !important; }
-                        .payment-tabs-mobile { display: flex !important; }
-                        .pill-group { margin-top: 0; margin-bottom: 1.5rem !important; justify-content: flex-start; }
+                        .payment-tabs-mobile { display: flex !important; padding: 0 1rem; }
+                        .pill-group { margin-top: 0; margin-bottom: 1.5rem !important; justify-content: flex-start; padding: 0 1rem; }
+                        .payment-kpi-grid { padding: 0 1rem; }
 
-                        /* Card Responsive Fixes */
-                        .payment-item-card { align-items: flex-start !important; padding: 0.85rem 1rem !important; }
-                        .payment-card-body { flex-direction: column !important; align-items: flex-start !important; gap: 0.4rem !important; }
-                        .payment-card-amount { margin-top: 0.15rem; }
+                        /* MAXIMIZE WIDTH */
+                        .payments-container { padding: 1rem 0 !important; }
+
+                        /* Card Layout: Text left, Amount Bottom Right */
+                        .payment-item-card { 
+                            align-items: center !important; 
+                            padding: 0.85rem 1rem !important; 
+                            gap: 1rem !important; 
+                            margin-left: 0.5rem; 
+                            margin-right: 0.5rem; 
+                            border-radius: 12px;
+                        }
+                        .payment-card-body { flex-direction: column !important; align-items: stretch !important; gap: 0.2rem !important; }
+                        .payment-card-amount { 
+                            align-self: flex-end !important; 
+                            margin-top: -0.4rem;
+                            font-size: 0.95rem !important;
+                        }
                     }
                 </style>
 

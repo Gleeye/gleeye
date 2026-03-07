@@ -424,6 +424,45 @@ export async function updateOrder(id, updates) {
         console.error("Notification trigger failed:", notifErr);
         // Don't block the main flow
     }
+
+    // --- PM ACTIVITY LOGGING ---
+    if (updates.status_works) {
+        try {
+            const currentUser = state.session?.user?.id;
+            console.log("PM Activity Log: starting. Order:", id, "user:", currentUser, "new status:", updates.status_works);
+            const { data: space, error: spaceErr } = await supabase
+                .from('pm_spaces')
+                .select('id')
+                .eq('ref_ordine', id)
+                .maybeSingle();
+
+            if (spaceErr) console.error("PM Activity Log - space fetch error:", spaceErr);
+
+            const existingOrder = state.orders.find(o => o.id === id);
+            const oldStatus = existingOrder ? existingOrder.status_works : null;
+            console.log("PM Activity Log: found space", space?.id, "oldStatus:", oldStatus);
+
+            const { error: insertErr } = await supabase.from('pm_activity_logs').insert({
+                space_ref: space ? space.id : null,
+                order_ref: id,
+                actor_user_ref: currentUser,
+                action_type: 'updated_status',
+                details: {
+                    old_status: oldStatus,
+                    new_status: updates.status_works,
+                    item_title: 'Stato Commessa'
+                }
+            });
+
+            if (insertErr) {
+                console.error("PM Activity log database insert error:", insertErr);
+            } else {
+                console.log("PM Activity log inserted successfully!");
+            }
+        } catch (logErr) {
+            console.error("PM Activity log catch block error:", logErr);
+        }
+    }
     // ---------------------------
 
     const index = state.orders.findIndex(o => o.id === data.id);

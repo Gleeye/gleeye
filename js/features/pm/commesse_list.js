@@ -1,348 +1,622 @@
 import { fetchOrders, fetchCollaborators } from '../../modules/api.js';
 import { state } from '../../modules/state.js';
 import { fetchProjectSpaceForOrder, fetchCommesseTeamSummary } from '../../modules/pm_api.js';
+import { formatAmount } from '../../modules/utils.js';
 
-// Real status values from "Stato Lavori" multiselect
+// Real status values for PM view
 const STATUS_CONFIG = {
-    'in_svolgimento': { label: 'In Svolgimento', color: '#3b82f6', bg: '#eff6ff' },
-    'lavoro_in_attesa': { label: 'Lavoro in Attesa', color: '#f59e0b', bg: '#fffbeb' },
-    'finito_da_fatturare': { label: 'Finito da Fatturare', color: '#8b5cf6', bg: '#f5f3ff' },
-    'completato': { label: 'Completato', color: '#10b981', bg: '#ecfdf5' },
-    'contratto_da_inviare': { label: 'Contratto da Inviare', color: '#64748b', bg: '#f1f5f9' },
-    'altro': { label: 'Altro', color: '#64748b', bg: '#f1f5f9' }
+    'in_svolgimento': { label: 'In Svolgimento', color: '#3b82f6', bg: '#eff6ff', icon: 'play_circle' },
+    'lavoro_in_attesa': { label: 'In Attesa', color: '#f59e0b', bg: '#fffbeb', icon: 'hourglass_empty' },
+    'in_pausa': { label: 'In Pausa', color: '#64748b', bg: '#f1f5f9', icon: 'pause_circle' },
+    'manutenzione': { label: 'Ongoing', color: '#06b6d4', bg: '#ecfeff', icon: 'published_with_changes' },
+    'completato': { label: 'Completato', color: '#10b981', bg: '#ecfdf5', icon: 'check_circle' }
 };
 
 function normalizeStatus(status) {
     if (!status) return 'altro';
     const s = status.toLowerCase().trim().replace(/_/g, ' ');
+    if (s.includes('completato') || s.includes('concluso') || s.includes('finito')) return 'completato';
+    if (s.includes('pausa') || s.includes('sospeso')) return 'in_pausa';
+    if (s.includes('manutenzione') || s.includes('assistenza')) return 'manutenzione';
     if (s.includes('svolgimento') || s.includes('in corso')) return 'in_svolgimento';
     if (s.includes('attesa')) return 'lavoro_in_attesa';
-    if (s.includes('fatturare') || s.includes('finito')) return 'finito_da_fatturare';
-    if (s.includes('completato')) return 'completato';
-    if (s.includes('contratto')) return 'contratto_da_inviare';
     return 'altro';
 }
 
 export async function renderCommesseList(container) {
     console.log("[CommesseList] Starting render...");
-    container.innerHTML = '<div style="padding:2rem; text-align:center;"><span class="loader"></span> Caricamento Commesse in corso...</div>';
+    container.innerHTML = '<div style="padding:4rem; text-align:center;"><span class="loader"></span> Caricamento Dashboard Commesse...</div>';
 
     try {
-        // --- STATE MANAGEMENT ---
-        let currentFilter = 'all';
-        let searchTerm = '';
-        let allProjects = [];
-        let teamSummary = {};
-
-        console.log("[CommesseList] Initializing...");
-        container.innerHTML = `
-            <div class="dashboard-container" style="padding: 2rem; max-width: 1600px; margin: 0 auto; min-height: 100vh; background: var(--surface-1); display: flex; flex-direction: column;">
-                
-                <!-- Header -->
-                <div class="header-section" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; background: white; padding: 1.5rem 2rem; border-radius: 16px; border: 1px solid var(--surface-2); box-shadow: var(--shadow-sm);">
-                    <div>
-                        <h1 style="font-size: 1.75rem; margin-bottom: 0.25rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em;">Dashboard Commesse</h1>
-                        <p style="color: var(--text-secondary); font-size: 0.95rem;">Monitoraggio operativo e team attivi.</p>
-                    </div>
-                    
-                    <div class="search-wrapper" style="position: relative;">
-                        <span class="material-icons-round" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary);">search</span>
-                        <input type="text" id="project-search" placeholder="Cerca progetto o cliente..." 
-                            style="
-                                padding: 0.75rem 1rem 0.75rem 3rem; 
-                                border-radius: 12px; 
-                                border: 1px solid var(--surface-2); 
-                                background: var(--surface-1);
-                                min-width: 300px;
-                                font-size: 0.9rem;
-                                transition: all 0.2s;
-                                box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
-                            "
-                        >
-                    </div>
-                </div>
-
-                <!-- Stats / Filters Row -->
-                <div class="stats-grid" id="stats-grid" style="
-                    display: grid; 
-                    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
-                    gap: 1.25rem; 
-                    margin-bottom: 2.5rem; 
-                    min-height: 110px;
-                ">
-                    <div class="shimmer" style="height: 100px; border-radius: 16px;"></div>
-                    <div class="shimmer" style="height: 100px; border-radius: 16px;"></div>
-                    <div class="shimmer" style="height: 100px; border-radius: 16px;"></div>
-                    <div class="shimmer" style="height: 100px; border-radius: 16px;"></div>
-                    <div class="shimmer" style="height: 100px; border-radius: 16px;"></div>
-                    <div class="shimmer" style="height: 100px; border-radius: 16px;"></div>
-                </div>
-
-                <!-- Grid -->
-                <div id="projects-grid" style="
-                    display: grid; 
-                    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); 
-                    gap: 1.5rem; 
-                    padding-bottom: 3rem; 
-                    flex: 1;
-                    align-content: start;
-                ">
-                    <div style="grid-column: 1/-1; display:flex; justify-content:center; padding-top: 5rem;">
-                        <span class="loader"></span>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // --- 2. DATA FETCHING ---
+        // --- 1. DATA FETCHING ---
         const fetchPromises = [];
-        let teamSummaryIdx = -1;
-
         if (!state.orders || state.orders.length === 0) fetchPromises.push(fetchOrders());
         if (!state.collaborators || state.collaborators.length === 0) fetchPromises.push(fetchCollaborators());
-
-        teamSummaryIdx = fetchPromises.length;
         fetchPromises.push(fetchCommesseTeamSummary());
 
         const results = await Promise.all(fetchPromises);
-        teamSummary = results[teamSummaryIdx] || {};
+        const teamSummary = results[results.length - 1] || {};
 
-        console.log("[CommesseList] Fetch Complete. Orders:", state.orders?.length, "TeamSummary Keys:", Object.keys(teamSummary).length);
-
-        // --- 3. PROCESS DATA ---
-        allProjects = (state.orders || []).filter(o => {
+        const allProjects = (state.orders || []).filter(o => {
             const s = (o.offer_status || '').toLowerCase();
             return s.includes('accettat') || s === 'vinta' || s === 'accettata';
         });
 
-        // Sort: Active > Done, then Date Desc
-        allProjects.sort((a, b) => {
-            const statA = normalizeStatus(a.status_works);
-            const statB = normalizeStatus(b.status_works);
-            const isDoneA = statA === 'completato' || statA === 'finito_da_fatturare';
-            const isDoneB = statB === 'completato' || statB === 'finito_da_fatturare';
+        // Current internal filters
+        let activeStatusFilter = null; // null means "Tutte" conceptually but handled by the cards
+        let activeYearFilter = null;
+        let activeClientFilter = null;
+        let searchTerm = '';
 
-            if (isDoneA && !isDoneB) return 1;
-            if (!isDoneA && isDoneB) return -1;
-            return new Date(b.created_at) - new Date(a.created_at);
-        });
+        // Derive unique filters for dropdowns
+        const uniqueYears = [...new Set(allProjects.map(o => o.created_at ? new Date(o.created_at).getFullYear() : null).filter(y => y))].sort((a, b) => b - a);
+        const uniqueClients = [...new Set(allProjects.map(o => o.clients?.business_name || 'N/D').filter(c => c))].sort();
 
-        // Calculate Stats
-        const stats = {
-            total: allProjects.length,
-            in_svolgimento: 0,
-            lavoro_in_attesa: 0,
-            finito_da_fatturare: 0,
-            completato: 0,
-            contratto_da_inviare: 0,
-            altro: 0
-        };
+        // --- 2. SETUP UI SHELL ---
+        container.innerHTML = `
+            <style>
+                .pm-dashboard-root {
+                    padding: 1.5rem;
+                    max-width: 1600px;
+                    margin: 0 auto;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1.5rem;
+                }
 
-        allProjects.forEach(p => {
-            const n = normalizeStatus(p.status_works);
-            if (stats[n] !== undefined) stats[n]++;
-            else stats.altro++;
-        });
+                .pm-main-grid {
+                    display: grid;
+                    grid-template-columns: 360px minmax(0, 1fr);
+                    gap: 2rem;
+                    align-items: stretch;
+                }
 
-        // --- 4. RENDER HELPERS ---
+                .pm-summary-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 1rem;
+                    margin-bottom: 2rem;
+                }
 
-        const renderFilters = () => {
-            const filterContainer = container.querySelector('#stats-grid');
-            if (!filterContainer) return;
+                .pm-card {
+                    background: white;
+                    border-radius: 12px;
+                    padding: 1rem;
+                    border: 1px solid var(--glass-border);
+                    box-shadow: var(--shadow-sm);
+                    cursor: pointer;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    border-left: 4px solid transparent;
+                    user-select: none;
+                }
+                .pm-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--brand-viola); }
+                .pm-card.active { border-color: var(--brand-viola); background: rgba(97, 74, 162, 0.02); }
 
-            const tabConfig = [
-                { key: 'in_svolgimento', label: 'In Svolgimento', count: stats.in_svolgimento, color: '#3b82f6' },
-                { key: 'lavoro_in_attesa', label: 'In Attesa', count: stats.lavoro_in_attesa, color: '#f59e0b' },
-                { key: 'completato', label: 'Completati', count: stats.completato, color: '#10b981' },
-                { key: 'finito_da_fatturare', label: 'Da Fatturare', count: stats.finito_da_fatturare, color: '#8b5cf6' },
-                { key: 'contratto_da_inviare', label: 'Contratto da Inviare', count: stats.contratto_da_inviare, color: '#64748b' }
-            ];
+                .pm-filter-bar {
+                    padding: 1rem 1.5rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    background: white;
+                    border-bottom: 1px solid var(--glass-border);
+                    flex-wrap: wrap;
+                }
 
-            // Add 'Altro' only if non-zero
-            if (stats.altro > 0) {
-                tabConfig.push({ key: 'altro', label: 'Altro', count: stats.altro, color: '#94a3b8' });
-            }
+                .pm-dropdown {
+                    position: relative;
+                    min-width: 140px;
+                }
 
-            // Always add 'All'
-            tabConfig.push({ key: 'all', label: 'Tutti', count: stats.total, color: '#64748b' });
+                .pm-dropdown-trigger {
+                    width: 100%;
+                    padding: 0.6rem 0.85rem;
+                    background: #fdfdfe;
+                    border: 1px solid var(--glass-border);
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    font-size: 0.8rem;
+                    font-weight: 700;
+                    color: var(--text-primary);
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .pm-dropdown-trigger:hover { border-color: var(--brand-viola); background: white; }
 
-            filterContainer.innerHTML = tabConfig.map(t => {
-                const isActive = t.key === currentFilter;
-                const border = isActive ? `2.5px solid ${t.color}` : '1px solid var(--surface-2)';
-                const bg = '#ffffff';
-                const shadow = isActive ? '0 12px 20px -8px rgba(0, 0, 0, 0.15)' : 'var(--shadow-sm)';
-                const opacity = isActive ? '1' : '0.75';
-                const scale = isActive ? 'scale(1.02)' : 'scale(1)';
+                .pm-dropdown-menu {
+                    position: absolute;
+                    top: calc(100% + 5px);
+                    left: 0;
+                    width: 100%;
+                    min-width: 180px;
+                    background: white;
+                    border: 1px solid var(--glass-border);
+                    border-radius: 10px;
+                    box-shadow: var(--shadow-lg);
+                    z-index: 1000;
+                    display: none;
+                    max-height: 250px;
+                    overflow-y: auto;
+                    padding: 5px;
+                    scrollbar-width: thin;
+                }
 
-                return `
-                    <div class="stat-card" data-filter="${t.key}" style="
-                        padding: 1.25rem; 
-                        border-radius: 16px; 
-                        border: ${border};
-                        background: ${bg};
-                        box-shadow: ${shadow};
-                        cursor: pointer;
-                        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-                        display: flex; flex-direction: column; justify-content: space-between;
-                        opacity: ${opacity};
-                        transform: ${scale};
-                        min-height: 100px;
+                .pm-dropdown-item {
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    font-size: 0.8rem;
+                    cursor: pointer;
+                    color: var(--text-primary);
+                }
+                .pm-dropdown-item:hover { background: var(--bg-secondary); }
+                .pm-dropdown-item.selected { background: rgba(97, 74, 162, 0.05); color: var(--brand-viola); font-weight: 700; }
+
+                /* Mobile overrides */
+                @media (max-width: 1100px) {
+                    .pm-dashboard-root { padding: 1rem; }
+                    .pm-main-grid { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+                    .pm-sidebar-col { height: auto !important; position: static !important; margin-bottom: 0.5rem; }
+                    .pm-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 0.5rem; margin-bottom: 1rem; }
+                    .pm-card { padding: 0.75rem 0.25rem !important; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+                    .pm-card h3 { font-size: 0.55rem !important; margin: 0 0 2px 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+                    .pm-card .material-icons-round { margin: 0 0 2px 0 !important; font-size: 1rem !important; }
+                    div[style*="font-size: 1.8rem"] { font-size: 1.2rem !important; }
+                }
+
+                @media (max-width: 768px) {
+                    .pm-filter-bar { padding: 1rem 0.5rem; gap: 0.5rem; border-radius: 12px 12px 0 0; }
+                    .pm-dropdown { flex: 1; min-width: 0; }
+                    .pm-dropdown-trigger { font-size: 0.7rem; padding: 0.5rem; }
+                    #pm-search-container { order: -1; min-width: 100% !important; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px dashed var(--glass-border); }
+                    
+                    /* TABLE -> CARDS */
+                    .pm-table-wrapper { margin: 0 !important; width: 100% !important; overflow: hidden !important; }
+                    .pm-table-wrapper table { min-width: 0 !important; }
+                    .pm-table-wrapper table, .pm-table-wrapper tbody, .pm-table-wrapper tr, .pm-table-wrapper td {
+                        display: block; width: 100%; box-sizing: border-box;
+                    }
+                    .pm-table-wrapper thead { display: none; }
+                    
+                    .pm-table-wrapper tr {
+                        background: white;
+                        border-bottom: 4px solid var(--bg-secondary);
+                        padding: 1.25rem 1rem;
                         position: relative;
-                        overflow: hidden;
-                    ">
-                        ${isActive ? `<div style="position:absolute; left:0; top:0; bottom:0; width:5px; background:${t.color};"></div>` : ''}
-                        
-                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">
-                            ${t.label}
-                        </div>
-                        <div style="font-size: 2rem; font-weight: 850; color: var(--text-main); line-height: 1; margin-top: 8px;">
-                            ${t.count}
+                        display: flex;
+                        flex-direction: column;
+                        gap: 0.6rem;
+                    }
+                    
+                    .pm-table-wrapper td {
+                        padding: 0 !important;
+                        border: none !important;
+                        text-align: left !important;
+                        display: flex;
+                        align-items: center;
+                        white-space: normal !important;
+                    }
+
+                    /* 1. ID */
+                    .pm-table-wrapper td:nth-child(1) { font-size: 0.8rem !important; color: var(--brand-viola) !important; font-weight: 800 !important; display: inline-block; width: auto !important; margin-bottom: 4px; padding: 4px 8px !important; background: rgba(97, 74, 162, 0.05); border-radius: 6px; }
+                    /* 2. Project */
+                    .pm-table-wrapper td:nth-child(2) { flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 0.5rem; }
+                    .pm-table-wrapper td:nth-child(2) div:first-child { font-size: 1.05rem !important; line-height: 1.3; }
+                    /* 3. Cliente */
+                    .pm-table-wrapper td:nth-child(3)::before { content: "Cliente:"; font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); width: 60px; flex-shrink: 0; text-transform: uppercase; }
+                    /* 4. Team */
+                    .pm-table-wrapper td:nth-child(4) { justify-content: flex-start !important; }
+                    .pm-table-wrapper td:nth-child(4)::before { content: "Team:"; font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); width: 60px; flex-shrink: 0; text-transform: uppercase; }
+                    /* 5. Date */
+                    .pm-table-wrapper td:nth-child(5)::before { content: "Data:"; font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); width: 60px; flex-shrink: 0; text-transform: uppercase; }
+                    .pm-table-wrapper td:nth-child(5) { justify-content: flex-start !important; text-align: left !important; }
+
+                    /* Action icon - Float top right */
+                    .pm-table-wrapper td:nth-child(6) {
+                        position: absolute;
+                        top: 1.25rem;
+                        right: 1.25rem;
+                        width: auto !important;
+                        padding: 0 !important;
+                        justify-content: flex-end;
+                    }
+                }
+            </style>
+
+            <div class="pm-dashboard-root">
+                
+                <div class="pm-main-grid">
+                    
+                    <!-- Sidebar column (Always Visible Svolgimento) -->
+                    <div class="pm-sidebar-col" style="height: calc(100vh - 120px); position: sticky; top: 1.5rem; align-self: start; z-index: 10;">
+                         <div style="background: white; border-radius: 16px; border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; height: 100%;">
+                            <div style="padding: 1rem; background: var(--brand-gradient); color: white; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                                <h3 style="margin: 0; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;">
+                                    <span class="material-icons-round" style="font-size: 1rem;">rocket_launch</span>
+                                    In Svolgimento
+                                </h3>
+                                <div id="sidebar-count" style="background: white; color: var(--brand-viola); padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 0.8rem;">0</div>
+                            </div>
+                            <div id="sidebar-list" style="padding: 0.75rem; display: flex; flex-direction: column; gap: 0.65rem; flex: 1; overflow-y: auto;">
+                                <div style="text-align:center; padding: 2rem; opacity: 0.5;">Caricamento...</div>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Main column -->
+                    <div style="display: flex; flex-direction: column; min-width: 0;">
+                        
+                        <!-- Top Summary Cards (Funnel Style) -->
+                        <div class="pm-summary-grid" id="pm-funnel">
+                            <!-- In Attesa Card -->
+                            <div class="pm-card" data-status="lavoro_in_attesa" style="border-left-color: #f59e0b;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                    <div>
+                                        <div style="font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-tertiary); margin-bottom: 4px;">In Attesa</div>
+                                        <div class="card-count" style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); line-height: 1;">0</div>
+                                    </div>
+                                    <div style="width: 38px; height: 38px; border-radius: 10px; background: #fffbeb; display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-icons-round" style="color: #f59e0b; font-size: 1.25rem;">hourglass_empty</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Ongoing Card -->
+                            <div class="pm-card" data-status="manutenzione" style="border-left-color: #06b6d4;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                    <div>
+                                        <div style="font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-tertiary); margin-bottom: 4px;">Ongoing</div>
+                                        <div class="card-count" style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); line-height: 1;">0</div>
+                                    </div>
+                                    <div style="width: 38px; height: 38px; border-radius: 10px; background: #ecfeff; display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-icons-round" style="color: #06b6d4; font-size: 1.25rem;">published_with_changes</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- In Pausa Card -->
+                            <div class="pm-card" data-status="in_pausa" style="border-left-color: #64748b;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                    <div>
+                                        <div style="font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-tertiary); margin-bottom: 4px;">In Pausa</div>
+                                        <div class="card-count" style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); line-height: 1;">0</div>
+                                    </div>
+                                    <div style="width: 38px; height: 38px; border-radius: 10px; background: #f1f5f9; display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-icons-round" style="color: #64748b; font-size: 1.25rem;">pause_circle</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Main Table Glass Card -->
+                        <div style="background: white; border-radius: 16px; border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column;">
+                            <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--glass-border); background: var(--bg-secondary); display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary); font-family: var(--font-titles);">Elenco Commesse</h3>
+                                    <span id="filter-badge" style="display: none; background: var(--brand-viola); color: white; padding: 2px 10px; border-radius: 20px; font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">FILTRO ATTIVO</span>
+                                </div>
+                                <button id="reset-filters" style="display: none; background: white; border: 1px solid var(--brand-viola); color: var(--brand-viola); padding: 5px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; cursor: pointer;">Reset Filtri</button>
+                            </div>
+
+                            <!-- New Interactive Filter Bar -->
+                            <div class="pm-filter-bar">
+                                <div style="font-size: 0.7rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;">
+                                    <span class="material-icons-round" style="font-size: 1rem;">filter_list</span>
+                                    Filtra per:
+                                </div>
+                                
+                                <div class="pm-dropdown" id="year-filter">
+                                    <button class="pm-dropdown-trigger">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="material-icons-round" style="font-size: 1rem; opacity:0.6;">calendar_today</span>
+                                            <span>Anno</span>
+                                        </div>
+                                        <span class="material-icons-round" style="font-size: 1.1rem; opacity:0.5;">expand_more</span>
+                                    </button>
+                                    <div class="pm-dropdown-menu">
+                                        <div class="pm-dropdown-item" data-value="">Tutti</div>
+                                        ${uniqueYears.map(y => `<div class="pm-dropdown-item" data-value="${y}">${y}</div>`).join('')}
+                                    </div>
+                                </div>
+
+                                <div class="pm-dropdown" id="client-filter">
+                                    <button class="pm-dropdown-trigger">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="material-icons-round" style="font-size: 1rem; opacity:0.6;">corporate_fare</span>
+                                            <span style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Cliente</span>
+                                        </div>
+                                        <span class="material-icons-round" style="font-size: 1.1rem; opacity:0.5;">expand_more</span>
+                                    </button>
+                                    <div class="pm-dropdown-menu">
+                                        <div class="pm-dropdown-item" data-value="">Tutti</div>
+                                        ${uniqueClients.map(c => `<div class="pm-dropdown-item" data-value="${c}">${c}</div>`).join('')}
+                                    </div>
+                                </div>
+
+                                <div class="pm-dropdown" id="status-filter">
+                                    <button class="pm-dropdown-trigger">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="material-icons-round" style="font-size: 1rem; opacity:0.6;">flag</span>
+                                            <span>Stato</span>
+                                        </div>
+                                        <span class="material-icons-round" style="font-size: 1.1rem; opacity:0.5;">expand_more</span>
+                                    </button>
+                                    <div class="pm-dropdown-menu">
+                                        <div class="pm-dropdown-item" data-value="">Tutti</div>
+                                        <div class="pm-dropdown-item" data-value="in_svolgimento">In Svolgimento</div>
+                                        <div class="pm-dropdown-item" data-value="lavoro_in_attesa">In Attesa</div>
+                                        <div class="pm-dropdown-item" data-value="manutenzione">Ongoing</div>
+                                        <div class="pm-dropdown-item" data-value="in_pausa">In Pausa</div>
+                                        <div class="pm-dropdown-item" data-value="completato">Completate</div>
+                                    </div>
+                                </div>
+
+                                <!-- Search -->
+                                <div id="pm-search-container" style="position: relative; flex: 1; min-width: 200px;">
+                                    <span class="material-icons-round" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 1.1rem;">search</span>
+                                    <input type="text" id="pm-search" placeholder="Cerca progetto..." 
+                                        style="width: 100%; padding: 0.65rem 1rem 0.65rem 2.8rem; border-radius: 100px; border: 1px solid var(--glass-border); background: #fdfdfe; font-size: 0.85rem; outline: none;">
+                                </div>
+                            </div>
+
+                            <div class="pm-table-wrapper" style="overflow-x: auto;">
+                                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;" class="pm-main-table">
+                                    <style>
+                                        @media (min-width: 769px) { .pm-main-table { min-width: 800px; } }
+                                    </style>
+                                    <thead>
+                                        <tr>
+                                            <th style="padding: 1rem; text-align: left; font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); width: 110px; font-weight: 800;">ID</th>
+                                            <th style="padding: 1rem; text-align: left; font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); font-weight: 800;">Progetto</th>
+                                            <th style="padding: 1rem; text-align: left; font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); width: 220px; font-weight: 800;">Cliente</th>
+                                            <th style="padding: 1rem; text-align: center; font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); width: 130px; font-weight: 800;">Team</th>
+                                            <th style="padding: 1rem; text-align: right; font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); width: 85px; font-weight: 800;">Data</th>
+                                            <th style="padding: 1rem; width: 45px; border-bottom: 1px solid var(--glass-border);"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pm-table-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        `;
+
+        // --- 3. RENDERING HELPERS ---
+        const updateSidebar = () => {
+            const list = container.querySelector('#sidebar-list');
+            const countEl = container.querySelector('#sidebar-count');
+            const filteredSidebar = allProjects.filter(p => normalizeStatus(p.status_works) === 'in_svolgimento');
+
+            if (countEl) countEl.textContent = filteredSidebar.length;
+            if (!list) return;
+
+            if (filteredSidebar.length === 0) {
+                list.innerHTML = `<div style="text-align: center; padding: 2rem; color: var(--text-tertiary); font-size: 0.75rem;">Nessuna commessa attiva</div>`;
+                return;
+            }
+
+            list.innerHTML = filteredSidebar.map(o => {
+                const team = teamSummary[o.id] || [];
+                const activeTeam = team.slice(0, 3);
+                const remaining = team.length - 3;
+
+                return `
+                <div class="sidebar-item" onclick="window.location.hash='#pm/commessa/${o.id}'" style="
+                    padding: 0.85rem 1rem; background: #f8fafc; border-radius: 10px; border: 1px solid #f1f5f9; cursor: pointer; transition: all 0.2s;
+                    display: flex; flex-direction: column; gap: 8px; border-left: 4px solid #3b82f6;
+                " onmouseover="this.style.background='white'; this.style.borderColor='#3b82f6'; this.style.transform='translateX(3px)';" onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#f1f5f9'; this.style.transform='none';">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.55rem; color: var(--text-tertiary); font-weight: 800;">
+                        <span>${o.order_number}</span>
+                        <span style="max-width: 65%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${o.clients?.business_name || 'N/D'}</span>
+                    </div>
+                    
+                    <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary); line-height: 1.25;">${o.title || 'Senza Titolo'}</div>
+                    
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
+                        <div style="display: flex; align-items: center;">
+                            ${activeTeam.map((m, i) => `
+                                <div title="${m.name}" style="width: 20px; height: 20px; border-radius: 50%; background: #e2e8f0; border: 1px solid white; margin-left: ${i === 0 ? '0' : '-6px'}; z-index: ${10 - i}; display: flex; align-items: center; justify-content: center; font-size: 0.45rem; font-weight: 800; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden;">
+                                    ${m.avatar ? `<img src="${m.avatar}" style="width:100%; height:100%; object-fit:cover;">` : m.initials}
+                                </div>
+                            `).join('')}
+                            ${remaining > 0 ? `<div style="width: 20px; height: 20px; border-radius: 50%; background: #f1f5f9; border: 1px solid white; margin-left: -6px; display: flex; align-items: center; justify-content: center; font-size: 0.45rem; font-weight: 800; color: #64748b;">+${remaining}</div>` : ''}
+                        </div>
+                        <span class="material-icons-round" style="font-size: 0.9rem; color: #cbd5e1;">chevron_right</span>
+                    </div>
+                </div>
                 `;
             }).join('');
+        };
 
-            // Attach Listeners
-            filterContainer.querySelectorAll('.stat-card').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    currentFilter = btn.dataset.filter;
-                    renderFilters();
-                    renderGrid();
+        const updateTable = () => {
+            const tbody = container.querySelector('#pm-table-body');
+            const filterBadge = container.querySelector('#filter-badge');
+            const resetBtn = container.querySelector('#reset-filters');
+            if (!tbody) return;
+
+            const filtered = allProjects.filter(p => {
+                const norm = normalizeStatus(p.status_works);
+
+                const matchesStatus = !activeStatusFilter || norm === activeStatusFilter;
+                const matchesYear = !activeYearFilter || (p.created_at && new Date(p.created_at).getFullYear() == activeYearFilter);
+                const matchesClient = !activeClientFilter || (p.clients?.business_name === activeClientFilter);
+
+                const s = searchTerm.toLowerCase();
+                const matchesSearch = !s || (p.title || '').toLowerCase().includes(s) ||
+                    (p.order_number || '').toLowerCase().includes(s) ||
+                    (p.clients?.business_name || '').toLowerCase().includes(s);
+
+                return matchesStatus && matchesYear && matchesClient && matchesSearch;
+            });
+
+            // Sort: prioritize operational if no specific filter
+            const sorted = [...filtered].sort((a, b) => {
+                const sA = normalizeStatus(a.status_works);
+                const sB = normalizeStatus(b.status_works);
+                const p = { 'in_svolgimento': 1, 'lavoro_in_attesa': 2, 'manutenzione': 3, 'in_pausa': 4, 'completato': 5, 'altro': 6 };
+                if (p[sA] !== p[sB]) return p[sA] - p[sB];
+                return new Date(b.created_at) - new Date(a.created_at);
+            });
+
+            const hasFilters = activeStatusFilter || activeYearFilter || activeClientFilter;
+            if (filterBadge) filterBadge.style.display = hasFilters ? 'block' : 'none';
+            if (resetBtn) resetBtn.style.display = hasFilters || searchTerm ? 'block' : 'none';
+
+            if (sorted.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 4rem; color: var(--text-tertiary); font-size: 0.9rem;">Nessuna commessa trovata con i filtri attuali.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = sorted.map(order => {
+                const norm = normalizeStatus(order.status_works);
+                const config = STATUS_CONFIG[norm] || STATUS_CONFIG['altro'];
+                const team = teamSummary[order.id] || [];
+                const activeTeam = team.slice(0, 3);
+                const remaining = team.length - 3;
+
+                return `
+                    <tr onclick="window.location.hash='#pm/commessa/${order.id}'" style="cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='transparent'">
+                        <td style="padding: 1rem; font-weight: 700; font-size: 0.8rem; color: var(--text-tertiary); white-space: nowrap;">${order.order_number}</td>
+                        <td style="padding: 1rem;">
+                            <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary);">${order.title || 'Senza Titolo'}</div>
+                            <div style="display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 100px; font-size: 0.6rem; font-weight: 800; background: ${config.bg}; color: ${config.color}; margin-top: 4px; border: 1px solid rgba(0,0,0,0.02);">
+                                <span class="material-icons-round" style="font-size: 0.7rem; margin-right: 4px;">${config.icon}</span>
+                                ${config.label}
+                            </div>
+                        </td>
+                        <td style="padding: 1rem; color: var(--text-secondary); font-size: 0.82rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            ${order.clients?.business_name || 'N/D'}
+                        </td>
+                        <td style="padding: 1rem; text-align: center;">
+                            <div style="display: flex; align-items: center; justify-content: center;">
+                                ${activeTeam.map((m, i) => `
+                                    <div title="${m.name}" style="width: 24px; height: 24px; border-radius: 50%; background: #f1f5f9; border: 2px solid white; margin-left: -8px; z-index: ${10 - i}; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 800; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                        ${m.avatar ? `<img src="${m.avatar}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : m.initials}
+                                    </div>
+                                `).join('')}
+                                ${remaining > 0 ? `<div style="width: 24px; height: 24px; border-radius: 50%; background: #f8fafc; border: 2px solid white; margin-left: -8px; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 800; color: #64748b;">+${remaining}</div>` : ''}
+                                ${activeTeam.length === 0 ? '<span style="font-size:0.65rem; color:#cbd5e1; font-style:italic;">-</span>' : ''}
+                            </div>
+                        </td>
+                        <td style="padding: 1rem; text-align: right; color: var(--text-tertiary); font-size: 0.8rem; font-weight: 600;">
+                            ${new Date(order.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
+                        </td>
+                        <td style="padding: 1rem; text-align: right;">
+                             <span class="material-icons-round" style="color: #cbd5e1; font-size: 1.1rem;">keyboard_arrow_right</span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        };
+
+        const updateFunnelStats = () => {
+            container.querySelectorAll('.pm-card').forEach(card => {
+                const status = card.dataset.status;
+                const count = allProjects.filter(p => normalizeStatus(p.status_works) === status).length;
+                card.querySelector('.card-count').textContent = count;
+
+                if (status === activeStatusFilter) card.classList.add('active');
+                else card.classList.remove('active');
+            });
+        };
+
+        // --- 4. INTERACTION LOGIC ---
+        const setupDropdown = (id, callback) => {
+            const drop = container.querySelector(`#${id}`);
+            const trigger = drop.querySelector('.pm-dropdown-trigger');
+            const menu = drop.querySelector('.pm-dropdown-menu');
+
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = menu.style.display === 'block';
+                container.querySelectorAll('.pm-dropdown-menu').forEach(m => m.style.display = 'none');
+                if (!isOpen) menu.style.display = 'block';
+            });
+
+            menu.querySelectorAll('.pm-dropdown-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const val = item.dataset.value;
+                    const label = item.textContent;
+
+                    // Update trigger UI
+                    trigger.querySelector('span:nth-child(1)').nextElementSibling.textContent = val ? label : (id.split('-')[0].charAt(0).toUpperCase() + id.split('-')[0].slice(1));
+                    if (val) trigger.classList.add('active'); else trigger.classList.remove('active');
+
+                    menu.querySelectorAll('.pm-dropdown-item').forEach(i => i.classList.remove('selected'));
+                    item.classList.add('selected');
+
+                    menu.style.display = 'none';
+                    callback(val);
                 });
             });
         };
 
-        const renderGrid = () => {
-            const grid = container.querySelector('#projects-grid');
-            if (!grid) return;
+        setupDropdown('year-filter', (val) => { activeYearFilter = val; updateTable(); });
+        setupDropdown('client-filter', (val) => { activeClientFilter = val; updateTable(); });
+        setupDropdown('status-filter', (val) => {
+            activeStatusFilter = val;
+            updateTable();
+            updateFunnelStats();
+        });
 
-            console.log("[CommesseList] Rendering Grid. Filter:", currentFilter, "Search:", searchTerm);
+        container.querySelector('#pm-search')?.addEventListener('input', (e) => {
+            searchTerm = e.target.value;
+            updateTable();
+        });
 
-            const filtered = allProjects.filter(p => {
-                const sTerm = searchTerm.toLowerCase();
-                const matchSearch = (p.title || '').toLowerCase().includes(sTerm) ||
-                    (p.order_number || '').toLowerCase().includes(sTerm) ||
-                    (p.clients?.business_name || '').toLowerCase().includes(sTerm);
+        container.querySelectorAll('.pm-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const status = card.dataset.status;
+                activeStatusFilter = (activeStatusFilter === status) ? null : status;
 
-                if (!matchSearch) return false;
-                if (currentFilter === 'all') return true;
-                return normalizeStatus(p.status_works) === currentFilter;
+                // Sync status dropdown
+                const statusDrop = container.querySelector('#status-filter');
+                const trigger = statusDrop.querySelector('.pm-dropdown-trigger');
+                const label = activeStatusFilter ? STATUS_CONFIG[activeStatusFilter].label : 'Stato';
+                trigger.querySelector('span:nth-child(1)').nextElementSibling.textContent = label;
+                if (activeStatusFilter) trigger.classList.add('active'); else trigger.classList.remove('active');
+
+                updateTable();
+                updateFunnelStats();
+            });
+        });
+
+        container.querySelector('#reset-filters')?.addEventListener('click', () => {
+            activeStatusFilter = null;
+            activeYearFilter = null;
+            activeClientFilter = null;
+            searchTerm = '';
+            container.querySelector('#pm-search').value = '';
+
+            // Reset triggers
+            container.querySelectorAll('.pm-dropdown-trigger').forEach(t => {
+                const baseLabel = t.parentElement.id.split('-')[0];
+                t.querySelector('span:nth-child(1)').nextElementSibling.textContent = baseLabel.charAt(0).toUpperCase() + baseLabel.slice(1);
+                t.classList.remove('active');
             });
 
-            if (filtered.length === 0) {
-                grid.innerHTML = `
-                    <div style="grid-column: 1/-1; text-align: center; padding: 4rem; color: var(--text-secondary);">
-                        <span class="material-icons-round" style="font-size: 3rem; opacity: 0.3;">filter_list_off</span>
-                        <p>Nessun progetto trovato.</p>
-                    </div>
-                `;
-                return;
-            }
+            updateTable();
+            updateFunnelStats();
+        });
 
-            grid.innerHTML = filtered.map(order => {
-                const normalized = normalizeStatus(order.status_works);
-                const config = STATUS_CONFIG[normalized] || STATUS_CONFIG['altro'];
+        document.addEventListener('click', () => {
+            container.querySelectorAll('.pm-dropdown-menu').forEach(m => m.style.display = 'none');
+        });
 
-                // Team Data
-                const team = teamSummary[order.id] || [];
-                const activeTeam = team.slice(0, 4);
-                const remaining = team.length - 4;
-                const dateLabel = new Date(order.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
+        // Initial render
+        updateSidebar();
+        updateTable();
+        updateFunnelStats();
 
-                return `
-                    <div class="glass-card project-card hover-lift" data-id="${order.id}" style="
-                        padding: 0; border-radius: 16px; overflow: hidden; 
-                        display: flex; flex-direction: column; cursor: pointer; 
-                        transition: all 0.2s ease; background: white; border: 1px solid var(--surface-2);
-                    ">
-                        <div style="padding: 1.5rem; flex: 1; display: flex; flex-direction: column; gap: 1rem;">
-                            <!-- Header -->
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                <div class="status-pill" style="
-                                    background: ${config.bg}; color: ${config.color};
-                                    font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 12px;
-                                    display: inline-flex; align-items: center; gap: 4px;
-                                ">
-                                    <span style="width: 6px; height: 6px; border-radius: 50%; background: ${config.color}"></span>
-                                    ${config.label}
-                                </div>
-                                <span style="font-family: monospace; font-size: 0.75rem; color: var(--text-tertiary); background: var(--surface-1); padding: 2px 6px; border-radius: 4px;">
-                                    ${order.order_number}
-                                </span>
-                            </div>
-
-                            <!-- Title -->
-                            <div>
-                                <h3 style="
-                                    font-size: 1.15rem; font-weight: 700; color: var(--text-main); 
-                                    line-height: 1.4; margin: 0 0 0.25rem 0;
-                                    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-                                ">${order.title || 'Senza Titolo'}</h3>
-                                <div style="font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
-                                    <span class="material-icons-round" style="font-size: 14px;">business</span>
-                                    ${order.clients?.business_name || 'Cliente Sconosciuto'}
-                                </div>
-                            </div>
-
-                            <!-- Team -->
-                            <div style="margin-top: auto; padding-top: 0.5rem;">
-                                <div style="display: flex; align-items: center;">
-                                    ${activeTeam.length > 0 ? activeTeam.map((member, i) => `
-                                        <div title="${member.role === 'pm' ? 'PM: ' : ''}${member.name}" style="
-                                            width: 32px; height: 32px; border-radius: 50%; 
-                                            background: white; border: 2px solid white; 
-                                            margin-left: ${i === 0 ? 0 : '-10px'};
-                                            position: relative; z-index: ${10 - i};
-                                            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-                                            display: flex; align-items: center; justify-content: center;
-                                            font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);
-                                            background-color: var(--surface-2);
-                                        ">
-                                            ${member.avatar ? `<img src="${member.avatar}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : member.initials}
-                                        </div>
-                                    `).join('') : `
-                                        <div style="font-size: 0.8rem; color: var(--text-tertiary); font-style: italic;">Nessun team attivo</div>
-                                    `}
-                                    ${remaining > 0 ? `<div style="width: 32px; height: 32px; border-radius: 50%; background: var(--surface-2); border: 2px solid white; margin-left: -10px; z-index: 0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">+${remaining}</div>` : ''}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Footer -->
-                        <div style="padding: 1rem 1.5rem; background: var(--surface-1); border-top: 1px solid var(--surface-2); display: flex; justify-content: space-between; align-items: center;">
-                            <div style="display: flex; flex-direction: column;">
-                                <span style="font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600;">Data</span>
-                                <span style="font-size: 0.85rem; font-weight: 500; color: var(--text-secondary);">${dateLabel}</span>
-                            </div>
-                            <button class="icon-btn-mini" style="width: 32px; height: 32px; border-radius: 50%; background: white; border: 1px solid var(--surface-2); color: var(--text-main); display: flex; align-items: center; justify-content: center;">
-                                <span class="material-icons-round" style="font-size: 1.1rem;">arrow_forward</span>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            // Card Listeners
-            grid.querySelectorAll('.project-card').forEach(card => {
-                card.addEventListener('click', () => window.location.hash = `#pm/commessa/${card.dataset.id}`);
-            });
-        };
-
-        // --- 5. INITIAL RENDER CALLS ---
-        renderFilters();
-        renderGrid();
-
-        // Search Listener
-        const sInput = container.querySelector('#project-search');
-        if (sInput) {
-            sInput.addEventListener('input', (e) => {
-                searchTerm = e.target.value;
-                renderGrid();
-            });
-        }
-
-    } catch (globalError) {
-        console.error("Critical error in renderCommesseList:", globalError);
-        container.innerHTML = `<div style="padding:2rem; color:red">Critico: ${globalError.message}</div>`;
+    } catch (err) {
+        console.error("renderCommesseList Error:", err);
+        container.innerHTML = `<div style="padding:4rem; text-align:center; color:#ef4444;">
+            <span class="material-icons-round" style="font-size: 3rem;">error_outline</span>
+            <p>Errore durante il caricamento della dashboard PM.</p>
+            <small>${err.message}</small>
+        </div>`;
     }
 }

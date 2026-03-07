@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v5'; // Version bump for icon fix
+const CACHE_NAME = 'gleeye-pwa-cache-v12'; // Force update per fix fetch errors e PM / Ordini views (V2)
 const urlsToCache = [
     '/',
     '/index.html',
@@ -18,11 +18,23 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
-    // NETWORK FIRST strategy for CSS and HTML during development
-    if (event.request.mode === 'navigate' ||
-        event.request.destination === 'style' ||
-        event.request.destination === 'script') {
+    const url = new URL(event.request.url);
 
+    // 1. BYPASS CACHE FOR LOCAL DEVELOPMENT
+    // If we are on localhost or a local IP, we want to see changes immediately without SW interference
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname.startsWith('192.168.')) {
+        return; // Let the browser handle it normally (bypass SW)
+    }
+
+    // 2. NETWORK FIRST strategy for Logic and Styles
+    const isLogicOrStyle =
+        event.request.mode === 'navigate' ||
+        event.request.destination === 'style' ||
+        event.request.destination === 'script' ||
+        url.pathname.endsWith('.js') ||
+        url.pathname.endsWith('.css');
+
+    if (isLogicOrStyle) {
         event.respondWith(
             fetch(event.request)
                 .then(response => {
@@ -37,7 +49,7 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // Default Cache Strategy for others
+    // 3. Default Cache Strategy for assets (images, etc)
     event.respondWith(
         caches.match(event.request)
             .then(response => {

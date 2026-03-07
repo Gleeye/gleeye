@@ -8,25 +8,58 @@ const ITEM_STATUS = {
     'done': { label: 'Completata', color: '#10b981', bg: '#ecfdf5' }
 };
 
+const COMMESSA_STATUS = {
+    'in_svolgimento': { label: 'In Svolgimento', color: '#3b82f6' },
+    'lavoro_in_attesa': { label: 'In Attesa', color: '#f59e0b' },
+    'in_pausa': { label: 'In Pausa', color: '#64748b' },
+    'manutenzione': { label: 'Ongoing', color: '#06b6d4' },
+    'completato': { label: 'Completato', color: '#10b981' }
+};
+
+function getCommessaStatusInfo(status) {
+    if (!status) return { label: 'Non impostato', color: 'var(--text-secondary)' };
+    const s = status.toLowerCase().trim().replace(/_/g, ' ');
+    let key = null;
+    if (s.includes('completato') || s.includes('concluso') || s.includes('finito')) key = 'completato';
+    else if (s.includes('pausa') || s.includes('sospeso')) key = 'in_pausa';
+    else if (s.includes('ongoing') || s.includes('manutenzione') || s.includes('assistenza')) key = 'manutenzione';
+    else if (s.includes('svolgimento') || s.includes('in corso')) key = 'in_svolgimento';
+    else if (s.includes('attesa')) key = 'lavoro_in_attesa';
+
+    if (key && COMMESSA_STATUS[key]) return COMMESSA_STATUS[key];
+    return { label: status, color: 'var(--text-primary)' };
+}
+
 export async function renderHubOverview(container, items, kpis, spaceId) {
     const now = new Date();
     const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const orderId = window._hubContext?.orderId;
 
-    // Fetch appointments
+    // Fetch overview data (Appointments and Activity Logs)
     let appointments = [];
-    if (orderId) {
-        try {
-            const { fetchAppointments } = await import('/js/modules/pm_api.js?v=1000');
-            let allAppts = await fetchAppointments(orderId);
-            // Filter out Account-specific appointments
-            appointments = allAppts.filter(appt => {
-                const isAccount = appt.is_account_level || appt.appointment_internal_participants?.some(p => p.role === 'account') || appt.note?.toLowerCase().includes('[account]');
-                return !isAccount;
-            });
-        } catch (err) {
-            console.error("Error fetching appointments for overview:", err);
-        }
+    let activityLogs = [];
+    try {
+        const { fetchAppointments, fetchPMActivityLogs } = await import('/js/modules/pm_api.js?v=1000');
+
+        const promises = [];
+        if (orderId) promises.push(fetchAppointments(orderId, 'order'));
+        else if (spaceId) promises.push(fetchAppointments(spaceId, 'space'));
+        else promises.push(Promise.resolve([]));
+
+        if (spaceId) promises.push(fetchPMActivityLogs(spaceId));
+        else promises.push(Promise.resolve([]));
+
+        const [allAppts, logs] = await Promise.all(promises);
+
+        // Filter out Account-specific appointments
+        appointments = allAppts.filter(appt => {
+            const isAccount = appt.is_account_level || appt.appointment_internal_participants?.some(p => p.role === 'account') || appt.note?.toLowerCase().includes('[account]');
+            return !isAccount;
+        });
+
+        activityLogs = logs;
+    } catch (err) {
+        console.error("Error fetching data for overview:", err);
     }
 
     // Get overdue + soon items merged into "Urgenze"
@@ -209,6 +242,21 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
                 `}
             </div>
         </div>
+
+        <!-- Activity Feed Section -->
+        <div class="overview-card" style="margin-top: 1.5rem; background: white; border-radius: 16px; padding: 1.5rem; box-shadow: var(--shadow-sm);">
+            <div style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; border-bottom: 1px solid var(--surface-2); padding-bottom: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--surface-1);">
+                        <span class="material-icons-round" style="color: var(--brand-color); font-size: 1.25rem;">history</span>
+                    </div>
+                    <span style="font-weight: 700; font-size: 1.15rem; color: var(--text-primary);">Log Attività</span>
+                </div>
+            </div>
+            
+            ${renderActivityFeed(activityLogs)}
+            
+        </div>
     `;
 
     // Event handlers
@@ -308,6 +356,150 @@ function renderUrgentItem(item) {
                         ${dueDateStr}
                     </span>
                 </div>
+            </div>
+        </div>
+    `;
+}
+
+// ---- ACTIVITY FEED RENDERING ----
+
+function renderActivityFeed(logs) {
+    if (!logs || logs.length === 0) {
+        return `
+            <div style="text-align: center; padding: 4rem 1rem; color: var(--text-secondary);">
+                <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--surface-1); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
+                    <span class="material-icons-round" style="font-size: 2rem; color: var(--text-tertiary);">pending_actions</span>
+                </div>
+                <p style="font-weight: 600; color: var(--text-primary); margin: 0;">Nessuna attività</p>
+                <p style="font-size: 0.85rem; margin: 0.25rem 0 0;">Le interazioni del team compariranno qui.</p>
+            </div>
+        `;
+    }
+
+    // Group logs by date
+    const grouped = {};
+    const today = new Date().toLocaleDateString('it-IT');
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = yesterdayDate.toLocaleDateString('it-IT');
+
+    logs.forEach(log => {
+        if (!log.action_type) return;
+        const d = new Date(log.created_at);
+        const dStr = d.toLocaleDateString('it-IT');
+        let groupLabel = dStr;
+        if (dStr === today) groupLabel = 'Oggi';
+        else if (dStr === yesterday) groupLabel = 'Ieri';
+        else groupLabel = d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+
+        if (groupLabel !== 'Oggi' && groupLabel !== 'Ieri') {
+            groupLabel = groupLabel.charAt(0).toUpperCase() + groupLabel.slice(1);
+        }
+
+        if (!grouped[groupLabel]) grouped[groupLabel] = [];
+        grouped[groupLabel].push(log);
+    });
+
+    return Object.entries(grouped).map(([label, dayLogs]) => {
+        return `
+            <div class="activity-feed-group" style="margin-bottom: 2rem;">
+                <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin: 0 0 1rem 0; display: inline-block;">${label}</h4>
+                <div style="position: relative; padding-left: 8px;">
+                    <!-- Vertical Line -->
+                    <div style="position: absolute; top: 12px; bottom: -12px; left: 24px; width: 2px; background: var(--surface-2); z-index: 0;"></div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0;">
+                        ${dayLogs.map((log, index) => renderLogItem(log, index === dayLogs.length - 1)).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderLogItem(log, isLast) {
+    const time = new Date(log.created_at).toLocaleTimeString('it-IT', { hour: 'numeric', minute: '2-digit' });
+    let iconStr = '<span class="material-icons-round" style="font-size: 0.8rem; color: var(--text-secondary);">info</span>';
+    let actionText = log.action_type;
+    let extraHtml = '';
+
+    const d = log.details || {};
+    const itemName = d.item_title ? `<strong style="color: var(--text-primary); cursor: pointer;" class="activity-link" data-item-id="${log.item_ref}">"${d.item_title}"</strong>` : (log.item_ref ? 'un\'attività' : 'la commessa');
+
+    if (log.action_type === 'created') {
+        iconStr = '✨';
+        actionText = `ha creato ${itemName}`;
+    } else if (log.action_type === 'updated_status') {
+        iconStr = '🚀';
+        let oldLabel = d.old_status || 'Da Fare';
+        let newLabel = d.new_status || 'Sconosciuto';
+        let newColor = 'var(--text-primary)';
+
+        if (d.item_title === 'Stato Commessa') {
+            const oldInfo = getCommessaStatusInfo(d.old_status);
+            const newInfo = getCommessaStatusInfo(d.new_status);
+            oldLabel = oldInfo.label;
+            newLabel = newInfo.label;
+            newColor = newInfo.color;
+        } else {
+            const oldStatusObj = ITEM_STATUS[d.old_status] || { label: d.old_status || 'Da Fare' };
+            const newStatusObj = ITEM_STATUS[d.new_status] || { label: d.new_status || 'Sconosciuto', color: 'var(--text-primary)' };
+            oldLabel = oldStatusObj.label;
+            newLabel = newStatusObj.label;
+            newColor = newStatusObj.color;
+        }
+
+        actionText = `ha cambiato lo stato di ${itemName} da <strong style="font-weight: 600;">${oldLabel}</strong> a <strong style="color: ${newColor}; font-weight: 600;">${newLabel}</strong>`;
+    } else if (log.action_type === 'commented') {
+        iconStr = '💬';
+        actionText = `ha aggiunto un commento a ${itemName}`;
+        if (d.comment_text) {
+            extraHtml = `<div style="margin-top: 0.5rem; padding: 0.85rem 1rem; background: var(--surface-1); border-radius: 8px; font-size: 0.85rem; color: var(--text-primary); line-height: 1.5; border-left: 3px solid var(--surface-3);">${d.comment_text}</div>`;
+        }
+    } else if (log.action_type === 'document_added' || log.action_type === 'file_uploaded') {
+        iconStr = '📎';
+        actionText = `ha caricato il file in ${itemName}`;
+        const fileName = d.file_name || d.document_name || (d.item_title) || 'Documento.pdf';
+
+        extraHtml = `
+            <div style="margin-top: 0.75rem; display: inline-flex; align-items: center; gap: 1rem; padding: 0.6rem 1rem; border: 1px solid var(--surface-2); border-radius: 12px; background: white; max-width: 300px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                <div style="background: rgba(239, 68, 68, 0.1); padding: 6px; border-radius: 6px; display: flex;">
+                    <span class="material-icons-round" style="color: #ef4444; font-size: 1.5rem;">picture_as_pdf</span>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${fileName}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">PDF • ${d.file_size ? (d.file_size / 1024 / 1024).toFixed(2) + ' mb' : 'N/D'}</div>
+                </div>
+                <span class="material-icons-round" style="font-size: 1.25rem; color: var(--text-tertiary); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--brand-color)'" onmouseout="this.style.color='var(--text-tertiary)'">download</span>
+            </div>
+        `;
+    } else if (log.action_type === 'assigned') {
+        iconStr = '👤';
+        actionText = `ha assegnato ${itemName}`;
+    }
+
+    return `
+        <div style="display: flex; gap: 1rem; padding: 0 0 2rem 0; position: relative; z-index: 1;">
+            <div style="flex-shrink: 0; position: relative; width: 36px; height: 36px;">
+                <img src="${log.avatarUrl}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 3px solid white; background: white;">
+                ${iconStr && iconStr.length ? `
+                <div style="position: absolute; bottom: -4px; right: -4px; background: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 10px !important; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">
+                    ${iconStr}
+                </div>
+                ` : ''}
+                
+                ${isLast ? `<div style="position: absolute; top: calc(100% + 3px); left: 16px; width: 4px; height: calc(100% + 12px); background: white; z-index: 1;"></div>` : ''}
+            </div>
+            
+            <div style="flex: 1; min-width: 0; padding-top: 5px;">
+                <div style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">
+                    <strong style="color: var(--text-primary); font-weight: 600;">${log.authorName}</strong> 
+                    ${actionText}
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">
+                    ${time}
+                </div>
+                ${extraHtml}
             </div>
         </div>
     `;

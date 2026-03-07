@@ -6,7 +6,18 @@ import { fetchPMActivityLogs } from '../../../modules/pm_api.js?v=1000';
  * @param {string} spaceId - The PM Space ID (optional)
  * @param {string} itemId - The PM Item ID (optional)
  */
-export async function renderActivityLog(container, spaceId = null, itemId = null) {
+export async function renderActivityLog(container, spaceIdOrOptions = null, itemIdArg = null) {
+    let spaceId = null, itemId = null, orderId = null, itemIds = null;
+
+    if (typeof spaceIdOrOptions === 'object' && spaceIdOrOptions !== null) {
+        spaceId = spaceIdOrOptions.spaceId;
+        itemId = spaceIdOrOptions.itemId;
+        orderId = spaceIdOrOptions.orderId;
+        itemIds = spaceIdOrOptions.itemIds;
+    } else {
+        spaceId = spaceIdOrOptions;
+        itemId = itemIdArg;
+    }
     if (!container) return;
 
     container.innerHTML = `
@@ -33,7 +44,7 @@ export async function renderActivityLog(container, spaceId = null, itemId = null
         listContainer.innerHTML = '<div class="loader-container" style="text-align: center; padding: 2rem;"><div class="loader"></div></div>';
 
         try {
-            const logs = await fetchPMActivityLogs(spaceId, itemId);
+            const logs = await fetchPMActivityLogs(spaceId, itemId, orderId, itemIds);
 
             if (!logs || logs.length === 0) {
                 listContainer.innerHTML = `
