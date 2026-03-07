@@ -404,7 +404,7 @@ function renderActivityFeed(logs) {
     return Object.entries(grouped).map(([label, dayLogs]) => {
         return `
             <div class="activity-feed-day" style="margin-bottom: 2rem;">
-                <h4 style="font-size: 0.75rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 1rem 0; font-family: var(--font-titles);">${label}</h4>
+                <h4 style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin: 0 0 1.5rem 0; font-family: var(--font-titles);">${label}</h4>
                 <div style="display: flex; flex-direction: column;">
                     ${dayLogs.map((log, index) => renderLogItem(log, index === dayLogs.length - 1)).join('')}
                 </div>
@@ -414,60 +414,41 @@ function renderActivityFeed(logs) {
 }
 
 function renderLogItem(log, isLast) {
-    const time = new Date(log.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    const time = new Date(log.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }).toUpperCase();
 
     let description = log.details?.description || log.details;
     const actionType = log.action_type || '';
 
     // Humanize technical fallbacks
     if (!description || typeof description === 'object' || description === 'status_changed' || description === 'UPDATE') {
-        if (actionType.includes('status')) description = '📊 Ha aggiornato lo stato';
-        else if (actionType.includes('create')) description = '✨ Ha creato una nuova voce';
-        else if (actionType.includes('comment')) description = '💬 Ha lasciato un commento';
-        else if (actionType.includes('assign')) description = '👥 Ha assegnato un incarico';
-        else description = '📝 Ha aggiornato i dettagli';
+        const entityName = log.details?.entity_name ? `**${log.details.entity_name}**` : 'una risorsa';
+        if (actionType.includes('status')) description = `ha cambiato lo stato di ${entityName}`;
+        else if (actionType.includes('create')) description = `ha creato **${entityName}**`;
+        else if (actionType.includes('comment')) description = `ha aggiunto un commento in **${entityName}**`;
+        else description = `ha aggiornato i dettagli di **${entityName}**`;
     }
-
-    // Vocabulary replacement
-    const vocabulary = {
-        'todo': 'Da Fare',
-        'in_progress': 'In Corso',
-        'review': 'In Revisione',
-        'done': 'Completata',
-        'blocked': 'Bloccata',
-        'in_svolgimento': 'In Lavorazione',
-        'lavoro_in_attesa': 'In Sospeso',
-        'accettata': 'Accettata ✅',
-        'rifiutata': 'Rifiutata ❌',
-        'offer_status': 'Stato Offerta',
-        'status_works': 'Avanzamento Lavori',
-        'status_changed': '📦 Stato Aggiornato'
-    };
-
-    Object.entries(vocabulary).forEach(([key, value]) => {
-        const regex = new RegExp(`\\b${key}\\b`, 'g');
-        description = description.replace(regex, value);
-    });
-
-    // Final cleanups
-    description = description.replace(/^Ha Ha /, 'Ha ').replace(/^Ha ha /, 'Ha ');
 
     const authorName = log.actor?.full_name || 'Collaboratore';
     const avatarUrl = log.actor?.avatar_url || '';
 
+    // Mark down to HTML Bold
+    const formattedDesc = description.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-primary);">$1</strong>');
+
     return `
-        <div style="display: flex; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--glass-highlight);">
-            <div style="width: 28px; height: 28px; border-radius: 50%; overflow: hidden; background: var(--glass-bg); flex-shrink: 0;">
+        <div class="timeline-item" style="position: relative; padding-bottom: 1.5rem; display: flex; gap: 1rem;">
+            <!-- Vertical dashed line -->
+            ${!isLast ? `
+            <div style="position: absolute; left: 13px; top: 32px; bottom: 0; width: 1px; border-left: 1px dashed var(--text-tertiary); opacity: 0.2;"></div>
+            ` : ''}
+            
+            <div style="width: 28px; height: 28px; border-radius: 50%; overflow: hidden; background: var(--glass-bg); flex-shrink: 0; position: relative; z-index: 1; box-shadow: 0 0 0 3px var(--bg-color);">
                 <img src="${avatarUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random&color=fff&size=48&font-size=0.4';">
             </div>
-            <div style="flex: 1; min-width: 0;">
-                <div style="display: flex; align-items: baseline; gap: 0.4rem; margin-bottom: 0.1rem;">
-                    <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary); font-family: var(--font-body);">${authorName}</span>
-                    <span style="font-size: 0.7rem; color: var(--text-tertiary); font-family: var(--font-body);">${time}</span>
+            <div style="flex: 1; min-width: 0; padding-top: 3px;">
+                <div style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4; font-family: var(--font-body);">
+                    <strong style="color: var(--text-primary); font-weight: 700;">${authorName}</strong> ${formattedDesc}
                 </div>
-                <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; font-family: var(--font-body);">
-                    ${description}
-                </div>
+                <div style="font-size: 0.75rem; color: var(--text-tertiary); font-family: var(--font-body); margin-top: 2px;">${time}</div>
             </div>
         </div>
     `;

@@ -1,7 +1,7 @@
-import { fetchPMActivityLogs } from '../../../modules/pm_api.js?v=1003';
+import { fetchPMActivityLogs } from '../../../modules/pm_api.js?v=1004';
 
 /**
- * Render the Activity Log with a minimal, elegant, and standard Gleeye design
+ * Render the Activity Log with the EXACT style of the Reference image
  */
 export async function renderActivityLog(container, options = {}) {
     if (!container) return;
@@ -20,18 +20,15 @@ export async function renderActivityLog(container, options = {}) {
     }
 
     container.innerHTML = `
-        <div class="activity-log-wrapper" style="padding: 1.5rem; height: 100%; display: flex; flex-direction: column; background: transparent;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem;">
-                <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-titles);">
-                    <span class="material-icons-round" style="color: var(--text-tertiary); font-size: 1.25rem;">history</span>
-                    Log Attività
-                </h3>
+        <div class="activity-log-wrapper" style="padding: 1.5rem; height: 100%; display: flex; flex-direction: column; background: var(--bg-color);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+                <h3 style="margin: 0; font-size: 1.25rem; color: var(--text-primary); font-family: var(--font-titles); font-weight: 700;">Log Attività</h3>
                 <button class="refresh-log-btn icon-btn" title="Aggiorna">
                     <span class="material-icons-round" style="font-size: 1.25rem;">refresh</span>
                 </button>
             </div>
             
-            <div class="activity-log-list" style="flex: 1; overflow-y: auto; padding-right: 0.5rem; position: relative;">
+            <div class="activity-log-list" style="flex: 1; overflow-y: auto; padding-right: 1rem; position: relative;">
                 <div class="loader-container" style="text-align: center; padding: 3rem;"><div class="loader"></div></div>
             </div>
         </div>
@@ -40,26 +37,76 @@ export async function renderActivityLog(container, options = {}) {
             .activity-log-list::-webkit-scrollbar-track { background: transparent; }
             .activity-log-list::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
             
-            .day-divider {
+            .day-group-title {
                 font-family: var(--font-titles);
-                font-size: 0.75rem;
+                font-size: 1.1rem;
                 font-weight: 700;
-                color: var(--text-tertiary);
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                margin: 2rem 0 1rem 0;
+                color: var(--text-primary);
+                margin: 2rem 0 1.5rem 0;
             }
 
-            .log-row {
+            .timeline-item {
+                position: relative;
+                padding-bottom: 2rem;
                 display: flex;
-                gap: 1rem;
-                padding: 1rem 0;
-                border-bottom: 1px solid var(--glass-highlight);
-                transition: background 0.2s ease;
+                gap: 1.25rem;
             }
 
-            .log-row:last-child {
-                border-bottom: none;
+            .timeline-item:last-child {
+                padding-bottom: 1rem;
+            }
+
+            /* Vertical dashed line */
+            .timeline-item::before {
+                content: '';
+                position: absolute;
+                left: 17px; /* center of avatar */
+                top: 40px;
+                bottom: 0;
+                width: 1px;
+                border-left: 1px dashed var(--text-tertiary);
+                opacity: 0.3;
+                z-index: 0;
+            }
+            .timeline-item:last-child::before {
+                display: none;
+            }
+
+            .timeline-avatar {
+                position: relative;
+                z-index: 1;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                overflow: hidden;
+                background: var(--glass-bg);
+                flex-shrink: 0;
+                box-shadow: 0 0 0 4px var(--bg-color);
+            }
+
+            .timeline-content {
+                flex: 1;
+                padding-top: 4px;
+                min-width: 0;
+            }
+
+            .timeline-text {
+                font-size: 0.95rem;
+                color: var(--text-secondary);
+                line-height: 1.4;
+                margin-bottom: 0.25rem;
+                word-wrap: break-word;
+            }
+
+            .timeline-text strong {
+                color: var(--text-primary);
+                font-weight: 700;
+            }
+
+            .timeline-time {
+                font-size: 0.8rem;
+                color: var(--text-tertiary);
+                font-weight: 500;
             }
         </style>
     `;
@@ -76,7 +123,6 @@ export async function renderActivityLog(container, options = {}) {
             if (!logs || logs.length === 0) {
                 listContainer.innerHTML = `
                     <div style="text-align: center; padding: 4rem 1rem; color: var(--text-tertiary);">
-                        <span class="material-icons-round" style="font-size: 2.5rem; opacity: 0.3; margin-bottom: 1rem;">history_edu</span>
                         <p style="margin: 0; font-size: 0.9rem;">Nessuna attività registrata</p>
                     </div>
                 `;
@@ -94,7 +140,7 @@ export async function renderActivityLog(container, options = {}) {
                 let label = dStr;
                 if (dStr === today) label = 'Oggi';
                 else if (dStr === yesterday) label = 'Ieri';
-                else label = date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+                else label = date.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' });
 
                 if (!groups[label]) groups[label] = [];
                 groups[label].push(log);
@@ -102,9 +148,9 @@ export async function renderActivityLog(container, options = {}) {
 
             let html = '';
             for (const [day, dayLogs] of Object.entries(groups)) {
-                html += `<div class="day-divider">${day}</div>`;
+                html += `<div class="day-group-title">${day}</div>`;
                 dayLogs.forEach(log => {
-                    html += renderMinimalLog(log);
+                    html += renderTimelineItem(log);
                 });
             }
 
@@ -119,61 +165,41 @@ export async function renderActivityLog(container, options = {}) {
     loadLogs();
 }
 
-function renderMinimalLog(log) {
-    const time = new Date(log.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+/**
+ * Renders a single timeline item matching the Reference image:
+ * Actor (Bold) + Action (Regular) + Entity (Bold)
+ */
+function renderTimelineItem(log) {
+    const time = new Date(log.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }).toUpperCase();
 
     let description = log.details?.description || log.details;
     const actionType = log.action_type || '';
 
-    // If description is missing or technical, let's fix it
+    // If description is missing or completely technical, generate a fallback sentence
     if (!description || typeof description === 'object' || description === 'status_changed' || description === 'UPDATE') {
-        if (actionType.includes('status')) description = '📊 Ha aggiornato lo stato';
-        else if (actionType.includes('create')) description = '✨ Ha creato una nuova voce';
-        else if (actionType.includes('comment')) description = '💬 Ha lasciato un commento';
-        else if (actionType.includes('assign')) description = '👥 Ha assegnato un incarico';
-        else description = '📝 Ha aggiornato i dettagli';
+        const entityName = log.details?.entity_name ? `**${log.details.entity_name}**` : 'una risorsa';
+        if (actionType.includes('status')) description = `ha cambiato lo stato di ${entityName}`;
+        else if (actionType.includes('create')) description = `ha creato **${entityName}**`;
+        else if (actionType.includes('comment')) description = `ha aggiunto un commento in **${entityName}**`;
+        else description = `ha aggiornato i dettagli di **${entityName}**`;
     }
 
     const authorName = log.actor?.full_name || 'Sistema';
     const avatarUrl = log.actor?.avatar_url || '';
 
-    // Master replacement for ANY technical codes leaked (failsafe)
-    const vocabulary = {
-        'todo': 'Da Fare',
-        'in_progress': 'In Corso',
-        'review': 'In Revisione',
-        'done': 'Completata',
-        'blocked': 'Bloccata',
-        'in_svolgimento': 'In Lavorazione',
-        'lavoro_in_attesa': 'In Sospeso',
-        'accettata': 'Accettata ✅',
-        'rifiutata': 'Rifiutata ❌',
-        'offer_status': 'Stato Offerta',
-        'status_works': 'Avanzamento Lavori',
-        'status_changed': '📦 Stato Aggiornato'
-    };
-
-    Object.entries(vocabulary).forEach(([key, value]) => {
-        const regex = new RegExp(`\\b${key}\\b`, 'g');
-        description = description.replace(regex, value);
-    });
-
-    // Cleanup prefix redundancy
-    description = description.replace(/^Ha Ha /, 'Ha ').replace(/^Ha ha /, 'Ha ');
+    // Ensure description words are formatted correctly (markdown to bold)
+    const formattedDesc = description.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
     return `
-        <div class="log-row">
-            <div style="flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background: var(--glass-bg);">
+        <div class="timeline-item">
+            <div class="timeline-avatar">
                 <img src="${avatarUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random&color=fff&size=64';">
             </div>
-            <div style="flex: 1; min-width: 0;">
-                <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.2rem;">
-                    <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary); font-family: var(--font-body);">${authorName}</span>
-                    <span style="font-size: 0.7rem; color: var(--text-tertiary); font-family: var(--font-body);">${time}</span>
+            <div class="timeline-content">
+                <div class="timeline-text">
+                    <strong>${authorName}</strong> ${formattedDesc}
                 </div>
-                <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; font-family: var(--font-body);">
-                    ${description}
-                </div>
+                <div class="timeline-time">${time}</div>
             </div>
         </div>
     `;
