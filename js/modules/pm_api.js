@@ -1328,3 +1328,30 @@ export async function fetchPMActivityLogs(spaceId = null, itemId = null, orderId
         return { ...log, authorName, avatarUrl };
     });
 }
+
+// --- ACTIVITY REGISTRY ---
+export async function fetchActivityRegistry() {
+    const { data, error } = await supabase
+        .from('pm_activity_registry')
+        .select('*')
+        .order('table_name');
+
+    if (error) {
+        console.error("Error fetching activity registry:", error);
+        return [];
+    }
+    return data || [];
+}
+
+export async function toggleActivityRegistryStatus(registryId, isActive) {
+    const { error } = await supabase
+        .from('pm_activity_registry')
+        .update({ is_active: isActive })
+        .eq('id', registryId);
+
+    if (error) {
+        console.error("Error toggling registry status:", error);
+        throw error;
+    }
+}
+

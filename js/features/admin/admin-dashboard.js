@@ -62,6 +62,16 @@ export function renderAdminDashboard(container) {
                             Log Notifiche
                         </span>
                     </button>
+                    <button class="tab-btn" data-tab="registry" style="
+                        flex: 1; padding: 1rem; border: none; background: none; 
+                        border-bottom: 2px solid transparent; color: var(--text-secondary); 
+                        font-weight: 500; cursor: pointer; transition: all 0.2s;
+                    ">
+                        <span style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <span class="material-icons-round">rule</span>
+                            Registro Notifiche
+                        </span>
+                    </button>
                     <button class="tab-btn" data-tab="system" style="
                         flex: 1; padding: 1rem; border: none; background: none; 
                         border-bottom: 2px solid transparent; color: var(--text-secondary); 
@@ -123,6 +133,11 @@ export function renderAdminDashboard(container) {
                 <!-- Tab Content: Logs -->
                 <div id="tab-logs" class="tab-content hidden" style="padding: 2rem;">
                     <div id="admin-logs-container">Loading logs...</div>
+                </div>
+
+                <!-- Tab Content: Registry -->
+                <div id="tab-registry" class="tab-content hidden" style="padding: 2rem; background: var(--bg-primary);">
+                    <div id="admin-registry-container">Loading registry...</div>
                 </div>
 
                 <!-- Tab Content: System -->
@@ -235,6 +250,14 @@ export function renderAdminDashboard(container) {
             if (tab.dataset.tab === 'logs') {
                 const logsContainer = container.querySelector('#admin-logs-container');
                 renderNotificationLogs(logsContainer);
+            }
+
+            // Render registry if registry tab is active
+            if (tab.dataset.tab === 'registry') {
+                const registryContainer = container.querySelector('#admin-registry-container');
+                import('./admin_registry.js?v=' + Date.now()).then(mod => {
+                    mod.renderActivityRegistry(registryContainer);
+                }).catch(err => console.error("Error loading registry module:", err));
             }
 
             // Render system logs if system tab is active
