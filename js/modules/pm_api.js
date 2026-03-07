@@ -1293,7 +1293,10 @@ export async function fetchPMActivityLogs(spaceId = null, itemId = null, orderId
         .from('pm_activity_logs')
         .select(`
             id, action_type, details, created_at,
-            actor:actor_user_ref ( full_name, avatar_url, email )
+            actor:actor_user_ref ( full_name, avatar_url, email ),
+            item:item_ref ( title ),
+            order:order_ref ( title ),
+            space:space_ref ( name )
         `)
         .order('created_at', { ascending: false })
         .limit(100);

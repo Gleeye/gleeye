@@ -419,14 +419,45 @@ function renderLogItem(log, isLast) {
     let description = log.details?.description || log.details;
     const actionType = log.action_type || '';
 
-    // Humanize technical fallbacks
-    if (!description || typeof description === 'object' || description === 'status_changed' || description === 'UPDATE') {
-        const entityName = log.details?.entity_name ? `**${log.details.entity_name}**` : 'una risorsa';
-        if (actionType.includes('status')) description = `ha cambiato lo stato di ${entityName}`;
-        else if (actionType.includes('create')) description = `ha creato **${entityName}**`;
-        else if (actionType.includes('comment')) description = `ha aggiunto un commento in **${entityName}**`;
-        else description = `ha aggiornato i dettagli di **${entityName}**`;
+    // Humanize technical fallbacks or old patterns
+    const entityName = log.details?.entity_name
+        || log.item?.title
+        || log.order?.title
+        || log.space?.name
+        || 'una risorsa';
+
+    const entityBold = `**${entityName}**`;
+
+    if (!description || typeof description === 'object' ||
+        description === 'status_changed' || description === 'UPDATE' ||
+        description.includes('Stato spostato in') || description.includes('cambiato lo stato')) {
+
+        if (actionType.includes('status')) description = `ha cambiato lo stato di ${entityBold}`;
+        else if (actionType.includes('create')) description = `ha creato ${entityBold}`;
+        else if (actionType.includes('comment')) description = `ha aggiunto un commento in ${entityBold}`;
+        else description = `ha aggiornato i dettagli di ${entityBold}`;
     }
+
+    // Vocabulary replacement for old strings
+    const vocabulary = {
+        'todo': 'Da Fare',
+        'in_progress': 'In Corso',
+        'review': 'In Revisione',
+        'done': 'Completata',
+        'blocked': 'Bloccata',
+        'in_svolgimento': 'In Lavorazione',
+        'lavoro_in_attesa': 'In Sospeso',
+        'accettata': 'Accettata',
+        'rifiutata': 'Rifiutata',
+        'high': 'Alta',
+        'medium': 'Media',
+        'low': 'Bassa'
+    };
+
+    Object.entries(vocabulary).forEach(([key, value]) => {
+        const regex = new RegExp(`\\b${key}\\b`, 'g');
+        description = description.replace(regex, value);
+    });
 
     const authorName = log.actor?.full_name || 'Collaboratore';
     const avatarUrl = log.actor?.avatar_url || '';

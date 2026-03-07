@@ -683,49 +683,35 @@ export function openPaymentModal(id) {
             actionDiv.innerHTML = `<button class="primary-btn" id="btn-send-invite" style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 8px; background: #f59e0b;"><span class="material-icons-round" style="font-size: 1rem;">send</span> Invia Invito a Fatturare</button>`;
             setTimeout(() => {
                 const inviteBtn = document.getElementById('btn-send-invite');
-                if (inviteBtn) {
-                    inviteBtn.addEventListener('click', async () => {
-                        try {
-                            const webhookUrl = 'https://sacred-roughy-renewing.ngrok-free.app/webhook/aa9c1f66-e6aa-4d2c-991c-2d3003c8d1a5';
-
-                            // Mostriamo un feedback immediato
-                            inviteBtn.disabled = true;
-                            inviteBtn.innerHTML = `<span class="material-icons-round rotating" style="font-size: 1rem;">sync</span> Invio in corso...`;
-
-                            // Chiamata al Webhook n8n con tutti i dati del record
-                            const response = await fetch(webhookUrl, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    ...p,
-                                    action: 'invite_to_invoice',
-                                    sent_at: new Date().toISOString()
-                                })
-                            });
-
-                            if (!response.ok) throw new Error('Webhook n8n fallito');
-
-                            // Procediamo all'aggiornamento dello stato nel DB
-                            const { supabase } = await import('../modules/config.js?v=1000');
-                            await supabase.rpc('send_payment_invite', { p_payment_id: p.id });
-
-                            // Refresh dei dati e aggiornamento UI
-                            await fetchPayments();
-                            openPaymentModal(p.id);
-                            showGlobalAlert('Invito inviato correttamente tramite n8n!', 'success');
-                        } catch (e) {
-                            console.error('Error sending invite:', e);
-                            showGlobalAlert('Errore durante l\'invio: ' + e.message, 'error');
-                            // Ripristiniamo il tasto in caso di errore
-                            inviteBtn.disabled = false;
-                            inviteBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1rem;">send</span> Invia Invito a Fatturare`;
-                        }
-                    });
-                }
+                if (inviteBtn) inviteBtn.addEventListener('click', () => handleSendInvite(p, inviteBtn));
             }, 0);
         } else if (p.status === 'Invito Inviato') {
-            // Waiting for collaborator to send invoice
-            actionDiv.innerHTML = `<button class="badge" style="background: #fef3c7; color: #b45309; cursor: default; border: 1px solid rgba(245, 158, 11, 0.2);"><span class="material-icons-round text-small">hourglass_top</span> In attesa fattura</button>`;
+            // Waiting for collaborator to send invoice - With RESEND option
+            actionDiv.innerHTML = `
+                <div class="flex-column" style="gap: 0.5rem; align-items: flex-end;">
+                    <span class="badge" style="background: #fef3c7; color: #b45309; border: 1px solid rgba(245, 158, 11, 0.2);"><span class="material-icons-round text-small">hourglass_top</span> In attesa fattura</span>
+                    <button class="text-button" id="btn-resend-invite" style="font-size: 0.75rem; color: #b45309; text-decoration: underline; cursor: pointer; border: none; background: none; opacity: 0.8; transition: opacity 0.2s;">
+                        Reinvia Webhook
+                    </button>
+                    <button class="text-button" id="btn-reset-invite" style="font-size: 0.75rem; color: var(--text-tertiary); text-decoration: underline; cursor: pointer; border: none; background: none; opacity: 0.6;">
+                        Annulla Invito
+                    </button>
+                </div>
+            `;
+            setTimeout(() => {
+                document.getElementById('btn-resend-invite')?.addEventListener('click', (e) => handleSendInvite(p, e.currentTarget));
+                document.getElementById('btn-reset-invite')?.addEventListener('click', async () => {
+                    if (confirm('Annullare lo stato di invito e tornare a "Da Fare"?')) {
+                        try {
+                            const { supabase } = await import('../modules/config.js?v=1000');
+                            await supabase.from('payments').update({ status: 'Da Fare' }).eq('id', p.id);
+                            await fetchPayments();
+                            openPaymentModal(p.id);
+                            showGlobalAlert('Stato ripristinato');
+                        } catch (e) { showGlobalAlert(e.message, 'error'); }
+                    }
+                });
+            }, 0);
         } else {
             actionDiv.innerHTML = `<button class="primary-btn" style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 8px;"><span class="material-icons-round" style="font-size: 1rem;">upload</span> Registra Fattura</button>`;
         }
@@ -758,6 +744,47 @@ export function openPaymentModal(id) {
     document.getElementById('pm-notes-input').value = p.notes || '';
 
     modal.classList.add('active');
+}
+
+async function handleSendInvite(p, btn) {
+    const originalContent = btn.innerHTML;
+    try {
+        const webhookUrl = 'https://sacred-roughy-renewing.ngrok-free.app/webhook/aa9c1f66-e6aa-4d2c-991c-2d3003c8d1a5';
+
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-icons-round rotating" style="font-size: 1rem;">sync</span> Invio n8n...`;
+
+        const { supabase } = await import('../modules/config.js?v=1000');
+
+        // USIAMO LA EDGE FUNCTION per maggiore affidabilità e bypass CORS
+        const { data: edgeData, error: edgeError } = await supabase.functions.invoke('trigger-webhook', {
+            body: {
+                webhookUrl: webhookUrl,
+                payload: {
+                    ...p,
+                    action: 'invite_to_invoice',
+                    sent_at: new Date().toISOString()
+                }
+            }
+        });
+
+        if (edgeError) throw new Error(`Errore Edge Function: ${edgeError.message}`);
+
+        // Procediamo all'aggiornamento dello stato nel DB (se non già fatto)
+        if (p.status !== 'Invito Inviato') {
+            await supabase.rpc('send_payment_invite', { p_payment_id: p.id });
+        }
+
+        // Refresh e feedback
+        await fetchPayments();
+        openPaymentModal(p.id);
+        showGlobalAlert('Eseguito correttamente!', 'success');
+    } catch (e) {
+        console.error('Invite error:', e);
+        showGlobalAlert('Errore: ' + e.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalContent;
+    }
 }
 
 async function handlePaymentDelete() {
