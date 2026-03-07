@@ -419,26 +419,7 @@ function renderLogItem(log, isLast) {
     let description = log.details?.description || log.details;
     const actionType = log.action_type || '';
 
-    // Humanize technical fallbacks or old patterns
-    const entityName = log.details?.entity_name
-        || log.item?.title
-        || log.order?.title
-        || log.space?.name
-        || 'una risorsa';
-
-    const entityBold = `**${entityName}**`;
-
-    if (!description || typeof description === 'object' ||
-        description === 'status_changed' || description === 'UPDATE' ||
-        description.includes('Stato spostato in') || description.includes('cambiato lo stato')) {
-
-        if (actionType.includes('status')) description = `ha cambiato lo stato di ${entityBold}`;
-        else if (actionType.includes('create')) description = `ha creato ${entityBold}`;
-        else if (actionType.includes('comment')) description = `ha aggiunto un commento in ${entityBold}`;
-        else description = `ha aggiornato i dettagli di ${entityBold}`;
-    }
-
-    // Vocabulary replacement for old strings
+    // Vocabulary for translation
     const vocabulary = {
         'todo': 'Da Fare',
         'in_progress': 'In Corso',
@@ -453,7 +434,40 @@ function renderLogItem(log, isLast) {
         'medium': 'Media',
         'low': 'Bassa'
     };
+    const t = (val) => vocabulary[val] || val;
 
+    // Humanize technical fallbacks or old patterns
+    const entityName = log.details?.entity_name
+        || log.item?.title
+        || log.order?.title
+        || log.space?.name
+        || 'una risorsa';
+
+    const entityBold = `**${entityName}**`;
+
+    // Strategy: build description if it's a status change, but PROTECT existing detailed descriptions
+    const isDetailed = typeof description === 'string' && (description.includes(' da ') || description.includes(' a ') || description.includes(' in '));
+
+    if (actionType.includes('status') || description === 'status_changed') {
+        const oldVal = t(log.details?.old);
+        const newVal = t(log.details?.new);
+
+        if (oldVal && newVal) {
+            description = `ha cambiato lo stato di ${entityBold} da **${oldVal}** a **${newVal}**`;
+        } else if (isDetailed) {
+            // Keep the detailed version from the DB (it already has the transition)
+        } else if (newVal) {
+            description = `ha cambiato lo stato di ${entityBold} in **${newVal}**`;
+        } else {
+            description = `ha cambiato lo stato di ${entityBold}`;
+        }
+    } else if (!description || typeof description === 'object' || description === 'UPDATE') {
+        if (actionType.includes('create')) description = `ha creato ${entityBold}`;
+        else if (actionType.includes('comment')) description = `ha aggiunto un commento in ${entityBold}`;
+        else description = `ha aggiornato i dettagli di ${entityBold}`;
+    }
+
+    // Apply vocabulary to any remaining technical terms in description
     Object.entries(vocabulary).forEach(([key, value]) => {
         const regex = new RegExp(`\\b${key}\\b`, 'g');
         description = description.replace(regex, value);
