@@ -403,15 +403,10 @@ function renderActivityFeed(logs) {
 
     return Object.entries(grouped).map(([label, dayLogs]) => {
         return `
-            <div class="activity-feed-group" style="margin-bottom: 2rem;">
-                <h4 style="font-size: 0.8rem; font-weight: 800; color: var(--text-tertiary); margin: 0 0 1.25rem 0; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.75rem; font-family: 'Outfit', sans-serif;">
-                    ${label}
-                    <div style="flex: 1; height: 1px; background: linear-gradient(90deg, var(--surface-2), transparent);"></div>
-                </h4>
-                <div style="position: relative; padding-left: 2px;">
-                    <div style="display: flex; flex-direction: column; gap: 0;">
-                        ${dayLogs.map((log, index) => renderLogItem(log, index === dayLogs.length - 1)).join('')}
-                    </div>
+            <div class="activity-feed-day" style="margin-bottom: 2rem;">
+                <h4 style="font-size: 0.75rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 1rem 0; font-family: var(--font-titles);">${label}</h4>
+                <div style="display: flex; flex-direction: column;">
+                    ${dayLogs.map((log, index) => renderLogItem(log, index === dayLogs.length - 1)).join('')}
                 </div>
             </div>
         `;
@@ -421,53 +416,34 @@ function renderActivityFeed(logs) {
 function renderLogItem(log, isLast) {
     const time = new Date(log.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
-    // Extract description
     let description = log.details?.description || log.details || log.action_type;
     if (typeof description === 'object') {
         description = log.action_type === 'updated' ? 'Modifica dati' : log.action_type;
     }
 
-    // Failsafe for leaking technical words
+    // Clean up
     description = description
-        .replace(/in_progress/g, '<b>In Corso</b>')
-        .replace(/todo/g, '<b>Da Fare</b>')
-        .replace(/done/g, '<b>Completato</b>')
-        .replace(/blocked/g, '<b>Bloccato</b>')
-        .replace(/review/g, '<b>In Revisione</b>');
+        .replace(/in_progress/g, 'In Corso')
+        .replace(/todo/g, 'Da Fare')
+        .replace(/done/g, 'Completato')
+        .replace(/blocked/g, 'Bloccato')
+        .replace(/review/g, 'In Revisione')
+        .replace(/^Ha /, '');
 
     const authorName = log.actor?.full_name || 'Collaboratore';
     const avatarUrl = log.actor?.avatar_url || '';
 
-    let icon = 'info';
-    let iconColor = 'var(--text-tertiary)';
-    let auraColor = 'rgba(100,116,139,0.08)';
-
-    if (log.action_type.includes('create')) { icon = 'add_circle'; iconColor = '#10b981'; auraColor = 'rgba(16,185,129,0.1)'; }
-    else if (log.action_type.includes('status') || log.action_type.includes('progress')) { icon = 'auto_awesome'; iconColor = '#f59e0b'; auraColor = 'rgba(245,158,11,0.1)'; }
-    else if (log.action_type.includes('comment')) { icon = 'forum'; iconColor = '#3b82f6'; auraColor = 'rgba(59,130,246,0.1)'; }
-    else if (log.action_type.includes('document')) { icon = 'description'; iconColor = '#ef4444'; auraColor = 'rgba(239,68,68,0.1)'; }
-    else if (log.action_type.includes('assign')) { icon = 'person_add'; iconColor = '#8b5cf6'; auraColor = 'rgba(139,92,246,0.1)'; }
-
     return `
-        <div style="display: flex; gap: 1rem; padding-bottom: 1.25rem; position: relative;">
-            <!-- Icon/Line Column -->
-            <div style="display: flex; flex-direction: column; align-items: center; width: 20px; flex-shrink: 0;">
-                <div style="width: 20px; height: 20px; border-radius: 6px; background: ${auraColor}; color: ${iconColor}; display: flex; align-items: center; justify-content: center; z-index: 1;">
-                    <span class="material-icons-round" style="font-size: 13px;">${icon}</span>
-                </div>
-                ${!isLast ? `<div style="width: 1.5px; flex: 1; background: var(--surface-2); margin-top: 4px; border-radius: 1px;"></div>` : ''}
+        <div style="display: flex; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--glass-highlight);">
+            <div style="width: 28px; height: 28px; border-radius: 50%; overflow: hidden; background: var(--glass-bg); flex-shrink: 0;">
+                <img src="${avatarUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random&color=fff&size=48&font-size=0.4';">
             </div>
-
-            <!-- Content Column -->
-            <div style="flex: 1; padding-top: 1px; min-width: 0;">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.15rem;">
-                    <div style="display: flex; align-items: center; gap: 0.4rem; min-width: 0;">
-                        <img src="${avatarUrl}" style="width: 18px; height: 18px; border-radius: 50%; background: var(--surface-2); flex-shrink: 0;" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random&color=fff&font-size=0.4';">
-                        <span style="font-weight: 700; font-size: 0.8rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Outfit', sans-serif;">${authorName}</span>
-                    </div>
-                    <span style="font-size: 0.7rem; color: var(--text-tertiary); font-weight: 600; flex-shrink: 0;">${time}</span>
+            <div style="flex: 1; min-width: 0;">
+                <div style="display: flex; align-items: baseline; gap: 0.4rem; margin-bottom: 0.1rem;">
+                    <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary); font-family: var(--font-body);">${authorName}</span>
+                    <span style="font-size: 0.7rem; color: var(--text-tertiary); font-family: var(--font-body);">${time}</span>
                 </div>
-                <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; font-family: 'Outfit', sans-serif;">
+                <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; font-family: var(--font-body);">
                     ${description}
                 </div>
             </div>
