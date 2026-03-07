@@ -39,7 +39,8 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
     let appointments = [];
     let activityLogs = [];
     try {
-        const { fetchAppointments, fetchPMActivityLogs } = await import('/js/modules/pm_api.js?v=1000');
+        const api_v = Date.now();
+        const { fetchAppointments, fetchPMActivityLogs } = await import('/js/modules/pm_api.js?v=' + api_v);
 
         const promises = [];
         if (orderId) promises.push(fetchAppointments(orderId, 'order'));
@@ -403,11 +404,11 @@ function renderActivityFeed(logs) {
     return Object.entries(grouped).map(([label, dayLogs]) => {
         return `
             <div class="activity-feed-group" style="margin-bottom: 2rem;">
-                <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin: 0 0 1rem 0; display: inline-block;">${label}</h4>
-                <div style="position: relative; padding-left: 8px;">
-                    <!-- Vertical Line -->
-                    <div style="position: absolute; top: 12px; bottom: -12px; left: 24px; width: 2px; background: var(--surface-2); z-index: 0;"></div>
-                    
+                <h4 style="font-size: 0.9rem; font-weight: 800; color: var(--text-tertiary); margin: 0 0 1.25rem 0; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.75rem;">
+                    ${label}
+                    <div style="flex: 1; height: 1px; background: var(--surface-2);"></div>
+                </h4>
+                <div style="position: relative; padding-left: 4px;">
                     <div style="display: flex; flex-direction: column; gap: 0;">
                         ${dayLogs.map((log, index) => renderLogItem(log, index === dayLogs.length - 1)).join('')}
                     </div>
@@ -418,88 +419,47 @@ function renderActivityFeed(logs) {
 }
 
 function renderLogItem(log, isLast) {
-    const time = new Date(log.created_at).toLocaleTimeString('it-IT', { hour: 'numeric', minute: '2-digit' });
-    let iconStr = '<span class="material-icons-round" style="font-size: 0.8rem; color: var(--text-secondary);">info</span>';
-    let actionText = log.action_type;
-    let extraHtml = '';
+    const time = new Date(log.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
-    const d = log.details || {};
-    const itemName = d.item_title ? `<strong style="color: var(--text-primary); cursor: pointer;" class="activity-link" data-item-id="${log.item_ref}">"${d.item_title}"</strong>` : (log.item_ref ? 'un\'attività' : 'la commessa');
+    // Extract description from JSON details
+    let description = log.details?.description || log.details || log.action_type;
+    if (typeof description === 'object') description = log.action_type; // Fallback for raw JSON
 
-    if (log.action_type === 'created') {
-        iconStr = '✨';
-        actionText = `ha creato ${itemName}`;
-    } else if (log.action_type === 'updated_status') {
-        iconStr = '🚀';
-        let oldLabel = d.old_status || 'Da Fare';
-        let newLabel = d.new_status || 'Sconosciuto';
-        let newColor = 'var(--text-primary)';
+    // Clean up description if it starts with "Ha " or "Azione: "
+    description = description.replace(/^Ha /, '').replace(/^Azione: /, '');
 
-        if (d.item_title === 'Stato Commessa') {
-            const oldInfo = getCommessaStatusInfo(d.old_status);
-            const newInfo = getCommessaStatusInfo(d.new_status);
-            oldLabel = oldInfo.label;
-            newLabel = newInfo.label;
-            newColor = newInfo.color;
-        } else {
-            const oldStatusObj = ITEM_STATUS[d.old_status] || { label: d.old_status || 'Da Fare' };
-            const newStatusObj = ITEM_STATUS[d.new_status] || { label: d.new_status || 'Sconosciuto', color: 'var(--text-primary)' };
-            oldLabel = oldStatusObj.label;
-            newLabel = newStatusObj.label;
-            newColor = newStatusObj.color;
-        }
+    const authorName = log.actor?.full_name || 'Collaboratore';
+    const avatarUrl = log.actor?.avatar_url || '';
 
-        actionText = `ha cambiato lo stato di ${itemName} da <strong style="font-weight: 600;">${oldLabel}</strong> a <strong style="color: ${newColor}; font-weight: 600;">${newLabel}</strong>`;
-    } else if (log.action_type === 'commented') {
-        iconStr = '💬';
-        actionText = `ha aggiunto un commento a ${itemName}`;
-        if (d.comment_text) {
-            extraHtml = `<div style="margin-top: 0.5rem; padding: 0.85rem 1rem; background: var(--surface-1); border-radius: 8px; font-size: 0.85rem; color: var(--text-primary); line-height: 1.5; border-left: 3px solid var(--surface-3);">${d.comment_text}</div>`;
-        }
-    } else if (log.action_type === 'document_added' || log.action_type === 'file_uploaded') {
-        iconStr = '📎';
-        actionText = `ha caricato il file in ${itemName}`;
-        const fileName = d.file_name || d.document_name || (d.item_title) || 'Documento.pdf';
+    let icon = 'info';
+    let iconColor = 'var(--text-tertiary)';
 
-        extraHtml = `
-            <div style="margin-top: 0.75rem; display: inline-flex; align-items: center; gap: 1rem; padding: 0.6rem 1rem; border: 1px solid var(--surface-2); border-radius: 12px; background: white; max-width: 300px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-                <div style="background: rgba(239, 68, 68, 0.1); padding: 6px; border-radius: 6px; display: flex;">
-                    <span class="material-icons-round" style="color: #ef4444; font-size: 1.5rem;">picture_as_pdf</span>
-                </div>
-                <div style="flex: 1; min-width: 0;">
-                    <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${fileName}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">PDF • ${d.file_size ? (d.file_size / 1024 / 1024).toFixed(2) + ' mb' : 'N/D'}</div>
-                </div>
-                <span class="material-icons-round" style="font-size: 1.25rem; color: var(--text-tertiary); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--brand-color)'" onmouseout="this.style.color='var(--text-tertiary)'">download</span>
-            </div>
-        `;
-    } else if (log.action_type === 'assigned') {
-        iconStr = '👤';
-        actionText = `ha assegnato ${itemName}`;
-    }
+    if (log.action_type.includes('create')) { icon = 'add_circle'; iconColor = '#10b981'; }
+    else if (log.action_type.includes('status')) { icon = 'auto_awesome'; iconColor = '#f59e0b'; }
+    else if (log.action_type.includes('comment')) { icon = 'forum'; iconColor = '#3b82f6'; }
+    else if (log.action_type.includes('document')) { icon = 'description'; iconColor = '#ef4444'; }
+    else if (log.action_type.includes('assign')) { icon = 'person_add'; iconColor = '#8b5cf6'; }
 
     return `
-        <div style="display: flex; gap: 1rem; padding: 0 0 2rem 0; position: relative; z-index: 1;">
-            <div style="flex-shrink: 0; position: relative; width: 36px; height: 36px;">
-                <img src="${log.avatarUrl}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 3px solid white; background: white;">
-                ${iconStr && iconStr.length ? `
-                <div style="position: absolute; bottom: -4px; right: -4px; background: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 10px !important; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">
-                    ${iconStr}
+        <div style="display: flex; gap: 1rem; padding-bottom: 1.5rem; position: relative;">
+            <!-- Icon/Line Column -->
+            <div style="display: flex; flex-direction: column; align-items: center; width: 24px;">
+                <div style="width: 24px; height: 24px; border-radius: 6px; background: ${iconColor}15; color: ${iconColor}; display: flex; align-items: center; justify-content: center; z-index: 1;">
+                    <span class="material-icons-round" style="font-size: 14px;">${icon}</span>
                 </div>
-                ` : ''}
-                
-                ${isLast ? `<div style="position: absolute; top: calc(100% + 3px); left: 16px; width: 4px; height: calc(100% + 12px); background: white; z-index: 1;"></div>` : ''}
+                ${!isLast ? `<div style="width: 2px; flex: 1; background: var(--surface-2); margin-top: 4px; border-radius: 1px;"></div>` : ''}
             </div>
-            
-            <div style="flex: 1; min-width: 0; padding-top: 5px;">
-                <div style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">
-                    <strong style="color: var(--text-primary); font-weight: 600;">${log.authorName}</strong> 
-                    ${actionText}
+
+            <!-- Content Column -->
+            <div style="flex: 1; padding-top: 2px;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                    <img src="${avatarUrl}" style="width: 20px; height: 20px; border-radius: 50%; background: var(--surface-2);" onerror="this.style.display='none'">
+                    <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary);">${authorName}</span>
+                    <span style="font-size: 0.75rem; color: var(--text-tertiary);">${time}</span>
                 </div>
-                <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">
-                    ${time}
+                <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+                    ${description}
                 </div>
-                ${extraHtml}
             </div>
         </div>
     `;

@@ -416,7 +416,7 @@ export async function renderSpaceView(container, spaceId) {
                 } else if (view === 'docs') {
                     import('../docs/DocsView.js').then(mod => mod.renderDocsView(viewContent, spaceId));
                 } else if (view === 'activity_log') {
-                    import('./components/activity_log.js?v=1000').then(mod => mod.renderActivityLog(viewContent, spaceId));
+                    import('./components/activity_log.js?v=' + Date.now()).then(mod => mod.renderActivityLog(viewContent, { spaceId, isAccountLevel: false }));
                 }
             });
         });
@@ -659,7 +659,7 @@ export async function renderSpaceView(container, spaceId) {
         } else if (activeView === 'docs') {
             import('../docs/DocsView.js').then(mod => mod.renderDocsView(viewContent, spaceId));
         } else if (activeView === 'activity_log') {
-            import('./components/activity_log.js?v=1000').then(mod => mod.renderActivityLog(viewContent, spaceId));
+            import('./components/activity_log.js?v=' + Date.now()).then(mod => mod.renderActivityLog(viewContent, { spaceId, isAccountLevel: false }));
         } else {
             renderHubTree(viewContent, items, space, spaceId);
         }
