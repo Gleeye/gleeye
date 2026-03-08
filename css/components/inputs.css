@@ -23,6 +23,22 @@ textarea {
     font-weight: 400;
 }
 
+/* Fix browser autofill styling - Robust across all inputs */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    transition: background-color 5000s ease-in-out 0s;
+    -webkit-text-fill-color: var(--text-primary) !important;
+    /* Use a solid color that matches the perceived background to avoid transparency issues */
+    -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
+}
+
+:root[data-theme='dark'] input:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0px 1000px #1a1a1a inset !important;
+    /* solid dark fallback */
+}
+
 
 input:not([type="checkbox"]):not([type="radio"]):not(#global-search):focus,
 select:focus,
@@ -248,43 +264,49 @@ input[type="radio"]:checked::before {
     background: rgba(0, 0, 0, 0.05);
 }
 
-/* Auth Inputs Refactored */
+/* Auth Inputs Refactored - Fix Box-in-Box Autofill */
 .input-group {
     display: flex;
     align-items: center;
-    background: var(--input-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: 16px;
-    /* Più arrotondato per un look premium */
-    padding: 0 1.25rem;
+    position: relative;
+    width: 100%;
     margin-bottom: 1.25rem;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.input-group:focus-within {
-    border-color: var(--brand-blue);
-    background: var(--card-bg);
-    box-shadow: 0 0 0 4px rgba(var(--brand-blue-rgb), 0.15);
 }
 
 .input-group .material-icons-round {
+    position: absolute;
+    left: 1.25rem;
     color: var(--text-secondary);
     font-size: 1.25rem;
-    margin-right: 1rem;
     flex-shrink: 0;
+    z-index: 5;
+    pointer-events: none;
+    transition: color 0.2s;
 }
 
 .input-group input {
     flex: 1;
-    background: transparent !important;
-    border: none !important;
-    padding: 1.1rem 0 !important;
-    /* Leggera spaziatura extra per respiro */
+    width: 100%;
+    background: var(--input-bg) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: 16px !important;
+    padding: 1.1rem 1.25rem 1.1rem 3.5rem !important;
+    /* Space for absolute icon */
     color: var(--text-primary) !important;
     font-size: 1rem;
     outline: none !important;
     box-shadow: none !important;
-    width: 100%;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-group input:focus {
+    border-color: var(--brand-blue) !important;
+    background: var(--card-bg) !important;
+    box-shadow: 0 0 0 4px rgba(var(--brand-blue-rgb), 0.15) !important;
+}
+
+.input-group:focus-within .material-icons-round {
+    color: var(--brand-blue);
 }
 
 .input-group input::placeholder {

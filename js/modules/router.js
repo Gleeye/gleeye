@@ -266,7 +266,7 @@ function render() {
                 renderAssignmentsDashboard(contentArea);
                 break;
             case 'payments':
-                if (pageTitle) pageTitle.textContent = 'Scadenzario Pagamenti';
+                if (pageTitle) pageTitle.textContent = 'Dashboard Pagamenti';
                 initPaymentModals();
                 renderPaymentsDashboard(contentArea);
                 break;
@@ -331,13 +331,22 @@ function render() {
                     if (pageTitle) pageTitle.textContent = 'Progetti Interni';
                     import('../features/pm/internal_list.js?v=1000')
                         .then(module => {
-                            module.renderInternalProjects(contentArea);
+                            module.renderInternalProjects(contentArea, state.currentId);
                         })
                         .catch(err => {
                             console.error("Failed to load internal projects:", err);
                             contentArea.innerHTML = `<div class="error-state">Errore caricamento: ${err.message}</div>`;
                         });
 
+                } else if (state.currentSubPage === 'task' && state.currentId) {
+                    if (pageTitle) pageTitle.textContent = 'Dettaglio Attività';
+                    import('../features/pm/components/hub_drawer.js?v=1000').then(m => {
+                        m.openHubDrawer(state.currentId, null);
+                    });
+                    // Show dashboard in background
+                    import('../features/pm/index.js?v=1000').then(module => {
+                        module.renderPM(contentArea);
+                    });
                 } else if (state.currentSubPage === 'my-work') {
                     if (pageTitle) pageTitle.textContent = 'Le Mie Attività';
                     renderMyWork(contentArea);

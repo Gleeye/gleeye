@@ -40,7 +40,10 @@ if (!window.__gleeye_state) {
         sapServiceTypes: [],
         currentSapVariant: null,
         payments: [], // Ensure payments exists just in case
-        leads: []
+        leads: [],
+        selectedPaymentIds: [],
+        isBulkInviteMode: false,
+        bulkInviteModeEntityId: null
     };
     window.state = window.__gleeye_state;
 }

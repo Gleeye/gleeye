@@ -1150,9 +1150,9 @@ export async function fetchPayments() {
             transaction_id,
             bank_transactions!payments_transaction_id_fkey(description, date, amount),
             clients(business_name),
-            collaborators(full_name),
+            collaborators(full_name, email),
             suppliers(name),
-            orders(order_number, title),
+            orders(order_number, title, clients(business_name)),
             assignments(legacy_id, description)
                 `)
         .order('due_date', { ascending: true });
@@ -1187,9 +1187,9 @@ export async function upsertPayment(payment) {
             transaction_id,
             bank_transactions!payments_transaction_id_fkey(description, date, amount),
             clients(business_name),
-            collaborators(full_name),
+            collaborators(full_name, email),
             suppliers(name),
-            orders(order_number, title),
+            orders(order_number, title, clients(business_name)),
             assignments(legacy_id, description)
                 `)
         .single();

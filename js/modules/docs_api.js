@@ -133,7 +133,7 @@ export async function fetchVisiblePages(docSpaceId) {
     return visiblePages;
 }
 
-export async function createDocPage(docSpaceId, parentRef = null, title = 'Pagina senza titolo') {
+export async function createDocPage(docSpaceId, parentRef = null, title = 'Pagina senza titolo', pageType = 'document') {
     // Get max order index for the level to append at end
     // (Simplification: just use timestamp or 0 for MVP if strict ordering not critical yet)
     // Proper way: fetch max order. For MVP: use extensive epoch or list length
@@ -144,6 +144,7 @@ export async function createDocPage(docSpaceId, parentRef = null, title = 'Pagin
             space_ref: docSpaceId,
             parent_ref: parentRef,
             title: title || 'Untitled',
+            page_type: pageType,
             created_by: state.session?.user?.id,
             order_index: Date.now() // Simple sorting strategy for MVP
         }])
@@ -163,6 +164,21 @@ export async function updateDocPage(pageId, updates) {
         })
         .eq('id', pageId)
         .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+export async function updateDocMetadata(pageId, metadata) {
+    const { data, error } = await supabase
+        .from('doc_pages')
+        .update({
+            metadata: metadata,
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', pageId)
+        .select('id, metadata, updated_at')
         .single();
 
     if (error) throw error;

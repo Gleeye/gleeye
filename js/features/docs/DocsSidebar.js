@@ -15,10 +15,75 @@ export function setupSidebarEvents(callbacks) {
     // Global Add Button Listener
     const addBtn = document.getElementById('add-page-btn');
     if (addBtn) {
-        addBtn.onclick = () => {
-            if (sidebarCallbacks.onPageCreate) sidebarCallbacks.onPageCreate();
+        addBtn.onclick = (e) => {
+            showDocumentTypeMenu(e.currentTarget, (type) => {
+                if (sidebarCallbacks.onPageCreate) sidebarCallbacks.onPageCreate(type);
+            });
         };
     }
+}
+
+function showDocumentTypeMenu(anchorEl, onSelect) {
+    // Remove if exists
+    const existing = document.getElementById('doc-type-menu');
+    if (existing) existing.remove();
+
+    const menu = document.createElement('div');
+    menu.id = 'doc-type-menu';
+    menu.style.position = 'absolute';
+    menu.style.background = 'white';
+    menu.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    menu.style.borderRadius = '8px';
+    menu.style.padding = '8px';
+    menu.style.zIndex = '1000';
+    menu.style.display = 'flex';
+    menu.style.flexDirection = 'column';
+    menu.style.gap = '4px';
+    menu.style.minWidth = '150px';
+
+    const createOption = (icon, text, type) => {
+        const btn = document.createElement('button');
+        btn.style.display = 'flex';
+        btn.style.alignItems = 'center';
+        btn.style.gap = '8px';
+        btn.style.padding = '8px 12px';
+        btn.style.border = 'none';
+        btn.style.background = 'transparent';
+        btn.style.cursor = 'pointer';
+        btn.style.borderRadius = '6px';
+        btn.style.textAlign = 'left';
+        btn.style.fontSize = '14px';
+        btn.style.color = '#334155';
+        btn.onmouseenter = () => btn.style.backgroundColor = '#f1f5f9';
+        btn.onmouseleave = () => btn.style.backgroundColor = 'transparent';
+        btn.innerHTML = `<span class="material-icons-round" style="font-size: 18px; color: #64748b;">${icon}</span> <span>${text}</span>`;
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            onSelect(type);
+            menu.remove();
+        };
+        return btn;
+    };
+
+    menu.appendChild(createOption('description', 'Documento', 'document'));
+    menu.appendChild(createOption('draw', 'Whiteboard', 'whiteboard'));
+
+    const rect = anchorEl.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + 5}px`;
+    menu.style.left = `${rect.left}px`;
+
+    document.body.appendChild(menu);
+
+    // Close on outside click
+    requestAnimationFrame(() => {
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target) && e.target !== anchorEl && !anchorEl.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        document.addEventListener('click', closeMenu);
+    });
 }
 
 export function renderDocsSidebar(container, pages, activePageId) {
@@ -140,9 +205,13 @@ function createPageItem(node, activePageId, level = 0) {
     div.style.transition = 'background 0.2s';
     div.style.position = 'relative'; // For absolute positioning if needed, or flex
 
-    const iconHtml = node.icon
+    let iconHtml = node.icon
         ? `<span style="font-size: 16px; margin-right: 8px; line-height: 1;">${node.icon}</span>`
         : `<span class="material-icons-round" style="font-size: 16px; margin-right: 8px; opacity: 0.7;">description</span>`;
+
+    if (!node.icon && node.page_type === 'whiteboard') {
+        iconHtml = `<span class="material-icons-round" style="font-size: 16px; margin-right: 8px; opacity: 0.7; color: #8b5cf6;">draw</span>`;
+    }
 
     const visibilityIcon = node.is_public
         ? `<span class="material-icons-round" style="font-size: 13px; color: var(--brand-blue); opacity: 0.8; margin-left: 4px;" title="Pubblico">public</span>`
@@ -167,7 +236,9 @@ function createPageItem(node, activePageId, level = 0) {
 
     addBtn.onclick = (e) => {
         e.stopPropagation();
-        if (sidebarCallbacks.onPageCreateSub) sidebarCallbacks.onPageCreateSub(node.id);
+        showDocumentTypeMenu(e.currentTarget, (type) => {
+            if (sidebarCallbacks.onPageCreateSub) sidebarCallbacks.onPageCreateSub(node.id, type);
+        });
     };
 
     // Add Delete Button

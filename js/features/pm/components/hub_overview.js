@@ -464,7 +464,7 @@ function renderLogItem(log, isLast) {
     } else if (!description || typeof description === 'object' || description === 'UPDATE') {
         if (actionType.includes('create')) description = `ha creato ${entityBold}`;
         else if (actionType.includes('comment')) description = `ha aggiunto un commento in ${entityBold}`;
-        else description = `ha aggiornato i dettagli di ${entityBold}`;
+        else description = `ha cambiato la descrizione di ${entityBold}`;
     }
 
     // Apply vocabulary to any remaining technical terms in description
@@ -479,11 +479,17 @@ function renderLogItem(log, isLast) {
     // Mark down to HTML Bold
     const formattedDesc = description.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-primary);">$1</strong>');
 
+    const clickHandler = log.item_ref
+        ? `onclick="window.openPmItemDetails('${log.item_ref}', '${log.space_ref || ''}')"`
+        : (log.order_ref ? `onclick="window.location.hash = '#pm/commessa/${log.order_ref}'"` : '');
+
+    const style = clickHandler ? 'cursor: pointer; transition: background 0.2s; border-radius: 8px;' : 'cursor: default;';
+
     return `
-        <div class="timeline-item" style="position: relative; padding-bottom: 1.5rem; display: flex; gap: 1rem;">
+        <div class="timeline-item" ${clickHandler} style="position: relative; padding: 0.5rem; margin-left: -0.5rem; margin-bottom: 0.5rem; display: flex; gap: 1rem; ${style}" onmouseover="if(this.style.cursor==='pointer') this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
             <!-- Vertical dashed line -->
             ${!isLast ? `
-            <div style="position: absolute; left: 13px; top: 32px; bottom: 0; width: 1px; border-left: 1px dashed var(--text-tertiary); opacity: 0.2;"></div>
+            <div style="position: absolute; left: 18px; top: 40px; bottom: 0; width: 1px; border-left: 1px dashed var(--text-tertiary); opacity: 0.2;"></div>
             ` : ''}
             
             <div style="width: 28px; height: 28px; border-radius: 50%; overflow: hidden; background: var(--glass-bg); flex-shrink: 0; position: relative; z-index: 1; box-shadow: 0 0 0 3px var(--bg-color);">

@@ -157,6 +157,7 @@ DROP TRIGGER IF EXISTS trg_pm_items_generic_log ON public.pm_items;
 DROP TRIGGER IF EXISTS trg_items_activity_log ON public.pm_items;
 DROP TRIGGER IF EXISTS trg_items_log ON public.pm_items;
 
+DROP TRIGGER IF EXISTS trg_pm_items_activity_log ON public.pm_items;
 CREATE TRIGGER trg_pm_items_activity_log 
 AFTER INSERT OR UPDATE ON public.pm_items 
 FOR EACH ROW EXECUTE FUNCTION public.fn_app_activity_logger();

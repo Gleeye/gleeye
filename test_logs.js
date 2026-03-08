@@ -1,15 +1,16 @@
+import fs from 'fs';
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
-dotenv.config({ path: '/Users/davidegentile/Documents/app dev/gleeye erp/.env' });
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+const configStr = fs.readFileSync('js/modules/config.js', 'utf-8');
+const urlMatch = configStr.match(/const SUPABASE_URL = '(.*?)'/);
+const keyMatch = configStr.match(/const SUPABASE_KEY = '(.*?)'/);
 
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-async function main() {
-    const { data: logs, error } = await supabase.from('pm_activity_logs').select('*').order('created_at', { ascending: false }).limit(10);
-    console.log(logs);
-    if(error) console.error(error);
+const supabase = createClient(urlMatch[1], keyMatch[1]);
+async function run() {
+  const { data, error } = await supabase.from('pm_activity_logs')
+    .select('action_type, details, actor_user_ref, space_ref, item_ref, order_ref, created_at')
+    .order('created_at', { ascending: false })
+    .limit(10);
+  console.log(JSON.stringify(data || error, null, 2));
 }
-main();
+run();

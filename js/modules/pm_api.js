@@ -261,9 +261,22 @@ export async function fetchPMItem(itemId) {
             *,
             pm_item_assignees ( id, user_ref, collaborator_ref, role, created_at ),
             pm_item_incarichi ( incarico_ref ),
-            pm_spaces ( id, name, area, cluster:parent_ref(name) ),
+            pm_spaces ( 
+                id, name, area, ref_ordine, default_pm_user_ref, 
+                cluster:parent_ref(name),
+                order:ref_ordine (
+                    id, order_number, title,
+                    client:client_id (id, business_name, client_code)
+                )
+            ),
             clients:client_ref ( id, business_name, client_code ),
-            parent_item:parent_ref ( id, title, item_type )
+            parent_item:parent_ref ( 
+                id, title, item_type,
+                parent_item:parent_ref (
+                    id, title, item_type,
+                    parent_item:parent_ref (id, title, item_type)
+                )
+            )
         `)
         .eq('id', itemId)
         .single();
@@ -670,7 +683,14 @@ async function _expandAssignees(data) {
 export async function fetchItemComments(itemId) {
     const { data, error } = await supabase
         .from('pm_item_comments')
-        .select('*') // Mapping authors in UI
+        .select(`
+            *,
+            profiles!author_user_ref (
+                id,
+                full_name,
+                avatar_url
+            )
+        `)
         .eq('pm_item_ref', itemId)
         .order('created_at', { ascending: true });
 
@@ -690,6 +710,15 @@ export async function addComment(itemId, body) {
         .single();
     if (error) throw error;
     return data;
+}
+
+export async function deleteComment(commentId) {
+    const { error } = await supabase
+        .from('pm_item_comments')
+        .delete()
+        .eq('id', commentId);
+
+    if (error) throw error;
 }
 
 // --- MY WORK DASHBOARD ---
@@ -1292,9 +1321,9 @@ export async function fetchPMActivityLogs(spaceId = null, itemId = null, orderId
     let query = supabase
         .from('pm_activity_logs')
         .select(`
-            id, action_type, details, created_at,
+            id, action_type, details, created_at, item_ref, space_ref, order_ref,
             actor:actor_user_ref ( full_name, avatar_url, email ),
-            item:item_ref ( title ),
+            item:item_ref ( title, item_type ),
             order:order_ref ( title ),
             space:space_ref ( name )
         `)
@@ -1369,4 +1398,151 @@ export async function updateActivityRegistry(registryId, updates) {
         throw error;
     }
     return data;
+}
+
+// --- ITEM VIEW LOGS (READ STATUS) ---
+export async function fetchPMItemViewLog(itemId) {
+    if (!state.session?.user?.id) return null;
+    const { data, error } = await supabase
+        .from('pm_item_view_log')
+        .select('last_viewed_at')
+        .eq('user_id', state.session.user.id)
+        .eq('item_id', itemId)
+        .maybeSingle();
+
+    if (error) {
+        console.error("Error fetching item view log:", error);
+        return null;
+    }
+    return data;
+}
+
+export async function updatePMItemViewLog(itemId) {
+    if (!state.session?.user?.id) return;
+    const { error } = await supabase
+        .from('pm_item_view_log')
+        .upsert({
+            user_id: state.session.user.id,
+            item_id: itemId,
+            last_viewed_at: new Date().toISOString()
+        }, { onConflict: 'user_id,item_id' });
+
+    if (error) {
+        console.error("Error updating item view log:", error);
+    }
+}
+
+export async function fetchPMItemSubscriptions(itemId) {
+    const { data, error } = await supabase
+        .from('pm_item_subscriptions')
+        .select('user_id')
+        .eq('item_id', itemId);
+    if (error) {
+        console.error("Error fetching subscriptions:", error);
+        return [];
+    }
+    return data || [];
+}
+
+export async function subscribeToPMItem(itemId) {
+    const userId = state.session?.user?.id;
+    if (!userId) return;
+    const { error } = await supabase
+        .from('pm_item_subscriptions')
+        .upsert({ item_id: itemId, user_id: userId }, { onConflict: 'item_id,user_id' });
+    if (error) throw error;
+}
+
+export async function unsubscribeFromPMItem(itemId) {
+    const userId = state.session?.user?.id;
+    if (!userId) return;
+    const { error } = await supabase
+        .from('pm_item_subscriptions')
+        .delete()
+        .eq('item_id', itemId)
+        .eq('user_id', userId);
+    if (error) throw error;
+}
+
+export async function duplicatePMItem(itemId, options = {}) {
+    const {
+        title = null,
+        includeDescription = true,
+        includeAttachments = true,
+        includeAssignees = true,
+        includeSubItems = true,
+        prefix = '',
+        newSpaceId = null,
+        newParentId = null,
+        reschedule = false
+    } = options;
+
+    // 1. Fetch original item with its assignees and sub-items if requested
+    const { data: original, error: fetchError } = await supabase
+        .from('pm_items')
+        .select('*, pm_item_assignees(*)')
+        .eq('id', itemId)
+        .single();
+
+    if (fetchError) throw fetchError;
+
+    // 2. Prepare new item data
+    const { id, created_at, updated_at, pm_item_assignees, ...copyData } = original;
+
+    copyData.title = title || `${original.title} (Copia)`;
+    copyData.created_by_user_ref = state.session?.user?.id;
+    if (newSpaceId) copyData.space_ref = newSpaceId;
+    copyData.parent_ref = newParentId || original.parent_ref;
+
+    if (!includeDescription) copyData.notes = null;
+    if (!includeAttachments) copyData.cloud_links = null;
+
+    if (reschedule) {
+        copyData.start_date = null;
+        copyData.due_date = null;
+    }
+
+    // 3. Insert new item
+    const { data: newItem, error: insertError } = await supabase
+        .from('pm_items')
+        .insert(copyData)
+        .select()
+        .single();
+
+    if (insertError) throw insertError;
+
+    // 4. Duplicate assignees
+    if (includeAssignees && pm_item_assignees && pm_item_assignees.length > 0) {
+        const { error: assignError } = await supabase
+            .from('pm_item_assignees')
+            .insert(pm_item_assignees.map(a => ({
+                pm_item_ref: newItem.id,
+                user_ref: a.user_ref,
+                collaborator_ref: a.collaborator_ref,
+                role: a.role
+            })));
+        if (assignError) console.error("Error duplicating assignees:", assignError);
+    }
+
+    // 5. Duplicate sub-items recursively if requested
+    if (includeSubItems) {
+        const { data: subItems, error: subError } = await supabase
+            .from('pm_items')
+            .select('id, title')
+            .eq('parent_ref', itemId);
+
+        if (!subError && subItems && subItems.length > 0) {
+            for (const sub of subItems) {
+                const newSubTitle = prefix ? `${prefix}${sub.title}` : sub.title;
+                await duplicatePMItem(sub.id, {
+                    ...options,
+                    title: newSubTitle,
+                    newParentId: newItem.id,
+                    includeSubItems: true
+                });
+            }
+        }
+    }
+
+    return newItem;
 }

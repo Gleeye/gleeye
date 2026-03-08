@@ -115,3 +115,10 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Global search input element not found during init!");
     }
 });
+
+// Global HubDrawer Opener Helper
+window.openPmItemDetails = function (itemId, spaceId) {
+    import('./features/pm/components/hub_drawer.js?v=5005').then(mod => {
+        mod.openHubDrawer(itemId, spaceId);
+    });
+};

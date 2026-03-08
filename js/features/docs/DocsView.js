@@ -1,6 +1,7 @@
 import { ensureDocSpace, fetchVisiblePages, createDocPage, fetchPageBlocks, deleteDocPage, fetchDocSubscription, toggleDocSubscription } from '../../modules/docs_api.js?v=1000';
 import { renderDocsSidebar, setupSidebarEvents } from './DocsSidebar.js';
 import { renderPageEditor } from './PageEditor.js';
+import { renderWhiteboardEditor } from './WhiteboardEditor.js';
 
 let currentSpaceId = null;
 let currentDocSpace = null;
@@ -85,14 +86,14 @@ export async function renderDocsView(container, spaceId) {
         // 5. Setup Events
         setupSidebarEvents({
             onPageSelect: (pageId) => loadPage(pageId),
-            onPageCreate: async () => {
-                const newPage = await createDocPage(currentDocSpace.id);
+            onPageCreate: async (type = 'document') => {
+                const newPage = await createDocPage(currentDocSpace.id, null, type === 'whiteboard' ? 'Nuova Whiteboard' : 'Pagina senza titolo', type);
                 currentPages.push(newPage);
                 refreshSidebar();
                 loadPage(newPage.id);
             },
-            onPageCreateSub: async (parentId) => {
-                const newPage = await createDocPage(currentDocSpace.id, parentId);
+            onPageCreateSub: async (parentId, type = 'document') => {
+                const newPage = await createDocPage(currentDocSpace.id, parentId, type === 'whiteboard' ? 'Nuova Whiteboard' : 'Pagina senza titolo', type);
                 currentPages.push(newPage);
                 refreshSidebar();
                 loadPage(newPage.id);
@@ -286,7 +287,20 @@ async function loadPage(pageId) {
                 console.error("Fetch sub error:", err);
             }
         }
-        await renderPageEditor(editorContainer, page);
+
+        if (page.page_type === 'whiteboard') {
+            editorContainer.style.padding = '0';
+            editorContainer.style.maxWidth = 'none';
+            editorContainer.style.height = '100%';
+            editorContainer.style.overflow = 'hidden';
+            await renderWhiteboardEditor(editorContainer, page);
+        } else {
+            editorContainer.style.padding = '40px 60px';
+            editorContainer.style.maxWidth = '900px';
+            editorContainer.style.height = 'auto'; // Depending on flex layout
+            editorContainer.style.overflowY = 'auto';
+            await renderPageEditor(editorContainer, page);
+        }
     }
 }
 

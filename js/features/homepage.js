@@ -770,7 +770,7 @@ export async function renderHomepage(container) {
                     <div class="glass-card side-activities-card">
                         <!-- SEGMENTED CONTROL TABS (Icons) -->
                         <div class="hp-v6-controls">
-                            <div onclick="window.setHpFilter('task', this)" class="hp-v6-pill ${window.hpActivityFilter === 'task' ? 'active' : ''}" title="Task">
+                            <div onclick="window.setHpFilter('task', this)" class="hp-v6-pill ${(window.hpActivityFilter || 'task') === 'task' ? 'active' : ''}" title="Task">
                                 <span class="material-icons-round">check_circle</span>
                                 <span class="tab-count"></span>
                             </div>
@@ -787,9 +787,17 @@ export async function renderHomepage(container) {
                             <!-- Content Injected Below -->
                         </div>
 
-                        <button class="btn btn-primary vedi-agenda-btn" onclick="window.location.hash='agenda'">
-                            Vedi Agenda
-                        </button>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: auto;">
+                            <button id="hp-footer-action-btn" class="btn btn-primary vedi-agenda-btn" onclick="window.location.hash='#my-assignments'">
+                                ${(window.hpActivityFilter === 'event') ? 'Vedi Agenda' : 'Lista task'}
+                            </button>
+                            <div id="hp-overdue-filter" onclick="window.toggleOverdueFilter()" 
+                                class="overdue-filter-btn ${window.hpShowOverdue ? 'active' : ''}" 
+                                title="Mostra Scadute"
+                                style="display: ${(window.hpActivityFilter === 'task' || !window.hpActivityFilter) ? 'flex' : 'none'};">
+                                <span class="material-icons-round">history</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -871,6 +879,79 @@ export async function renderHomepage(container) {
     window.homepageCurrentDate = new Date();
     window.homepageCollaboratorId = myCollab.id;
     window.hpView = 'daily'; // 'daily' | 'weekly'
+    window.toggleOverdueFilter = () => {
+        window.hpShowOverdue = !window.hpShowOverdue;
+        const btn = document.getElementById('hp-overdue-filter');
+        if (btn) btn.classList.toggle('active', window.hpShowOverdue);
+        window.syncHomepageActivities();
+    };
+
+    window.syncHomepageActivities = () => {
+        if (!window.hpData) return;
+
+        const date = window.homepageCurrentDate || new Date();
+        let start = new Date(date);
+        let end = new Date(date);
+
+        if (window.hpView === 'weekly') {
+            const day = start.getDay();
+            const diff = start.getDate() - day + (day === 0 ? -6 : 1);
+            start.setDate(diff); start.setHours(0, 0, 0, 0);
+            end = new Date(start);
+            end.setDate(start.getDate() + 6); end.setHours(23, 59, 59, 999);
+        } else {
+            start.setHours(0, 0, 0, 0);
+            end.setHours(23, 59, 59, 999);
+        }
+
+        // Filter Tasks from the master list (window.hpData.tasks contains all pending)
+        const parseLocal = (s) => {
+            if (!s) return null;
+            try {
+                if (typeof s === 'string' && s.includes('-') && s.length === 10) {
+                    const parts = s.split('-');
+                    return new Date(parts[0], parts[1] - 1, parts[2]);
+                }
+                const d = new Date(s);
+                if (isNaN(d.getTime())) return null;
+                d.setHours(0, 0, 0, 0);
+                return d;
+            } catch (e) { return null; }
+        };
+
+        const allTasks = window.hpData.tasks || [];
+        const pmActivities = allTasks.filter(item => {
+            const type = (item.raw_type || '').toLowerCase();
+            return type.includes('attivit') || type.includes('activity');
+        });
+        const realTasksOnly = allTasks.filter(item => {
+            const type = (item.raw_type || '').toLowerCase();
+            return !(type.includes('attivit') || type.includes('activity'));
+        });
+
+        const toYMD = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        const startStr = toYMD(start);
+        const todayStr = toYMD(new Date());
+        const isTodayView = (startStr === todayStr) && (window.hpView === 'daily');
+
+        const filteredRealTasks = realTasksOnly.filter(t => {
+            if (!t.due_date) return false;
+            const d = parseLocal(t.due_date);
+            if (isTodayView) {
+                if (window.hpShowOverdue) return d <= end;
+                return d >= start && d <= end;
+            }
+            return d >= start && d <= end;
+        });
+
+        const combinedTasks = [...filteredRealTasks, ...pmActivities];
+        window.hpData.filteredTasks = combinedTasks;
+
+        const actContainer = document.getElementById('hp-activities-list');
+        if (actContainer) {
+            renderMyActivities(actContainer, window.hpData.timers, combinedTasks, window.hpData.events, window.hpActivityFilter);
+        }
+    };
 
     window.toggleHomepageView = (view) => {
         window.hpView = view;
@@ -961,76 +1042,8 @@ export async function renderHomepage(container) {
 
             // Sync My Activities Side Panel (Events Tab AND Tasks) with the new date/range
             if (window.hpData) {
-                window.hpData.events = events; // Update events data
-
-                // Filter Tasks from the master list (window.hpData.tasks contains all pending)
-                // Robust Date Parsing
-                const parseLocal = (s) => {
-                    if (!s) return null;
-                    try {
-                        // Standard YYYY-MM-DD
-                        if (typeof s === 'string' && s.includes('-') && s.length === 10) {
-                            const parts = s.split('-');
-                            return new Date(parts[0], parts[1] - 1, parts[2]); // Local midnight
-                        }
-                        // Fallback/Timestamp
-                        const d = new Date(s);
-                        if (isNaN(d.getTime())) return null;
-                        // Normalize to local midnight
-                        d.setHours(0, 0, 0, 0);
-                        return d;
-                    } catch (e) {
-                        return null;
-                    }
-                };
-
-                const allTasks = window.hpData.tasks || [];
-
-                // Separate PM Activities from Real Tasks BEFORE filtering by date
-                const pmActivities = allTasks.filter(item => {
-                    const type = (item.raw_type || '').toLowerCase();
-                    return type.includes('attivit') || type.includes('activity');
-                });
-                const realTasksOnly = allTasks.filter(item => {
-                    const type = (item.raw_type || '').toLowerCase();
-                    return !(type.includes('attivit') || type.includes('activity'));
-                });
-
-                // Compare simple local strings to avoid timestamp drift
-                const toYMD = (date) => {
-                    return date.getFullYear() + '-' +
-                        String(date.getMonth() + 1).padStart(2, '0') + '-' +
-                        String(date.getDate()).padStart(2, '0');
-                };
-
-                const startStr = toYMD(start);
-                const todayStr = toYMD(new Date());
-                const isTodayView = (startStr === todayStr) && (window.hpView === 'daily');
-
-                // Filter ONLY realTasks by date, PM Activities remain unfiltered
-                const filteredRealTasks = realTasksOnly.filter(t => {
-                    if (!t.due_date) return false;
-                    const d = parseLocal(t.due_date);
-
-                    if (isTodayView) {
-                        // Today: Include overdue (d < today) and today (d == today)
-                        return d <= end;
-                    }
-
-                    // Strict Range for other days/weeks
-                    return d >= start && d <= end;
-                });
-
-                // Combine: filtered real tasks + all PM Activities
-                const combinedTasks = [...filteredRealTasks, ...pmActivities];
-
-                // Store for tab switching
-                window.hpData.filteredTasks = combinedTasks;
-
-                const actContainer = document.getElementById('hp-activities-list');
-                if (actContainer) {
-                    renderMyActivities(actContainer, window.hpData.timers, combinedTasks, window.hpData.events, window.hpActivityFilter);
-                }
+                window.hpData.events = events;
+                window.syncHomepageActivities();
             }
 
         } catch (e) {
@@ -2294,11 +2307,31 @@ window.setHpFilter = function (filter, btn) {
     window.hpActivityFilter = filter;
 
     // Update UI buttons
-    const container = btn.closest('div');
+    const container = btn.closest('.hp-v6-controls');
     if (container) {
         container.querySelectorAll('.hp-v6-pill').forEach(b => b.classList.remove('active'));
     }
     btn.classList.add('active');
+
+    // Update Footer Button and Filter visibility based on tab
+    const footerBtn = document.getElementById('hp-footer-action-btn');
+    const overdueFilter = document.getElementById('hp-overdue-filter');
+
+    if (footerBtn) {
+        if (filter === 'task') {
+            footerBtn.innerText = 'Lista task';
+            footerBtn.onclick = () => window.location.hash = '#my-assignments';
+            if (overdueFilter) overdueFilter.style.display = 'flex';
+        } else if (filter === 'event') {
+            footerBtn.innerText = 'Vedi Agenda';
+            footerBtn.onclick = () => window.location.hash = '#agenda';
+            if (overdueFilter) overdueFilter.style.display = 'none';
+        } else {
+            footerBtn.innerText = 'Vedi Attività';
+            footerBtn.onclick = () => window.location.hash = '#assignments';
+            if (overdueFilter) overdueFilter.style.display = 'none';
+        }
+    }
 
     // Re-render using the FILTERED tasks (date-filtered), not the full list
     if (window.hpData) {
@@ -2454,7 +2487,7 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                     else if (isTomorrow) dateLabel = "DOMANI";
 
                     html += `
-                        <div style="font-size: 0.65rem; font-weight: 800; color: #94a3b8; margin: 1rem 0 0.5rem 0; letter-spacing: 0.05em; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
+                        <div style="font-size: 0.62rem; font-weight: 800; color: #94a3b8; margin: 0.4rem 0 0.4rem 0; letter-spacing: 0.05em; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px; text-transform: uppercase;">
                             ${dateLabel}
                         </div>
                     `;
@@ -2472,20 +2505,20 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                         let border = '1px solid rgba(255, 255, 255, 0.05)';
                         let bg = 'transparent';
 
-                        if (isPast) opacity = '0.4';
+                        if (isPast) opacity = '0.65';
                         if (isNow) {
                             border = '1px solid var(--brand-blue)';
                             bg = 'rgba(59, 130, 246, 0.15)';
                         }
 
                         html += `
-                            <div style="background: ${bg}; border-bottom: ${border}; opacity: ${opacity}; padding: 0.6rem 0.5rem; display: flex; gap: 0.75rem; align-items: center; cursor: pointer; border-radius: 6px; margin-bottom: 2px;" onclick="openHomepageEventDetails('${evt.id}', '${evt.type}')">
-                                <div style="display: flex; flex-direction: column; align-items: center; width: 42px; flex-shrink: 0; background: rgba(255,255,255,0.05); padding: 4px; border-radius: 4px;">
+                            <div style="background: ${bg}; border-bottom: ${border}; opacity: ${opacity}; padding: 0.65rem 0.5rem; display: flex; gap: 0.75rem; align-items: center; cursor: pointer; border-radius: 6px; margin-bottom: 2px;" onclick="openHomepageEventDetails('${evt.id}', '${evt.type}')">
+                                <div style="display: flex; flex-direction: column; align-items: center; width: 44px; flex-shrink: 0; background: rgba(255,255,255,0.08); padding: 5px; border-radius: 6px;">
                                     <span style="font-size: 0.75rem; font-weight: 700; color: white;">${timeStr}</span>
                                 </div>
                                 <div style="flex: 1; min-width: 0;">
-                                    <div style="font-weight: 600; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.title}</div>
-                                    <div style="font-size: 0.7rem; color: rgba(255,255,255,0.5); font-weight: 500;">${evt.client || ''}</div>
+                                    <div style="font-weight: 700; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.title}</div>
+                                    <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 500; margin-top: 1px;">${evt.client || ''}</div>
                                 </div>
                             </div>
                         `;
@@ -2536,26 +2569,23 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                     const roleTitle = isPm ? 'Project Manager' : 'Assegnatario';
 
                     html += `
-                        <div class="activity-row" style="padding: 1.25rem 0; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: flex-start; gap: 1rem;">
-                            <div style="margin-top: 4px; color: ${roleColor}; flex-shrink: 0;" title="${roleTitle}">
-                                <span class="material-icons-round" style="font-size: 20px;">${roleIcon}</span>
+                        <div class="activity-row" style="padding: 0.45rem 0; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: flex-start; gap: 0.75rem;">
+                            <div style="margin-top: 2px; color: ${roleColor}; flex-shrink: 0;" title="${roleTitle}">
+                                <span class="material-icons-round" style="font-size: 16px;">${roleIcon}</span>
                             </div>
                             <div style="flex: 1; min-width: 0; cursor: pointer;" onclick="openPmItemDetails('${t.id}', '${spaceId || ''}')">
-                                <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 600; margin-bottom: 2px;">${clientShort || 'Incarico'}</div>
-                                <div style="font-weight: 700; font-size: 1.05rem; color: white; line-height: 1.3; margin-bottom: 4px; letter-spacing: -0.01em;">${t.title}</div>
-                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                    <span style="font-size: 0.75rem; color: var(--brand-blue); font-weight: 700;">${t.area || ''}</span>
-                                    <span style="font-size: 0.75rem; color: #64748b;">· ${t.breadcrumb || ''}</span>
+                                <div style="font-size: 0.6rem; color: #94a3b8; font-weight: 600; margin-bottom: -1px;">${clientShort || 'Incarico'}</div>
+                                <div style="font-weight: 600; font-size: 0.8rem; color: white; line-height: 1.2; margin-bottom: 1px; letter-spacing: -0.01em;">${t.title}</div>
+                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 1px;">
+                                    ${t.breadcrumb ? `<span style="font-size: 0.7rem; color: #64748b; font-weight: 500;">${t.breadcrumb}</span>` : ''}
+                                    ${dateStr ? `
+                                    <span style="font-size: 0.7rem; color: ${isLate ? '#f87171' : '#94a3b8'}; font-weight: 500;">
+                                        ${t.breadcrumb ? '· ' : ''}${isLate ? 'Scaduto: ' : ''}${dateStr}
+                                    </span>` : ''}
                                 </div>
-                                ${dateStr ? `
-                                <div style="margin-top: 4px; display: flex; align-items: center; gap: 4px;">
-                                    <span style="font-size: 0.75rem; color: ${isLate ? '#f87171' : '#94a3b8'}; font-weight: 500;">
-                                        · ${isLate ? 'Scaduto: ' : ''}${dateStr}
-                                    </span>
-                                </div>` : ''}
                             </div>
-                            <div style="padding-top: 4px;">
-                                <input type="checkbox" class="task-checkbox" style="width: 20px; height: 20px; accent-color: #10b981; cursor: pointer; opacity: 0.3;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completata">
+                            <div style="padding-top: 2px;">
+                                <input type="checkbox" class="task-checkbox" style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer; opacity: 0.3;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completata">
                             </div>
                         </div>
                     `;

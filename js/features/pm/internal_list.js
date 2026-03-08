@@ -13,7 +13,7 @@ const COMPANY_AREAS = [
     { id: 'vendite', label: 'Vendite', color: '#ef4444', bg: '#fef2f2', icon: 'shopping_cart' }
 ];
 
-export async function renderInternalProjects(container) {
+export async function renderInternalProjects(container, initialFilter) {
     container.innerHTML = `
         <div style="height: 100%; display: flex; align-items: center; justify-content: center; background: #f8fafc;">
             <div class="loader-container" style="text-align: center;">
@@ -138,6 +138,12 @@ export async function renderInternalProjects(container) {
         }
 
         let currentFilter = 'tutti';
+
+        // Use initial filter if provided and matches an area
+        if (initialFilter && initialFilter !== 'interni') {
+            const area = COMPANY_AREAS.find(a => a.label.toLowerCase() === initialFilter.toLowerCase() || a.id === initialFilter.toLowerCase());
+            if (area) currentFilter = area.label.toLowerCase();
+        }
 
         // Helper to get collaborator info - check BOTH user_id AND id (collaborator_ref)
         const getCollab = (uid, collabId) => {

@@ -1,6 +1,6 @@
 import { state } from '../../../modules/state.js';
 
-export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(), extraSuggestedIds = new Set()) {
+export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(), extraSuggestedIds = new Set(), sectionTitle = 'Tutti i collaboratori') {
     const space = state.pm_spaces?.find(s => s.id === spaceId) || {};
     const orderId = space.ref_ordine;
 
@@ -18,7 +18,7 @@ export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(
 
     (state.collaborators || []).forEach(c => {
         // Filter inactive
-        if (c.is_active === false || c.active === false) return; // Strict check
+        if (c.active === false || c.is_active === false) return;
 
         const uid = c.user_id;
 
@@ -37,12 +37,10 @@ export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(
         // Exclude if already assigned
         if (uid && assignedUserIds.has(uid)) return;
         if (c.id && assignedUserIds.has(c.id)) return;
-        // Also avoid duplicate listings if same user has multiple collab records (rare but possible)
         if (uid && processedUserIds.has(uid)) return;
 
         if (uid) processedUserIds.add(uid);
 
-        // Resolve Name/Avatar
         let name = c.full_name;
         if (!name || name === 'Utente') {
             name = `${c.first_name || ''} ${c.last_name || ''}`.trim();
@@ -50,8 +48,6 @@ export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(
         if (!name) name = 'Collaboratore Sconosciuto';
 
         let avatar = c.avatar_url;
-
-        // Fallback to Profile
         if ((!name || !avatar) && uid) {
             const p = state.profiles?.find(x => x.id === uid);
             if (p) {
@@ -72,7 +68,6 @@ export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(
         else others.push(u);
     });
 
-    // Add Default PM if not assigned
     if (space.default_pm_user_ref && !assignedUserIds.has(space.default_pm_user_ref) && !processedUserIds.has(space.default_pm_user_ref)) {
         const pm = state.profiles?.find(p => p.id === space.default_pm_user_ref);
         if (pm) {
@@ -86,52 +81,56 @@ export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(
         }
     }
 
-    if (suggestions.length === 0 && others.length === 0) {
-        return `<div style="padding:1rem; text-align:center; color:var(--text-secondary); font-size:0.8rem;">Nessun altro utente disponibile</div>`;
-    }
-
     const renderOption = (u) => {
         const uid = u.uid || '';
         const avatar = u.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.name);
-        const name = u.name;
-        let desc = '';
-        if (u.isPm) desc = 'Project Manager';
-        else if (!u.hasAccount) desc = 'Collaboratore esterno';
+        let desc = u.isPm ? 'Project Manager' : (!u.hasAccount ? 'Collaboratore esterno' : '');
 
         return `
             <div class="user-option" 
                 data-uid="${uid}" 
                 data-collab-id="${u.collabId || ''}"
-                data-has-account="${u.hasAccount}"
-                data-target-role="${targetRole}"
+                data-name="${u.name}"
+                data-name-search="${u.name.toLowerCase()}"
                 style="
-                    padding: 0.75rem 1rem; 
+                    padding: 8px 12px; 
                     display: flex; 
                     align-items: center; 
-                    gap: 0.75rem; 
+                    gap: 10px; 
                     cursor: pointer; 
-                    transition: background 0.2s;
-                    pointer-events: auto !important;
-                    position: relative;
-                    z-index: 1;
+                    transition: background 0.15s;
                     opacity: ${!u.hasAccount && targetRole === 'pm' ? '0.5' : '1'};
-                " onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
-                <img src="${avatar}" style="width: 32px; height: 32px; border-radius: 50%;">
-                <div>
-                    <div style="font-size: 0.9rem; font-weight: 500;">${name}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-tertiary);">${desc}</div>
+                " onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                <img src="${avatar}" style="width: 28px; height: 28px; border-radius: 6px; object-fit: cover; flex-shrink: 0;">
+                <div style="min-width: 0; flex: 1;">
+                    <div style="font-size: 0.9rem; font-weight: 500; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.name}</div>
+                    ${desc ? `<div style="font-size: 0.7rem; color: #94a3b8; white-space: nowrap;">${desc}</div>` : ''}
                 </div>
             </div>
         `;
     };
 
-    const headerStyle = "padding: 0.5rem 1rem; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); letter-spacing: 0.05em; background: var(--surface-1); border-bottom: 1px solid var(--surface-2);";
+    const headerStyle = "padding: 5px 12px; font-size: 0.65rem; font-weight: 600; color: #94a3b8; letter-spacing: 0.05em; background: #f8fafc; border-bottom: 1px solid #f1f5f9; text-transform: uppercase;";
 
     return `
-        <div>
-           ${suggestions.length ? `<div style="${headerStyle}">SUGGERITI</div>${suggestions.map(renderOption).join('')}` : ''}
-           <div style="${headerStyle}">TUTTI</div>
-           ${others.map(renderOption).join('')}
+        <div class="user-picker-container" style="display: flex; flex-direction: column; max-height: 400px; width: 100%;">
+            <div style="padding: 10px 12px 6px; background: white;">
+                <div style="display: flex; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
+                    <input type="text" class="user-picker-search" placeholder="Cerca un nome..." style="
+                        border: none !important; background: transparent !important; height: 28px; width: 100%; font-size: 0.9rem; outline: none !important; box-shadow: none !important; padding: 0; color: #334155;
+                    ">
+                </div>
+            </div>
+            <div class="user-picker-list" style="overflow-y: auto; flex: 1; padding-bottom: 4px;">
+               ${suggestions.length ? `<div class="picker-section-header" style="${headerStyle}">Suggeriti</div>${suggestions.map(renderOption).join('')}` : ''}
+               <div class="picker-section-header" style="${headerStyle}">${sectionTitle}</div>
+               ${others.length ? others.map(renderOption).join('') : `<div style="padding: 1rem; text-align: center; color: #94a3b8; font-size: 0.8rem;">Nessun altro utente disponibile</div>`}
+            </div>
         </div>
     `;
 }
+
+
+
+
+

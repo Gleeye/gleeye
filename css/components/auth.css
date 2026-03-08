@@ -44,9 +44,22 @@
     border-radius: 32px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5);
-    width: 400px;
+    width: 440px;
+    /* Slightly wider for better proportions */
     text-align: center;
     z-index: 10;
+}
+
+.auth-card .brand {
+    justify-content: center;
+    margin-bottom: 2.5rem;
+    flex: none;
+}
+
+.auth-card .brand-logo {
+    height: 52px;
+    /* Bigger logo */
+    max-width: 200px;
 }
 
 .auth-card h2 {
