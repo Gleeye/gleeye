@@ -116,7 +116,14 @@ export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(
         <div class="user-picker-container" style="display: flex; flex-direction: column; max-height: 400px; width: 100%;">
             <div style="padding: 10px 12px 6px; background: white;">
                 <div style="display: flex; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
-                    <input type="text" class="user-picker-search" placeholder="Cerca un nome..." style="
+                    <input type="text" class="user-picker-search" placeholder="Filtra..." 
+                        autocomplete="one-time-code" 
+                        autocorrect="off" 
+                        autocapitalize="none" 
+                        spellcheck="false" 
+                        inputmode="search"
+                        data-lpignore="true"
+                        style="
                         border: none !important; background: transparent !important; height: 28px; width: 100%; font-size: 0.9rem; outline: none !important; box-shadow: none !important; padding: 0; color: #334155;
                     ">
                 </div>

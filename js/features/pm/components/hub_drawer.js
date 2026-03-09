@@ -413,7 +413,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
         if (viewMode) {
             drawer.innerHTML = `
                 <style>
-                    .drawer-tab { position: relative; overflow: hidden; }
+                    .drawer-tab { position: relative; overflow: hidden; flex-shrink: 0; white-space: nowrap; cursor: pointer; }
                     .drawer-tab::after { 
                         content: ''; position: absolute; bottom: 0; left: 50%; width: 0; height: 2px; 
                         background: var(--brand-blue); transition: all 0.3s ease; transform: translateX(-50%);
@@ -434,6 +434,17 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     .tab-pane { animation: fadeInHub 0.3s ease; }
                     @keyframes fadeInHub { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+                    /* Horizontal scroll for tabs on mobile */
+                    .drawer-tabs {
+                        overflow-x: auto;
+                        scrollbar-width: none; /* Firefox */
+                        -ms-overflow-style: none; /* IE/Edge */
+                        -webkit-overflow-scrolling: touch;
+                    }
+                    .drawer-tabs::-webkit-scrollbar {
+                        display: none; /* Chrome, Safari, Opera */
+                    }
+
                     /* Revealing labels logic */
                     .metadata-grid .hover-label {
                         opacity: 0;
@@ -450,38 +461,93 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     }
 
                     @media (max-width: 768px) {
-                        .drawer-header, .drawer-body { padding: 1rem !important; }
+                        .drawer-header { padding: 0.75rem 1rem !important; }
+                        .drawer-body { padding: 0 0.75rem !important; }
+                        .metadata-container {
+                            padding: 0.5rem 0.75rem !important;
+                        }
                         .metadata-grid { 
-                            grid-template-columns: 1fr 1fr !important; 
-                            gap: 1.25rem 1.5rem !important; 
+                            display: none !important; 
                         }
-                        .metadata-grid .hover-label {
-                            opacity: 1 !important;
-                            max-height: 20px !important;
-                            margin-bottom: 0.35rem !important;
+                        .mobile-metadata-bar {
+                            display: flex !important;
+                            align-items: center;
+                            justify-content: space-between;
+                            gap: 4px;
+                            width: 100%;
+                            padding: 4px;
+                            border-bottom: 1px dashed #f1f5f9;
+                            margin-bottom: 8px;
                         }
-                        .team-section-grid {
-                            grid-template-columns: 1fr !important;
-                            gap: 1.5rem !important;
+                        .mobile-date-text {
+                            font-size: 0.7rem;
+                            font-weight: 600;
+                            color: var(--text-primary);
+                            display: flex;
+                            align-items: center;
+                            gap: 4px;
+                            white-space: nowrap;
                         }
-                        #item-title-view { font-size: 1.15rem !important; }
+                        .mobile-meta-item {
+                            display: flex;
+                            align-items: center;
+                            gap: 4px;
+                            font-size: 0.72rem;
+                            font-weight: 700;
+                            cursor: pointer;
+                            padding: 4px;
+                        }
+                        #priority-trigger-btn, #status-trigger-btn, .mobile-meta-item {
+                            background: transparent !important;
+                            border: none !important;
+                            padding: 0 !important;
+                            height: auto !important;
+                            font-size: 0.75rem !important;
+                            font-weight: 700 !important;
+                            display: flex;
+                            align-items: center;
+                            gap: 3px;
+                            box-shadow: none !important;
+                        }
+                        #item-title-view { font-size: 1.1rem !important; }
+                        .team-section-grid { border-top: none !important; margin-top: 0.5rem !important; gap: 0.75rem !important; padding-top: 0 !important; }
+
+                        /* Dropdown mobile positioning reset */
+                        .dropdown-menu {
+                            position: absolute !important;
+                            max-width: 95vw;
+                        }
+
+                        /* Avatar-only toggle logic */
+                        .mobile-team-list.is-collapsed .assignee-pill {
+                            padding-right: 4px !important;
+                            border: none !important;
+                            background: transparent !important;
+                            width: 24px !important;
+                            height: 24px !important;
+                        }
+                        .mobile-team-list.is-collapsed .assignee-pill span, 
+                        .mobile-team-list.is-collapsed .assignee-pill div[onclick] {
+                            display: none !important;
+                        }
                     }
                 </style>
                 <div class="drawer-header" style="
                     padding: 1.25rem 1.5rem; 
-                    border-bottom: 1px solid var(--glass-border); 
+                    border-bottom: 1px solid #f1f5f9; 
                     display: flex; 
                     flex-direction: column;
                     gap: 4px;
-                    background: rgba(255, 255, 255, 0.85);
-                    backdrop-filter: blur(12px);
-                    position: sticky;
-                    top: 0;
-                    z-index: 20;
+                    background: #ffffff !important;
                     flex-shrink: 0;
+                    z-index: 110;
+                    position: relative;
                 ">
-                    <!-- Top Row: Tag -->
+                    <!-- Top Row: Tag & Expand -->
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        <button id="full-screen-btn" class="icon-btn" title="${isExpanded ? 'Riduci' : 'Espandi'}" style="width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid transparent; color: var(--text-tertiary); transition: all 0.2s; cursor: pointer;" onmouseover="this.style.background='rgba(59, 130, 246, 0.05)'; this.style.borderColor='rgba(59, 130, 246, 0.15)';" onmouseout="this.style.background='transparent'; this.style.borderColor='transparent';">
+                            <span class="material-icons-round" style="font-size: 1.2rem;">${isExpanded ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left'}</span>
+                        </button>
                         <div style="font-size: 0.55rem; font-weight: 800; color: var(--brand-blue); background: rgba(59, 130, 246, 0.08); padding: 2px 8px; border-radius: 6px; text-transform: uppercase; border: 1px solid rgba(59, 130, 246, 0.15);">
                             ${typeLabel}
                         </div>
@@ -518,10 +584,6 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     </div>
                 </div>
                 <div id="more-actions-menu" class="hidden dropdown-menu glass-card" style="position: absolute; top: 120px; right: 24px; padding: 6px; z-index: 1000; min-width: 190px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); border: 1px solid var(--glass-border); background: white;">
-                    <div class="menu-action-opt" id="full-screen-btn" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--text-primary); transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                        <span class="material-icons-round" style="font-size: 1.1rem; color: #64748b;">${isExpanded ? 'fullscreen_exit' : 'fullscreen'}</span>
-                        <span>${isExpanded ? 'Riduci a finestra' : 'Schermo intero'}</span>
-                    </div>
                     <div class="menu-action-opt" id="duplicate-item-btn" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--text-primary); transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                         <span class="material-icons-round" style="font-size: 1.1rem; color: #64748b;">content_copy</span>
                         <span>Duplica</span>
@@ -541,12 +603,11 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     ${isExpanded ? '<div class="drawer-sidebar" style="width: 420px; flex-shrink: 0; border-right: 1px solid #f1f5f9; overflow-y: auto; padding-bottom: 2rem; background: #fff;">' : ''}
                     
                     <!-- Main Metadata Bar -->
-                    <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid #f1f5f9; background: #fff;">
-                        <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 2rem;">
+                    <div class="metadata-container" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid #f1f5f9; background: #fff; position: relative;">
+                        <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
                             
-                            <!-- Metadata Bar: Conditional layout based on expansion state -->
+                            <!-- Desktop Metadata Grid (Hidden on Mobile via CSS) -->
                             <div class="metadata-grid" style="display: grid; grid-template-columns: ${isExpanded ? '1fr 1fr' : 'repeat(4, 1fr)'}; gap: 1rem 2rem; width: 100%; transition: all 0.3s ease;">
-                                
                                 <!-- Inizio -->
                                 <div id="start-date-btn" class="date-trigger" style="cursor: pointer; min-width: 0;">
                                     <label class="hover-label" style="display: block; font-size: 0.62rem; font-weight: 500; color: #94a3b8; text-transform:uppercase; letter-spacing: 0.05em;">INIZIO</label>
@@ -565,43 +626,63 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                     </div>
                                 </div>
 
-                                <!-- Priorità -->
+                                <!-- Priorità (Desktop Only part of grid) -->
                                 <div style="min-width: 0;">
                                     <label class="hover-label" style="display: block; font-size: 0.62rem; font-weight: 500; color: #94a3b8; text-transform:uppercase; letter-spacing: 0.05em;">PRIORITÀ</label>
-                                    <div style="position: relative;">
-                                        <button id="priority-trigger-btn" style="appearance: none; border: none; padding: 5px 10px; border-radius: 8px; background: ${ITEM_PRIORITY[item.priority || 'medium']?.color}12; color: ${ITEM_PRIORITY[item.priority || 'medium']?.color}; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; transition: all 0.2s;">
-                                            <span class="material-icons-round" style="font-size: 1rem;">flag</span>
-                                            <span class="priority-label">${ITEM_PRIORITY[item.priority || 'medium']?.label}</span>
-                                            <span class="material-icons-round" style="font-size: 1rem; opacity: 0.5;">expand_more</span>
-                                        </button>
-                                        <div id="priority-dropdown-menu" class="hidden dropdown-menu glass-card" style="position: absolute; top: 100%; left: 0; margin-top: 8px; padding: 6px; z-index: 1000; min-width: 150px; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
-                                            ${Object.keys(ITEM_PRIORITY).map(k => `<div class="priority-option" data-value="${k}" style="padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 400; color: #334155; transition: background 0.2s;">
-                                                <span class="material-icons-round" style="font-size: 1rem; color: ${ITEM_PRIORITY[k].color};">flag</span>
-                                                <span>${ITEM_PRIORITY[k].label}</span>
-                                                ${(item.priority || 'medium') === k ? `<span class="material-icons-round" style="margin-left: auto; font-size: 1rem; color: var(--brand-blue);">check</span>` : ''}
-                                            </div>`).join('')}
-                                        </div>
-                                    </div>
+                                    <button class="priority-trigger priority-trigger-btn-desktop" style="appearance: none; border: none; padding: 5px 10px; border-radius: 8px; background: ${ITEM_PRIORITY[item.priority || 'medium']?.color}12; color: ${ITEM_PRIORITY[item.priority || 'medium']?.color}; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600;">
+                                        <span class="material-icons-round" style="font-size: 1rem;">flag</span>
+                                        <span>${ITEM_PRIORITY[item.priority || 'medium']?.label}</span>
+                                    </button>
                                 </div>
 
-                                <!-- Stato -->
+                                <!-- Stato (Desktop Only part of grid) -->
                                 <div style="min-width: 0;">
                                     <label class="hover-label" style="display: block; font-size: 0.62rem; font-weight: 500; color: #94a3b8; text-transform:uppercase; letter-spacing: 0.05em;">STATO</label>
-                                    <div style="position: relative;">
-                                        <button id="status-trigger-btn" style="appearance: none; border: none; padding: 5px 12px; padding-right: 32px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; background-color: ${ITEM_STATUS[item.status]?.bg || '#f1f5f9'}; color: ${ITEM_STATUS[item.status]?.color || '#64748b'}; cursor: pointer; position: relative; text-align: left; transition: all 0.2s;">
-                                            <span class="status-label">${ITEM_STATUS[item.status]?.label || item.status}</span>
-                                            <span class="material-icons-round" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 1rem; opacity: 0.7;">expand_more</span>
-                                        </button>
-                                        <div id="status-dropdown-menu" class="hidden dropdown-menu glass-card" style="position: absolute; top: 100%; right: 0; margin-top: 8px; padding: 6px; z-index: 1000; min-width: 160px; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
-                                            ${Object.keys(ITEM_STATUS).map(k => `<div class="status-option" data-value="${k}" style="padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 400; color: #334155; transition: background 0.2s;">
-                                                <div style="width: 8px; height: 8px; border-radius: 50%; background: ${ITEM_STATUS[k].color};"></div>
-                                                <span>${ITEM_STATUS[k].label}</span>
-                                                ${item.status === k ? `<span class="material-icons-round" style="margin-left: auto; font-size: 1rem; color: var(--brand-blue);">check</span>` : ''}
-                                            </div>`).join('')}
-                                        </div>
-                                    </div>
+                                    <button class="status-trigger status-trigger-btn-desktop" style="appearance: none; border: none; padding: 5px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; background-color: ${ITEM_STATUS[item.status]?.bg || '#f1f5f9'}; color: ${ITEM_STATUS[item.status]?.color || '#64748b'}; cursor: pointer;">
+                                        <span>${ITEM_STATUS[item.status]?.label || item.status}</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Ultra-Compact Mobile Metadata Bar (Single Row) -->
+                            <div class="mobile-metadata-bar" style="display: none;">
+                                <!-- Single Line Dates: separately clickable -->
+                                <div class="mobile-date-text" style="display: flex; align-items: center; gap: 4px;">
+                                    <span class="material-icons-round" style="font-size: 0.9rem; color: #94a3b8;">calendar_today</span>
+                                    <span id="mobile-start-date" style="cursor: pointer;">${item.start_date ? new Date(item.start_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '--'}</span>
+                                    <span style="color: #cbd5e1; margin: 0 4px;">–</span>
+                                    <span id="mobile-due-date" style="cursor: pointer;">${item.due_date ? new Date(item.due_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '--'}</span>
                                 </div>
 
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <!-- Priority -->
+                                    <button class="priority-trigger mobile-meta-item" style="color: ${ITEM_PRIORITY[item.priority || 'medium']?.color};">
+                                        <span class="material-icons-round" style="font-size: 0.9rem;">flag</span>
+                                        <span>${ITEM_PRIORITY[item.priority || 'medium']?.label}</span>
+                                    </button>
+
+                                    <span style="color: #f1f5f9;">|</span>
+
+                                    <!-- Status -->
+                                    <button class="status-trigger mobile-meta-item" style="color: ${ITEM_STATUS[item.status]?.color || '#64748b'};">
+                                        <div style="width: 6px; height: 6px; border-radius: 50%; background: ${ITEM_STATUS[item.status]?.color || '#64748b'};"></div>
+                                        <span>${ITEM_STATUS[item.status]?.label || item.status}</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Shared Dropdowns for Metadata (Absolute positioned relative to container) -->
+                            <div id="priority-dropdown-menu" class="hidden dropdown-menu glass-card" style="position: absolute; padding: 6px; z-index: 1000; min-width: 150px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); background: white;">
+                                ${Object.keys(ITEM_PRIORITY).map(k => `<div class="priority-option" data-value="${k}" style="padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 400; color: #334155; transition: background 0.2s;">
+                                    <span class="material-icons-round" style="font-size: 1rem; color: ${ITEM_PRIORITY[k].color};">flag</span>
+                                    <span>${ITEM_PRIORITY[k].label}</span>
+                                </div>`).join('')}
+                            </div>
+                            <div id="status-dropdown-menu" class="hidden dropdown-menu glass-card" style="position: absolute; padding: 6px; z-index: 1000; min-width: 160px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); background: white;">
+                                ${Object.keys(ITEM_STATUS).map(k => `<div class="status-option" data-value="${k}" style="padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 400; color: #334155; transition: background 0.2s;">
+                                    <div style="width: 8px; height: 8px; border-radius: 50%; background: ${ITEM_STATUS[k].color};"></div>
+                                    <span>${ITEM_STATUS[k].label}</span>
+                                </div>`).join('')}
                             </div>
 
 
@@ -613,8 +694,11 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         <div class="team-section-grid" style="display: grid; grid-template-columns: ${isExpanded ? '1fr' : '1fr 1fr'}; gap: ${isExpanded ? '1.75rem' : '2rem'}; margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px dashed #f1f5f9; align-items: flex-start;">
                             <!-- Project Manager -->
                             <div style="width: 100%; display: flex; flex-direction: column;">
-                                <label style="display: block; font-size: 0.65rem; font-weight: 500; color: #94a3b8; margin-bottom: 8px; text-transform:uppercase; letter-spacing: 0.05em; line-height: 1;">RESPONSABILE</label>
-                                <div id="pm-list" style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; min-height: 32px; position: relative;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                    <label style="display: block; font-size: 0.65rem; font-weight: 500; color: #94a3b8; text-transform:uppercase; letter-spacing: 0.05em; line-height: 1;">RESPONSABILE</label>
+                                    <span class="material-icons-round team-expand-toggle" data-target="pm-list" style="font-size: 1rem; color: #94a3b8; cursor: pointer; display: none;">expand_more</span>
+                                </div>
+                                <div id="pm-list" class="mobile-team-list is-collapsed" style="display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; min-height: 32px; position: relative;">
                                     ${assignees.filter(a => a.role === 'pm').map(a => `
                                         <div class="assignee-pill" style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; padding-left: 4px; background: rgba(139, 92, 246, 0.04); border: 1px solid rgba(139, 92, 246, 0.1); border-radius: 20px; font-size: 0.8rem; font-weight: 400; color: #8b5cf6; min-width: 0; height: 32px; box-sizing: border-box; position: relative; padding-right: 28px;">
                                             ${renderAvatar(a.user, { size: 24, borderRadius: '50%' })}
@@ -625,16 +709,16 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                         </div>
                                     `).join('')}
                                     <button id="add-pm-btn" class="icon-btn" style="width: 26px; height: 26px; border-radius: 50%; border: 1px dashed #8b5cf6; background: transparent; color: #8b5cf6; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.6; flex-shrink: 0;"><span class="material-icons-round" style="font-size: 1rem;">add</span></button>
-                                    <div id="pm-picker" class="hidden dropdown-menu glass-card" style="position: absolute; top: 100%; left: 0; margin-top: 8px; z-index: 1000; width: 260px; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden;">
-                                        ${renderUserPicker(spaceId, 'pm', new Set(assignees.filter(a => a.role === 'pm').map(a => a.user_ref || a.collaborator_ref)), new Set(spaceAssigneesPool.map(sa => sa.collaborator_ref || sa.user_ref)), 'Tutti i responsabili')}
-                                    </div>
                                 </div>
                             </div>
 
                             <!-- Assegnatari -->
                             <div style="flex: 1; display: flex; flex-direction: column;">
-                                <label style="display: block; font-size: 0.65rem; font-weight: 500; color: #94a3b8; margin-bottom: 8px; text-transform:uppercase; letter-spacing: 0.05em; line-height: 1;">ASSEGNATARI</label>
-                                <div id="assignee-list" style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; min-height: 32px; position: relative;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                    <label style="display: block; font-size: 0.65rem; font-weight: 500; color: #94a3b8; text-transform:uppercase; letter-spacing: 0.05em; line-height: 1;">ASSEGNATARI</label>
+                                    <span class="material-icons-round team-expand-toggle" data-target="assignee-list" style="font-size: 1rem; color: #94a3b8; cursor: pointer; display: none;">expand_more</span>
+                                </div>
+                                <div id="assignee-list" class="mobile-team-list is-collapsed" style="display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; min-height: 32px; position: relative;">
                                     ${assignees.filter(a => a.role !== 'pm').map(a => `
                                         <div class="assignee-pill" style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; padding-left: 4px; background: #fff; border: 1px solid #f1f5f9; border-radius: 20px; font-size: 0.8rem; font-weight: 400; color: var(--text-secondary); box-shadow: 0 1px 2px rgba(0,0,0,0.02); min-width: 0; height: 32px; box-sizing: border-box; position: relative; padding-right: 28px;">
                                             ${renderAvatar(a.user, { size: 24, borderRadius: '50%' })}
@@ -645,11 +729,16 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                         </div>
                                     `).join('')}
                                     <button id="add-assignee-btn" class="icon-btn" style="width: 26px; height: 26px; border-radius: 50%; border: 1px dashed #cbd5e1; background: transparent; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.7; flex-shrink: 0;"><span class="material-icons-round" style="font-size: 1rem;">add</span></button>
-                                    <div id="assignee-picker" class="hidden dropdown-menu glass-card" style="position: absolute; top: 100%; left: 0; margin-top: 8px; z-index: 1000; width: 260px; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden;">
-                                        ${renderUserPicker(spaceId, 'assignee', new Set(assignees.filter(a => a.role !== 'pm').map(a => a.user_ref || a.collaborator_ref)), new Set(spaceAssigneesPool.map(sa => sa.collaborator_ref || sa.user_ref)), 'Tutti i collaboratori')}
-                                    </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Team Pickers (Moved for reliable positioning) -->
+                        <div id="pm-picker" class="hidden dropdown-menu glass-card" style="position: absolute; z-index: 1000; width: 260px; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden;">
+                            ${renderUserPicker(spaceId, 'pm', new Set(assignees.filter(a => a.role === 'pm').map(a => a.user_ref || a.collaborator_ref)), new Set(spaceAssigneesPool.map(sa => sa.collaborator_ref || sa.user_ref)), 'Tutti i responsabili')}
+                        </div>
+                        <div id="assignee-picker" class="hidden dropdown-menu glass-card" style="position: absolute; z-index: 1000; width: 260px; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden;">
+                            ${renderUserPicker(spaceId, 'assignee', new Set(assignees.filter(a => a.role !== 'pm').map(a => a.user_ref || a.collaborator_ref)), new Set(spaceAssigneesPool.map(sa => sa.collaborator_ref || sa.user_ref)), 'Tutti i collaboratori')}
                         </div>
 
 
@@ -666,71 +755,26 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                          </div>
                     </div>
 
-                    <!-- Sub-activities Section -->
-                    ${(item.item_type || itemType || 'task') !== 'task' ? `
-                    <div class="sub-items-section" style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                            <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); text-transform:uppercase; letter-spacing: 0.05em; font-family: 'Satoshi', sans-serif;">SOTTO-ATTIVITÀ</label>
-                            <div style="position: relative;">
-                                <button id="add-sub-item-btn" style="display: flex; align-items: center; gap: 4px; border: none; background: transparent; color: var(--brand-blue); font-size: 0.75rem; font-weight: 700; cursor: pointer; padding: 6px 10px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.05)'" onmouseout="this.style.background='transparent'">
-                                    <span class="material-icons-round" style="font-size: 1.1rem;">add</span> NUOVA
-                                </button>
-                                <div id="add-sub-item-menu" class="hidden dropdown-menu glass-card" style="position: absolute; top: calc(100% + 4px); right: 0; width: 190px; z-index: 1000;">
-                                    <div class="menu-item add-sub-item-opt" data-type="attivita" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: 0.2s;">
-                                        <span class="material-icons-round" style="font-size: 1.2rem; color: #f59e0b;">folder</span>
-                                        <span style="font-size: 0.85rem; font-weight: 600;">Sotto-attività</span>
-                                    </div>
-                                    <div class="menu-item add-sub-item-opt" data-type="task" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: 0.2s;">
-                                        <span class="material-icons-round" style="font-size: 1.2rem; color: #3b82f6;">check_circle_outline</span>
-                                        <span style="font-size: 0.85rem; font-weight: 600;">Task</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="sub-items-list" style="display: flex; flex-direction: column; gap: 10px;">
-                            ${(() => {
-                        const activeSubItems = subItems.filter(si => si.status !== 'done');
-                        if (activeSubItems.length === 0) {
-                            return `<div style="font-size: 0.85rem; color: #94a3b8; font-style: italic; padding: 20px; text-align: center; background: #f8fafc; border: 1.5px dashed #e2e8f0; border-radius: 12px;">Nessuna sotto-attività aperta.</div>`;
-                        }
-                        return activeSubItems.map(si => `
-                                <div class="sub-item-row" data-id="${si.id}" style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; cursor: pointer; transition: all 0.2s;">
-                                    <div style="width: 32px; height: 32px; border-radius: 8px; background: ${si.item_type === 'attivita' ? '#fff7ed' : '#eff6ff'}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                        <span class="material-icons-round" style="font-size: 1.1rem; color: ${si.item_type === 'attivita' ? '#f59e0b' : '#3b82f6'};">
-                                            ${si.item_type === 'attivita' ? 'folder' : 'check_circle_outline'}
-                                        </span>
-                                    </div>
-                                    <div style="flex: 1; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">${si.title}</div>
-                                    <div style="display: flex; align-items: center;">
-                                        ${(si.pm_item_assignees || []).slice(0, 3).map((a, idx) => `
-                                            <div class="avatar-stack-item" style="margin-left: ${idx === 0 ? '0' : '-8px'}; z-index: ${5 - idx}; border: 1.5px solid white; border-radius: 50%;">
-                                                ${renderAvatar(a.user, { size: 24, borderRadius: '50%', fontSize: '9px' })}
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                    ${si.due_date ? `
-                                        <div style="font-size: 0.75rem; color: ${new Date(si.due_date) < new Date() ? '#ef4444' : '#64748b'}; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: ${new Date(si.due_date) < new Date() ? '#fef2f2' : '#f1f5f9'}; border-radius: 6px;">
-                                            <span class="material-icons-round" style="font-size: 0.95rem;">${new Date(si.due_date) < new Date() ? 'history' : 'event'}</span>
-                                            ${new Date(si.due_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            `).join('');
-                    })()}
-                        </div>
-                    </div>` : ''}
-
                     ${isExpanded ? '</div> <!-- Close sidebar --><div class="drawer-content-main" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f8fafc;">' : ''}
 
                     <!-- Tab Navigation -->
-                    <div class="drawer-tabs" style="display: flex; border-bottom: 1px solid #e2e8f0; background: #fff; position: sticky; top: -1px; z-index: 5; padding: 0 1rem; gap: 0.5rem;">
+                    <div class="drawer-tabs" style="display: flex; flex-wrap: nowrap; border-bottom: 1px solid #e2e8f0; background: #ffffff !important; position: sticky; top: 0; z-index: 100; padding: 0 1rem; gap: 0.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.03); overflow-x: auto; min-width: 0; width: 100%; max-width: 100%;">
                         ${state.profile?.role === 'admin' ? `
-                        <div class="drawer-tab active" data-tab="activity" style="padding: 1rem 0.75rem; font-size: 0.85rem; font-weight: 700; color: var(--brand-blue); border-bottom: 2px solid var(--brand-blue); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-family: 'Satoshi', sans-serif; white-space: nowrap;">
+                        <div class="drawer-tab ${item.item_type === 'task' ? 'active' : ''}" data-tab="activity" style="padding: 1rem 0.75rem; font-size: 0.85rem; font-weight: ${item.item_type === 'task' ? '700' : '600'}; color: ${item.item_type === 'task' ? 'var(--brand-blue)' : 'var(--text-tertiary)'}; border-bottom: 2px solid ${item.item_type === 'task' ? 'var(--brand-blue)' : 'transparent'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
                             <span class="material-icons-round" style="font-size: 1rem;">history</span>
-                            Attività
+                            Feed
                         </div>
                         ` : ''}
-                        <div class="drawer-tab ${state.profile?.role !== 'admin' ? 'active' : ''}" data-tab="comments" style="padding: 1rem 0.75rem; font-size: 0.85rem; font-weight: ${state.profile?.role !== 'admin' ? '700' : '600'}; color: ${state.profile?.role !== 'admin' ? 'var(--brand-blue)' : 'var(--text-tertiary)'}; border-bottom: 2px solid ${state.profile?.role !== 'admin' ? 'var(--brand-blue)' : 'transparent'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-family: 'Satoshi', sans-serif; white-space: nowrap;">
+
+                        ${(item.item_type || itemType) !== 'task' ? `
+                        <div class="drawer-tab ${(item.item_type || itemType) !== 'task' ? 'active' : ''}" data-tab="subtasks" style="padding: 1rem 0.75rem; font-size: 0.85rem; font-weight: ${(item.item_type || itemType) !== 'task' ? '700' : '600'}; color: ${(item.item_type || itemType) !== 'task' ? 'var(--brand-blue)' : 'var(--text-tertiary)'}; border-bottom: 2px solid ${(item.item_type || itemType) !== 'task' ? 'var(--brand-blue)' : 'transparent'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
+                            <span class="material-icons-round" style="font-size: 1rem;">checklist</span>
+                            Board
+                             ${subItems.length > 0 ? `<span style="font-size: 0.75rem; opacity: 0.6;">(${subItems.length})</span>` : ''}
+                        </div>
+                        ` : ''}
+
+                        <div class="drawer-tab ${item.item_type === 'task' && state.profile?.role !== 'admin' ? 'active' : ''}" data-tab="comments" style="padding: 1rem 0.75rem; font-size: 0.85rem; font-weight: ${item.item_type === 'task' && state.profile?.role !== 'admin' ? '700' : '600'}; color: ${item.item_type === 'task' && state.profile?.role !== 'admin' ? 'var(--brand-blue)' : 'var(--text-tertiary)'}; border-bottom: 2px solid ${item.item_type === 'task' && state.profile?.role !== 'admin' ? 'var(--brand-blue)' : 'transparent'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
                             <span class="material-icons-round" style="font-size: 1rem;">chat_bubble_outline</span>
                             Commenti
                             ${unreadCommentsCount > 0 && state.profile?.role === 'admin' ? `
@@ -739,7 +783,8 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 </span>
                             ` : ''}
                         </div>
-                        <div class="drawer-tab" data-tab="resources" style="padding: 1rem 0.75rem; font-size: 0.85rem; font-weight: 600; color: var(--text-tertiary); border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-family: 'Satoshi', sans-serif; white-space: nowrap;">
+
+                        <div class="drawer-tab" data-tab="resources" style="padding: 1rem 0.75rem; font-size: 0.85rem; font-weight: 600; color: var(--text-tertiary); border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
                             <span class="material-icons-round" style="font-size: 1rem;">cloud_queue</span>
                             Risorse
                             ${item.cloud_links?.length > 0 ? `<span style="font-size: 0.75rem; opacity: 0.6;">(${item.cloud_links.length})</span>` : ''}
@@ -747,8 +792,62 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     </div>
 
                     ${isExpanded ? '<div class="panes-scrollable" style="flex: 1; overflow-y: auto;">' : ''}
+
+                    <div id="tab-subtasks" class="tab-pane ${item.item_type !== 'task' ? '' : 'hidden'}">
+                        <div class="sub-items-section" style="padding: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); text-transform:uppercase; letter-spacing: 0.05em; font-family: 'Satoshi', sans-serif;">BOARD</label>
+                                <div style="position: relative;">
+                                    <button id="add-sub-item-btn" style="display: flex; align-items: center; gap: 4px; border: none; background: transparent; color: var(--brand-blue); font-size: 0.75rem; font-weight: 700; cursor: pointer; padding: 6px 10px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.05)'" onmouseout="this.style.background='transparent'">
+                                        <span class="material-icons-round" style="font-size: 1.1rem;">add</span> NUOVA
+                                    </button>
+                                    <div id="add-sub-item-menu" class="hidden dropdown-menu glass-card" style="position: absolute; top: calc(100% + 4px); right: 0; width: 190px; z-index: 1000;">
+                                        <div class="menu-item add-sub-item-opt" data-type="attivita" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: 0.2s;">
+                                            <span class="material-icons-round" style="font-size: 1.2rem; color: #f59e0b;">folder</span>
+                                            <span style="font-size: 0.85rem; font-weight: 600;">Sotto-attività</span>
+                                        </div>
+                                        <div class="menu-item add-sub-item-opt" data-type="task" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: 0.2s;">
+                                            <span class="material-icons-round" style="font-size: 1.2rem; color: #3b82f6;">check_circle_outline</span>
+                                            <span style="font-size: 0.85rem; font-weight: 600;">Task</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="sub-items-list" style="display: flex; flex-direction: column; gap: 10px;">
+                                ${(() => {
+                    const activeSubItems = subItems; // Show all or filter as before? User said "mettile nelle tab", I'll show current logic but in tab
+                    if (activeSubItems.length === 0) {
+                        return `<div style="font-size: 0.85rem; color: #94a3b8; font-style: italic; padding: 20px; text-align: center; background: #f8fafc; border: 1.5px dashed #e2e8f0; border-radius: 12px;">Nessuna sotto-attività presente.</div>`;
+                    }
+                    return activeSubItems.map(si => `
+                                    <div class="sub-item-row" data-id="${si.id}" style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                                        <div style="width: 32px; height: 32px; border-radius: 8px; background: ${si.item_type === 'attivita' ? '#fff7ed' : '#eff6ff'}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                            <span class="material-icons-round" style="font-size: 1.1rem; color: ${si.item_type === 'attivita' ? '#f59e0b' : '#3b82f6'};">
+                                                ${si.item_type === 'attivita' ? 'folder' : 'check_circle_outline'}
+                                            </span>
+                                        </div>
+                                        <div style="flex: 1; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">${si.title}</div>
+                                        <div style="display: flex; align-items: center;">
+                                            ${(si.pm_item_assignees || []).slice(0, 3).map((a, idx) => `
+                                                <div class="avatar-stack-item" style="margin-left: ${idx === 0 ? '0' : '-8px'}; z-index: ${5 - idx}; border: 1.5px solid white; border-radius: 50%;">
+                                                    ${renderAvatar(a.user, { size: 24, borderRadius: '50%', fontSize: '9px' })}
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                        ${si.due_date ? `
+                                            <div style="font-size: 0.75rem; color: ${new Date(si.due_date) < new Date() ? '#ef4444' : '#64748b'}; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: ${new Date(si.due_date) < new Date() ? '#fef2f2' : '#f1f5f9'}; border-radius: 6px;">
+                                                <span class="material-icons-round" style="font-size: 0.95rem;">${new Date(si.due_date) < new Date() ? 'history' : 'event'}</span>
+                                                ${new Date(si.due_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `).join('');
+                })()}
+                            </div>
+                        </div>
+                    </div>
                     ${state.profile?.role === 'admin' ? `
-                    <div id="tab-activity" class="tab-pane">
+                    <div id="tab-activity" class="tab-pane ${item.item_type === 'task' ? '' : 'hidden'}">
                         <div id="drawer-activity-log-container"></div>
                     </div>
                     ` : ''}
@@ -772,20 +871,20 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                             <div class="comment-bubble" style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; padding: 10px 14px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 0 12px 12px 12px; position: relative; width: fit-content; max-width: 100%; box-sizing: border-box; word-break: break-word;">
                                                 ${c.body}
                                                 ${(() => {
-                            const myRole = assignees.find(a => a.user_ref === state.profile?.id)?.role;
-                            const isAdmin = state.profile?.role === 'admin';
-                            const isAuthor = c.author_user_ref === state.profile?.id;
-                            const isPM = myRole === 'pm' || myRole === 'owner';
+                        const myRole = assignees.find(a => a.user_ref === state.profile?.id)?.role;
+                        const isAdmin = state.profile?.role === 'admin';
+                        const isAuthor = c.author_user_ref === state.profile?.id;
+                        const isPM = myRole === 'pm' || myRole === 'owner';
 
-                            if (isAdmin || isAuthor || isPM) {
-                                return `
+                        if (isAdmin || isAuthor || isPM) {
+                            return `
                                                     <button class="delete-comment-btn" data-id="${c.id}" style="position: absolute; right: 4px; top: -10px; width: 20px; height: 20px; border-radius: 50%; border: 1px solid #fee2e2; background: #fff; color: #ef4444; cursor: pointer; opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" title="Elimina commento">
                                                         <span class="material-icons-round" style="font-size: 12px;">close</span>
                                                     </button>
                                                 `;
-                            }
-                            return '';
-                        })()}
+                        }
+                        return '';
+                    })()}
                                             </div>
                                             <style>
                                                 .comment-bubble:hover .delete-comment-btn { opacity: 1 !important; }
@@ -1261,6 +1360,21 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         input.blur();
                     }
                 };
+
+                // Mobile Team Section Expand/Collapse Toggles
+                if (window.innerWidth <= 768) {
+                    drawer.querySelectorAll('.team-expand-toggle').forEach(btn => {
+                        btn.style.display = 'block'; // Show on mobile
+                        btn.onclick = (e) => {
+                            const targetId = btn.getAttribute('data-target');
+                            const targetList = drawer.querySelector(`#${targetId}`);
+                            if (targetList) {
+                                const isCollapsed = targetList.classList.toggle('is-collapsed');
+                                btn.textContent = isCollapsed ? 'expand_more' : 'expand_less';
+                            }
+                        };
+                    });
+                }
             };
         }
         // More Actions Menu Listeners
@@ -1329,63 +1443,105 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
             };
         }
 
-        const statusTrigger = drawer.querySelector('#status-trigger-btn');
-        const statusMenu = drawer.querySelector('#status-dropdown-menu');
-        if (statusTrigger) {
-            statusTrigger.onclick = (e) => { e.stopPropagation(); statusMenu.classList.toggle('hidden'); drawer.querySelector('#priority-dropdown-menu')?.classList.add('hidden'); };
-            statusMenu.querySelectorAll('.status-option').forEach(opt => {
+        const positionElementUnderTrigger = (trigger, element, container) => {
+            const rect = trigger.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+
+            // Vertical position (exactly below the trigger)
+            element.style.top = (rect.bottom - containerRect.top + 5) + 'px';
+
+            // Horizontal position with boundary checks
+            let left = rect.left - containerRect.left;
+
+            // To get accurate width, we must ensure it's not hidden
+            const wasHidden = element.classList.contains('hidden');
+            if (wasHidden) element.classList.remove('hidden');
+            const elementWidth = element.offsetWidth || 260;
+            if (wasHidden) element.classList.add('hidden');
+
+            if (left + elementWidth > containerRect.width - 15) {
+                left = containerRect.width - elementWidth - 15;
+            }
+            if (left < 15) left = 15;
+
+            element.style.left = left + 'px';
+        };
+
+        const setupDropdown = (triggerClass, menuId, optionsClass, field) => {
+            const triggers = drawer.querySelectorAll(`.${triggerClass}`);
+            const menu = drawer.querySelector(`#${menuId}`);
+            if (!menu || triggers.length === 0) return;
+
+            triggers.forEach(trigger => {
+                trigger.onclick = (e) => {
+                    e.stopPropagation();
+                    const container = drawer.querySelector('.metadata-container');
+                    const isHiddenBefore = menu.classList.contains('hidden');
+
+                    // Close others
+                    drawer.querySelectorAll('.dropdown-menu, .glass-card').forEach(m => m.classList.add('hidden'));
+
+                    if (isHiddenBefore) {
+                        menu.classList.remove('hidden');
+                        positionElementUnderTrigger(trigger, menu, container);
+                    }
+                };
+            });
+
+            menu.querySelectorAll(`.${optionsClass}`).forEach(opt => {
                 opt.onclick = async () => {
-                    const s = opt.dataset.value;
-                    item.status = s;
-                    await updatePMItem(itemId, { status: s });
+                    const val = opt.dataset.value;
+                    item[field] = val;
+                    await updatePMItem(itemId, { [field]: val });
                     render();
                     document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
                 };
             });
-        }
+        };
 
-        const priorityTrigger = drawer.querySelector('#priority-trigger-btn');
-        const priorityMenu = drawer.querySelector('#priority-dropdown-menu');
-        if (priorityTrigger) {
-            priorityTrigger.onclick = (e) => { e.stopPropagation(); priorityMenu.classList.toggle('hidden'); statusMenu?.classList.add('hidden'); };
-            priorityMenu.querySelectorAll('.priority-option').forEach(opt => {
-                opt.onclick = async () => {
-                    const p = opt.dataset.value;
-                    item.priority = p;
-                    await updatePMItem(itemId, { priority: p });
-                    render();
-                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
+        setupDropdown('priority-trigger', 'priority-dropdown-menu', 'priority-option', 'priority');
+        setupDropdown('status-trigger', 'status-dropdown-menu', 'status-option', 'status');
+
+        const setupDate = (idOrClass, field) => {
+            const btns = drawer.querySelectorAll(idOrClass.startsWith('.') ? idOrClass : `#${idOrClass}`);
+            btns.forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleHubDatePicker(btn, async (d) => {
+                        item[field] = d;
+                        await updatePMItem(itemId, { [field]: d });
+                        render();
+                        document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
+                    }, item[field]);
                 };
             });
-        }
-
-        const setupDate = (id, field) => {
-            const btn = drawer.querySelector(`#${id}`);
-            if (btn) btn.onclick = (e) => {
-                e.stopPropagation();
-                toggleHubDatePicker(btn, async (d) => {
-                    item[field] = d;
-                    await updatePMItem(itemId, { [field]: d });
-                    render();
-                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
-                }, item[field]);
-            };
         };
         setupDate('start-date-btn', 'start_date');
         setupDate('due-date-btn', 'due_date');
+        // Mobile specific date triggers
+        setupDate('mobile-start-date', 'start_date');
+        setupDate('mobile-due-date', 'due_date');
 
         const setupPicker = (btnId, pkrId) => {
             const btn = drawer.querySelector(`#${btnId}`);
             const pkr = drawer.querySelector(`#${pkrId}`);
-            if (btn) btn.onclick = (e) => {
+            if (btn && pkr) btn.onclick = (e) => {
                 e.stopPropagation();
-                const isHidden = pkr.classList.toggle('hidden');
-                if (!isHidden) {
-                    // Close ALL other dropdowns/pickers
-                    drawer.querySelectorAll('.dropdown-menu, .glass-card, #form-pm-picker, #form-assignee-picker').forEach(el => {
-                        if (el !== pkr) el.classList.add('hidden');
-                    });
-                    pkr.querySelector('.user-picker-search')?.focus();
+
+                const isHiddenBefore = pkr.classList.contains('hidden');
+                const container = drawer.querySelector('.metadata-container');
+
+                // Close ALL other dropdowns/pickers
+                drawer.querySelectorAll('.dropdown-menu, .glass-card, #form-pm-picker, #form-assignee-picker').forEach(el => {
+                    el.classList.add('hidden');
+                });
+
+                if (isHiddenBefore) {
+                    pkr.classList.remove('hidden');
+                    positionElementUnderTrigger(btn, pkr, container);
+
+                    // Focus search after a tiny delay to ensure visibility
+                    setTimeout(() => pkr.querySelector('.user-picker-search')?.focus(), 150);
                 }
             };
 
@@ -2098,19 +2254,26 @@ function toggleHubDatePicker(btn, onSelect, initialDate) {
     hubPickerCurrentDate = initialDate ? new Date(initialDate) : new Date();
 
     const rect = btn.getBoundingClientRect();
+    const popoverWidth = 300;
+    let left = rect.left;
+    if (left + popoverWidth > window.innerWidth) {
+        left = window.innerWidth - popoverWidth - 10;
+    }
+    if (left < 10) left = 10;
+
     const popover = document.createElement('div');
     popover.id = 'hub-datepicker-popover';
     popover.style.cssText = `
         position: fixed; 
         top: ${rect.bottom + 12}px; 
-        left: ${rect.left}px; 
+        left: ${left}px; 
         background: var(--card-bg); 
         border: 1px solid #e2e8f0; 
         border-radius: 16px; 
         padding: 20px; 
         box-shadow: 0 15px 50px rgba(0,0,0,0.18); 
         z-index: 999999; 
-        width: 300px;
+        width: ${popoverWidth}px;
         animation: hub-pop-in 0.2s ease-out;
     `;
 

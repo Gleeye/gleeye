@@ -381,23 +381,241 @@ export function renderDashboard(container) {
 
         container.innerHTML = `
             <style>
-                @media (max-width: 992px) {
-                    .dashboard-main-grid { grid-template-columns: 1fr !important; }
-                    .dashboard-funnel-grid { grid-template-columns: 1fr !important; }
-                    .funnel-card { margin-bottom: 0.5rem; }
-                    .filter-bar-container { flex-direction: column; align-items: stretch !important; gap: 1rem !important; }
-                    .filter-bar-container > div:last-child { flex-wrap: wrap; width: 100%; }
-                    .filter-bar-container .custom-dropdown { flex: 1 1 calc(50% - 0.5rem); }
-                    .dashboard-header-actions { flex-direction: column; align-items: flex-start !important; gap: 1rem; }
-                    .dashboard-header-actions > div:last-child { width: 100%; justify-content: space-between; flex-wrap: wrap; }
+                .dashboard-main-grid {
+                    display: grid;
+                    grid-template-columns: 360px 1fr;
+                    gap: 2rem;
+                    align-items: start;
+                }
+
+                @media (max-width: 1200px) {
+                    .dashboard-main-grid { grid-template-columns: 300px 1fr; gap: 1.5rem; }
+                }
+
+                @media (max-width: 1100px) {
+                    .dashboard-main-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+                    .dashboard-side-col { order: 2; }
+                    .dashboard-main-col { order: 1; }
+                    .dashboard-funnel-grid { grid-template-columns: repeat(3,1fr) !important; }
+                    .funnel-card { padding: 1rem 0.5rem !important; text-align: center; }
+                    .funnel-card .material-icons-round { margin: 0 auto 0.5rem !important; }
+                    .funnel-card div[style*="font-size: 1.75rem"] { font-size: 1.25rem !important; }
+                }
+
+                @media (max-width: 768px) {
+                    .dashboard-main-grid { padding: 0.5rem !important; gap: 1rem; }
+                    .dashboard-funnel-grid { gap: 0.5rem !important; }
+                    .funnel-card { border-radius: 12px !important; border-left-width: 3px !important; }
+                    .funnel-card div[style*="font-size: 0.65rem"] { font-size: 0.55rem !important; }
+                    .funnel-card div[style*="font-size: 1.75rem"] { font-size: 1.1rem !important; }
+                    .funnel-card div[style*="font-size: 0.8rem"] { font-size: 0.7rem !important; }
+                    
+                    .filter-bar-container { padding: 1rem !important; gap: 0.75rem !important; }
+                    .filter-bar-container > div:first-child { display: none !important; } /* Hide "Filtra per" label */
+                    .filter-bar-container > div:last-child { flex-wrap: wrap; gap: 0.5rem !important; }
+                    .custom-dropdown { flex: 1 1 calc(50% - 0.25rem); min-width: 0 !important; }
+                    .dropdown-trigger { padding: 6px 8px !important; font-size: 0.7rem !important; }
+                    .dropdown-trigger span[style*="max-width: 120px"] { max-width: 70px !important; }
+
+                    .dashboard-header-actions { padding: 1rem !important; flex-direction: column; align-items: flex-start !important; gap: 1rem; }
+                    .dashboard-header-actions h3 { font-size: 1.1rem !important; }
+                    .dashboard-header-actions > div:last-child { width: 100%; justify-content: space-between; }
+                    #btn-new-order-main { padding: 0.5rem 1rem !important; font-size: 0.75rem !important; }
+
+                    /* TABLE TO CARDS */
+                    .table-container { overflow: hidden !important; }
+                    .table-container table, .table-container thead, .table-container tbody, .table-container tr, .table-container td {
+                        display: block; width: 100%; box-sizing: border-box;
+                    }
+                    .table-container thead { display: none; }
+                    
+                    .table-container tr {
+                        background: white;
+                        border-bottom: 4px solid var(--bg-secondary) !important;
+                        padding: 1.25rem 1rem;
+                        position: relative;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 0.5rem;
+                    }
+                    
+                    .table-container td {
+                        padding: 0 !important;
+                        border: none !important;
+                        text-align: left !important;
+                        display: flex;
+                        align-items: center;
+                        white-space: normal !important;
+                    }
+
+                    /* ID Row */
+                    .table-container td:nth-child(1) { 
+                        font-size: 0.8rem !important; 
+                        color: var(--brand-viola) !important; 
+                        font-weight: 800 !important; 
+                        display: inline-block; 
+                        width: auto !important; 
+                        margin-bottom: 2px; 
+                        padding: 2px 8px !important; 
+                        background: rgba(97, 74, 162, 0.05); 
+                        border-radius: 6px; 
+                    }
+
+                    /* Project Title */
+                    .table-container td:nth-child(2) { 
+                        flex-direction: column; 
+                        align-items: flex-start; 
+                        gap: 4px; 
+                        margin-bottom: 0.5rem; 
+                    }
+                    .table-container td:nth-child(2) div[style*="font-size: 0.9rem"] { 
+                        font-size: 1.05rem !important; 
+                        font-weight: 700 !important; 
+                        line-height: 1.25; 
+                        color: var(--text-primary) !important;
+                    }
+                    .table-container td:nth-child(2) div[style*="font-size: 0.7rem"] { 
+                        font-size: 0.75rem !important; 
+                    }
+
+                    /* Cliente */
+                    .table-container td:nth-child(3) { font-size: 0.85rem !important; margin-bottom: 0.75rem; color: var(--text-secondary) !important; }
+                    .table-container td:nth-child(3)::before { content: "Cliente: "; font-weight: 700; color: var(--text-tertiary); margin-right: 6px; font-size: 0.7rem; text-transform: uppercase; }
+
+                    /* Values */
+                    .table-container td:nth-child(4), .table-container td:nth-child(5), .table-container td:nth-child(6) {
+                        justify-content: space-between !important;
+                        font-size: 0.85rem !important;
+                        padding: 4px 0 !important;
+                        border-top: 1px dashed var(--glass-border) !important;
+                    }
+                    .table-container td:nth-child(4)::before { content: "Fatturato"; font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; }
+                    .table-container td:nth-child(5)::before { content: "Costi"; font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; }
+                    .table-container td:nth-child(6)::before { content: "Ricavo"; font-size: 0.7rem; font-weight: 800; color: var(--brand-viola); text-transform: uppercase; }
+                    .table-container td:nth-child(6) { border-top: 1px solid var(--glass-border) !important; padding-top: 8px !important; margin-top: 4px !important; }
+                    /* General Mobile Container Fix */
+                    .dashboard-root { padding: 0.5rem !important; overflow-x: hidden !important; width: 100% !important; box-sizing: border-box !important; display: block !important; }
+                    .dashboard-root * { box-sizing: border-box !important; }
+                    
+                    /* Grid and Sequencing */
+                    .dashboard-root .dashboard-main-grid { display: block !important; }
+                    .dashboard-root .dashboard-side-col { order: 2; width: 100% !important; display: flex !important; flex-direction: column !important; gap: 1rem !important; margin-top: 1.5rem; }
+                    .dashboard-root .dashboard-main-col { order: 1; width: 100% !important; display: flex !important; flex-direction: column !important; gap: 1rem !important; }
+                    
+                    /* Vertical Scroll Fix - Remove all nested scrolls and fixed heights */
+                    .dashboard-root .dashboard-side-col, 
+                    .dashboard-root .dashboard-main-col, 
+                    .dashboard-root .glass-card, 
+                    .dashboard-root .table-container, 
+                    .dashboard-root .active-order-list { 
+                        max-height: none !important; 
+                        height: auto !important; 
+                        overflow: visible !important; 
+                        width: 100% !important;
+                        min-width: 0 !important;
+                    }
+
+                    /* Funnel Layout */
+                    .dashboard-root .dashboard-funnel-grid { 
+                        display: grid !important;
+                        grid-template-columns: repeat(3, 1fr) !important;
+                        gap: 0.5rem !important; 
+                        width: 100% !important;
+                    }
+                    .dashboard-root .funnel-card { 
+                        padding: 0.75rem 0.25rem !important; 
+                        text-align: center; 
+                        border-left-width: 3px !important;
+                        border-radius: 12px !important;
+                        min-width: 0 !important;
+                    }
+                    .dashboard-root .funnel-card .material-icons-round { margin: 0 auto 0.25rem !important; font-size: 1.1rem !important; }
+                    .dashboard-root .funnel-card div[style*="font-size: 0.65rem"] { font-size: 0.55rem !important; line-height: 1.1; }
+                    .dashboard-root .funnel-card div[style*="font-size: 1.75rem"] { font-size: 1rem !important; margin: 2px 0 !important; }
+                    .dashboard-root .funnel-card div[style*="font-size: 0.8rem"] { font-size: 0.65rem !important; }
+                    
+                    /* Filters */
+                    .dashboard-root .filter-bar-container { padding: 0.75rem !important; gap: 0.5rem !important; flex-wrap: wrap !important; }
+                    .dashboard-root .filter-bar-container > div:first-child { display: none !important; }
+                    .dashboard-root .filter-bar-container > div:last-child { width: 100% !important; display: flex !important; flex-wrap: wrap !important; gap: 0.5rem !important; }
+                    .dashboard-root .custom-dropdown { flex: 1 1 calc(50% - 0.25rem); min-width: 0 !important; max-width: 50%; }
+                    .dashboard-root .dropdown-trigger { padding: 6px 8px !important; font-size: 0.65rem !important; }
+                    .dashboard-root .dropdown-trigger span { max-width: 65px !important; }
+
+                    /* Header and Table Title */
+                    .dashboard-root .dashboard-header-actions { padding: 1rem !important; flex-direction: column !important; align-items: stretch !important; gap: 0.75rem !important; }
+                    .dashboard-root #table-title { font-size: 1rem !important; }
+                    .dashboard-root .dashboard-header-actions > div:last-child { display: flex !important; justify-content: space-between !important; align-items: center !important; }
+                    .dashboard-root #btn-new-order-main { padding: 0.5rem 0.75rem !important; font-size: 0.7rem !important; }
+
+                    /* Table to Cards Conversion */
+                    .dashboard-root .table-container { width: 100% !important; margin: 0 !important; padding: 0 !important; }
+                    .dashboard-root .table-container table, 
+                    .dashboard-root .table-container thead, 
+                    .dashboard-root .table-container tbody, 
+                    .dashboard-root .table-container tr, 
+                    .dashboard-root .table-container td {
+                        display: block !important; 
+                        width: 100% !important; 
+                    }
+                    .dashboard-root .table-container thead { display: none !important; }
+                    
+                    .dashboard-root .table-container tr {
+                        background: white !important;
+                        border-bottom: 4px solid var(--bg-secondary) !important;
+                        padding: 1rem !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        gap: 0.4rem !important;
+                    }
+                    
+                    .dashboard-root .table-container td {
+                        padding: 0 !important;
+                        border: none !important;
+                        text-align: left !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        white-space: normal !important;
+                        min-height: auto !important;
+                    }
+
+                    .dashboard-root .table-container td:nth-child(1) { 
+                        font-size: 0.75rem !important; 
+                        color: var(--brand-viola) !important; 
+                        font-weight: 800 !important; 
+                        padding: 2px 6px !important; 
+                        background: rgba(97, 74, 162, 0.05) !important; 
+                        border-radius: 4px !important; 
+                        width: auto !important; 
+                        display: inline-flex !important;
+                    }
+
+                    .dashboard-root .table-container td:nth-child(2) { flex-direction: column !important; align-items: flex-start !important; gap: 2px !important; margin: 0.25rem 0 !important; }
+                    .dashboard-root .table-container td:nth-child(2) div:first-child { font-size: 0.95rem !important; font-weight: 800 !important; color: var(--text-primary) !important; }
+                    .dashboard-root .table-container td:nth-child(2) div:last-child { font-size: 0.7rem !important; opacity: 0.7; }
+
+                    .dashboard-root .table-container td:nth-child(3) { font-size: 0.8rem !important; color: var(--text-secondary) !important; margin-bottom: 0.5rem !important; }
+                    .dashboard-root .table-container td:nth-child(3)::before { content: "CLIENTE: "; font-weight: 900; color: var(--text-tertiary); font-size: 0.6rem; margin-right: 6px; }
+
+                    .dashboard-root .table-container td:nth-child(4), 
+                    .dashboard-root .table-container td:nth-child(5), 
+                    .dashboard-root .table-container td:nth-child(6) {
+                        justify-content: space-between !important;
+                        font-size: 0.8rem !important;
+                        padding: 6px 0 !important;
+                        border-top: 1px dashed var(--glass-border) !important;
+                    }
+                    .dashboard-root .table-container td:nth-child(4)::before { content: "FATTURATO"; font-size: 0.6rem; font-weight: 800; color: var(--text-tertiary); }
+                    .dashboard-root .table-container td:nth-child(5)::before { content: "COSTI"; font-size: 0.6rem; font-weight: 800; color: var(--text-tertiary); }
+                    .dashboard-root .table-container td:nth-child(6)::before { content: "RICAVO"; font-size: 0.6rem; font-weight: 900; color: var(--brand-viola); }
                 }
             </style>
-            <div style="padding: 1.5rem; max-width: 1600px; margin: 0 auto;">
+            <div class="dashboard-root" style="padding: 1.5rem; max-width: 1600px; margin: 0 auto; width: 100%; box-sizing: border-box;">
                 
-                <div class="dashboard-main-grid" style="display: grid; grid-template-columns: 360px 1fr; gap: 2rem; align-items: start;">
+                <div class="dashboard-main-grid">
                     
                     <!-- Side Column: Active Box & Stats -->
-                    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <div class="dashboard-side-col" style="display: flex; flex-direction: column; gap: 1.5rem;">
                         
                         <!-- Ordini Attivi: Versione Brand Gleeye (Blue/Viola) -->
                         <div class="glass-card" style="padding: 0; border-radius: 12px; background: white; border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column;">
@@ -419,7 +637,7 @@ export function renderDashboard(container) {
                             </div>
                             
                             <!-- Lista con più "respiro" -->
-                            <div style="padding: 0.75rem; display: flex; flex-direction: column; gap: 0.65rem; max-height: 400px; overflow-y: auto; custom-scrollbar">
+                            <div class="active-order-list" style="padding: 0.75rem; display: flex; flex-direction: column; gap: 0.65rem; max-height: 400px; overflow-y: auto; custom-scrollbar">
                                 ${acceptedInProgress.length === 0 ? `
                                     <div style="text-align: center; padding: 1.5rem 1rem; color: var(--text-tertiary); font-size: 0.75rem; opacity: 0.6;">
                                         Nessun ordine attivo
@@ -485,12 +703,12 @@ export function renderDashboard(container) {
                     </div>
 
                     <!-- Main Column: Funnel & Table -->
-                    <div style="display: flex; flex-direction: column; gap: 2rem;">
+                    <div class="dashboard-main-col" style="display: flex; flex-direction: column; gap: 2rem;">
                         <div id="funnel-container" class="dashboard-funnel-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;">
                             ${funnelHTML}
                         </div>
 
-                        <div class="glass-card" style="padding: 0; overflow: hidden; border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; max-height: 600px;">
+                        <div class="glass-card main-table-card" style="padding: 0; overflow: hidden; border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; max-height: 600px;">
                             <div class="dashboard-header-actions" style="padding: 1.5rem; border-bottom: 1px solid var(--glass-border); background: var(--bg-secondary); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
                                 <div style="display: flex; align-items: center; gap: 1rem;">
                                     <h3 id="table-title" style="margin: 0; font-size: 1.2rem; font-weight: 800; font-family: var(--font-titles); color: var(--text-primary);">Elenco Ordini</h3>
