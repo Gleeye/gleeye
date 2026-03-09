@@ -461,6 +461,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     }
 
                     @media (max-width: 768px) {
+                        #full-screen-btn { display: none !important; }
                         .drawer-header { padding: 0.75rem 1rem !important; }
                         .drawer-body { padding: 0 0.75rem !important; }
                         .metadata-container {
