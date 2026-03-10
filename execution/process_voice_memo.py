@@ -27,6 +27,7 @@ def download_file(url, local_path):
 
 async def process_voice_memo(audio_url, space_id, item_id, notebook_id=None):
     local_audio = f"/tmp/memo_{int(time.time())}.mp3"
+    temp_notebook_id = None
     
     try:
         # 1. Download
@@ -38,57 +39,51 @@ async def process_voice_memo(audio_url, space_id, item_id, notebook_id=None):
         log("Initializing NotebookLM Client...")
         async with await NotebookLMClient.from_storage() as client:
             
-            # If notebook_id is not provided, find one
-            if not notebook_id:
-                log("Searching for suitable notebook...")
-                notebooks = await client.notebooks.list()
-                # Simple heuristic: find notebook starting with space_id or "Gleeye Project"
-                target = next((n for n in notebooks if space_id[:8] in n.title or "Gleeye" in n.title), None)
-                if target:
-                    notebook_id = target.id
-                    log(f"Using existing notebook: {target.title} ({notebook_id})")
-                else:
-                    log("No suitable notebook found. Creating one...")
-                    nb = await client.notebooks.create(f"Gleeye Project: {space_id[:8]}")
-                    notebook_id = nb.id
-                    log(f"Created new notebook: {notebook_id}")
+            # ALWAYS create a fresh notebook to avoid mixing info from other sources
+            log("Creating temporary notebook for this report...")
+            nb = await client.notebooks.create(f"TEMP AI Report: {int(time.time())}")
+            temp_notebook_id = nb.id
+            log(f"Created temporary notebook: {temp_notebook_id}")
 
             # 3. Add Source
             log(f"Uploading audio file: {local_audio}")
-            source = await client.sources.add_file(notebook_id, Path(local_audio))
+            source = await client.sources.add_file(temp_notebook_id, Path(local_audio))
             source_id = source.id
             log(f"Source added: {source_id}")
 
-            # 4. Wait for processing
-            log("Waiting for processing (shoud take 1-2 mins)...")
-            # In a more robust implementation, we'd poll client.sources.get(notebook_id, source_id)
-            # For now, we'll wait a bit and then attempt generation
-            await asyncio.sleep(60) 
+            # 4. Wait for processing (polling source status)
+            log("Waiting for audio processing...")
+            for _ in range(30): # 5 mins max
+                data = await client.sources.get(temp_notebook_id, source_id)
+                if data.is_completed:
+                    log("Audio processing complete.")
+                    break
+                if data.is_failed:
+                    log("Audio processing failed.")
+                    return
+                await asyncio.sleep(10)
+            else:
+                log("Audio processing timeout.")
+                return
 
-            # 5. Generate Report Artifact
-            log("Generating Report artifact...")
+            # 5. Generate Report Artifact (in Italian)
+            log("Generating Italian Report artifact...")
             try:
-                # generate_report returns a task or status depending on the lib
-                # Usually there's a generate_report method in artifacts
-                artifact_task = await client.artifacts.generate_report(notebook_id)
+                # Set language=it for Italian output
+                artifact_task = await client.artifacts.generate_report(temp_notebook_id, language="it")
                 log(f"Generation task started: {artifact_task.task_id}")
-                
-                # Wait for completion
-                log("Waiting for artifact completion...")
-                # await client.artifacts.wait_for_completion(notebook_id, artifact_task.task_id)
                 
                 # Poll for completion
                 report_content = None
                 for i in range(24): # 2 mins max
                     await asyncio.sleep(5)
-                    artifacts = await client.artifacts.list(notebook_id)
-                    # Find the artifact by task_id
+                    artifacts = await client.artifacts.list(temp_notebook_id)
                     report = next((a for a in artifacts if a.id == artifact_task.task_id), None)
                     
                     if report and report.is_completed:
                         log(f"Report completed! Fetching content...")
                         report_file = f"/tmp/report_{int(time.time())}.md"
-                        await client.artifacts.download_report(notebook_id, report_file, artifact_id=report.id)
+                        await client.artifacts.download_report(temp_notebook_id, report_file, artifact_id=report.id)
                         with open(report_file, 'r') as f:
                             report_content = f.read()
                         os.remove(report_file)
@@ -99,8 +94,10 @@ async def process_voice_memo(audio_url, space_id, item_id, notebook_id=None):
                     
                 if report_content:
                     log("Report content found!")
+                    # Clean markdown symbols for cleaner display in Gleeye
+                    clean_content = clean_report_content(report_content)
                     # 6. Save back to Supabase
-                    save_report_to_supabase(report_content, space_id, item_id, audio_url)
+                    save_report_to_supabase(clean_content, space_id, item_id, audio_url)
                     return
                 
                 log("Timeout waiting for report generation or failed.")
@@ -112,8 +109,41 @@ async def process_voice_memo(audio_url, space_id, item_id, notebook_id=None):
         import traceback
         traceback.print_exc()
     finally:
+        # Cleanup
         if os.path.exists(local_audio):
             os.remove(local_audio)
+        if temp_notebook_id:
+            try:
+                log(f"Deleting temporary notebook: {temp_notebook_id}...")
+                async with await NotebookLMClient.from_storage() as client:
+                    await client.notebooks.delete(temp_notebook_id)
+                log("Temporary notebook deleted.")
+            except Exception as e:
+                log(f"Failed to delete temp notebook: {e}")
+
+def clean_report_content(content):
+    """
+    Remove markdown symbols for a cleaner appearance as requested.
+    Transforms headers into uppercase and removes bold/italic markers.
+    """
+    import re
+    # 1. Transform headers: remove # and make uppercase
+    def header_replace(match):
+        return "\n" + match.group(1).strip().upper() + "\n" + "-" * len(match.group(1).strip()) + "\n"
+    
+    # Replace #, ##, ### titles
+    content = re.sub(r'^#+\s*(.*)$', header_replace, content, flags=re.MULTILINE)
+    
+    # 2. Remove bold ** and italics _ or *
+    content = content.replace('**', '')
+    content = re.sub(r'[*_](.*?)[*_]', r'\1', content)
+    
+    # 3. Clean multiple newlines
+    content = re.sub(r'\n{3,}', '\n\n', content)
+    
+    return content.strip()
+
+
 
 def save_report_to_supabase(content, space_id, item_id, audio_url):
     log("Saving report to Supabase Documents...")
