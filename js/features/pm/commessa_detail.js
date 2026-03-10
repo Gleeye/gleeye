@@ -810,26 +810,27 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                 </button>
 
                 <!-- NEW Dropdown Menu (Moved here so it's not inside hidden header on mobile) -->
-                <div id="add-hub-dropdown" class="hidden glass-card" style="position: absolute; top: 0; right: 0; width: 220px; z-index: 1000; padding: 0.5rem; box-shadow: var(--shadow-xl);">
+                <div id="add-hub-dropdown" class="hidden glass-card" style="position: absolute; top: calc(100% + 8px); right: 0; width: 180px; z-index: 1000; padding: 0.4rem; box-shadow: var(--shadow-xl); border: 1px solid var(--glass-border);">
                     ${space?.is_cluster ? `
-                    <div class="dropdown-item" id="add-project-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                        <span class="material-icons-round" style="color: var(--brand-blue);">lan</span>
-                        <div><div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Nuovo Progetto Interno</div></div>
+                    <div class="dropdown-item" id="add-project-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                        <span class="material-icons-round" style="color: var(--brand-blue); font-size: 1.2rem;">lan</span>
+                        <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Progetti</div>
                     </div>
                     <div style="height: 1px; background: var(--surface-2); margin: 4px 8px;"></div>
                     ` : ''}
-                    <div class="dropdown-item" id="add-activity-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                        <span class="material-icons-round" style="color: #f59e0b;">folder</span>
-                        <div><div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Feed / Attività</div></div>
+                    <div class="dropdown-item" id="add-activity-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                        <span class="material-icons-round" style="color: #f59e0b; font-size: 1.2rem;">folder</span>
+                        <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Attività</div>
                     </div>
-                    <div class="dropdown-item" id="add-task-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                        <span class="material-icons-round" style="color: #3b82f6;">check_circle_outline</span>
-                        <div><div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Board / Task</div></div>
+                    <div class="dropdown-item" id="add-task-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                        <span class="material-icons-round" style="color: #3b82f6; font-size: 1.2rem;">check_circle_outline</span>
+                        <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Task</div>
                     </div>
                     ${!isInternal ? `
-                    <div class="dropdown-item" id="add-appointment-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                        <span class="material-icons-round" style="color: #8b5cf6;">event</span>
-                        <div><div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Appuntamento</div></div>
+                    <div style="height: 1px; background: var(--surface-2); margin: 4px 8px;"></div>
+                    <div class="dropdown-item" id="add-appointment-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                        <span class="material-icons-round" style="color: #8b5cf6; font-size: 1.2rem;">event</span>
+                        <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Appuntamento</div>
                     </div>
                     ` : ''}
                 </div>

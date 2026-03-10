@@ -671,7 +671,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
         menu.className = 'hub-context-menu glass-card';
         menu.style.cssText = `position: absolute; z-index: 10000; padding: 4px; min-width: 110px; background: white; border: 1px solid var(--surface-2); border-radius: 8px; box-shadow: var(--shadow-lg);`;
 
-        let menuHTML = `<div class="menu-item" data-type="attivita" style="padding:8px 12px; cursor:pointer; font-size:0.8rem; display:flex; align-items:center; gap:8px;"><span class="material-icons-round" style="font-size:1.1rem; color:#f59e0b;">folder</span> Board</div>
+        let menuHTML = `<div class="menu-item" data-type="attivita" style="padding:8px 12px; cursor:pointer; font-size:0.8rem; display:flex; align-items:center; gap:8px;"><span class="material-icons-round" style="font-size:1.1rem; color:#f59e0b;">folder</span> Attività</div>
                         <div class="menu-item" data-type="task" style="padding:8px 12px; cursor:pointer; font-size:0.8rem; display:flex; align-items:center; gap:8px;"><span class="material-icons-round" style="font-size:1.1rem; color:#3b82f6;">check_circle_outline</span> Task</div>`;
 
         if (space?.is_cluster) {
