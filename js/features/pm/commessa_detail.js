@@ -811,6 +811,13 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
                 <!-- NEW Dropdown Menu (Moved here so it's not inside hidden header on mobile) -->
                 <div id="add-hub-dropdown" class="hidden glass-card" style="position: absolute; top: 0; right: 0; width: 220px; z-index: 1000; padding: 0.5rem; box-shadow: var(--shadow-xl);">
+                    ${space?.is_cluster ? `
+                    <div class="dropdown-item" id="add-project-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                        <span class="material-icons-round" style="color: var(--brand-blue);">lan</span>
+                        <div><div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Nuovo Progetto Interno</div></div>
+                    </div>
+                    <div style="height: 1px; background: var(--surface-2); margin: 4px 8px;"></div>
+                    ` : ''}
                     <div class="dropdown-item" id="add-activity-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
                         <span class="material-icons-round" style="color: #f59e0b;">folder</span>
                         <div><div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Feed / Attività</div></div>
@@ -1082,6 +1089,15 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                 if (!addHubBtn.contains(e.target) && !addHubDropdown.contains(e.target) && !isFab) {
                     addHubDropdown.classList.add('hidden');
                 }
+            });
+
+            container.querySelector('#add-project-btn')?.addEventListener('click', async () => {
+                addHubDropdown.classList.add('hidden');
+                const { openNewProjectModal } = await import('./components/cluster_projects.js?v=2000');
+                openNewProjectModal(spaceId, () => {
+                    const activeTab = Array.from(tabs).find(t => t.classList.contains('active'))?.dataset.tab;
+                    if (activeTab === 'projects') renderTab('projects');
+                });
             });
 
             container.querySelector('#add-activity-btn')?.addEventListener('click', () => {

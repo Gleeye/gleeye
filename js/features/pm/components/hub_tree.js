@@ -88,7 +88,8 @@ export function renderHubTree(container, items, space, spaceId) {
             handleSortChange,
             handleViewChange,
             expandedNodes,
-            refreshBoard
+            refreshBoard,
+            space
         );
     };
 
@@ -355,7 +356,8 @@ export function renderHubTree(container, items, space, spaceId) {
         handleSortChange,
         handleViewChange,
         expandedNodes,
-        refreshBoard
+        refreshBoard,
+        space
     );
 }
 
@@ -553,7 +555,7 @@ function renderTreeNodes(nodes, level, spaceId, isFlat = false, allItems, expand
     }).join('');
 }
 
-function setupBoardEventHandlers(container, items, spaceId, currentSort, currentView, onSortChange, onViewChange, expandedNodes, refreshBoard) {
+function setupBoardEventHandlers(container, items, spaceId, currentSort, currentView, onSortChange, onViewChange, expandedNodes, refreshBoard, space) {
     container.querySelectorAll('.view-btn').forEach(btn => btn.onclick = () => onViewChange(btn.dataset.view));
     container.querySelectorAll('.sortable-header').forEach(header => header.onclick = () => onSortChange(header.dataset.col));
 
@@ -668,12 +670,39 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
         const menu = document.createElement('div');
         menu.className = 'hub-context-menu glass-card';
         menu.style.cssText = `position: absolute; z-index: 10000; padding: 4px; min-width: 110px; background: white; border: 1px solid var(--surface-2); border-radius: 8px; box-shadow: var(--shadow-lg);`;
-        menu.innerHTML = `<div class="menu-item" style="padding:8px 12px; cursor:pointer; font-size:0.8rem;">Board</div><div class="menu-item" style="padding:8px 12px; cursor:pointer; font-size:0.8rem;">Task</div>`;
+
+        let menuHTML = `<div class="menu-item" data-type="attivita" style="padding:8px 12px; cursor:pointer; font-size:0.8rem; display:flex; align-items:center; gap:8px;"><span class="material-icons-round" style="font-size:1.1rem; color:#f59e0b;">folder</span> Board</div>
+                        <div class="menu-item" data-type="task" style="padding:8px 12px; cursor:pointer; font-size:0.8rem; display:flex; align-items:center; gap:8px;"><span class="material-icons-round" style="font-size:1.1rem; color:#3b82f6;">check_circle_outline</span> Task</div>`;
+
+        if (space?.is_cluster) {
+            menuHTML = `<div class="menu-item" data-type="project" style="padding:8px 12px; cursor:pointer; font-size:0.8rem; display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--surface-2); margin-bottom:4px;"><span class="material-icons-round" style="font-size:1.1rem; color:var(--brand-blue);">lan</span> Progetto</div>` + menuHTML;
+        }
+
+        menu.innerHTML = menuHTML;
         const rect = btn.getBoundingClientRect();
         menu.style.top = (window.scrollY + rect.bottom + 4) + 'px';
         menu.style.left = (window.scrollX + rect.left - 40) + 'px';
         document.body.appendChild(menu);
-        menu.querySelectorAll('.menu-item').forEach((it, idx) => it.onclick = () => { import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => mod.openHubDrawer(null, spaceId, btn.dataset.parent, idx === 0 ? 'attivita' : 'task')); menu.remove(); });
+
+        menu.querySelectorAll('.menu-item').forEach(it => {
+            it.onclick = async () => {
+                const type = it.dataset.type;
+                if (type === 'project') {
+                    const { openNewProjectModal } = await import('./cluster_projects.js?v=2000');
+                    openNewProjectModal(spaceId, () => {
+                        // Projects tab is not visible here, but maybe we want to refresh something?
+                        // Usually projects aren't in the tree yet if they are siblings, but here they are "children" of a cluster item?
+                        // Wait, a project cannot be a child of an ITEM. It's a sibling of other items or child of a cluster SPACE.
+                        // But the user clicked on an ITEM's "add-child" button.
+                        // If it's a cluster, maybe they want to create a project inside the cluster.
+                        // The cluster projects tab is better for this, but if they are in the board, they might expect it here too.
+                    });
+                } else {
+                    import('./hub_drawer.js?v=1000').then(mod => mod.openHubDrawer(null, spaceId, btn.dataset.parent, type));
+                }
+                menu.remove();
+            };
+        });
         setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
     });
 

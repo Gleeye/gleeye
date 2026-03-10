@@ -22,35 +22,10 @@ export async function renderClusterProjects(container, clusterId) {
                 </div>
             </div>
         </div>
-
-        <!-- NEW PROJECT MODAL -->
-        <div id="new-project-cluster-modal" class="modal-overlay hidden" style="z-index: 2000;">
-            <div class="modal-content glass-card animate-scale-in" style="width: 450px; padding: 2rem; position: relative; background: rgba(255,255,255,0.95);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                    <h2 style="font-size: 1.25rem; font-weight: 800; margin: 0;">Nuovo Progetto Interno</h2>
-                    <button class="close-modal-btn" style="background:none; border:none; cursor:pointer; color:var(--text-tertiary);"><span class="material-icons-round">close</span></button>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 1.5rem;">
-                    <label style="display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 0.5rem;">Nome Progetto</label>
-                    <input type="text" id="new-project-cluster-name" placeholder="Es. Sviluppo Modulo Progetti" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border); background: white; font-size: 0.9rem; font-weight: 600;">
-                </div>
-
-                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
-                    <button class="glass-btn cancel-modal-btn" style="flex: 1; padding: 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--glass-border); font-weight: 700;">Annulla</button>
-                    <button id="save-new-project-cluster-btn" class="glass-btn" style="flex: 1; padding: 12px; border-radius: 12px; background: var(--brand-gradient); color: white; border: none; font-weight: 700; box-shadow: var(--shadow-md);">Crea Progetto</button>
-                </div>
-            </div>
-        </div>
     `;
 
     const listContainer = container.querySelector('#cluster-projects-list');
-    const modal = container.querySelector('#new-project-cluster-modal');
-    const closeBtn = modal.querySelector('.close-modal-btn');
-    const cancelBtn = modal.querySelector('.cancel-modal-btn');
-    const saveBtn = modal.querySelector('#save-new-project-cluster-btn');
     const addBtn = container.querySelector('#add-project-to-cluster-btn');
-    const nameInput = modal.querySelector('#new-project-cluster-name');
 
     const refreshList = async () => {
         listContainer.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-tertiary);"><span class="loader"></span></div>';
@@ -98,12 +73,46 @@ export async function renderClusterProjects(container, clusterId) {
     };
 
     addBtn.addEventListener('click', () => {
-        nameInput.value = '';
-        modal.classList.remove('hidden');
-        nameInput.focus();
+        openNewProjectModal(clusterId, refreshList);
     });
 
-    const closeModal = () => modal.classList.add('hidden');
+    refreshList();
+}
+
+export function openNewProjectModal(clusterId, onSuccess) {
+    const modalWrap = document.createElement('div');
+    modalWrap.innerHTML = `
+        <div id="new-project-cluster-modal" class="modal-overlay" style="z-index: 2000;">
+            <div class="modal-content glass-card animate-scale-in" style="width: 450px; padding: 2rem; position: relative; background: rgba(255,255,255,0.95);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h2 style="font-size: 1.25rem; font-weight: 800; margin: 0;">Nuovo Progetto Interno</h2>
+                    <button class="close-modal-btn" style="background:none; border:none; cursor:pointer; color:var(--text-tertiary);"><span class="material-icons-round">close</span></button>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 0.5rem;">Nome Progetto</label>
+                    <input type="text" id="new-project-cluster-name" placeholder="Es. Sviluppo Modulo Progetti" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border); background: white; font-size: 0.9rem; font-weight: 600;">
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                    <button class="glass-btn cancel-modal-btn" style="flex: 1; padding: 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--glass-border); font-weight: 700;">Annulla</button>
+                    <button id="save-new-project-cluster-btn" class="glass-btn" style="flex: 1; padding: 12px; border-radius: 12px; background: var(--brand-gradient); color: white; border: none; font-weight: 700; box-shadow: var(--shadow-md);">Crea Progetto</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modalWrap);
+
+    const modal = modalWrap.querySelector('#new-project-cluster-modal');
+    const closeBtn = modal.querySelector('.close-modal-btn');
+    const cancelBtn = modal.querySelector('.cancel-modal-btn');
+    const saveBtn = modal.querySelector('#save-new-project-cluster-btn');
+    const nameInput = modal.querySelector('#new-project-cluster-name');
+
+    const closeModal = () => {
+        modalWrap.remove();
+    };
+
     closeBtn.addEventListener('click', closeModal);
     cancelBtn.addEventListener('click', closeModal);
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
@@ -116,7 +125,6 @@ export async function renderClusterProjects(container, clusterId) {
             saveBtn.disabled = true;
             saveBtn.textContent = 'Creazione...';
 
-            // Re-fetch cluster info to get the area
             const { fetchSpace } = await import('../../../modules/pm_api.js');
             const cluster = await fetchSpace(clusterId);
             const area = cluster?.area || 'Generale';
@@ -124,7 +132,7 @@ export async function renderClusterProjects(container, clusterId) {
             await createProjectInCluster(name, area, clusterId);
             showGlobalAlert('Progetto creato con successo', 'success');
             closeModal();
-            refreshList();
+            if (onSuccess) onSuccess();
         } catch (e) {
             console.error(e);
             showGlobalAlert('Errore nella creazione', 'error');
@@ -134,5 +142,5 @@ export async function renderClusterProjects(container, clusterId) {
         }
     });
 
-    refreshList();
+    setTimeout(() => nameInput.focus(), 100);
 }
