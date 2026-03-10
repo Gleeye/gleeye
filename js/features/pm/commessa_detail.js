@@ -138,317 +138,732 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         // Check if user has at least one of the allowed tags or is admin
         const canViewReceipt = state.profile?.role === 'admin' || userTags.some(t => ['Partner', 'Account', 'Amministrazione'].includes(t));
 
-        // 6. Render Page
+        const normalized = normalizeStatus(isInternal ? space?.status : order?.status_works);
+        const statusConfig = STATUS_CONFIG[normalized] || STATUS_CONFIG['in_svolgimento'];
+
+        // --- 7. RENDER MAIN CONTENT ---
         container.innerHTML = `
-            <div class="project-hub" style="height: 100%; display: flex; flex-direction: column;">
-                
-                <!-- STICKY HEADER -->
-                <div class="hub-header" style="
-                    background: white;
-                    border-bottom: 1px solid var(--surface-2);
-                    padding: 1.25rem 1.5rem;
+            <style>
+                .project-hub {
+                    width: auto;
+                    margin: 0 -3rem !important; /* Only breakout sides, no top negative margin */
+                    padding: 0 !important;
+                }
+                .project-hub-container {
+                    display: flex;
+                    width: 100%;
+                    min-height: calc(100vh - 60px);
+                    background: transparent;
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    gap: 2.5rem;
+                    padding: 1.5rem 2.5rem 2rem 2.5rem; /* Added top padding and refined sides */
+                }
+                .hub-sidebar {
+                    width: 320px;
+                    flex-shrink: 0;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1.5rem;
+                    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
                     position: sticky;
-                    top: 0;
-                    z-index: 50;
-                ">
-                    <!-- UNIFIED HEADER -->
-                    <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem;">
+                    top: 1rem;
+                    height: fit-content;
+                    opacity: 1;
+                    visibility: visible;
+                }
+                .hub-sidebar.collapsed {
+                    width: 0;
+                    margin-right: -2.5rem;
+                    opacity: 0;
+                    visibility: hidden;
+                    pointer-events: none;
+                }
+                .hub-main-content {
+                    flex: 1;
+                    min-width: 0;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1.25rem;
+                }
+                
+                /* Mini Title when sidebar is collapsed */
+                .hub-title-mini {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    opacity: 0;
+                    max-width: 0;
+                    overflow: hidden;
+                    white-space: nowrap;
+                    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                    margin-left: 0;
+                }
+                .hub-sidebar.collapsed + .hub-main-content .hub-title-mini {
+                    opacity: 1;
+                    max-width: 500px;
+                    margin-left: 0.5rem;
+                }
+
+                .sidebar-toggle-btn {
+                    width: 42px;
+                    height: 42px;
+                    border-radius: 12px;
+                    background: white;
+                    border: 1px solid var(--glass-border);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    color: var(--text-secondary);
+                    flex-shrink: 0;
+                    box-shadow: var(--shadow-sm);
+                }
+                .sidebar-toggle-btn:hover {
+                    color: var(--brand-blue);
+                    background: white;
+                    border-color: var(--brand-blue);
+                    box-shadow: var(--shadow-md);
+                    transform: translateY(-1px);
+                }
+
+                /* MOBILE RESPONSIVENESS */
+                @media (max-width: 1024px) {
+                    .project-hub { margin: 0 !important; }
+                    .project-hub-container { padding: 1rem !important; gap: 1rem !important; }
+                    .hub-sidebar { display: none !important; }
+                    .hub-sidebar.collapsed { display: none !important; }
+                    .hub-main-content .hub-title-mini { opacity: 1 !important; max-width: none !important; margin-left: 0.5rem !important; overflow: visible !important; }
+                }
+
+                @media (max-width: 768px) {
+                    .project-hub { margin: 0 -0.5rem !important; padding: 0 !important; width: calc(100% + 1rem) !important; overflow-x: hidden !important; }
+                    .project-hub-container { 
+                        flex-direction: column !important; 
+                        padding: 0 !important; 
+                        gap: 0 !important; 
+                        min-height: auto !important;
+                    }
+                    
+                    /* ===== MOBILE HEADER ===== */
+                    #hub-header-bar {
+                        padding: 0.5rem 0.75rem !important;
+                        margin: 0 !important;
+                        gap: 0 !important;
+                        flex-wrap: wrap !important;
+                    }
+                    #hub-sidebar-toggle { display: none !important; }
+                    /* Hide desktop-only action buttons row */
+                    #hub-header-bar > div:last-child { display: none !important; }
+                    /* Hide desktop PM avatars & divider */
+                    .hub-pm-avatars-desktop, .hub-header-divider-desktop { display: none !important; }
+
+                    /* --- Row 1: Badge + Title + Order icon --- */
+                    /* The left div becomes full width */
+                    #hub-header-bar > div:first-child {
+                        width: 100% !important;
+                        flex-wrap: wrap !important;
+                        gap: 0.5rem !important;
+                    }
+                    .hub-title-mini {
+                        display: flex !important;
+                        align-items: center !important;
+                        gap: 0.5rem !important;
+                        flex: 1 !important;
+                        min-width: 0 !important;
+                        opacity: 1 !important;
+                    }
+                    .hub-title-badge { flex-shrink: 0; }
+                    .hub-title-content { flex: 1; min-width: 0; }
+                    .hub-title-main {
+                        display: -webkit-box !important;
+                        -webkit-box-orient: vertical !important;
+                        -webkit-line-clamp: 2 !important;
+                        overflow: hidden !important;
+                        text-overflow: ellipsis !important;
+                        font-size: 0.9rem !important;
+                        font-weight: 700 !important;
+                        line-height: 1.25 !important;
+                        color: var(--text-primary) !important;
+                        word-break: normal !important;
+                        overflow-wrap: anywhere !important;
+                    }
+                    .hub-title-sub {
+                        font-size: 0.7rem !important;
+                        color: var(--brand-blue) !important;
+                        margin-top: 1px;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+                    .hub-title-actions-mobile {
+                        flex-shrink: 0 !important;
+                        display: flex !important;
+                        align-items: center !important;
+                    }
+
+                    /* --- Row 2: Status pill (compact) --- */
+                    .custom-status-dropdown {
+                        display: block !important;
+                        width: 100% !important;
+                        margin-top: 0.25rem !important;
+                    }
+                    .custom-status-dropdown #hub-status-trigger {
+                        padding: 4px 10px !important;
+                        font-size: 0.7rem !important;
+                        border-radius: 8px !important;
+                    }
+                    .custom-status-dropdown #hub-status-trigger .material-icons-round {
+                        font-size: 0.9rem !important;
+                    }
+
+                    /* ===== FAB ===== */
+                    #mobile-fab {
+                        display: flex !important;
+                        position: fixed;
+                        bottom: 1.5rem;
+                        right: 1.5rem;
+                        width: 56px;
+                        height: 56px;
+                        border-radius: 50%;
+                        background: var(--brand-gradient);
+                        color: white;
+                        box-shadow: 0 8px 24px rgba(97, 74, 162, 0.4);
+                        z-index: 1001;
+                        align-items: center;
+                        justify-content: center;
+                        border: none;
+                        cursor: pointer;
+                        transition: transform 0.2s;
+                    }
+                    #mobile-fab:active { transform: scale(0.9); }
+
+                    /* Dropdown above FAB */
+                    #add-hub-dropdown {
+                        position: fixed !important;
+                        bottom: 5.5rem !important;
+                        right: 1.5rem !important;
+                        top: auto !important;
+                        left: auto !important;
+                        width: 220px !important;
+                        z-index: 1002 !important;
+                        transform-origin: bottom right !important;
+                        animation: fabMenuPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+                    }
+                    @keyframes fabMenuPop {
+                        from { opacity: 0; transform: scale(0.8) translateY(20px); }
+                        to { opacity: 1; transform: scale(1) translateY(0); }
+                    }
+
+                    /* Tabs */
+                    .hub-tabs { 
+                        gap: 0.25rem !important; 
+                        justify-content: flex-start !important; 
+                        overflow-x: auto !important; 
+                        overflow-y: hidden !important; 
+                        -webkit-overflow-scrolling: touch !important;
+                    }
+                    .hub-tabs::-webkit-scrollbar { display: none !important; }
+                    #mobile-risorse-tab { display: flex !important; }
+
+                    /* Team strip & layout */
+                    #mobile-team-strip { display: flex !important; overflow-y: hidden !important; }
+                    .hub-main-content { gap: 0 !important; }
+                    
+                    /* Sticky tabs */
+                    /* Fixed sticky tabs by removing overflow: hidden on parent */
+                    #hub-content-card { 
+                        overflow: visible !important;
+                        border: none !important;
+                        min-height: auto !important;
+                        background: transparent !important;
+                        box-shadow: none !important;
+                    }
+                    .hub-main-content { overflow: visible !important; }
+                    .hub-tabs {
+                        position: sticky !important;
+                        top: 0 !important;
+                        z-index: 100 !important;
+                        background: rgba(255, 255, 255, 0.95) !important;
+                        backdrop-filter: blur(10px) !important;
+                        border-bottom: 1px solid var(--glass-border) !important;
+                        margin: 0 !important;
+                        width: 100% !important;
+                    }
+                    .hub-tab {
+                        padding: 0.85rem 0.4rem !important;
+                        font-size: 0.75rem !important;
+                        gap: 0.3rem !important;
+                    }
+                    .hub-tab .material-icons-round { font-size: 1rem !important; }
+                    
+                    /* Tab content — ZERO padding, full width */
+                    #hub-tab-content { 
+                        padding: 0.5rem !important;
+                        overflow: visible !important;
+                        margin: 0 !important; 
+                    }
+                    
+                    /* Glass card wrapper — flat */
+                    .hub-main-content > .glass-card,
+                    #hub-content-card {
+                        border-radius: 0 !important;
+                        border: none !important;
+                        padding: 0 !important;
+                        min-height: auto !important;
+                        background: transparent !important;
+                        box-shadow: none !important;
+                    }
+                    
+                    /* Inline style overrides for tab container */
+                    .hub-tabs {
+                        padding: 0 0.25rem !important;
+                    }
+                    #hub-tab-content {
+                        padding: 0 !important;
+                    }
+                }
+            </style>
+
+            <div class="project-hub animate-fade-in">
+                <div class="project-hub-container" id="hub-main-layout">
+                    
+                    <!-- LEFT SIDEBAR -->
+                    <div class="hub-sidebar" id="hub-left-sidebar">
                         
-                        <!-- Row 1: Badges & Status -->
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            ${isInternal ? `
-                                <span style="font-family: monospace; color: var(--text-secondary); font-weight: 600; font-size: 0.85rem;">${space?.area || 'Generale'}</span>
-                                <span style="background: #f1f5f9; color: var(--text-secondary); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase;">Progetto Interno</span>
-                            ` : `
-                                <span style="font-family: monospace; color: var(--text-secondary); font-weight: 600; font-size: 0.85rem;">${order?.order_number || ''}</span>
+                        <!-- Redundant status removed from here -->
+
+                        <!-- MAIN INFO CARD -->
+                        <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
+                            
+                            <div style="display: flex; align-items: flex-start; gap: 1.25rem;">
                                 ${(() => {
-                const normalized = normalizeStatus(order?.status_works);
-                const statusConfig = STATUS_CONFIG[normalized] || STATUS_CONFIG['in_svolgimento'];
-                return `
-                                        <div class="custom-status-dropdown" style="position: relative; z-index: 100;">
-                                            <button id="hub-status-trigger" style="
-                                                background: ${statusConfig.bg}; color: ${statusConfig.color};
-                                                padding: 4px 12px; border: 1px solid transparent; border-radius: 100px;
-                                                font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; gap: 6px;
-                                                cursor: pointer; transition: all 0.2s;
-                                            ">
-                                                <span class="material-icons-round" style="font-size: 1rem;">${statusConfig.icon}</span>
-                                                ${statusConfig.label}
-                                                <span class="material-icons-round" style="font-size: 1rem; opacity: 0.7;">unfold_more</span>
-                                            </button>
-                                            
-                                            <div id="hub-status-menu" class="hidden" style="
-                                                position: absolute; top: calc(100% + 8px); left: 0; min-width: 180px;
-                                                background: white; border-radius: 12px; box-shadow: var(--shadow-lg);
-                                                border: 1px solid var(--surface-2); padding: 6px; overflow: hidden;
-                                            ">
-                                                ${Object.entries(STATUS_CONFIG).map(([key, cfg]) => `
-                                                    <div class="status-option ${normalized === key ? 'active' : ''}" data-status="${key}" style="
-                                                        padding: 8px 12px; border-radius: 8px; cursor: pointer;
-                                                        display: flex; align-items: center; gap: 10px; font-size: 0.8rem; font-weight: 600;
-                                                        color: ${normalized === key ? cfg.color : 'var(--text-secondary)'};
-                                                        background: ${normalized === key ? cfg.bg : 'transparent'};
-                                                        transition: all 0.2s;
-                                                    " onmouseover="this.style.background='${cfg.bg}'; this.style.color='${cfg.color}'" onmouseout="if(!this.classList.contains('active')){this.style.background='transparent'; this.style.color='var(--text-secondary)'}">
-                                                        <span class="material-icons-round" style="font-size: 1.1rem;">${cfg.icon}</span>
-                                                        ${cfg.label}
-                                                    </div>
-                                                `).join('')}
+                if (isInternal) {
+                    return `
+                                            <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--brand-gradient); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(97, 74, 162, 0.2); color: white; flex-shrink: 0;">
+                                                <span class="material-icons-round" style="font-size: 1.5rem;">${space?.is_cluster ? 'workspaces' : 'business_center'}</span>
+                                            </div>
+                                        `;
+                } else {
+                    const parts = (order?.order_number || '00-0000').split('-');
+                    const yearPrefix = parts[0] || '00';
+                    const seqNumber = parts[1] || '0000';
+                    return `
+                                            <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--brand-gradient); display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(97, 74, 162, 0.2); color: white; line-height: 1; flex-shrink: 0;">
+                                                <div style="font-size: 0.7rem; font-weight: 800; opacity: 0.8; margin-bottom: 1px;">${yearPrefix}</div>
+                                                <div style="font-size: 0.95rem; font-weight: 900; letter-spacing: 0.05em;">${seqNumber}</div>
+                                            </div>
+                                        `;
+                }
+            })()}
+
+                                <div style="min-width: 0; flex: 1;">
+                                    <h1 style="font-size: 1.25rem; font-weight: 700; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.015em; line-height: 1.25;">
+                                        ${isInternal ? (space?.name || 'Project Detail') : (order?.title || 'Dettaglio Commessa')}
+                                    </h1>
+                                    ${isInternal ? `
+                                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.35rem;">
+                                            <span style="font-size: 0.7rem; font-weight: 600; color: var(--text-secondary);">${space?.area || 'Generale'}</span>
+                                            <span style="background: ${space?.is_cluster ? '#e0e7ff' : '#f1f5f9'}; color: ${space?.is_cluster ? '#4f46e5' : 'var(--text-secondary)'}; padding: 1px 6px; border-radius: 4px; font-size: 0.6rem; font-weight: 700; text-transform: uppercase;">${space?.is_cluster ? 'Cluster' : 'Progetto'}</span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+
+                            <!-- Subject Client (Integrated) -->
+                            ${!isInternal ? `
+                            <div style="border-top: 1px solid var(--glass-border); padding-top: 1.25rem;">
+                                    <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 800; text-transform: uppercase; margin-bottom: 0.75rem; letter-spacing: 0.05em;">Cliente</div>
+                                    ${order?.clients ? `
+                                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                            <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(59, 130, 246, 0.06); display: flex; align-items: center; justify-content: center; color: var(--brand-blue); flex-shrink: 0; border: 1px solid rgba(59, 130, 246, 0.1);">
+                                                <span class="material-icons-round" style="font-size: 1.1rem;">business</span>
+                                            </div>
+                                            <div style="min-width: 0; flex: 1;">
+                                                <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${order.clients.business_name}">
+                                                    ${order.clients.client_code || order.clients.business_name}
+                                                </div>
                                             </div>
                                         </div>
-                                    `;
-            })()}
-                            `}
+                                    ` : ''}
+                            </div>
+                            ` : ''}
+
+                            <!-- Actions moved to right header -->
                         </div>
 
-                        <!-- Row 2: Title & Main Actions -->
-                        <div class="hub-header-main" style="display: flex; justify-content: space-between; align-items: start; gap: 1rem;">
-                            <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin: 0; line-height: 1.2;">
-                                ${isInternal ? (space?.name || 'Progetto senza nome') : (order?.title || 'Senza Titolo')}
-                            </h1>
-
-                            <!-- Actions -->
-                            <div class="hub-header-actions" style="display: flex; gap: 0.5rem;">
-                                <!-- Risorse Button (Added) -->
+                        <!-- Team & Members -->
+                        <div class="glass-card" style="padding: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                                <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">${isInternal ? 'Responsabili' : 'Team Commessa'}</div>
                                 <div style="position: relative;">
-                                    <button id="open-resources-btn" style="
-                                        display: flex; align-items: center; gap: 0.6rem; padding: 8px 16px; height: 100%;
-                                        background: white; border: 1px solid var(--surface-2); border-radius: 12px;
-                                        color: var(--text-secondary); font-weight: 600; font-size: 0.85rem;
-                                        cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-                                    " onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.color='var(--text-primary)'" onmouseout="this.style.borderColor='var(--surface-2)'; this.style.color='var(--text-secondary)'">
-                                        <span class="material-icons-round" style="font-size: 1.1rem; color: var(--brand-blue);">cloud</span>
-                                        Risorse
-                                        ${space?.cloud_links?.length > 0 ? `<span class="badge" style="background: var(--brand-blue); color: white; padding: 2px 6px; font-size: 0.7rem; border-radius: 10px; margin-left: 2px;">${space.cloud_links.length}</span>` : ''}
+                                    <button id="add-space-pm-btn" style="width: 24px; height: 24px; border-radius: 50%; color: var(--brand-blue); background: white; border: 1px dashed var(--brand-blue); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--brand-blue)'; this.style.color='white'">
+                                        <span class="material-icons-round" style="font-size: 1rem;">add</span>
                                     </button>
-                                    
-                                    <!-- Resources Popover -->
-                                    <div id="resources-popover" class="glass-card hidden" style="
-                                        position: absolute; top: 110%; right: 0; width: 320px; z-index: 1000;
-                                        background: white; border: 1px solid var(--surface-2); padding: 1rem;
-                                        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-                                    ">
+                                    <div id="space-pm-picker" class="hidden glass-card" style="position: absolute; top: 130%; left: 0; width: 280px; z-index: 1000; max-height: 320px; overflow-y: auto; padding: 8px; box-shadow: var(--shadow-xl);"></div>
+                                </div>
+                            </div>
+                            <div id="space-pms-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                ${(() => {
+                const pmList = isInternal ? spaceAssignees.filter(a => ['pm', 'manager', 'admin'].includes(a.role)) : spaceAssignees;
+                return pmList.map(a => {
+                    const collab = state.collaborators?.find(c => (a.user_ref && c.user_id === a.user_ref) || (a.collaborator_ref && c.id === a.collaborator_ref));
+                    const userName = collab ? (collab.full_name || `${collab.first_name} ${collab.last_name}`) : (a.user?.full_name || 'Utente');
+                    return `
+                                        <div class="user-pill-full animate-slide-in" style="display: flex; align-items: center; justify-content: space-between; background: white; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+                                            <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                                                ${renderAvatar(collab || a.user || { full_name: userName }, { size: 36, borderRadius: '10px' })}
+                                                <div style="min-width: 0;">
+                                                    <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${userName}</div>
+                                                    <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 700;">${a.role === 'pm' ? (isInternal ? 'Responsabile' : 'Project Manager') : (isInternal ? 'Responsabile' : 'Collaboratore')}</div>
+                                                </div>
+                                            </div>
+                                            <button class="remove-space-pm-btn" data-id="${a.id}" style="background:none; border:none; padding:4px; cursor:pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
+                                                <span class="material-icons-round" style="font-size: 1.1rem;">close</span>
+                                            </button>
+                                        </div>
+                                    `;
+                }).join('');
+            })()}
+                                ${(() => {
+                const pmList = isInternal ? spaceAssignees.filter(a => ['pm', 'manager', 'admin'].includes(a.role)) : spaceAssignees;
+                return pmList.length === 0 ? '<div style="text-align: center; color: var(--text-tertiary); font-size: 0.8rem; padding: 1.5rem; border: 1px dashed var(--glass-border); border-radius: 12px; background: var(--surface-1);">Nessun responsabile assegnato</div>' : '';
+            })()}
+                            </div>
+
+                            ${isInternal ? `
+                                <!-- Team Members (isInternal only) -->
+                                <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--surface-2);">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                                        <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Team</div>
+                                        <div style="position: relative;">
+                                            <button id="add-space-member-btn" style="width: 24px; height: 24px; border-radius: 50%; color: #64748b; background: white; border: 1px dashed #64748b; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#64748b'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='#64748b'">
+                                                <span class="material-icons-round" style="font-size: 1rem;">group_add</span>
+                                            </button>
+                                            <div id="space-member-picker" class="hidden glass-card" style="position: absolute; top: 130%; right: 0; left: auto; width: 280px; z-index: 1000; max-height: 320px; overflow-y: auto; padding: 8px; box-shadow: var(--shadow-xl);"></div>
+                                        </div>
+                                    </div>
+                                    <div id="space-members-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                        ${(() => {
+                    const memberList = spaceAssignees.filter(a => !['pm', 'manager', 'admin'].includes(a.role));
+                    return memberList.map(a => {
+                        const collab = state.collaborators?.find(c => (a.user_ref && c.user_id === a.user_ref) || (a.collaborator_ref && c.id === a.collaborator_ref));
+                        const userName = collab ? (collab.full_name || `${collab.first_name} ${collab.last_name}`) : (a.user?.full_name || 'Utente');
+                        return `
+                                            <div class="user-pill-full animate-slide-in" style="display: flex; align-items: center; justify-content: space-between; background: white; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+                                                <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                                                    ${renderAvatar(collab || a.user || { full_name: userName }, { size: 36, borderRadius: '10px' })}
+                                                    <div style="min-width: 0;">
+                                                        <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${userName}</div>
+                                                        <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 700;">Membro</div>
+                                                    </div>
+                                                </div>
+                                                <button class="remove-space-pm-btn" data-id="${a.id}" style="background:none; border:none; padding:4px; cursor:pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
+                                                    <span class="material-icons-round" style="font-size: 1.1rem;">close</span>
+                                                </button>
+                                            </div>
+                                        `;
+                    }).join('') || '<div style="text-align: center; color: var(--text-tertiary); font-size: 0.8rem; padding: 1.5rem; border: 1px dashed var(--glass-border); border-radius: 12px; background: var(--surface-1);">Nessun membro nel team</div>';
+                })()}
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            ${!isInternal && order ? (() => {
+                const assignments = state.assignments?.filter(a => a.order_id === order.id) || [];
+                if (assignments.length === 0) return '';
+                return `
+                                    <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--surface-2);">
                                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                                            <h3 style="font-size: 0.95rem; font-weight: 700; margin: 0;">Risorse Cloud</h3>
-                                            <button id="close-resources-btn" style="background: none; border: none; cursor: pointer; color: var(--text-tertiary);"><span class="material-icons-round">close</span></button>
+                                            <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Incarichi Esterni</div>
+                                            <a href="#order-detail/${orderId}" style="font-size: 0.65rem; color: var(--brand-blue); text-decoration: none; font-weight: 700;">Gestisci</a>
+                                        </div>
+                                        <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                                            ${assignments.map(a => {
+                    const collab = state.collaborators?.find(c => c.id === a.collaborator_id);
+                    return `
+                                                    <div style="display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--glass-border);">
+                                                        ${renderAvatar(collab || { full_name: 'Collab' }, { size: 28, borderRadius: '6px' })}
+                                                        <div style="min-width: 0; flex: 1;">
+                                                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${collab?.full_name || 'Incaricato'}</div>
+                                                            <div style="font-size: 0.6rem; color: var(--text-tertiary);">${a.description || 'Incarico'}</div>
+                                                        </div>
+                                                        <div style="width: 8px; height: 8px; border-radius: 50%; background: ${a.status === 'completato' ? '#10b981' : '#f59e0b'};"></div>
+                                                    </div>
+                                                `;
+                }).join('')}
+                                        </div>
+                                    </div>
+                                `;
+            })() : ''}
+                        </div>
+                    </div>
+
+                    <!-- MAIN CONTENT -->
+                    <div class="hub-main-content">
+                        
+                        <!-- Header Bar (Status & Actions Combined) -->
+                        <div id="hub-header-bar" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.5rem;">
+                            
+                            <!-- Left: Sidebar Toggle, Mini Title & Status -->
+                            <div style="display: flex; align-items: center; gap: 1rem; min-width: 0;">
+                                <button id="hub-sidebar-toggle" class="sidebar-toggle-btn" title="Toggle Sidebar">
+                                    <span class="material-icons-round">menu_open</span>
+                                </button>
+
+                                <!-- Mini Project Info -->
+                                <div class="hub-title-mini">
+                                    <div class="hub-title-badge">
+                                        ${(() => {
+                if (isInternal) {
+                    return `<div style="padding: 4px 8px; border-radius: 6px; background: var(--brand-gradient); box-shadow: 0 4px 12px rgba(97, 74, 162, 0.2); color: white; font-size: 0.65rem; font-weight: 800;">${space?.is_cluster ? '⬡' : 'INT'}</div>`;
+                } else {
+                    const parts = (order?.order_number || '00-0000').split('-');
+                    const yPart = parts[0] || '00';
+                    const nPart = parts[1] || '0000';
+                    return `
+                                                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3px 6px; border-radius: 6px; background: var(--brand-gradient); box-shadow: 0 4px 12px rgba(97, 74, 162, 0.2); color: white; line-height: 1;">
+                                                        <span style="font-size: 0.55rem; font-weight: 800; opacity: 0.8; margin-bottom: 1px;">${yPart}</span>
+                                                        <span style="font-size: 0.7rem; font-weight: 900;">${nPart}</span>
+                                                    </div>
+                                                `;
+                }
+            })()}
+                                    </div>
+                                    
+                                    <div class="hub-title-content">
+                                        <div class="hub-title-main">
+                                            ${isInternal ? (space?.name || 'Project') : (order?.title || 'Commessa')}
+                                        </div>
+                                        ${!isInternal && order?.clients ? `
+                                            <div class="hub-title-sub">
+                                                ${order.clients.client_code || order.clients.business_name}
+                                            </div>
+                                        ` : ''}
+                                        ${isInternal ? `
+                                            <div class="hub-title-sub">
+                                                ${space?.area || 'Generale'} · ${space?.is_cluster ? 'Cluster' : 'Progetto'}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+
+                                    <!-- Mobile Title Actions (Order Icon) -->
+                                    <div class="hub-title-actions-mobile">
+                                        ${!isInternal && canViewReceipt ? `
+                                            <a href="#order-detail/${orderId}" title="Dettaglio Ordine" style="color: var(--text-secondary); text-decoration: none;">
+                                                <span class="material-icons-round" style="font-size: 1.6rem;">receipt_long</span>
+                                            </a>
+                                        ` : ''}
+                                    </div>
+
+                                    <!-- PM Avatars Group (Desktop only) -->
+                                    <div class="hub-pm-avatars-desktop" style="display: flex; align-items: center; margin-left: 0.75rem; flex-shrink: 0;">
+                                        ${spaceAssignees.filter(a => a.role === 'pm').map((pm, idx) => {
+                const collab = state.collaborators?.find(c => (pm.user_ref && c.user_id === pm.user_ref) || (pm.collaborator_ref && c.id === pm.collaborator_ref));
+                return `
+                                                <div style="margin-left: ${idx === 0 ? '0' : '-8px'}; border: 2px solid white; border-radius: 50%; box-shadow: var(--shadow-sm); z-index: ${10 - idx};">
+                                                    ${renderAvatar(collab || pm.user || { full_name: 'PM' }, { size: 28, borderRadius: '50%' })}
+                                                </div>
+                                            `;
+            }).join('')}
+                                    </div>
+
+                                    <div class="hub-header-divider-desktop" style="width: 1px; height: 28px; background: var(--glass-border); margin: 0 0.5rem; flex-shrink: 0;"></div>
+                                </div>
+
+                                <div class="custom-status-dropdown" style="position: relative;">
+                                    <button id="hub-status-trigger" style="
+                                        background: ${statusConfig.bg}; color: ${statusConfig.color};
+                                        padding: 7px 16px; border: 1px solid transparent; border-radius: 12px;
+                                        font-size: 0.8rem; font-weight: 800; display: flex; align-items: center; gap: 8px;
+                                        cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-sm);
+                                    ">
+                                        <span class="material-icons-round" style="font-size: 1.1rem;">${statusConfig.icon}</span>
+                                        ${statusConfig.label}
+                                        <span class="material-icons-round" style="font-size: 0.9rem; opacity: 0.7;">expand_more</span>
+                                    </button>
+                                    <div id="hub-status-menu" class="hidden glass-card" style="position: absolute; top: calc(100% + 8px); left: 0; min-width: 200px; z-index: 1000; padding: 6px; box-shadow: var(--shadow-xl);">
+                                        <div style="padding: 10px 12px 6px; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--surface-2); margin-bottom: 4px;">Stato Lavori</div>
+                                        ${Object.entries(STATUS_CONFIG).map(([key, cfg]) => `
+                                            <div class="status-option ${normalized === key ? 'active' : ''}" data-status="${key}" style="
+                                                padding: 8px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.8rem; font-weight: 600;
+                                                color: ${normalized === key ? cfg.color : 'var(--text-secondary)'}; background: ${normalized === key ? cfg.bg : 'transparent'}; transition: all 0.2s;
+                                            " onmouseover="this.style.background='${cfg.bg}'; this.style.color='${cfg.color}'" onmouseout="if(!this.classList.contains('active')){this.style.background='transparent'; this.style.color='var(--text-secondary)'}">
+                                                <span class="material-icons-round" style="font-size: 1.1rem;">${cfg.icon}</span>
+                                                ${cfg.label}
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right: Global Actions -->
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <!-- Risorse -->
+                                <div style="position: relative;">
+                                    <button id="open-resources-btn" 
+                                            style="padding: 7px 16px; border-radius: 12px; display: flex; align-items: center; gap: 6px; background: white; border: 1px solid var(--glass-border); cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-sm);"
+                                            onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.background='rgba(59, 130, 246, 0.02)'"
+                                            onmouseout="this.style.borderColor='var(--glass-border)'; this.style.background='white'">
+                                        <span class="material-icons-round" style="font-size: 1.1rem; color: var(--brand-blue);">cloud_queue</span>
+                                        <span style="font-weight: 700; color: var(--text-primary); font-size: 0.75rem;">Risorse</span>
+                                        ${space?.cloud_links?.length > 0 ? `<span class="badge" style="background: var(--brand-blue); color: white; padding: 1px 5px; font-size: 0.6rem; border-radius: 8px;">${space.cloud_links.length}</span>` : ''}
+                                    </button>
+                                    <div id="resources-popover" class="hidden glass-card" style="position: absolute; top: calc(100% + 8px); right: 0; width: 280px; z-index: 1000; padding: 1rem; text-align: left; box-shadow: var(--shadow-xl); border: 1px solid var(--glass-border);">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                                            <h3 style="font-size: 0.85rem; font-weight: 700; margin: 0; color: var(--text-primary);">Risorse Cloud</h3>
+                                            <button id="close-resources-btn" style="background: none; border: none; cursor: pointer; color: var(--text-tertiary);"><span class="material-icons-round" style="font-size: 1.1rem;">close</span></button>
                                         </div>
                                         <div id="space-cloud-links-container"></div>
                                     </div>
                                 </div>
 
-                                <!-- Add Dropdown -->
+                                <!-- Nuovo Elemento -->
                                 <div style="position: relative;">
-                                    <button class="primary-btn" id="add-new-hub-btn" style="display: flex; align-items: center; gap: 0.5rem; padding: 8px 16px;">
-                                        <span class="material-icons-round" style="font-size: 1.1rem;">add</span>
-                                        Nuovo
-                                        <span class="material-icons-round" style="font-size: 1.1rem;">expand_more</span>
+                                    <button id="add-new-hub-btn" 
+                                            style="padding: 7px 18px; border-radius: 12px; display: flex; align-items: center; gap: 8px; background: var(--brand-gradient); border: none; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(97, 74, 162, 0.15); color: white;"
+                                            onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 16px rgba(97, 74, 162, 0.25)'"
+                                            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(97, 74, 162, 0.15)'">
+                                        <span class="material-icons-round" style="font-size: 1.25rem;">add_circle</span>
+                                        <span style="font-weight: 700; font-size: 0.8rem;">Nuovo Elemento</span>
                                     </button>
-                                    
-                                    <div id="add-hub-dropdown" class="hidden glass-card" style="
-                                        position: absolute; top: 110%; right: 0; width: 200px; z-index: 1000;
-                                        background: white; border: 1px solid var(--surface-2); border-radius: 12px;
-                                        box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 0.5rem;
-                                    ">
-                                        <button class="dropdown-item" id="add-activity-btn" style="
-                                            display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; 
-                                            text-align: left; border: none; background: none; cursor: pointer; border-radius: 8px;
-                                            color: var(--text-primary); font-size: 0.9rem;
-                                        ">
-                                            <span class="material-icons-round" style="color: #f59e0b;">folder</span>
-                                            <div><div style="font-weight: 500;">Attività</div><div style="font-size: 0.75rem; color: var(--text-secondary);">Raggruppa task</div></div>
-                                        </button>
-                                        <button class="dropdown-item" id="add-task-btn" style="
-                                            display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; 
-                                            text-align: left; border: none; background: none; cursor: pointer; border-radius: 8px;
-                                            color: var(--text-primary); font-size: 0.9rem;
-                                        ">
-                                            <span class="material-icons-round" style="color: #3b82f6;">check_circle_outline</span>
-                                            <div><div style="font-weight: 500;">Task</div><div style="font-size: 0.75rem; color: var(--text-secondary);">Singolo lavoro</div></div>
-                                        </button>
-                                        ${!isInternal ? `
-                                        <button class="dropdown-item" id="add-appointment-btn" style="
-                                            display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; 
-                                            text-align: left; border: none; background: none; cursor: pointer; border-radius: 8px;
-                                            color: var(--text-primary); font-size: 0.9rem;
-                                        ">
-                                            <span class="material-icons-round" style="color: #8b5cf6;">event</span>
-                                            <div><div style="font-weight: 500;">Appuntamento</div><div style="font-size: 0.75rem; color: var(--text-secondary);">Singolo incontro</div></div>
-                                        </button>
-                                        ` : ''}
-                                    </div>
                                 </div>
-                                
+
+                                <!-- Ordine (Link) -->
                                 ${!isInternal && canViewReceipt ? `
-                                <a href="#order-detail/${orderId}" class="secondary-btn" title="Info Ordine" style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; text-decoration: none; border-radius: 8px;">
-                                    <span class="material-icons-round" style="font-size: 1.25rem;">receipt_long</span>
+                                <a href="#order-detail/${orderId}" title="Dettaglio Ordine" 
+                                   style="padding: 7px 16px; border-radius: 12px; background: white; border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-sm); text-decoration: none;"
+                                   onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.color='var(--brand-blue)'; this.style.background='rgba(59, 130, 246, 0.02)'"
+                                   onmouseout="this.style.borderColor='var(--glass-border)'; this.style.color='var(--text-secondary)'; this.style.background='white'">
+                                    <span class="material-icons-round" style="font-size: 1.1rem;">receipt_long</span>
+                                    <span style="font-weight: 700; font-size: 0.75rem;">Ordine</span>
                                 </a>
                                 ` : ''}
                             </div>
                         </div>
 
-                        <!-- Row 3: Meta Info (Client + PMs) -->
-                        <div class="hub-header-meta" style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
-                            ${!isInternal && order?.clients ? `
-                                <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">
-                                    <span class="material-icons-round" style="font-size: 1.1rem;">business</span>
-                                    <span>${order.clients.business_name}</span>
-                                </div>
-                            ` : ''}
-                            
-                            <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                <span style="font-size: 0.8rem; color: var(--text-tertiary); font-weight: 500; text-transform: uppercase;">PM:</span>
-                                <div id="space-pms-list" style="display: flex; align-items: center; gap: 6px;">
-                                    ${spaceAssignees.filter(a => a.role === 'pm').map(a => {
-                // Name Resolution logic
-                let userName = 'Utente';
-                let avatarUrl = null;
+                        <!-- Mobile Team Strip (hidden on desktop) -->
+                        <div id="mobile-team-strip" style="display: none; align-items: center; gap: 0; padding: 0.35rem 0.5rem; overflow-x: auto;">
+                            <span style="font-size: 0.6rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; margin-right: 0.5rem; flex-shrink: 0;">Team</span>
+                            <div style="display: flex; align-items: center;" id="team-avatars-row">
+                                ${spaceAssignees.map((a, idx) => {
                 const collab = state.collaborators?.find(c => (a.user_ref && c.user_id === a.user_ref) || (a.collaborator_ref && c.id === a.collaborator_ref));
-                if (collab) {
-                    userName = collab.full_name || `${collab.first_name} ${collab.last_name}`;
-                    avatarUrl = collab.avatar_url;
-                } else {
-                    userName = a.user?.full_name || a.user?.first_name || 'Utente';
-                    avatarUrl = a.user?.avatar_url;
-                }
-                const initial = userName.charAt(0).toUpperCase();
-
+                const person = collab || a.user || { full_name: a.role || 'Membro' };
+                const name = person.full_name || person.business_name || 'Membro';
+                const isPM = a.role === 'pm';
                 return `
-                                            <div class="user-pill-mini pm" data-uid="${a.user_ref}" data-collab-id="${a.collaborator_ref}" title="${userName}" style="
-                                                display: flex; align-items: center; gap: 6px; background: var(--surface-1); 
-                                                padding: 2px 8px 2px 2px; border-radius: 16px; border: 1px solid transparent;
-                                                font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;
-                                            ">
-                                                ${renderAvatar(collab || a.user || { full_name: userName, avatar_url: avatarUrl }, { size: 20, borderRadius: '50%', fontSize: '10px' })}
-                                                ${userName.split(' ')[0]}
-                                                <span class="material-icons-round remove-space-pm-btn" data-id="${a.id}" style="font-size: 0.9rem; cursor: pointer; opacity: 0.5;">close</span>
-                                            </div>
-                                        `;
+                                    <div class="team-avatar-item" data-name="${name}" data-role="${a.role || ''}" style="margin-left: ${idx === 0 ? '0' : '-6px'}; border: 2px solid white; border-radius: 50%; cursor: pointer; z-index: ${20 - idx}; position: relative; transition: transform 0.15s;">
+                                        ${renderAvatar(person, { size: 26, borderRadius: '50%' })}
+                                    </div>
+                                `;
             }).join('')}
+                            </div>
+                            ${(() => {
+                const assignments = !isInternal && order ? (state.assignments?.filter(a => a.order_id === order.id) || []) : [];
+                if (assignments.length === 0) return '';
+                return `
+                            <div style="width: 1px; height: 20px; background: var(--glass-border); margin: 0 0.5rem; flex-shrink: 0;"></div>
+                            <span style="font-size: 0.55rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; margin-right: 0.35rem; flex-shrink: 0;">Ext</span>
+                            <div style="display: flex; align-items: center;">
+                                ${assignments.map((a, idx) => {
+                    const collab = state.collaborators?.find(c => c.id === a.collaborator_id);
+                    const name = collab?.full_name || 'Incaricato';
+                    const desc = a.description || 'Incarico';
+                    return `
+                                    <div class="team-avatar-item" data-name="${name} — ${desc}" data-role="ext" style="margin-left: ${idx === 0 ? '0' : '-6px'}; border: 2px solid white; border-radius: 50%; cursor: pointer; z-index: ${20 - idx}; position: relative;">
+                                        ${renderAvatar(collab || { full_name: name }, { size: 26, borderRadius: '50%' })}
+                                    </div>
+                                    `;
+                }).join('')}
+                            </div>
+                `;
+            })()}
+                        </div>
+
+                        <div id="hub-content-card" class="glass-card" style="display: flex; flex-direction: column; min-height: 700px; flex: 1; overflow: hidden; border: 1px solid var(--glass-border);">
+                            <div class="hub-tabs" style="display: flex; background: rgba(255,255,255,0.7); border-bottom: 1px solid var(--glass-border); padding: 0 1.25rem; gap: 0.5rem; backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10;">
+                                <button class="hub-tab active" data-tab="overview"><span class="material-icons-round">dashboard</span>Overview</button>
+                                <button class="hub-tab" data-tab="feed"><span class="material-icons-round">history</span>Feed</button>
+                                <button class="hub-tab" data-tab="board"><span class="material-icons-round">account_tree</span>Board</button>
+                                <button class="hub-tab" data-tab="appointments"><span class="material-icons-round">event</span>Appuntamenti</button>
+                                ${space?.is_cluster ? `<button class="hub-tab" data-tab="projects"><span class="material-icons-round">lan</span>Progetti</button>` : ''}
+                                <button class="hub-tab" data-tab="docs"><span class="material-icons-round">description</span>Documenti</button>
                                 
-                                <!-- Add PM Button -->
-                                <div style="position: relative;">
-                                    <button id="add-space-pm-btn" style="
-                                        width: 24px; height: 24px; border-radius: 50%; color: var(--brand-blue); 
-                                        background: white; border: 1px dashed var(--brand-blue); display: flex; 
-                                        align-items: center; justify-content: center; cursor: pointer;
-                                    ">
-                                        <span class="material-icons-round" style="font-size: 1rem;">add</span>
-                                    </button>
-                                    <div id="space-pm-picker" class="hidden glass-card" style="position: absolute; top: 130%; left: 0; width: 280px; z-index: 1000; max-height: 320px; overflow-y: auto; background: white; border-radius: 12px; border: 1px solid var(--surface-2); box-shadow: 0 10px 40px rgba(0,0,0,0.2);"></div>
+                                <!-- Mobile Risorse Tab Item -->
+                                <button id="mobile-risorse-tab" class="hub-tab" data-tab="risorse" style="display: none; border: 1px solid transparent; color: var(--brand-blue);">
+                                    <span class="material-icons-round">cloud_queue</span>Risorse
+                                </button>
+                            </div>
+                            <div id="hub-tab-content" style="flex: 1; min-height: 400px; background: transparent; padding: 1.25rem;">
+                                <!-- Dynamic content -->
+                                <div style="display:flex; align-items:center; justify-content:center; height:300px; color:var(--text-tertiary);">
+                                    <span class="loader"></span>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Row 4: KPI Pills -->
-                        <div style="display: flex; gap: 1.5rem; margin-top: 0.5rem; flex-wrap: wrap;">
-                            <div style="display: flex; align-items: center; gap: 0.5rem; background: #fef2f2; color: #ef4444; padding: 4px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem;">
-                                <span class="material-icons-round" style="font-size: 1rem;">warning</span>
-                                ${kpis.overdue} Scadute
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 0.5rem; color: #f59e0b; font-weight: 600; font-size: 0.85rem;">
-                                <span class="material-icons-round" style="font-size: 1rem;">schedule</span>
-                                ${kpis.dueSoon} In scadenza
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-weight: 600; font-size: 0.85rem;">
-                                <span class="material-icons-round" style="font-size: 1rem;">block</span>
-                                ${kpis.blocked} Bloccate
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 0.5rem; color: #10b981; font-weight: 600; font-size: 0.85rem;">
-                                <span class="material-icons-round" style="font-size: 1rem;">check_circle</span>
-                                ${kpis.progress}% Completato
-                            </div>
-                        </div>
-
                     </div>
-                
-                <!-- TABS -->
-                <div class="hub-tabs" style="
-                    display: flex; 
-                    gap: 0; 
-                    background: white;
-                    border-bottom: 1px solid var(--surface-2);
-                    padding: 0 1.5rem;
-                ">
-                    <button class="hub-tab active" data-tab="overview">
-                        <span class="material-icons-round">dashboard</span>
-                        Overview
-                    </button>
-                    <button class="hub-tab" data-tab="tree">
-                        <span class="material-icons-round">account_tree</span>
-                        Attività
-                    </button>
-                    <button class="hub-tab" data-tab="list">
-                        <span class="material-icons-round">view_list</span>
-                        Lista
-                    </button>
+                </div>
+
+                <!-- Floating Action Button (FAB) for mobile -->
+                <button id="mobile-fab" style="display: none;">
+                    <span class="material-icons-round" style="font-size: 1.7rem;">add</span>
+                </button>
+
+                <!-- NEW Dropdown Menu (Moved here so it's not inside hidden header on mobile) -->
+                <div id="add-hub-dropdown" class="hidden glass-card" style="position: absolute; top: 0; right: 0; width: 220px; z-index: 1000; padding: 0.5rem; box-shadow: var(--shadow-xl);">
+                    <div class="dropdown-item" id="add-activity-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                        <span class="material-icons-round" style="color: #f59e0b;">folder</span>
+                        <div><div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Feed / Attività</div></div>
+                    </div>
+                    <div class="dropdown-item" id="add-task-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                        <span class="material-icons-round" style="color: #3b82f6;">check_circle_outline</span>
+                        <div><div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Board / Task</div></div>
+                    </div>
                     ${!isInternal ? `
-                    <button class="hub-tab" data-tab="incarichi">
-                        <span class="material-icons-round">assignment_ind</span>
-                        Incarichi
-                    </button>
+                    <div class="dropdown-item" id="add-appointment-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                        <span class="material-icons-round" style="color: #8b5cf6;">event</span>
+                        <div><div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Appuntamento</div></div>
+                    </div>
                     ` : ''}
-                    <button class="hub-tab" data-tab="appointments">
-                        <span class="material-icons-round">event</span>
-                        Appuntamenti
-                    </button>
-                    <button class="hub-tab" data-tab="docs">
-                        <span class="material-icons-round">description</span>
-                        Documenti
-                    </button>
-                </div>
-                
-                <!-- TAB CONTENT -->
-                <div id="hub-tab-content" style="flex: 1; overflow-y: auto; background: #f1f5f9; padding: 1.5rem;">
-                    <!-- Dynamic content -->
-                </div>
-                
                 </div>
             </div>
             
             <style>
-                @media (max-width: 768px) {
-                    .hub-header-main { flex-direction: column; gap: 1rem !important; }
-                    .hub-header-actions { width: 100%; display: flex; flex-wrap: wrap; gap: 0.5rem; }
-                    .hub-header-actions > div { flex: 1; }
-                    .hub-header-actions button { width: 100%; justify-content: center; }
-                    .hub-header-meta { flex-direction: column; align-items: flex-start !important; gap: 0.5rem !important; }
-                    .hub-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-                    .hub-tabs::-webkit-scrollbar { display: none; }
-                    .hub-tab { white-space: nowrap; padding: 1rem 1rem !important; }
-                }
                 .hub-tab {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    padding: 1rem 1.25rem;
-                    border: none;
-                    background: none;
-                    cursor: pointer;
-                    font-weight: 500;
-                    color: var(--text-secondary);
-                    border-bottom: 2px solid transparent;
-                    transition: all 0.2s;
+                    display: flex; align-items: center; gap: 0.5rem; padding: 1.15rem 0.5rem; border: none; background: none; cursor: pointer;
+                    font-size: 0.8rem; font-weight: 600; color: var(--text-tertiary); border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap;
+                    margin-bottom: -1px;
                 }
-                .hub-tab:hover {
-                    color: var(--text-main);
-                    background: var(--surface-1);
+                .hub-tab:hover { color: var(--text-primary); }
+                .hub-tab.active { color: var(--brand-blue); border-bottom-color: var(--brand-blue); font-weight: 700; }
+                .hub-tab .material-icons-round { font-size: 1.1rem; }
+                
+                .user-pill-full { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+                .user-pill-full:hover { transform: translateX(5px); border-color: var(--brand-blue) !important; background: white !important; }
+
+                #hub-tab-content > .animate-fade-in { animation-duration: 0.4s; }
+
+                .hub-tabs {
+                    overflow-x: auto !important;
+                    -webkit-overflow-scrolling: touch;
                 }
-                .hub-tab.active {
-                    color: var(--brand-color);
-                    border-bottom-color: var(--brand-color);
-                    font-weight: 600;
+                .hub-tabs::-webkit-scrollbar { display: none; }
+                
+                @media (max-width: 1200px) {
+                    /* Removed conflicting global override */
                 }
-                .hub-tab .material-icons-round {
-                    font-size: 1.1rem;
-                }
-                .drawer-overlay.hidden {
-                    display: none !important;
+                @media (max-width: 768px) {
+                    /* All mobile overrides are in the first style block above */
+                    #hub-tab-content { padding: 0 !important; margin: 0 !important; }
+                    .hub-overview { width: 100% !important; margin: 0 !important; padding: 0 !important; }
                 }
             </style>
         `;
 
+
         // Store context for child components
-        window._hubContext = { order, space, spaceId, items, kpis, orderId };
+        const spaceName = isInternal ? (space?.name || 'Project') : (order?.title || 'Commessa');
+        window._hubContext = { order, space, spaceId, items, kpis, orderId, spaceName };
 
         // 7. Tab Logic
         const tabContent = container.querySelector('#hub-tab-content');
@@ -463,15 +878,19 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
             switch (tabName) {
                 case 'overview':
-                    const { renderHubOverview } = await import('./components/hub_overview.js?v=1000');
+                    const { renderHubOverview } = await import('./components/hub_overview.js?v=1210');
                     renderHubOverview(tabContent, items, kpis, spaceId);
                     break;
-                case 'tree':
-                    const { renderHubTree } = await import('./components/hub_tree.js?v=1000');
+                case 'feed':
+                    const { renderActivityLog } = await import('./components/activity_log.js?v=1020');
+                    renderActivityLog(tabContent, { spaceId });
+                    break;
+                case 'board':
+                    const { renderHubTree } = await import('./components/hub_tree.js?v=1320');
                     renderHubTree(tabContent, items, space, spaceId);
                     break;
                 case 'list':
-                    const { renderHubList } = await import('./components/hub_list.js?v=1000');
+                    const { renderHubList } = await import('./components/hub_list.js?v=1020');
                     renderHubList(tabContent, items, space, spaceId);
                     break;
                 case 'incarichi':
@@ -479,7 +898,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     else tabContent.innerHTML = '<p style="padding:2rem;">Non disponibile per progetti interni.</p>';
                     break;
                 case 'appointments':
-                    const { renderHubAppointments } = await import('./components/hub_appointments.js?v=1000');
+                    const { renderHubAppointments } = await import('./components/hub_appointments.js?v=1020');
                     const refId = isInternal ? spaceId : orderId;
                     const refType = isInternal ? 'space' : 'order';
 
@@ -492,10 +911,57 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     const types = await fetchAppointmentTypes();
                     renderHubAppointments(tabContent, ap, types, refId, refType);
                     break;
+                case 'risorse':
+                    tabContent.innerHTML = `
+                        <div class="animate-fade-in" style="background: white; border-radius: 12px; padding: 1.5rem; min-height: 300px;">
+                            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                                <span class="material-icons-round" style="color: var(--brand-blue);">cloud_queue</span>
+                                Risorse Cloud
+                            </h3>
+                            <div id="mobile-cloud-links-tab-container"></div>
+                        </div>
+                    `;
+                    new CloudLinksManager(
+                        tabContent.querySelector('#mobile-cloud-links-tab-container'),
+                        space.cloud_links || [],
+                        async (newLinks) => {
+                            try {
+                                await updateSpaceCloudLinks(spaceId, newLinks);
+                                space.cloud_links = newLinks;
+                                // Update desktop badge
+                                const resourcesBtn = container.querySelector('#open-resources-btn');
+                                if (resourcesBtn) {
+                                    const badge = resourcesBtn.querySelector('.badge');
+                                    if (newLinks.length > 0) {
+                                        if (badge) badge.textContent = newLinks.length;
+                                        else {
+                                            const newBadge = document.createElement('span');
+                                            newBadge.className = 'badge';
+                                            newBadge.style.cssText = 'background: var(--brand-blue); color: white; padding: 2px 6px; font-size: 0.7rem; border-radius: 10px;';
+                                            newBadge.textContent = newLinks.length;
+                                            resourcesBtn.appendChild(newBadge);
+                                        }
+                                    } else if (badge) badge.remove();
+                                }
+                            } catch (e) {
+                                console.error(e);
+                                showGlobalAlert('Errore salvataggio link', 'error');
+                            }
+                        }
+                    );
+                    break;
                 case 'docs':
                     tabContent.style.padding = '0';
                     const { renderDocsView } = await import('../docs/DocsView.js');
                     renderDocsView(tabContent, spaceId);
+                    break;
+                case 'projects':
+                    if (space?.is_cluster) {
+                        const { renderClusterProjects } = await import('./components/cluster_projects.js');
+                        renderClusterProjects(tabContent, spaceId);
+                    } else {
+                        tabContent.innerHTML = '<p style="padding:2rem;">Non disponibile per questo spazio.</p>';
+                    }
                     break;
                 default:
                     tabContent.innerHTML = '<p style="padding:2rem;">Tab non implementata.</p>';
@@ -507,6 +973,40 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         });
 
         // 8. Add Activity/Task buttons (Dropdown Logic)
+
+        // Toggle Sidebar Logic
+        const toggleBtn = container.querySelector('#hub-sidebar-toggle');
+        const sidebar = container.querySelector('#hub-left-sidebar');
+
+        if (toggleBtn && sidebar) {
+            toggleBtn.addEventListener('click', () => {
+                const isNowCollapsed = sidebar.classList.toggle('collapsed');
+                toggleBtn.classList.toggle('collapsed');
+                toggleBtn.innerHTML = isNowCollapsed ?
+                    '<span class="material-icons-round">menu</span>' :
+                    '<span class="material-icons-round">menu_open</span>';
+            });
+        }
+
+        // Mobile Team Avatar Tap-to-reveal
+        container.querySelectorAll('.team-avatar-item').forEach(avatar => {
+            avatar.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Remove any existing tooltip
+                const existing = container.querySelector('.team-name-tooltip');
+                if (existing) existing.remove();
+
+                const name = avatar.dataset.name;
+                const role = avatar.dataset.role;
+                const tooltip = document.createElement('div');
+                tooltip.className = 'team-name-tooltip';
+                tooltip.style.cssText = 'position: absolute; bottom: -28px; left: 50%; transform: translateX(-50%); background: var(--text-primary); color: white; padding: 3px 8px; border-radius: 6px; font-size: 0.65rem; font-weight: 700; white-space: nowrap; z-index: 100; box-shadow: var(--shadow-md); pointer-events: none;';
+                tooltip.textContent = name + (role === 'pm' ? ' (PM)' : '');
+                avatar.style.position = 'relative';
+                avatar.appendChild(tooltip);
+                setTimeout(() => tooltip.remove(), 2000);
+            });
+        });
 
         // Resources Popover Logic
         const resourcesBtn = container.querySelector('#open-resources-btn');
@@ -526,8 +1026,15 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                         // Update badge
                         const badge = resourcesBtn.querySelector('.badge');
                         if (newLinks.length > 0) {
-                            if (badge) badge.textContent = newLinks.length;
-                            else resourcesBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1.1rem;">cloud</span> Risorse <span class="badge" style="background: var(--brand-blue); color: white; padding: 2px 6px; font-size: 0.7rem; border-radius: 10px;">${newLinks.length}</span>`;
+                            if (badge) {
+                                badge.textContent = newLinks.length;
+                            } else {
+                                const newBadge = document.createElement('span');
+                                newBadge.className = 'badge';
+                                newBadge.style.cssText = 'background: var(--brand-blue); color: white; padding: 2px 6px; font-size: 0.7rem; border-radius: 10px;';
+                                newBadge.textContent = newLinks.length;
+                                resourcesBtn.appendChild(newBadge);
+                            }
                         } else {
                             if (badge) badge.remove();
                         }
@@ -559,13 +1066,20 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         const addHubDropdown = container.querySelector('#add-hub-dropdown');
 
         if (addHubBtn && addHubDropdown) {
-            addHubBtn.addEventListener('click', (e) => {
+            const toggleDropdown = (e) => {
                 e.stopPropagation();
                 addHubDropdown.classList.toggle('hidden');
-            });
+            };
+
+            addHubBtn.addEventListener('click', toggleDropdown);
+
+            // Add listener to FAB too
+            const mobileFab = container.querySelector('#mobile-fab');
+            if (mobileFab) mobileFab.addEventListener('click', toggleDropdown);
 
             document.addEventListener('click', (e) => {
-                if (!addHubBtn.contains(e.target) && !addHubDropdown.contains(e.target)) {
+                const isFab = mobileFab && mobileFab.contains(e.target);
+                if (!addHubBtn.contains(e.target) && !addHubDropdown.contains(e.target) && !isFab) {
                     addHubDropdown.classList.add('hidden');
                 }
             });
@@ -633,34 +1147,29 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     spaceAssignees = newAssignees || [];
                     kpis = calculateKPIs(items);
 
-                    // Update PM icons in header
+                    // Update Team icons in left column
                     const pmsList = container.querySelector('#space-pms-list');
                     if (pmsList) {
-                        const currentAddBtn = pmsList.querySelector('div:has(#add-space-pm-btn)'); // Keep the add button
-                        const addBtnHtml = currentAddBtn ? currentAddBtn.outerHTML : '';
-
-                        pmsList.innerHTML = spaceAssignees.filter(a => a.role === 'pm').map(a => {
-                            let userName = a.user?.full_name || a.user?.first_name || 'Utente';
-                            let avatarUrl = a.user?.avatar_url;
-                            const initial = userName.charAt(0).toUpperCase();
+                        pmsList.innerHTML = spaceAssignees.map(a => {
+                            const collab = state.collaborators?.find(c => (a.user_ref && c.user_id === a.user_ref) || (a.collaborator_ref && c.id === a.collaborator_ref));
+                            const userName = collab ? (collab.full_name || `${collab.first_name} ${collab.last_name}`) : (a.user?.full_name || 'Utente');
                             return `
-                                        <div class="user-pill-mini pm" data-uid="${a.user_ref}" data-collab-id="${a.collaborator_ref}" title="${userName}" style="
-                                            display: flex; align-items: center; gap: 6px; background: var(--surface-1); 
-                                            padding: 2px 8px 2px 2px; border-radius: 16px; border: 1px solid transparent;
-                                            font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;
-                                        ">
-                                            <div style="width: 20px; height: 20px; border-radius: 50%; background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 10px;">
-                                                ${avatarUrl ? `<img src="${avatarUrl}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : initial}
-                                            </div>
-                                            ${userName.split(' ')[0]}
-                                            <span class="material-icons-round remove-space-pm-btn" data-id="${a.id}" style="font-size: 0.9rem; cursor: pointer; opacity: 0.5;">close</span>
+                                <div class="user-pill-full" style="display: flex; align-items: center; justify-content: space-between; background: white; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--glass-border); box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                                    <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+                                        ${renderAvatar(collab || a.user || { full_name: userName }, { size: 32, borderRadius: '8px' })}
+                                        <div style="min-width: 0;">
+                                            <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${userName}</div>
+                                            <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600;">${a.role === 'pm' ? 'Project Manager' : 'Collaboratore'}</div>
                                         </div>
-                                    `;
-                        }).join('') + addBtnHtml;
-
-                        // Re-attach remove PM listeners if needed or use delegation (better)
-                        // For simplicity, we assume delegation is handled or we re-trigger some setup
+                                    </div>
+                                    <span class="material-icons-round remove-space-pm-btn" data-id="${a.id}" style="font-size: 1.1rem; cursor: pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">close</span>
+                                </div>
+                            `;
+                        }).join('') || '<div style="text-align: center; color: var(--text-tertiary); font-size: 0.8rem; padding: 1rem; border: 1px dashed var(--glass-border); border-radius: 10px;">Nessun membro assegnato</div>';
                     }
+
+                    // Re-attach remove PM listeners if needed or use delegation (better)
+                    // For simplicity, we assume delegation is handled or we re-trigger some setup
 
                     // Re-render active tab content
                     const activeTab = Array.from(tabs).find(t => t.classList.contains('active'))?.dataset.tab || 'overview';
@@ -806,12 +1315,53 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         container._commessaPmHandler = handleCommessaPmEvents;
         container.addEventListener('click', handleCommessaPmEvents);
 
+        // Team Member Picker (isInternal only)
+        if (isInternal) {
+            const handleTeamMemberEvents = async (e) => {
+                const addBtn = e.target.closest('#add-space-member-btn');
+                if (addBtn) {
+                    e.stopPropagation();
+                    const pickerContainer = addBtn.parentElement;
+                    const memberPicker = pickerContainer.querySelector('#space-member-picker');
+                    if (memberPicker) {
+                        if (memberPicker.classList.contains('hidden')) {
+                            document.querySelectorAll('#space-member-picker:not(.hidden)').forEach(p => p.classList.add('hidden'));
+                            memberPicker.innerHTML = renderPmOptions();
+                            memberPicker.classList.remove('hidden');
+                        } else {
+                            memberPicker.classList.add('hidden');
+                        }
+                    }
+                    return;
+                }
+                // Selection in member picker
+                const memberPicker = e.target.closest('#space-member-picker');
+                if (memberPicker) {
+                    const opt = e.target.closest('.user-option-space');
+                    if (opt) {
+                        e.stopPropagation();
+                        const uid = opt.dataset.uid;
+                        const collabId = opt.dataset.collabId;
+                        memberPicker.classList.add('hidden');
+                        try {
+                            if (uid && uid !== 'null' && uid !== '') await assignUserToSpace(spaceId, uid, 'assignee');
+                            else await assignUserToSpace(spaceId, collabId, 'assignee', true);
+                            document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
+                        } catch (err) { alert("Errore Team: " + err.message); }
+                    }
+                }
+            };
+            if (container._teamMemberHandler) container.removeEventListener('click', container._teamMemberHandler);
+            container._teamMemberHandler = handleTeamMemberEvents;
+            container.addEventListener('click', handleTeamMemberEvents);
+        }
+
         // Global Outside Click for PM Picker
         if (!window._commessaPickerOutside) {
             window._commessaPickerOutside = (e) => {
-                const pickers = container.querySelectorAll('#space-pm-picker:not(.hidden)');
+                const pickers = container.querySelectorAll('#space-pm-picker:not(.hidden), #space-member-picker:not(.hidden)');
                 pickers.forEach(picker => {
-                    const btn = picker.parentElement.querySelector('#add-space-pm-btn');
+                    const btn = picker.parentElement.querySelector('#add-space-pm-btn, #add-space-member-btn');
                     if (!picker.contains(e.target) && (!btn || !btn.contains(e.target))) {
                         picker.classList.add('hidden');
                     }
@@ -841,8 +1391,15 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                         statusTrigger.style.opacity = '0.5';
                         statusTrigger.style.pointerEvents = 'none';
 
-                        const { updateOrder } = await import('../../modules/api.js?v=1000');
-                        await updateOrder(orderId, { status_works: newStatusKey });
+                        if (isInternal) {
+                            const { updateSpace } = await import('../../modules/pm_api.js?v=1000');
+                            await updateSpace(spaceId, { status: newStatusKey });
+                            if (space) space.status = newStatusKey;
+                        } else {
+                            const { updateOrder } = await import('../../modules/api.js?v=1000');
+                            await updateOrder(orderId, { status_works: newStatusKey });
+                            if (order) order.status_works = newStatusKey;
+                        }
 
                         // Update Trigger UI
                         statusTrigger.style.background = cfg.bg;
@@ -865,10 +1422,10 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
                         showGlobalAlert('Stato aggiornato', 'success');
 
-                        // Refresh active tab to show the new log entry in the activity feed if in Overview
+                        // Refresh active tab to show the new log entry in the activity feed or overview
                         const activeTab = Array.from(tabs).find(t => t.classList.contains('active'))?.dataset.tab || 'overview';
-                        if (activeTab === 'overview') {
-                            renderTab('overview');
+                        if (activeTab === 'overview' || activeTab === 'feed') {
+                            renderTab(activeTab);
                         }
                     } catch (err) {
                         showGlobalAlert("Errore: " + err.message, 'error');

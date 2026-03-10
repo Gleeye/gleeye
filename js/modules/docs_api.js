@@ -164,7 +164,7 @@ export async function updateDocPage(pageId, updates) {
         })
         .eq('id', pageId)
         .select()
-        .single();
+        .maybeSingle();
 
     if (error) throw error;
     return data;
@@ -179,7 +179,7 @@ export async function updateDocMetadata(pageId, metadata) {
         })
         .eq('id', pageId)
         .select('id, metadata, updated_at')
-        .single();
+        .maybeSingle();
 
     if (error) throw error;
     return data;
@@ -240,7 +240,7 @@ export async function updateBlock(blockId, updates) {
         })
         .eq('id', blockId)
         .select()
-        .single();
+        .maybeSingle();
 
     if (error) throw error;
     return data;

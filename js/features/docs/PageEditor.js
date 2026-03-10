@@ -12,147 +12,60 @@ export async function renderPageEditor(container, page) {
     currentSpaceId = page.space_ref;
     container.innerHTML = '';
 
-    // 0. Cover Image
+    // 0. Cover Image (Removed logic for icons/covers as requested)
     const coverContainer = document.createElement('div');
-    coverContainer.className = 'group'; // For hover effects if using Tailwind/Custom CSS
     coverContainer.style.position = 'relative';
     coverContainer.style.marginBottom = '24px';
-
-    if (page.cover_image) {
-        const img = document.createElement('img');
-        img.src = page.cover_image;
-        img.style.width = '100%';
-        img.style.height = '220px';
-        img.style.objectFit = 'cover';
-        img.style.borderRadius = '8px';
-
-        const changeBtn = document.createElement('button');
-        changeBtn.innerText = 'Change Cover';
-        changeBtn.className = 'btn-xs btn-secondary';
-        changeBtn.style.position = 'absolute';
-        changeBtn.style.bottom = '10px';
-        changeBtn.style.right = '10px';
-        changeBtn.style.opacity = '0.8';
-        changeBtn.onmouseover = () => changeBtn.style.opacity = '1';
-        changeBtn.onclick = () => triggerCoverUpload(page);
-
-        const removeBtn = document.createElement('button');
-        removeBtn.innerText = 'Remove';
-        removeBtn.className = 'btn-xs btn-secondary';
-        removeBtn.style.position = 'absolute';
-        removeBtn.style.bottom = '10px';
-        removeBtn.style.right = '110px';
-        removeBtn.style.opacity = '0.8';
-        removeBtn.onclick = async () => {
-            await updateDocPage(page.id, { cover_image: null });
-            page.cover_image = null;
-            renderPageEditor(container, page); // Re-render
-        };
-
-        coverContainer.appendChild(img);
-        coverContainer.appendChild(changeBtn);
-        coverContainer.appendChild(removeBtn);
-    }
     container.appendChild(coverContainer);
-
-    // 0.5 Icon & Meta Controls
-    const metaRow = document.createElement('div');
-    metaRow.style.marginBottom = '20px';
-    metaRow.style.display = 'flex';
-    metaRow.style.alignItems = 'flex-end';
-    metaRow.style.gap = '16px';
-
-    // Icon
-    if (page.icon) {
-        const iconDiv = document.createElement('div');
-        iconDiv.innerText = page.icon;
-        iconDiv.style.fontSize = '64px';
-        iconDiv.style.lineHeight = '1';
-        iconDiv.style.cursor = 'pointer';
-        iconDiv.title = 'Click to change icon';
-        iconDiv.onclick = () => {
-            const newIcon = prompt("Enter an emoji:", page.icon);
-            if (newIcon) updatePageIcon(page, newIcon, container);
-        };
-        metaRow.appendChild(iconDiv);
-    }
-
-    // Add Buttons (if missing items)
-    const btnGroup = document.createElement('div');
-    btnGroup.style.display = 'flex';
-    btnGroup.style.gap = '12px';
-    btnGroup.style.color = '#64748b';
-    btnGroup.style.fontSize = '14px';
-    btnGroup.style.marginBottom = page.icon ? '10px' : '0'; // Align based on icon presence
-
-    if (!page.icon) {
-        const addIconBtn = document.createElement('span');
-        addIconBtn.innerHTML = '<span class="material-icons-round" style="font-size: 16px; vertical-align: text-bottom;">add_reaction</span> Add Icon';
-        addIconBtn.style.cursor = 'pointer';
-        addIconBtn.className = 'hover-text';
-        addIconBtn.onclick = () => {
-            const newIcon = prompt("Enter an emoji:", "📄");
-            if (newIcon) updatePageIcon(page, newIcon, container);
-        };
-        btnGroup.appendChild(addIconBtn);
-    }
-
-    if (!page.cover_image) {
-        const addCoverBtn = document.createElement('span');
-        addCoverBtn.innerHTML = '<span class="material-icons-round" style="font-size: 16px; vertical-align: text-bottom;">image</span> Add Cover';
-        addCoverBtn.style.cursor = 'pointer';
-        addCoverBtn.className = 'hover-text';
-        addCoverBtn.onclick = () => triggerCoverUpload(page, container);
-        btnGroup.appendChild(addCoverBtn);
-    }
-    metaRow.appendChild(btnGroup);
-    container.appendChild(metaRow);
 
     // 1. Page Title
     const titleParams = document.createElement('div');
-    titleParams.style.marginBottom = '24px'; // Reduced margin
+    titleParams.style.marginBottom = '16px';
+    titleParams.style.borderBottom = '1.5px solid rgba(0,0,0,0.08)';
+    titleParams.style.paddingBottom = '6px';
 
     const titleInput = document.createElement('h1');
     titleInput.contentEditable = true;
+    titleInput.className = 'page-title-input';
     titleInput.innerText = page.title || 'Untitled';
     titleInput.style.fontSize = '36px';
     titleInput.style.fontWeight = '700';
     titleInput.style.outline = 'none';
     titleInput.style.border = 'none';
-    titleInput.style.color = '#1e293b';
-    titleInput.style.marginBottom = '24px';
+    titleInput.style.color = 'var(--text-primary)';
+    titleInput.style.margin = '0';
+    titleInput.style.marginBottom = '6px';
+    titleInput.style.width = '100%';
     titleInput.onblur = async () => {
         if (titleInput.innerText !== page.title) {
             await updateDocPage(page.id, { title: titleInput.innerText });
-            page.title = titleInput.innerText; // Update local reference
-            // Notify Sidebar to refresh
+            page.title = titleInput.innerText;
             document.dispatchEvent(new CustomEvent('doc-page-updated', { detail: { pageId: page.id } }));
         }
     };
-    /* Placeholder? CSS needed */
 
     titleParams.appendChild(titleInput);
     container.appendChild(titleParams);
 
     // 2. Fetch Blocks
     currentBlocks = await fetchPageBlocks(page.id);
-
     if (!currentBlocks || currentBlocks.length === 0) {
-        // Create initial empty block
         const newBlock = await createBlock(page.id, 'paragraph', { text: '' }, 0);
         currentBlocks = [newBlock];
     }
 
     // 3. Render Blocks Container
     const blocksContainer = document.createElement('div');
-    blocksContainer.id = 'blocks-canvas';
+    blocksContainer.className = 'blocks-canvas';
     blocksContainer.style.paddingBottom = '100px';
     container.appendChild(blocksContainer);
 
     // Delegate Checkbox Changes
     blocksContainer.addEventListener('block-check-change', (e) => {
         const block = e.detail.block;
-        updateBlock(block.id, { content: block.content });
+        if (!block.id.toString().startsWith('temp-')) {
+            updateBlock(block.id, { content: block.content });
+        }
     });
 
     // Delegate Drag & Drop
@@ -167,254 +80,274 @@ export async function renderPageEditor(container, page) {
     // Hide menus on click
     container.addEventListener('click', () => {
         SlashMenu.hide();
-        // BlockActionMenu handles its own outside click, but let's be safe
         BlockActionMenu.hide();
     });
 
-    renderBlocks(blocksContainer);
+    // Render first block if empty
+    if (!currentBlocks || currentBlocks.length === 0) {
+        const newBlock = await createBlock(page.id, 'paragraph', { text: '' }, 0);
+        currentBlocks = [newBlock];
+    }
 
-    // 4. Global Event Listener for Editor
-    // We attach to container to delegate events
-    // Focus management is key.
-}
-
-function renderBlocks(container) {
-    container.innerHTML = '';
     currentBlocks.forEach((block, index) => {
         const el = createBlockElement(block, currentSpaceId);
-
-        // Attach Interaction Events
-        const contentEditable = el.querySelector('.doc-block-content');
-
-        contentEditable.onkeydown = (e) => handleBlockKeyDown(e, block, index);
-        contentEditable.oninput = (e) => handleBlockInput(e, block, index);
-
-        container.appendChild(el);
+        attachBlockEvents(el, block, index);
+        blocksContainer.appendChild(el);
     });
+
+    // Hide menus on click or scroll
+    const hideMenus = () => { SlashMenu.hide(); BlockActionMenu.hide(); };
+    container.addEventListener('click', hideMenus);
+
+    // In both normal and fullscreen, 'container' is the scrollable parent element
+    container.addEventListener('scroll', hideMenus, { passive: true });
+}
+
+function attachBlockEvents(el, block, index) {
+    const content = el.querySelector('.doc-block-content');
+    content.onkeydown = (e) => handleBlockKeyDown(e, block);
+    content.oninput = (e) => handleBlockInput(e, block);
+}
+
+// Helper to find index of a block by its DOM element
+function getBlockIndex(el) {
+    const canvas = el.closest('.blocks-canvas');
+    if (!canvas) return -1;
+    return Array.from(canvas.children).indexOf(el.closest('.doc-block'));
 }
 
 // --- Event Handlers ---
 
-async function handleBlockKeyDown(e, block, index) {
-    // Cmd+Enter to force new block (useful to exit code block)
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        const newOrder = block.order_index + 1;
-        // Check if next block exists, insert before?
-        // Reuse logic below?
-        // For simplicity, just let it fall through if I could? No, logic below has !shiftKey check.
-        // I'll copy the creation logic or refactor.
-        // Refactor: create a function insertBlockAfter(block, index, type)
-        // For MVP inline:
-        const newBlock = await createBlock(currentPageId, 'paragraph', { text: '' }, newOrder);
-        currentBlocks.splice(index + 1, 0, newBlock);
+async function handleBlockKeyDown(e, block) {
+    const index = getBlockIndex(e.target);
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+    const range = selection.getRangeAt(0);
 
-        const container = document.getElementById('blocks-canvas');
-        const newEl = createBlockElement(newBlock);
-        const newContent = newEl.querySelector('.doc-block-content');
-        newContent.onkeydown = (ev) => handleBlockKeyDown(ev, newBlock, index + 1);
-        newContent.oninput = (ev) => handleBlockInput(ev, newBlock, index + 1);
-
-        if (index === currentBlocks.length - 2) {
-            container.appendChild(newEl);
-        } else {
-            container.insertBefore(newEl, container.children[index + 1]);
+    // 1. Slash Menu Navigation (Priority)
+    if (SlashMenu.element && SlashMenu.element.style.display !== 'none') {
+        if (['ArrowUp', 'ArrowDown', 'Enter', 'Escape'].includes(e.key)) {
+            e.preventDefault();
+            if (e.key === 'ArrowUp') SlashMenu.navigate('up');
+            else if (e.key === 'ArrowDown') SlashMenu.navigate('down');
+            else if (e.key === 'Enter') SlashMenu.selectCurrent();
+            else if (e.key === 'Escape') SlashMenu.hide();
+            return;
         }
-        newContent.focus();
+    }
+
+    // 2. Handle Enter (Split Block)
+    if (e.key === 'Enter' && !e.shiftKey) {
+        if (block.type === 'code') return;
+        e.preventDefault();
+
+        const afterRange = range.cloneRange();
+        afterRange.selectNodeContents(e.target);
+        afterRange.setStart(range.endContainer, range.endOffset);
+        const fragment = afterRange.extractContents();
+        const afterText = fragment.textContent;
+
+        // Update current block data (DB call in background)
+        block.content.text = e.target.innerText;
+        block.content.html = e.target.innerHTML;
+        if (!block.id.toString().startsWith('temp-')) {
+            updateBlock(block.id, { content: block.content });
+        }
+
+        const newType = (block.type === 'checklist' || block.type === 'list') ? block.type : 'paragraph';
+
+        // OPTIMISTIC UI: Create and insert element BEFORE DB call
+        const canvas = e.target.closest('.blocks-canvas');
+        const tempId = 'temp-' + Date.now();
+        const tempBlock = { id: tempId, type: newType, content: { text: afterText }, order_index: block.order_index + 1 };
+
+        const newEl = createBlockElement(tempBlock, currentSpaceId);
+        attachBlockEvents(newEl, tempBlock);
+
+        if (index === canvas.children.length - 1) canvas.appendChild(newEl);
+        else canvas.insertBefore(newEl, canvas.children[index + 1]);
+
+        // Focus IMMEDIATELY
+        const nextEl = newEl.querySelector('.doc-block-content');
+        nextEl.focus();
+
+        // RUN DB CALL IN BACKGROUND
+        createBlock(currentPageId, newType, { text: afterText }, block.order_index + 1).then(realBlock => {
+            tempBlock.id = realBlock.id;
+            newEl.dataset.id = realBlock.id;
+            currentBlocks.splice(index + 1, 0, realBlock);
+        });
+
         return;
     }
 
-    if (e.key === 'Enter' && !e.shiftKey) {
-        if (block.type === 'code') return; // Allow newline in code
-
-        e.preventDefault();
-        // Create new block after current
-        // Check if current is empty checklist -> toggle to paragraph
-        if (block.type === 'checklist' && !block.content.text && !block.content.html) {
-            updateBlockType(block, 'paragraph', '');
-            return;
-        }
-
-        const newOrder = block.order_index + 1;
-
-        // If current is checklist/list, new one should match type
-        const newType = (block.type === 'checklist' || block.type === 'list') ? block.type : 'paragraph';
-
-        const newBlock = await createBlock(currentPageId, newType, { text: '' }, newOrder);
-
-        // Insert into local state
-        currentBlocks.splice(index + 1, 0, newBlock);
-
-        // Re-render (inefficient but safe for MVP)
-        // Optimization: append DOM element manually and focus it
-        const container = document.getElementById('blocks-canvas');
-        const newEl = createBlockElement(newBlock);
-
-        // IMPORTANT: Move focus to content
-        const newContent = newEl.querySelector('.doc-block-content');
-
-        // Attach logic
-        newContent.onkeydown = (ev) => handleBlockKeyDown(ev, newBlock, index + 1);
-        newContent.oninput = (ev) => handleBlockInput(ev, newBlock, index + 1);
-
-        if (index === currentBlocks.length - 2) { // was last
-            container.appendChild(newEl);
-        } else {
-            container.insertBefore(newEl, container.children[index + 1]);
-        }
-
-        newContent.focus();
-    }
-
+    // 3. Handle Backspace (Merge Blocks)
     if (e.key === 'Backspace') {
-        const selection = window.getSelection();
-        if (selection.anchorOffset === 0 && selection.isCollapsed) {
+        if (range.startOffset === 0 && range.collapsed) {
+            if (index === 0) return;
             e.preventDefault();
-            if (index > 0) {
-                // Merge with previous
-                const prevBlock = currentBlocks[index - 1];
-                const prevEl = document.getElementById('blocks-canvas').children[index - 1];
-                const prevContent = prevEl.querySelector('.doc-block-content');
 
-                // Save cursor pos at end of prev
-                const originalLength = prevContent.innerText.length;
+            const currentEl = e.target.closest('.doc-block');
+            const canvas = currentEl.closest('.blocks-canvas');
+            const prevContainer = currentEl?.previousElementSibling;
+            if (!prevContainer) return;
 
-                // Merge text
-                const currentText = block.content?.text || '';
-                const newText = (prevBlock.content?.text || '') + currentText;
+            const prevBlock = currentBlocks[index - 1];
+            const prevEl = prevContainer.querySelector('.doc-block-content');
+            if (!prevEl) return;
 
-                // Update prev block
-                prevBlock.content.text = newText;
-                prevContent.innerText = newText; // Update DOM
-                updateBlock(prevBlock.id, { content: { text: newText } });
+            const prevTextLength = prevEl.innerText.length;
 
-                // Delete current
-                if (saveTimeout) clearTimeout(saveTimeout);
-                await deleteBlock(block.id);
-                currentBlocks.splice(index, 1);
-                e.target.closest('.doc-block').remove();
+            // OPTIMISTIC UI: Merge text and remove element IMMEDIATELY
+            const mergedText = prevEl.innerText + e.target.innerText;
+            prevEl.innerText = mergedText;
 
-                // Valid focus handling?
-                // Set cursor
-                // prevContent.focus(); // Simplified
+            currentBlocks.splice(index, 1);
+            currentEl.remove();
+
+            // Restore focus and cursor IMMEDIATELY
+            prevEl.focus();
+
+            const newRange = document.createRange();
+            const newSel = window.getSelection();
+            let node = prevEl.firstChild || prevEl;
+            while (node.firstChild) node = node.firstChild;
+
+            try {
+                newRange.setStart(node, prevTextLength);
+                newRange.collapse(true);
+                newSel.removeAllRanges();
+                newSel.addRange(newRange);
+            } catch (err) {
+                newRange.selectNodeContents(prevEl);
+                newRange.collapse(false);
+                newSel.removeAllRanges();
+                newSel.addRange(newRange);
             }
+
+            // RUN DB CALLS IN BACKGROUND
+            prevBlock.content.text = mergedText;
+            if (!prevBlock.id.toString().startsWith('temp-')) {
+                updateBlock(prevBlock.id, { content: prevBlock.content });
+            }
+            if (!block.id.toString().startsWith('temp-')) {
+                deleteBlock(block.id);
+            }
+
+            return;
         }
     }
 
-    // Slash Menu Navigation
-    if (SlashMenu.element && SlashMenu.element.style.display !== 'none') {
+    // 4. Handle Navigation (Arrows)
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        const currentEl = e.target.closest('.doc-block');
         if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            SlashMenu.navigate('up');
-            return;
-        }
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            SlashMenu.navigate('down');
-            return;
-        }
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            SlashMenu.selectCurrent();
-            return;
-        }
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            SlashMenu.hide();
-            return;
-        }
-    }
-
-    if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        if (index > 0) {
-            const prev = document.getElementById('blocks-canvas').children[index - 1].querySelector('.doc-block-content');
-            prev.focus();
-        }
-    }
-
-    if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        if (index < currentBlocks.length - 1) {
-            const next = document.getElementById('blocks-canvas').children[index + 1].querySelector('.doc-block-content');
-            next.focus();
+            if (range.startOffset === 0) {
+                const prev = currentEl?.previousElementSibling?.querySelector('.doc-block-content');
+                if (prev) {
+                    e.preventDefault();
+                    prev.focus();
+                }
+            }
+        } else if (e.key === 'ArrowDown') {
+            if (range.startOffset === e.target.innerText.length) {
+                const next = currentEl?.nextElementSibling?.querySelector('.doc-block-content');
+                if (next) {
+                    e.preventDefault();
+                    next.focus();
+                }
+            }
         }
     }
 }
 
 function handleBlockInput(e, block, index) {
-    // Update local state - Use HTML for Rich Text Support
     const text = e.target.innerText;
     block.content.text = text;
     block.content.html = e.target.innerHTML;
     const cleanText = text.replace(/\u00A0/g, ' ');
 
-    // Slash Menu Trigger
-    if (cleanText.startsWith('/')) {
-        // Remove newlines, non-breaking spaces, zero-width spaces, and trim
-        // This regex removes all non-printable/control chars roughly
-        let query = cleanText.substring(1).replace(/[\n\r\t\u200B\u00A0]/g, '').trim();
-        // Also remove any other weird control chars
-        query = query.replace(/[\x00-\x1F\x7F-\x9F]/g, "");
+    // Slash Menu Trigger - Logic improved for fluidity
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+    const range = selection.getRangeAt(0);
+    const contentNode = range.startContainer;
 
-        // Debug
-        // console.log("Slash Query:", JSON.stringify(query));
+    // Only look at the current text node where the cursor is
+    const textBefore = contentNode.textContent.substring(0, range.startOffset);
+    const slashMatch = textBefore.match(/\/(\w*)$/);
 
-        // Calculate Position
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const rect = range.getBoundingClientRect();
+    if (slashMatch) {
+        const query = slashMatch[1].toLowerCase();
+        const slashIndex = slashMatch.index;
 
-            // Only show if we have valid coordinates
+        // CRITICAL: Get visual position for the EXACT '/' character
+        const tempRange = document.createRange();
+        try {
+            tempRange.setStart(contentNode, slashIndex);
+            tempRange.setEnd(contentNode, slashIndex + 1);
+
+            const rects = tempRange.getClientRects();
+            const rect = rects.length > 0 ? rects[0] : tempRange.getBoundingClientRect();
+
             if (rect.bottom > 0) {
-                SlashMenu.show(rect.left, rect.bottom + 5, (type) => {
-                    // On select
-                    updateBlockType(block, type, ''); // Clear content
+                SlashMenu.show(rect.left, rect.bottom + 4, (type) => {
+                    // Selection handling
+                    const fullText = contentNode.textContent;
+                    contentNode.textContent = fullText.substring(0, slashIndex) + fullText.substring(range.startOffset);
+                    updateBlockType(block, type, contentNode.textContent);
                 });
                 SlashMenu.filter(query);
             }
+        } catch (e) {
+            SlashMenu.hide();
         }
     } else {
         SlashMenu.hide();
     }
 
-    // Direct Commands (keep for speed)
     if (text.startsWith('/h1 ')) return updateBlockType(block, 'heading1', text.substring(4));
     if (text.startsWith('/h2 ')) return updateBlockType(block, 'heading2', text.substring(4));
     if (text.startsWith('[] ')) return updateBlockType(block, 'checklist', text.substring(3));
 
-
-    // Debounce Save
     if (saveTimeout) clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => {
-        updateBlock(block.id, { content: block.content });
-    }, 1000);
+    if (!block.id.toString().startsWith('temp-')) {
+        saveTimeout = setTimeout(() => {
+            updateBlock(block.id, { content: block.content });
+        }, 1000);
+    }
 }
 
 async function updateBlockType(block, type, text) {
     block.type = type;
     block.content.text = text;
-    await updateBlock(block.id, { type, content: block.content });
+    block.content.html = text; // reset html on type change
 
-    // Re-render this block to apply new styles
-    // Or just reload page for MVP simplicity if transformations are rare
-    // Better: replace DOM element
-    // To implement properly requires re-render of single element
-    const container = document.getElementById('blocks-canvas');
-    const oldEl = container.children[currentBlocks.indexOf(block)]; // Find index again to be safe?
-    // Actually we passed index, but index might shift if we insert?
-    // Use data-id
-    const realIdx = currentBlocks.findIndex(b => b.id === block.id);
+    if (!block.id.toString().startsWith('temp-')) {
+        await updateBlock(block.id, { type, content: block.content });
+    }
 
-    const newEl = createBlockElement(block, currentSpaceId);
-    // Attach events...
-    const newContent = newEl.querySelector('.doc-block-content');
-    newContent.onkeydown = (ev) => handleBlockKeyDown(ev, block, realIdx);
-    newContent.oninput = (ev) => handleBlockInput(ev, block, realIdx);
+    // SURGICAL REPLACEMENT (Fast) - find canvas via current blocks in DOM
+    const canvas = document.querySelector('.notion-fullscreen-wrapper .blocks-canvas') || document.querySelector('.blocks-canvas');
+    const idx = currentBlocks.findIndex(b => b.id === block.id);
+    if (idx > -1) {
+        const oldEl = canvas.children[idx];
+        if (!oldEl) return;
 
-    container.replaceChild(newEl, oldEl);
-    newEl.querySelector('.doc-block-content').focus();
+        const newEl = createBlockElement(block, currentSpaceId);
+        attachBlockEvents(newEl, block, idx);
+        canvas.replaceChild(newEl, oldEl);
+
+        // Refocus & place cursor at end
+        const contentEl = newEl.querySelector('.doc-block-content');
+        contentEl.focus();
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(contentEl);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
 }
 
 async function handleBlockDrop(e) {
@@ -423,110 +356,64 @@ async function handleBlockDrop(e) {
     const targetIndex = currentBlocks.findIndex(b => b.id === targetId);
 
     if (sourceIndex > -1 && targetIndex > -1) {
-        // Move block in array
         const [movedBlock] = currentBlocks.splice(sourceIndex, 1);
         currentBlocks.splice(targetIndex, 0, movedBlock);
 
-        // Re-render
-        const container = document.getElementById('blocks-canvas');
-        renderBlocks(container);
-
-        // Update Order Indices in DB
-        // We'll update the order_index of all blocks to be safe and simple (0, 1, 2...)
-        const updates = currentBlocks.map((b, idx) => ({
-            id: b.id,
-            order_index: idx, // Ensure consistent float/int
-            page_ref: currentPageId //upsert needs all required fields? No, ID is primary key.
-            // But RLS might need it? ID is enough for update.
-            // Upsert on ID requires ID.
-        }));
-
+        // Re-calculate all order indices to stay consistent
+        const updates = currentBlocks.map((b, idx) => ({ id: b.id, order_index: idx, page_ref: currentPageId }));
         await upsertBlocks(updates);
-    }
-}
 
-// --- Icons & Covers Helpers ---
+        // Surgical DOM Reorder:
+        const canvas = document.querySelector('.notion-fullscreen-wrapper .blocks-canvas') || document.querySelector('.blocks-canvas');
+        const sourceEl = canvas.querySelector(`[data-id="${sourceId}"]`);
+        const targetEl = canvas.querySelector(`[data-id="${targetId}"]`);
 
-async function updatePageIcon(page, icon, container) {
-    if (icon) {
-        await updateDocPage(page.id, { icon });
-        page.icon = icon;
-        // Refresh sidebar
-        document.dispatchEvent(new CustomEvent('doc-page-updated', { detail: { pageId: page.id } }));
-        // Re-render editor
-        if (container) renderPageEditor(container, page);
-    }
-}
-
-function triggerCoverUpload(page, container) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        try {
-            const url = await uploadImage(file, 'covers');
-            await updateDocPage(page.id, { cover_image: url });
-            page.cover_image = url;
-
-            // Re-render editor
-            const editorContainer = document.getElementById('editor-container');
-            if (editorContainer) renderPageEditor(editorContainer, page);
-
-        } catch (err) {
-            console.error(err);
-            alert("Error uploading cover: " + err.message);
+        if (sourceEl && targetEl) {
+            // Notion-like reorder (insert before target)
+            canvas.insertBefore(sourceEl, targetEl);
         }
-    };
-    input.click();
+    }
 }
 
 async function handleBlockAction(action, block, x, y) {
+    // Determine canvas based on action source if possible, or use fallback
+    const canvas = document.querySelector('.notion-fullscreen-wrapper .blocks-canvas') || document.querySelector('.blocks-canvas');
     const idx = currentBlocks.findIndex(b => b.id === block.id);
-    if (idx === -1 && action !== 'delete') return; // Should not happen
+    if (idx === -1 && action !== 'delete') return;
 
     if (action === 'delete') {
         if (saveTimeout) clearTimeout(saveTimeout);
-        await deleteBlock(block.id);
+        if (!block.id.toString().startsWith('temp-')) {
+            await deleteBlock(block.id);
+        }
         if (idx > -1) {
             currentBlocks.splice(idx, 1);
-            renderBlocks(document.getElementById('blocks-canvas'));
+            canvas.children[idx].remove();
         }
     } else if (action === 'duplicate') {
-        const currentOrder = block.order_index || 0;
-        const nextOrder = currentBlocks[idx + 1]?.order_index || (currentOrder + 1000);
-        const newOrder = (currentOrder + nextOrder) / 2;
-
-        const newBlock = await createBlock(block.page_ref, block.type, block.content, newOrder);
+        const newBlock = await createBlock(block.page_ref, block.type, block.content, block.order_index + 0.5);
         currentBlocks.splice(idx + 1, 0, newBlock);
-        renderBlocks(document.getElementById('blocks-canvas'));
+
+        const newEl = createBlockElement(newBlock, currentSpaceId);
+        attachBlockEvents(newEl, newBlock, idx + 1);
+        canvas.insertBefore(newEl, canvas.children[idx + 1]);
     } else if (action === 'turn_into') {
-        // Show SlashMenu slightly offset
         SlashMenu.show(x + 20, y, async (type) => {
-            // Transform
-            block.type = type;
-            // Ensure content matches structure? For text blocks it's fine.
-            // For MVP assume text based.
-            await updateBlock(block.id, { type: type, content: block.content });
-            renderBlocks(document.getElementById('blocks-canvas'));
+            updateBlockType(block, type, block.content.text);
         });
     } else if (action === 'insert_above') {
-        const currentOrder = block.order_index || 0;
-        const prevOrder = idx > 0 ? (currentBlocks[idx - 1].order_index || 0) : (currentOrder - 1000);
-        const newOrder = (prevOrder + currentOrder) / 2;
-
-        const newBlock = await createBlock(block.page_ref, 'paragraph', { text: '' }, newOrder);
+        const newBlock = await createBlock(block.page_ref, 'paragraph', { text: '' }, block.order_index - 0.5);
         currentBlocks.splice(idx, 0, newBlock);
-        renderBlocks(document.getElementById('blocks-canvas'));
-    } else if (action === 'insert_below') {
-        const currentOrder = block.order_index || 0;
-        const nextOrder = currentBlocks[idx + 1]?.order_index || (currentOrder + 1000);
-        const newOrder = (currentOrder + nextOrder) / 2;
 
-        const newBlock = await createBlock(block.page_ref, 'paragraph', { text: '' }, newOrder);
+        const newEl = createBlockElement(newBlock, currentSpaceId);
+        attachBlockEvents(newEl, newBlock, idx);
+        canvas.insertBefore(newEl, canvas.children[idx]);
+    } else if (action === 'insert_below') {
+        const newBlock = await createBlock(block.page_ref, 'paragraph', { text: '' }, block.order_index + 0.5);
         currentBlocks.splice(idx + 1, 0, newBlock);
-        renderBlocks(document.getElementById('blocks-canvas'));
+
+        const newEl = createBlockElement(newBlock, currentSpaceId);
+        attachBlockEvents(newEl, newBlock, idx + 1);
+        canvas.insertBefore(newEl, canvas.children[idx + 1]);
     }
 }

@@ -34,34 +34,61 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
     const now = new Date();
     const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const orderId = window._hubContext?.orderId;
+    const space = window._hubContext?.space;
 
-    // Fetch overview data (Appointments and Activity Logs)
+    // Fetch overview data
     let appointments = [];
     let activityLogs = [];
+    let recentComments = [];
+    let docPages = [];
+
     try {
         const api_v = Date.now();
         const { fetchAppointments, fetchPMActivityLogs } = await import('/js/modules/pm_api.js?v=' + api_v);
+        const { ensureDocSpace, fetchVisiblePages } = await import('/js/modules/docs_api.js?v=' + api_v);
+        const { supabase } = await import('/js/modules/config.js');
 
-        const promises = [];
-        if (orderId) promises.push(fetchAppointments(orderId, 'order'));
-        else if (spaceId) promises.push(fetchAppointments(spaceId, 'space'));
-        else promises.push(Promise.resolve([]));
+        const refId = orderId || spaceId;
+        const refType = orderId ? 'order' : 'space';
 
-        if (spaceId) promises.push(fetchPMActivityLogs(spaceId));
-        else promises.push(Promise.resolve([]));
+        // 1. Appointments, Logs & Comments
+        const [appts, logs, docSpace, { data: comms }] = await Promise.all([
+            refId ? fetchAppointments(refId, refType) : [],
+            spaceId ? fetchPMActivityLogs(spaceId) : [],
+            spaceId ? ensureDocSpace(spaceId) : null,
+            spaceId ? supabase.from('pm_item_comments').select(`
+                id, body, created_at, pm_item_ref,
+                profiles!author_user_ref ( full_name, avatar_url ),
+                item:pm_item_ref!inner ( title, space_ref )
+            `).eq('item.space_ref', spaceId).order('created_at', { ascending: false }).limit(8) : { data: [] }
+        ]);
 
-        const [allAppts, logs] = await Promise.all(promises);
-
-        // Filter out Account-specific appointments
-        appointments = allAppts.filter(appt => {
+        // Filter and clip
+        appointments = appts.filter(appt => {
             const isAccount = appt.is_account_level || appt.appointment_internal_participants?.some(p => p.role === 'account') || appt.note?.toLowerCase().includes('[account]');
             return !isAccount;
         });
+        activityLogs = logs.slice(0, 8);
+        recentComments = comms || [];
 
-        activityLogs = logs;
+        // 2. Docs
+        if (docSpace) {
+            docPages = await fetchVisiblePages(docSpace.id);
+            docPages = docPages.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)).slice(0, 8);
+        }
+
     } catch (err) {
         console.error("Error fetching data for overview:", err);
     }
+
+    // Resources from context
+    const resources = (() => {
+        try {
+            const raw = space?.cloud_links;
+            if (!raw) return [];
+            return (typeof raw === 'string' ? JSON.parse(raw) : raw).slice(0, 8);
+        } catch { return []; }
+    })();
 
     // Get overdue + soon items merged into "Urgenze"
     const urgentItems = items
@@ -73,190 +100,372 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
         .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
         .slice(0, 10);
 
-    // Get upcoming appointments (today and future, not cancelled)
+    // Get upcoming appointments
     const upcomingAppts = appointments
         .filter(a => a.status !== 'annullato' && new Date(a.end_time) >= now)
         .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
         .slice(0, 5);
 
     container.innerHTML = `
-        <div class="hub-overview" style="display: grid; grid-template-columns: 300px 1fr 1fr; gap: 1.5rem; align-items: start;">
-            
-            <!-- Left Column: KPIs & Actions -->
-            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <style>
+            /* === BASE DESKTOP STYLES === */
+            #hub-tab-content .hub-overview, 
+            #hub-tab-content .hub-overview * {
+                box-sizing: border-box !important;
+            }
+            #hub-tab-content .hub-overview {
+                display: grid;
+                grid-template-columns: 1fr 340px 340px;
+                gap: 1.25rem;
+                height: calc(100vh - 280px);
+                min-height: 600px;
+                padding-bottom: 2rem;
+                width: 100%;
+            }
+            .overview-card {
+                background: white;
+                border-radius: 16px;
+                padding: 1.25rem;
+                box-shadow: var(--shadow-sm);
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+                border: 1px solid var(--surface-2);
+                min-width: 0;
+            }
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: 0.75rem;
+            }
+            .sub-column-grid {
+                display: grid;
+                grid-template-rows: 1fr 1fr;
+                gap: 1.25rem;
+                overflow: hidden;
+                min-width: 0;
+            }
+
+            /* === TABLET === */
+            @media (max-width: 1350px) {
+                #hub-tab-content .hub-overview {
+                    grid-template-columns: 1fr 340px;
+                    height: auto;
+                    min-height: 0;
+                }
+                .sub-column-grid {
+                    height: calc(100vh - 280px);
+                    min-height: 600px;
+                }
+            }
+
+            @media (max-width: 1050px) {
+                #hub-tab-content .hub-overview {
+                    grid-template-columns: 1fr;
+                    display: block;
+                    height: auto;
+                    min-height: 0;
+                }
+                .sub-column-grid {
+                    display: grid;
+                    height: auto;
+                    min-height: 0;
+                    grid-template-rows: none;
+                    grid-template-columns: 1fr 1fr;
+                    margin-top: 1.25rem;
+                    gap: 1rem;
+                }
+                .overview-card {
+                    height: 480px;
+                    margin-bottom: 1.25rem;
+                    width: 100%;
+                }
+            }
+
+            /* === MOBILE — COMPLETE RETHINK === */
+            @media (max-width: 768px) {
+                #hub-tab-content .hub-overview {
+                    display: flex !important;
+                    flex-direction: column !important;
+                    gap: 0 !important;
+                    height: auto !important;
+                    min-height: 0 !important;
+                    padding: 0 !important;
+                    width: 100% !important;
+                }
+
+                /* Cards become invisible containers for vertical sections */
+                .overview-card {
+                    background: transparent !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    border-radius: 0 !important;
+                    padding: 1rem 0 !important; /* Edge to edge vertical padding */
+                    height: auto !important;
+                    margin-bottom: 0 !important;
+                    overflow: visible !important;
+                    border-bottom: 8px solid var(--surface-1) !important; /* Thick separator */
+                }
+                .overview-card:last-child { border-bottom: none !important; }
+
+                /* Headers need some padding to not touch the absolute edge but items should be full width */
+                .overview-card > div:first-child {
+                    padding: 0 0.5rem !important;
+                    margin-bottom: 0.75rem !important;
+                }
+
+                /* Stats strip */
+                .stats-grid {
+                    display: flex !important;
+                    overflow-x: auto !important;
+                    overflow-y: hidden !important;
+                    gap: 0.4rem !important;
+                    padding: 0 0.5rem 0.5rem 0.5rem !important;
+                    -webkit-overflow-scrolling: touch;
+                }
+                .stats-grid::-webkit-scrollbar { display: none; }
+                .stats-grid > div {
+                    flex-shrink: 0 !important;
+                    min-width: 60px !important;
+                    padding: 0.5rem 0.4rem !important;
+                    border-radius: 6px !important;
+                }
+
+                /* Items (Urgenze, Appuntamenti, ecc) become edge-to-edge list rows */
+                .urgent-item, .appointment-item, .preview-item, .comment-preview-item {
+                    background: transparent !important;
+                    border: none !important;
+                    border-bottom: 1px solid var(--surface-2) !important;
+                    border-radius: 0 !important;
+                    padding: 0.85rem 0.5rem !important;
+                    margin-bottom: 0 !important;
+                    box-shadow: none !important;
+                    width: 100% !important;
+                }
                 
-                <!-- Progress Card (Donut Chart) -->
-                <div class="overview-card" style="background: white; border-radius: 16px; padding: 1.5rem; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; align-items: center;">
-                    <div style="width: 100%; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem;">
-                        <span class="material-icons-round" style="color: var(--brand-color);">analytics</span>
-                        <span style="font-weight: 700; font-size: 1rem; color: var(--text-primary);">Stato Progetto</span>
+                /* Sub-column grids flatten */
+                .sub-column-grid { display: contents !important; }
+
+                /* Peek & Expand: clipped lists */
+                .peek-clipped {
+                    max-height: 220px !important;
+                    overflow: hidden !important;
+                    position: relative !important;
+                }
+                .peek-clipped::after {
+                    content: '';
+                    position: absolute;
+                    bottom: 0; left: 0; right: 0;
+                    height: 50px;
+                    background: linear-gradient(transparent, white);
+                    pointer-events: none;
+                }
+                .peek-toggle-btn {
+                    display: flex !important;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.35rem;
+                    width: 100%;
+                    padding: 0.6rem;
+                    border: none;
+                    border-top: 1px solid var(--surface-2);
+                    background: var(--surface-1);
+                    color: var(--brand-color);
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    font-family: 'Outfit', sans-serif;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .peek-toggle-btn .material-icons-round {
+                    font-size: 1rem;
+                    transition: transform 0.2s;
+                }
+                .peek-toggle-btn.expanded .material-icons-round {
+                    transform: rotate(180deg);
+                }
+            }
+        </style>
+        <div class="hub-overview">
+            
+            <!-- Column 1: Board Overview (Stats + Urgencies) -->
+            <div class="overview-card">
+                
+                <!-- Header with Stats -->
+                <div style="margin-bottom: 1.5rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--surface-1); display: flex; align-items: center; justify-content: center;">
+                                <span class="material-icons-round" style="color: var(--brand-color); font-size: 1.25rem;">analytics</span>
+                            </div>
+                            <span style="font-weight: 700; font-size: 1.1rem; color: var(--text-primary);">Stato delle Attività</span>
+                        </div>
+                        <button class="nav-to-tab-btn" data-target="board" title="Vai alla Board" style="
+                            padding: 6px; border-radius: 8px; border: 1px solid var(--surface-2); 
+                            background: white; color: var(--text-secondary); cursor: pointer;
+                            display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+                        " onmouseover="this.style.background='var(--surface-1)'; this.style.color='var(--brand-color)';" onmouseout="this.style.background='white'; this.style.color='var(--text-secondary)';">
+                            <span class="material-icons-round" style="font-size: 1.2rem;">arrow_forward</span>
+                        </button>
                     </div>
 
-                    <!-- SVG Donut Chart -->
-                    <div style="position: relative; width: 160px; height: 160px; margin-bottom: 1.5rem;">
-                        <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
-                            <!-- Background Circle -->
-                            <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--surface-1)" stroke-width="3"></circle>
-                            
-                            <!-- Status Segments -->
-                            ${(() => {
-            const total = items.length || 1;
-            const counts = {
-                done: items.filter(i => i.status === 'done').length,
-                doing: items.filter(i => ['in_progress', 'review'].includes(i.status)).length,
-                blocked: items.filter(i => i.status === 'blocked').length,
-                todo: items.filter(i => (i.status === 'todo' || !i.status)).length
-            };
-
-            let offset = 0;
-            const segments = [
-                { count: counts.done, color: '#10b981' },    // Green
-                { count: counts.doing, color: '#3b82f6' },   // Blue
-                { count: counts.blocked, color: '#ef4444' }, // Red
-                { count: counts.todo, color: '#e2e8f0' }     // Grey
-            ];
-
-            return segments.map(seg => {
-                if (seg.count === 0) return '';
-                const percent = (seg.count / total) * 100;
-                const strokeDash = `${percent} ${100 - percent}`;
-                const dashOffset = -offset;
-                offset += percent;
-                return `<circle cx="18" cy="18" r="15.915" fill="transparent" stroke="${seg.color}" stroke-width="3.5" stroke-dasharray="${strokeDash}" stroke-dashoffset="${dashOffset}" stroke-linecap="round" style="transition: stroke-dashoffset 0.6s ease;"></circle>`;
-            }).join('');
-        })()}
-                        </svg>
-                        
-                        <!-- Center Text -->
-                        <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; transform: none;">
-                            <div style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); line-height: 1;">${kpis.progress}%</div>
-                            <div style="font-size: 0.65rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; margin-top: 2px;">Completato</div>
+                    <!-- Horizontal Stats Grid -->
+                    <div class="stats-grid">
+                        <div style="background: var(--surface-1); padding: 0.75rem; border-radius: 12px; border: 1px solid var(--surface-2); text-align: center;">
+                            <div style="font-size: 0.6rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 2px;">Totale</div>
+                            <div style="font-size: 1.1rem; font-weight: 800; color: var(--text-primary);">${items.length}</div>
                         </div>
-                    </div>
-
-                    <!-- Legend Grid -->
-                    <div style="width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid var(--surface-1);">
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <div style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></div>
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">Finiti: ${kpis.done}</div>
+                        <div style="background: #ecfdf5; padding: 0.75rem; border-radius: 12px; border: 1px solid #d1fae5; text-align: center;">
+                            <div style="font-size: 0.6rem; font-weight: 700; color: #059669; text-transform: uppercase; margin-bottom: 2px;">Comp.</div>
+                            <div style="font-size: 1.1rem; font-weight: 800; color: #065f46;">${kpis.done}</div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <div style="width: 8px; height: 8px; border-radius: 50%; background: #3b82f6;"></div>
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">In corso: ${items.filter(i => ['in_progress', 'review'].includes(i.status)).length}</div>
+                        <div style="background: #eff6ff; padding: 0.75rem; border-radius: 12px; border: 1px solid #dbeafe; text-align: center;">
+                            <div style="font-size: 0.6rem; font-weight: 700; color: #2563eb; text-transform: uppercase; margin-bottom: 2px;">Corso</div>
+                            <div style="font-size: 1.1rem; font-weight: 800; color: #1e40af;">${items.filter(i => ['in_progress', 'review'].includes(i.status)).length}</div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <div style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></div>
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">Bloccati: ${kpis.blocked}</div>
+                        <div style="background: #f8fafc; padding: 0.75rem; border-radius: 12px; border: 1px solid #f1f5f9; text-align: center;">
+                            <div style="font-size: 0.6rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 2px;">Fare</div>
+                            <div style="font-size: 1.1rem; font-weight: 800; color: #334155;">${items.filter(i => (i.status === 'todo' || !i.status)).length}</div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <div style="width: 8px; height: 8px; border-radius: 50%; background: #e2e8f0;"></div>
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">Da fare: ${items.filter(i => (i.status === 'todo' || !i.status)).length}</div>
+                        <div style="background: #f1f5f9; padding: 0.75rem; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center;">
+                            <div style="font-size: 0.6rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 2px;">Pausa</div>
+                            <div style="font-size: 1.1rem; font-weight: 800; color: #334155;">${kpis.blocked}</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Quick Actions -->
-                <div class="overview-card" style="background: white; border-radius: 16px; padding: 1.25rem; box-shadow: var(--shadow-sm);">
-                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                        <button class="quick-action-btn" data-action="add-activity" style="
-                            display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; 
-                            background: var(--surface-1); border: 1px solid transparent; border-radius: 12px; 
-                            cursor: pointer; text-align: left; transition: all 0.2s;
-                        " onmouseover="this.style.background='white'; this.style.borderColor='var(--brand-color)'; this.style.boxShadow='var(--shadow-sm)';" onmouseout="this.style.background='var(--surface-1)'; this.style.borderColor='transparent'; this.style.boxShadow='none';">
-                            <div style="width: 32px; height: 32px; border-radius: 8px; background: #fff7ed; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                <span class="material-icons-round" style="color: #f59e0b; font-size: 1.25rem;">folder</span>
-                            </div>
-                            <div>
-                                <div style="font-weight: 600; font-size: 0.85rem;">Nuova Attività</div>
-                                <div style="font-size: 0.75rem; color: var(--text-secondary);">Organizza task</div>
-                            </div>
-                        </button>
-                        
-                        <button class="quick-action-btn" data-action="add-task" style="
-                            display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; 
-                            background: var(--surface-1); border: 1px solid transparent; border-radius: 12px; 
-                            cursor: pointer; text-align: left; transition: all 0.2s;
-                        " onmouseover="this.style.background='white'; this.style.borderColor='var(--brand-color)'; this.style.boxShadow='var(--shadow-sm)';" onmouseout="this.style.background='var(--surface-1)'; this.style.borderColor='transparent'; this.style.boxShadow='none';">
-                            <div style="width: 32px; height: 32px; border-radius: 8px; background: #f0fdf4; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                <span class="material-icons-round" style="color: #10b981; font-size: 1.25rem;">check_circle</span>
-                            </div>
-                            <div>
-                                <div style="font-weight: 600; font-size: 0.85rem;">Nuova Task</div>
-                                <div style="font-size: 0.75rem; color: var(--text-secondary);">Compito rapido</div>
-                            </div>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Middle Column: Urgent Activities -->
-            <div class="overview-card" style="background: white; border-radius: 16px; padding: 1.5rem; box-shadow: var(--shadow-sm); min-height: 400px; display: flex; flex-direction: column;">
-                <div style="width: 100%; display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
-                    <div style="width: 36px; height: 36px; border-radius: 10px; background: #fef2f2; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                        <span class="material-icons-round" style="color: #ef4444; font-size: 1.25rem;">assignment_late</span>
+                <div style="width: 100%; display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: #fef2f2; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <span class="material-icons-round" style="color: #ef4444; font-size: 1.1rem;">assignment_late</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
-                        <span style="font-weight: 700; font-size: 1rem; color: var(--text-primary);">Urgenze & Scadenze</span>
-                        ${urgentItems.length > 0 ? `<span style="background: #fef2f2; color: #ef4444; padding: 2px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 700;">${urgentItems.length}</span>` : ''}
+                        <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary);">Urgenze & Scadenze</span>
+                        ${urgentItems.length > 0 ? `<span style="background: #fef2f2; color: #ef4444; padding: 2px 8px; border-radius: 8px; font-size: 0.7rem; font-weight: 700;">${urgentItems.length}</span>` : ''}
                     </div>
                 </div>
                 
-                ${urgentItems.length === 0 ? `
-                    <div style="text-align: center; padding: 4rem 1rem; color: var(--text-secondary); flex: 1; display: flex; flex-direction: column; justify-content: center;">
-                        <div style="width: 64px; height: 64px; border-radius: 50%; background: #f0fdf4; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
-                            <span class="material-icons-round" style="color: #10b981; font-size: 2rem;">done_all</span>
+                <div style="flex: 1; overflow-y: auto; padding-right: 0.5rem;" class="custom-scrollbar">
+                    ${urgentItems.length === 0 ? `
+                        <div style="text-align: center; padding: 4rem 1rem; color: var(--text-secondary); height: 100%; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="width: 56px; height: 56px; border-radius: 50%; background: #f0fdf4; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
+                                <span class="material-icons-round" style="color: #10b981; font-size: 1.75rem;">done_all</span>
+                            </div>
+                            <p style="font-weight: 600; color: var(--text-primary); margin: 0;">Tutto sotto controllo!</p>
+                            <p style="font-size: 0.8rem; margin: 0.25rem 0 0;">Nessun task in scadenza immediata.</p>
                         </div>
-                        <p style="font-weight: 600; color: var(--text-primary); margin: 0;">Tutto sotto controllo!</p>
-                        <p style="font-size: 0.85rem; margin: 0.25rem 0 0;">Non ci sono attività in scadenza.</p>
-                    </div>
-                ` : `
-                    <div class="urgenze-list">
-                        ${urgentItems.map(item => renderUrgentItem(item)).join('')}
-                    </div>
-                `}
-            </div>
-
-            <!-- Right Column: Appointments -->
-            <div class="overview-card" style="background: white; border-radius: 16px; padding: 1.5rem; box-shadow: var(--shadow-sm); min-height: 400px; display: flex; flex-direction: column;">
-                <div style="width: 100%; display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
-                    <div style="width: 36px; height: 36px; border-radius: 10px; background: #f5f3ff; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                        <span class="material-icons-round" style="color: #8b5cf6; font-size: 1.25rem;">event_available</span>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
-                        <span style="font-weight: 700; font-size: 1rem; color: var(--text-primary);">Appuntamenti</span>
-                        ${upcomingAppts.length > 0 ? `<span style="background: var(--surface-1); color: var(--brand-color); padding: 2px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 700;">${upcomingAppts.length}</span>` : ''}
-                    </div>
-                </div>
-                
-                ${upcomingAppts.length === 0 ? `
-                    <div style="text-align: center; padding: 4rem 1rem; color: var(--text-secondary); flex: 1; display: flex; flex-direction: column; justify-content: center;">
-                        <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--surface-1); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
-                            <span class="material-icons-round" style="color: var(--text-tertiary); font-size: 2rem;">calendar_today</span>
+                    ` : `
+                        <div class="urgenze-list">
+                            ${urgentItems.map(item => renderUrgentItem(item, items)).join('')}
                         </div>
-                        <p style="font-weight: 600; color: var(--text-primary); margin: 0;">Nessun impegno</p>
-                        <p style="font-size: 0.85rem; margin: 0.25rem 0 0;">Non ci sono appuntamenti in programma.</p>
-                    </div>
-                ` : `
-                    <div class="appointments-list">
-                        ${upcomingAppts.map(appt => renderAppointmentItem(appt)).join('')}
-                    </div>
-                `}
-            </div>
-        </div>
-
-        <!-- Activity Feed Section -->
-        <div class="overview-card" style="margin-top: 1.5rem; background: white; border-radius: 16px; padding: 1.5rem; box-shadow: var(--shadow-sm);">
-            <div style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; border-bottom: 1px solid var(--surface-2); padding-bottom: 1rem;">
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <div style="width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--surface-1);">
-                        <span class="material-icons-round" style="color: var(--brand-color); font-size: 1.25rem;">history</span>
-                    </div>
-                    <span style="font-weight: 700; font-size: 1.15rem; color: var(--text-primary);">Log Attività</span>
+                    `}
                 </div>
             </div>
-            
-            ${renderActivityFeed(activityLogs)}
-            
+
+            <!-- Column 2: Appointments & Comments -->
+            <div class="sub-column-grid">
+                <!-- Top: Appointments -->
+                <div class="overview-card">
+                    <div style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-shrink: 0;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 32px; height: 32px; border-radius: 8px; background: #f5f3ff; display: flex; align-items: center; justify-content: center;">
+                                <span class="material-icons-round" style="color: #8b5cf6; font-size: 1.15rem;">event_available</span>
+                            </div>
+                            <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary);">Appuntamenti</span>
+                        </div>
+                        <button class="nav-to-tab-btn" data-target="appointments" title="Vai al Calendario" style="
+                            padding: 4px; border-radius: 6px; border: 1px solid var(--surface-2); 
+                            background: white; color: var(--text-tertiary); cursor: pointer;
+                            display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+                        " onmouseover="this.style.background='var(--surface-1)'; this.style.color='var(--brand-color)';" onmouseout="this.style.background='white'; this.style.color='var(--text-tertiary)';">
+                            <span class="material-icons-round" style="font-size: 1.1rem;">arrow_forward</span>
+                        </button>
+                    </div>
+                    
+                    <div style="flex: 1; overflow-y: auto;" class="custom-scrollbar">
+                        ${upcomingAppts.length === 0 ? `
+                            <div style="text-align: center; padding: 2rem 1rem; color: var(--text-secondary);">
+                                <p style="font-size: 0.75rem; margin: 0;">Nessun impegno in programma.</p>
+                            </div>
+                        ` : `
+                            <div class="appointments-list">
+                                ${upcomingAppts.map(appt => renderAppointmentItem(appt)).join('')}
+                            </div>
+                        `}
+                    </div>
+                </div>
+
+                <!-- Bottom: Recent Comments -->
+                <div class="overview-card">
+                    <div style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-shrink: 0;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 32px; height: 32px; border-radius: 8px; background: #ecfeff; display: flex; align-items: center; justify-content: center;">
+                                <span class="material-icons-round" style="color: #06b6d4; font-size: 1.15rem;">chat_bubble_outline</span>
+                            </div>
+                            <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary);">Commenti Recenti</span>
+                        </div>
+                        <button class="nav-to-tab-btn" data-target="feed" title="Vai al Feed" style="
+                            padding: 4px; border-radius: 6px; border: 1px solid var(--surface-2); 
+                            background: white; color: var(--text-tertiary); cursor: pointer;
+                            display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+                        " onmouseover="this.style.background='var(--surface-1)'; this.style.color='var(--brand-color)';" onmouseout="this.style.background='white'; this.style.color='var(--text-tertiary)';">
+                            <span class="material-icons-round" style="font-size: 1.1rem;">arrow_forward</span>
+                        </button>
+                    </div>
+
+                    <div style="flex: 1; overflow-y: auto;" class="custom-scrollbar">
+                        ${renderCommentsPreview(recentComments, spaceId)}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Column 3: Docs/Resources & Feed -->
+            <div class="sub-column-grid">
+                <!-- Top: Docs or Resources -->
+                <div class="overview-card">
+                    <div style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-shrink: 0;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div id="docs-res-icon" style="width: 32px; height: 32px; border-radius: 8px; background: var(--surface-1); display: flex; align-items: center; justify-content: center;">
+                                <span class="material-icons-round" style="color: var(--brand-color); font-size: 1.15rem;">folder</span>
+                            </div>
+                            <span id="docs-res-title" style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); transition: all 0.2s;">Documenti Recenti</span>
+                        </div>
+                        <button id="toggle-docs-res-btn" title="Passa a Risorse/Documenti" style="
+                            padding: 4px; border-radius: 6px; border: 1px solid var(--surface-2); 
+                            background: white; color: var(--text-tertiary); cursor: pointer;
+                            display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+                        " onmouseover="this.style.background='var(--surface-1)'; this.style.color='var(--brand-color)';" onmouseout="this.style.background='white'; this.style.color='var(--text-tertiary)';">
+                            <span class="material-icons-round" style="font-size: 1.1rem;">swap_horiz</span>
+                        </button>
+                    </div>
+                    
+                    <div id="docs-res-content" style="flex: 1; overflow-y: auto;" class="custom-scrollbar">
+                         ${renderDocsPreview(docPages)}
+                    </div>
+                </div>
+
+                <!-- Bottom: Activity Feed -->
+                <div class="overview-card">
+                    <div style="width: 100%; display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-shrink: 0;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 32px; height: 32px; border-radius: 8px; background: #fff7ed; display: flex; align-items: center; justify-content: center;">
+                                <span class="material-icons-round" style="color: #f59e0b; font-size: 1.15rem;">history</span>
+                            </div>
+                            <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary);">Attività Recenti</span>
+                        </div>
+                        <button class="nav-to-tab-btn" data-target="feed" title="Vai al Feed" style="
+                            padding: 4px; border-radius: 6px; border: 1px solid var(--surface-2); 
+                            background: white; color: var(--text-tertiary); cursor: pointer;
+                            display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+                        " onmouseover="this.style.background='var(--surface-1)'; this.style.color='var(--brand-color)';" onmouseout="this.style.background='white'; this.style.color='var(--text-tertiary)';">
+                            <span class="material-icons-round" style="font-size: 1.1rem;">arrow_forward</span>
+                        </button>
+                    </div>
+
+                    <div style="flex: 1; overflow-y: auto;" class="custom-scrollbar">
+                        ${renderFeedPreview(activityLogs)}
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 
@@ -279,14 +488,198 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
         });
     });
 
-    container.querySelectorAll('.quick-action-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const action = btn.dataset.action;
+    container.querySelectorAll('.comment-preview-item').forEach(el => {
+        el.addEventListener('click', () => {
+            const itemId = el.dataset.item;
             import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => {
-                mod.openHubDrawer(null, spaceId, null, action === 'add-activity' ? 'attivita' : 'task');
+                mod.openHubDrawer(itemId, spaceId);
             });
         });
     });
+
+    // Navigation Buttons logic
+    container.querySelectorAll('.nav-to-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetTab = btn.dataset.target;
+            const mainTabBtn = document.querySelector(`.hub-tab[data-tab="${targetTab}"]`);
+            if (mainTabBtn) mainTabBtn.click();
+        });
+    });
+
+    // Docs/Resources Toggle logic
+    let currentThirdTop = 'docs';
+    const toggleBtn = container.querySelector('#toggle-docs-res-btn');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            currentThirdTop = currentThirdTop === 'docs' ? 'res' : 'docs';
+            const titleEl = container.querySelector('#docs-res-title');
+            const iconEl = container.querySelector('#docs-res-icon span');
+            const contentEl = container.querySelector('#docs-res-content');
+
+            if (currentThirdTop === 'docs') {
+                titleEl.innerText = 'Documenti Recenti';
+                iconEl.innerText = 'folder';
+                contentEl.innerHTML = renderDocsPreview(docPages);
+            } else {
+                titleEl.innerText = 'Risorse Cloud';
+                iconEl.innerText = 'cloud_queue';
+                contentEl.innerHTML = renderResourcesPreview(resources);
+            }
+        });
+    }
+
+    // === MOBILE: Peek & Expand logic ===
+    if (window.innerWidth <= 768) {
+        const PEEK_LIMITS = [3, 3, 2, 2, 2]; // items to show per section
+        const scrollAreas = container.querySelectorAll('.custom-scrollbar');
+
+        scrollAreas.forEach((area, idx) => {
+            const items = area.querySelectorAll('.urgent-item, .appointment-item, .comment-preview-item, [style*="border-bottom"], .preview-item');
+            const limit = PEEK_LIMITS[idx] || 2;
+            const totalItems = items.length;
+
+            if (totalItems <= limit) return; // No need to clip
+
+            // Clip the list
+            area.classList.add('peek-clipped');
+
+            // Create toggle button
+            const btn = document.createElement('button');
+            btn.className = 'peek-toggle-btn';
+            btn.innerHTML = `Mostra tutte (${totalItems}) <span class="material-icons-round">expand_more</span>`;
+            area.parentNode.insertBefore(btn, area.nextSibling);
+
+            btn.addEventListener('click', () => {
+                const isExpanded = btn.classList.toggle('expanded');
+                if (isExpanded) {
+                    area.classList.remove('peek-clipped');
+                    btn.innerHTML = `Mostra meno <span class="material-icons-round">expand_more</span>`;
+                } else {
+                    area.classList.add('peek-clipped');
+                    btn.innerHTML = `Mostra tutte (${totalItems}) <span class="material-icons-round">expand_more</span>`;
+                    // Scroll the section header into view
+                    area.parentNode.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    }
+
+}
+
+function renderDocsPreview(pages) {
+    if (!pages || pages.length === 0) return `<div style="padding: 2rem 1rem; text-align: center; color: var(--text-tertiary); font-size: 0.8rem;">Nessun documento</div>`;
+    return pages.map(page => `
+        <div class="preview-item" style="padding: 0.75rem; border-radius: 10px; background: var(--surface-1); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem; cursor: pointer; border: 1px solid transparent; transition: all 0.2s;" onmouseover="this.style.background='white'; this.style.borderColor='var(--brand-color)';" onmouseout="this.style.background='var(--surface-1)'; this.style.borderColor='transparent';">
+            <span class="material-icons-round" style="font-size: 1.1rem; color: #64748b;">${page.type === 'whiteboard' ? 'auto_awesome_motion' : 'description'}</span>
+            <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${page.title}</div>
+                <div style="font-size: 0.65rem; color: var(--text-tertiary);">${new Date(page.updated_at).toLocaleDateString('it-IT')}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderResourcesPreview(links) {
+    if (!links || links.length === 0) return `<div style="padding: 2rem 1rem; text-align: center; color: var(--text-tertiary); font-size: 0.8rem;">Nessuna risorsa cloud</div>`;
+    return links.map(link => `
+        <a href="${link.url}" target="_blank" class="preview-item" style="text-decoration: none; padding: 0.75rem; border-radius: 10px; background: var(--surface-1); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem; cursor: pointer; border: 1px solid transparent; transition: all 0.2s;" onmouseover="this.style.background='white'; this.style.borderColor='var(--brand-color)';" onmouseout="this.style.background='var(--surface-1)'; this.style.borderColor='transparent';">
+            <span class="material-icons-round" style="font-size: 1.1rem; color: #3b82f6;">link</span>
+            <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${link.label}</div>
+                <div style="font-size: 0.65rem; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${link.url}</div>
+            </div>
+        </a>
+    `).join('');
+}
+
+function renderFeedPreview(logs) {
+    if (!logs || logs.length === 0) return `<div style="padding: 2rem 1rem; text-align: center; color: var(--text-tertiary); font-size: 0.8rem;">Nessuna attività recente</div>`;
+
+    const vocabulary = {
+        'todo': 'Da Fare', 'in_progress': 'In Corso', 'review': 'Revisione', 'done': 'Completata', 'blocked': 'In Pausa',
+        'high': 'Alta', 'medium': 'Media', 'low': 'Bassa', 'urgent': 'Urgente',
+        'in_svolgimento': 'In Lavorazione', 'lavoro_in_attesa': 'In Sospeso'
+    };
+    const t = (val) => vocabulary[val?.toLowerCase()] || val;
+
+    return logs.map(log => {
+        const name = log.authorName || 'Sistema';
+        const avatar = log.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+
+        let actionTxt = 'ha effettuato una modifica';
+        const type = log.action_type || '';
+        const itemName = log.item?.title ? `**${log.item.title}**` : '';
+        const details = log.details || {};
+
+        if (type.includes('status')) {
+            const oldVal = t(details.old);
+            const newVal = t(details.new);
+            actionTxt = `ha cambiato stato a ${itemName} da **${oldVal}** a **${newVal}**`;
+        } else if (type.includes('priority')) {
+            const oldVal = t(details.old);
+            const newVal = t(details.new);
+            actionTxt = `ha cambiato priorità a ${itemName} da **${oldVal}** a **${newVal}**`;
+        } else if (type === 'create') {
+            actionTxt = `ha creato l'elemento ${itemName}`;
+        } else if (type.includes('comment')) {
+            actionTxt = `ha lasciato un commento su ${itemName}`;
+        } else if (type.includes('member') || type.includes('assignee')) {
+            const isDelete = type.includes('delete') || type.includes('remove');
+            const member = details.member_name || 'un membro';
+            actionTxt = `${isDelete ? 'ha rimosso' : 'ha assegnato'} **${member}** ${isDelete ? 'da' : 'a'} ${itemName}`;
+        } else if (type.includes('cloud_links')) {
+            actionTxt = `ha aggiornato le risorse di ${itemName}`;
+        } else if (type === 'update' && itemName) {
+            actionTxt = `ha modificato ${itemName}`;
+        }
+
+        // Convert bold markdown to HTML
+        actionTxt = actionTxt.replace(/\*\*(.*?)\*\*/g, '<span style="font-weight: 700; color: var(--text-primary);">$1</span>');
+
+        return `
+            <div style="padding: 0.85rem 0; border-bottom: 1px solid var(--surface-1); display: flex; gap: 0.85rem; align-items: flex-start;">
+                <img src="${avatar}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; box-shadow: 0 0 0 2px white, 0 0 0 3px var(--surface-1);" />
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.45;">
+                        <span style="font-weight: 700; color: var(--brand-color);">${name}</span> ${actionTxt}
+                    </div>
+                    <div style="font-size: 0.6rem; color: var(--text-tertiary); margin-top: 3px; font-weight: 500;">
+                        ${new Date(log.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} • ${new Date(log.created_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+function renderCommentsPreview(comments, spaceId) {
+    if (!comments || comments.length === 0) return `<div style="padding: 2rem 1rem; text-align: center; color: var(--text-tertiary); font-size: 0.8rem;">Nessun commento recente</div>`;
+    return comments.map(comment => renderCommentItem(comment)).join('');
+}
+
+function renderCommentItem(comment) {
+    const profile = comment.profiles || { full_name: 'Sistema', avatar_url: null };
+    const date = new Date(comment.created_at);
+    const dateStr = date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+    const timeStr = date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    const itemName = comment.item?.title || 'Attività';
+
+    return `
+        <div class="comment-preview-item" data-item="${comment.pm_item_ref}" style="padding: 0.85rem 0; border-bottom: 1px solid var(--surface-1); cursor: pointer; transition: all 0.2s;" onmouseover="this.style.opacity='0.8';" onmouseout="this.style.opacity='1';">
+            <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+                <img src="${profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name)}&background=random`}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />
+                <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px;">
+                        <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${profile.full_name}</span>
+                        <span style="font-size: 0.6rem; color: var(--text-tertiary); flex-shrink: 0;">${dateStr} • ${timeStr}</span>
+                    </div>
+                    <div style="font-size: 0.65rem; font-weight: 700; color: var(--brand-color); text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 4px;">Su: ${itemName}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                        ${comment.body}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 function renderAppointmentItem(appt) {
@@ -296,20 +689,20 @@ function renderAppointmentItem(appt) {
 
     return `
         <div class="appointment-item" data-id="${appt.id}" style="
-            display: flex; align-items: center; gap: 1rem; padding: 1rem; background: var(--surface-1); 
-            border-radius: 12px; margin-bottom: 0.75rem; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--surface-1); 
+            border-radius: 12px; margin-bottom: 0.6rem; cursor: pointer; transition: all 0.2s;
             border: 1px solid transparent;
         " onmouseover="this.style.background='white'; this.style.borderColor='var(--brand-color)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.background='var(--surface-1)'; this.style.borderColor='transparent'; this.style.transform='none';">
-            <div style="text-align: center; min-width: 45px; padding-right: 12px; border-right: 2px solid var(--surface-2);">
-                <div style="font-size: 0.95rem; font-weight: 800; color: var(--brand-color); text-transform: uppercase;">${day}</div>
-                <div style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">${time}</div>
+            <div style="text-align: center; min-width: 40px; padding-right: 8px; border-right: 2px solid var(--surface-2);">
+                <div style="font-size: 0.85rem; font-weight: 800; color: var(--brand-color); text-transform: uppercase;">${day}</div>
+                <div style="font-size: 0.7rem; color: var(--text-secondary); font-weight: 600;">${time}</div>
             </div>
             
             <div style="flex: 1; min-width: 0;">
-                <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${appt.title}</div>
+                <div style="font-weight: 600; font-size: 0.85rem; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${appt.title}</div>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 0.7rem; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
-                        <span class="material-icons-round" style="font-size: 0.85rem;">${appt.mode === 'online' ? 'videocam' : 'place'}</span>
+                    <span style="font-size: 0.65rem; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
+                        <span class="material-icons-round" style="font-size: 0.8rem;">${appt.mode === 'online' ? 'videocam' : 'place'}</span>
                         ${appt.location || (appt.mode === 'online' ? 'Videochiamata' : 'In presenza')}
                     </span>
                 </div>
@@ -318,7 +711,7 @@ function renderAppointmentItem(appt) {
     `;
 }
 
-function renderUrgentItem(item) {
+function renderUrgentItem(item, allItems = []) {
     const dueDate = item.due_date ? new Date(item.due_date) : null;
     const now = new Date();
     const isOverdue = dueDate && dueDate < now;
@@ -327,33 +720,49 @@ function renderUrgentItem(item) {
     const statusKey = item.status || 'todo';
     const statusCfg = ITEM_STATUS[statusKey] || { label: statusKey, color: '#64748b', bg: '#f1f5f9' };
 
+    // Resolve path
+    const path = [];
+    let current = item;
+
+    // Iterate up the tree
+    while (current && current.parent_ref) {
+        const parent = allItems.find(i => String(i.id) === String(current.parent_ref));
+        if (parent) {
+            path.unshift(parent.title);
+            current = parent;
+        } else break;
+    }
+
+    const pathStr = path.join(' › ');
+
     return `
         <div class="urgent-item" data-id="${item.id}" style="
-            display: flex; align-items: center; gap: 1rem; padding: 1rem; background: #f8fafc; 
-            border-radius: 12px; margin-bottom: 0.75rem; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem; background: #f8fafc; 
+            border-radius: 12px; margin-bottom: 0.6rem; cursor: pointer; transition: all 0.2s;
             border: 1px solid ${isOverdue ? '#fef2f2' : 'var(--surface-1)'};
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='var(--shadow-md)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='var(--shadow-md)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 2px rgba(0,0,0,0.04)';">
             <div style="
-                width: 36px; height: 36px; border-radius: 10px; 
+                width: 32px; height: 32px; border-radius: 9px; 
                 background: ${isOverdue ? '#fef2f2' : '#f8fafc'}; 
                 display: flex; align-items: center; justify-content: center; flex-shrink: 0;
             ">
-                <span class="material-icons-round" style="color: ${isOverdue ? '#ef4444' : '#64748b'}; font-size: 1.25rem;">
+                <span class="material-icons-round" style="color: ${isOverdue ? '#ef4444' : '#64748b'}; font-size: 1.1rem;">
                     ${item.item_type === 'attivita' ? 'folder' : 'check_circle'}
                 </span>
             </div>
             
             <div style="flex: 1; min-width: 0;">
-                <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;">${item.title}</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
+                ${pathStr ? `<div style="font-size: 0.6rem; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 2px;">${pathStr}</div>` : ''}
+                <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px;">${item.title}</div>
+                <div style="display: flex; align-items: center; gap: 6px;">
                     <span style="
-                        font-size: 0.65rem; padding: 2px 8px; border-radius: 6px; 
+                        font-size: 0.6rem; padding: 2px 6px; border-radius: 5px; 
                         background: ${statusCfg.bg}; color: ${statusCfg.color}; 
-                        font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em;
+                        font-weight: 700; text-transform: uppercase; letter-spacing: 0.01em;
                     ">${statusCfg.label}</span>
-                    <span style="font-size: 0.75rem; font-weight: 700; color: ${isOverdue ? '#ef4444' : '#f59e0b'}; display: flex; align-items: center; gap: 4px;">
-                        <span class="material-icons-round" style="font-size: 0.9rem;">${isOverdue ? 'history' : 'event'}</span>
+                    <span style="font-size: 0.7rem; font-weight: 700; color: ${isOverdue ? '#ef4444' : '#f59e0b'}; display: flex; align-items: center; gap: 3px;">
+                        <span class="material-icons-round" style="font-size: 0.85rem;">${isOverdue ? 'history' : 'event'}</span>
                         ${dueDateStr}
                     </span>
                 </div>
@@ -362,145 +771,3 @@ function renderUrgentItem(item) {
     `;
 }
 
-// ---- ACTIVITY FEED RENDERING ----
-
-function renderActivityFeed(logs) {
-    if (!logs || logs.length === 0) {
-        return `
-            <div style="text-align: center; padding: 4rem 1rem; color: var(--text-secondary);">
-                <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--surface-1); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
-                    <span class="material-icons-round" style="font-size: 2rem; color: var(--text-tertiary);">pending_actions</span>
-                </div>
-                <p style="font-weight: 600; color: var(--text-primary); margin: 0;">Nessuna attività</p>
-                <p style="font-size: 0.85rem; margin: 0.25rem 0 0;">Le interazioni del team compariranno qui.</p>
-            </div>
-        `;
-    }
-
-    // Group logs by date
-    const grouped = {};
-    const today = new Date().toLocaleDateString('it-IT');
-    const yesterdayDate = new Date();
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-    const yesterday = yesterdayDate.toLocaleDateString('it-IT');
-
-    logs.forEach(log => {
-        if (!log.action_type) return;
-        const d = new Date(log.created_at);
-        const dStr = d.toLocaleDateString('it-IT');
-        let groupLabel = dStr;
-        if (dStr === today) groupLabel = 'Oggi';
-        else if (dStr === yesterday) groupLabel = 'Ieri';
-        else groupLabel = d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
-
-        if (groupLabel !== 'Oggi' && groupLabel !== 'Ieri') {
-            groupLabel = groupLabel.charAt(0).toUpperCase() + groupLabel.slice(1);
-        }
-
-        if (!grouped[groupLabel]) grouped[groupLabel] = [];
-        grouped[groupLabel].push(log);
-    });
-
-    return Object.entries(grouped).map(([label, dayLogs]) => {
-        return `
-            <div class="activity-feed-day" style="margin-bottom: 2rem;">
-                <h4 style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin: 0 0 1.5rem 0; font-family: var(--font-titles);">${label}</h4>
-                <div style="display: flex; flex-direction: column;">
-                    ${dayLogs.map((log, index) => renderLogItem(log, index === dayLogs.length - 1)).join('')}
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function renderLogItem(log, isLast) {
-    const time = new Date(log.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }).toUpperCase();
-
-    let description = log.details?.description || log.details;
-    const actionType = log.action_type || '';
-
-    // Vocabulary for translation
-    const vocabulary = {
-        'todo': 'Da Fare',
-        'in_progress': 'In Corso',
-        'review': 'In Revisione',
-        'done': 'Completata',
-        'blocked': 'Bloccata',
-        'in_svolgimento': 'In Lavorazione',
-        'lavoro_in_attesa': 'In Sospeso',
-        'accettata': 'Accettata',
-        'rifiutata': 'Rifiutata',
-        'high': 'Alta',
-        'medium': 'Media',
-        'low': 'Bassa'
-    };
-    const t = (val) => vocabulary[val] || val;
-
-    // Humanize technical fallbacks or old patterns
-    const entityName = log.details?.entity_name
-        || log.item?.title
-        || log.order?.title
-        || log.space?.name
-        || 'una risorsa';
-
-    const entityBold = `**${entityName}**`;
-
-    // Strategy: build description if it's a status change, but PROTECT existing detailed descriptions
-    const isDetailed = typeof description === 'string' && (description.includes(' da ') || description.includes(' a ') || description.includes(' in '));
-
-    if (actionType.includes('status') || description === 'status_changed') {
-        const oldVal = t(log.details?.old);
-        const newVal = t(log.details?.new);
-
-        if (oldVal && newVal) {
-            description = `ha cambiato lo stato di ${entityBold} da **${oldVal}** a **${newVal}**`;
-        } else if (isDetailed) {
-            // Keep the detailed version from the DB (it already has the transition)
-        } else if (newVal) {
-            description = `ha cambiato lo stato di ${entityBold} in **${newVal}**`;
-        } else {
-            description = `ha cambiato lo stato di ${entityBold}`;
-        }
-    } else if (!description || typeof description === 'object' || description === 'UPDATE') {
-        if (actionType.includes('create')) description = `ha creato ${entityBold}`;
-        else if (actionType.includes('comment')) description = `ha aggiunto un commento in ${entityBold}`;
-        else description = `ha cambiato la descrizione di ${entityBold}`;
-    }
-
-    // Apply vocabulary to any remaining technical terms in description
-    Object.entries(vocabulary).forEach(([key, value]) => {
-        const regex = new RegExp(`\\b${key}\\b`, 'g');
-        description = description.replace(regex, value);
-    });
-
-    const authorName = log.actor?.full_name || 'Collaboratore';
-    const avatarUrl = log.actor?.avatar_url || '';
-
-    // Mark down to HTML Bold
-    const formattedDesc = description.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-primary);">$1</strong>');
-
-    const clickHandler = log.item_ref
-        ? `onclick="window.openPmItemDetails('${log.item_ref}', '${log.space_ref || ''}')"`
-        : (log.order_ref ? `onclick="window.location.hash = '#pm/commessa/${log.order_ref}'"` : '');
-
-    const style = clickHandler ? 'cursor: pointer; transition: background 0.2s; border-radius: 8px;' : 'cursor: default;';
-
-    return `
-        <div class="timeline-item" ${clickHandler} style="position: relative; padding: 0.5rem; margin-left: -0.5rem; margin-bottom: 0.5rem; display: flex; gap: 1rem; ${style}" onmouseover="if(this.style.cursor==='pointer') this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-            <!-- Vertical dashed line -->
-            ${!isLast ? `
-            <div style="position: absolute; left: 18px; top: 40px; bottom: 0; width: 1px; border-left: 1px dashed var(--text-tertiary); opacity: 0.2;"></div>
-            ` : ''}
-            
-            <div style="width: 28px; height: 28px; border-radius: 50%; overflow: hidden; background: var(--glass-bg); flex-shrink: 0; position: relative; z-index: 1; box-shadow: 0 0 0 3px var(--bg-color);">
-                <img src="${avatarUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random&color=fff&size=48&font-size=0.4';">
-            </div>
-            <div style="flex: 1; min-width: 0; padding-top: 3px;">
-                <div style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4; font-family: var(--font-body);">
-                    <strong style="color: var(--text-primary); font-weight: 700;">${authorName}</strong> ${formattedDesc}
-                </div>
-                <div style="font-size: 0.75rem; color: var(--text-tertiary); font-family: var(--font-body); margin-top: 2px;">${time}</div>
-            </div>
-        </div>
-    `;
-}

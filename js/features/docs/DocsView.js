@@ -43,9 +43,14 @@ export async function renderDocsView(container, spaceId) {
                     </button>
 
                     <div id="sidebar-content" style="display: flex; flex-direction: column; height: 100%; opacity: 1; transition: opacity 0.2s;">
-                        <div class="sidebar-header" style="padding: 16px; display: flex; align-items: center;">
-                            <h3 style="font-size: 14px; font-weight: 600; color: #334155; flex: 1;">Documenti</h3>
-                            <button id="add-page-btn" class="icon-btn-sm" title="Nuova Pagina" style="margin-right: 20px;">
+                        <div class="sidebar-header" style="padding: 16px 40px 16px 12px; display: flex; align-items: center; justify-content: space-between;">
+                            <h3 style="font-size: 0.8rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">Documenti</h3>
+                            <button id="add-page-btn" style="
+                                width: 28px; height: 28px; border-radius: 8px; 
+                                background: var(--surface-2); border: none; 
+                                display: flex; align-items: center; justify-content: center;
+                                color: var(--text-secondary); cursor: pointer; transition: all 0.2s;
+                            " title="Nuova Pagina" onmouseover="this.style.background='var(--brand-blue)'; this.style.color='white'" onmouseout="this.style.background='var(--surface-2)'; this.style.color='var(--text-secondary)'">
                                 <span class="material-icons-round" style="font-size: 18px;">add</span>
                             </button>
                         </div>
@@ -57,20 +62,23 @@ export async function renderDocsView(container, spaceId) {
 
                 <!-- Main Editor Area -->
                 <div id="docs-main" style="flex: 1; display: flex; flex-direction: column; background: white; position: relative;">
-                     <div style="padding: 12px 24px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; border-bottom: 1px solid #f1f5f9;">
-                         <button id="docs-notify-btn" class="btn-sm" style="display: none; align-items: center; justify-content: center; padding: 6px; background: white; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; color: #64748b;" title="Ricevi notifiche per questa pagina">
-                            <span class="material-icons-round" style="font-size: 20px;">notifications_none</span>
+                     <div style="padding: 10px 24px; display: flex; justify-content: flex-end; align-items: center; gap: 8px; border-bottom: 1px solid var(--surface-2); background: #fff;">
+                         <button id="docs-fullscreen-btn" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: white; border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer; color: var(--text-tertiary); transition: all 0.2s;" title="Espandi a schermo intero" onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.color='var(--brand-blue)'" onmouseout="this.style.borderColor='var(--glass-border)'; this.style.color='var(--text-tertiary)'">
+                            <span class="material-icons-round" style="font-size: 18px;">open_in_full</span>
                          </button>
-                         <button id="docs-share-btn" class="btn-sm" style="display: flex; align-items: center; gap: 4px; padding: 6px 12px; background: white; border: 1px solid var(--brand-blue); border-radius: 6px; cursor: pointer; color: var(--brand-blue); font-weight: 600;">
+                         <button id="docs-notify-btn" style="display: none; align-items: center; justify-content: center; width: 32px; height: 32px; background: white; border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer; color: var(--text-tertiary); transition: all 0.2s;" title="Ricevi notifiche per questa pagina" onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.color='var(--brand-blue)'" onmouseout="if(!this.querySelector('span').innerText.includes('active')){this.style.borderColor='var(--glass-border)'; this.style.color='var(--text-tertiary)'}">
+                            <span class="material-icons-round" style="font-size: 18px;">notifications_none</span>
+                         </button>
+                         <button id="docs-share-btn" style="display: flex; align-items: center; gap: 6px; padding: 0 12px; height: 32px; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.15); border-radius: 8px; cursor: pointer; color: var(--brand-blue); font-weight: 700; transition: all 0.2s; font-size: 0.75rem;" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'; this.style.transform='translateY(-1px)'" onmouseout="this.style.background='rgba(59, 130, 246, 0.05)'; this.style.transform='translateY(0)'">
                             <span class="material-icons-round" style="font-size: 16px;">share</span>
-                            <span style="font-size: 13px;">Condividi</span>
+                            Condividi
                          </button>
-                         <button id="docs-export-btn" class="btn-sm" style="display: flex; align-items: center; gap: 4px; padding: 6px 12px; background: white; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; color: #475569;">
+                         <button id="docs-export-btn" style="display: flex; align-items: center; gap: 6px; padding: 0 12px; height: 32px; background: white; border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer; color: var(--text-secondary); font-weight: 600; transition: all 0.2s; font-size: 0.75rem;" onmouseover="this.style.borderColor='var(--text-primary)'; this.style.color='var(--text-primary)'" onmouseout="this.style.borderColor='var(--glass-border)'; this.style.color='var(--text-secondary)'">
                             <span class="material-icons-round" style="font-size: 16px;">file_download</span>
-                            <span style="font-size: 13px;">Export</span>
+                            Esporta
                          </button>
                     </div>
-                    <div id="editor-container" style="flex: 1; overflow-y: auto; padding: 40px 60px; max-width: 900px; margin: 0 auto; width: 100%;">
+                    <div id="editor-container" style="flex: 1; overflow-y: auto; padding: 0 60px 40px; max-width: 900px; margin: 0 auto; width: 100%;">
                         <div class="empty-state" style="text-align: center; margin-top: 100px; color: #94a3b8;">
                             <span class="material-icons-round" style="font-size: 48px; margin-bottom: 16px;">description</span>
                             <p>Seleziona una pagina o creane una nuova.</p>
@@ -237,6 +245,15 @@ export async function renderDocsView(container, spaceId) {
             };
         }
 
+        // 11. Fullscreen Logic
+        const fullscreenBtn = currentContainer.querySelector('#docs-fullscreen-btn');
+        if (fullscreenBtn) {
+            fullscreenBtn.onclick = () => {
+                const page = currentPages.find(p => p.id === activePageId);
+                if (page) openFullscreenEditor(page);
+            };
+        }
+
         // 10. Auto-load first page
         if (currentPages.length > 0 && !activePageId) {
             loadPage(currentPages[0].id);
@@ -295,13 +312,110 @@ async function loadPage(pageId) {
             editorContainer.style.overflow = 'hidden';
             await renderWhiteboardEditor(editorContainer, page);
         } else {
-            editorContainer.style.padding = '40px 60px';
+            editorContainer.style.padding = '0 60px 40px';
             editorContainer.style.maxWidth = '900px';
             editorContainer.style.height = 'auto'; // Depending on flex layout
             editorContainer.style.overflowY = 'auto';
             await renderPageEditor(editorContainer, page);
         }
     }
+}
+
+async function openFullscreenEditor(page) {
+    const isWhiteboard = page.page_type === 'whiteboard';
+    const modalId = 'fullscreen-doc-modal';
+
+    // Create the content based on type
+    const wrapperStyle = isWhiteboard
+        ? "width: 100vw; height: 100vh; background: white; position: relative;"
+        : "width: 100%; max-width: 900px; height: 100vh; background: white; margin: 0 auto; box-shadow: 0 0 100px rgba(0,0,0,0.2); position: relative; animation: paperSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column;";
+
+    const content = `
+        <div class="notion-fullscreen-wrapper" style="${wrapperStyle}">
+            <!-- Actions Layer -->
+            <div style="position: absolute; top: 20px; right: ${isWhiteboard ? '20px' : '-60px'}; z-index: 10000;">
+                <button class="close-modal" style="
+                    background: rgba(255, 255, 255, 0.2); 
+                    backdrop-filter: blur(12px);
+                    border: 1px solid rgba(255,255,255,0.3);
+                    border-radius: 50%; 
+                    width: 44px; height: 44px;
+                    display: flex; align-items: center; justify-content: center;
+                    cursor: pointer;
+                    color: ${isWhiteboard ? '#000' : '#fff'};
+                    transition: all 0.2s;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                " onclick="document.getElementById('${modalId}').classList.remove('active'); setTimeout(() => document.getElementById('${modalId}').remove(), 300)" title="Chiudi (ESC)">
+                    <span class="material-icons-round" style="font-size: 24px;">close</span>
+                </button>
+            </div>
+
+            <!-- Editor Surface -->
+            <div id="fullscreen-editor-container" style="
+                flex: 1; 
+                overflow-y: auto; 
+                padding: ${isWhiteboard ? '0' : '60px 80px'};
+                width: 100%;
+                height: 100%;
+                background: white;
+            ">
+                <!-- Page Editor will render here -->
+            </div>
+        </div>
+    `;
+
+    // Dynamic Style Injection for precise modal control
+    const styleId = 'fullscreen-portal-css';
+    if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.innerHTML = `
+            #${modalId} { padding: 0 !important; z-index: 1000000 !important; }
+            #${modalId} .modal-content {
+                background: transparent !important;
+                max-width: none !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                border-radius: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+                overflow: visible !important;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                backdrop-filter: blur(8px);
+                background: rgba(0,0,0,0.6) !important;
+            }
+            @keyframes paperSlideUp {
+                from { transform: translateY(40px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    const { renderModal } = await import('../../modules/utils.js');
+    renderModal(modalId, content);
+
+    const container = document.getElementById('fullscreen-editor-container');
+    if (isWhiteboard) {
+        await renderWhiteboardEditor(container, page);
+    } else {
+        await renderPageEditor(container, page);
+    }
+
+    // Add ESC support
+    const escHandler = (e) => {
+        if (e.key === 'Escape') {
+            const m = document.getElementById(modalId);
+            if (m) {
+                m.classList.remove('active');
+                setTimeout(() => m.remove(), 300);
+            }
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
 }
 
 document.addEventListener('doc-page-updated', (e) => {

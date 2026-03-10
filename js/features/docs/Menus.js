@@ -27,16 +27,18 @@ export const SlashMenu = {
         this.element = document.createElement('div');
         this.element.className = 'slash-menu';
         this.element.style.position = 'fixed';
-        this.element.style.zIndex = '9999';
-        this.element.style.backgroundColor = 'white';
-        this.element.style.borderRadius = '6px';
-        this.element.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-        this.element.style.border = '1px solid #e2e8f0';
+        this.element.style.zIndex = '2000000'; // High enough for fullscreen modal
+        this.element.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        this.element.style.backdropFilter = 'blur(16px)';
+        this.element.style.borderRadius = '12px';
+        this.element.style.boxShadow = 'var(--shadow-xl), 0 0 0 1px var(--glass-border)';
+        this.element.style.border = 'none';
         this.element.style.display = 'none';
-        this.element.style.maxHeight = '300px';
+        this.element.style.maxHeight = '320px'; // Notion style height
         this.element.style.overflowY = 'auto';
         this.element.style.width = '300px';
         this.element.style.textAlign = 'left';
+        this.element.style.padding = '6px 0'; // Vertical spacing for list
 
         this.element.onmousedown = (e) => e.preventDefault();
 
@@ -46,9 +48,27 @@ export const SlashMenu = {
     show(x, y, onSelect) {
         this.init();
         this.onSelect = onSelect;
-        this.element.style.left = `${x}px`;
-        this.element.style.top = `${y}px`;
+
+        const menuWidth = 300;
+        const menuHeight = 320;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        let left = x;
+        let top = y;
+
+        if (left + menuWidth > viewportWidth) {
+            left = viewportWidth - menuWidth - 20;
+        }
+
+        if (top + menuHeight > viewportHeight) {
+            top = y - menuHeight - 10;
+        }
+
+        this.element.style.left = `${left}px`;
+        this.element.style.top = `${top}px`;
         this.element.style.display = 'block';
+
         this.activeIndex = 0;
         this.filteredItems = this.items;
         this.renderItems(this.filteredItems);
@@ -113,7 +133,7 @@ export const SlashMenu = {
             div.style.boxSizing = 'border-box';
 
             if (index === this.activeIndex) {
-                div.style.backgroundColor = '#f1f5f9';
+                div.style.backgroundColor = 'rgba(59, 130, 246, 0.08)';
             } else {
                 div.style.backgroundColor = 'transparent';
             }

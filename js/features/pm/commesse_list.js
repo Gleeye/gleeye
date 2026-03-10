@@ -59,87 +59,86 @@ export async function renderCommesseList(container) {
                     padding: 1.5rem;
                     max-width: 1600px;
                     margin: 0 auto;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 1.5rem;
+                    width: 100%;
+                    box-sizing: border-box;
                 }
 
                 .pm-main-grid {
                     display: grid;
-                    grid-template-columns: 360px minmax(0, 1fr);
+                    grid-template-columns: 360px 1fr;
                     gap: 2rem;
-                    align-items: stretch;
+                    align-items: start;
                 }
 
                 .pm-summary-grid {
                     display: grid;
                     grid-template-columns: repeat(3, 1fr);
-                    gap: 1rem;
+                    gap: 1.25rem;
                     margin-bottom: 2rem;
                 }
 
                 .pm-card {
                     background: white;
-                    border-radius: 12px;
-                    padding: 1rem;
+                    border-radius: 16px;
+                    padding: 1.25rem;
                     border: 1px solid var(--glass-border);
                     box-shadow: var(--shadow-sm);
                     cursor: pointer;
-                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                     border-left: 4px solid transparent;
-                    user-select: none;
+                    position: relative;
+                    overflow: hidden;
                 }
-                .pm-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--brand-viola); }
+                .pm-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
                 .pm-card.active { border-color: var(--brand-viola); background: rgba(97, 74, 162, 0.02); }
 
                 .pm-filter-bar {
                     padding: 1rem 1.5rem;
                     display: flex;
                     align-items: center;
-                    gap: 1rem;
-                    background: white;
+                    gap: 1.5rem;
+                    background: #fcfcfd;
                     border-bottom: 1px solid var(--glass-border);
-                    flex-wrap: wrap;
                 }
 
                 .pm-dropdown {
                     position: relative;
-                    min-width: 140px;
                 }
 
                 .pm-dropdown-trigger {
                     width: 100%;
                     padding: 0.6rem 0.85rem;
-                    background: #fdfdfe;
+                    background: white;
                     border: 1px solid var(--glass-border);
                     border-radius: 8px;
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
                     font-size: 0.8rem;
-                    font-weight: 700;
-                    color: var(--text-primary);
+                    font-weight: 600;
+                    color: var(--text-secondary);
                     cursor: pointer;
                     transition: all 0.2s;
                 }
-                .pm-dropdown-trigger:hover { border-color: var(--brand-viola); background: white; }
+                .pm-dropdown-trigger:hover { border-color: var(--brand-viola); }
+                .pm-dropdown-trigger.active { color: var(--brand-viola); font-weight: 700; border-color: var(--brand-viola); }
 
                 .pm-dropdown-menu {
                     position: absolute;
-                    top: calc(100% + 5px);
+                    top: 100%;
                     left: 0;
-                    width: 100%;
+                    right: 0;
                     min-width: 180px;
                     background: white;
                     border: 1px solid var(--glass-border);
-                    border-radius: 10px;
-                    box-shadow: var(--shadow-lg);
-                    z-index: 1000;
+                    border-radius: 12px;
+                    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+                    z-index: 100;
                     display: none;
                     max-height: 250px;
                     overflow-y: auto;
-                    padding: 5px;
-                    scrollbar-width: thin;
+                    padding: 6px;
+                    margin-top: 6px;
                 }
 
                 .pm-dropdown-item {
@@ -148,154 +147,144 @@ export async function renderCommesseList(container) {
                     font-size: 0.8rem;
                     cursor: pointer;
                     color: var(--text-primary);
+                    font-weight: 500;
+                    transition: all 0.2s;
                 }
                 .pm-dropdown-item:hover { background: var(--bg-secondary); }
                 .pm-dropdown-item.selected { background: rgba(97, 74, 162, 0.05); color: var(--brand-viola); font-weight: 700; }
 
-                /* Mobile overrides */
+                /* Mobile overrides - Matching dashboard.js */
                 @media (max-width: 1100px) {
-                    .pm-dashboard-root { padding: 1rem; }
-                    .pm-main-grid { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
-                    .pm-sidebar-col { height: auto !important; position: static !important; margin-bottom: 0.5rem; }
-                    .pm-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 0.5rem; margin-bottom: 1rem; }
-                    .pm-card { padding: 0.75rem 0.25rem !important; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
-                    .pm-card h3 { font-size: 0.55rem !important; margin: 0 0 2px 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-                    .pm-card .material-icons-round { margin: 0 0 2px 0 !important; font-size: 1rem !important; }
-                    div[style*="font-size: 1.8rem"] { font-size: 1.2rem !important; }
+                    .pm-main-grid { grid-template-columns: 1fr; }
+                    .pm-sidebar-col { order: 2; margin-top: 1.5rem; }
+                    .pm-main-col { order: 1; }
+                    .pm-summary-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 0.5rem; }
+                    .pm-card { padding: 0.75rem 0.25rem !important; text-align: center; border-left-width: 3px !important; }
+                    .pm-card .material-icons-round { margin: 0 auto 0.25rem !important; font-size: 1.1rem !important; }
+                    .pm-card div[style*="font-size: 0.65rem"] { font-size: 0.55rem !important; line-height: 1.1; }
+                    .pm-card .card-count { font-size: 1rem !important; margin: 2px 0 !important; }
                 }
 
                 @media (max-width: 768px) {
-                    .pm-filter-bar { padding: 1rem 0.5rem; gap: 0.5rem; border-radius: 12px 12px 0 0; }
-                    .pm-dropdown { flex: 1; min-width: 0; }
-                    .pm-dropdown-trigger { font-size: 0.7rem; padding: 0.5rem; }
-                    #pm-search-container { order: -1; min-width: 100% !important; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px dashed var(--glass-border); }
+                    .pm-dashboard-root { padding: 0.5rem !important; }
+                    .pm-filter-bar { padding: 0.75rem !important; gap: 0.5rem !important; flex-wrap: wrap !important; }
+                    .pm-filter-bar > div:first-child { display: none !important; }
+                    .pm-filter-bar > div:last-child { width: 100% !important; }
+                    .pm-dropdown { flex: 1 1 calc(50% - 0.25rem); min-width: 0 !important; }
+                    .pm-dropdown-trigger { padding: 6px 8px !important; font-size: 0.65rem !important; }
+                    #pm-search-container { order: -1; min-width: 100% !important; }
                     
-                    /* TABLE -> CARDS */
-                    .pm-table-wrapper { margin: 0 !important; width: 100% !important; overflow: hidden !important; }
-                    .pm-table-wrapper table { min-width: 0 !important; }
-                    .pm-table-wrapper table, .pm-table-wrapper tbody, .pm-table-wrapper tr, .pm-table-wrapper td {
-                        display: block; width: 100%; box-sizing: border-box;
+                    /* TABLE -> CARDS (Matching dashboard.js) */
+                    .pm-table-wrapper table, .pm-table-wrapper thead, .pm-table-wrapper tbody, .pm-table-wrapper tr, .pm-table-wrapper td {
+                        display: block; width: 100%;
                     }
                     .pm-table-wrapper thead { display: none; }
-                    
                     .pm-table-wrapper tr {
                         background: white;
-                        border-bottom: 4px solid var(--bg-secondary);
-                        padding: 1.25rem 1rem;
-                        position: relative;
+                        border-bottom: 4px solid var(--bg-secondary) !important;
+                        padding: 1rem !important;
                         display: flex;
                         flex-direction: column;
-                        gap: 0.6rem;
+                        gap: 0.4rem;
+                        position: relative;
                     }
-                    
                     .pm-table-wrapper td {
                         padding: 0 !important;
                         border: none !important;
                         text-align: left !important;
                         display: flex;
                         align-items: center;
-                        white-space: normal !important;
                     }
-
-                    /* 1. ID */
-                    .pm-table-wrapper td:nth-child(1) { font-size: 0.8rem !important; color: var(--brand-viola) !important; font-weight: 800 !important; display: inline-block; width: auto !important; margin-bottom: 4px; padding: 4px 8px !important; background: rgba(97, 74, 162, 0.05); border-radius: 6px; }
-                    /* 2. Project */
-                    .pm-table-wrapper td:nth-child(2) { flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 0.5rem; }
-                    .pm-table-wrapper td:nth-child(2) div:first-child { font-size: 1.05rem !important; line-height: 1.3; }
-                    /* 3. Cliente */
-                    .pm-table-wrapper td:nth-child(3)::before { content: "Cliente:"; font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); width: 60px; flex-shrink: 0; text-transform: uppercase; }
-                    /* 4. Team */
+                    .pm-table-wrapper td:nth-child(1) { font-size: 0.75rem !important; color: var(--brand-viola) !important; font-weight: 800 !important; padding: 2px 6px !important; background: rgba(97, 74, 162, 0.05) !important; border-radius: 4px !important; width: auto !important; display: inline-flex !important; }
+                    .pm-table-wrapper td:nth-child(2) { flex-direction: column !important; align-items: flex-start !important; gap: 2px !important; margin: 0.25rem 0 !important; }
+                    .pm-table-wrapper td:nth-child(2) div:first-child { font-size: 0.95rem !important; font-weight: 800 !important; color: var(--text-primary) !important; }
+                    .pm-table-wrapper td:nth-child(3) { font-size: 0.8rem !important; color: var(--text-secondary) !important; margin-bottom: 0.5rem !important; }
+                    .pm-table-wrapper td:nth-child(3)::before { content: "CLIENTE: "; font-weight: 900; color: var(--text-tertiary); font-size: 0.6rem; margin-right: 6px; }
                     .pm-table-wrapper td:nth-child(4) { justify-content: flex-start !important; }
-                    .pm-table-wrapper td:nth-child(4)::before { content: "Team:"; font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); width: 60px; flex-shrink: 0; text-transform: uppercase; }
-                    /* 5. Date */
-                    .pm-table-wrapper td:nth-child(5)::before { content: "Data:"; font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); width: 60px; flex-shrink: 0; text-transform: uppercase; }
-                    .pm-table-wrapper td:nth-child(5) { justify-content: flex-start !important; text-align: left !important; }
-
-                    /* Action icon - Float top right */
-                    .pm-table-wrapper td:nth-child(6) {
-                        position: absolute;
-                        top: 1.25rem;
-                        right: 1.25rem;
-                        width: auto !important;
-                        padding: 0 !important;
-                        justify-content: flex-end;
-                    }
+                    .pm-table-wrapper td:nth-child(4)::before { content: "TEAM: "; font-weight: 900; color: var(--text-tertiary); font-size: 0.6rem; margin-right: 6px; }
                 }
             </style>
 
-            <div class="pm-dashboard-root">
+            <div class="pm-dashboard-root dashboard-root">
                 
                 <div class="pm-main-grid">
                     
                     <!-- Sidebar column (Always Visible Svolgimento) -->
-                    <div class="pm-sidebar-col" style="height: calc(100vh - 120px); position: sticky; top: 1.5rem; align-self: start; z-index: 10;">
-                         <div style="background: white; border-radius: 16px; border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; height: 100%;">
-                            <div style="padding: 1rem; background: var(--brand-gradient); color: white; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
-                                <h3 style="margin: 0; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;">
-                                    <span class="material-icons-round" style="font-size: 1rem;">rocket_launch</span>
-                                    In Svolgimento
-                                </h3>
-                                <div id="sidebar-count" style="background: white; color: var(--brand-viola); padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 0.8rem;">0</div>
+                    <div class="pm-sidebar-col" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                         <div class="glass-card" style="padding: 0; border-radius: 12px; background: white; border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column;">
+                            <div style="padding: 0.85rem 1rem; background: var(--brand-gradient); color: white;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
+                                    <h3 style="margin: 0; font-size: 0.78rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 6px; font-family: var(--font-titles); text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.9;">
+                                        <span class="material-icons-round" style="font-size: 0.95rem;">rocket_launch</span>
+                                        In Svolgimento
+                                    </h3>
+                                    <div id="sidebar-count" style="background: white; color: var(--brand-viola); padding: 1px 7px; border-radius: 4px; font-weight: 900; font-size: 0.75rem; min-width: 22px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">0</div>
+                                </div>
+                                <div id="sidebar-total-value" style="font-size: 1.25rem; font-weight: 900; letter-spacing: -0.01em; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">€ 0</div>
+                                <div style="font-size: 0.58rem; font-weight: 700; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px;">Valore Totale Commesse</div>
                             </div>
-                            <div id="sidebar-list" style="padding: 0.75rem; display: flex; flex-direction: column; gap: 0.65rem; flex: 1; overflow-y: auto;">
+                            <div id="sidebar-list" style="padding: 0.75rem; display: flex; flex-direction: column; gap: 0.65rem; max-height: 500px; overflow-y: auto;">
                                 <div style="text-align:center; padding: 2rem; opacity: 0.5;">Caricamento...</div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Main column -->
-                    <div style="display: flex; flex-direction: column; min-width: 0;">
+                    <div class="pm-main-col" style="display: flex; flex-direction: column; min-width: 0;">
                         
                         <!-- Top Summary Cards (Funnel Style) -->
                         <div class="pm-summary-grid" id="pm-funnel">
                             <!-- In Attesa Card -->
-                            <div class="pm-card" data-status="lavoro_in_attesa" style="border-left-color: #f59e0b;">
-                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                    <div>
-                                        <div style="font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-tertiary); margin-bottom: 4px;">In Attesa</div>
-                                        <div class="card-count" style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); line-height: 1;">0</div>
+                            <div class="pm-card funnel-card" data-status="lavoro_in_attesa" style="border-left-color: #f59e0b;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">In Attesa</div>
+                                        <div class="card-count" style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); line-height: 1; font-family: var(--font-titles);">0</div>
                                     </div>
-                                    <div style="width: 38px; height: 38px; border-radius: 10px; background: #fffbeb; display: flex; align-items: center; justify-content: center;">
+                                    <div style="width: 36px; height: 36px; border-radius: 10px; background: #fffbeb; display: flex; align-items: center; justify-content: center;">
                                         <span class="material-icons-round" style="color: #f59e0b; font-size: 1.25rem;">hourglass_empty</span>
                                     </div>
                                 </div>
+                                <div style="font-size: 0.8rem; font-weight: 600; color: #f59e0b; opacity: 0.8;" class="funnel-value">€ 0</div>
                             </div>
 
                             <!-- Ongoing Card -->
-                            <div class="pm-card" data-status="manutenzione" style="border-left-color: #06b6d4;">
-                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                    <div>
-                                        <div style="font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-tertiary); margin-bottom: 4px;">Ongoing</div>
-                                        <div class="card-count" style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); line-height: 1;">0</div>
+                            <div class="pm-card funnel-card" data-status="manutenzione" style="border-left-color: #06b6d4;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Ongoing</div>
+                                        <div class="card-count" style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); line-height: 1; font-family: var(--font-titles);">0</div>
                                     </div>
-                                    <div style="width: 38px; height: 38px; border-radius: 10px; background: #ecfeff; display: flex; align-items: center; justify-content: center;">
+                                    <div style="width: 36px; height: 36px; border-radius: 10px; background: #ecfeff; display: flex; align-items: center; justify-content: center;">
                                         <span class="material-icons-round" style="color: #06b6d4; font-size: 1.25rem;">published_with_changes</span>
                                     </div>
                                 </div>
+                                <div style="font-size: 0.8rem; font-weight: 600; color: #06b6d4; opacity: 0.8;" class="funnel-value">€ 0</div>
                             </div>
 
                             <!-- In Pausa Card -->
-                            <div class="pm-card" data-status="in_pausa" style="border-left-color: #64748b;">
-                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                    <div>
-                                        <div style="font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-tertiary); margin-bottom: 4px;">In Pausa</div>
-                                        <div class="card-count" style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); line-height: 1;">0</div>
+                            <div class="pm-card funnel-card" data-status="in_pausa" style="border-left-color: #64748b;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">In Pausa</div>
+                                        <div class="card-count" style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); line-height: 1; font-family: var(--font-titles);">0</div>
                                     </div>
-                                    <div style="width: 38px; height: 38px; border-radius: 10px; background: #f1f5f9; display: flex; align-items: center; justify-content: center;">
+                                    <div style="width: 36px; height: 36px; border-radius: 10px; background: #f1f5f9; display: flex; align-items: center; justify-content: center;">
                                         <span class="material-icons-round" style="color: #64748b; font-size: 1.25rem;">pause_circle</span>
                                     </div>
                                 </div>
+                                <div style="font-size: 0.8rem; font-weight: 600; color: #64748b; opacity: 0.8;" class="funnel-value">€ 0</div>
                             </div>
                         </div>
 
                         <!-- Main Table Glass Card -->
-                        <div style="background: white; border-radius: 16px; border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column;">
-                            <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--glass-border); background: var(--bg-secondary); display: flex; justify-content: space-between; align-items: center;">
+                        <div class="glass-card main-table-card" style="padding: 0; overflow: hidden; border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; max-height: 700px;">
+                            <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--glass-border); background: var(--bg-secondary); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
                                 <div style="display: flex; align-items: center; gap: 1rem;">
-                                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary); font-family: var(--font-titles);">Elenco Commesse</h3>
-                                    <span id="filter-badge" style="display: none; background: var(--brand-viola); color: white; padding: 2px 10px; border-radius: 20px; font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">FILTRO ATTIVO</span>
+                                    <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--text-primary); font-family: var(--font-titles);">Elenco Commesse</h3>
+                                    <span id="filter-badge" style="display: none; background: var(--brand-viola); color: white; padding: 3px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">FILTRO ATTIVO</span>
                                 </div>
-                                <button id="reset-filters" style="display: none; background: white; border: 1px solid var(--brand-viola); color: var(--brand-viola); padding: 5px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; cursor: pointer;">Reset Filtri</button>
+                                <button id="reset-filters" style="display: none; background: white; border: 1px solid var(--brand-viola); color: var(--brand-viola); padding: 6px 16px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--brand-viola)'; this.style.color='white'">Rimuovi Filtri</button>
                             </div>
 
                             <!-- New Interactive Filter Bar -->
@@ -305,76 +294,77 @@ export async function renderCommesseList(container) {
                                     Filtra per:
                                 </div>
                                 
-                                <div class="pm-dropdown" id="year-filter">
-                                    <button class="pm-dropdown-trigger">
-                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                            <span class="material-icons-round" style="font-size: 1rem; opacity:0.6;">calendar_today</span>
-                                            <span>Anno</span>
+                                <div style="display: flex; align-items: center; gap: 1rem; flex: 1;">
+                                    <div class="pm-dropdown" id="year-filter" style="min-width: 120px;">
+                                        <button class="pm-dropdown-trigger">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <span class="material-icons-round" style="font-size: 1.1rem; opacity:0.7;">calendar_today</span>
+                                                <span style="white-space: nowrap;">Anno</span>
+                                            </div>
+                                            <span class="material-icons-round" style="font-size: 1.1rem; opacity:0.5;">expand_more</span>
+                                        </button>
+                                        <div class="pm-dropdown-menu">
+                                            <div class="pm-dropdown-item" data-value="">Tutti</div>
+                                            ${uniqueYears.map(y => `<div class="pm-dropdown-item" data-value="${y}">${y}</div>`).join('')}
                                         </div>
-                                        <span class="material-icons-round" style="font-size: 1.1rem; opacity:0.5;">expand_more</span>
-                                    </button>
-                                    <div class="pm-dropdown-menu">
-                                        <div class="pm-dropdown-item" data-value="">Tutti</div>
-                                        ${uniqueYears.map(y => `<div class="pm-dropdown-item" data-value="${y}">${y}</div>`).join('')}
                                     </div>
-                                </div>
 
-                                <div class="pm-dropdown" id="client-filter">
-                                    <button class="pm-dropdown-trigger">
-                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                            <span class="material-icons-round" style="font-size: 1rem; opacity:0.6;">corporate_fare</span>
-                                            <span style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Cliente</span>
+                                    <div class="pm-dropdown" id="client-filter" style="min-width: 160px;">
+                                        <button class="pm-dropdown-trigger">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <span class="material-icons-round" style="font-size: 1.1rem; opacity:0.7;">corporate_fare</span>
+                                                <span style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Cliente</span>
+                                            </div>
+                                            <span class="material-icons-round" style="font-size: 1.1rem; opacity:0.5;">expand_more</span>
+                                        </button>
+                                        <div class="pm-dropdown-menu">
+                                            <div class="pm-dropdown-item" data-value="">Tutti</div>
+                                            ${uniqueClients.map(c => `<div class="pm-dropdown-item" data-value="${c}">${c}</div>`).join('')}
                                         </div>
-                                        <span class="material-icons-round" style="font-size: 1.1rem; opacity:0.5;">expand_more</span>
-                                    </button>
-                                    <div class="pm-dropdown-menu">
-                                        <div class="pm-dropdown-item" data-value="">Tutti</div>
-                                        ${uniqueClients.map(c => `<div class="pm-dropdown-item" data-value="${c}">${c}</div>`).join('')}
                                     </div>
-                                </div>
 
-                                <div class="pm-dropdown" id="status-filter">
-                                    <button class="pm-dropdown-trigger">
-                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                            <span class="material-icons-round" style="font-size: 1rem; opacity:0.6;">flag</span>
-                                            <span>Stato</span>
+                                    <div class="pm-dropdown" id="status-filter" style="min-width: 150px;">
+                                        <button class="pm-dropdown-trigger">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <span class="material-icons-round" style="font-size: 1.1rem; opacity:0.7;">flag</span>
+                                                <span>Stato</span>
+                                            </div>
+                                            <span class="material-icons-round" style="font-size: 1.1rem; opacity:0.5;">expand_more</span>
+                                        </button>
+                                        <div class="pm-dropdown-menu">
+                                            <div class="pm-dropdown-item" data-value="">Tutti</div>
+                                            <div class="pm-dropdown-item" data-value="in_svolgimento">In Svolgimento</div>
+                                            <div class="pm-dropdown-item" data-value="lavoro_in_attesa">In Attesa</div>
+                                            <div class="pm-dropdown-item" data-value="manutenzione">Ongoing</div>
+                                            <div class="pm-dropdown-item" data-value="in_pausa">In Pausa</div>
+                                            <div class="pm-dropdown-item" data-value="completato">Completate</div>
                                         </div>
-                                        <span class="material-icons-round" style="font-size: 1.1rem; opacity:0.5;">expand_more</span>
-                                    </button>
-                                    <div class="pm-dropdown-menu">
-                                        <div class="pm-dropdown-item" data-value="">Tutti</div>
-                                        <div class="pm-dropdown-item" data-value="in_svolgimento">In Svolgimento</div>
-                                        <div class="pm-dropdown-item" data-value="lavoro_in_attesa">In Attesa</div>
-                                        <div class="pm-dropdown-item" data-value="manutenzione">Ongoing</div>
-                                        <div class="pm-dropdown-item" data-value="in_pausa">In Pausa</div>
-                                        <div class="pm-dropdown-item" data-value="completato">Completate</div>
                                     </div>
-                                </div>
 
-                                <!-- Search -->
-                                <div id="pm-search-container" style="position: relative; flex: 1; min-width: 200px;">
-                                    <span class="material-icons-round" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 1.1rem;">search</span>
-                                    <input type="text" id="pm-search" placeholder="Cerca progetto..." 
-                                        style="width: 100%; padding: 0.65rem 1rem 0.65rem 2.8rem; border-radius: 100px; border: 1px solid var(--glass-border); background: #fdfdfe; font-size: 0.85rem; outline: none;">
+                                    <!-- Search -->
+                                    <div id="pm-search-container" style="position: relative; flex: 1; max-width: 300px;">
+                                        <span class="material-icons-round" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 1.1rem;">search</span>
+                                        <input type="text" id="pm-search" placeholder="Cerca progetto..." 
+                                            style="width: 100%; padding: 0.6rem 1rem 0.6rem 2.8rem; border-radius: 100px; border: 1px solid var(--glass-border); background: white; font-size: 0.85rem; outline: none; transition: border-color 0.2s;"
+                                            onfocus="this.style.borderColor='var(--brand-viola)'"
+                                            onblur="this.style.borderColor='var(--glass-border)'">
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="pm-table-wrapper" style="overflow-x: auto;">
-                                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;" class="pm-main-table">
-                                    <style>
-                                        @media (min-width: 769px) { .pm-main-table { min-width: 800px; } }
-                                    </style>
+                            <div class="pm-table-wrapper" style="overflow-x: auto; overflow-y: auto; flex: 1;">
+                                <table style="width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed;">
                                     <thead>
                                         <tr>
-                                            <th style="padding: 1rem; text-align: left; font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); width: 110px; font-weight: 800;">ID</th>
-                                            <th style="padding: 1rem; text-align: left; font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); font-weight: 800;">Progetto</th>
-                                            <th style="padding: 1rem; text-align: left; font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); width: 220px; font-weight: 800;">Cliente</th>
-                                            <th style="padding: 1rem; text-align: center; font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); width: 130px; font-weight: 800;">Team</th>
-                                            <th style="padding: 1rem; text-align: right; font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); width: 85px; font-weight: 800;">Data</th>
-                                            <th style="padding: 1rem; width: 45px; border-bottom: 1px solid var(--glass-border);"></th>
+                                            <th style="position: sticky; top: 0; background: white; padding: 1rem 1.5rem; text-align: left; font-size: 0.72rem; color: var(--text-tertiary); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); width: 90px; font-weight: 800; z-index: 10;">ID</th>
+                                            <th style="position: sticky; top: 0; background: white; padding: 1rem 1.5rem; text-align: left; font-size: 0.72rem; color: var(--text-tertiary); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); font-weight: 800; z-index: 10;">Progetto</th>
+                                            <th style="position: sticky; top: 0; background: white; padding: 1rem 1.5rem; text-align: left; font-size: 0.72rem; color: var(--text-tertiary); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); width: 220px; font-weight: 800; z-index: 10;">Cliente</th>
+                                            <th style="position: sticky; top: 0; background: white; padding: 1rem 1.5rem; text-align: center; font-size: 0.72rem; color: var(--text-tertiary); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); width: 130px; font-weight: 800; z-index: 10;">Team</th>
+                                            <th style="position: sticky; top: 0; background: white; padding: 1rem 1.5rem; text-align: right; font-size: 0.72rem; color: var(--text-tertiary); text-transform: uppercase; border-bottom: 1px solid var(--glass-border); width: 90px; font-weight: 800; z-index: 10;">Data</th>
+                                            <th style="position: sticky; top: 0; background: white; padding: 1rem 1.5rem; width: 50px; border-bottom: 1px solid var(--glass-border); z-index: 10;"></th>
                                         </tr>
                                     </thead>
-                                    <tbody id="pm-table-body"></tbody>
+                                    <tbody id="pm-table-body" style="background: white;"></tbody>
                                 </table>
                             </div>
                         </div>
@@ -388,9 +378,14 @@ export async function renderCommesseList(container) {
         const updateSidebar = () => {
             const list = container.querySelector('#sidebar-list');
             const countEl = container.querySelector('#sidebar-count');
+            const totalValueEl = container.querySelector('#sidebar-total-value');
             const filteredSidebar = allProjects.filter(p => normalizeStatus(p.status_works) === 'in_svolgimento');
 
             if (countEl) countEl.textContent = filteredSidebar.length;
+            if (totalValueEl) {
+                const total = filteredSidebar.reduce((sum, p) => sum + (parseFloat(p.price_final) || 0), 0);
+                totalValueEl.textContent = `€ ${formatAmount(total)}`;
+            }
             if (!list) return;
 
             if (filteredSidebar.length === 0) {
@@ -406,14 +401,17 @@ export async function renderCommesseList(container) {
                 return `
                 <div class="sidebar-item" onclick="window.location.hash='#pm/commessa/${o.id}'" style="
                     padding: 0.85rem 1rem; background: #f8fafc; border-radius: 10px; border: 1px solid #f1f5f9; cursor: pointer; transition: all 0.2s;
-                    display: flex; flex-direction: column; gap: 8px; border-left: 4px solid #3b82f6;
-                " onmouseover="this.style.background='white'; this.style.borderColor='#3b82f6'; this.style.transform='translateX(3px)';" onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#f1f5f9'; this.style.transform='none';">
+                    display: flex; flex-direction: column; gap: 8px; border-left: 4px solid var(--brand-viola);
+                " onmouseover="this.style.background='white'; this.style.borderColor='var(--brand-viola)'; this.style.transform='translateX(3px)';" onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#f1f5f9'; this.style.transform='none';">
                     <div style="display: flex; justify-content: space-between; font-size: 0.55rem; color: var(--text-tertiary); font-weight: 800;">
                         <span>${o.order_number}</span>
                         <span style="max-width: 65%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${o.clients?.business_name || 'N/D'}</span>
                     </div>
                     
-                    <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary); line-height: 1.25;">${o.title || 'Senza Titolo'}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 12px;">
+                        <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary); line-height: 1.25; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${o.title || 'Senza Titolo'}</div>
+                        <div style="font-size: 0.85rem; font-weight: 800; color: var(--brand-viola); white-space: nowrap;">€ ${formatAmount(parseFloat(o.price_final) || 0)}</div>
+                    </div>
                     
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
                         <div style="display: flex; align-items: center;">
@@ -513,13 +511,22 @@ export async function renderCommesseList(container) {
         };
 
         const updateFunnelStats = () => {
-            container.querySelectorAll('.pm-card').forEach(card => {
+            container.querySelectorAll('.funnel-card').forEach(card => {
                 const status = card.dataset.status;
-                const count = allProjects.filter(p => normalizeStatus(p.status_works) === status).length;
-                card.querySelector('.card-count').textContent = count;
+                const filtered = allProjects.filter(p => normalizeStatus(p.status_works) === status);
+                const count = filtered.length;
+                const total = filtered.reduce((sum, p) => sum + (parseFloat(p.price_final) || 0), 0);
 
-                if (status === activeStatusFilter) card.classList.add('active');
-                else card.classList.remove('active');
+                card.querySelector('.card-count').textContent = count;
+                card.querySelector('.funnel-value').textContent = `€ ${formatAmount(total)}`;
+
+                if (status === activeStatusFilter) {
+                    card.style.transform = 'translateY(-4px) scale(1.02)';
+                    card.style.boxShadow = '0 12px 24px rgba(0,0,0,0.1)';
+                } else {
+                    card.style.transform = '';
+                    card.style.boxShadow = '';
+                }
             });
         };
 

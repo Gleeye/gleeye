@@ -375,8 +375,19 @@ function renderTimelineItem(log, context = {}) {
         }
     } else if (isDedicatedView && !actionType.includes('cloud_links')) {
         // If we have a description but we're in dedicated view, strip the entity name if present to avoid redundancy
-        const stripPattern = new RegExp(`(\\s(di|in|per|dell'|dello|della|degli|delle|del|dello|da|a)\\s)?${entityBold.replace(/[*]/g, '\\*')}`, 'gi');
+        const entityLabel = entityBold.replace(/[*]/g, '\\*');
+        const stripPattern = new RegExp(`(\\s(di|in|per|dell'|dello|della|degli|delle|del|dello|da|a)\\s)?${entityLabel}`, 'gi');
+
+        // Match both the name with particles and just the name
         description = description.replace(stripPattern, '').trim();
+        // Also a direct replace just in case
+        description = description.replace(entityBold, '').trim();
+
+        // Specific fix for "spostato" (move) logs in dedicated view
+        if (description.includes("spostato")) {
+            // "Davide Gentile ha spostato **TASK** in **CARTELLA**" -> "Davide Gentile ha spostato in **CARTELLA**"
+            description = description.replace(/\s+/g, ' ').trim();
+        }
 
         // Specific fix for "aggiunto membri" / "rimosso"
         if (description.includes("aggiunto membri") || description.includes("aggiunto un membro") || description.toLowerCase().includes("membro rimosso") || description.toLowerCase().includes("rimosso")) {

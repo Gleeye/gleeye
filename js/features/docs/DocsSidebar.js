@@ -32,14 +32,16 @@ function showDocumentTypeMenu(anchorEl, onSelect) {
     menu.id = 'doc-type-menu';
     menu.style.position = 'absolute';
     menu.style.background = 'white';
-    menu.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-    menu.style.borderRadius = '8px';
-    menu.style.padding = '8px';
-    menu.style.zIndex = '1000';
+    menu.style.boxShadow = 'var(--shadow-xl)';
+    menu.style.borderRadius = '12px';
+    menu.style.padding = '6px';
+    menu.style.zIndex = '10000';
     menu.style.display = 'flex';
     menu.style.flexDirection = 'column';
-    menu.style.gap = '4px';
-    menu.style.minWidth = '150px';
+    menu.style.gap = '2px';
+    menu.style.minWidth = '180px';
+    menu.style.border = '1px solid var(--glass-border)';
+    menu.style.backdropFilter = 'blur(10px)';
 
     const createOption = (icon, text, type) => {
         const btn = document.createElement('button');
@@ -52,11 +54,18 @@ function showDocumentTypeMenu(anchorEl, onSelect) {
         btn.style.cursor = 'pointer';
         btn.style.borderRadius = '6px';
         btn.style.textAlign = 'left';
-        btn.style.fontSize = '14px';
-        btn.style.color = '#334155';
-        btn.onmouseenter = () => btn.style.backgroundColor = '#f1f5f9';
-        btn.onmouseleave = () => btn.style.backgroundColor = 'transparent';
-        btn.innerHTML = `<span class="material-icons-round" style="font-size: 18px; color: #64748b;">${icon}</span> <span>${text}</span>`;
+        btn.style.fontSize = '13px';
+        btn.style.fontWeight = '600';
+        btn.style.color = 'var(--text-secondary)';
+        btn.onmouseenter = () => {
+            btn.style.backgroundColor = 'var(--surface-2)';
+            btn.style.color = 'var(--brand-blue)';
+        };
+        btn.onmouseleave = () => {
+            btn.style.backgroundColor = 'transparent';
+            btn.style.color = 'var(--text-secondary)';
+        };
+        btn.innerHTML = `<span class="material-icons-round" style="font-size: 18px; opacity:0.8;">${icon}</span> <span>${text}</span>`;
         btn.onclick = (e) => {
             e.stopPropagation();
             onSelect(type);
@@ -103,18 +112,27 @@ export function renderDocsSidebar(container, pages, activePageId) {
 
         const input = document.createElement('input');
         input.type = 'text';
-        input.placeholder = 'Search pages...';
+        input.placeholder = 'Cerca pagine...';
         input.value = searchTerm;
         input.style.width = '100%';
-        input.style.padding = '6px 10px';
-        input.style.borderRadius = '6px';
-        input.style.border = '1px solid #cbd5e1';
-        input.style.fontSize = '13px';
+        input.style.padding = '8px 12px';
+        input.style.borderRadius = '10px';
+        input.style.border = '1px solid var(--surface-2)';
+        input.style.fontSize = '0.75rem';
         input.style.outline = 'none';
-        input.style.backgroundColor = '#f8fafc';
+        input.style.backgroundColor = 'var(--surface-1)';
+        input.style.transition = 'all 0.2s';
 
-        input.onfocus = () => input.style.backgroundColor = 'white';
-        input.onblur = () => input.style.backgroundColor = '#f8fafc';
+        input.onfocus = () => {
+            input.style.backgroundColor = 'white';
+            input.style.borderColor = 'var(--brand-blue)';
+            input.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+        };
+        input.onblur = () => {
+            input.style.backgroundColor = 'var(--surface-1)';
+            input.style.borderColor = 'var(--surface-2)';
+            input.style.boxShadow = 'none';
+        };
 
         input.oninput = (e) => {
             searchTerm = e.target.value.toLowerCase();
@@ -143,7 +161,7 @@ function renderTreeContent(container, pages, activePageId) {
     if (searchTerm) {
         const matches = sorted.filter(p => (p.title || '').toLowerCase().includes(searchTerm));
         if (matches.length === 0) {
-            container.innerHTML = '<div style="padding:12px; color:#94a3b8; font-size:13px; text-align:center;">No pages found</div>';
+            container.innerHTML = '<div style="padding:24px 12px; color:var(--text-tertiary); font-size:12px; text-align:center; font-style:italic;">Nessuna pagina trovata</div>';
             return;
         }
 
@@ -199,11 +217,12 @@ function createPageItem(node, activePageId, level = 0) {
     div.style.borderRadius = '6px';
     div.style.display = 'flex';
     div.style.alignItems = 'center';
-    div.style.fontSize = '14px';
-    div.style.color = node.id === activePageId ? '#0f172a' : '#64748b';
-    div.style.backgroundColor = node.id === activePageId ? '#f1f5f9' : 'transparent';
-    div.style.transition = 'background 0.2s';
-    div.style.position = 'relative'; // For absolute positioning if needed, or flex
+    div.style.fontSize = '0.75rem';
+    div.style.fontWeight = node.id === activePageId ? '700' : '500';
+    div.style.color = node.id === activePageId ? 'var(--brand-blue)' : 'var(--text-secondary)';
+    div.style.backgroundColor = node.id === activePageId ? 'rgba(59, 130, 246, 0.05)' : 'transparent';
+    div.style.transition = 'all 0.2s';
+    div.style.position = 'relative';
 
     let iconHtml = node.icon
         ? `<span style="font-size: 16px; margin-right: 8px; line-height: 1;">${node.icon}</span>`
@@ -254,7 +273,7 @@ function createPageItem(node, activePageId, level = 0) {
 
     delBtn.onclick = (e) => {
         e.stopPropagation();
-        if (confirm(`Delete page "${node.title}"?`)) {
+        if (confirm(`Rimuovere la pagina "${node.title || 'Senza Titolo'}"?`)) {
             if (sidebarCallbacks.onPageDelete) sidebarCallbacks.onPageDelete(node.id);
         }
     };
