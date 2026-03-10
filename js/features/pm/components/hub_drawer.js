@@ -168,7 +168,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         collaborator_ref: a.collaborator_ref,
                         role: a.role,
                         user: a.user,
-                        displayName: a.user?.full_name || `${a.user?.first_name || ''} ${a.user?.last_name || ''}`.trim()
+                        displayName: a.user?.full_name || [a.user?.first_name, a.user?.last_name].filter(v => v && v !== 'null').join(' ') || 'Utente'
                     }));
                 } else {
                     item = { item_type: itemType, status: 'todo', priority: 'medium', notes: defaultNote, title: '', is_account_level, parent_ref: currentParentRef };
@@ -217,6 +217,51 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             user: meCollab
                         }];
                     }
+                }
+
+                // --- REPORT LOGIC ---
+                const fetchReports = async () => {
+                    const docSpace = await import('../../../modules/docs_api.js?v=1000').then(m => m.ensureDocSpace(currentSpaceId));
+                    const pages = await import('../../../modules/docs_api.js?v=1000').then(m => m.fetchDocPages(docSpace.id));
+                    // Filter for reports (using metadata or title prefix)
+                    return pages.filter(p => p.title.startsWith('Report:') || p.metadata?.type === 'ai_report');
+                };
+
+                const renderReportsList = (reports) => {
+                    const list = drawer.querySelector('#reports-list');
+                    if (!list) return;
+                    if (reports.length === 0) {
+                        list.innerHTML = `<div style="font-size: 0.85rem; color: #94a3b8; font-style: italic; padding: 20px; text-align: center; background: #f8fafc; border: 1.5px dashed #e2e8f0; border-radius: 12px;">Nessun report generato finora.</div>`;
+                        return;
+                    }
+                    list.innerHTML = reports.map(r => `
+                        <div class="report-row" data-id="${r.id}" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.03)';" onmouseout="this.style.borderColor='#e2e8f0'; this.style.boxShadow='none';">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: #f8fafc; display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-icons-round" style="font-size: 1.2rem; color: var(--text-tertiary);">description</span>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">${r.title}</div>
+                                    <div style="font-size: 0.7rem; color: var(--text-tertiary);">${new Date(r.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                                </div>
+                            </div>
+                            <button class="secondary-btn" style="padding: 4px 12px; font-size: 0.75rem;">VEDI</button>
+                        </div>
+                    `).join('');
+
+                    list.querySelectorAll('.report-row').forEach(row => {
+                        row.onclick = () => {
+                            // Navigate to the doc page
+                            const pageId = row.dataset.id;
+                            window.location.hash = `#docs/${currentSpaceId}/${pageId}`;
+                            closeHubDrawer();
+                        };
+                    });
+                };
+
+                // Initial load of reports
+                if (isEdit) {
+                    fetchReports().then(renderReportsList).catch(console.error);
                 }
             })(),
             timeoutPromise
@@ -703,7 +748,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                     ${assignees.filter(a => a.role === 'pm').map(a => `
                                         <div class="assignee-pill" style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; padding-left: 4px; background: rgba(139, 92, 246, 0.04); border: 1px solid rgba(139, 92, 246, 0.1); border-radius: 20px; font-size: 0.8rem; font-weight: 400; color: #8b5cf6; min-width: 0; height: 32px; box-sizing: border-box; position: relative; padding-right: 28px;">
                                             ${renderAvatar(a.user, { size: 24, borderRadius: '50%' })}
-                                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${a.user?.full_name || (a.user?.first_name + ' ' + (a.user?.last_name || '')).trim() || 'PM'}</span>
+                                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${a.user?.full_name || [a.user?.first_name, a.user?.last_name].filter(v => v && v !== 'null').join(' ') || 'PM'}</span>
                                             <div onclick="window.quickRemoveAssignee('${itemId}', '${a.id}')" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; background: rgba(139, 92, 246, 0.1); color: #8b5cf6; transition: all 0.2s;" onmouseover="this.style.background='rgba(139, 92, 246, 0.3)'" onmouseout="this.style.background='rgba(139, 92, 246, 0.1)'">
                                                 <span class="material-icons-round" style="font-size: 12px;">close</span>
                                             </div>
@@ -723,7 +768,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                     ${assignees.filter(a => a.role !== 'pm').map(a => `
                                         <div class="assignee-pill" style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; padding-left: 4px; background: #fff; border: 1px solid #f1f5f9; border-radius: 20px; font-size: 0.8rem; font-weight: 400; color: var(--text-secondary); box-shadow: 0 1px 2px rgba(0,0,0,0.02); min-width: 0; height: 32px; box-sizing: border-box; position: relative; padding-right: 28px;">
                                             ${renderAvatar(a.user, { size: 24, borderRadius: '50%' })}
-                                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${a.user?.full_name || (a.user?.first_name + ' ' + (a.user?.last_name || '')).trim() || 'User'}</span>
+                                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${a.user?.full_name || [a.user?.first_name, a.user?.last_name].filter(v => v && v !== 'null').join(' ') || 'User'}</span>
                                             <div onclick="window.quickRemoveAssignee('${itemId}', '${a.id}')" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #64748b; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
                                                 <span class="material-icons-round" style="font-size: 12px;">close</span>
                                             </div>
@@ -789,6 +834,11 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             <span class="material-icons-round" style="font-size: 1rem;">cloud_queue</span>
                             Risorse
                             ${item.cloud_links?.length > 0 ? `<span style="font-size: 0.75rem; opacity: 0.6;">(${item.cloud_links.length})</span>` : ''}
+                        </div>
+
+                        <div class="drawer-tab" data-tab="report" style="padding: 1rem 0.75rem; font-size: 0.85rem; font-weight: 600; color: var(--text-tertiary); border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
+                            <span class="material-icons-round" style="font-size: 1rem;">description</span>
+                            Report
                         </div>
                     </div>
 
@@ -903,6 +953,65 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             <div id="item-cloud-links-container" style="background: #f8fafc; border-radius: 16px; padding: 10px; border: 1.5px solid #f1f5f9;"></div>
                         </div>
                     </div>
+
+                    <div id="tab-report" class="tab-pane hidden">
+                        <div class="report-section" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
+                            <!-- Upload Area -->
+                            <div id="report-upload-zone" style="
+                                border: 2px dashed #cbd5e1;
+                                border-radius: 16px;
+                                padding: 2rem;
+                                text-align: center;
+                                background: #f8fafc;
+                                cursor: pointer;
+                                transition: all 0.2s ease;
+                            " onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.background='#eff6ff';" onmouseout="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc';">
+                                <span class="material-icons-round" style="font-size: 3rem; color: var(--brand-blue); opacity: 0.5; margin-bottom: 1rem;">mic</span>
+                                <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">Trascina qui il memo vocale</div>
+                                <div style="font-size: 0.8rem; color: var(--text-tertiary);">Supporta MP3, WAV, M4A (Max 50MB)</div>
+                                <input type="file" id="report-audio-input" accept="audio/*" style="display: none;">
+                            </div>
+
+                            <!-- Action Bar -->
+                            <div id="report-action-bar" class="hidden" style="display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 1rem; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div style="width: 32px; height: 32px; border-radius: 8px; background: #eff6ff; display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-icons-round" style="font-size: 1.2rem; color: var(--brand-blue);">audiotrack</span>
+                                    </div>
+                                    <div style="min-width: 0;">
+                                        <div id="selected-audio-name" style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;">file_senza_nome.mp3</div>
+                                        <div id="selected-audio-size" style="font-size: 0.7rem; color: var(--text-tertiary);">1.2 MB</div>
+                                    </div>
+                                </div>
+                                <button id="generate-report-btn" class="primary-btn" style="padding: 8px 16px; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;">
+                                    <span class="material-icons-round" style="font-size: 1.1rem;">auto_awesome</span> GENERA REPORT AI
+                                </button>
+                            </div>
+
+                            <!-- Processing Status -->
+                            <div id="report-processing-status" class="hidden" style="background: #fff; padding: 1.5rem; border: 1px solid #e2e8f0; border-radius: 12px; display: flex; flex-direction: column; gap: 1rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span class="material-icons-round" style="font-size: 1.2rem; color: var(--brand-blue); animation: spin-hub 2s linear infinite;">sync</span>
+                                        <span id="processing-step-text" style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">Trascrizione in corso...</span>
+                                    </div>
+                                    <span id="processing-percentage" style="font-size: 0.8rem; font-weight: 700; color: var(--brand-blue);">45%</span>
+                                </div>
+                                <div style="height: 6px; background: #f1f5f9; border-radius: 3px; overflow: hidden;">
+                                    <div id="processing-progress-bar" style="height: 100%; width: 45%; background: var(--brand-blue); transition: width 0.3s ease;"></div>
+                                </div>
+                                <div style="font-size: 0.75rem; color: var(--text-tertiary); text-align: center;">Tempo stimato: ~3 minuti. Puoi chiudere questa finestra.</div>
+                            </div>
+
+                            <!-- Previous Reports -->
+                            <div style="margin-top: 1rem;">
+                                <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 1rem; text-transform:uppercase; letter-spacing: 0.05em;">REPORT PRECEDENTI</label>
+                                    <div id="reports-list" style="display: flex; flex-direction: column; gap: 10px;">
+                                        <div style="text-align: center; padding: 2rem; opacity: 0.5;">Caricamento report...</div>
+                                    </div>
+                            </div>
+                        </div>
+                    </div>
                     ${isExpanded ? `</div> <!-- panes-scrollable --> ${footerHtml}` : ''}
                 </div>
                 ${isExpanded ? '</div> <!-- drawer-content-main -->' : ''}
@@ -914,6 +1023,118 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 await updateItemCloudLinks(itemId, newLinks);
                 item.cloud_links = newLinks;
             });
+
+            async function loadReports() {
+                const reportsList = drawer.querySelector('#reports-list');
+                if (!reportsList) return;
+
+                try {
+                    // 1. Get Doc Space
+                    const { data: docSpaces } = await supabase.from('doc_spaces').select('id').eq('space_ref', spaceId);
+                    if (!docSpaces || docSpaces.length === 0) {
+                        reportsList.innerHTML = '<div style="font-size: 0.85rem; color: #94a3b8; font-style: italic; padding: 20px; text-align: center; background: #f8fafc; border: 1.5px dashed #e2e8f0; border-radius: 12px;">Nessun report generato finora.</div>';
+                        return;
+                    }
+
+                    const docSpaceId = docSpaces[0].id;
+
+                    // 2. Get Pages
+                    const { data: pages, error } = await supabase.from('doc_pages')
+                        .select('id, title, created_at, metadata')
+                        .eq('space_ref', docSpaceId)
+                        .order('created_at', { ascending: false });
+
+                    if (error) throw error;
+
+                    if (!pages || pages.length === 0) {
+                        reportsList.innerHTML = '<div style="font-size: 0.85rem; color: #94a3b8; font-style: italic; padding: 20px; text-align: center; background: #f8fafc; border: 1.5px dashed #e2e8f0; border-radius: 12px;">Nessun report generato finora.</div>';
+                        return;
+                    }
+
+                    reportsList.innerHTML = pages.map(p => `
+                        <div class="report-item glass-card" data-page-id="${p.id}" style="
+                            padding: 12px 16px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                            border: 1px solid var(--glass-border);
+                        " onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.background='rgba(59, 130, 246, 0.02)'" onmouseout="this.style.borderColor='var(--glass-border)'; this.style.background='white'">
+                            <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: var(--brand-blue);">
+                                    <span class="material-icons-round" style="font-size: 1.2rem;">description</span>
+                                </div>
+                                <div style="min-width: 0;">
+                                    <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.title}</div>
+                                    <div style="font-size: 0.65rem; color: var(--text-tertiary);">${new Date(p.created_at).toLocaleString('it-IT')}</div>
+                                </div>
+                            </div>
+                            <span class="material-icons-round" style="color: var(--text-tertiary); font-size: 1.2rem;">chevron_right</span>
+                        </div>
+                    `).join('');
+
+                    // Attach listeners to report items
+                    reportsList.querySelectorAll('.report-item').forEach(item => {
+                        item.onclick = async () => {
+                            const pageId = item.dataset.pageId;
+                            // Open in document viewer (assuming existing router)
+                            window.location.hash = `#docs/${pageId}`;
+                            closeHubDrawer();
+                        };
+                    });
+
+                } catch (e) {
+                    console.error("[ReportAuto] Error loading reports:", e);
+                    reportsList.innerHTML = '<div style="color: #ef4444; font-size: 0.8rem; padding: 10px;">Errore durante il caricamento.</div>';
+                }
+            }
+
+            async function pollJobStatus(jobId) {
+                const stepText = drawer.querySelector('#processing-step-text');
+                const progressBar = drawer.querySelector('#processing-progress-bar');
+                const percentage = drawer.querySelector('#processing-percentage');
+
+                let attempts = 0;
+                const maxAttempts = 120; // 10 minutes max
+
+                const interval = setInterval(async () => {
+                    attempts++;
+                    if (attempts > maxAttempts) {
+                        clearInterval(interval);
+                        stepText.textContent = "Errore: Tempo scaduto.";
+                        return;
+                    }
+
+                    const { data, error } = await supabase.from('pm_ai_report_jobs').select('*').eq('id', jobId).single();
+                    if (error) return;
+
+                    if (data.status === 'processing') {
+                        stepText.textContent = "NotebookLM sta analizzando l'audio...";
+                        progressBar.style.width = '50%';
+                        percentage.textContent = '50%';
+                    } else if (data.status === 'completed') {
+                        clearInterval(interval);
+                        stepText.textContent = "Report Generato!";
+                        progressBar.style.width = '100%';
+                        percentage.textContent = '100%';
+
+                        setTimeout(() => {
+                            statusPane.classList.add('hidden');
+                            uploadZone.style.display = 'block';
+                            generateBtn.disabled = false;
+                            generateBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1.1rem;">auto_awesome</span> GENERA REPORT AI`;
+                            loadReports(); // Refresh the list
+                            if (window.showGlobalAlert) window.showGlobalAlert("Report AI completato con successo!");
+                        }, 2000);
+                    } else if (data.status === 'failed') {
+                        clearInterval(interval);
+                        stepText.textContent = "Errore nella generazione.";
+                        if (window.showGlobalAlert) window.showGlobalAlert("Errore AI: " + (data.error_message || "Generazione fallita"), 'error');
+                        generateBtn.disabled = false;
+                    }
+                }, 5000);
+            }
 
             // Init Activity Log
             if (state.profile?.role === 'admin') {
@@ -929,7 +1150,79 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 }).catch(e => console.error("Error loading Activity Log", e));
             }
 
-            // Tab switching logic
+            // Report Tab Listeners
+            const uploadZone = drawer.querySelector('#report-upload-zone');
+            const audioInput = drawer.querySelector('#report-audio-input');
+            const actionBar = drawer.querySelector('#report-action-bar');
+            const generateBtn = drawer.querySelector('#generate-report-btn');
+            const statusPane = drawer.querySelector('#report-processing-status');
+
+            if (uploadZone && audioInput) {
+                uploadZone.onclick = () => audioInput.click();
+                audioInput.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        drawer.querySelector('#selected-audio-name').textContent = file.name;
+                        drawer.querySelector('#selected-audio-size').textContent = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+                        actionBar.classList.remove('hidden');
+                        uploadZone.style.display = 'none';
+                    }
+                };
+            }
+
+            if (generateBtn) {
+                generateBtn.onclick = async () => {
+                    const file = audioInput.files[0];
+                    if (!file) return;
+
+                    generateBtn.disabled = true;
+                    generateBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1.1rem; animation: spin-hub 1s linear infinite;">sync</span> CARICAMENTO...`;
+
+                    try {
+                        // 1. Upload to Supabase
+                        const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+                        const filePath = `${itemId}/${fileName}`;
+                        const { data, error } = await supabase.storage.from('voice_memos').upload(filePath, file);
+                        if (error) throw error;
+
+                        const { data: { publicUrl } } = supabase.storage.from('voice_memos').getPublicUrl(filePath);
+
+                        // 2. Start AI Processing
+                        actionBar.classList.add('hidden');
+                        statusPane.classList.remove('hidden');
+
+                        // 2. Queue AI Job
+                        const { data: jobData, error: jobError } = await supabase.from('pm_ai_report_jobs').insert({
+                            space_ref: spaceId,
+                            item_ref: itemId,
+                            audio_url: publicUrl,
+                            status: 'pending'
+                        }).select();
+
+                        if (jobError) throw jobError;
+                        const jobId = jobData[0].id;
+
+                        console.log("[ReportAuto] Job queued:", jobId);
+
+                        // UPDATE UI TO WAITING STATE
+                        drawer.querySelector('#processing-step-text').textContent = "Inviato. In attesa di AI...";
+                        drawer.querySelector('#processing-progress-bar').style.width = '10%';
+                        drawer.querySelector('#processing-percentage').textContent = '10%';
+
+                        if (window.showGlobalAlert) window.showGlobalAlert("Audio caricato! L'AI inizierà ora l'elaborazione.");
+
+                        // 3. Start Polling
+                        pollJobStatus(jobId);
+                    } catch (e) {
+                        console.error(e);
+                        if (window.showGlobalAlert) window.showGlobalAlert("Errore durante l'upload: " + e.message, 'error');
+                        generateBtn.disabled = false;
+                        generateBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1.1rem;">auto_awesome</span> GENERA REPORT AI`;
+                    }
+                };
+            }
+
+            // Tab switching logic (updated to handle 'report' tab)
             const tabs = drawer.querySelectorAll('.drawer-tab');
             const panes = drawer.querySelectorAll('.tab-pane');
 
@@ -957,6 +1250,11 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 const footer = drawer.querySelector('#drawer-footer-comments');
                 if (footer) {
                     footer.classList.toggle('hidden', tabName !== 'comments');
+                }
+
+                // If switching to report tab, load reports
+                if (tabName === 'report') {
+                    loadReports();
                 }
             };
 
@@ -1071,7 +1369,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         return `
                                         <div class="pending-assignee-pill" style="display: flex; align-items: center; gap: 6px; background: #f5f3ff; color: #7c3aed; padding: 3px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 400; border: 1px solid #ddd6fe; max-width: 100%;">
                                             <img src="${a.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(a.displayName)}" style="width: 18px; height: 18px; border-radius: 4px;">
-                                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${a.displayName}</span>
+                                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${a.displayName || a.user?.full_name || [a.user?.first_name, a.user?.last_name].filter(v => v && v !== 'null').join(' ') || 'User'}</span>
                                             <span class="material-icons-round remove-pending-btn" data-idx="${originalIdx}" style="font-size: 14px; cursor: pointer; opacity: 0.6;">close</span>
                                         </div>
                                         `;
