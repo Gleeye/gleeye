@@ -115,12 +115,13 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
             }
             #hub-tab-content .hub-overview {
                 display: grid;
-                grid-template-columns: minmax(440px, 1fr) minmax(300px, 340px) minmax(300px, 340px);
-                gap: 1rem;
+                grid-template-columns: 1.35fr 1fr 1fr;
+                gap: 1.5rem;
                 height: calc(100vh - 280px);
                 min-height: 600px;
                 padding-bottom: 2rem;
                 width: 100%;
+                max-width: 1300px; /* Cap width to prevent infinite stretching */
             }
             .overview-card {
                 background: white;
@@ -147,7 +148,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
             }
 
             /* === TABLET / MEDIUM DESKTOP === */
-            @media (max-width: 1780px) {
+            @media (max-width: 1550px) {
                 #hub-tab-content .hub-overview {
                     grid-template-columns: 1fr 340px;
                     height: auto;
