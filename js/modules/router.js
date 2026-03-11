@@ -291,7 +291,7 @@ function render() {
                 // Route: Commessa Detail (#pm/commessa/:orderId)
                 if (state.currentSubPage === 'commessa' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Commessa';
-                    import('../features/pm/commessa_detail.js?v=1241')
+                    import('../features/pm/commessa_detail.js?v=1242')
                         .then(async module => {
                             try {
                                 await module.renderCommessaDetail(contentArea, state.currentId, false);
@@ -308,7 +308,7 @@ function render() {
                     // Route: Internal Project Detail (#pm/space/:spaceId)
                 } else if (state.currentSubPage === 'space' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Workspace';
-                    import('../features/pm/commessa_detail.js?v=1241')
+                    import('../features/pm/commessa_detail.js?v=1242')
                         .then(async module => {
                             try {
                                 await module.renderCommessaDetail(contentArea, state.currentId, true);
@@ -325,7 +325,7 @@ function render() {
                     // Route: Internal Projects List (#pm/interni)
                 } else if (state.currentSubPage === 'interni') {
                     if (pageTitle) pageTitle.textContent = 'Progetti Interni';
-                    import('../features/pm/internal_list.js?v=1241')
+                    import('../features/pm/internal_list.js?v=1242')
                         .then(module => {
                             module.renderInternalProjects(contentArea, state.currentId);
                         })
@@ -336,13 +336,13 @@ function render() {
 
                 } else if (state.currentSubPage === 'task' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Attività';
-                    import('../features/pm/components/hub_drawer.js?v=1241').then(m => {
+                    import('../features/pm/components/hub_drawer.js?v=1242').then(m => {
                         m.openHubDrawer(state.currentId, null);
                     });
                     // Show dashboard in background
-                    import('../features/pm/index.js?v=1241').then(module => {
+                    import('../features/pm/index.js?v=1242').then(module => {
                         module.renderPM(contentArea);
-                    });
+                    });;
                 } else if (state.currentSubPage === 'my-work') {
                     if (pageTitle) pageTitle.textContent = 'Le Mie Attività';
                     import('../features/dashboard/TasksDashboard.js?v=1000').then(m => m.renderMyWork(contentArea));
