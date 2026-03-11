@@ -146,6 +146,19 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
                 overflow: hidden;
                 min-width: 0;
             }
+            #hub-tab-content .custom-scrollbar::-webkit-scrollbar {
+                width: 3px;
+            }
+            #hub-tab-content .custom-scrollbar::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            #hub-tab-content .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: rgba(var(--brand-color-rgb, 78, 146, 216), 0.15);
+                border-radius: 10px;
+            }
+            #hub-tab-content .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: rgba(var(--brand-color-rgb, 78, 146, 216), 0.3);
+            }
 
             /* === TABLET / MEDIUM DESKTOP === */
             @media (max-width: 1550px) {
@@ -570,11 +583,11 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
 function renderDocsPreview(pages) {
     if (!pages || pages.length === 0) return `<div style="padding: 2rem 1rem; text-align: center; color: var(--text-tertiary); font-size: 0.8rem;">Nessun documento</div>`;
     return pages.map(page => `
-        <div class="preview-item" style="padding: 0.75rem; border-radius: 10px; background: var(--surface-1); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem; cursor: pointer; border: 1px solid transparent; transition: all 0.2s;" onmouseover="this.style.background='white'; this.style.borderColor='var(--brand-color)';" onmouseout="this.style.background='var(--surface-1)'; this.style.borderColor='transparent';">
-            <span class="material-icons-round" style="font-size: 1.1rem; color: #64748b;">${page.type === 'whiteboard' ? 'auto_awesome_motion' : 'description'}</span>
+        <div class="preview-item" style="padding: 0.5rem 0.65rem; border-radius: 9px; background: var(--surface-1); margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.65rem; cursor: pointer; border: 1px solid transparent; transition: all 0.2s;" onmouseover="this.style.background='white'; this.style.borderColor='var(--brand-color)';" onmouseout="this.style.background='var(--surface-1)'; this.style.borderColor='transparent';">
+            <span class="material-icons-round" style="font-size: 1rem; color: #64748b;">${page.type === 'whiteboard' ? 'auto_awesome_motion' : 'description'}</span>
             <div style="flex: 1; min-width: 0;">
-                <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${page.title}</div>
-                <div style="font-size: 0.65rem; color: var(--text-tertiary);">${new Date(page.updated_at).toLocaleDateString('it-IT')}</div>
+                <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${page.title}</div>
+                <div style="font-size: 0.6rem; color: var(--text-tertiary); opacity: 0.8;">${new Date(page.updated_at).toLocaleDateString('it-IT')}</div>
             </div>
         </div>
     `).join('');
@@ -583,11 +596,11 @@ function renderDocsPreview(pages) {
 function renderResourcesPreview(links) {
     if (!links || links.length === 0) return `<div style="padding: 2rem 1rem; text-align: center; color: var(--text-tertiary); font-size: 0.8rem;">Nessuna risorsa cloud</div>`;
     return links.map(link => `
-        <a href="${link.url}" target="_blank" class="preview-item" style="text-decoration: none; padding: 0.75rem; border-radius: 10px; background: var(--surface-1); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem; cursor: pointer; border: 1px solid transparent; transition: all 0.2s;" onmouseover="this.style.background='white'; this.style.borderColor='var(--brand-color)';" onmouseout="this.style.background='var(--surface-1)'; this.style.borderColor='transparent';">
-            <span class="material-icons-round" style="font-size: 1.1rem; color: #3b82f6;">link</span>
+        <a href="${link.url}" target="_blank" class="preview-item" style="text-decoration: none; padding: 0.5rem 0.65rem; border-radius: 9px; background: var(--surface-1); margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.65rem; cursor: pointer; border: 1px solid transparent; transition: all 0.2s;" onmouseover="this.style.background='white'; this.style.borderColor='var(--brand-color)';" onmouseout="this.style.background='var(--surface-1)'; this.style.borderColor='transparent';">
+            <span class="material-icons-round" style="font-size: 1rem; color: #3b82f6;">link</span>
             <div style="flex: 1; min-width: 0;">
-                <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${link.label}</div>
-                <div style="font-size: 0.65rem; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${link.url}</div>
+                <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${link.label}</div>
+                <div style="font-size: 0.6rem; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.8;">${link.url}</div>
             </div>
         </a>
     `).join('');

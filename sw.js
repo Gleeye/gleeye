@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v15'; // Compact PM Overview layout updates
+const CACHE_NAME = 'gleeye-pwa-cache-v17'; // Thin scrollbar & compact doc items
 const urlsToCache = [
     '/',
     '/index.html',
