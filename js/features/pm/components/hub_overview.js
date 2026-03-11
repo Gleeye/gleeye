@@ -146,8 +146,8 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
                 min-width: 0;
             }
 
-            /* === TABLET === */
-            @media (max-width: 1600px) {
+            /* === TABLET / MEDIUM DESKTOP === */
+            @media (max-width: 1780px) {
                 #hub-tab-content .hub-overview {
                     grid-template-columns: 1fr 340px;
                     height: auto;
@@ -159,7 +159,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
                 }
             }
 
-            @media (max-width: 1200px) {
+            @media (max-width: 1350px) {
                 #hub-tab-content .hub-overview {
                     grid-template-columns: 1fr;
                     display: block;
