@@ -592,7 +592,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     <!-- Top Row: Tag & Expand -->
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
                         <button id="full-screen-btn" class="icon-btn" title="${isExpanded ? 'Riduci' : 'Espandi'}" style="width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid transparent; color: var(--text-tertiary); transition: all 0.2s; cursor: pointer;" onmouseover="this.style.background='rgba(59, 130, 246, 0.05)'; this.style.borderColor='rgba(59, 130, 246, 0.15)';" onmouseout="this.style.background='transparent'; this.style.borderColor='transparent';">
-                            <span class="material-icons-round" style="font-size: 1.2rem;">${isExpanded ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left'}</span>
+                            <span class="material-icons-round" style="font-size: 1.2rem;">${isExpanded ? 'fullscreen_exit' : 'fullscreen'}</span>
                         </button>
                         <div style="font-size: 0.55rem; font-weight: 800; color: var(--brand-blue); background: rgba(59, 130, 246, 0.08); padding: 2px 8px; border-radius: 6px; text-transform: uppercase; border: 1px solid rgba(59, 130, 246, 0.15);">
                             ${typeLabel}

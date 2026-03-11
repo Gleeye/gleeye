@@ -830,17 +830,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                             </div>
                         </div>
 
-                        ${space?.is_cluster ? '' : `
-                        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 0.5rem; margin-top: 0.5rem;">
-                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--text-tertiary); font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                                <span class="material-icons-round" style="font-size: 1.1rem; color: var(--text-tertiary);">home</span>
-                                <span class="material-icons-round" style="font-size: 1rem; color: #cbd5e1;">chevron_right</span>
-                                <span style="color: var(--brand-blue);">${isInternal ? space?.area : 'Commesse'}</span>
-                                <span class="material-icons-round" style="font-size: 1rem; color: #cbd5e1;">chevron_right</span>
-                                <span style="color: var(--text-primary);">${spaceName}</span>
-                            </div>
-                        </div>
-                        `}
+
 
                         <!-- Mobile Team Strip (hidden on desktop) -->
                         <div id="mobile-team-strip" style="display: none; align-items: center; gap: 0; padding: 0.35rem 0.5rem; overflow-x: auto;">

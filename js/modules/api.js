@@ -129,7 +129,7 @@ export async function fetchClients(force = false) {
     console.log("Fetching clients...");
     const { data: clients, error } = await supabase
         .from('clients')
-        .select('id, business_name, client_code, vat_number, email') // fetch only needed columns for list
+        .select('*')
         .order('business_name', { ascending: true });
 
     if (error) {
@@ -537,7 +537,7 @@ export async function fetchCollaborators(force = false) {
     console.log("Fetching collaborators...");
     const { data: collaborators, error } = await supabase
         .from('collaborators')
-        .select('id, full_name, role, email, avatar_url, phone, tags, user_id')
+        .select('*')
         .order('full_name', { ascending: true });
 
     if (error) {
@@ -619,7 +619,7 @@ export async function fetchSuppliers(force = false) {
     console.log("Fetching suppliers...");
     const { data: suppliers, error } = await supabase
         .from('suppliers')
-        .select('id, name, city, vat_number')
+        .select('*')
         .order('name');
 
     if (error) {

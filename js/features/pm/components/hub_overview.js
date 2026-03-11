@@ -147,7 +147,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
             }
 
             /* === TABLET === */
-            @media (max-width: 1350px) {
+            @media (max-width: 1600px) {
                 #hub-tab-content .hub-overview {
                     grid-template-columns: 1fr 340px;
                     height: auto;
@@ -159,7 +159,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
                 }
             }
 
-            @media (max-width: 1050px) {
+            @media (max-width: 1200px) {
                 #hub-tab-content .hub-overview {
                     grid-template-columns: 1fr;
                     display: block;
@@ -596,55 +596,66 @@ function renderFeedPreview(logs) {
     if (!logs || logs.length === 0) return `<div style="padding: 2rem 1rem; text-align: center; color: var(--text-tertiary); font-size: 0.8rem;">Nessuna attività recente</div>`;
 
     const vocabulary = {
-        'todo': 'Da Fare', 'in_progress': 'In Corso', 'review': 'Revisione', 'done': 'Completata', 'blocked': 'In Pausa',
-        'high': 'Alta', 'medium': 'Media', 'low': 'Bassa', 'urgent': 'Urgente',
-        'in_svolgimento': 'In Lavorazione', 'lavoro_in_attesa': 'In Sospeso'
+        'todo': 'Da Fare', 'in_progress': 'In Corso', 'review': 'In Revisione', 'done': 'Completata', 'blocked': 'In Pausa',
+        'attivita': 'Attività', 'task': 'Task'
     };
     const t = (val) => vocabulary[val?.toLowerCase()] || val;
 
     return logs.map(log => {
-        const name = log.authorName || 'Sistema';
-        const avatar = log.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
-
-        let actionTxt = 'ha effettuato una modifica';
-        const type = log.action_type || '';
-        const itemName = log.item?.title ? `**${log.item.title}**` : '';
+        const actorName = log.actor?.full_name || 'Sistema';
+        const avatarUrl = log.actor?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(actorName)}&background=random&size=64`;
         const details = log.details || {};
+        let description = details.description || (typeof details === 'string' ? details : '');
+        const actionType = (log.action_type || '').toLowerCase();
+        
+        const entityName = log.item?.title || details.entity_name || 'una risorsa';
+        const entityBold = `**${entityName}**`;
 
-        if (type.includes('status')) {
-            const oldVal = t(details.old);
-            const newVal = t(details.new);
-            actionTxt = `ha cambiato stato a ${itemName} da **${oldVal}** a **${newVal}**`;
-        } else if (type.includes('priority')) {
-            const oldVal = t(details.old);
-            const newVal = t(details.new);
-            actionTxt = `ha cambiato priorità a ${itemName} da **${oldVal}** a **${newVal}**`;
-        } else if (type === 'create') {
-            actionTxt = `ha creato l'elemento ${itemName}`;
-        } else if (type.includes('comment')) {
-            actionTxt = `ha lasciato un commento su ${itemName}`;
-        } else if (type.includes('member') || type.includes('assignee')) {
-            const isDelete = type.includes('delete') || type.includes('remove');
-            const member = details.member_name || 'un membro';
-            actionTxt = `${isDelete ? 'ha rimosso' : 'ha assegnato'} **${member}** ${isDelete ? 'da' : 'a'} ${itemName}`;
-        } else if (type.includes('cloud_links')) {
-            actionTxt = `ha aggiornato le risorse di ${itemName}`;
-        } else if (type === 'update' && itemName) {
-            actionTxt = `ha modificato ${itemName}`;
+        // 1. Rebuild description if missing (Fallback Logic)
+        if (!description || description === 'UPDATE') {
+            if (actionType.includes('status')) {
+                const oldVal = t(details.old);
+                const newVal = t(details.new);
+                description = `ha cambiato lo stato di ${entityBold} ${oldVal && newVal ? `da **${oldVal}** a **${newVal}**` : `in **${newVal}**`}`;
+            } else if (actionType.includes('pm_user_ref') || actionType.includes('user_ref')) {
+                const targetUser = details.new_value || details.new || 'un utente';
+                description = `ha assegnato ${entityBold} a **${targetUser}**`;
+            } else if (actionType.includes('created')) {
+                description = `ha creato l'attività ${entityBold}`;
+            } else if (actionType.includes('comment')) {
+                description = `ha aggiunto un commento in ${entityBold}`;
+            } else {
+                description = `ha effettuato una modifica a ${entityBold}`;
+            }
         }
 
-        // Convert bold markdown to HTML
-        actionTxt = actionTxt.replace(/\*\*(.*?)\*\*/g, '<span style="font-weight: 700; color: var(--text-primary);">$1</span>');
+        // 2. Natural Language: Handle self-assignments
+        if (log.actor_user_ref && (details.user_ref === log.actor_user_ref || details.new === log.actor_user_ref)) {
+            description = description.replace(/ha assegnato \*\*(.*?)\*\*/g, 'si è assegnato');
+            const actorRegex = new RegExp(`\\*\\*${actorName}\\*\\*`, 'g');
+            description = description.replace(actorRegex, 'se stesso');
+        }
+
+        // 3. Final Vocabulary translation pass (targeted bolded keys)
+        Object.entries(vocabulary).forEach(([key, value]) => {
+            const regex = new RegExp(`\\*\\*${key}\\*\\*`, 'gi');
+            description = description.replace(regex, `**${value}**`);
+        });
+
+        // Format Markdown to HTML
+        const actionTxt = description.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-primary);">$1</strong>');
+        const date = new Date(log.created_at);
+        const timeStr = date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
         return `
-            <div style="padding: 0.85rem 0; border-bottom: 1px solid var(--surface-1); display: flex; gap: 0.85rem; align-items: flex-start;">
-                <img src="${avatar}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; box-shadow: 0 0 0 2px white, 0 0 0 3px var(--surface-1);" />
+            <div class="feed-item" style="padding: 0.85rem 0; border-bottom: 1px solid var(--surface-1); display: flex; gap: 0.85rem; align-items: flex-start; cursor: pointer; transition: opacity 0.2s;" onclick="window.openPmItemDetails('${log.item_ref || ''}', '${log.space_ref || ''}')" onmouseover="this.style.opacity='0.75'" onmouseout="this.style.opacity='1'">
+                <img src="${avatarUrl}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; box-shadow: 0 0 0 2px white, 0 0 0 3px var(--surface-1);" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(actorName)}&background=random';" />
                 <div style="flex: 1; min-width: 0;">
                     <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.45;">
-                        <span style="font-weight: 700; color: var(--brand-color);">${name}</span> ${actionTxt}
+                        <span style="font-weight: 700; color: var(--text-primary);">${actorName}</span> ${actionTxt}
                     </div>
                     <div style="font-size: 0.6rem; color: var(--text-tertiary); margin-top: 3px; font-weight: 500;">
-                        ${new Date(log.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} • ${new Date(log.created_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+                        ${timeStr} • ${date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
                     </div>
                 </div>
             </div>

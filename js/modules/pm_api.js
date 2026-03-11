@@ -1360,7 +1360,16 @@ export async function updateItemCloudLinks(itemId, links) {
 }
 
 // --- ACTIVITY LOGS ---
-export async function fetchPMActivityLogs(spaceId = null, itemId = null, orderId = null, itemIds = null) {
+export async function fetchPMActivityLogs(arg1 = null, arg2 = null, arg3 = null, arg4 = null) {
+    let spaceId, itemId, orderId, itemIds, limit = 100, isAccountLevel = false;
+
+    // Support both object syntax and positional arguments
+    if (typeof arg1 === 'object' && arg1 !== null && !Array.isArray(arg1)) {
+        ({ spaceId, itemId, orderId, itemIds, limit = 100, isAccountLevel = false } = arg1);
+    } else {
+        [spaceId, itemId, orderId, itemIds] = [arg1, arg2, arg3, arg4];
+    }
+
     let query = supabase
         .from('pm_activity_logs')
         .select(`
@@ -1371,9 +1380,11 @@ export async function fetchPMActivityLogs(spaceId = null, itemId = null, orderId
             space:space_ref ( name )
         `)
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(limit);
 
-    if (orderId) {
+    if (isAccountLevel) {
+        // Broad fetch for general activity
+    } else if (orderId) {
         query = query.eq('order_ref', orderId);
     } else if (itemIds && itemIds.length > 0) {
         query = query.in('item_ref', itemIds);

@@ -1,23 +1,41 @@
 /* =====================================================
    Material Icons Fix (Prevent FOUT)
    ===================================================== */
-.material-icons-round {
-    font-family: 'Material Icons Round';
-    display: inline-block;
-    width: 24px;
-    height: 24px;
-    line-height: 1;
-    text-transform: none;
-    letter-spacing: normal;
-    word-wrap: normal;
-    white-space: nowrap;
-    direction: ltr;
+.material-icons-round,
+[class^="material-icons-"],
+[class*=" material-icons-"],
+.custom-select-trigger:after,
+.custom-select-container .custom-select-trigger:after,
+.custom-select-arrow,
+.task-checkbox:checked::after,
+.custom-option.selected::after,
+.nav-item.has-submenu.drill-mode::after {
+    font-family: 'Material Icons Round' !important;
+    font-weight: normal !important;
+    font-style: normal !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 24px; /* Default */
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    word-wrap: normal !important;
+    white-space: nowrap !important;
+    direction: ltr !important;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: 'liga';
-    overflow: hidden; /* CRITICAL: Hides the ligament text before font loads */
-    vertical-align: middle;
+    font-feature-settings: 'liga' !important;
+    -webkit-font-feature-settings: 'liga' !important;
+    vertical-align: middle !important;
+    line-height: 1 !important;
+}
+
+/* Specific overrides for fonts in pseudo-elements */
+[class*="material-icons-"]::before,
+[class*="material-icons-"]::after {
+    font-family: inherit; /* Inherit from parent which has the font-family */
+    display: inline-flex;
 }
 
 /* Typography Scale - Ultra Light */
