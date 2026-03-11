@@ -213,7 +213,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
                     .project-hub {
                     width: auto;
-                    margin: 0 -3rem !important; /* Only breakout sides, no top negative margin */
+                    margin: 0 -2.5rem !important; /* Only breakout sides, no top negative margin */
                     padding: 0 !important;
                 }
                 .project-hub-container {
@@ -222,11 +222,11 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     min-height: calc(100vh - 60px);
                     background: transparent;
                     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                    gap: 2.5rem;
-                    padding: 1.5rem 2.5rem 2rem 2.5rem; /* Added top padding and refined sides */
+                    gap: 1.5rem;
+                    padding: 1.5rem 1.5rem 2rem 1.5rem; /* Added top padding and refined sides */
                 }
                 .hub-sidebar {
-                    width: 320px;
+                    width: 300px;
                     flex-shrink: 0;
                     display: flex;
                     flex-direction: column;
@@ -240,7 +240,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                 }
                 .hub-sidebar.collapsed {
                     width: 0;
-                    margin-right: -2.5rem;
+                    margin-right: -1.5rem;
                     opacity: 0;
                     visibility: hidden;
                     pointer-events: none;

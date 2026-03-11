@@ -115,8 +115,8 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
             }
             #hub-tab-content .hub-overview {
                 display: grid;
-                grid-template-columns: 1fr 340px 340px;
-                gap: 1.25rem;
+                grid-template-columns: minmax(440px, 1fr) minmax(300px, 340px) minmax(300px, 340px);
+                gap: 1rem;
                 height: calc(100vh - 280px);
                 min-height: 600px;
                 padding-bottom: 2rem;
@@ -136,7 +136,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
             .stats-grid {
                 display: grid;
                 grid-template-columns: repeat(5, 1fr);
-                gap: 0.75rem;
+                gap: 0.5rem;
             }
             .sub-column-grid {
                 display: grid;
