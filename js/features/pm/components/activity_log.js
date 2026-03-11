@@ -346,7 +346,7 @@ function renderTimelineItem(log, context = {}) {
                 }
                 if (!targetName && ref && state.profiles) {
                     const prof = state.profiles.find(p => p.id === ref);
-                    if (prof) targetName = prof.full_name || `${prof.first_name} ${prof.last_name}`.trim();
+                    if (prof) targetName = prof.full_name || [prof.first_name, prof.last_name].filter(v => v && v !== 'null').join(' ') || 'Utente';
                 }
             }
 
@@ -408,7 +408,7 @@ function renderTimelineItem(log, context = {}) {
             }
             if (!targetName && ref && state.profiles) {
                 const prof = state.profiles.find(p => p.id === ref);
-                if (prof) targetName = ` **${prof.full_name || (prof.first_name + ' ' + prof.last_name).trim()}**`;
+                if (prof) targetName = ` **${prof.full_name || [prof.first_name, prof.last_name].filter(v => v && v !== 'null').join(' ') || 'Utente'}**`;
             }
 
             if (isDelete) {

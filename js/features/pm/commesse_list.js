@@ -61,6 +61,7 @@ export async function renderCommesseList(container) {
                     margin: 0 auto;
                     width: 100%;
                     box-sizing: border-box;
+                    overflow-x: hidden;
                 }
 
                 .pm-main-grid {
@@ -155,9 +156,9 @@ export async function renderCommesseList(container) {
 
                 /* Mobile overrides - Matching dashboard.js */
                 @media (max-width: 1100px) {
-                    .pm-main-grid { grid-template-columns: 1fr; }
-                    .pm-sidebar-col { order: 2; margin-top: 1.5rem; }
-                    .pm-main-col { order: 1; }
+                    .pm-main-grid { grid-template-columns: 1fr !important; }
+                    .pm-sidebar-col { order: 1; margin-bottom: 2rem; }
+                    .pm-main-col { order: 2; }
                     .pm-summary-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 0.5rem; }
                     .pm-card { padding: 0.75rem 0.25rem !important; text-align: center; border-left-width: 3px !important; }
                     .pm-card .material-icons-round { margin: 0 auto 0.25rem !important; font-size: 1.1rem !important; }
@@ -166,7 +167,75 @@ export async function renderCommesseList(container) {
                 }
 
                 @media (max-width: 768px) {
-                    .pm-dashboard-root { padding: 0.5rem !important; }
+                    .pm-dashboard-root { padding: 0.75rem !important; }
+                    .pm-summary-grid { 
+                        grid-template-columns: repeat(3, 1fr) !important; 
+                        gap: 0.5rem !important; 
+                        margin-bottom: 2rem !important; 
+                    }
+                    
+                    .pm-card { 
+                        padding: 1rem 0.25rem 0.75rem 0.25rem !important; 
+                        min-height: 120px !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        align-items: center !important;
+                        justify-content: flex-start !important;
+                        text-align: center !important;
+                        border-radius: 12px !important;
+                        position: relative;
+                        overflow: visible !important;
+                    }
+
+                    /* Content Wrapper */
+                    .pm-card > div:first-child { 
+                        display: flex !important;
+                        flex-direction: column !important;
+                        align-items: center !important;
+                        justify-content: flex-start !important;
+                        width: 100% !important;
+                        gap: 0px !important;
+                        margin: 0 !important;
+                    }
+
+                    /* Icon - Move to TOP, restore background circle */
+                    .pm-card div[style*="width: 36px"] {
+                        order: -2 !important;
+                        width: 34px !important;
+                        height: 34px !important;
+                        border-radius: 50% !important;
+                        margin: 0 auto 10px auto !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        justify-content: center !important;
+                        background-color: inherit !important; /* This should let the HTML background show */
+                        box-shadow: 0 2px 6px rgba(0,0,0,0.05) !important;
+                    }
+                    .pm-card .material-icons-round { font-size: 1.15rem !important; }
+
+                    /* Count - Middle */
+                    .pm-card .card-count {
+                        order: -1 !important;
+                        font-size: 1.6rem !important;
+                        margin: 0 0 2px 0 !important;
+                        line-height: 1 !important;
+                        font-weight: 800 !important;
+                        color: var(--text-primary) !important;
+                    }
+
+                    /* Label - Bottom */
+                    .pm-card div[style*="font-size: 0.65rem"] {
+                        order: 0 !important;
+                        font-size: 0.55rem !important;
+                        font-weight: 700 !important;
+                        color: var(--text-tertiary) !important;
+                        text-transform: uppercase !important;
+                        letter-spacing: 0.05em !important;
+                        margin: 0 !important;
+                        width: 100%;
+                    }
+
+                    .main-table-card { max-height: none !important; }
                     .pm-filter-bar { padding: 0.75rem !important; gap: 0.5rem !important; flex-wrap: wrap !important; }
                     .pm-filter-bar > div:first-child { display: none !important; }
                     .pm-filter-bar > div:last-child { width: 100% !important; }
@@ -174,8 +243,19 @@ export async function renderCommesseList(container) {
                     .pm-dropdown-trigger { padding: 6px 8px !important; font-size: 0.65rem !important; }
                     #pm-search-container { order: -1; min-width: 100% !important; }
                     
-                    /* TABLE -> CARDS (Matching dashboard.js) */
-                    .pm-table-wrapper table, .pm-table-wrapper thead, .pm-table-wrapper tbody, .pm-table-wrapper tr, .pm-table-wrapper td {
+                    /* Sidebar List - Allow more height on mobile since cards are compact */
+                    #sidebar-list { max-height: 450px !important; }
+                    
+                    /* Items wrap fix */
+                    .sidebar-item div, .pm-table-wrapper td div { 
+                        white-space: normal !important; 
+                        word-break: break-word !important; 
+                        overflow: visible !important; 
+                        text-overflow: clip !important; 
+                    }
+                    
+                    /* TABLE -> CARDS */
+                    .pm-table-wrapper table, .pm-table-wrapper thead, .pm-table-wrapper tbody, .pm-table-wrapper tr {
                         display: block; width: 100%;
                     }
                     .pm-table-wrapper thead { display: none; }
@@ -189,11 +269,11 @@ export async function renderCommesseList(container) {
                         position: relative;
                     }
                     .pm-table-wrapper td {
+                        display: flex;
+                        align-items: center;
                         padding: 0 !important;
                         border: none !important;
                         text-align: left !important;
-                        display: flex;
-                        align-items: center;
                     }
                     .pm-table-wrapper td:nth-child(1) { font-size: 0.75rem !important; color: var(--brand-viola) !important; font-weight: 800 !important; padding: 2px 6px !important; background: rgba(97, 74, 162, 0.05) !important; border-radius: 4px !important; width: auto !important; display: inline-flex !important; }
                     .pm-table-wrapper td:nth-child(2) { flex-direction: column !important; align-items: flex-start !important; gap: 2px !important; margin: 0.25rem 0 !important; }
@@ -211,17 +291,14 @@ export async function renderCommesseList(container) {
                     
                     <!-- Sidebar column (Always Visible Svolgimento) -->
                     <div class="pm-sidebar-col" style="display: flex; flex-direction: column; gap: 1.5rem;">
-                         <div class="glass-card" style="padding: 0; border-radius: 12px; background: white; border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column;">
-                            <div style="padding: 0.85rem 1rem; background: var(--brand-gradient); color: white;">
+                          <div class="glass-card" style="padding: 0; border-radius: 12px; background: white; border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; position: relative; z-index: 1;">
+                            <div style="padding: 1rem; background: var(--brand-gradient); color: white; position: relative; z-index: 2;">
                                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
                                     <h3 style="margin: 0; font-size: 0.78rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 6px; font-family: var(--font-titles); text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.9;">
                                         <span class="material-icons-round" style="font-size: 0.95rem;">rocket_launch</span>
                                         In Svolgimento
                                     </h3>
-                                    <div id="sidebar-count" style="background: white; color: var(--brand-viola); padding: 1px 7px; border-radius: 4px; font-weight: 900; font-size: 0.75rem; min-width: 22px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">0</div>
                                 </div>
-                                <div id="sidebar-total-value" style="font-size: 1.25rem; font-weight: 900; letter-spacing: -0.01em; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">€ 0</div>
-                                <div style="font-size: 0.58rem; font-weight: 700; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px;">Valore Totale Commesse</div>
                             </div>
                             <div id="sidebar-list" style="padding: 0.75rem; display: flex; flex-direction: column; gap: 0.65rem; max-height: 500px; overflow-y: auto;">
                                 <div style="text-align:center; padding: 2rem; opacity: 0.5;">Caricamento...</div>
@@ -245,7 +322,6 @@ export async function renderCommesseList(container) {
                                         <span class="material-icons-round" style="color: #f59e0b; font-size: 1.25rem;">hourglass_empty</span>
                                     </div>
                                 </div>
-                                <div style="font-size: 0.8rem; font-weight: 600; color: #f59e0b; opacity: 0.8;" class="funnel-value">€ 0</div>
                             </div>
 
                             <!-- Ongoing Card -->
@@ -259,7 +335,6 @@ export async function renderCommesseList(container) {
                                         <span class="material-icons-round" style="color: #06b6d4; font-size: 1.25rem;">published_with_changes</span>
                                     </div>
                                 </div>
-                                <div style="font-size: 0.8rem; font-weight: 600; color: #06b6d4; opacity: 0.8;" class="funnel-value">€ 0</div>
                             </div>
 
                             <!-- In Pausa Card -->
@@ -273,7 +348,6 @@ export async function renderCommesseList(container) {
                                         <span class="material-icons-round" style="color: #64748b; font-size: 1.25rem;">pause_circle</span>
                                     </div>
                                 </div>
-                                <div style="font-size: 0.8rem; font-weight: 600; color: #64748b; opacity: 0.8;" class="funnel-value">€ 0</div>
                             </div>
                         </div>
 
@@ -382,10 +456,6 @@ export async function renderCommesseList(container) {
             const filteredSidebar = allProjects.filter(p => normalizeStatus(p.status_works) === 'in_svolgimento');
 
             if (countEl) countEl.textContent = filteredSidebar.length;
-            if (totalValueEl) {
-                const total = filteredSidebar.reduce((sum, p) => sum + (parseFloat(p.price_final) || 0), 0);
-                totalValueEl.textContent = `€ ${formatAmount(total)}`;
-            }
             if (!list) return;
 
             if (filteredSidebar.length === 0) {
@@ -408,9 +478,8 @@ export async function renderCommesseList(container) {
                         <span style="max-width: 65%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${o.clients?.business_name || 'N/D'}</span>
                     </div>
                     
-                    <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 12px;">
-                        <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary); line-height: 1.25; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${o.title || 'Senza Titolo'}</div>
-                        <div style="font-size: 0.85rem; font-weight: 800; color: var(--brand-viola); white-space: nowrap;">€ ${formatAmount(parseFloat(o.price_final) || 0)}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                        <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary); line-height: 1.25; flex: 1; min-width: 0; word-break: break-word;">${o.title || 'Senza Titolo'}</div>
                     </div>
                     
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
@@ -518,7 +587,6 @@ export async function renderCommesseList(container) {
                 const total = filtered.reduce((sum, p) => sum + (parseFloat(p.price_final) || 0), 0);
 
                 card.querySelector('.card-count').textContent = count;
-                card.querySelector('.funnel-value').textContent = `€ ${formatAmount(total)}`;
 
                 if (status === activeStatusFilter) {
                     card.style.transform = 'translateY(-4px) scale(1.02)';

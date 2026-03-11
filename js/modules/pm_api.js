@@ -1,13 +1,27 @@
 import { supabase } from '../modules/config.js';
 import { state } from '../modules/state.js';
-import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=1000';
-import { generateRecurrences } from './utils.js';
+import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=1241';
+import { generateRecurrences, joinNames } from './utils.js?v=1241';
 
-export async function fetchAllCollaborators() {
+const CACHE_STALE_TIME = 2 * 60 * 1000; // 2 minutes
+
+function isCacheValid(key, force = false) {
+    if (force) return false;
+    const lastFetch = state.lastFetchTimestamps?.[key];
+    if (!lastFetch) return false;
+    return (Date.now() - lastFetch) < CACHE_STALE_TIME;
+}
+
+function updateCacheTimestamp(key) {
+    if (!state.lastFetchTimestamps) state.lastFetchTimestamps = {};
+    state.lastFetchTimestamps[key] = Date.now();
+}
+
+export async function fetchAllCollaborators(force = false) {
+    if (isCacheValid('collaborators', force)) return state.collaborators;
     const { data, error } = await supabase
         .from('collaborators')
         .select('*')
-        .not('status', 'eq', 'archived')
         .order('full_name');
 
     if (error) {
@@ -151,10 +165,19 @@ export async function fetchSpace(spaceId) {
     return data;
 }
 
-export async function fetchInternalSpaces() {
+export async function fetchInternalSpaces(force = false) {
+    if (isCacheValid('pm_spaces_internal', force)) return state.pm_spaces_internal || [];
+
     const { data, error } = await supabase
         .from('pm_spaces')
-        .select('*')
+        .select(`
+            *,
+            pm_space_assignees (
+                user_ref,
+                collaborator_ref,
+                role
+            )
+        `)
         .eq('type', 'interno')
         .order('is_cluster', { ascending: false }) // Clusters first
         .order('created_at', { ascending: false });
@@ -163,6 +186,8 @@ export async function fetchInternalSpaces() {
         console.error("Error fetching internal spaces:", error);
         return [];
     }
+    state.pm_spaces_internal = data;
+    updateCacheTimestamp('pm_spaces_internal');
     return data;
 }
 
@@ -254,7 +279,10 @@ export async function deleteSpace(spaceId) {
 }
 
 // --- ITEMS ---
-export async function fetchPMItem(itemId) {
+export async function fetchPMItem(itemId, force = false) {
+    const cacheKey = `pm_item_${itemId}`;
+    if (isCacheValid(cacheKey, force)) return state[cacheKey];
+
     const { data, error } = await supabase
         .from('pm_items')
         .select(`
@@ -290,10 +318,15 @@ export async function fetchPMItem(itemId) {
         data.pm_item_assignees = await _expandAssignees(data.pm_item_assignees);
     }
 
+    state[cacheKey] = data;
+    updateCacheTimestamp(cacheKey);
     return data;
 }
 
-export async function fetchChildItems(parentId) {
+export async function fetchChildItems(parentId, force = false) {
+    const cacheKey = `pm_child_items_${parentId}`;
+    if (isCacheValid(cacheKey, force)) return state[cacheKey] || [];
+
     const { data, error } = await supabase
         .from('pm_items')
         .select(`
@@ -323,12 +356,16 @@ export async function fetchChildItems(parentId) {
         }
     }
 
+    state[cacheKey] = data;
+    updateCacheTimestamp(cacheKey);
     return data || [];
 }
 
 
-export async function fetchProjectItems(spaceId) {
-    // Fetch items and their relations
+export async function fetchProjectItems(spaceId, force = false) {
+    const cacheKey = `pm_items_${spaceId}`;
+    if (isCacheValid(cacheKey, force)) return state[cacheKey] || [];
+
     const { data, error } = await supabase
         .from('pm_items')
         .select(`
@@ -343,16 +380,11 @@ export async function fetchProjectItems(spaceId) {
         console.error("Error fetching items:", error);
         return [];
     }
+    if (!data) return [];
 
-    if (!data || data.length === 0) return [];
-
-    // Expand assignees for all items
-    // Since _expandAssignees works on a flat list of assignee records, 
-    // we collect all, expand, and then map back.
     const allAssignees = data.flatMap(item => item.pm_item_assignees || []);
     if (allAssignees.length > 0) {
         const expandedAll = await _expandAssignees(allAssignees);
-        // Map back to items
         data.forEach(item => {
             if (item.pm_item_assignees) {
                 item.pm_item_assignees = expandedAll.filter(a =>
@@ -361,7 +393,8 @@ export async function fetchProjectItems(spaceId) {
             }
         });
     }
-
+    state[cacheKey] = data;
+    updateCacheTimestamp(cacheKey);
     return data;
 }
 
@@ -565,17 +598,22 @@ export async function unlinkIncaricoFromItem(itemId, incaricoId) {
 
 // --- SPACE ASSIGNEES ---
 
-export async function fetchSpaceAssignees(spaceId) {
+export async function fetchSpaceAssignees(spaceId, force = false) {
+    const cacheKey = `pm_space_assignees_${spaceId}`;
+    if (isCacheValid(cacheKey, force)) return state[cacheKey] || [];
+
     const { data, error } = await supabase
         .from('pm_space_assignees')
         .select('id, user_ref, collaborator_ref, role, created_at')
         .eq('pm_space_ref', spaceId);
 
     if (error) throw error;
-    if (!data || data.length === 0) return [];
+    if (!data) return [];
 
-    // Reusing the same profile/collab expansion logic as fetchItemAssignees
-    return _expandAssignees(data);
+    const expanded = await _expandAssignees(data);
+    state[cacheKey] = expanded;
+    updateCacheTimestamp(cacheKey);
+    return expanded;
 }
 
 export async function assignUserToSpace(spaceId, userIdOrCollabId, role = 'pm', isCollabId = false) {
@@ -657,14 +695,14 @@ async function _expandAssignees(data) {
         if (collaborator) {
             user.first_name = collaborator.first_name || collaborator.full_name?.split(' ')[0] || '';
             user.last_name = collaborator.last_name || collaborator.full_name?.split(' ').slice(1).join(' ') || '';
-            user.full_name = collaborator.full_name || `${user.first_name} ${user.last_name}`.trim();
+            user.full_name = collaborator.full_name || [user.first_name, user.last_name].filter(v => v && v !== 'null').join(' ');
             user.avatar_url = collaborator.avatar_url;
         }
 
         if (profile) {
             user.first_name = profile.first_name && profile.first_name !== 'Utente' ? profile.first_name : (user.first_name || profile.first_name);
             user.last_name = profile.last_name ? profile.last_name : (user.last_name || profile.last_name);
-            user.full_name = `${user.first_name} ${user.last_name}`.trim() || profile.full_name;
+            user.full_name = [user.first_name, user.last_name].filter(v => v && v !== 'null').join(' ') || profile.full_name;
             if (!user.avatar_url) user.avatar_url = profile.avatar_url;
         }
 
@@ -680,7 +718,10 @@ async function _expandAssignees(data) {
 
 // --- COMMENTS ---
 
-export async function fetchItemComments(itemId) {
+export async function fetchItemComments(itemId, force = false) {
+    const cacheKey = `pm_comments_${itemId}`;
+    if (isCacheValid(cacheKey, force)) return state[cacheKey] || [];
+
     const { data, error } = await supabase
         .from('pm_item_comments')
         .select(`
@@ -695,6 +736,8 @@ export async function fetchItemComments(itemId) {
         .order('created_at', { ascending: true });
 
     if (error) throw error;
+    state[cacheKey] = data;
+    updateCacheTimestamp(cacheKey);
     return data || [];
 }
 

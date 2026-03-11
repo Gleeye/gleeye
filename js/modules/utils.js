@@ -8,11 +8,25 @@ export const formatAmount = (amount) => {
     return parts.join(',');
 };
 
+export const debounce = (fn, delay) => {
+    let timeoutId;
+    return (...args) => {
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            fn(...args);
+        }, delay);
+    };
+};
+
 export function getInitials(name) {
     if (!name) return '';
     const parts = name.split(' ');
     const initials = parts.map(n => n[0]).join('').substring(0, 2).toUpperCase();
     return initials;
+}
+
+export function joinNames(...parts) {
+    return parts.flat().filter(v => v && v !== 'null' && v !== 'undefined' && v !== 'Utente').map(v => v.trim()).filter(Boolean).join(' ').trim() || '';
 }
 
 export function formatDate(date, full = false) {
@@ -42,7 +56,7 @@ export function getAvatarColor(name) {
 export function renderAvatar(person, options = {}) {
     if (!person) return '';
     const { size = 28, borderRadius = '8px', fontSize = '0.7rem', border = true } = options;
-    const name = person.full_name || person.name || 'U';
+    const name = person.full_name && person.full_name !== 'null' ? person.full_name : joinNames(person.first_name, person.last_name) || person.name || 'U';
     const avatarUrl = person.avatar_url;
 
     if (avatarUrl) {

@@ -1,6 +1,22 @@
 import { supabase } from '../modules/config.js';
 import { state } from '/js/modules/state.js';
 
+const CACHE_STALE_TIME = 2 * 60 * 1000; // 2 minutes for most data
+
+function isCacheValid(key, force = false) {
+    if (force) return false;
+    const lastFetch = state.lastFetchTimestamps?.[key];
+    if (!lastFetch) return false;
+    return (Date.now() - lastFetch) < CACHE_STALE_TIME;
+}
+
+function updateCacheTimestamp(key) {
+    if (!state.lastFetchTimestamps) state.lastFetchTimestamps = {};
+    state.lastFetchTimestamps[key] = Date.now();
+    // Dispatch event to notify listeners that data has been updated
+    window.dispatchEvent(new CustomEvent('data:cached', { detail: { key } }));
+}
+
 export async function fetchProfile() {
     const { data: authData } = await supabase.auth.getUser();
     const user = authData?.user;
@@ -108,11 +124,12 @@ export async function fetchProfile() {
     }
 }
 
-export async function fetchClients() {
+export async function fetchClients(force = false) {
+    if (isCacheValid('clients', force)) return state.clients;
     console.log("Fetching clients...");
     const { data: clients, error } = await supabase
         .from('clients')
-        .select('*')
+        .select('id, business_name, client_code, vat_number, email') // fetch only needed columns for list
         .order('business_name', { ascending: true });
 
     if (error) {
@@ -120,6 +137,8 @@ export async function fetchClients() {
         return;
     }
     state.clients = clients || [];
+    updateCacheTimestamp('clients');
+    return state.clients;
 }
 
 export async function upsertClient(client) {
@@ -177,7 +196,8 @@ export async function generateNextOrderNumber() {
     return `${prefix}${nextNum.toString().padStart(4, '0')}`;
 }
 
-export async function fetchOrders() {
+export async function fetchOrders(force = false) {
+    if (isCacheValid('orders', force)) return state.orders;
     console.log("Fetching orders with commercial details...");
     const { data: orders, error } = await supabase
         .from('orders')
@@ -211,13 +231,16 @@ export async function fetchOrders() {
                 collaborators (id, full_name, role, avatar_url)
             )
         `)
-        .order('order_number', { ascending: false });
+        .order('order_number', { ascending: false })
+        .limit(100); // Limit dashboard orders to 100
 
     if (error) {
         console.error("Orders fetch failed:", error);
         return;
     }
     state.orders = orders || [];
+    updateCacheTimestamp('orders');
+    return state.orders;
 }
 
 export async function upsertOrder(order) {
@@ -509,11 +532,12 @@ export async function updateOrderEconomics(id, { price_final, cost_final }) {
     return data;
 }
 
-export async function fetchCollaborators() {
+export async function fetchCollaborators(force = false) {
+    if (isCacheValid('collaborators', force)) return state.collaborators;
     console.log("Fetching collaborators...");
     const { data: collaborators, error } = await supabase
         .from('collaborators')
-        .select('*')
+        .select('id, full_name, role, email, avatar_url, phone, tags, user_id')
         .order('full_name', { ascending: true });
 
     if (error) {
@@ -521,14 +545,16 @@ export async function fetchCollaborators() {
         return [];
     }
     state.collaborators = collaborators || [];
+    updateCacheTimestamp('collaborators');
     return state.collaborators;
 }
 
-export async function fetchContacts() {
+export async function fetchContacts(force = false) {
+    if (isCacheValid('contacts', force)) return state.contacts;
     console.log("Fetching contacts...");
     const { data: contacts, error } = await supabase
         .from('contacts')
-        .select('*')
+        .select('id, full_name, email, phone, role, client_id')
         .order('full_name', { ascending: true });
 
     if (error) {
@@ -537,9 +563,12 @@ export async function fetchContacts() {
     }
     console.log(`Fetched ${contacts?.length || 0} contacts.`);
     state.contacts = contacts || [];
+    updateCacheTimestamp('contacts');
+    return state.contacts;
 }
 
-export async function fetchInvoices() {
+export async function fetchInvoices(force = false) {
+    if (isCacheValid('invoices', force)) return state.invoices;
     console.log("Fetching invoices...");
     const { data: invoices, error } = await supabase
         .from('invoices')
@@ -548,16 +577,20 @@ export async function fetchInvoices() {
             clients (id, business_name, client_code),
             orders (id, order_number, title)
         `)
-        .order('invoice_date', { ascending: false });
+        .order('invoice_date', { ascending: false })
+        .limit(100);
 
     if (error) {
         console.error("Invoices fetch failed:", error);
         return;
     }
     state.invoices = invoices || [];
+    updateCacheTimestamp('invoices');
+    return state.invoices;
 }
 
-export async function fetchPassiveInvoices() {
+export async function fetchPassiveInvoices(force = false) {
+    if (isCacheValid('passiveInvoices', force)) return state.passiveInvoices;
     console.log("Fetching passive invoices...");
     const { data: passiveInvoices, error } = await supabase
         .from('passive_invoices')
@@ -566,7 +599,8 @@ export async function fetchPassiveInvoices() {
             suppliers (name),
             collaborators (full_name, type)
         `)
-        .order('issue_date', { ascending: false });
+        .order('issue_date', { ascending: false })
+        .limit(100);
 
     if (error) {
         console.error("Passive Invoices fetch failed:", error);
@@ -576,13 +610,16 @@ export async function fetchPassiveInvoices() {
         return;
     }
     state.passiveInvoices = passiveInvoices || [];
+    updateCacheTimestamp('passiveInvoices');
+    return state.passiveInvoices;
 }
 
-export async function fetchSuppliers() {
+export async function fetchSuppliers(force = false) {
+    if (isCacheValid('suppliers', force)) return state.suppliers;
     console.log("Fetching suppliers...");
     const { data: suppliers, error } = await supabase
         .from('suppliers')
-        .select('*')
+        .select('id, name, city, vat_number')
         .order('name');
 
     if (error) {
@@ -590,6 +627,8 @@ export async function fetchSuppliers() {
         return;
     }
     state.suppliers = suppliers || [];
+    updateCacheTimestamp('suppliers');
+    return state.suppliers;
 }
 
 export async function fetchDepartments() {
@@ -663,7 +702,10 @@ export async function deleteCollaborator(id) {
 }
 
 
-export async function fetchBankTransactions(status = null) {
+export async function fetchBankTransactions(status = null, force = false) {
+    const cacheKey = `bankTransactions_${status || 'all'}`;
+    if (isCacheValid(cacheKey, force)) return status === 'posted' || !status ? state.bankTransactions : [];
+
     console.log("Fetching bank transactions...", status ? `(status: ${status})` : '');
     let query = supabase
         .from('bank_transactions')
@@ -676,7 +718,8 @@ export async function fetchBankTransactions(status = null) {
             active_invoice_match:invoices(id, invoice_number),
             passive_invoice_match:passive_invoices(id, invoice_number)
                 `)
-        .order('date', { ascending: false });
+        .order('date', { ascending: false })
+        .limit(150);
 
     if (status) {
         query = query.eq('status', status);
@@ -694,6 +737,7 @@ export async function fetchBankTransactions(status = null) {
         state.bankTransactions = data || [];
     }
 
+    updateCacheTimestamp(cacheKey);
     return data || [];
 }
 
@@ -827,7 +871,8 @@ export async function deleteTransactionCategory(id) {
     await refreshCurrentPage();
 }
 
-export async function fetchServices() {
+export async function fetchServices(force = false) {
+    if (isCacheValid('services', force)) return state.services;
     console.log("Fetching services...");
     const { data: services, error } = await supabase
         .from('services')
@@ -839,6 +884,7 @@ export async function fetchServices() {
         return;
     }
     state.services = services || [];
+    updateCacheTimestamp('services');
 }
 
 export async function upsertService(service) {
@@ -865,7 +911,8 @@ export async function upsertService(service) {
 
     return data;
 }
-export async function fetchCollaboratorServices() {
+export async function fetchCollaboratorServices(force = false) {
+    if (isCacheValid('collaboratorServices', force)) return state.collaboratorServices;
     try {
         const { data, error } = await supabase
             .from('collaborator_services')
@@ -875,10 +922,12 @@ export async function fetchCollaboratorServices() {
             services(name),
             collaborators(full_name)
                 `)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(150);
 
         if (error) throw error;
         state.collaboratorServices = data || [];
+        updateCacheTimestamp('collaboratorServices');
         return state.collaboratorServices;
     } catch (error) {
         console.error('Error fetching collaborator services:', error);
@@ -998,7 +1047,8 @@ export async function updateCollaboratorService(id, updates) {
     return data;
 }
 
-export async function fetchAssignments() {
+export async function fetchAssignments(force = false) {
+    if (isCacheValid('assignments', force)) return state.assignments;
     console.log("Fetching assignments...");
     const { data, error } = await supabase
         .from('assignments')
@@ -1011,13 +1061,15 @@ export async function fetchAssignments() {
             ),
             collaborators(full_name, avatar_url)
                 `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100);
 
     if (error) {
         console.error("Assignments fetch failed:", error);
         return;
     }
     state.assignments = data || [];
+    updateCacheTimestamp('assignments');
 }
 
 export async function fetchAssignmentDetail(id) {
@@ -1141,7 +1193,8 @@ export async function deleteGoogleAuth(collaboratorId) {
     return true;
 }
 
-export async function fetchPayments() {
+export async function fetchPayments(force = false) {
+    if (isCacheValid('payments', force)) return state.payments;
     console.log("Fetching payments...");
     const { data, error } = await supabase
         .from('payments')
@@ -1155,13 +1208,16 @@ export async function fetchPayments() {
             orders(order_number, title, clients(business_name)),
             assignments(legacy_id, description)
                 `)
-        .order('due_date', { ascending: true });
+        .order('due_date', { ascending: true })
+        .limit(200);
 
     if (error) {
         console.error("Payments fetch failed:", error);
         return;
     }
     state.payments = data || [];
+    updateCacheTimestamp('payments');
+    return state.payments;
 }
 
 export async function upsertPayment(payment) {

@@ -168,7 +168,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         collaborator_ref: a.collaborator_ref,
                         role: a.role,
                         user: a.user,
-                        displayName: a.user?.full_name || [a.user?.first_name, a.user?.last_name].filter(v => v && v !== 'null').join(' ') || 'Utente'
+                        displayName: a.user?.full_name && a.user.full_name !== 'null' ? a.user.full_name : joinNames(a.user?.first_name, a.user?.last_name) || 'Utente'
                     }));
                 } else {
                     item = { item_type: itemType, status: 'todo', priority: 'medium', notes: defaultNote, title: '', is_account_level, parent_ref: currentParentRef };
@@ -748,7 +748,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                     ${assignees.filter(a => a.role === 'pm').map(a => `
                                         <div class="assignee-pill" style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; padding-left: 4px; background: rgba(139, 92, 246, 0.04); border: 1px solid rgba(139, 92, 246, 0.1); border-radius: 20px; font-size: 0.8rem; font-weight: 400; color: #8b5cf6; min-width: 0; height: 32px; box-sizing: border-box; position: relative; padding-right: 28px;">
                                             ${renderAvatar(a.user, { size: 24, borderRadius: '50%' })}
-                                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${a.user?.full_name || [a.user?.first_name, a.user?.last_name].filter(v => v && v !== 'null').join(' ') || 'PM'}</span>
+                                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${a.user?.full_name && a.user.full_name !== 'null' ? a.user.full_name : joinNames(a.user?.first_name, a.user?.last_name) || 'PM'}</span>
                                             <div onclick="window.quickRemoveAssignee('${itemId}', '${a.id}')" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; background: rgba(139, 92, 246, 0.1); color: #8b5cf6; transition: all 0.2s;" onmouseover="this.style.background='rgba(139, 92, 246, 0.3)'" onmouseout="this.style.background='rgba(139, 92, 246, 0.1)'">
                                                 <span class="material-icons-round" style="font-size: 12px;">close</span>
                                             </div>
@@ -768,7 +768,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                     ${assignees.filter(a => a.role !== 'pm').map(a => `
                                         <div class="assignee-pill" style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; padding-left: 4px; background: #fff; border: 1px solid #f1f5f9; border-radius: 20px; font-size: 0.8rem; font-weight: 400; color: var(--text-secondary); box-shadow: 0 1px 2px rgba(0,0,0,0.02); min-width: 0; height: 32px; box-sizing: border-box; position: relative; padding-right: 28px;">
                                             ${renderAvatar(a.user, { size: 24, borderRadius: '50%' })}
-                                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${a.user?.full_name || [a.user?.first_name, a.user?.last_name].filter(v => v && v !== 'null').join(' ') || 'User'}</span>
+                                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${a.user?.full_name && a.user.full_name !== 'null' ? a.user.full_name : joinNames(a.user?.first_name, a.user?.last_name) || 'User'}</span>
                                             <div onclick="window.quickRemoveAssignee('${itemId}', '${a.id}')" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #64748b; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
                                                 <span class="material-icons-round" style="font-size: 12px;">close</span>
                                             </div>

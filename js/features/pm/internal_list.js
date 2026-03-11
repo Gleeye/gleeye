@@ -1,630 +1,495 @@
-import { fetchInternalSpaces, createInternalSpace, createCluster, createProjectInCluster } from '../../modules/pm_api.js';
-import { openProjectModal } from './components/project_modal.js?v=1000';
+import { fetchInternalSpaces, createInternalSpace, createCluster, createProjectInCluster, fetchPMActivityLogs } from '../../modules/pm_api.js?v=1241';
+import { openProjectModal } from './components/project_modal.js?v=1241';
 import { supabase } from '../../modules/config.js';
 import { state } from '../../modules/state.js';
+import { renderAvatar } from '../../modules/utils.js?v=1241';
 
 const COMPANY_AREAS = [
-    { id: 'amministrazione', label: 'Amministrazione', color: '#3b82f6', bg: '#eff6ff', icon: 'account_balance' },
-    { id: 'marketing', label: 'Marketing', color: '#f59e0b', bg: '#fffbeb', icon: 'campaign' },
-    { id: 'produzione', label: 'Produzione', color: '#10b981', bg: '#ecfdf5', icon: 'factory' },
-    { id: 'ricerca_sviluppo', label: 'Ricerca e Sviluppo', color: '#8b5cf6', bg: '#f5f3ff', icon: 'biotech' },
-    { id: 'risorse_umane', label: 'Risorse Umane', color: '#f97316', bg: '#fff7ed', icon: 'groups' },
-    { id: 'servizi', label: 'Servizi', color: '#64748b', bg: '#f1f5f9', icon: 'cleaning_services' },
-    { id: 'vendite', label: 'Vendite', color: '#ef4444', bg: '#fef2f2', icon: 'shopping_cart' }
-];
+    { id: 'amministrazione', label: 'Amministrazione', color: 'var(--brand-viola)', bg: 'rgba(97, 74, 162, 0.05)', icon: 'account_balance' },
+    { id: 'marketing', label: 'Marketing', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.05)', icon: 'campaign' },
+    { id: 'produzione', label: 'Produzione', color: '#10b981', bg: 'rgba(16, 185, 129, 0.05)', icon: 'factory' },
+    { id: 'ricerca_sviluppo', label: 'Ricerca e Sviluppo', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.05)', icon: 'biotech' },
+    { id: 'risorse_umane', label: 'Risorse Umane', color: '#f97316', bg: 'rgba(249, 115, 22, 0.05)', icon: 'groups' },
+    { id: 'servizi', label: 'Servizi', color: '#64748b', bg: 'rgba(100, 116, 139, 0.05)', icon: 'cleaning_services' },
+    { id: 'vendite', label: 'Vendite', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.05)', icon: 'shopping_cart' }
+].sort((a, b) => a.label.localeCompare(b.label));
 
 export async function renderInternalProjects(container, initialFilter) {
     container.innerHTML = `
-        <div style="height: 100%; display: flex; align-items: center; justify-content: center; background: #f8fafc;">
-            <div class="loader-container" style="text-align: center;">
-                <span class="loader"></span>
-                <p style="margin-top: 1rem; color: #64748b; font-weight: 500;">Caricamento Dashboard...</p>
-            </div>
+        <div style="height: 100%; display: flex; align-items: center; justify-content: center; background: var(--bg-primary);">
+            <div class="loader-container"><div class="loader"></div></div>
         </div>
     `;
 
     try {
-        // 1. Fetch Basic Data (and assignees for PM role detection)
-        // Include both user_ref AND collaborator_ref for PM lookup
-        const { data: spaces, error } = await supabase
-            .from('pm_spaces')
-            .select(`
-                *,
-                pm_space_assignees (
-                    user_ref,
-                    collaborator_ref,
-                    role
-                )
-            `)
-            .eq('type', 'interno')
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        // 1b. Ensure we have collaborators for PM resolution
-        // We fetch fresh to be sure, as state might be stale or empty
-        const { data: collaborators } = await supabase
-            .from('collaborators')
-            .select('*');
-
-        // 2. Fetch Aggregated Stats (Child counts, Activities, Tasks)
-        const spaceIds = spaces.map(s => s.id);
-
-        let stats = {}; // spaceId -> { activeProjects, activities, tasks }
-        // Initialize
-        spaces.forEach(s => stats[s.id] = {
-            activeProjects: 0,
-            activities: { total: 0, open: 0, overdue: 0, team: new Set(), nextAction: null },
-            tasks: { total: 0, completed: 0 }
+        const spaces = await fetchInternalSpaces();
+        const spaceIds = (spaces || []).map(s => s.id);
+        
+        // Fetch Area Managers from system_config
+        const { data: configData } = await supabase.from('system_config').select('key, value').like('key', 'area_manager_%');
+        const areaManagers = {};
+        (configData || []).forEach(row => {
+            areaManagers[row.key.replace('area_manager_', '')] = row.value;
         });
 
-        if (spaceIds.length > 0) {
-            // Count child projects for Clusters
-            const { data: children } = await supabase
-                .from('pm_spaces')
-                .select('id, parent_ref')
-                .in('parent_ref', spaceIds);
+        const { data: allItems, error: itemsError } = await supabase
+            .from('pm_items')
+            .select(`id, space_ref, title, status, due_date, cloud_links, pm_item_assignees ( user_ref, collaborator_ref )`)
+            .in('space_ref', spaceIds)
+            .is('archived_at', null);
 
-            (children || []).forEach(c => {
-                if (stats[c.parent_ref]) stats[c.parent_ref].activeProjects++;
-            });
+        if (itemsError) throw itemsError;
 
-            // Fetch Activities (pm_items) with Assignees
-            const { data: items } = await supabase
-                .from('pm_items')
-                .select(`
-                    id, space_ref, title, status, due_date,
-                    pm_item_assignees ( user_ref )
-                `)
-                .in('space_ref', spaceIds)
-                .is('archived_at', null);
+        const collaborators = state.collaborators || [];
+        const statsMap = {};
+        (spaces || []).forEach(s => {
+            statsMap[s.id] = {
+                activeProjects: 0,
+                activities: { total: 0, open: 0, overdue: 0, team: new Set(), nextAction: null, tasks: 0 }
+            };
+        });
 
-            const activeItemIds = [];
+        // Hierarchy and stats mapping
+        (spaces || []).forEach(s => {
+            if (s.parent_ref && statsMap[s.parent_ref]) statsMap[s.parent_ref].activeProjects++;
+        });
 
-            (items || []).forEach(item => {
-                activeItemIds.push(item.id);
-                const s = stats[item.space_ref];
-                if (!s) return;
-
-                s.activities.total++;
-
-                // Add assignees to team set (unique user IDs)
-                item.pm_item_assignees?.forEach(a => {
-                    if (a.user_ref) s.activities.team.add(a.user_ref);
-                });
-
-                if (item.status !== 'done') {
-                    s.activities.open++;
-
-                    // Check Overdue
-                    const isOverdue = item.due_date && new Date(item.due_date) < new Date();
-                    if (isOverdue) s.activities.overdue++;
-
-                    // Determine Next Action
-                    if (!s.activities.nextAction || (item.due_date && new Date(item.due_date) < new Date(s.activities.nextAction.due_date))) {
-                        s.activities.nextAction = {
-                            title: item.title,
-                            date: item.due_date ? new Date(item.due_date) : null,
-                            isOverdue
-                        };
-                    } else if (!s.activities.nextAction.date && !item.due_date) {
-                        s.activities.nextAction = { title: item.title, date: null, isOverdue: false };
-                    }
+        const now = new Date();
+        (allItems || []).forEach(item => {
+            const s = statsMap[item.space_ref];
+            if (!s) return;
+            
+            // It's an activity if it has no parent or a specific type, but in Gleeye ERP 
+            // the convention is often based on the depth or parent_ref in pm_items.
+            // For this summary, we treat everything in pm_items as an "attività".
+            // If the user distinguishes "task" as sub-items, we need to adapt.
+            // Assuming "att" = activities (top level pm_items in space) and "task" = sub-items or all pm_items.
+            // Looking at the screen2: "0 prog 14 att 0 task"
+            // Let's assume:
+            // - PROG: subspaces
+            // - ATT: top-level items in the space
+            // - TASK: sub-items (items with parent_ref in pm_items) - need to check if pm_items has parent_ref.
+            
+            s.activities.total++;
+            item.pm_item_assignees?.forEach(a => { 
+                if (a.user_ref) s.activities.team.add(a.user_ref);
+                else if (a.collaborator_ref) {
+                    const c = collaborators.find(collab => collab.id === a.collaborator_ref);
+                    if (c?.user_id) s.activities.team.add(c.user_id);
                 }
             });
-
-            // Fetch Tasks (Checklists) - Try/Catch in case table doesn't exist yet
-            try {
-                if (activeItemIds.length > 0) {
-                    const { data: checklists } = await supabase
-                        .from('pm_item_checklists')
-                        .select('id, pm_item_ref, is_completed')
-                        .in('pm_item_ref', activeItemIds);
-
-                    const itemSpaceMap = {};
-                    items.forEach(i => itemSpaceMap[i.id] = i.space_ref);
-
-                    (checklists || []).forEach(c => {
-                        const spaceId = itemSpaceMap[c.pm_item_ref];
-                        if (spaceId && stats[spaceId]) {
-                            stats[spaceId].tasks.total++;
-                            if (c.is_completed) stats[spaceId].tasks.completed++;
-                        }
-                    });
+            if (item.status !== 'done') {
+                s.activities.open++;
+                const itemDate = item.due_date ? new Date(item.due_date) : null;
+                if (itemDate && itemDate < now) s.activities.overdue++;
+                if (!s.activities.nextAction || (itemDate && itemDate < new Date(s.activities.nextAction.date))) {
+                    s.activities.nextAction = { title: item.title, date: item.due_date || null };
                 }
-            } catch (e) {
-                console.warn("Checklist fetch failed:", e);
             }
+        });
+
+        let currentAreaId = 'marketing';
+        if (initialFilter) {
+            const found = COMPANY_AREAS.find(a => a.id === initialFilter.toLowerCase() || a.label.toLowerCase() === initialFilter.toLowerCase());
+            if (found) currentAreaId = found.id;
         }
 
-        let currentFilter = 'tutti';
+        // Default to first cluster of the area
+        const activeArea = COMPANY_AREAS.find(a => a.id === currentAreaId) || COMPANY_AREAS[0];
+        const areaClusters = (spaces || []).filter(s => s.is_cluster && (s.area || '').toLowerCase() === activeArea.label.toLowerCase());
+        
+        let currentClusterId = areaClusters[0]?.id || 'all';
+        let currentKpiFilter = 'all';
+        let currentTab = 'overview';
 
-        // Use initial filter if provided and matches an area
-        if (initialFilter && initialFilter !== 'interni') {
-            const area = COMPANY_AREAS.find(a => a.label.toLowerCase() === initialFilter.toLowerCase() || a.id === initialFilter.toLowerCase());
-            if (area) currentFilter = area.label.toLowerCase();
-        }
-
-        // Helper to get collaborator info - check BOTH user_id AND id (collaborator_ref)
         const getCollab = (uid, collabId) => {
-            const list = collaborators || state.collaborators || [];
-            if (uid) {
-                const byUserId = list.find(c => c.user_id === uid);
-                if (byUserId) return byUserId;
-            }
-            if (collabId) {
-                const byCollabId = list.find(c => c.id === collabId);
-                if (byCollabId) return byCollabId;
-            }
+            if (uid) return collaborators.find(c => c.user_id === uid);
+            if (collabId) return collaborators.find(c => c.id === collabId);
             return null;
         };
 
-        // Helper to resolve manager: default_pm_user_ref OR fallback to first 'manager'/'pm' role assignee
-        const getManager = (space) => {
-            // 1. Priority: Find assignee with role 'manager' or 'pm'
-            // This overrides the default_pm_user_ref (which is often just the creator)
-            const roleBased = space.pm_space_assignees?.find(a => ['manager', 'pm', 'admin'].includes(a.role));
-            if (roleBased) {
-                return getCollab(roleBased.user_ref, roleBased.collaborator_ref);
+        const renderUI = async () => {
+            const activeArea = COMPANY_AREAS.find(a => a.id === currentAreaId) || COMPANY_AREAS[0];
+            const areaClusters = (spaces || []).filter(s => s.is_cluster && (s.area || '').toLowerCase() === activeArea.label.toLowerCase());
+            
+            // Ensure currentClusterId is valid for the area, or reset
+            if (currentClusterId !== 'all' && !areaClusters.find(c => c.id === currentClusterId)) {
+                currentClusterId = areaClusters[0]?.id || 'all';
             }
 
-            // 2. Fallback: default_pm_user_ref
-            if (space.default_pm_user_ref) {
-                const pm = getCollab(space.default_pm_user_ref, null);
-                if (pm) return pm;
+            const activeCluster = areaClusters.find(c => c.id === currentClusterId);
+            const clusterManagerRec = activeCluster?.pm_space_assignees?.find(a => a.role === 'manager');
+            const clusterManager = clusterManagerRec ? getCollab(clusterManagerRec.user_ref, clusterManagerRec.collaborator_ref) : getCollab(null, areaManagers[currentAreaId]);
+
+            let visibleProjects = [];
+            if (currentClusterId === 'all') {
+                visibleProjects = (spaces || []).filter(s => !s.is_cluster && (s.area || '').toLowerCase() === activeArea.label.toLowerCase() && !s.parent_ref);
+            } else {
+                visibleProjects = (spaces || []).filter(s => s.parent_ref === currentClusterId);
             }
 
-            // 3. Last resort: Just take the first assignee
-            const firstAssignee = space.pm_space_assignees?.[0];
-            if (firstAssignee) {
-                return getCollab(firstAssignee.user_ref, firstAssignee.collaborator_ref);
-            }
+            const kpiTotal = visibleProjects.length;
+            const kpiOpen = visibleProjects.reduce((acc, p) => acc + (statsMap[p.id]?.activities.open || 0), 0);
+            const kpiOverdue = visibleProjects.reduce((acc, p) => acc + (statsMap[p.id]?.activities.overdue || 0), 0);
 
-            return null;
-        };
+            // Filter projects based on KPI
+            let filteredProjects = [...visibleProjects];
+            if (currentKpiFilter === 'open') filteredProjects = filteredProjects.filter(p => (statsMap[p.id]?.activities.open || 0) > 0);
+            else if (currentKpiFilter === 'overdue') filteredProjects = filteredProjects.filter(p => (statsMap[p.id]?.activities.overdue || 0) > 0);
 
-        const renderContent = () => {
-            const filteredSpaces = currentFilter === 'tutti'
-                ? spaces
-                : spaces.filter(s => (s.area || '').toLowerCase() === currentFilter.toLowerCase());
-
-            const clusters = filteredSpaces.filter(s => s.is_cluster);
-            const independentProjects = filteredSpaces.filter(s => !s.is_cluster && !s.parent_ref);
-
-            // Sorting
-            const sortedProjects = [...independentProjects].sort((a, b) => {
-                const sA = stats[a.id]?.activities || { open: 0, overdue: 0 };
-                const sB = stats[b.id]?.activities || { open: 0, overdue: 0 };
-                if (sA.overdue !== sB.overdue) return sB.overdue - sA.overdue;
-                return sB.open - sA.open;
-            });
-
-
-            // Aggregate Dashboard Stats
-            const totalActiveProjects = independentProjects.length;
-            const totalActivities = Object.values(stats).reduce((acc, s) => acc + s.activities.total, 0);
-            const openActivities = Object.values(stats).reduce((acc, s) => acc + s.activities.open, 0);
-            const overdueActivities = Object.values(stats).reduce((acc, s) => acc + s.activities.overdue, 0);
+            const isPartner = (state.profile?.tags || []).includes('Partner') || state.profile?.role === 'admin';
+            const managerId = areaManagers[currentAreaId];
+            const manager = collaborators.find(c => c.id === managerId);
 
             container.innerHTML = `
-                <div class="internal-projects-dashboard">
-                    <!-- MAIN CONTENT (Left) -->
-                    <main class="dashboard-main">
-                        <header class="dashboard-header">
-                            <div>
-                                <h1>Dashboard Progetti</h1>
-                                <p>Monitora lo stato di avanzamento e i carichi di lavoro.</p>
-                            </div>
+                <style>
+                    .project-hub { width: auto; margin: 0 -3rem !important; padding: 0 !important; background: transparent; font-family: var(--font-body); }
+                    .project-hub-container { display: flex; width: 100%; min-height: calc(100vh - 60px); gap: 2rem; padding: 1.5rem 2.5rem 2rem 2.5rem; }
+                    
+                    .hub-sidebar { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 1rem; }
+                    .hub-main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
+                    
+                    .glass-card { background: white; border: 1px solid var(--glass-border); border-radius: 12px; box-shadow: var(--shadow-sm); position: relative; }
+                    .sidebar-card { padding: 0.75rem 1rem; }
+                    
+                    /* Sidebar Area Switcher */
+                    .area-trigger { 
+                        width: 100%; display: flex; align-items: center; justify-content: space-between; 
+                        background: none; border: none; padding: 6px 8px; border-radius: 10px; cursor: pointer; 
+                        transition: 0.2s; border: 1px solid transparent; 
+                    }
+                    .area-trigger:hover { background: var(--bg-secondary); }
+                    
+                    .area-pop { position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 2000; padding: 5px; display: none; background: white; border: 1px solid var(--glass-border); border-radius: 12px; box-shadow: var(--shadow-xl); }
+                    .area-pop.active { display: block; animation: popUp 0.15s ease; }
+                    .opt-row { padding: 9px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); transition: 0.2s; }
+                    .opt-row:hover { background: var(--bg-secondary); color: var(--text-primary); }
+                    .opt-row.active { background: var(--brand-gradient); color: white; }
+                    
+                    .resp-block { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: space-between; }
+                    .resp-info { display: flex; align-items: center; gap: 10px; }
+                    .resp-label { font-size: 0.6rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+                    .resp-name { font-size: 0.8rem; font-weight: 700; color: var(--text-primary); }
+                    .resp-edit { color: var(--text-tertiary); cursor: pointer; transition: 0.2s; visibility: hidden; }
+                    .glass-card:hover .resp-edit { visibility: visible; }
+                    .resp-edit:hover { color: var(--brand-blue); }
 
-                            <div class="dropdown" id="new-element-dropdown">
-                                <button class="primary-btn-premium">
-                                    <span class="material-icons-round">add</span>
-                                    Nuovo Progetto
-                                </button>
-                                <div class="dropdown-content">
-                                    <a href="javascript:void(0)" data-type="project">
-                                        <span class="material-icons-round">folder</span> Progetto Singolo
-                                    </a>
-                                    <a href="javascript:void(0)" data-type="cluster">
-                                        <span class="material-icons-round">hub</span> Cluster Continuativo
-                                    </a>
-                                </div>
-                            </div>
-                        </header>
+                    .mng-pop { position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 2100; padding: 5px; display: none; background: white; border: 1px solid var(--glass-border); border-radius: 12px; box-shadow: var(--shadow-xl); max-height: 250px; overflow-y: auto; }
+                    .mng-pop.active { display: block; animation: popUp 0.1s ease; }
+                    .mng-row { padding: 8px 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
+                    .mng-row:hover { background: var(--bg-secondary); color: var(--text-primary); }
 
-                        <!-- Filters -->
-                        <div class="filter-bar">
-                            <button class="filter-pill ${currentFilter === 'tutti' ? 'active' : ''}" data-filter="tutti">Tutti</button>
-                            ${COMPANY_AREAS.map(area => `
-                                <button class="filter-pill ${currentFilter === area.label.toLowerCase() ? 'active' : ''}" data-filter="${area.label}">
-                                    ${area.label}
-                                </button>
-                            `).join('')}
-                        </div>
+                    /* Sidebar Cluster List */
+                    .cluster-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0.85rem; border-radius: 10px; cursor: pointer; border: 1px solid transparent; background: transparent; transition: 0.2s; }
+                    .cluster-item:hover { background: var(--bg-secondary); transform: translateX(3px); }
+                    .cluster-item.active { border-color: var(--brand-viola); background: rgba(97, 74, 162, 0.035); }
+                    
+                    /* Cluster Detail Header */
+                    .cluster-header-card { padding: 1.25rem 1.5rem; background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 1rem; }
+                    .cluster-title { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.02em; }
+                    .cluster-stats-row { display: flex; align-items: center; gap: 1.25rem; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 0.75rem; }
+                    .cluster-stat { display: flex; align-items: baseline; gap: 4px; }
+                    .cluster-stat .n { font-size: 1rem; font-weight: 800; color: var(--text-primary); }
+                    .cluster-stat .l { font-size: 0.8rem; font-weight: 600; color: var(--text-tertiary); }
+                    
+                    /* Tabs */
+                    .hub-tabs { display: flex; background: rgba(255,255,255,0.7); border-bottom: 1px solid var(--glass-border); padding: 0 1.25rem; gap: 0.5rem; backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10; margin-top: 0.5rem; }
+                    .hub-tab { display: flex; align-items: center; gap: 0.5rem; padding: 1.15rem 0.5rem; border: none; background: none; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--text-tertiary); border-bottom: 2px solid transparent; transition: 0.2s; white-space: nowrap; margin-bottom: -1px; }
+                    .hub-tab:hover { color: var(--text-primary); }
+                    .hub-tab.active { color: var(--brand-blue); border-bottom-color: var(--brand-blue); font-weight: 700; }
+                    .hub-tab .material-icons-round { font-size: 1.1rem; }
 
-                        <!-- Hero Stats -->
-                        <div class="hero-stats-grid">
-                            <div class="stat-card">
-                                <div class="stat-icon-bg gray"><span class="material-icons-round">folder_open</span></div>
-                                <div class="stat-info">
-                                    <span class="stat-label">Progetti Attivi</span>
-                                    <span class="stat-value">${totalActiveProjects}</span>
-                                </div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-icon-bg blue"><span class="material-icons-round">list_alt</span></div>
-                                <div class="stat-info">
-                                    <span class="stat-label">Attività Totali</span>
-                                    <span class="stat-value">${totalActivities}</span>
-                                </div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-icon-bg green"><span class="material-icons-round">play_circle</span></div>
-                                <div class="stat-info">
-                                    <span class="stat-label">In Corso</span>
-                                    <span class="stat-value">${openActivities}</span>
-                                </div>
-                            </div>
-                            <div class="stat-card ${overdueActivities > 0 ? 'alert' : ''}">
-                                <div class="stat-icon-bg red"><span class="material-icons-round">warning</span></div>
-                                <div class="stat-info">
-                                    <span class="stat-label">Scadute / Critiche</span>
-                                    <span class="stat-value">${overdueActivities}</span>
-                                </div>
-                            </div>
-                        </div>
+                    /* Master Action */
+                    .premium-add-btn { width: 100%; height: 44px; border-radius: 12px; background: var(--brand-gradient); border: none; color: white; font-family: var(--font-titles); font-weight: 800; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(97, 74, 162, 0.15); letter-spacing: 0.05em; }
+                    .premium-add-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(97, 74, 162, 0.25); }
+                    .master-dropdown { position: absolute; bottom: calc(100% + 8px); left: 0; right: 0; background: white; border: 1px solid var(--glass-border); border-radius: 14px; box-shadow: var(--shadow-xl); padding: 5px; display: none; z-index: 2000; }
+                    .master-dropdown.active { display: block; animation: popUp 0.15s ease; }
+                    .drop-opt { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; cursor: pointer; transition: 0.2s; color: var(--text-primary); }
+                    .drop-opt:hover { background: var(--bg-secondary); }
 
-                        <!-- Projects Grid -->
-                        <div class="projects-grid">
-                            ${sortedProjects.map(p => {
-                const areaCfg = COMPANY_AREAS.find(a => a.label.toLowerCase() === (p.area || '').toLowerCase()) || { label: p.area || 'Generale', color: '#64748b', bg: '#f1f5f9' };
-                const s = stats[p.id] || { activities: { total: 0, open: 0, overdue: 0, nextAction: null, team: new Set() } };
-                const act = s.activities;
-                const progress = act.total > 0 ? Math.round(((act.total - act.open) / act.total) * 100) : 0;
-                const pm = getManager(p);
+                    /* Table & Grid */
+                    .m-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+                    .m-table th { padding: 1rem 1.25rem; text-align: left; font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 800; background: rgba(255,255,255,0.7); border-bottom: 2px solid var(--bg-primary); position: sticky; top: 0; z-index: 10; }
+                    .m-table td { padding: 0.85rem 1.25rem; border-bottom: 1px solid rgba(0,0,0,0.025); vertical-align: middle; }
+                    .m-row { cursor: pointer; transition: 0.2s; }
+                    .m-row:hover { background: #fafafa; }
+                    .avatar-stack-v { display: flex; align-items: center; }
+                    .avatar-stack-v .face { margin-left: -8px; border: 2px solid white; border-radius: 50%; width: 28px; height: 28px; overflow: hidden; background: white; transition: 0.2s; }
+                    .avatar-stack-v .face:first-child { margin-left: 0; }
 
-                // Team
-                const teamIds = Array.from(act.team || []);
-                const teamAvatars = teamIds.slice(0, 3).map(uid => getCollab(uid, null)).filter(Boolean);
-                const extraTeam = teamIds.length > 3 ? teamIds.length - 3 : 0;
+                    .health-dot { width: 6px; height: 6px; border-radius: 50%; }
+                    .health-dot.stable { background: var(--brand-blue); box-shadow: 0 0 8px rgba(59, 130, 246, 0.5); }
+                    .health-dot.urgent { background: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
 
-                return `
-                                    <div class="project-card ${act.overdue > 0 ? 'status-red' : (act.open > 5 ? 'status-yellow' : 'status-green')}" onclick="window.location.hash='#pm/space/${p.id}'">
-                                        <div class="card-header">
-                                            <div class="area-pill" style="background: ${areaCfg.bg}; color: ${areaCfg.color};">
-                                                ${areaCfg.label}
-                                            </div>
-                                            ${act.overdue > 0 ? `
-                                                <div class="overdue-badge">
-                                                    <span class="material-icons-round">error</span> ${act.overdue}
-                                                </div>
-                                            ` : ''}
+                    @keyframes popUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                </style>
+
+                <div class="project-hub animate-fade-in">
+                    <div class="project-hub-container">
+                        <aside class="hub-sidebar">
+                            <div class="glass-card sidebar-card" style="z-index: 100;">
+                                <button class="area-trigger" id="area-trigger">
+                                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                        <div style="width: 28px; height: 28px; border-radius: 6px; background: ${activeArea.bg}; display: flex; align-items: center; justify-content: center; color: ${activeArea.color};">
+                                            <span class="material-icons-round" style="font-size: 1rem;">${activeArea.icon}</span>
                                         </div>
-
-                                        <h3 class="project-title">${p.name}</h3>
-                                        
-                                        <div class="next-action-box">
-                                            <span class="label">PROSSIMA ATTIVITÀ</span>
-                                            ${act.nextAction ? `
-                                                <div class="action-row">
-                                                    <span class="action-title text-truncate">${act.nextAction.title}</span>
-                                                    ${act.nextAction.date ? `
-                                                        <span class="action-date ${act.nextAction.isOverdue ? 'text-red' : ''}">
-                                                            ${act.nextAction.date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
-                                                        </span>
-                                                    ` : ''}
-                                                </div>
-                                            ` : `
-                                                <div class="action-row empty">Nessuna attività pianificata</div>
-                                            `}
-                                        </div>
-
-                                        <div class="progress-section">
-                                            <div class="progress-info">
-                                                <span>Avanzamento</span>
-                                                <span>${progress}%</span>
-                                            </div>
-                                            <div class="progress-bar-bg">
-                                                <div class="progress-bar-fill" style="width: ${progress}%; background: ${act.overdue > 0 ? '#ef4444' : 'var(--brand-blue)'}"></div>
-                                            </div>
-                                        </div>
-
-                                        <div class="card-footer">
-                                            <div class="team-stack">
-                                                ${pm ? `<img src="${pm.avatar_url}" class="avatar pm" title="PM: ${pm.full_name}">` : ''}
-                                                ${teamAvatars.map(c => `<img src="${c.avatar_url}" class="avatar" title="${c.full_name}">`).join('')}
-                                                ${extraTeam > 0 ? `<div class="avatar-count">+${extraTeam}</div>` : ''}
-                                            </div>
-                                            <button class="open-btn">
-                                                Apri <span class="material-icons-round">arrow_forward</span>
-                                            </button>
-                                        </div>
+                                        <span style="font-family: var(--font-titles); font-weight: 700; font-size: 1rem; color: var(--text-primary);">${activeArea.label}</span>
                                     </div>
-                                `;
-            }).join('')}
-                        </div>
-                    </main>
-
-                    <!-- SIDEBAR: Clusters (Right) -->
-                    <aside class="dashboard-sidebar">
-                        <div class="sidebar-header">
-                            <h2>Cluster & Framework</h2>
-                            <button class="add-cluster-btn" title="Nuovo Cluster">
-                                <span class="material-icons-round">add_box</span>
-                            </button>
-                        </div>
-
-                        <div class="sidebar-scroll-wrapper">
-                            ${clusters.length === 0 ? `
-                                <div class="empty-state-sidebar">Nessun cluster</div>
-                            ` : clusters.map(c => {
-                const areaCfg = COMPANY_AREAS.find(a => a.label.toLowerCase() === (c.area || '').toLowerCase()) || { label: c.area || 'Generale', color: '#64748b', bg: '#f1f5f9' };
-                const pm = getManager(c);
-                const s = stats[c.id];
-
-                return `
-                                    <div class="cluster-card" onclick="window.location.hash='#pm/space/${c.id}'">
-                                        <div class="cluster-top">
-                                            <span class="cluster-badge" style="color: ${areaCfg.color};">${areaCfg.label}</span>
-                                            <span class="cluster-title">${c.name}</span>
-                                        </div>
-                                        <div class="cluster-stats">
-                                            <span><b>${s.activeProjects}</b> prog</span>
-                                            <span><b>${s.activities.total}</b> att</span>
-                                            <span><b>${s.tasks.total}</b> task</span>
-                                        </div>
-                                        <div class="cluster-pm">
-                                            ${pm ? `<img src="${pm.avatar_url}" alt="">` : ''}
-                                            <span>${pm ? pm.full_name : 'Non assegnato'}</span>
-                                        </div>
+                                    <span class="material-icons-round" style="color: var(--text-tertiary); font-size: 1.1rem;">unfold_more</span>
+                                </button>
+                                <div class="area-pop" id="area-pop">
+                                    ${COMPANY_AREAS.map(a => `<div class="opt-row ${a.id === currentAreaId ? 'active' : ''}" data-id="${a.id}"><span class="material-icons-round" style="font-size: 1rem; color: ${a.id === currentAreaId ? 'white' : a.color}">${a.icon}</span> ${a.label}</div>`).join('')}
+                                </div>
+                                <div class="resp-block">
+                                    <div class="resp-info">
+                                        ${manager ? renderAvatar(manager, { size: 28, borderRadius: '50%' }) : `<div style="width: 28px; height: 28px; border-radius: 50%; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; color: var(--text-tertiary);"><span class="material-icons-round" style="font-size: 1rem;">person_outline</span></div>`}
+                                        <div><div class="resp-label">Responsabile Hub</div><div class="resp-name">${manager ? manager.full_name : 'Non assegnato'}</div></div>
                                     </div>
-                                `;
-            }).join('')}
-                        </div>
-                    </aside>
+                                    ${isPartner ? `<span class="material-icons-round resp-edit" id="mng-trigger" title="Modifica responsabile">edit</span>` : ''}
+                                </div>
+                                <div class="mng-pop" id="mng-pop">
+                                    <div style="padding: 8px; font-weight: 800; font-size: 0.6rem; color: var(--text-tertiary); text-transform: uppercase;">Seleziona Responsabile</div>
+                                    <div class="mng-row" data-val="">Nessuno</div>
+                                    ${collaborators.filter(c => (c.tags || '').toLowerCase().includes('account') || (c.tags || '').toLowerCase().includes('project manager')).map(c => `
+                                        <div class="mng-row" data-val="${c.id}">${renderAvatar(c, { size: 22, borderRadius: '50%' })} ${c.full_name}</div>
+                                    `).join('')}
+                                </div>
+                            </div>
 
-                    <style>
-                        /* LAYOUT */
-                        .internal-projects-dashboard {
-                            display: grid; grid-template-columns: 1fr 260px; height: 100vh;
-                            background: #f8fafc; overflow: hidden; font-family: 'Inter', system-ui, sans-serif;
-                        }
+                            <div class="glass-card sidebar-card" style="flex: 1; display: flex; flex-direction: column; overflow: visible;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding: 0 4px;">
+                                    <span style="font-size: 0.6rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase;">Clusters</span>
+                                    <span class="material-icons-round" style="font-size: 1rem; color: var(--text-tertiary); opacity: 0.5;">workspaces</span>
+                                </div>
+                                <div style="flex: 1; overflow-y: auto;">
+                                    ${areaClusters.length === 0 ? `<div style="padding: 2rem; text-align: center; color: var(--text-tertiary); font-size: 0.75rem;">Nessun cluster</div>` : areaClusters.map(c => `
+                                        <a href="#pm/space/${c.id}" class="cluster-item" style="text-decoration: none;">
+                                            <span class="material-icons-round" style="font-size: 1.1rem; color: var(--text-tertiary)">folder</span>
+                                            <div style="min-width: 0;"><div style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.name}</div><div style="font-size: 0.55rem; color: var(--text-tertiary); font-weight: 600;">${statsMap[c.id].activeProjects} progetti correlati</div></div>
+                                        </a>
+                                    `).join('')}
+                                </div>
+                            </div>
 
-                        /* SIDEBAR (Right) */
-                        .dashboard-sidebar {
-                            background: #f1f5f9; border-left: 1px solid #e2e8f0; 
-                            display: flex; flex-direction: column; overflow: hidden;
-                        }
-                        .sidebar-header {
-                            display: flex; justify-content: space-between; align-items: center; 
-                            padding: 1rem 1rem 0.75rem; border-bottom: 1px solid #e2e8f0; background: white;
-                        }
-                        .sidebar-header h2 {
-                            font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;
-                        }
-                        .add-cluster-btn {
-                            background: none; border: none; color: var(--brand-blue); cursor: pointer; padding: 2px; transition: 0.2s; font-size: 1.2rem;
-                        }
-                        .add-cluster-btn:hover { color: #1d4ed8; transform: scale(1.1); }
-                        
-                        /* SCROLL CONTAINER */
-                        .sidebar-scroll-wrapper {
-                            flex: 1; overflow-y: auto; padding: 0.75rem;
-                            scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent;
-                        }
-                        .sidebar-scroll-wrapper::-webkit-scrollbar { width: 4px; }
-                        .sidebar-scroll-wrapper::-webkit-scrollbar-track { background: transparent; }
-                        .sidebar-scroll-wrapper::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+                            <div style="position: relative; z-index: 50;">
+                                <button class="premium-add-btn" id="master-add-btn"><span class="material-icons-round" style="font-size: 1.1rem;">add</span> CREA NUOVO ELEMENTO</button>
+                                <div class="master-dropdown" id="master-add-dropdown">
+                                    <div class="drop-opt" id="opt-project"><div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(59, 130, 246, 0.08); display: flex; align-items: center; justify-content: center; color: var(--brand-blue);"><span class="material-icons-round">business_center</span></div><div><div style="font-size: 0.8rem; font-weight: 700;">Progetto Interno</div><div style="font-size: 0.65rem; color: var(--text-tertiary);">Spazio operativo dedicato</div></div></div>
+                                    <div style="height: 1px; background: var(--bg-primary); margin: 4px 8px;"></div>
+                                    <div class="drop-opt" id="opt-cluster"><div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(139, 92, 246, 0.08); display: flex; align-items: center; justify-content: center; color: var(--brand-viola);"><span class="material-icons-round">workspaces</span></div><div><div style="font-size: 0.8rem; font-weight: 700;">Cluster Dipartimentale</div><div style="font-size: 0.65rem; color: var(--text-tertiary);">Organizza più progetti</div></div></div>
+                                </div>
+                            </div>
+                        </aside>
 
-                        /* COMPACT CLUSTER CARD */
-                        .cluster-card {
-                            background: #1e293b; color: white;
-                            padding: 0.65rem 0.75rem; border-radius: 10px; 
-                            cursor: pointer; transition: 0.15s ease; margin-bottom: 0.5rem;
-                            display: flex; flex-direction: column; gap: 0.35rem;
-                        }
-                        .cluster-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(30, 41, 59, 0.3); }
+                        <main class="hub-main-content">
+                            <header style="display: flex; justify-content: space-between; align-items: flex-end;">
+                                <div><div style="font-size: 0.6rem; font-weight: 800; color: var(--brand-blue); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 2px;">PANORAMICA AREA</div><h2 id="hub-title" style="font-size: 1.1rem; font-weight: 800; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.015em;">Overview ${activeArea.label}</h2></div>
+                                <div class="kpi-h-row">
+                                    <div class="kpi-h-card ${currentKpiFilter === 'all' ? 'active' : ''}" data-kpi="all"><span class="n">${kpiTotal}</span> <span class="l">Progetti</span></div>
+                                    <div class="kpi-h-card ${currentKpiFilter === 'open' ? 'active blue' : ''}" data-kpi="open"><span class="n">${kpiOpen}</span> <span class="l">Aperti</span></div>
+                                    <div class="kpi-h-card ${currentKpiFilter === 'overdue' ? 'active red' : ''}" data-kpi="overdue"><span class="n">${kpiOverdue}</span> <span class="l">Ritardi</span></div>
+                                </div>
+                            </header>
 
-                        .cluster-top { display: flex; flex-direction: column; gap: 0.15rem; }
-                        .cluster-badge { font-size: 0.55rem; font-weight: 600; text-transform: uppercase; opacity: 0.9; }
-                        .cluster-title { font-size: 0.8rem; font-weight: 600; color: #f8fafc; line-height: 1.15; }
-                        
-                        .cluster-stats {
-                            display: flex; gap: 0.75rem; font-size: 0.65rem; color: #94a3b8; padding: 0.35rem 0; border-top: 1px solid rgba(255,255,255,0.08);
-                        }
-                        .cluster-stats b { color: white; font-weight: 600; }
-
-                        .cluster-pm { display: flex; align-items: center; gap: 0.3rem; font-size: 0.65rem; color: #cbd5e1; }
-                        .cluster-pm img { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); }
-
-                        /* MAIN AREA */
-                        .dashboard-main { padding: 2rem 3rem; overflow-y: auto; }
-                        .dashboard-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; gap: 1rem; }
-                        .dashboard-header h1 { font-size: 1.8rem; font-weight: 700; color: #1e293b; margin: 0; letter-spacing: -0.02em; }
-                        .dashboard-header p { color: #64748b; font-size: 0.95rem; margin-top: 0.25rem; font-weight: 500; }
-
-                        .primary-btn-premium {
-                            display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.25rem; 
-                            background: var(--brand-blue); color: white; border: none;
-                            border-radius: 12px; font-weight: 600; cursor: pointer;
-                            box-shadow: 0 4px 12px rgba(30, 41, 59, 0.15); transition: 0.2s; font-size: 0.9rem;
-                        }
-                        .primary-btn-premium:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(30, 41, 59, 0.25); }
-
-                        /* STATS HERO */
-                        .hero-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-bottom: 2.5rem; }
-                        .stat-card {
-                            background: white; padding: 1.25rem; border-radius: 16px; border: 1px solid #e2e8f0; 
-                            display: flex; align-items: center; gap: 1rem; transition: 0.2s;
-                        }
-                        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
-                        .stat-card.alert { background: #fef2f2; border-color: #fee2e2; }
-
-                        .stat-icon-bg { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; }
-                        .stat-icon-bg.gray { background: #f1f5f9; color: #64748b; }
-                        .stat-icon-bg.blue { background: #eff6ff; color: #3b82f6; }
-                        .stat-icon-bg.green { background: #ecfdf5; color: #10b981; }
-                        .stat-icon-bg.red { background: #fee2e2; color: #ef4444; }
-
-                        .stat-info { display: flex; flex-direction: column; }
-                        .stat-label { font-size: 0.7rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
-                        .stat-value { font-size: 1.5rem; font-weight: 700; color: #1e293b; line-height: 1.1; }
-                        .stat-card.alert .stat-value { color: #ef4444; }
-
-                        /* PROJECT CARD */
-                        .projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
-                        
-                        .project-card {
-                            background: white; border-radius: 16px; padding: 1.5rem; border: 1px solid #e2e8f0;
-                            cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                            display: flex; flex-direction: column; gap: 1rem; position: relative; overflow: hidden;
-                        }
-                        .project-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px -10px rgba(0,0,0,0.12); border-color: var(--brand-blue); }
-                        
-                        /* Status lines */
-                        .project-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; transition: 0.3s; }
-                        .project-card.status-green::before { background: #10b981; opacity: 0; }
-                        .project-card.status-yellow::before { background: #f59e0b; opacity: 1; }
-                        .project-card.status-red::before { background: #ef4444; opacity: 1; }
-
-                        .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
-                        .area-pill { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; }
-                        .overdue-badge { 
-                            background: #ef4444; color: white; padding: 4px 8px; border-radius: 100px; 
-                            font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; gap: 4px;
-                            animation: pulse 2s infinite;
-                        }
-
-                        .project-title { font-size: 1.15rem; font-weight: 700; color: #1e293b; margin: 0; line-height: 1.3; }
-
-                        .next-action-box { 
-                            background: #f8fafc; border-radius: 10px; padding: 0.75rem; border: 1px solid #f1f5f9;
-                        }
-                        .next-action-box .label { font-size: 0.65rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 0.25rem; }
-                        .action-row { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 500; color: #334155; }
-                        .action-row.empty { color: #94a3b8; font-weight: 400; font-style: italic; }
-                        .action-date { white-space: nowrap; font-size: 0.7rem; background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0; }
-                        .action-date.text-red { color: #ef4444; border-color: #fca5a5; background: #fef2f2; }
-
-                        .progress-section { margin-top: 0.25rem; }
-                        .progress-info { display: flex; justify-content: space-between; font-size: 0.7rem; font-weight: 600; color: #64748b; margin-bottom: 0.3rem; }
-                        .progress-bar-bg { height: 6px; background: #f1f5f9; border-radius: 10px; overflow: hidden; }
-                        .progress-bar-fill { height: 100%; border-radius: 10px; transition: width 0.6s ease; }
-
-                        .card-footer { 
-                            margin-top: auto; padding-top: 1rem; border-top: 1px solid #f1f5f9; 
-                            display: flex; justify-content: space-between; align-items: center; 
-                        }
-                        .team-stack { display: flex; align-items: center; }
-                        .team-stack .avatar { width: 26px; height: 26px; border-radius: 50%; border: 2px solid white; margin-left: -8px; object-fit: cover; background: #e2e8f0; }
-                        .team-stack .avatar:first-child { margin-left: 0; }
-                        .team-stack .avatar.pm { width: 30px; height: 30px; z-index: 10; border-color: #f1f5f9; }
-                        .avatar-count { 
-                            width: 24px; height: 24px; border-radius: 50%; background: #f1f5f9; border: 2px solid white; 
-                            margin-left: -8px; display: flex; align-items: center; justify-content: center;
-                            font-size: 0.65rem; font-weight: 600; color: #64748b;
-                        }
-
-                        .open-btn { 
-                            background: none; border: none; color: var(--brand-blue); font-weight: 600; font-size: 0.8rem; 
-                            display: flex; align-items: center; gap: 2px; padding: 4px 8px; border-radius: 6px; cursor: pointer; transition: 0.2s;
-                        }
-                        .open-btn:hover { background: #eff6ff; gap: 4px; }
-
-                        /* FILTERS */
-                        .filter-bar { display: flex; gap: 0.75rem; margin-bottom: 2rem; overflow-x: auto; padding-bottom: 4px; }
-                        .filter-pill {
-                            padding: 0.5rem 1rem; border: 1px solid #e2e8f0; background: white; color: #64748b;
-                            border-radius: 100px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: 0.2s; white-space: nowrap;
-                        }
-                        .filter-pill.active { background: #1e293b; color: white; border-color: #1e293b; box-shadow: 0 4px 12px rgba(30, 41, 59, 0.2); }
-                        .filter-pill:hover:not(.active) { background: #f8fafc; color: #1e293b; border-color: #cbd5e1; }
-
-                        /* UTILS */
-                        .text-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
-                        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-                        .empty-state-sidebar { padding: 2rem 1rem; text-align: center; color: #94a3b8; font-size: 0.8rem; }
-
-                        /* DROPDOWN */
-                        .dropdown { position: relative; }
-                        .dropdown-content {
-                            position: absolute; right: 0; top: 120%; background: white; border-radius: 14px; 
-                            box-shadow: 0 15px 35px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; min-width: 220px; 
-                            z-index: 100; opacity: 0; pointer-events: none; transform: translateY(10px); transition: 0.2s; padding: 0.5rem;
-                        }
-                        .dropdown.active .dropdown-content { opacity: 1; pointer-events: auto; transform: translateY(0); }
-                        .dropdown-content a { 
-                            display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem; 
-                            color: #1e293b; text-decoration: none; font-weight: 600; border-radius: 8px; transition: 0.2s;
-                        }
-                        .dropdown-content a:hover { background: #f1f5f9; color: var(--brand-blue); }
-                        .dropdown-content a .material-icons-round { color: #94a3b8; font-size: 1.2rem; }
-                        
-                        /* RESPONSIVE */
-                        @media (max-width: 992px) {
-                            .internal-projects-dashboard { grid-template-columns: 1fr; overflow-y: auto; }
-                            .dashboard-sidebar { border-left: none; border-top: 1px solid #e2e8f0; max-height: max-content; }
-                            .dashboard-main { padding: 1.5rem; overflow-y: visible; }
-                            .hero-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
-                            .dashboard-header { flex-direction: column; align-items: stretch; }
-                            .dropdown { width: 100%; }
-                            .dropdown .primary-btn-premium { width: 100%; justify-content: center; }
-                        }
-
-                        @media (max-width: 600px) {
-                            .hero-stats-grid { grid-template-columns: 1fr; }
-                            .projects-grid { grid-template-columns: 1fr; }
-                        }
-                    </style>
+                            <div class="glass-card" style="display: flex; flex-direction: column; min-height: 600px; flex: 1; overflow: hidden; border: 1px solid var(--glass-border);">
+                                <div class="hub-tabs">
+                                    <button class="hub-tab ${currentTab === 'overview' ? 'active' : ''}" data-tab="overview"><span class="material-icons-round">dashboard</span>Overview</button>
+                                    <button class="hub-tab ${currentTab === 'feed' ? 'active' : ''}" data-tab="feed"><span class="material-icons-round">history</span>Feed</button>
+                                    <button class="hub-tab ${currentTab === 'team' ? 'active' : ''}" data-tab="team"><span class="material-icons-round">groups</span>Team</button>
+                                    <button class="hub-tab ${currentTab === 'docs' ? 'active' : ''}" data-tab="docs"><span class="material-icons-round">description</span>Documenti</button>
+                                </div>
+                                <div id="hub-tab-content" style="flex: 1; padding: 1.5rem; overflow-y: auto;">
+                                    <div style="display:flex; align-items:center; justify-content:center; height:300px;"><span class="loader"></span></div>
+                                </div>
+                            </div>
+                        </main>
+                    </div>
                 </div>
             `;
 
-            // EVENT LISTENERS
-            container.querySelectorAll('.filter-pill').forEach(btn => {
-                btn.onclick = () => {
-                    currentFilter = btn.dataset.filter.toLowerCase();
-                    renderContent();
+            renderTab();
+            bindBaseHandlers();
+        };
+
+        const renderTab = async () => {
+            const content = container.querySelector('#hub-tab-content');
+            const activeArea = COMPANY_AREAS.find(a => a.id === currentAreaId) || COMPANY_AREAS[0];
+            
+            let visibleProjects = [];
+            if (currentClusterId === 'all') {
+                visibleProjects = (spaces || []).filter(s => !s.is_cluster && (s.area || '').toLowerCase() === activeArea.label.toLowerCase() && !s.parent_ref);
+            } else {
+                visibleProjects = (spaces || []).filter(s => s.parent_ref === currentClusterId);
+            }
+            const contextSpaceIds = [currentClusterId, ...visibleProjects.map(s => s.id)];
+
+            if (currentTab === 'overview') {
+                let filtered = [...visibleProjects];
+                if (currentKpiFilter === 'open') filtered = filtered.filter(p => (statsMap[p.id]?.activities.open || 0) > 0);
+                else if (currentKpiFilter === 'overdue') filtered = filtered.filter(p => (statsMap[p.id]?.activities.overdue || 0) > 0);
+
+                content.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px;"><span class="material-icons-round" style="font-size: 1rem; color: var(--brand-viola);">insights</span> MONITORAGGIO PERFORMANCE</div>
+                        <div style="position: relative;"><input type="text" id="m-search" placeholder="Cerca nel workspace..." style="background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 6px 12px 6px 30px; font-size: 0.75rem; width: 180px; outline: none;"><span class="material-icons-round" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 1rem; color: var(--text-tertiary);">search</span></div>
+                    </div>
+                    <table class="m-table">
+                        <thead><tr><th style="width: 35%;">PROGETTO</th><th style="width: 20%;">TEAM</th><th style="width: 20%;">SAL</th><th style="width: 25%;">PROSSIMO STEP</th><th></th></tr></thead>
+                        <tbody id="m-tbody">
+                            ${filtered.length === 0 ? `<tr><td colspan="5" style="padding: 4rem; text-align: center; color: var(--text-tertiary); font-style: italic; font-size: 0.8rem;">Nessun progetto trovato per questo filtro.</td></tr>` : filtered.map(p => {
+                                const s = statsMap[p.id];
+                                const progress = s.activities.total > 0 ? Math.round(((s.activities.total - s.activities.open) / s.activities.total) * 100) : 0;
+                                const teamIds = Array.from(s.activities.team || []);
+                                const teamCollabs = teamIds.slice(0, 3).map(uid => getCollab(uid, null)).filter(Boolean);
+                                const pmRec = p.pm_space_assignees?.find(a => ['manager', 'pm', 'admin'].includes(a.role)) || { user_ref: p.default_pm_user_ref };
+                                const pm = getCollab(pmRec.user_ref, pmRec.collaborator_ref);
+                                const next = s.activities.nextAction;
+                                return `
+                                    <tr class="m-row" onclick="window.location.hash='#pm/space/${p.id}'">
+                                        <td><div style="display: flex; align-items: center; gap: 0.85rem;"><div class="health-dot ${s.activities.overdue > 0 ? 'urgent' : 'stable'}"></div><div style="min-width: 0;"><div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">${p.name}</div><div style="font-size: 0.6rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase;">ID: ${p.id.slice(0,8)}</div></div></div></td>
+                                        <td><div class="avatar-stack-v">${pm ? `<div class="face owner-v">${renderAvatar(pm, { size: 28, borderRadius: '50%' })}</div>` : ''}${teamCollabs.map((c, i) => `<div class="face" style="z-index: ${3-i}">${renderAvatar(c, { size: 28, borderRadius: '50%' })}</div>`).join('')}${teamIds.length > 4 ? `<div style="margin-left: -8px; width: 28px; height: 28px; border-radius: 50%; background: var(--bg-secondary); border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: 800; color: var(--text-secondary);">+${teamIds.length-4}</div>` : ''}</div></td>
+                                        <td><div style="display: flex; align-items: center; gap: 0.65rem;"><div style="flex: 1; height: 5px; background: var(--bg-secondary); border-radius: 5px; overflow: hidden;"><div style="width: ${progress}%; height: 100%; background: var(--brand-gradient);"></div></div><span style="font-size: 0.7rem; font-weight: 800; color: var(--text-primary);">${progress}%</span></div></td>
+                                        <td><div style="display: flex; flex-direction: column; gap: 2px; ${next?.date && new Date(next.date) < now ? 'color: #ef4444' : ''}"><span style="font-size: 0.75rem; font-weight: 700;">${next ? next.title : 'Non pianificato'}</span>${next?.date ? `<span style="font-size: 0.6rem; color: var(--text-tertiary); font-weight: 700; display: flex; align-items: center; gap: 4px;"><span class="material-icons-round" style="font-size: 0.9rem;">calendar_today</span> ${new Date(next.date).toLocaleDateString()}</span>` : ''}</div></td>
+                                        <td style="text-align: right;"><span class="material-icons-round" style="color: var(--text-tertiary); font-size: 1rem; opacity: 0.3;">arrow_forward</span></td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+                const sInput = content.querySelector('#m-search');
+                sInput.oninput = (e) => {
+                    const t = e.target.value.toLowerCase();
+                    content.querySelectorAll('#m-tbody tr').forEach(r => r.style.display = r.innerText.toLowerCase().includes(t) ? '' : 'none');
                 };
-            });
 
-            const dropdown = container.querySelector('#new-element-dropdown');
-            const dropdownBtn = dropdown.querySelector('button');
-            const dropdownItems = dropdown.querySelectorAll('.dropdown-content a');
+            } else if (currentTab === 'feed') {
+                content.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:200px;"><span class="loader"></span></div>`;
+                
+                const visibleProjectIds = visibleProjects.map(p => p.id);
+                const contextIds = [currentClusterId, ...visibleProjectIds];
+                
+                // Fetch and filter logs for the cluster context
+                const logs = await fetchPMActivityLogs(null, null, null, null);
+                const filteredLogs = logs.filter(l => contextIds.includes(l.space_ref));
+                
+                content.innerHTML = `
+                    <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;"><span class="material-icons-round" style="font-size: 1rem; color: var(--brand-blue);">history</span> FEED ATTIVITÀ CLUSTER</div>
+                    ${filteredLogs.length === 0 ? `<div style="padding: 3rem; text-align: center; color: var(--text-tertiary); font-style: italic;">Nessuna attività recente registrata per questo cluster.</div>` : filteredLogs.slice(0, 30).map(l => `
+                        <div style="display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--bg-primary); animation: fadeIn 0.3s ease;">
+                            ${renderAvatar(l.actor || { full_name: 'S' }, { size: 32, borderRadius: '50%' })}
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.4;">
+                                    <strong>${l.authorName}</strong> ${l.action_type.replace(/_/g, ' ')} 
+                                    <span style="color: var(--brand-blue); font-weight: 600;">${l.item?.title || l.space?.name || ''}</span>
+                                </div>
+                                <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 4px;">${new Date(l.created_at).toLocaleString('it-IT')}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                `;
 
-            dropdownBtn.onclick = (e) => { e.stopPropagation(); dropdown.classList.toggle('active'); };
-            window.onclick = () => dropdown.classList.remove('active');
+            } else if (currentTab === 'team') {
+                const uniqueTeamIds = new Set();
+                
+                // Aggregating team members from all projects within the cluster
+                visibleProjects.forEach(p => {
+                    const s = statsMap[p.id];
+                    if (s) s.activities.team.forEach(uid => uniqueTeamIds.add(uid));
+                });
+                
+                // Also add members assigned directly to the cluster space itself
+                const clusterStats = statsMap[currentClusterId];
+                if (clusterStats) clusterStats.activities.team.forEach(uid => uniqueTeamIds.add(uid));
 
-            dropdownItems.forEach(item => {
-                item.onclick = (e) => {
-                    e.preventDefault();
-                    const type = item.dataset.type;
-                    dropdown.classList.remove('active');
-                    openProjectModal({
-                        forceType: type,
-                        onSuccess: (res) => window.location.hash = `#pm/space/${res.id}`
+                const team = Array.from(uniqueTeamIds).map(uid => collaborators.find(c => c.user_id === uid)).filter(Boolean);
+
+                content.innerHTML = `
+                    <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;"><span class="material-icons-round" style="font-size: 1rem; color: var(--brand-blue);">groups</span> TEAM OPERATIVO CLUSTER</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+                        ${team.length === 0 ? `<div style="grid-column: 1/-1; padding: 3rem; text-align: center; color: var(--text-tertiary);">Nessun membro del team identificato per questo cluster.</div>` : team.map(c => `
+                            <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border); background: white;">
+                                ${renderAvatar(c, { size: 40, borderRadius: '50%' })}
+                                <div><div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">${c.full_name}</div><div style="font-size: 0.65rem; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase;">${c.role || 'Membro'}</div></div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+
+            } else if (currentTab === 'docs') {
+                const visibleProjectIds = visibleProjects.map(p => p.id);
+                const contextIds = [currentClusterId, ...visibleProjectIds];
+                const docItems = (allItems || []).filter(item => contextIds.includes(item.space_ref) && item.cloud_links && item.cloud_links.length > 0);
+                const allLinks = [];
+                docItems.forEach(item => { 
+                    item.cloud_links.forEach(link => {
+                        const spaceName = spaces.find(s => s.id === item.space_ref)?.name || 'Progetto';
+                        allLinks.push({ ...link, itemTitle: item.title, spaceName }); 
                     });
-                };
-            });
+                });
 
-            const addClusterBtn = container.querySelector('.add-cluster-btn');
-            if (addClusterBtn) {
-                addClusterBtn.onclick = () => {
-                    openProjectModal({
-                        forceType: 'cluster',
-                        onSuccess: (res) => window.location.hash = `#pm/space/${res.id}`
-                    });
-                };
+                content.innerHTML = `
+                    <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;"><span class="material-icons-round" style="font-size: 1rem; color: #f59e0b;">description</span> RISORSE E DOCUMENTI CLUSTER</div>
+                    ${allLinks.length === 0 ? `<div style="padding: 3rem; text-align: center; color: var(--text-tertiary);">Nessun documento o link cloud caricato in questo cluster.</div>` : `
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            ${allLinks.map(link => `
+                                <a href="${link.url}" target="_blank" style="display: flex; align-items: center; gap: 1rem; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--glass-border); background: white; text-decoration: none; transition: 0.2s;" onmouseover="this.style.borderColor='var(--brand-blue)'" onmouseout="this.style.borderColor='var(--glass-border)'">
+                                    <span class="material-icons-round" style="color: var(--brand-blue); font-size: 1.25rem;">link</span>
+                                    <div style="flex: 1;"><div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">${link.title || 'Senza titolo'}</div><div style="font-size: 0.65rem; color: var(--text-tertiary);">Rif. Task: ${link.itemTitle} (${link.spaceName})</div></div>
+                                    <span class="material-icons-round" style="color: var(--text-tertiary); font-size: 1rem;">open_in_new</span>
+                                </a>
+                            `).join('')}
+                        </div>
+                    `}
+                `;
             }
         };
 
-        renderContent();
+        const bindBaseHandlers = () => {
+            const areaBtn = container.querySelector('#area-trigger');
+            const areaMenu = container.querySelector('#area-pop');
+            areaBtn.onclick = (e) => { e.stopPropagation(); areaMenu.classList.toggle('active'); mngPop.classList.remove('active'); masterDrop.classList.remove('active'); };
+
+            const mngBtn = container.querySelector('#mng-trigger');
+            const mngPop = container.querySelector('#mng-pop');
+            if (mngBtn) mngBtn.onclick = (e) => { e.stopPropagation(); mngPop.classList.toggle('active'); areaMenu.classList.remove('active'); masterDrop.classList.remove('active'); };
+
+            const masterBtn = container.querySelector('#master-add-btn');
+            const masterDrop = container.querySelector('#master-add-dropdown');
+            masterBtn.onclick = (e) => { e.stopPropagation(); masterDrop.classList.toggle('active'); areaMenu.classList.remove('active'); mngPop.classList.remove('active'); };
+            
+            window.onclick = () => { areaMenu?.classList.remove('active'); mngPop?.classList.remove('active'); masterDrop?.classList.remove('active'); };
+
+            container.querySelectorAll('.opt-row').forEach(opt => {
+                opt.onclick = () => { currentAreaId = opt.dataset.id; currentClusterId = 'all'; renderUI(); };
+            });
+
+            container.querySelectorAll('.mng-row').forEach(row => {
+                row.onclick = async () => {
+                    const collabId = row.dataset.val;
+                    await supabase.from('system_config').upsert({ key: `area_manager_${currentAreaId}`, value: collabId || '', description: `Manager for ${currentAreaId}` });
+                    areaManagers[currentAreaId] = collabId;
+                    renderUI();
+                };
+            });
+
+            /* cluster-item handlers moved to standard <a> href navigation */
+            container.querySelectorAll('.kpi-h-card').forEach(k => {
+                k.onclick = () => { currentKpiFilter = k.dataset.kpi; renderUI(); };
+            });
+
+            container.querySelectorAll('.hub-tab').forEach(t => {
+                t.onclick = () => { currentTab = t.dataset.tab; container.querySelectorAll('.hub-tab').forEach(b => b.classList.remove('active')); t.classList.add('active'); renderTab(); };
+            });
+
+            container.querySelector('#opt-project').onclick = () => openProjectModal({ onSuccess: (res) => window.location.hash = `#pm/space/${res.id}` });
+            container.querySelector('#opt-cluster').onclick = () => openProjectModal({ forceType: 'cluster', onSuccess: () => renderInternalProjects(container) });
+        };
+
+        renderUI();
 
     } catch (err) {
-        console.error("Dashboard Error:", err);
-        container.innerHTML = `<div style="padding: 3rem; text-align: center; color: #ef4444;">
-            <span class="material-icons-round" style="font-size: 3rem;">error_outline</span>
-            <p style="margin-top: 1rem; font-weight: 600;">Impossibile caricare la dashboard</p>
-            <p style="font-size: 0.85rem; opacity: 0.8;">${err.message}</p>
-        </div>`;
+        console.error("Hub Error:", err);
+        container.innerHTML = `<div style="padding: 4rem; text-align: center; color: #ef4444;">Errore: ${err.message}</div>`;
     }
 }

@@ -28,8 +28,9 @@ export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(
             if (typeof tags === 'string') {
                 try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
             }
+            const managerTags = ['project manager', 'pm', 'account', 'partner', 'amministrazione', 'socio'];
             const isProjectManager = Array.isArray(tags) &&
-                tags.some(t => t.toLowerCase() === 'project manager' || t.toLowerCase() === 'pm');
+                tags.some(t => managerTags.includes(t.toLowerCase()));
 
             if (!isProjectManager) return;
         }
@@ -41,19 +42,19 @@ export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(
 
         if (uid) processedUserIds.add(uid);
 
-        let name = c.full_name;
+        let name = c?.full_name || [c?.first_name, c?.last_name].filter(v => v && v !== 'null').join(' ');
         if (!name || name === 'Utente') {
-            name = `${c.first_name || ''} ${c.last_name || ''}`.trim();
+            const p = state.profiles?.find(x => x.id === uid);
+            if (p) {
+                name = p.full_name || [p.first_name, p.last_name].filter(v => v && v !== 'null').join(' ');
+            }
         }
         if (!name) name = 'Collaboratore Sconosciuto';
 
         let avatar = c.avatar_url;
-        if ((!name || !avatar) && uid) {
+        if (!avatar && uid) {
             const p = state.profiles?.find(x => x.id === uid);
-            if (p) {
-                if (!name || name === 'Collaboratore Sconosciuto') name = `${p.first_name} ${p.last_name}`;
-                if (!avatar) avatar = p.avatar_url;
-            }
+            if (p) avatar = p.avatar_url;
         }
 
         const u = {
@@ -73,7 +74,7 @@ export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(
         if (pm) {
             suggestions.unshift({
                 uid: pm.id,
-                name: `${pm.first_name} ${pm.last_name} (PM)`,
+                name: (pm.full_name || [pm.first_name, pm.last_name].filter(v => v && v !== 'null').join(' ') || 'PM') + ' (PM)',
                 avatar: pm.avatar_url,
                 hasAccount: true,
                 isPm: true

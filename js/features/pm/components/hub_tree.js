@@ -688,14 +688,13 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
             it.onclick = async () => {
                 const type = it.dataset.type;
                 if (type === 'project') {
-                    const { openNewProjectModal } = await import('./cluster_projects.js?v=2000');
-                    openNewProjectModal(spaceId, () => {
-                        // Projects tab is not visible here, but maybe we want to refresh something?
-                        // Usually projects aren't in the tree yet if they are siblings, but here they are "children" of a cluster item?
-                        // Wait, a project cannot be a child of an ITEM. It's a sibling of other items or child of a cluster SPACE.
-                        // But the user clicked on an ITEM's "add-child" button.
-                        // If it's a cluster, maybe they want to create a project inside the cluster.
-                        // The cluster projects tab is better for this, but if they are in the board, they might expect it here too.
+                    const { openProjectModal } = await import('./project_modal.js?v=2000');
+                    openProjectModal({
+                        prefilledParentId: spaceId,
+                        prefilledArea: space?.area,
+                        onSuccess: () => {
+                            // Optionally refresh or notify
+                        }
                     });
                 } else {
                     import('./hub_drawer.js?v=1000').then(mod => mod.openHubDrawer(null, spaceId, btn.dataset.parent, type));

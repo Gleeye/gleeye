@@ -3,6 +3,7 @@ import { fetchContacts } from '../../../modules/api.js';
 import { state } from '../../../modules/state.js';
 import { renderUserPicker } from './picker_utils.js?v=1000';
 import { supabase } from '../../../modules/config.js';
+import { renderAvatar, joinNames } from '../../../modules/utils.js?v=1000';
 
 export async function openAppointmentDrawer(inputAppointment, contextId = null, contextType = 'order', options = {}) {
     let overlay = document.getElementById('hub-drawer-overlay');
@@ -171,7 +172,7 @@ export async function openAppointmentDrawer(inputAppointment, contextId = null, 
                 const collab = state.collaborators?.find(c => c.id === p.collaborator_id);
                 return `<div style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; background: white; border: 1.2px solid #e2e8f0; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">
                                             <img src="${collab?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(collab?.full_name || 'U')}" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover;">
-                                            <span>${collab?.first_name || 'User'}</span>
+                                            <span>${collab?.full_name && collab.full_name !== 'null' ? collab.full_name : joinNames(collab?.first_name, collab?.last_name) || 'User'}</span>
                                         </div>`;
             }).join('') || '<span style="color: var(--text-tertiary); font-size: 0.85rem;">Nessuno</span>'}
                                 </div>
@@ -265,7 +266,7 @@ export async function openAppointmentDrawer(inputAppointment, contextId = null, 
                                 ${formState.participants.internal.map((p, idx) => {
             const collab = state.collaborators?.find(c => c.id === p.collaborator_id);
             return `<div class="pill" style="display: flex; align-items: center; gap: 6px; background: #f8fafc; padding: 3px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 500; border: 1.2px solid #e2e8f0; color: var(--text-primary);">
-                                        <span>${collab?.first_name || 'User'}</span>
+                                        <span>${collab?.full_name && collab.full_name !== 'null' ? collab.full_name : joinNames(collab?.first_name, collab?.last_name) || 'User'}</span>
                                         <span class="material-icons-round remove-int-btn" data-idx="${idx}" style="font-size: 14px; cursor: pointer; color: var(--text-tertiary);">close</span>
                                     </div>`;
         }).join('')}

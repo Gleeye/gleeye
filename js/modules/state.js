@@ -43,7 +43,8 @@ if (!window.__gleeye_state) {
         leads: [],
         selectedPaymentIds: [],
         isBulkInviteMode: false,
-        bulkInviteModeEntityId: null
+        bulkInviteModeEntityId: null,
+        lastFetchTimestamps: {}
     };
     window.state = window.__gleeye_state;
 }

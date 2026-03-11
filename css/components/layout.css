@@ -25,6 +25,12 @@
     padding: 0 3rem 3rem 3rem;
     position: relative;
     scroll-behavior: smooth;
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.content-area.page-loading {
+    opacity: 0;
+    transform: translateY(10px);
 }
 
 .top-bar {

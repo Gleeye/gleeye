@@ -56,8 +56,9 @@ async def run_worker():
             
             try:
                 # 3. Execute processing
-                # notebook_id lookup heuristic is already in pvm.process_voice_memo
-                await pvm.process_voice_memo(audio_url, space_id, item_id)
+                # Reload PVM to ensure we use the latest script version
+                pvm_fresh = loader()
+                await pvm_fresh.process_voice_memo(audio_url, space_id, item_id)
                 
                 # 4. Mark as completed
                 supabase.table("pm_ai_report_jobs")\

@@ -17,13 +17,18 @@
     <meta name="apple-mobile-web-app-title" content="Gleeye">
     <link rel="apple-touch-icon" href="logo_gleeye.png">
 
-    <!-- FONTS -->
+    <!-- PRECONNECTS -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://api.fontshare.com">
+
+    <!-- FONTS -->
     <link href="https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,400&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round&display=swap" rel="stylesheet">
 
     <!-- STYLES -->
     <link rel="stylesheet" href="css/main.css?v=5006">
@@ -40,6 +45,90 @@
     </style>
     <link rel="stylesheet" href="css/components/custom-select.css?v=5004">
     <!-- <link rel="stylesheet" href="css/components/chat.css?v=3000"> -->
+
+    <style>
+        /* CRITICAL: Fix Material Icons Flash of Unstyled Text (FOUT) */
+        .material-icons-round {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            overflow: hidden;
+            white-space: nowrap;
+            color: transparent; /* Hide text until font loads */
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            letter-spacing: normal;
+            word-wrap: normal;
+            direction: ltr;
+        }
+        
+        .material-icons-round:not(:empty) {
+            color: inherit;
+        }
+
+        /* Splash Screen Styles */
+        #app-splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            transition: opacity 0.5s ease-out;
+        }
+        
+        [data-theme="dark"] #app-splash-screen { background: #0f172a; }
+
+        .splash-logo {
+            width: 140px;
+            height: auto;
+            margin-bottom: 2.5rem;
+            animation: splash-pulse 2s infinite ease-in-out;
+            filter: drop-shadow(0 4px 12px rgba(78, 146, 216, 0.15));
+        }
+
+        .splash-loader {
+            width: 180px;
+            height: 3px;
+            background: rgba(0, 0, 0, 0.04);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        [data-theme="dark"] .splash-loader { background: rgba(255, 255, 255, 0.08); }
+
+        .splash-loader-bar {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 40%;
+            background: linear-gradient(90deg, #4e92d8, #614aa2);
+            border-radius: 4px;
+            animation: loader-slide 1.4s infinite ease-in-out;
+        }
+
+        @keyframes splash-pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.04); opacity: 0.85; }
+        }
+
+        @keyframes loader-slide {
+            0% { left: -40%; }
+            100% { left: 100%; }
+        }
+
+        .app-hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+    </style>
 
     <!-- CRITICAL CSS OVERRIDES FOR AGENDA -->
     <style>
@@ -264,7 +353,14 @@
     </style>
 </head>
 
-<body>
+<body class="light-mode">
+    <!-- Splash Screen -->
+    <div id="app-splash-screen">
+        <img src="logo_gleeye_new.png" alt="Gleeye" class="splash-logo">
+        <div class="splash-loader">
+            <div class="splash-loader-bar"></div>
+        </div>
+    </div>
     <!-- App Shell: Auth and Modals will be injected by modules -->
 
     <div id="app" class="hidden">

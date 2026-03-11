@@ -1,19 +1,12 @@
 import { initAuth } from './features/auth.js?v=1001';
 import { router } from './modules/router.js?v=1002';
-import { InvoiceLogic } from './features/invoices.js?v=1001';
 import { state } from '/js/modules/state.js';
-import { initSettingsModals } from './features/settings.js?v=1001';
-import { initCollaboratorModals } from './features/collaborators.js?v=1001';
-import { initCollaboratorServiceModals } from './features/collaborator_services.js?v=1001';
-import { initBankTransactionModals } from './features/bank_transactions.js?v=1001';
-import { initPaymentModals } from './features/payments.js?v=1001';
-import { initServiceModals } from './features/services.js?v=1000';
-import { initWhiteLabelPartnerModals } from './features/white_label_partners.js';
 import { initLayout, renderSidebarProfile } from './features/layout.js?v=1000';
 import { initNotifications } from './features/notifications.js?v=1000';
 // Chat UI is loaded lazily when user navigates to #chat
 import { runOneTimeFix } from './fix_phantom_data.js?v=1000';
 // Utilities imported at top
+import { debounce } from './modules/utils.js';
 import './utils/modal-utils.js';
 
 // Suppress benign ResizeObserver error
@@ -57,14 +50,15 @@ document.addEventListener('DOMContentLoaded', () => {
     initThemeLogic();
 
     // Init Feature Modals
-    initSettingsModals();
-    InvoiceLogic.initInvoiceModals();
-    initCollaboratorModals();
-    initCollaboratorServiceModals();
-    initBankTransactionModals();
-    initPaymentModals(); // Init
-    initServiceModals();
-    initWhiteLabelPartnerModals();
+    // Init Feature Modals Lazily
+    import('./features/settings.js?v=1001').then(m => m.initSettingsModals());
+    import('./features/invoices.js?v=1001').then(m => m.InvoiceLogic.initInvoiceModals());
+    import('./features/collaborators.js?v=1001').then(m => m.initCollaboratorModals());
+    import('./features/collaborator_services.js?v=1001').then(m => m.initCollaboratorServiceModals());
+    import('./features/bank_transactions.js?v=1001').then(m => m.initBankTransactionModals());
+    import('./features/payments.js?v=1001').then(m => m.initPaymentModals());
+    import('./features/services.js?v=1000').then(m => m.initServiceModals());
+    import('./features/white_label_partners.js').then(m => m.initWhiteLabelPartnerModals());
     import('./features/sap_services.js').then(m => m.initSapServiceModals());
 
     // Init Layout (Sidebar toggles) - run immediately since UI is visible
@@ -86,10 +80,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listen for app ready to start router and render user data
     window.addEventListener('app:ready', () => {
         console.log("App ready event received. Rendering profile and router.");
+
+        // Unhide app early so router can find elements
+        const app = document.getElementById('app');
+        if (app) app.classList.remove('hidden');
+
+        // Render page first
+        router();
+        
+        // Hide Splash Screen after a tiny delay to ensure first paint
+        const splash = document.getElementById('app-splash-screen');
+        if (splash) {
+            setTimeout(() => {
+                splash.classList.add('app-hidden');
+                setTimeout(() => splash.remove(), 600);
+            }, 100);
+        }
+
         renderSidebarProfile();
         initNotifications();  // Initialize notifications after auth
         // Chat initializes lazily when user navigates to #chat
-        router();
+        // router(); // REMOVED - already called above
         // setTimeout(() => runOneTimeFix(), 1000);
     });
 
@@ -105,11 +116,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Global Search Listener - Moved inside DOMContentLoaded
     const searchInput = document.getElementById('global-search');
     if (searchInput) {
+        const debouncedRouter = debounce(() => {
+            console.log('Debounced router trigger for search:', state.searchTerm);
+            router();
+        }, 500);
+
         console.log("Attaching global search listener");
         searchInput.addEventListener('input', (e) => {
             console.log('Global search input:', e.target.value);
             state.searchTerm = e.target.value;
-            router();
+            debouncedRouter();
         });
     } else {
         console.error("Global search input element not found during init!");

@@ -10,28 +10,7 @@ window.addEventListener('unhandledrejection', event => {
         </div>`;
     }
 });
-import { renderDashboard } from '../features/dashboard.js?v=1000';
-import { renderClients, renderClientDetail } from '../features/clients.js?v=1000';
-import { renderCollaborators, renderCollaboratorDetail } from '../features/collaborators.js?v=1000';
-import { renderWhiteLabelPartners, renderWhiteLabelPartnerDetail, initWhiteLabelPartnerModals } from '../features/white_label_partners.js';
-import { renderContacts } from '../features/contacts.js?v=1000';
-import { renderOrderDetail } from '../features/orders.js?v=1001';
-import { renderActiveInvoicesSafe, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers, renderPassiveInvoicesPartners } from '../features/invoices.js?v=1000';
-import { renderRevenueDashboard } from '../features/revenue_dashboard.js?v=1000';
-import { renderBankTransactions } from '../features/bank_transactions.js?v=1000';
-import { renderSuppliers, initSupplierModals } from '../features/suppliers_v2.js?v=1000';
-import { renderBankStatements } from '../features/bank_statements.js?v=1000';
-import { renderServices } from '../features/services.js?v=1000';
-import { renderCollaboratorServices } from '../features/collaborator_services.js?v=1000';
-import { renderAssignmentDetail, renderAssignmentsDashboard } from '../features/assignments.js?v=1000';
-import { renderPaymentsDashboard, initPaymentModals } from '../features/payments.js?v=1001';
-import { renderBooking } from '../features/booking.js?v=1000';
-import { renderUserProfile } from '../features/user_dashboard.js?v=1000';
-import { renderAgenda } from '../features/personal_agenda.js?v=1000';
-import { renderHomepage } from '../features/homepage.js?v=1003';
-import { renderNotificationCenter } from '../features/notifications.js?v=1000';
-import { renderAdminNotifications } from '../features/admin_notifications.js?v=1000';
-import { renderMyWork } from '../features/dashboard/TasksDashboard.js?v=1000';
+// Feature modules are now loaded dynamically in the router to improve performance
 // Chat is loaded dynamically to avoid slowing down app startup
 
 export function router() {
@@ -122,9 +101,8 @@ export function router() {
 function render() {
     const contentArea = document.getElementById('content-area');
     const pageTitle = document.getElementById('page-title');
-    if (!contentArea) return;
-
-    contentArea.innerHTML = '';
+    // Trigger page transition animation
+    contentArea.classList.add('page-loading');
 
     // Default Title Update
     if (pageTitle) {
@@ -134,80 +112,90 @@ function render() {
 
     console.log(`[Router] Final state.currentPage before switch: "${state.currentPage}"`);
 
-    try {
-        switch (state.currentPage) {
+    const finalizeRender = () => {
+        setTimeout(() => contentArea.classList.remove('page-loading'), 150);
+    };
+
+    // Small delay to let current page fade out before swapping content
+    setTimeout(async () => {
+        contentArea.innerHTML = '';
+        
+        try {
+            switch (state.currentPage) {
             case 'home':
-                renderHomepage(contentArea);
+                if (pageTitle) pageTitle.textContent = 'Homepage';
+                import('../features/homepage.js?v=1003').then(m => m.renderHomepage(contentArea));
                 break;
             case 'dashboard':
-                if (pageTitle) pageTitle.textContent = 'Ordini';
-                renderDashboard(contentArea);
+                if (pageTitle) pageTitle.textContent = 'Commercial Dashboard';
+                import('../features/dashboard.js?v=1000').then(m => m.renderDashboard(contentArea));
                 break;
             case 'agenda':
-                console.log("[Router] Rendering Agenda...");
                 if (pageTitle) pageTitle.textContent = 'Agenda Personale';
-                renderAgenda(contentArea);
+                import('../features/personal_agenda.js?v=1000').then(m => m.renderAgenda(contentArea));
                 break;
             case 'my-assignments':
                 if (pageTitle) pageTitle.textContent = 'I Miei Incarichi';
-                renderMyWork(contentArea);
+                import('../features/dashboard/TasksDashboard.js?v=1000').then(m => m.renderMyWork(contentArea));
                 break;
             case 'sales': // Clients list
                 if (pageTitle) pageTitle.textContent = 'Anagrafica Clienti';
-                renderClients(contentArea);
+                import('../features/clients.js?v=1000').then(m => m.renderClients(contentArea));
                 break;
             case 'client-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Cliente';
-                renderClientDetail(contentArea);
+                import('../features/clients.js?v=1000').then(m => m.renderClientDetail(contentArea));
                 break;
             case 'employees':
                 if (pageTitle) pageTitle.textContent = 'Collaboratori';
-                renderCollaborators(contentArea);
+                import('../features/collaborators.js?v=1000').then(m => m.renderCollaborators(contentArea));
                 break;
             case 'collaborator-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Collaboratore';
-                renderCollaboratorDetail(contentArea);
+                import('../features/collaborators.js?v=1000').then(m => m.renderCollaboratorDetail(contentArea));
                 break;
             case 'white-label-partners':
                 if (pageTitle) pageTitle.textContent = 'Partner White Label';
-                initWhiteLabelPartnerModals();
-                renderWhiteLabelPartners(contentArea);
+                import('../features/white_label_partners.js').then(m => {
+                    m.initWhiteLabelPartnerModals();
+                    m.renderWhiteLabelPartners(contentArea);
+                });
                 break;
             case 'white-label-partner-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Partner WL';
-                renderWhiteLabelPartnerDetail(contentArea);
+                import('../features/white_label_partners.js').then(m => m.renderWhiteLabelPartnerDetail(contentArea));
                 break;
             case 'contacts':
                 if (pageTitle) pageTitle.textContent = 'Anagrafica Referenti';
-                renderContacts(contentArea);
+                import('../features/contacts.js?v=1000').then(m => m.renderContacts(contentArea));
                 break;
             case 'invoices': // Active Invoices List
                 if (pageTitle) pageTitle.textContent = 'Fatture Attive';
-                renderActiveInvoicesSafe(contentArea);
+                import('../features/invoices.js?v=1000').then(m => m.renderActiveInvoicesSafe(contentArea));
                 break;
             case 'invoices-dashboard':
                 if (pageTitle) pageTitle.textContent = 'Dashboard Fatturato';
-                renderRevenueDashboard(contentArea);
+                import('../features/revenue_dashboard.js?v=1000').then(m => m.renderRevenueDashboard(contentArea));
                 break;
             case 'passive-invoices-collab':
                 if (pageTitle) pageTitle.textContent = 'Fatture Collaboratori';
-                renderPassiveInvoicesCollab(contentArea);
+                import('../features/invoices.js?v=1000').then(m => m.renderPassiveInvoicesCollab(contentArea));
                 break;
             case 'passive-invoices-suppliers':
                 if (pageTitle) pageTitle.textContent = 'Fatture Fornitori';
-                renderPassiveInvoicesSuppliers(contentArea);
+                import('../features/invoices.js?v=1000').then(m => m.renderPassiveInvoicesSuppliers(contentArea));
                 break;
             case 'passive-invoices-partners':
                 if (pageTitle) pageTitle.textContent = 'Fatture Partner WL';
-                renderPassiveInvoicesPartners(contentArea);
+                import('../features/invoices.js?v=1000').then(m => m.renderPassiveInvoicesPartners(contentArea));
                 break;
             case 'bank-transactions':
                 if (pageTitle) pageTitle.textContent = 'Registro Movimenti';
-                renderBankTransactions(contentArea).catch(err => console.error('Error rendering bank transactions:', err));
+                import('../features/bank_transactions.js?v=1000').then(m => m.renderBankTransactions(contentArea).catch(err => console.error('Error rendering bank transactions:', err)));
                 break;
             case 'bank-statements':
                 if (pageTitle) pageTitle.textContent = 'Estratti Conto';
-                renderBankStatements(contentArea);
+                import('../features/bank_statements.js?v=1000').then(m => m.renderBankStatements(contentArea));
                 break;
             case 'invoices-archive':
                 if (pageTitle) pageTitle.textContent = 'Archivio Storico';
@@ -221,16 +209,18 @@ function render() {
                 break;
             case 'order-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Ordine';
-                renderOrderDetail(contentArea);
+                import('../features/orders.js?v=1001').then(m => m.renderOrderDetail(contentArea));
                 break;
             case 'suppliers':
                 state.currentPage = 'suppliers';
-                initSupplierModals();
-                renderSuppliers(contentArea);
+                import('../features/suppliers_v2.js?v=1000').then(m => {
+                    m.initSupplierModals();
+                    m.renderSuppliers(contentArea);
+                });
                 break;
             case 'services':
                 if (pageTitle) pageTitle.textContent = 'Catalogo Servizi';
-                renderServices(contentArea);
+                import('../features/services.js?v=1000').then(m => m.renderServices(contentArea));
                 break;
             case 'sap-services':
                 if (pageTitle) pageTitle.textContent = 'Servizi SAP';
@@ -249,37 +239,38 @@ function render() {
                 import('../features/leads.js?v=1001').then(m => m.renderLeadDetail(contentArea));
                 break;
             case 'contact-forms':
-                console.log("[Router] Hit contact-forms case");
                 if (pageTitle) pageTitle.textContent = 'Moduli Contatto';
                 import('../features/contact_forms.js?v=1003').then(m => m.renderContactForms(contentArea));
                 break;
             case 'collaborator-services':
                 if (pageTitle) pageTitle.textContent = 'Servizi Collaboratori';
-                renderCollaboratorServices(contentArea);
+                import('../features/collaborator_services.js?v=1000').then(m => m.renderCollaboratorServices(contentArea));
                 break;
             case 'assignment-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Incarico';
-                renderAssignmentDetail(contentArea);
+                import('../features/assignments.js?v=1000').then(m => m.renderAssignmentDetail(contentArea));
                 break;
             case 'assignments':
                 if (pageTitle) pageTitle.textContent = 'Incarichi';
-                renderAssignmentsDashboard(contentArea);
+                import('../features/assignments.js?v=1000').then(m => m.renderAssignmentsDashboard(contentArea));
                 break;
             case 'payments':
                 if (pageTitle) pageTitle.textContent = 'Dashboard Pagamenti';
-                initPaymentModals();
-                renderPaymentsDashboard(contentArea);
+                import('../features/payments.js?v=1001').then(m => {
+                    m.initPaymentModals();
+                    m.renderPaymentsDashboard(contentArea);
+                });
                 break;
             case 'booking':
-                renderBooking(contentArea);
+                import('../features/booking.js?v=1000').then(m => m.renderBooking(contentArea));
                 break;
             case 'profile':
                 if (pageTitle) pageTitle.textContent = 'Il Mio Profilo';
-                renderUserProfile(contentArea);
+                import('../features/user_dashboard.js?v=1000').then(m => m.renderUserProfile(contentArea));
                 break;
             case 'notifications':
                 if (pageTitle) pageTitle.textContent = 'Centro Notifiche';
-                renderNotificationCenter(contentArea);
+                import('../features/notifications.js?v=1000').then(m => m.renderNotificationCenter(contentArea));
                 break;
             case 'admin':
                 if (pageTitle) pageTitle.textContent = 'Amministrazione';
@@ -300,7 +291,7 @@ function render() {
                 // Route: Commessa Detail (#pm/commessa/:orderId)
                 if (state.currentSubPage === 'commessa' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Commessa';
-                    import('../features/pm/commessa_detail.js?v=1240')
+                    import('../features/pm/commessa_detail.js?v=1241')
                         .then(async module => {
                             try {
                                 await module.renderCommessaDetail(contentArea, state.currentId, false);
@@ -316,8 +307,8 @@ function render() {
 
                     // Route: Internal Project Detail (#pm/space/:spaceId)
                 } else if (state.currentSubPage === 'space' && state.currentId) {
-                    if (pageTitle) pageTitle.textContent = 'Dettaglio Progetto';
-                    import('../features/pm/commessa_detail.js?v=1240')
+                    if (pageTitle) pageTitle.textContent = 'Workspace';
+                    import('../features/pm/commessa_detail.js?v=1241')
                         .then(async module => {
                             try {
                                 await module.renderCommessaDetail(contentArea, state.currentId, true);
@@ -334,7 +325,7 @@ function render() {
                     // Route: Internal Projects List (#pm/interni)
                 } else if (state.currentSubPage === 'interni') {
                     if (pageTitle) pageTitle.textContent = 'Progetti Interni';
-                    import('../features/pm/internal_list.js?v=1006')
+                    import('../features/pm/internal_list.js?v=1241')
                         .then(module => {
                             module.renderInternalProjects(contentArea, state.currentId);
                         })
@@ -345,20 +336,20 @@ function render() {
 
                 } else if (state.currentSubPage === 'task' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Attività';
-                    import('../features/pm/components/hub_drawer.js?v=1006').then(m => {
+                    import('../features/pm/components/hub_drawer.js?v=1241').then(m => {
                         m.openHubDrawer(state.currentId, null);
                     });
                     // Show dashboard in background
-                    import('../features/pm/index.js?v=1006').then(module => {
+                    import('../features/pm/index.js?v=1241').then(module => {
                         module.renderPM(contentArea);
                     });
                 } else if (state.currentSubPage === 'my-work') {
                     if (pageTitle) pageTitle.textContent = 'Le Mie Attività';
-                    renderMyWork(contentArea);
+                    import('../features/dashboard/TasksDashboard.js?v=1000').then(m => m.renderMyWork(contentArea));
 
                 } else {
                     // Standard PM views (Dashboard)
-                    import('../features/pm/index.js?v=1006')
+                    import('../features/pm/index.js?v=1241')
                         .then(module => {
                             module.renderPM(contentArea);
                         })
@@ -367,6 +358,14 @@ function render() {
                             contentArea.innerHTML = `<div class="error-state">Errore caricamento modulo PM: ${err.message}</div>`;
                         });
                 }
+                break;
+            case 'agenda':
+                if (pageTitle) pageTitle.textContent = 'La Mia Agenda';
+                import('../features/personal_agenda.js?v=1000').then(m => m.renderAgenda(contentArea));
+                break;
+            case 'admin-notifications':
+                if (pageTitle) pageTitle.textContent = 'Notifiche Admin';
+                import('../features/admin_notifications.js?v=1000').then(m => m.renderAdminNotifications(contentArea));
                 break;
             // ... Add other routes as needed
             default:
@@ -385,7 +384,10 @@ function render() {
                 <button onclick="window.location.reload()" class="primary-btn">Ricarica Pagina</button>
             </div>
         `;
+    } finally {
+        finalizeRender();
     }
+    }, 50);
 }
 
 function renderPlaceholder(container, message) {

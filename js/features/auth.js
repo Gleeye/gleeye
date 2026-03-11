@@ -181,21 +181,43 @@ async function handleSession(session) {
             }
 
             // NOW show the app (with correct sidebar visibility already set)
+            // But KEEP splash screen until critical data is ready
             if (appContainer) appContainer.classList.remove('hidden');
 
-            // Fire app:ready immediately so UI is responsive
-            console.log("[Auth] Triggering app:ready (data will load in background)");
-            window.dispatchEvent(new Event('app:ready'));
-
-            // Load data progressively
+            // Load CRITICAL data first
             if (state.isFetching) return;
             state.isFetching = true;
 
-            // 1. Critical Data for Dashboard (Orders & Assignments)
-            // Load these FIRST so the dashboard populates quickly
-            await Promise.all([fetchOrders(), fetchAssignments()]);
-            console.log("[Auth] Critical data loaded. Refreshing UI.");
-            window.dispatchEvent(new Event('data:loaded')); // Triggers re-render for Dashboard
+            try {
+                console.log("[Auth] Loading critical app data...");
+                const { fetchInternalSpaces, fetchAllCollaborators } = await import('../modules/pm_api.js?v=1000');
+                const { fetchProfiles } = await import('../modules/api.js?v=1000');
+
+                // 1. Critical Data for Dashboard (Orders, Assignments, PM Spaces)
+                // We await these before showing the app to the user
+                const [ordersData] = await Promise.all([
+                    fetchOrders(), 
+                    fetchAssignments(), 
+                    fetchInternalSpaces(),
+                    fetchAllCollaborators(),
+                    fetchProfiles()
+                ]);
+
+                // 2. Pre-fetch feature modules in background (No await)
+                import('./homepage.js?v=1003');
+                import('./dashboard.js?v=1000');
+                import('./pm/internal_list.js?v=1000');
+                import('./pm/components/hub_drawer.js?v=1000');
+                
+                console.log("[Auth] Critical data loaded. Revealing workspace.");
+                
+                // Fire app:ready ONLY NOW
+                window.dispatchEvent(new Event('app:ready'));
+            } catch (err) {
+                console.error("[Auth] Initial data fetch failed:", err);
+                // Still show app but maybe with error? 
+                window.dispatchEvent(new Event('app:ready'));
+            }
 
             // 2. Load the rest in background
             const backgroundFetches = [

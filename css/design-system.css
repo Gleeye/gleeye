@@ -1,7 +1,24 @@
 /* =====================================================
-   DESIGN SYSTEM - Reusable Component Classes
-   Minimal, Elegant, Consistent
+   Material Icons Fix (Prevent FOUT)
    ===================================================== */
+.material-icons-round {
+    font-family: 'Material Icons Round';
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'liga';
+    overflow: hidden; /* CRITICAL: Hides the ligament text before font loads */
+    vertical-align: middle;
+}
 
 /* Typography Scale - Ultra Light */
 .text-display {
@@ -608,4 +625,22 @@
 
 .success-btn:active {
     transform: translateY(0);
+}
+
+/* =====================================================
+   Animations
+   ===================================================== */
+
+@keyframes spin-hub {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spin-hub {
+    animation: spin-hub 2s linear infinite;
 }

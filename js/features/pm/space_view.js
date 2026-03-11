@@ -5,7 +5,7 @@ import { renderHubAppointments } from './components/hub_appointments.js?v=1000';
 import { CloudLinksManager } from '../components/CloudLinksManager.js?v=1000';
 import { state } from '../../modules/state.js';
 import { supabase } from '../../modules/config.js';
-import { renderAvatar } from '../../modules/utils.js?v=1000';
+import { renderAvatar, joinNames } from '../../modules/utils.js?v=1000';
 
 console.log("[SpaceView] Module v376 loaded");
 
@@ -106,9 +106,9 @@ export async function renderSpaceView(container, spaceId) {
             const profile = resolveProfile(assignee);
             return {
                 id: assignee.id, // assignment id
-                name: profile.full_name || `${profile.first_name} ${profile.last_name}` || 'Utente',
+                name: profile.full_name && profile.full_name !== 'null' ? profile.full_name : joinNames(profile.first_name, profile.last_name) || 'Utente',
                 avatar: profile.avatar_url,
-                initial: (profile.full_name || 'U').charAt(0).toUpperCase(),
+                initial: (profile.full_name && profile.full_name !== 'null' ? profile.full_name : 'U').charAt(0).toUpperCase(),
                 user_ref: assignee.user_ref,
                 collab_ref: assignee.collaborator_ref,
                 is_fallback: false
@@ -120,7 +120,7 @@ export async function renderSpaceView(container, spaceId) {
             const profile = resolveProfile(assignee);
             return {
                 id: assignee.id,
-                name: profile.full_name || 'Utente',
+                name: profile.full_name && profile.full_name !== 'null' ? profile.full_name : joinNames(profile.first_name, profile.last_name) || 'Utente',
                 avatar: profile.avatar_url,
                 initial: (profile.full_name || 'U').charAt(0).toUpperCase()
             };

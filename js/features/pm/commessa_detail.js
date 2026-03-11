@@ -1,11 +1,13 @@
 import { state } from '../../modules/state.js';
 import { fetchOrders } from '../../modules/api.js';
-import { showGlobalAlert } from '../../modules/utils.js?v=1000';
-import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, updateSpaceCloudLinks } from '../../modules/pm_api.js';
-import { CloudLinksManager } from '../components/CloudLinksManager.js?v=1000';
-import { renderAvatar } from '../../modules/utils.js?v=1000';
+import { showGlobalAlert } from '../../modules/utils.js?v=1241';
+import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, updateSpaceCloudLinks } from '../../modules/pm_api.js?v=1241';
+import { CloudLinksManager } from '../components/CloudLinksManager.js?v=1241';
+import { renderAvatar, joinNames } from '../../modules/utils.js?v=1241';
+import { supabase } from '../../modules/config.js';
 
 // Status colors for "Stato Lavori"
+console.log('--- COMMESSA DETAIL LOADED v999 ---');
 // Status colors for "Stato Lavori"
 const STATUS_CONFIG = {
     'in_svolgimento': { label: 'In Svolgimento', color: '#3b82f6', bg: '#eff6ff', icon: 'play_circle' },
@@ -124,8 +126,8 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         const statusConfig = STATUS_CONFIG[normalized] || { label: order?.status_works || 'N/A', color: '#64748b', bg: '#f1f5f9' }; */
         // Moved inside render to handle internal case
 
-        // 5. Get PM user
-        const pmUser = state.profiles?.find(p => p.id === space?.default_pm_user_ref);
+        const normalized = normalizeStatus(isInternal ? space?.status : order?.status_works);
+        const statusConfig = STATUS_CONFIG[normalized] || STATUS_CONFIG['in_svolgimento'];
 
         // 5b. Check permissions for Receipt Icon (Partner, Account, Amministrazione only)
         const userTags = (() => {
@@ -138,13 +140,78 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         // Check if user has at least one of the allowed tags or is admin
         const canViewReceipt = state.profile?.role === 'admin' || userTags.some(t => ['Partner', 'Account', 'Amministrazione'].includes(t));
 
-        const normalized = normalizeStatus(isInternal ? space?.status : order?.status_works);
-        const statusConfig = STATUS_CONFIG[normalized] || STATUS_CONFIG['in_svolgimento'];
+        // 5. Get PM user for Cluster Header
+        let mainPM = state.profiles?.find(p => p.id === space?.default_pm_user_ref);
+        if (isInternal && space?.is_cluster) {
+            const manager = spaceAssignees.find(a => ['manager', 'pm', 'admin'].includes(a.role));
+            if (manager) {
+                const collab = state.collaborators?.find(c => (manager.user_ref && c.user_id === manager.user_ref) || (manager.collaborator_ref && c.id === manager.collaborator_ref));
+                if (collab) mainPM = { ...collab, full_name: collab.full_name || joinNames(collab.first_name, collab.last_name) };
+                else if (manager.user) mainPM = manager.user;
+            }
+        }
+
+        // Update Page Title if it exists
+        const pageTitle = document.getElementById('page-title');
+        if (pageTitle) {
+            if (isInternal) {
+                pageTitle.textContent = space?.is_cluster ? 'Dettaglio Cluster' : 'Dettaglio Progetto';
+            } else {
+                pageTitle.textContent = 'Dettaglio Commessa';
+            }
+        }
+
+        // --- FETCH CHILD PROJECTS & AGGREGATE ITEMS IF CLUSTER ---
+        let childProjects = [];
+        if (space?.is_cluster) {
+            const { fetchInternalSpaces } = await import('../../modules/pm_api.js?v=1241');
+            const allSpaces = await fetchInternalSpaces();
+            childProjects = allSpaces.filter(s => s.parent_ref === space.id);
+
+            if (childProjects.length > 0) {
+                console.log('[ProjectHub] Aggregating child items for:', childProjects.length, 'projects');
+                const childIds = childProjects.map(cp => cp.id);
+                const { data: childItems, error: childItemsError } = await supabase
+                    .from('pm_items')
+                    .select(`
+                        *,
+                        pm_item_assignees ( id, user_ref, collaborator_ref, role, created_at ),
+                        pm_item_incarichi ( incarico_ref )
+                    `)
+                    .in('space_ref', childIds)
+                    .is('archived_at', null);
+                
+                if (childItemsError) console.error('[ProjectHub] Child items error:', childItemsError);
+                if (!childItemsError && childItems) {
+                    console.log('[ProjectHub] Found child items:', childItems.length);
+                    // Filter account level items
+                    const filteredChildItems = childItems.filter(i => {
+                        const isAccount = i.is_account_level || i.pm_item_assignees?.some(a => a.role === 'account') || i.notes?.toLowerCase().includes('[account]');
+                        return !isAccount;
+                    });
+                    items = [...items, ...filteredChildItems];
+                    kpis = calculateKPIs(items);
+                }
+            }
+        }
+
+        const spaceName = isInternal ? (space?.name || 'Project') : (order?.title || 'Commessa');
+        const activitiesCount = items.filter(i => !i.parent_ref).length;
+        const tasksCount = items.filter(i => !!i.parent_ref).length;
+
+        console.log('[ProjectHub] Count stats:', { projects: childProjects.length, activities: activitiesCount, tasks: tasksCount });
 
         // --- 7. RENDER MAIN CONTENT ---
         container.innerHTML = `
             <style>
-                .project-hub {
+                    .cluster-header-card { padding: 1.5rem 2rem; background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 20px; box-shadow: var(--shadow-md); display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2rem; }
+                    .cluster-header-title { font-size: 1.8rem; font-weight: 800; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.02em; }
+                    .cluster-stats-row { display: flex; align-items: center; gap: 1.5rem; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 1rem; }
+                    .cluster-stat { display: flex; align-items: baseline; gap: 4px; }
+                    .cluster-stat .n { font-size: 1.1rem; font-weight: 800; color: var(--text-primary); }
+                    .cluster-stat .l { font-size: 0.85rem; font-weight: 600; color: var(--text-tertiary); }
+
+                    .project-hub {
                     width: auto;
                     margin: 0 -3rem !important; /* Only breakout sides, no top negative margin */
                     padding: 0 !important;
@@ -508,9 +575,11 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                 const pmList = isInternal ? spaceAssignees.filter(a => ['pm', 'manager', 'admin'].includes(a.role)) : spaceAssignees;
                 return pmList.map(a => {
                     const collab = state.collaborators?.find(c => (a.user_ref && c.user_id === a.user_ref) || (a.collaborator_ref && c.id === a.collaborator_ref));
-                    const userName = collab ? (collab.full_name || `${collab.first_name} ${collab.last_name}`) : (a.user?.full_name || 'Utente');
+                    const userName = (collab?.full_name && collab.full_name !== 'null') ? collab.full_name : joinNames(collab?.first_name, collab?.last_name, a.user?.full_name, a.user?.first_name, a.user?.last_name) || 'Utente';
+                    const uid = a.user_ref || collab?.user_id;
+                    const collabId = a.collaborator_ref || collab?.id;
                     return `
-                                        <div class="user-pill-full animate-slide-in" style="display: flex; align-items: center; justify-content: space-between; background: white; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+                                        <div class="user-pill-full animate-slide-in" data-uid="${uid || ''}" data-collab-id="${collabId || ''}" style="display: flex; align-items: center; justify-content: space-between; background: white; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
                                             <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
                                                 ${renderAvatar(collab || a.user || { full_name: userName }, { size: 36, borderRadius: '10px' })}
                                                 <div style="min-width: 0;">
@@ -518,8 +587,8 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                                     <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 700;">${a.role === 'pm' ? (isInternal ? 'Responsabile' : 'Project Manager') : (isInternal ? 'Responsabile' : 'Collaboratore')}</div>
                                                 </div>
                                             </div>
-                                            <button class="remove-space-pm-btn" data-id="${a.id}" style="background:none; border:none; padding:4px; cursor:pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
-                                                <span class="material-icons-round" style="font-size: 1.1rem;">close</span>
+                                            <button class="remove-space-pm-btn" style="background:none; border:none; padding:4px; cursor:pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
+                                                <span class="material-icons-round" style="font-size: 1.1rem; pointer-events: none;">close</span>
                                             </button>
                                         </div>
                                     `;
@@ -548,9 +617,11 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     const memberList = spaceAssignees.filter(a => !['pm', 'manager', 'admin'].includes(a.role));
                     return memberList.map(a => {
                         const collab = state.collaborators?.find(c => (a.user_ref && c.user_id === a.user_ref) || (a.collaborator_ref && c.id === a.collaborator_ref));
-                        const userName = collab ? (collab.full_name || `${collab.first_name} ${collab.last_name}`) : (a.user?.full_name || 'Utente');
+                        const userName = (collab?.full_name && collab.full_name !== 'null') ? collab.full_name : joinNames(collab?.first_name, collab?.last_name, a.user?.full_name, a.user?.first_name, a.user?.last_name) || 'Utente';
+                        const uid = a.user_ref || collab?.user_id;
+                        const collabId = a.collaborator_ref || collab?.id;
                         return `
-                                            <div class="user-pill-full animate-slide-in" style="display: flex; align-items: center; justify-content: space-between; background: white; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+                                            <div class="user-pill-full animate-slide-in" data-uid="${uid || ''}" data-collab-id="${collabId || ''}" style="display: flex; align-items: center; justify-content: space-between; background: white; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
                                                 <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
                                                     ${renderAvatar(collab || a.user || { full_name: userName }, { size: 36, borderRadius: '10px' })}
                                                     <div style="min-width: 0;">
@@ -558,8 +629,8 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                                         <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 700;">Membro</div>
                                                     </div>
                                                 </div>
-                                                <button class="remove-space-pm-btn" data-id="${a.id}" style="background:none; border:none; padding:4px; cursor:pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
-                                                    <span class="material-icons-round" style="font-size: 1.1rem;">close</span>
+                                                <button class="remove-space-pm-btn" style="background:none; border:none; padding:4px; cursor:pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
+                                                    <span class="material-icons-round" style="font-size: 1.1rem; pointer-events: none;">close</span>
                                                 </button>
                                             </div>
                                         `;
@@ -601,6 +672,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
                     <!-- MAIN CONTENT -->
                     <div class="hub-main-content">
+
                         
                         <!-- Header Bar (Status & Actions Combined) -->
                         <div id="hub-header-bar" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.5rem;">
@@ -727,20 +799,48 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                         <span class="material-icons-round" style="font-size: 1.25rem;">add_circle</span>
                                         <span style="font-weight: 700; font-size: 0.8rem;">Nuovo Elemento</span>
                                     </button>
+
+                                    <!-- Desktop Dropdown -->
+                                    <div id="add-hub-dropdown" class="hidden glass-card" style="position: absolute; top: calc(100% + 8px); right: 0; width: 180px; z-index: 1000; padding: 0.4rem; box-shadow: var(--shadow-xl); border: 1px solid var(--glass-border);">
+                                        ${space?.is_cluster ? `
+                                        <div class="dropdown-item" id="add-project-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                                            <span class="material-icons-round" style="color: var(--brand-blue); font-size: 1.2rem;">lan</span>
+                                            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Progetti</div>
+                                        </div>
+                                        <div style="height: 1px; background: var(--surface-2); margin: 4px 8px;"></div>
+                                        ` : ''}
+                                        <div class="dropdown-item" id="add-activity-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                                            <span class="material-icons-round" style="color: #f59e0b; font-size: 1.2rem;">folder</span>
+                                            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Attività</div>
+                                        </div>
+                                        <div class="dropdown-item" id="add-task-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                                            <span class="material-icons-round" style="color: #3b82f6; font-size: 1.2rem;">check_circle_outline</span>
+                                            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Task</div>
+                                        </div>
+                                        ${!isInternal ? `
+                                        <div style="height: 1px; background: var(--surface-2); margin: 4px 8px;"></div>
+                                        <div class="dropdown-item" id="add-appointment-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                                            <span class="material-icons-round" style="color: #8b5cf6; font-size: 1.2rem;">event</span>
+                                            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Appuntamento</div>
+                                        </div>
+                                        ` : ''}
+                                    </div>
                                 </div>
 
-                                <!-- Ordine (Link) -->
-                                ${!isInternal && canViewReceipt ? `
-                                <a href="#order-detail/${orderId}" title="Dettaglio Ordine" 
-                                   style="padding: 7px 16px; border-radius: 12px; background: white; border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-sm); text-decoration: none;"
-                                   onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.color='var(--brand-blue)'; this.style.background='rgba(59, 130, 246, 0.02)'"
-                                   onmouseout="this.style.borderColor='var(--glass-border)'; this.style.color='var(--text-secondary)'; this.style.background='white'">
-                                    <span class="material-icons-round" style="font-size: 1.1rem;">receipt_long</span>
-                                    <span style="font-weight: 700; font-size: 0.75rem;">Ordine</span>
-                                </a>
-                                ` : ''}
                             </div>
                         </div>
+
+                        ${space?.is_cluster ? '' : `
+                        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 0.5rem; margin-top: 0.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--text-tertiary); font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                                <span class="material-icons-round" style="font-size: 1.1rem; color: var(--text-tertiary);">home</span>
+                                <span class="material-icons-round" style="font-size: 1rem; color: #cbd5e1;">chevron_right</span>
+                                <span style="color: var(--brand-blue);">${isInternal ? space?.area : 'Commesse'}</span>
+                                <span class="material-icons-round" style="font-size: 1rem; color: #cbd5e1;">chevron_right</span>
+                                <span style="color: var(--text-primary);">${spaceName}</span>
+                            </div>
+                        </div>
+                        `}
 
                         <!-- Mobile Team Strip (hidden on desktop) -->
                         <div id="mobile-team-strip" style="display: none; align-items: center; gap: 0; padding: 0.35rem 0.5rem; overflow-x: auto;">
@@ -804,35 +904,26 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     </div>
                 </div>
 
-                <!-- Floating Action Button (FAB) for mobile -->
+                <!-- Mobile FAB and its dropdown -->
                 <button id="mobile-fab" style="display: none;">
                     <span class="material-icons-round" style="font-size: 1.7rem;">add</span>
                 </button>
-
-                <!-- NEW Dropdown Menu (Moved here so it's not inside hidden header on mobile) -->
-                <div id="add-hub-dropdown" class="hidden glass-card" style="position: absolute; top: calc(100% + 8px); right: 0; width: 180px; z-index: 1000; padding: 0.4rem; box-shadow: var(--shadow-xl); border: 1px solid var(--glass-border);">
-                    ${space?.is_cluster ? `
-                    <div class="dropdown-item" id="add-project-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <div id="mobile-add-dropdown" class="hidden glass-card" style="position: fixed; bottom: 5.5rem; right: 1.5rem; width: 180px; z-index: 1002; padding: 0.4rem; box-shadow: var(--shadow-xl); border: 1px solid var(--glass-border);">
+                     ${space?.is_cluster ? `
+                    <div class="dropdown-item" data-action="project" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;">
                         <span class="material-icons-round" style="color: var(--brand-blue); font-size: 1.2rem;">lan</span>
                         <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Progetti</div>
                     </div>
                     <div style="height: 1px; background: var(--surface-2); margin: 4px 8px;"></div>
                     ` : ''}
-                    <div class="dropdown-item" id="add-activity-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                    <div class="dropdown-item" data-action="activity" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;">
                         <span class="material-icons-round" style="color: #f59e0b; font-size: 1.2rem;">folder</span>
                         <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Attività</div>
                     </div>
-                    <div class="dropdown-item" id="add-task-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                    <div class="dropdown-item" data-action="task" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;">
                         <span class="material-icons-round" style="color: #3b82f6; font-size: 1.2rem;">check_circle_outline</span>
                         <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Task</div>
                     </div>
-                    ${!isInternal ? `
-                    <div style="height: 1px; background: var(--surface-2); margin: 4px 8px;"></div>
-                    <div class="dropdown-item" id="add-appointment-btn" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                        <span class="material-icons-round" style="color: #8b5cf6; font-size: 1.2rem;">event</span>
-                        <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Appuntamento</div>
-                    </div>
-                    ` : ''}
                 </div>
             </div>
             
@@ -870,7 +961,6 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
 
         // Store context for child components
-        const spaceName = isInternal ? (space?.name || 'Project') : (order?.title || 'Commessa');
         window._hubContext = { order, space, spaceId, items, kpis, orderId, spaceName };
 
         // 7. Tab Logic
@@ -1072,51 +1162,93 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
         const addHubBtn = container.querySelector('#add-new-hub-btn');
         const addHubDropdown = container.querySelector('#add-hub-dropdown');
+        const mobileFab = container.querySelector('#mobile-fab');
+        const mobileAddDropdown = container.querySelector('#mobile-add-dropdown');
 
         if (addHubBtn && addHubDropdown) {
-            const toggleDropdown = (e) => {
+            addHubBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 addHubDropdown.classList.toggle('hidden');
-            };
-
-            addHubBtn.addEventListener('click', toggleDropdown);
-
-            // Add listener to FAB too
-            const mobileFab = container.querySelector('#mobile-fab');
-            if (mobileFab) mobileFab.addEventListener('click', toggleDropdown);
+                mobileAddDropdown?.classList.add('hidden');
+            });
 
             document.addEventListener('click', (e) => {
-                const isFab = mobileFab && mobileFab.contains(e.target);
-                if (!addHubBtn.contains(e.target) && !addHubDropdown.contains(e.target) && !isFab) {
+                if (!addHubBtn.contains(e.target) && !addHubDropdown.contains(e.target)) {
                     addHubDropdown.classList.add('hidden');
                 }
             });
 
-            container.querySelector('#add-project-btn')?.addEventListener('click', async () => {
+            // Action listeners for desktop
+            addHubDropdown.querySelector('#add-project-btn')?.addEventListener('click', async () => {
                 addHubDropdown.classList.add('hidden');
-                const { openNewProjectModal } = await import('./components/cluster_projects.js?v=2000');
-                openNewProjectModal(spaceId, () => {
-                    const activeTab = Array.from(tabs).find(t => t.classList.contains('active'))?.dataset.tab;
-                    if (activeTab === 'projects') renderTab('projects');
+                const { openProjectModal } = await import('./components/project_modal.js?v=2000');
+                openProjectModal({
+                    prefilledParentId: spaceId,
+                    prefilledArea: space?.area,
+                    onSuccess: () => {
+                        const activeTab = Array.from(tabs).find(t => t.classList.contains('active'))?.dataset.tab;
+                        if (activeTab === 'projects') renderTab('projects');
+                    }
                 });
             });
 
-            container.querySelector('#add-activity-btn')?.addEventListener('click', () => {
+            addHubDropdown.querySelector('#add-activity-btn')?.addEventListener('click', () => {
                 addHubDropdown.classList.add('hidden');
                 openItemDrawer(null, spaceId, null, 'attivita');
             });
 
-            container.querySelector('#add-task-btn')?.addEventListener('click', () => {
+            addHubDropdown.querySelector('#add-task-btn')?.addEventListener('click', () => {
                 addHubDropdown.classList.add('hidden');
                 openItemDrawer(null, spaceId, null, 'task');
             });
 
-            container.querySelector('#add-appointment-btn')?.addEventListener('click', () => {
+            addHubDropdown.querySelector('#add-appointment-btn')?.addEventListener('click', () => {
                 addHubDropdown.classList.add('hidden');
-                import('./components/hub_appointment_drawer.js?v=1000').then(mod => {
-                    const refId = isInternal ? spaceId : orderId;
-                    const refType = isInternal ? 'space' : 'order';
-                    mod.openAppointmentDrawer(null, refId, refType);
+                import('../../modules/appointments_api.js').then(mod => {
+                    mod.openAppointmentDrawer(null, {
+                        type: 'service',
+                        related_type: isInternal ? 'pm_space' : 'order',
+                        related_id: isInternal ? spaceId : orderId,
+                        area: isInternal ? space?.area : order?.area
+                    });
+                });
+            });
+        }
+
+        // Action listeners for mobile
+        if (mobileFab && mobileAddDropdown) {
+            mobileFab.addEventListener('click', (e) => {
+                e.stopPropagation();
+                mobileAddDropdown.classList.toggle('hidden');
+                addHubDropdown?.classList.add('hidden');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!mobileFab.contains(e.target) && !mobileAddDropdown.contains(e.target)) {
+                    mobileAddDropdown.classList.add('hidden');
+                }
+            });
+
+            mobileAddDropdown.querySelectorAll('.dropdown-item').forEach(item => {
+                item.addEventListener('click', async () => {
+                    const action = item.dataset.action;
+                    mobileAddDropdown.classList.add('hidden');
+
+                    if (action === 'project') {
+                        const { openProjectModal } = await import('./components/project_modal.js?v=2000');
+                        openProjectModal({
+                            prefilledParentId: spaceId,
+                            prefilledArea: space?.area,
+                            onSuccess: () => {
+                                const activeTab = Array.from(tabs).find(t => t.classList.contains('active'))?.dataset.tab;
+                                if (activeTab === 'projects') renderTab('projects');
+                            }
+                        });
+                    } else if (action === 'activity') {
+                        openItemDrawer(null, spaceId, null, 'attivita');
+                    } else if (action === 'task') {
+                        openItemDrawer(null, spaceId, null, 'task');
+                    }
                 });
             });
         }
@@ -1169,9 +1301,11 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     if (pmsList) {
                         pmsList.innerHTML = spaceAssignees.map(a => {
                             const collab = state.collaborators?.find(c => (a.user_ref && c.user_id === a.user_ref) || (a.collaborator_ref && c.id === a.collaborator_ref));
-                            const userName = collab ? (collab.full_name || `${collab.first_name} ${collab.last_name}`) : (a.user?.full_name || 'Utente');
+                            const userName = (collab?.full_name && collab.full_name !== 'null') ? collab.full_name : joinNames(collab?.first_name, collab?.last_name, a.user?.full_name, a.user?.first_name, a.user?.last_name) || 'Utente';
+                            const uid = a.user_ref || collab?.user_id;
+                            const collabId = a.collaborator_ref || collab?.id;
                             return `
-                                <div class="user-pill-full" style="display: flex; align-items: center; justify-content: space-between; background: white; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--glass-border); box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                                <div class="user-pill-full" data-uid="${uid || ''}" data-collab-id="${collabId || ''}" style="display: flex; align-items: center; justify-content: space-between; background: white; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--glass-border); box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
                                     <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
                                         ${renderAvatar(collab || a.user || { full_name: userName }, { size: 32, borderRadius: '8px' })}
                                         <div style="min-width: 0;">
@@ -1179,7 +1313,9 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                             <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600;">${a.role === 'pm' ? 'Project Manager' : 'Collaboratore'}</div>
                                         </div>
                                     </div>
-                                    <span class="material-icons-round remove-space-pm-btn" data-id="${a.id}" style="font-size: 1.1rem; cursor: pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">close</span>
+                                    <button class="remove-space-pm-btn" style="background:none; border:none; padding:4px; cursor:pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
+                                        <span class="material-icons-round" style="font-size: 1.1rem; pointer-events: none;">close</span>
+                                    </button>
                                 </div>
                             `;
                         }).join('') || '<div style="text-align: center; color: var(--text-tertiary); font-size: 0.8rem; padding: 1rem; border: 1px dashed var(--glass-border); border-radius: 10px;">Nessun membro assegnato</div>';
@@ -1228,12 +1364,12 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
             const assignedUserIds = new Set(spaceAssignees.map(a => a.user_ref).filter(Boolean));
             const assignedCollabIds = new Set(spaceAssignees.map(a => a.collaborator_ref).filter(Boolean));
             const others = (state.collaborators || []).filter(c => {
-                if (c.is_active === false || c.active === false) return false;
                 let tags = c.tags || [];
                 if (typeof tags === 'string') {
                     try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
                 }
-                const isPM = Array.isArray(tags) && tags.some(t => t.toLowerCase() === 'pm' || t.toLowerCase() === 'project manager');
+                const tagsLower = (Array.isArray(tags) ? tags : []).map(t => t.toLowerCase());
+                const isPM = tagsLower.some(t => ['pm', 'project manager', 'partner', 'account', 'amministrazione'].includes(t));
                 const isAssigned = (c.user_id && assignedUserIds.has(c.user_id)) || assignedCollabIds.has(c.id);
                 return isPM && !isAssigned;
             });
@@ -1257,7 +1393,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                 ${c.avatar_url ? `<img src="${c.avatar_url}" style="width:100%; height:100%; object-fit:cover;">` : initial}
                             </div>
                             <div style="flex: 1; min-width: 0;">
-                                <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.full_name}</div>
+                                <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.full_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Collaboratore'}</div>
                                 <div style="font-size: 0.7rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 4px;">
                                     <span class="material-icons-round" style="font-size: 10px;">verified</span> Project Manager
                                 </div>
@@ -1311,8 +1447,8 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
             const removeBtn = e.target.closest('.remove-space-pm-btn');
             if (removeBtn) {
                 e.stopPropagation();
-                const pill = removeBtn.closest('.user-pill-mini');
-                if (pill && await window.showConfirm?.("Rimuovere PM dalla commessa?")) {
+                const pill = removeBtn.closest('.user-pill-full');
+                if (pill && (await (window.showConfirm || (async (m) => confirm(m)))("Rimuovere membro dalla commessa?"))) {
                     const uid = pill.dataset.uid;
                     const collabId = pill.dataset.collabId;
                     try {
@@ -1343,7 +1479,32 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     if (memberPicker) {
                         if (memberPicker.classList.contains('hidden')) {
                             document.querySelectorAll('#space-member-picker:not(.hidden)').forEach(p => p.classList.add('hidden'));
-                            memberPicker.innerHTML = renderPmOptions();
+                            // Show all collaborators not already assigned to space
+                            const assignedUserIds = new Set(spaceAssignees.map(a => a.user_ref).filter(Boolean));
+                            const assignedCollabIds = new Set(spaceAssignees.map(a => a.collaborator_ref).filter(Boolean));
+                            const allOthers = (state.collaborators || []).filter(c => {
+                                if (c.is_active === false || c.active === false) return false;
+                                return !((c.user_id && assignedUserIds.has(c.user_id)) || assignedCollabIds.has(c.id));
+                            });
+
+                            if (allOthers.length === 0) {
+                                memberPicker.innerHTML = '<div style="padding:1.5rem; text-align:center; font-size:0.85rem; color:var(--text-tertiary);">Nessun altro collaboratore disponibile</div>';
+                            } else {
+                                memberPicker.innerHTML = `
+                                    <div style="padding: 10px 12px 6px; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--surface-2); margin-bottom: 4px;">Aggiungi al Team</div>
+                                    ${allOthers.map(c => `
+                                        <div class="user-option-space" data-uid="${c.user_id || ''}" data-collab-id="${c.id}" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='var(--surface-1)'" onmouseout="this.style.background='transparent'">
+                                            <div style="width: 32px; height: 32px; border-radius: 50%; background: #64748b; color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; border: 1px solid rgba(0,0,0,0.05); overflow: hidden;">
+                                                ${c.avatar_url ? `<img src="${c.avatar_url}" style="width:100%; height:100%; object-fit:cover;">` : (c.full_name?.charAt(0) || 'U')}
+                                            </div>
+                                            <div style="flex: 1; min-width: 0;">
+                                                <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.full_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Collaboratore'}</div>
+                                                <div style="font-size: 0.7rem; color: var(--text-tertiary);">Collaboratore</div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                `;
+                            }
                             memberPicker.classList.remove('hidden');
                         } else {
                             memberPicker.classList.add('hidden');
