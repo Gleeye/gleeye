@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v12'; // Force update per fix fetch errors e PM / Ordini views (V2)
+const CACHE_NAME = 'gleeye-pwa-cache-v13'; // Force update for PM detail and layout fixes
 const urlsToCache = [
     '/',
     '/index.html',
