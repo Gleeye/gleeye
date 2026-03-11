@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v14'; // Force update for final PM layout fixes
+const CACHE_NAME = 'gleeye-pwa-cache-v15'; // Compact PM Overview layout updates
 const urlsToCache = [
     '/',
     '/index.html',

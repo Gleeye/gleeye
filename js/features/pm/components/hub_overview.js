@@ -292,13 +292,13 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
             <div class="overview-card">
                 
                 <!-- Header with Stats -->
-                <div style="margin-bottom: 1.5rem;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--surface-1); display: flex; align-items: center; justify-content: center;">
-                                <span class="material-icons-round" style="color: var(--brand-color); font-size: 1.25rem;">analytics</span>
+                <div style="margin-bottom: 1rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                        <div style="display: flex; align-items: center; gap: 0.6rem;">
+                            <div style="width: 32px; height: 32px; border-radius: 9px; background: var(--surface-1); display: flex; align-items: center; justify-content: center;">
+                                <span class="material-icons-round" style="color: var(--brand-color); font-size: 1.15rem;">analytics</span>
                             </div>
-                            <span style="font-weight: 700; font-size: 1.1rem; color: var(--text-primary);">Stato delle Attività</span>
+                            <span style="font-weight: 700; font-size: 1rem; color: var(--text-primary);">Stato delle Attività</span>
                         </div>
                         <button class="nav-to-tab-btn" data-target="board" title="Vai alla Board" style="
                             padding: 6px; border-radius: 8px; border: 1px solid var(--surface-2); 
@@ -311,25 +311,25 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
 
                     <!-- Horizontal Stats Grid -->
                     <div class="stats-grid">
-                        <div style="background: var(--surface-1); padding: 0.75rem; border-radius: 12px; border: 1px solid var(--surface-2); text-align: center;">
-                            <div style="font-size: 0.6rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 2px;">Totale</div>
-                            <div style="font-size: 1.1rem; font-weight: 800; color: var(--text-primary);">${items.length}</div>
+                        <div style="background: var(--surface-1); padding: 0.5rem; border-radius: 10px; border: 1px solid var(--surface-2); text-align: center;">
+                            <div style="font-size: 0.55rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 2px;">Totale</div>
+                            <div style="font-size: 1rem; font-weight: 800; color: var(--text-primary);">${items.length}</div>
                         </div>
-                        <div style="background: #ecfdf5; padding: 0.75rem; border-radius: 12px; border: 1px solid #d1fae5; text-align: center;">
-                            <div style="font-size: 0.6rem; font-weight: 700; color: #059669; text-transform: uppercase; margin-bottom: 2px;">Comp.</div>
-                            <div style="font-size: 1.1rem; font-weight: 800; color: #065f46;">${kpis.done}</div>
+                        <div style="background: #ecfdf5; padding: 0.5rem; border-radius: 10px; border: 1px solid #d1fae5; text-align: center;">
+                            <div style="font-size: 0.55rem; font-weight: 700; color: #059669; text-transform: uppercase; margin-bottom: 2px;">Comp.</div>
+                            <div style="font-size: 1rem; font-weight: 800; color: #065f46;">${kpis.done}</div>
                         </div>
-                        <div style="background: #eff6ff; padding: 0.75rem; border-radius: 12px; border: 1px solid #dbeafe; text-align: center;">
-                            <div style="font-size: 0.6rem; font-weight: 700; color: #2563eb; text-transform: uppercase; margin-bottom: 2px;">Corso</div>
-                            <div style="font-size: 1.1rem; font-weight: 800; color: #1e40af;">${items.filter(i => ['in_progress', 'review'].includes(i.status)).length}</div>
+                        <div style="background: #eff6ff; padding: 0.5rem; border-radius: 10px; border: 1px solid #dbeafe; text-align: center;">
+                            <div style="font-size: 0.55rem; font-weight: 700; color: #2563eb; text-transform: uppercase; margin-bottom: 2px;">Corso</div>
+                            <div style="font-size: 1rem; font-weight: 800; color: #1e40af;">${items.filter(i => ['in_progress', 'review'].includes(i.status)).length}</div>
                         </div>
-                        <div style="background: #f8fafc; padding: 0.75rem; border-radius: 12px; border: 1px solid #f1f5f9; text-align: center;">
-                            <div style="font-size: 0.6rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 2px;">Fare</div>
-                            <div style="font-size: 1.1rem; font-weight: 800; color: #334155;">${items.filter(i => (i.status === 'todo' || !i.status)).length}</div>
+                        <div style="background: #f8fafc; padding: 0.5rem; border-radius: 10px; border: 1px solid #f1f5f9; text-align: center;">
+                            <div style="font-size: 0.55rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 2px;">Fare</div>
+                            <div style="font-size: 1rem; font-weight: 800; color: #334155;">${items.filter(i => (i.status === 'todo' || !i.status)).length}</div>
                         </div>
-                        <div style="background: #f1f5f9; padding: 0.75rem; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center;">
-                            <div style="font-size: 0.6rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 2px;">Pausa</div>
-                            <div style="font-size: 1.1rem; font-weight: 800; color: #334155;">${kpis.blocked}</div>
+                        <div style="background: #f1f5f9; padding: 0.5rem; border-radius: 10px; border: 1px solid #e2e8f0; text-align: center;">
+                            <div style="font-size: 0.55rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 2px;">Pausa</div>
+                            <div style="font-size: 1rem; font-weight: 800; color: #334155;">${kpis.blocked}</div>
                         </div>
                     </div>
                 </div>
@@ -748,32 +748,32 @@ function renderUrgentItem(item, allItems = []) {
 
     return `
         <div class="urgent-item" data-id="${item.id}" style="
-            display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem; background: #f8fafc; 
-            border-radius: 12px; margin-bottom: 0.6rem; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; gap: 0.7rem; padding: 0.65rem 0.75rem; background: #fafafa; 
+            border-radius: 10px; margin-bottom: 0.45rem; cursor: pointer; transition: all 0.2s;
             border: 1px solid ${isOverdue ? '#fef2f2' : 'var(--surface-1)'};
-            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='var(--shadow-md)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 2px rgba(0,0,0,0.04)';">
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='var(--shadow-md)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 2px rgba(0,0,0,0.02)';">
             <div style="
-                width: 32px; height: 32px; border-radius: 9px; 
-                background: ${isOverdue ? '#fef2f2' : '#f8fafc'}; 
+                width: 28px; height: 28px; border-radius: 7px; 
+                background: ${isOverdue ? '#fef2f2' : 'var(--surface-1)'}; 
                 display: flex; align-items: center; justify-content: center; flex-shrink: 0;
             ">
-                <span class="material-icons-round" style="color: ${isOverdue ? '#ef4444' : '#64748b'}; font-size: 1.1rem;">
+                <span class="material-icons-round" style="color: ${isOverdue ? '#ef4444' : '#64748b'}; font-size: 1rem;">
                     ${item.item_type === 'attivita' ? 'folder' : 'check_circle'}
                 </span>
             </div>
             
             <div style="flex: 1; min-width: 0;">
-                ${pathStr ? `<div style="font-size: 0.6rem; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 2px;">${pathStr}</div>` : ''}
-                <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px;">${item.title}</div>
+                ${pathStr ? `<div style="font-size: 0.55rem; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 1px;">${pathStr}</div>` : ''}
+                <div style="font-weight: 600; font-size: 0.8rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px;">${item.title}</div>
                 <div style="display: flex; align-items: center; gap: 6px;">
                     <span style="
-                        font-size: 0.6rem; padding: 2px 6px; border-radius: 5px; 
+                        font-size: 0.55rem; padding: 1px 5px; border-radius: 4px; 
                         background: ${statusCfg.bg}; color: ${statusCfg.color}; 
                         font-weight: 700; text-transform: uppercase; letter-spacing: 0.01em;
                     ">${statusCfg.label}</span>
-                    <span style="font-size: 0.7rem; font-weight: 700; color: ${isOverdue ? '#ef4444' : '#f59e0b'}; display: flex; align-items: center; gap: 3px;">
-                        <span class="material-icons-round" style="font-size: 0.85rem;">${isOverdue ? 'history' : 'event'}</span>
+                    <span style="font-size: 0.65rem; font-weight: 700; color: ${isOverdue ? '#ef4444' : '#f59e0b'}; display: flex; align-items: center; gap: 3px;">
+                        <span class="material-icons-round" style="font-size: 0.8rem;">${isOverdue ? 'history' : 'event'}</span>
                         ${dueDateStr}
                     </span>
                 </div>
