@@ -966,19 +966,19 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
             switch (tabName) {
                 case 'overview':
-                    const { renderHubOverview } = await import('./components/hub_overview.js?v=1210');
+                    const { renderHubOverview } = await import('./components/hub_overview.js?v=1211');
                     renderHubOverview(tabContent, items, kpis, spaceId);
                     break;
                 case 'feed':
-                    const { renderActivityLog } = await import('./components/activity_log.js?v=1020');
+                    const { renderActivityLog } = await import('./components/activity_log.js?v=1021');
                     renderActivityLog(tabContent, { spaceId });
                     break;
                 case 'board':
-                    const { renderHubTree } = await import('./components/hub_tree.js?v=1320');
+                    const { renderHubTree } = await import('./components/hub_tree.js?v=1321');
                     renderHubTree(tabContent, items, space, spaceId);
                     break;
                 case 'list':
-                    const { renderHubList } = await import('./components/hub_list.js?v=1020');
+                    const { renderHubList } = await import('./components/hub_list.js?v=1021');
                     renderHubList(tabContent, items, space, spaceId);
                     break;
                 case 'incarichi':
@@ -986,7 +986,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     else tabContent.innerHTML = '<p style="padding:2rem;">Non disponibile per progetti interni.</p>';
                     break;
                 case 'appointments':
-                    const { renderHubAppointments } = await import('./components/hub_appointments.js?v=1020');
+                    const { renderHubAppointments } = await import('./components/hub_appointments.js?v=1021');
                     const refId = isInternal ? spaceId : orderId;
                     const refType = isInternal ? 'space' : 'order';
 
@@ -1171,7 +1171,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
             // Action listeners for desktop
             addHubDropdown.querySelector('#add-project-btn')?.addEventListener('click', async () => {
                 addHubDropdown.classList.add('hidden');
-                const { openProjectModal } = await import('./components/project_modal.js?v=2000');
+                const { openProjectModal } = await import('./components/project_modal.js?v=2001');
                 openProjectModal({
                     prefilledParentId: spaceId,
                     prefilledArea: space?.area,
