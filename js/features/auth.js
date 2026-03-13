@@ -190,8 +190,9 @@ async function handleSession(session) {
 
             try {
                 console.log("[Auth] Loading critical app data...");
-                const { fetchInternalSpaces, fetchAllCollaborators } = await import('../modules/pm_api.js?v=1000');
-                const { fetchAllProfiles } = await import('../modules/api.js?v=1000');
+                // Note: These are imported at top-level now to ensure consistency
+                const { fetchInternalSpaces, fetchAllCollaborators } = await import('../modules/pm_api.js?v=2000');
+                // We use the top-level fetchAllProfiles from line 3
 
                 // 1. Critical Data for Dashboard (Orders, Assignments, PM Spaces)
                 // We await these before showing the app to the user
