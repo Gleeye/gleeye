@@ -758,6 +758,12 @@ export async function approveBankTransaction(txId, overrides = {}) {
         console.error("Approve transaction failed:", error);
         throw error;
     }
+    // Invalidate Cache
+    if (state.lastFetchTimestamps) {
+        state.lastFetchTimestamps['bankTransactions_all'] = 0;
+        state.lastFetchTimestamps['bankTransactions_posted'] = 0;
+        state.lastFetchTimestamps['bankTransactions_pending'] = 0;
+    }
     return data;
 }
 
@@ -770,6 +776,12 @@ export async function rejectBankTransaction(txId, note = null) {
     if (error) {
         console.error("Reject transaction failed:", error);
         throw error;
+    }
+    // Invalidate Cache
+    if (state.lastFetchTimestamps) {
+        state.lastFetchTimestamps['bankTransactions_all'] = 0;
+        state.lastFetchTimestamps['bankTransactions_posted'] = 0;
+        state.lastFetchTimestamps['bankTransactions_pending'] = 0;
     }
     return data;
 }
@@ -816,6 +828,12 @@ export async function upsertBankTransaction(transaction) {
         if (pIndex >= 0) {
             state.pendingBankTransactions[pIndex] = data;
         }
+    }
+    // Invalidate Cache to ensure full re-sync
+    if (state.lastFetchTimestamps) {
+        state.lastFetchTimestamps['bankTransactions_all'] = 0;
+        state.lastFetchTimestamps['bankTransactions_posted'] = 0;
+        state.lastFetchTimestamps['bankTransactions_pending'] = 0;
     }
     return data;
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v2002'; // Fiscal fix for Occasionale (no cassa)
+const CACHE_NAME = 'gleeye-pwa-cache-v2003'; // Fix for disappearing bank transactions
 const urlsToCache = [
     '/',
     '/index.html',

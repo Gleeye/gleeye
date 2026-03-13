@@ -42,8 +42,8 @@ export async function renderBankTransactions(container) {
     if (thisRenderId !== currentRenderId) return;
 
     s.pendingBankTransactions = allTxs.filter(t => t.status === 'pending');
-    // Reverting to only posted for the registry as per user feedback
-    s.bankTransactions = allTxs.filter(t => t.status === 'posted');
+    // Keeping all transactions in state to avoid breaking the cache reference
+    s.bankTransactions = allTxs;
 
     if (!s.transactionCategories || s.transactionCategories.length === 0) {
         await fetchTransactionCategories();
