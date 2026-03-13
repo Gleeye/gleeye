@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v2003'; // Fix for disappearing bank transactions
+const CACHE_NAME = 'gleeye-pwa-cache-v2004'; // Denormalization of names in passive invoices
 const urlsToCache = [
     '/',
     '/index.html',

@@ -1400,6 +1400,10 @@ async function handleSavePassiveInvoice(e) {
         if (order) relatedOrders.push(order.order_number);
     }
 
+    // Names for denormalization
+    const collaboratorName = (mode === 'collab' || mode === 'partner-wl') ? document.getElementById('pinv-collaborator').options[document.getElementById('pinv-collaborator').selectedIndex]?.text : null;
+    const supplierName = mode === 'supplier' ? document.getElementById('pinv-supplier').options[document.getElementById('pinv-supplier').selectedIndex]?.text : null;
+
     const data = {
         invoice_number: document.getElementById('pinv-number').value,
         issue_date: document.getElementById('pinv-date').value || null,
@@ -1415,7 +1419,9 @@ async function handleSavePassiveInvoice(e) {
         status: status,
         payment_date: (status === 'Pagata' && document.getElementById('pinv-payment-date').value) ? document.getElementById('pinv-payment-date').value : null,
         collaborator_id: (mode === 'collab' || mode === 'partner-wl') ? collaboratorId : null,
+        collaborator_name: collaboratorName,
         supplier_id: mode === 'supplier' ? supplierId : null,
+        supplier_name: supplierName,
         description: mode === 'supplier' ? description : null,
         related_orders: relatedOrders,
         attachment_url: attachmentUrl,
