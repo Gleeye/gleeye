@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v17'; // Thin scrollbar & compact doc items
+const CACHE_NAME = 'gleeye-pwa-cache-v18'; // Fix date sync and profile fetch
 const urlsToCache = [
     '/',
     '/index.html',
