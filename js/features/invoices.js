@@ -1447,7 +1447,7 @@ async function handleSavePassiveInvoice(e) {
 
         closePassiveInvoiceForm();
         await new Promise(r => setTimeout(r, 500)); // Delay for DB consistency
-        await fetchPassiveInvoices();
+        await fetchPassiveInvoices(true);
 
         // Auto-switch year if invoice is from a different year
         const invYear = data.issue_date ? new Date(data.issue_date).getFullYear() : (state.passiveInvoiceYear || new Date().getFullYear());
@@ -2135,18 +2135,21 @@ export async function openPassiveInvoiceForm(id = null, mode = 'collab') {
     const typeSelect = document.getElementById('pinv-type');
     if (isPartner) {
         typeSelect.innerHTML = `
-            <option value="fattura">Fattura (Italia)</option>
-            <option value="estero">Fattura Estera / Reverse Charge</option>
+            <option value="ritenuta">Regime Ordinario (IVA 22% + Ritenuta)</option>
+            <option value="forfettario">Regime Forfettario (No IVA, No Ritenuta)</option>
+            <option value="occasionale">Prestazione Occasionale (Ritenuta 20%)</option>
+            <option value="estero">Fattura Estero / Rev. Charge (No IVA)</option>
+            <option value="parcella">Parcella/Notula (IVA + Ritenuta)</option>
             <option value="nota_credito">Nota di Credito</option>
-            <option value="ritenuta">Fattura con Ritenuta (Opzionale)</option>
         `;
     } else {
         typeSelect.innerHTML = `
-            <option value="ritenuta">Ritenuta d'Acconto (20%)</option>
-            <option value="forfettario">Fattura Forfettario (no ritenuta)</option>
-            <option value="fattura">Fattura Regime Ordinario (20%)</option>
-            <option value="occasionale">Prestazione Occasionale</option>
-            <option value="parcella">Parcella/Notula (20%)</option>
+            <option value="ritenuta">Regime Ordinario (IVA 22% + Ritenuta)</option>
+            <option value="forfettario">Regime Forfettario (No IVA, No Ritenuta)</option>
+            <option value="occasionale">Prestazione Occasionale (Ritenuta 20%)</option>
+            <option value="estero">Fattura Estero / Rev. Charge (No IVA)</option>
+            <option value="parcella">Parcella/Notula (IVA + Ritenuta)</option>
+            <option value="nota_credito">Nota di Credito</option>
         `;
     }
 

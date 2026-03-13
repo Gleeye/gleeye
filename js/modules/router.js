@@ -124,78 +124,78 @@ function render() {
             switch (state.currentPage) {
             case 'home':
                 if (pageTitle) pageTitle.textContent = 'Homepage';
-                import('../features/homepage.js?v=1003').then(m => m.renderHomepage(contentArea));
+                import('../features/homepage.js?v=2000').then(m => m.renderHomepage(contentArea));
                 break;
             case 'dashboard':
                 if (pageTitle) pageTitle.textContent = 'Commercial Dashboard';
-                import('../features/dashboard.js?v=1000').then(m => m.renderDashboard(contentArea));
+                import('../features/dashboard.js?v=2000').then(m => m.renderDashboard(contentArea));
                 break;
             case 'agenda':
                 if (pageTitle) pageTitle.textContent = 'Agenda Personale';
-                import('../features/personal_agenda.js?v=1000').then(m => m.renderAgenda(contentArea));
+                import('../features/personal_agenda.js?v=2000').then(m => m.renderAgenda(contentArea));
                 break;
             case 'my-assignments':
                 if (pageTitle) pageTitle.textContent = 'I Miei Incarichi';
-                import('../features/dashboard/TasksDashboard.js?v=1000').then(m => m.renderMyWork(contentArea));
+                import('../features/dashboard/TasksDashboard.js?v=2000').then(m => m.renderMyWork(contentArea));
                 break;
             case 'sales': // Clients list
                 if (pageTitle) pageTitle.textContent = 'Anagrafica Clienti';
-                import('../features/clients.js?v=1000').then(m => m.renderClients(contentArea));
+                import('../features/clients.js?v=2000').then(m => m.renderClients(contentArea));
                 break;
             case 'client-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Cliente';
-                import('../features/clients.js?v=1000').then(m => m.renderClientDetail(contentArea));
+                import('../features/clients.js?v=2000').then(m => m.renderClientDetail(contentArea));
                 break;
             case 'employees':
                 if (pageTitle) pageTitle.textContent = 'Collaboratori';
-                import('../features/collaborators.js?v=1000').then(m => m.renderCollaborators(contentArea));
+                import('../features/collaborators.js?v=2000').then(m => m.renderCollaborators(contentArea));
                 break;
             case 'collaborator-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Collaboratore';
-                import('../features/collaborators.js?v=1000').then(m => m.renderCollaboratorDetail(contentArea));
+                import('../features/collaborators.js?v=2000').then(m => m.renderCollaboratorDetail(contentArea));
                 break;
             case 'white-label-partners':
                 if (pageTitle) pageTitle.textContent = 'Partner White Label';
-                import('../features/white_label_partners.js').then(m => {
+                import('../features/white_label_partners.js?v=2000').then(m => {
                     m.initWhiteLabelPartnerModals();
                     m.renderWhiteLabelPartners(contentArea);
                 });
                 break;
             case 'white-label-partner-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Partner WL';
-                import('../features/white_label_partners.js').then(m => m.renderWhiteLabelPartnerDetail(contentArea));
+                import('../features/white_label_partners.js?v=2000').then(m => m.renderWhiteLabelPartnerDetail(contentArea));
                 break;
             case 'contacts':
                 if (pageTitle) pageTitle.textContent = 'Anagrafica Referenti';
-                import('../features/contacts.js?v=1000').then(m => m.renderContacts(contentArea));
+                import('../features/contacts.js?v=2000').then(m => m.renderContacts(contentArea));
                 break;
             case 'invoices': // Active Invoices List
                 if (pageTitle) pageTitle.textContent = 'Fatture Attive';
-                import('../features/invoices.js?v=1000').then(m => m.renderActiveInvoicesSafe(contentArea));
+                import('../features/invoices.js?v=2000').then(m => m.renderActiveInvoicesSafe(contentArea));
                 break;
             case 'invoices-dashboard':
                 if (pageTitle) pageTitle.textContent = 'Dashboard Fatturato';
-                import('../features/revenue_dashboard.js?v=1000').then(m => m.renderRevenueDashboard(contentArea));
+                import('../features/revenue_dashboard.js?v=2000').then(m => m.renderRevenueDashboard(contentArea));
                 break;
             case 'passive-invoices-collab':
                 if (pageTitle) pageTitle.textContent = 'Fatture Collaboratori';
-                import('../features/invoices.js?v=1000').then(m => m.renderPassiveInvoicesCollab(contentArea));
+                import('../features/invoices.js?v=2000').then(m => m.renderPassiveInvoicesCollab(contentArea));
                 break;
             case 'passive-invoices-suppliers':
                 if (pageTitle) pageTitle.textContent = 'Fatture Fornitori';
-                import('../features/invoices.js?v=1000').then(m => m.renderPassiveInvoicesSuppliers(contentArea));
+                import('../features/invoices.js?v=2000').then(m => m.renderPassiveInvoicesSuppliers(contentArea));
                 break;
             case 'passive-invoices-partners':
                 if (pageTitle) pageTitle.textContent = 'Fatture Partner WL';
-                import('../features/invoices.js?v=1000').then(m => m.renderPassiveInvoicesPartners(contentArea));
+                import('../features/invoices.js?v=2000').then(m => m.renderPassiveInvoicesPartners(contentArea));
                 break;
             case 'bank-transactions':
                 if (pageTitle) pageTitle.textContent = 'Registro Movimenti';
-                import('../features/bank_transactions.js?v=1000').then(m => m.renderBankTransactions(contentArea).catch(err => console.error('Error rendering bank transactions:', err)));
+                import('../features/bank_transactions.js?v=2000').then(m => m.renderBankTransactions(contentArea).catch(err => console.error('Error rendering bank transactions:', err)));
                 break;
             case 'bank-statements':
                 if (pageTitle) pageTitle.textContent = 'Estratti Conto';
-                import('../features/bank_statements.js?v=1000').then(m => m.renderBankStatements(contentArea));
+                import('../features/bank_statements.js?v=2000').then(m => m.renderBankStatements(contentArea));
                 break;
             case 'invoices-archive':
                 if (pageTitle) pageTitle.textContent = 'Archivio Storico';
@@ -203,85 +203,85 @@ function render() {
                 break;
             case 'settings':
                 if (pageTitle) pageTitle.textContent = 'Impostazioni';
-                import('../features/settings.js?v=1000').then(module => {
+                import('../features/settings.js?v=2000').then(module => {
                     module.renderSettings(contentArea);
                 });
                 break;
             case 'order-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Ordine';
-                import('../features/orders.js?v=1001').then(m => m.renderOrderDetail(contentArea));
+                import('../features/orders.js?v=2000').then(m => m.renderOrderDetail(contentArea));
                 break;
             case 'suppliers':
                 state.currentPage = 'suppliers';
-                import('../features/suppliers_v2.js?v=1000').then(m => {
+                import('../features/suppliers_v2.js?v=2000').then(m => {
                     m.initSupplierModals();
                     m.renderSuppliers(contentArea);
                 });
                 break;
             case 'services':
                 if (pageTitle) pageTitle.textContent = 'Catalogo Servizi';
-                import('../features/services.js?v=1000').then(m => m.renderServices(contentArea));
+                import('../features/services.js?v=2000').then(m => m.renderServices(contentArea));
                 break;
             case 'sap-services':
                 if (pageTitle) pageTitle.textContent = 'Servizi SAP';
-                import('../features/sap_services.js').then(m => m.renderSapServices(contentArea));
+                import('../features/sap_services.js?v=2000').then(m => m.renderSapServices(contentArea));
                 break;
             case 'sap-service-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Servizio SAP';
-                import('../features/sap_services.js').then(m => m.renderSapServiceDetail(contentArea));
+                import('../features/sap_services.js?v=2000').then(m => m.renderSapServiceDetail(contentArea));
                 break;
             case 'leads':
                 if (pageTitle) pageTitle.textContent = 'Gestione Leads';
-                import('../features/leads.js?v=1001').then(m => m.renderLeads(contentArea));
+                import('../features/leads.js?v=2000').then(m => m.renderLeads(contentArea));
                 break;
             case 'lead-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Lead';
-                import('../features/leads.js?v=1001').then(m => m.renderLeadDetail(contentArea));
+                import('../features/leads.js?v=2000').then(m => m.renderLeadDetail(contentArea));
                 break;
             case 'contact-forms':
                 if (pageTitle) pageTitle.textContent = 'Moduli Contatto';
-                import('../features/contact_forms.js?v=1003').then(m => m.renderContactForms(contentArea));
+                import('../features/contact_forms.js?v=2000').then(m => m.renderContactForms(contentArea));
                 break;
             case 'collaborator-services':
                 if (pageTitle) pageTitle.textContent = 'Servizi Collaboratori';
-                import('../features/collaborator_services.js?v=1000').then(m => m.renderCollaboratorServices(contentArea));
+                import('../features/collaborator_services.js?v=2000').then(m => m.renderCollaboratorServices(contentArea));
                 break;
             case 'assignment-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Incarico';
-                import('../features/assignments.js?v=1000').then(m => m.renderAssignmentDetail(contentArea));
+                import('../features/assignments.js?v=2000').then(m => m.renderAssignmentDetail(contentArea));
                 break;
             case 'assignments':
                 if (pageTitle) pageTitle.textContent = 'Incarichi';
-                import('../features/assignments.js?v=1000').then(m => m.renderAssignmentsDashboard(contentArea));
+                import('../features/assignments.js?v=2000').then(m => m.renderAssignmentsDashboard(contentArea));
                 break;
             case 'payments':
                 if (pageTitle) pageTitle.textContent = 'Dashboard Pagamenti';
-                import('../features/payments.js?v=1001').then(m => {
+                import('../features/payments.js?v=2000').then(m => {
                     m.initPaymentModals();
                     m.renderPaymentsDashboard(contentArea);
                 });
                 break;
             case 'booking':
-                import('../features/booking.js?v=1000').then(m => m.renderBooking(contentArea));
+                import('../features/booking.js?v=2000').then(m => m.renderBooking(contentArea));
                 break;
             case 'profile':
                 if (pageTitle) pageTitle.textContent = 'Il Mio Profilo';
-                import('../features/user_dashboard.js?v=1000').then(m => m.renderUserProfile(contentArea));
+                import('../features/user_dashboard.js?v=2000').then(m => m.renderUserProfile(contentArea));
                 break;
             case 'notifications':
                 if (pageTitle) pageTitle.textContent = 'Centro Notifiche';
-                import('../features/notifications.js?v=1000').then(m => m.renderNotificationCenter(contentArea));
+                import('../features/notifications.js?v=2000').then(m => m.renderNotificationCenter(contentArea));
                 break;
             case 'admin':
                 if (pageTitle) pageTitle.textContent = 'Amministrazione';
-                import('../features/admin/admin-dashboard.js?v=1000').then(module => {
+                import('../features/admin/admin-dashboard.js?v=2000').then(module => {
                     module.renderAdminDashboard(contentArea);
                 });
                 break;
             case 'chat':
                 if (pageTitle) pageTitle.textContent = 'Chat Team';
                 contentArea.innerHTML = '<div class="loading-state"><span class="loader"></span></div>';
-                import('../features/chat/chat-ui.js').then(module => {
+                import('../features/chat/chat-ui.js?v=2000').then(module => {
                     module.renderChat(contentArea);
                 });
                 break;
@@ -291,7 +291,7 @@ function render() {
                 // Route: Commessa Detail (#pm/commessa/:orderId)
                 if (state.currentSubPage === 'commessa' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Commessa';
-                    import('../features/pm/commessa_detail.js?v=1245')
+                    import('../features/pm/commessa_detail.js?v=2000')
                         .then(async module => {
                             try {
                                 await module.renderCommessaDetail(contentArea, state.currentId, false);
@@ -308,7 +308,7 @@ function render() {
                     // Route: Internal Project Detail (#pm/space/:spaceId)
                 } else if (state.currentSubPage === 'space' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Workspace';
-                    import('../features/pm/commessa_detail.js?v=1245')
+                    import('../features/pm/commessa_detail.js?v=2000')
                         .then(async module => {
                             try {
                                 await module.renderCommessaDetail(contentArea, state.currentId, true);
@@ -325,7 +325,7 @@ function render() {
                     // Route: Internal Projects List (#pm/interni)
                 } else if (state.currentSubPage === 'interni') {
                     if (pageTitle) pageTitle.textContent = 'Progetti Interni';
-                    import('../features/pm/internal_list.js?v=1245')
+                    import('../features/pm/internal_list.js?v=2000')
                         .then(module => {
                             module.renderInternalProjects(contentArea, state.currentId);
                         })
@@ -336,20 +336,20 @@ function render() {
 
                 } else if (state.currentSubPage === 'task' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Attività';
-                    import('../features/pm/components/hub_drawer.js?v=1245').then(m => {
+                    import('../features/pm/components/hub_drawer.js?v=2000').then(m => {
                         m.openHubDrawer(state.currentId, null);
                     });
                     // Show dashboard in background
-                    import('../features/pm/index.js?v=1245').then(module => {
+                    import('../features/pm/index.js?v=2000').then(module => {
                         module.renderPM(contentArea);
                     });;
                 } else if (state.currentSubPage === 'my-work') {
                     if (pageTitle) pageTitle.textContent = 'Le Mie Attività';
-                    import('../features/dashboard/TasksDashboard.js?v=1000').then(m => m.renderMyWork(contentArea));
+                    import('../features/dashboard/TasksDashboard.js?v=2000').then(m => m.renderMyWork(contentArea));
 
                 } else {
                     // Standard PM views (Dashboard)
-                    import('../features/pm/index.js?v=1241')
+                    import('../features/pm/index.js?v=2000')
                         .then(module => {
                             module.renderPM(contentArea);
                         })
@@ -361,11 +361,11 @@ function render() {
                 break;
             case 'agenda':
                 if (pageTitle) pageTitle.textContent = 'La Mia Agenda';
-                import('../features/personal_agenda.js?v=1000').then(m => m.renderAgenda(contentArea));
+                import('../features/personal_agenda.js?v=2000').then(m => m.renderAgenda(contentArea));
                 break;
             case 'admin-notifications':
                 if (pageTitle) pageTitle.textContent = 'Notifiche Admin';
-                import('../features/admin_notifications.js?v=1000').then(m => m.renderAdminNotifications(contentArea));
+                import('../features/admin_notifications.js?v=2000').then(m => m.renderAdminNotifications(contentArea));
                 break;
             // ... Add other routes as needed
             default:

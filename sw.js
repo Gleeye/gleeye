@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v18'; // Fix date sync and profile fetch
+const CACHE_NAME = 'gleeye-pwa-cache-v2001'; // Fresh invoice types and UI refresh
 const urlsToCache = [
     '/',
     '/index.html',
