@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v2001'; // Fresh invoice types and UI refresh
+const CACHE_NAME = 'gleeye-pwa-cache-v2002'; // Fiscal fix for Occasionale (no cassa)
 const urlsToCache = [
     '/',
     '/index.html',

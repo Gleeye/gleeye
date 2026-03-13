@@ -1126,7 +1126,9 @@ function updateNettoCalculation() {
         // Cassa
         const cassaInput = document.getElementById('pinv-cassa');
         const cassaContainer = document.getElementById('pinv-cassa-container');
-        const rate = parseFloat(settings.cassaRate) || 0;
+        
+        // Prestazione Occasionale NEVER has Cassa
+        const rate = (tipo === 'occasionale') ? 0 : (parseFloat(settings.cassaRate) || 0);
 
         if (rate > 0) {
             if (cassaContainer) cassaContainer.style.display = 'block';
@@ -1151,10 +1153,11 @@ function updateNettoCalculation() {
             desc = `(Imponibile + Cassa${bollo ? ' + Bollo' : ''})`;
         } else if (tipo === 'occasionale') {
             iva = 0;
-            ritenuta = imponibile * 0.20;
-            if (imponibile > 77.47) bollo = 2;
-            netto = imponibile - ritenuta + bollo;
-            desc = `(Imponibile - 20% Ritenuta${bollo ? ' + Bollo' : ''})`;
+            // For occasionale, ritenuta is 20% of gross (importo)
+            ritenuta = importo * 0.20;
+            if (importo > 77.47) bollo = 2;
+            netto = importo - ritenuta + bollo;
+            desc = `(Importo - 20% Ritenuta${bollo ? ' + Bollo' : ''})`;
         } else if (tipo === 'fattura' || tipo === 'ritenuta' || tipo === 'parcella') {
             // Regime Ordinario
             if (hasVat) iva = imponibile * 0.22;
@@ -1328,7 +1331,9 @@ async function handleSavePassiveInvoice(e) {
         const colOpt = colSelect?.selectedOptions[0];
         const settings = colOpt?.dataset.settings ? JSON.parse(colOpt.dataset.settings) : { cassaRate: 4, withholdingRate: 20 };
 
-        rivalsa = compenso * (parseFloat(settings.cassaRate) / 100);
+        // Prestazione Occasionale NEVER has Cassa
+        const rate = (tipo === 'occasionale') ? 0 : (parseFloat(settings.cassaRate) || 0);
+        rivalsa = compenso * (rate / 100);
         imponibile = compenso + rivalsa;
 
         if (tipo === 'forfettario') {
@@ -1338,9 +1343,10 @@ async function handleSavePassiveInvoice(e) {
             netto = imponibile + bollo;
         } else if (tipo === 'occasionale') {
             iva = 0;
-            ritenuta = imponibile * 0.20;
-            if (imponibile > 77.47) bollo = 2;
-            netto = imponibile - ritenuta + bollo;
+            // For occasionale, ritenuta is 20% of gross (compenso)
+            ritenuta = compenso * 0.20;
+            if (compenso > 77.47) bollo = 2;
+            netto = compenso - ritenuta + bollo;
         } else if (tipo === 'ritenuta' || tipo === 'fattura' || tipo === 'parcella') {
             if (hasVat) iva = imponibile * 0.22;
             ritenuta = imponibile * (parseFloat(settings.withholdingRate) / 100);
