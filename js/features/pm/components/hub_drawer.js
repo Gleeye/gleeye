@@ -1643,7 +1643,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     try {
                         item.title = newTitle;
                         await updatePMItem(itemId, { title: newTitle });
-                        document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId: currentSpaceId } }));
+                        document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId: currentSpaceId, itemId, action: 'update' } }));
                         render();
                     } catch (e) {
                         console.error(e);
@@ -1707,7 +1707,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     try {
                         const newItem = await duplicatePMItem(itemId, options);
                         window.showSuccess("Attività duplicata con successo!");
-                        document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId: currentSpaceId } }));
+                        document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId: currentSpaceId, itemId, action: 'update' } }));
                         // Open the new one
                         openHubDrawer(newItem.id, options.newSpaceId || currentSpaceId);
                     } catch (e) {
@@ -1737,7 +1737,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 if (await window.showConfirm("Eliminare definitivamente questa attività?")) {
                     await deletePMItem(itemId);
                     closeHubDrawer();
-                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId: currentSpaceId } }));
+                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId: currentSpaceId, itemId, action: 'delete' } }));
                 }
             };
         }
@@ -1793,7 +1793,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     item[field] = val;
                     await updatePMItem(itemId, { [field]: val });
                     render();
-                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
+                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId, itemId, action: 'update' } }));
                 };
             });
         };
@@ -1810,7 +1810,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         item[field] = d;
                         await updatePMItem(itemId, { [field]: d });
                         render();
-                        document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId } }));
+                        document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId, itemId, action: 'update' } }));
                     }, item[field]);
                 };
             });
@@ -2502,7 +2502,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                     viewMode = true;
                     render();
-                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId: rawData.space_ref || spaceId } }));
+                    document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId: rawData.space_ref || spaceId, itemId, action: 'update' } }));
                 } catch (error) {
                     console.error("Error updating PM item:", error);
                     alert("Errore durante il salvataggio: " + error.message);
@@ -2520,8 +2520,10 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                     document.dispatchEvent(new CustomEvent('pm-item-changed', {
                         detail: {
-                            spaceId: rawData.space_ref || null,
-                            clientId: currentClientId || null
+                            spaceId: rawData.space_ref || spaceId || null,
+                            clientId: currentClientId || null,
+                            itemId: newItem.id,
+                            action: 'create'
                         }
                     }));
                     closeHubDrawer();

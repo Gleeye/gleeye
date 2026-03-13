@@ -686,6 +686,19 @@ export async function renderCommesseList(container) {
         updateTable();
         updateFunnelStats();
 
+        // Real-time Listeners
+        const refreshHandler = () => {
+             console.log('[CommesseList] Change detected, refreshing list...');
+             renderCommesseList(container);
+        };
+        if (window._commesseRefresher) {
+            document.removeEventListener('pm-item-changed', window._commesseRefresher);
+            document.removeEventListener('pm-space-changed', window._commesseRefresher);
+        }
+        window._commesseRefresher = refreshHandler;
+        document.addEventListener('pm-item-changed', refreshHandler);
+        document.addEventListener('pm-space-changed', refreshHandler);
+
     } catch (err) {
         console.error("renderCommesseList Error:", err);
         container.innerHTML = `<div style="padding:4rem; text-align:center; color:#ef4444;">

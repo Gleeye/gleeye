@@ -677,20 +677,42 @@ function setupRefresher(container, spaceId) {
     if (container._pmRefreshHandler) {
         document.removeEventListener('pm-item-changed', container._pmRefreshHandler);
     }
+    if (container._pmSpaceRefreshHandler) {
+        document.removeEventListener('pm-space-changed', container._pmSpaceRefreshHandler);
+    }
+    if (container._pmApptRefreshHandler) {
+        document.removeEventListener('appointment-changed', container._pmApptRefreshHandler);
+    }
 
-    const handler = (e) => {
-        if (e.detail && e.detail.spaceId === spaceId) {
+    const itemHandler = (e) => {
+        if (e.detail && String(e.detail.spaceId) === String(spaceId)) {
             console.log("[SpaceView] Detected item change, refreshing view...");
-            // Debounce or just reload?
-            // Reloading the specific tab would be better, but full re-render is safer for consistency
-            // We can check which tab is active and re-render that + HubTree logic?
-            // renderSpaceView does a full fetch.
             renderSpaceView(container, spaceId);
         }
     };
 
-    container._pmRefreshHandler = handler;
-    document.addEventListener('pm-item-changed', handler);
+    const spaceHandler = (e) => {
+        const evt = e.detail;
+        if (evt && (String(evt.id) === String(spaceId) || String(evt.parentId) === String(spaceId))) {
+            console.log("[SpaceView] Detected space change, refreshing view...");
+            renderSpaceView(container, spaceId);
+        }
+    };
+
+    const apptHandler = (e) => {
+        const evt = e.detail;
+        if (evt && String(evt.pm_space_id) === String(spaceId)) {
+            console.log("[SpaceView] Detected appointment change, refreshing view...");
+            renderSpaceView(container, spaceId);
+        }
+    };
+
+    container._pmRefreshHandler = itemHandler;
+    container._pmSpaceRefreshHandler = spaceHandler;
+    container._pmApptRefreshHandler = apptHandler;
+    document.addEventListener('pm-item-changed', itemHandler);
+    document.addEventListener('pm-space-changed', spaceHandler);
+    document.addEventListener('appointment-changed', apptHandler);
 }
 
 function renderTeamTab(container, assignees, collaborators, spaceId) {

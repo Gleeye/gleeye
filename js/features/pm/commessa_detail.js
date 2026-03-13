@@ -432,6 +432,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     }
                     .hub-tabs::-webkit-scrollbar { display: none !important; }
                     #mobile-risorse-tab { display: flex !important; }
+                    #mobile-projects-tab { display: flex !important; }
 
                     /* Team strip & layout */
                     #mobile-team-strip { display: flex !important; overflow-y: hidden !important; }
@@ -668,6 +669,32 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                 `;
             })() : ''}
                         </div>
+
+                        <!-- Child Projects (Clusters only) -->
+                        ${space?.is_cluster ? `
+                        <div class="glass-card animate-fade-in" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Progetti nel Cluster</div>
+                                <button id="sidebar-add-project-btn" title="Aggiungi Progetto" style="width: 24px; height: 24px; border-radius: 50%; color: var(--brand-blue); background: white; border: 1px dashed var(--brand-blue); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--brand-blue)'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='var(--brand-blue)'">
+                                    <span class="material-icons-round" style="font-size: 1rem;">add</span>
+                                </button>
+                            </div>
+                            <div id="sidebar-projects-list" style="display: flex; flex-direction: column; gap: 0.6rem; max-height: 420px; overflow-y: auto; padding-right: 4px;" class="custom-scrollbar">
+                                ${childProjects.map(cp => `
+                                    <a href="#pm/space/${cp.id}" style="text-decoration: none; display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; background: white; border: 1px solid var(--glass-border); transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 2px 6px rgba(0,0,0,0.02);" onmouseover="this.style.transform='translateX(6px)'; this.style.borderColor='var(--brand-blue)'; this.style.boxShadow='0 4px 12px rgba(99, 102, 241, 0.12)';" onmouseout="this.style.transform='none'; this.style.borderColor='var(--glass-border)'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.02)'">
+                                        <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(99, 102, 241, 0.08); color: #6366f1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(99, 102, 241, 0.1);">
+                                            <span class="material-icons-round" style="font-size: 1.25rem;">folder_special</span>
+                                        </div>
+                                        <div style="min-width: 0; flex: 1;">
+                                            <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${cp.name}</div>
+                                            <div style="font-size: 0.65rem; color: var(--text-tertiary); font-weight: 600;">${cp.area || 'Generale'}</div>
+                                        </div>
+                                        <span class="material-icons-round" style="font-size: 1.1rem; color: #cbd5e1;">chevron_right</span>
+                                    </a>
+                                `).join('') || '<div style="text-align: center; color: var(--text-tertiary); font-size: 0.8rem; padding: 1.5rem;">Nessun progetto</div>'}
+                            </div>
+                        </div>
+                        ` : ''}
                     </div>
 
                     <!-- MAIN CONTENT -->
@@ -876,7 +903,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                 <button class="hub-tab" data-tab="feed"><span class="material-icons-round">history</span>Feed</button>
                                 <button class="hub-tab" data-tab="board"><span class="material-icons-round">account_tree</span>Board</button>
                                 <button class="hub-tab" data-tab="appointments"><span class="material-icons-round">event</span>Appuntamenti</button>
-                                ${space?.is_cluster ? `<button class="hub-tab" data-tab="projects"><span class="material-icons-round">lan</span>Progetti</button>` : ''}
+                                ${space?.is_cluster ? `<button id="mobile-projects-tab" class="hub-tab" data-tab="projects" style="display: none;"><span class="material-icons-round">lan</span>Progetti</button>` : ''}
                                 <button class="hub-tab" data-tab="docs"><span class="material-icons-round">description</span>Documenti</button>
                                 
                                 <!-- Mobile Risorse Tab Item -->
@@ -1194,13 +1221,8 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
             addHubDropdown.querySelector('#add-appointment-btn')?.addEventListener('click', () => {
                 addHubDropdown.classList.add('hidden');
-                import('../../modules/appointments_api.js').then(mod => {
-                    mod.openAppointmentDrawer(null, {
-                        type: 'service',
-                        related_type: isInternal ? 'pm_space' : 'order',
-                        related_id: isInternal ? spaceId : orderId,
-                        area: isInternal ? space?.area : order?.area
-                    });
+                import('./components/hub_appointment_drawer.js').then(mod => {
+                    mod.openAppointmentDrawer(null, isInternal ? spaceId : orderId, isInternal ? 'space' : 'order');
                 });
             });
         }
@@ -1243,91 +1265,194 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
             });
         }
 
-        // 9. Listen for Item Changes (No Reload)
-        const pmListener = async (e) => {
-            // Safer comparison (String vs Number)
-            const eventSpaceId = e.detail?.spaceId;
-            if (String(eventSpaceId) === String(spaceId)) {
-                console.log('[ProjectHub] Event received:', e.detail);
+        // 9. Central Refresh Logic
+        const refreshHub = async () => {
+            const { fetchProjectItems, fetchSpace, fetchSpaceAssignees } = await import('../../modules/pm_api.js?v=2000');
+            try {
+                console.log('[ProjectHub] Syncing fresh data...');
+                const [newSpace, newItems, newAssignees] = await Promise.all([
+                    fetchSpace(spaceId),
+                    fetchProjectItems(spaceId),
+                    fetchSpaceAssignees(spaceId, true)
+                ]);
 
-                // If it's a deletion, we can immediately remove it from local state for speed
+                space = newSpace;
+                spaceAssignees = newAssignees || [];
+                items = (newItems || []).filter(i => {
+                    const isAccount = i.pm_item_assignees?.some(a => a.role === 'account') || i.notes?.toLowerCase().includes('[account]');
+                    return !isAccount;
+                });
+
+                // If Cluster, re-aggregate items and update sidebar projects
+                if (space?.is_cluster) {
+                    const { fetchInternalSpaces } = await import('../../modules/pm_api.js?v=2041');
+                    const allSpaces = await fetchInternalSpaces();
+                    const updatedChildProjects = allSpaces.filter(s => s.parent_ref === space.id);
+                    
+                    if (updatedChildProjects.length > 0) {
+                        const childIds = updatedChildProjects.map(cp => cp.id);
+                        const { data: childItems } = await supabase.from('pm_items')
+                            .select('*, pm_item_assignees(*), pm_item_incarichi(*)')
+                            .in('space_ref', childIds)
+                            .is('archived_at', null);
+
+                        if (childItems) {
+                             const filteredChildItems = childItems.filter(i => {
+                                const isAccount = i.is_account_level || i.pm_item_assignees?.some(a => a.role === 'account') || i.notes?.toLowerCase().includes('[account]');
+                                return !isAccount;
+                            });
+                            items = [...items, ...filteredChildItems];
+                        }
+                    }
+
+                    // Update Sidebar Projects List
+                    const sideProjList = container.querySelector('#sidebar-projects-list');
+                    if (sideProjList) {
+                        sideProjList.innerHTML = updatedChildProjects.map(cp => `
+                            <a href="#pm/space/${cp.id}" style="text-decoration: none; display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; background: white; border: 1px solid var(--glass-border); transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 2px 6px rgba(0,0,0,0.02);" onmouseover="this.style.transform='translateX(6px)'; this.style.borderColor='var(--brand-blue)'; this.style.boxShadow='0 4px 12px rgba(99, 102, 241, 0.12)';" onmouseout="this.style.transform='none'; this.style.borderColor='var(--glass-border)'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.02)'">
+                                <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(99, 102, 241, 0.08); color: #6366f1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(99, 102, 241, 0.1);">
+                                    <span class="material-icons-round" style="font-size: 1.25rem;">folder_special</span>
+                                </div>
+                                <div style="min-width: 0; flex: 1;">
+                                    <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${cp.name}</div>
+                                    <div style="font-size: 0.65rem; color: var(--text-tertiary); font-weight: 600;">${cp.area || 'Generale'}</div>
+                                </div>
+                                <span class="material-icons-round" style="font-size: 1.1rem; color: #cbd5e1;">chevron_right</span>
+                            </a>
+                        `).join('') || '<div style="text-align: center; color: var(--text-tertiary); font-size: 0.8rem; padding: 1.5rem;">Nessun progetto</div>';
+                    }
+                }
+
+                kpis = calculateKPIs(items);
+
+                // Update UI Components
+                const pmsList = container.querySelector('#space-pms-list');
+                if (pmsList) {
+                    const pmListRole = isInternal ? spaceAssignees.filter(a => ['pm', 'manager', 'admin'].includes(a.role)) : spaceAssignees;
+                    pmsList.innerHTML = pmListRole.map(a => {
+                        const collab = state.collaborators?.find(c => (a.user_ref && c.user_id === a.user_ref) || (a.collaborator_ref && c.id === a.collaborator_ref));
+                        const userName = (collab?.full_name && collab.full_name !== 'null') ? collab.full_name : joinNames(collab?.first_name, collab?.last_name, a.user?.full_name, a.user?.first_name, a.user?.last_name) || 'Utente';
+                        const uid = a.user_ref || collab?.user_id;
+                        const collabId = a.collaborator_ref || collab?.id;
+                        return `
+                            <div class="user-pill-full" data-uid="${uid || ''}" data-collab-id="${collabId || ''}" style="display: flex; align-items: center; justify-content: space-between; background: white; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+                                <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                                    ${renderAvatar(collab || a.user || { full_name: userName }, { size: 36, borderRadius: '10px' })}
+                                    <div style="min-width: 0;">
+                                        <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${userName}</div>
+                                        <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 700;">${a.role === 'pm' ? (isInternal ? 'Responsabile' : 'Project Manager') : (isInternal ? 'Responsabile' : 'Collaboratore')}</div>
+                                    </div>
+                                </div>
+                                <button class="remove-space-pm-btn" style="background:none; border:none; padding:4px; cursor:pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
+                                    <span class="material-icons-round" style="font-size: 1.1rem; pointer-events: none;">close</span>
+                                </button>
+                            </div>
+                        `;
+                    }).join('') || '<div style="text-align: center; color: var(--text-tertiary); font-size: 0.8rem; padding: 1.5rem; border: 1px dashed var(--glass-border); border-radius: 12px; background: var(--surface-1);">Nessun responsabile assegnato</div>';
+                }
+
+                // If Internal, update standard members too
+                const membersList = container.querySelector('#space-members-list');
+                if (membersList && isInternal) {
+                    const memberList = spaceAssignees.filter(a => !['pm', 'manager', 'admin'].includes(a.role));
+                    membersList.innerHTML = memberList.map(a => {
+                        const collab = state.collaborators?.find(c => (a.user_ref && c.user_id === a.user_ref) || (a.collaborator_ref && c.id === a.collaborator_ref));
+                        const userName = (collab?.full_name && collab.full_name !== 'null') ? collab.full_name : joinNames(collab?.first_name, collab?.last_name, a.user?.full_name, a.user?.first_name, a.user?.last_name) || 'Utente';
+                        const uid = a.user_ref || collab?.user_id;
+                        const collabId = a.collaborator_ref || collab?.id;
+                        return `
+                            <div class="user-pill-full animate-slide-in" data-uid="${uid || ''}" data-collab-id="${collabId || ''}" style="display: flex; align-items: center; justify-content: space-between; background: white; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+                                <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                                    ${renderAvatar(collab || a.user || { full_name: userName }, { size: 36, borderRadius: '10px' })}
+                                    <div style="min-width: 0;">
+                                        <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${userName}</div>
+                                        <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 700;">Membro</div>
+                                    </div>
+                                </div>
+                                <button class="remove-space-pm-btn" style="background:none; border:none; padding:4px; cursor:pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
+                                    <span class="material-icons-round" style="font-size: 1.1rem; pointer-events: none;">close</span>
+                                </button>
+                            </div>
+                        `;
+                    }).join('') || '<div style="text-align: center; color: var(--text-tertiary); font-size: 0.8rem; padding: 1.5rem; border: 1px dashed var(--glass-border); border-radius: 12px; background: var(--surface-1);">Nessun membro nel team</div>';
+                }
+
+                // Update Header Avatars
+                const headerAvatars = container.querySelector('.hub-pm-avatars-desktop');
+                if (headerAvatars) {
+                    headerAvatars.innerHTML = spaceAssignees.slice(0, 3).map((a, idx) => {
+                        const collab = state.collaborators?.find(c => (a.user_ref && c.user_id === a.user_ref) || (a.collaborator_ref && c.id === a.collaborator_ref));
+                        const person = collab || a.user || { full_name: a.role || 'Membro' };
+                        return `
+                                    <div title="${person.full_name || 'Project Manager'}" style="margin-left: ${idx === 0 ? '0' : '-8px'}; border: 2px solid white; border-radius: 50%; z-index: ${5 - idx}; shadow: var(--shadow-sm);">
+                                        ${renderAvatar(person, { size: 28, borderRadius: '50%' })}
+                                    </div>
+                                `;
+                    }).join('');
+                }
+
+                // Update Mobile Team Strip
+                const mobileAvatarsRow = container.querySelector('#team-avatars-row');
+                if (mobileAvatarsRow) {
+                    mobileAvatarsRow.innerHTML = spaceAssignees.map((a, idx) => {
+                        const collab = state.collaborators?.find(c => (a.user_ref && c.user_id === a.user_ref) || (a.collaborator_ref && c.id === a.collaborator_ref));
+                        const person = collab || a.user || { full_name: a.role || 'Membro' };
+                        const name = person.full_name || person.business_name || 'Membro';
+                        return `
+                            <div class="team-avatar-item" data-name="${name}" data-role="${a.role || ''}" style="margin-left: ${idx === 0 ? '0' : '-6px'}; border: 2px solid white; border-radius: 50%; cursor: pointer; z-index: ${20 - idx}; position: relative; transition: transform 0.15s;">
+                                ${renderAvatar(person, { size: 26, borderRadius: '50%' })}
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                const activeTab = container.querySelector('.hub-tab.active')?.dataset.tab || 'overview';
+                renderTab(activeTab);
+            } catch (err) { console.error("[ProjectHub] Refresh failed:", err); }
+        };
+
+        const pmItemListener = async (e) => {
+            const eventSpaceId = e.detail?.spaceId;
+            // Check if it matches current space OR is a child of this cluster
+            let isRelevant = String(eventSpaceId) === String(spaceId);
+            if (!isRelevant && space?.is_cluster) {
+                const { fetchInternalSpaces } = await import('../../modules/pm_api.js?v=2000');
+                const allSpaces = await fetchInternalSpaces();
+                const childIds = allSpaces.filter(s => s.parent_ref === space.id).map(cp => cp.id);
+                isRelevant = childIds.includes(eventSpaceId);
+            }
+
+            if (isRelevant) {
+                console.log('[ProjectHub] Item change received, refreshing...');
                 if (e.detail.action === 'delete' && e.detail.itemId) {
                     items = items.filter(i => String(i.id) !== String(e.detail.itemId));
                     kpis = calculateKPIs(items);
-
-                    // Partial DOM update first
-                    const kpi_ov = container.querySelector('#kpi-badge-overdue .kpi-val');
-                    if (kpi_ov) kpi_ov.textContent = kpis.overdue;
-                    // ... other kpi updates can follow or just render
-
-                    // Re-render active tab immediately
-                    const activeTab = Array.from(tabs).find(t => t.classList.contains('active'))?.dataset.tab || 'overview';
+                    const activeTab = container.querySelector('.hub-tab.active')?.dataset.tab || 'overview';
                     renderTab(activeTab);
                 }
+                refreshHub();
+            }
+        };
 
-                const { fetchProjectItems, fetchSpace, fetchSpaceAssignees } = await import('../../modules/pm_api.js?v=1000');
-
-                try {
-                    console.log('[ProjectHub] Fetching fresh data to sync...');
-                    const [newSpace, newItems, newAssignees] = await Promise.all([
-                        fetchSpace(spaceId),
-                        fetchProjectItems(spaceId),
-                        fetchSpaceAssignees(spaceId)
-                    ]);
-
-                    console.log('[ProjectHub] Sync complete. Items:', newItems?.length);
-
-                    // Update local references
-                    items = (newItems || []).filter(i => {
-                        const isAccount = i.pm_item_assignees?.some(a => a.role === 'account') || i.notes?.toLowerCase().includes('[account]');
-                        return !isAccount;
-                    });
-                    space = newSpace;
-                    spaceAssignees = newAssignees || [];
-                    kpis = calculateKPIs(items);
-
-                    // Update Team icons in left column
-                    const pmsList = container.querySelector('#space-pms-list');
-                    if (pmsList) {
-                        pmsList.innerHTML = spaceAssignees.map(a => {
-                            const collab = state.collaborators?.find(c => (a.user_ref && c.user_id === a.user_ref) || (a.collaborator_ref && c.id === a.collaborator_ref));
-                            const userName = (collab?.full_name && collab.full_name !== 'null') ? collab.full_name : joinNames(collab?.first_name, collab?.last_name, a.user?.full_name, a.user?.first_name, a.user?.last_name) || 'Utente';
-                            const uid = a.user_ref || collab?.user_id;
-                            const collabId = a.collaborator_ref || collab?.id;
-                            return `
-                                <div class="user-pill-full" data-uid="${uid || ''}" data-collab-id="${collabId || ''}" style="display: flex; align-items: center; justify-content: space-between; background: white; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--glass-border); box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-                                    <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
-                                        ${renderAvatar(collab || a.user || { full_name: userName }, { size: 32, borderRadius: '8px' })}
-                                        <div style="min-width: 0;">
-                                            <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${userName}</div>
-                                            <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600;">${a.role === 'pm' ? 'Project Manager' : 'Collaboratore'}</div>
-                                        </div>
-                                    </div>
-                                    <button class="remove-space-pm-btn" style="background:none; border:none; padding:4px; cursor:pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
-                                        <span class="material-icons-round" style="font-size: 1.1rem; pointer-events: none;">close</span>
-                                    </button>
-                                </div>
-                            `;
-                        }).join('') || '<div style="text-align: center; color: var(--text-tertiary); font-size: 0.8rem; padding: 1rem; border: 1px dashed var(--glass-border); border-radius: 10px;">Nessun membro assegnato</div>';
-                    }
-
-                    // Re-attach remove PM listeners if needed or use delegation (better)
-                    // For simplicity, we assume delegation is handled or we re-trigger some setup
-
-                    // Re-render active tab content
-                    const activeTab = Array.from(tabs).find(t => t.classList.contains('active'))?.dataset.tab || 'overview';
-                    renderTab(activeTab);
-
-                } catch (err) {
-                    console.error("Error refreshing hub:", err);
-                }
+        const pmSpaceListener = async (e) => {
+            const evt = e.detail;
+            const isSelf = String(evt.id) === String(spaceId);
+            const isChildOfMe = String(evt.parentId) === String(spaceId);
+            
+            if (isSelf || isChildOfMe) {
+                console.log('[ProjectHub] Space change received, refreshing...');
+                refreshHub();
             }
         };
 
         // Remove old listener if exists to prevent duplicates
         if (window._currentPMListener) document.removeEventListener('pm-item-changed', window._currentPMListener);
-        window._currentPMListener = pmListener;
-        document.addEventListener('pm-item-changed', pmListener);
+        window._currentPMListener = pmItemListener;
+        document.addEventListener('pm-item-changed', pmItemListener);
+
+        if (window._currentSpaceListener) document.removeEventListener('pm-space-changed', window._currentSpaceListener);
+        window._currentSpaceListener = pmSpaceListener;
+        document.addEventListener('pm-space-changed', pmSpaceListener);
 
         const apptListener = (e) => {
             const evt = e.detail;
@@ -1345,6 +1470,16 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         if (window._currentApptListener) document.removeEventListener('appointment-changed', window._currentApptListener);
         window._currentApptListener = apptListener;
         document.addEventListener('appointment-changed', apptListener);
+
+        // Sidebar Actions
+        container.querySelector('#sidebar-add-project-btn')?.addEventListener('click', async () => {
+            const { openProjectModal } = await import('./components/project_modal.js?v=2000');
+            openProjectModal({
+                prefilledParentId: spaceId,
+                prefilledArea: space?.area,
+                onSuccess: () => refreshHub()
+            });
+        });
 
         // 11. Initial render
         renderTab('overview');

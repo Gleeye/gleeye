@@ -497,7 +497,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
         el.addEventListener('click', () => {
             const apptId = el.dataset.id;
             import('/js/features/pm/components/hub_appointment_drawer.js?v=1000').then(mod => {
-                mod.openAppointmentDrawer(apptId, orderId);
+                mod.openAppointmentDrawer({ id: apptId }, orderId);
             });
         });
     });

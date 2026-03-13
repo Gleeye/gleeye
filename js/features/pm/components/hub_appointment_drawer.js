@@ -49,12 +49,17 @@ export async function openAppointmentDrawer(inputAppointment, contextId = null, 
     } catch (e) { console.error("Error loading drawer data", e); }
 
     // Resolve Appointment if only ID provided
-    let appointment = inputAppointment ? { ...inputAppointment } : null;
+    let appointment = null;
+    if (typeof inputAppointment === 'string') {
+        appointment = { id: inputAppointment };
+    } else if (inputAppointment) {
+        appointment = { ...inputAppointment };
+    }
     if (appointment && appointment.id && Object.keys(appointment).length === 1) {
         try {
             const { data, error } = await supabase.from('appointments').select(`
                 *,
-                types:appointment_type_assignments(appointment_types(*)),
+                types:appointment_type_links(appointment_types(*)),
                 participants:appointment_internal_participants(*)
             `).eq('id', appointment.id).single();
 
@@ -104,7 +109,7 @@ export async function openAppointmentDrawer(inputAppointment, contextId = null, 
         status: appointment?.status || 'confermato',
         note: appointment?.note || defaultNote,
         is_account_level: appointment?.is_account_level ?? is_account_level,
-        types: appointment?.types?.map(t => t.id) || [],
+        types: new Set(appointment?.types?.map(t => t.id) || []),
         participants: {
             internal: appointment?.participants?.internal || [],
             client: appointment?.participants?.client || []
@@ -717,7 +722,13 @@ export async function openAppointmentDrawer(inputAppointment, contextId = null, 
                 const saved = await saveAppointment(payload);
                 appointment = saved;
                 viewMode = true;
-                const detail = { refId: formState.context_id };
+                const detail = { 
+                    id: saved.id,
+                    refId: saved.order_id || saved.pm_space_id, 
+                    refType: saved.order_id ? 'order' : 'space',
+                    orderId: saved.order_id,
+                    spaceId: saved.pm_space_id
+                };
                 document.dispatchEvent(new CustomEvent('appointment-changed', { detail }));
                 render();
             } catch (err) { alert("Errore: " + err.message); btn.disabled = false; }
@@ -729,7 +740,15 @@ export async function openAppointmentDrawer(inputAppointment, contextId = null, 
                 if (!confirm("Eliminare?")) return;
                 await deleteAppointment(appointment.id);
                 overlay.classList.add('hidden');
-                document.dispatchEvent(new CustomEvent('appointment-changed', { detail: { id: appointment.id } }));
+                document.dispatchEvent(new CustomEvent('appointment-changed', { 
+                    detail: { 
+                        id: appointment.id,
+                        refId: formState.context_id, 
+                        refType: formState.context_type,
+                        orderId: formState.context_type === 'order' ? formState.context_id : null,
+                        spaceId: formState.context_type === 'space' ? formState.context_id : null
+                    } 
+                }));
             };
         }
     };

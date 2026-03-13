@@ -545,11 +545,11 @@ export function initInvoiceModals() {
                                 <div>
                                     <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Tipo Documento *</label>
                                     <select id="pinv-type" class="modal-input" style="width: 100%;">
-                                        <option value="ritenuta">Ritenuta d'Acconto (20%)</option>
-                                        <option value="forfettario">Fattura Forfettario (no ritenuta)</option>
-                                        <option value="fattura">Fattura Regime Ordinario (20%)</option>
-                                        <option value="occasionale">Prestazione Occasionale</option>
-                                        <option value="parcella">Parcella/Notula (20%)</option>
+                                        <option value="ritenuta">Regime Ordinario (IVA 22% + Ritenuta)</option>
+                                        <option value="forfettario">Regime Forfettario (No IVA, No Ritenuta)</option>
+                                        <option value="occasionale">Prestazione Occasionale (Ritenuta 20%)</option>
+                                        <option value="estero">Fattura Estero / Rev. Charge (No IVA)</option>
+                                        <option value="parcella">Parcella/Notula (IVA + Ritenuta)</option>
                                     </select>
                                 </div>
                                 <div>
@@ -1144,42 +1144,32 @@ function updateNettoCalculation() {
         }
 
         if (tipo === 'forfettario') {
-            if (hasVat) iva = imponibile * 0.22;
-            if (!hasVat && imponibile > 77.47) bollo = 2;
-            netto = imponibile + iva + bollo;
-            desc = `(Imponibile + Cassa${!hasVat ? ' + Bollo' : ' + IVA'})`;
+            iva = 0;
+            ritenuta = 0;
+            if (imponibile > 77.47) bollo = 2;
+            netto = imponibile + bollo;
+            desc = `(Imponibile + Cassa${bollo ? ' + Bollo' : ''})`;
         } else if (tipo === 'occasionale') {
-            if (imponibile > 77.47) {
-                ritenuta = imponibile * 0.20;
-                bollo = 2;
-            }
+            iva = 0;
+            ritenuta = imponibile * 0.20;
+            if (imponibile > 77.47) bollo = 2;
             netto = imponibile - ritenuta + bollo;
             desc = `(Imponibile - 20% Ritenuta${bollo ? ' + Bollo' : ''})`;
-        } else if (tipo === 'fattura') {
-            // Fattura Italia (B2B Standard) - Imponibile + IVA
+        } else if (tipo === 'fattura' || tipo === 'ritenuta' || tipo === 'parcella') {
+            // Regime Ordinario
             if (hasVat) iva = imponibile * 0.22;
-            if (!hasVat && imponibile > 77.47) bollo = 2; // Keep for legacy/edge cases
-            netto = imponibile + iva + bollo;
-            desc = `(Imponibile + Cassa${hasVat ? ' + IVA' : ' + Bollo'})`;
+            ritenuta = imponibile * (settings.withholdingRate / 100);
+            netto = imponibile + iva - ritenuta;
+            desc = `(Imp. + Cassa + IVA - Ret.)`;
         } else if (tipo === 'estero') {
-            // Fattura Estera / Reverse Charge - IVA 0% (in invoice)
-            // Netto to pay is just Imponibile (plus cassa if applicable, usually no)
             iva = 0;
-            // Note: technically reverse charge integrates VAT, but you don't pay it to supplier.
+            ritenuta = 0;
             netto = imponibile;
-            desc = `(Imponibile - Reverse Charge/Estero)`;
+            desc = `(Imponibile - Estero/Rev.Charge)`;
         } else if (tipo === 'nota_credito') {
-            // Nota di Credito - Usually handled as negative input, logic stays same as standard fattura essentially
             if (hasVat) iva = imponibile * 0.22;
             netto = imponibile + iva;
             desc = `(Nota di Credito: Imponibile + IVA)`;
-        } else {
-            // Ritenuta / Parcella / Others
-            if (hasVat) iva = imponibile * 0.22;
-            ritenuta = imponibile * (settings.withholdingRate / 100);
-            if (!hasVat && imponibile > 77.47) bollo = 2;
-            netto = imponibile + iva - ritenuta + bollo;
-            desc = `(Imp. + Cassa - Ret. + IVA)`;
         }
 
         const netInput = document.getElementById('pinv-net');
@@ -1187,11 +1177,11 @@ function updateNettoCalculation() {
 
         const detailsEl = document.getElementById('pinv-calc-details');
         if (detailsEl) {
-            detailsEl.textContent = `Dettaglio: Importo €${formatAmount(importo)} + Cassa €${formatAmount(cassa)} = Imponibile €${formatAmount(imponibile)}`;
+            detailsEl.textContent = `Dettaglio: Importo €${formatAmount(importo)} + Cassa €${formatAmount(cassa)} = Imponibile €${formatAmount(imponibile)} ${desc}`;
         }
         const hintEl = document.getElementById('pinv-calc-hint');
         if (hintEl) {
-            hintEl.innerHTML = `<span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle; margin-right: 0.25rem;">calculate</span> Ritenuta: €${formatAmount(ritenuta)}${iva > 0 ? ` | IVA: €${formatAmount(iva)}` : ''}`;
+            hintEl.innerHTML = `<span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle; margin-right: 0.25rem;">calculate</span> ${ritenuta > 0 ? `Ritenuta: €${formatAmount(ritenuta)}` : ''}${ritenuta > 0 && iva > 0 ? ' | ' : ''}${iva > 0 ? `IVA: €${formatAmount(iva)}` : ''}${bollo > 0 ? ` | Bollo: €${formatAmount(bollo)}` : ''}`;
         }
     } else {
         // --- SUPPLIER LOGIC ---
@@ -1333,27 +1323,35 @@ async function handleSavePassiveInvoice(e) {
     let bollo = 0;
     let netto = compenso;
 
-    if (mode === 'collab') {
+    if (mode === 'collab' || mode === 'partner-wl') {
+        const colSelect = document.getElementById('pinv-collaborator');
+        const colOpt = colSelect?.selectedOptions[0];
+        const settings = colOpt?.dataset.settings ? JSON.parse(colOpt.dataset.settings) : { cassaRate: 4, withholdingRate: 20 };
+
+        rivalsa = compenso * (parseFloat(settings.cassaRate) / 100);
+        imponibile = compenso + rivalsa;
+
         if (tipo === 'forfettario') {
-            rivalsa = compenso * 0.04;
-            imponibile = compenso + rivalsa;
-            if (hasVat) iva = imponibile * 0.22;
-            if (!hasVat && imponibile > 77.47) bollo = 2;
-            netto = compenso + rivalsa + iva + bollo;
+            iva = 0;
+            ritenuta = 0;
+            if (imponibile > 77.47) bollo = 2;
+            netto = imponibile + bollo;
         } else if (tipo === 'occasionale') {
-            if (compenso > 77.47) {
-                ritenuta = compenso * 0.20;
-                bollo = 2;
-            }
-            netto = compenso - ritenuta + bollo;
-        } else {
-            // Ordinario
-            rivalsa = compenso * 0.04;
-            imponibile = compenso + rivalsa;
-            if (hasVat) iva = imponibile * 0.22;
+            iva = 0;
             ritenuta = imponibile * 0.20;
-            if (!hasVat && imponibile > 77.47) bollo = 2;
-            netto = compenso + rivalsa + iva - ritenuta + bollo;
+            if (imponibile > 77.47) bollo = 2;
+            netto = imponibile - ritenuta + bollo;
+        } else if (tipo === 'ritenuta' || tipo === 'fattura' || tipo === 'parcella') {
+            if (hasVat) iva = imponibile * 0.22;
+            ritenuta = imponibile * (parseFloat(settings.withholdingRate) / 100);
+            netto = imponibile + iva - ritenuta;
+        } else if (tipo === 'estero') {
+            iva = 0;
+            ritenuta = 0;
+            netto = imponibile;
+        } else if (tipo === 'nota_credito') {
+            if (hasVat) iva = imponibile * 0.22;
+            netto = imponibile + iva;
         }
     } else {
         // Supplier mode: simple VAT calculation

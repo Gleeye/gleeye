@@ -69,47 +69,41 @@ export function renderAvatar(person, options = {}) {
 
 // --- FISCAL CALCULATOR ---
 export const FiscalCalculator = {
-    calculate: (taxable, type, hasRivalsa, hasBollo, hasIvaAttiva) => {
+    calculate: (taxable, type, hasRivalsa, hasBollo, hasIvaAttiva, settings = { cassaRate: 4, withholdingRate: 20 }) => {
         taxable = parseFloat(taxable) || 0;
         let rivalsInps = 0;
         let vat = 0;
         let ritenuta = 0;
         let stampDuty = 0;
 
-        // 1. Rivalsa INPS (4%) - Applied to taxable base if requested
+        // 1. Rivalsa INPS (Cassa)
         if (hasRivalsa) {
-            rivalsInps = taxable * 0.04;
+            rivalsInps = taxable * (parseFloat(settings.cassaRate) / 100);
         }
 
-        const baseForTax = taxable + rivalsInps;
+        const imponibile = taxable + rivalsInps;
 
-        // 2. Evolution Logic for Collaboration Types
-        if (type === "Ritenuta d'acconto") {
-            // Prestazione Occasionale: 20% withholding on base, no VAT
-            ritenuta = baseForTax * 0.20;
-            vat = 0;
-            if (hasBollo && baseForTax > 77.47) stampDuty = 2.00;
-        } else if (type === "Fattura") {
-            // Can be "Ordinario" or "Forfettario" based on checkboxes
-            // User requested "sostituisci e implementa" for Collaboration Type
-            // Let's assume Fattura is the standard and we use Iva Attiva to decide
-            if (hasIvaAttiva) {
-                vat = baseForTax * 0.22;
-                ritenuta = 0;
-                stampDuty = 0;
-            } else {
-                // Forfettario-like: No VAT, yes Bollo
-                vat = 0;
-                ritenuta = 0;
-                if (hasBollo && baseForTax > 77.47) stampDuty = 2.00;
-            }
-        } else if (type === "Nota di Credito") {
-            // Simplified: Negative values
-            return { taxable: -taxable, vat: 0, rivalsInps: 0, ritenuta: 0, stampDuty: 0, total: -taxable, netToPay: -taxable };
+        // 2. Logic based on type (matching invoices.js)
+        const tipo = (type || '').toLowerCase();
+
+        if (tipo.includes('forfettario')) {
+            if (hasBollo && imponibile > 77.47) stampDuty = 2.00;
+        } else if (tipo.includes('occasionale')) {
+            ritenuta = imponibile * 0.20;
+            if (hasBollo && imponibile > 77.47) stampDuty = 2.00;
+        } else if (tipo === 'ritenuta' || tipo === 'fattura' || tipo === 'parcella' || tipo.includes('ordinario')) {
+            if (hasIvaAttiva) vat = imponibile * 0.22;
+            ritenuta = imponibile * (parseFloat(settings.withholdingRate) / 100);
+        } else if (tipo === 'estero') {
+            // Nothing extra
+        } else if (tipo === 'nota di credito' || tipo === 'nota_credito') {
+            if (hasIvaAttiva) vat = imponibile * 0.22;
+            // Usually negative values are passed in, logic remains same
         }
 
-        const total = baseForTax + vat + stampDuty;
+        const total = imponibile + vat + stampDuty;
         const netToPay = total - ritenuta;
+        
         return {
             taxable,
             rivalsInps: parseFloat(rivalsInps.toFixed(2)),

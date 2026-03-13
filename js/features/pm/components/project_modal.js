@@ -411,6 +411,15 @@ export function openProjectModal({ onSuccess, prefilledParentId = null, forceTyp
                 if (allOps.length > 0) await Promise.all(allOps);
 
                 closeModal();
+                // Dispatch global event for real-time updates
+                document.dispatchEvent(new CustomEvent('pm-space-changed', { 
+                    detail: { 
+                        id: res.id, 
+                        parentId: res.parent_ref, 
+                        action: 'create',
+                        type: forceType 
+                    } 
+                }));
                 if (onSuccess) onSuccess(res);
                 else window.location.hash = `#pm/space/${res.id}`;
             }

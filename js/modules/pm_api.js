@@ -629,6 +629,12 @@ export async function assignUserToSpace(spaceId, userIdOrCollabId, role = 'pm', 
         .insert(payload)
         .select();
     if (error) throw error;
+    
+    // Invalidate Cache
+    const cacheKey = `pm_space_assignees_${spaceId}`;
+    if (state[cacheKey]) delete state[cacheKey];
+    updateCacheTimestamp(cacheKey);
+
     return data;
 }
 
@@ -646,6 +652,11 @@ export async function removeUserFromSpace(spaceId, userIdOrCollabId, isCollabId 
 
     const { error } = await query;
     if (error) throw error;
+
+    // Invalidate Cache
+    const cacheKey = `pm_space_assignees_${spaceId}`;
+    if (state[cacheKey]) delete state[cacheKey];
+    updateCacheTimestamp(cacheKey);
 }
 
 // Internal helper for expanding user/collab data

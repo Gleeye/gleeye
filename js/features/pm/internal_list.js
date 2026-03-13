@@ -485,8 +485,21 @@ export async function renderInternalProjects(container, initialFilter) {
             container.querySelector('#opt-project').onclick = () => openProjectModal({ onSuccess: (res) => window.location.hash = `#pm/space/${res.id}` });
             container.querySelector('#opt-cluster').onclick = () => openProjectModal({ forceType: 'cluster', onSuccess: () => renderInternalProjects(container) });
         };
-
         renderUI();
+
+        // 10. Real-time Listeners
+        const refreshHandler = (e) => {
+            console.log('[InternalProjects] Change detected, refreshing list...');
+            renderInternalProjects(container, currentAreaId);
+        };
+
+        if (window._internalRefresher) {
+            document.removeEventListener('pm-item-changed', window._internalRefresher);
+            document.removeEventListener('pm-space-changed', window._internalRefresher);
+        }
+        window._internalRefresher = refreshHandler;
+        document.addEventListener('pm-item-changed', refreshHandler);
+        document.addEventListener('pm-space-changed', refreshHandler);
 
     } catch (err) {
         console.error("Hub Error:", err);
