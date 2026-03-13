@@ -1396,7 +1396,7 @@ async function handleSavePassiveInvoice(e) {
 
     const data = {
         invoice_number: document.getElementById('pinv-number').value,
-        issue_date: document.getElementById('pinv-date').value,
+        issue_date: document.getElementById('pinv-date').value || null,
         amount_tax_excluded: importo,
         amount_tax_included: netto,
         tax_amount: iva,
@@ -1407,7 +1407,7 @@ async function handleSavePassiveInvoice(e) {
         iva_attiva: hasVat,
         category: tipo,
         status: status,
-        payment_date: status === 'Pagata' ? document.getElementById('pinv-payment-date').value : null,
+        payment_date: (status === 'Pagata' && document.getElementById('pinv-payment-date').value) ? document.getElementById('pinv-payment-date').value : null,
         collaborator_id: (mode === 'collab' || mode === 'partner-wl') ? collaboratorId : null,
         supplier_id: mode === 'supplier' ? supplierId : null,
         description: mode === 'supplier' ? description : null,
@@ -1450,7 +1450,7 @@ async function handleSavePassiveInvoice(e) {
         await fetchPassiveInvoices();
 
         // Auto-switch year if invoice is from a different year
-        const invYear = new Date(data.issue_date).getFullYear();
+        const invYear = data.issue_date ? new Date(data.issue_date).getFullYear() : (state.passiveInvoiceYear || new Date().getFullYear());
         if (invYear !== (state.passiveInvoiceYear || new Date().getFullYear())) {
             state.passiveInvoiceYear = invYear;
         }

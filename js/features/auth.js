@@ -191,7 +191,7 @@ async function handleSession(session) {
             try {
                 console.log("[Auth] Loading critical app data...");
                 const { fetchInternalSpaces, fetchAllCollaborators } = await import('../modules/pm_api.js?v=1000');
-                const { fetchProfiles } = await import('../modules/api.js?v=1000');
+                const { fetchAllProfiles } = await import('../modules/api.js?v=1000');
 
                 // 1. Critical Data for Dashboard (Orders, Assignments, PM Spaces)
                 // We await these before showing the app to the user
@@ -200,7 +200,7 @@ async function handleSession(session) {
                     fetchAssignments(), 
                     fetchInternalSpaces(),
                     fetchAllCollaborators(),
-                    fetchProfiles()
+                    fetchAllProfiles()
                 ]);
 
                 // 2. Pre-fetch feature modules in background (No await)
