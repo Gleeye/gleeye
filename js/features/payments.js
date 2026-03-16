@@ -559,7 +559,7 @@ export function renderPaymentsDashboard(container) {
         let entity = '';
         if (p.payment_type === 'Cliente') entity = p.clients?.business_name || 'Cliente';
         else if (p.payment_type === 'Collaboratore') entity = p.collaborators?.full_name || 'Collaboratore';
-        else if (p.payment_type === 'Fornitore') entity = p.suppliers?.name || 'Fornitore';
+        else if (p.payment_type === 'Fornitore') entity = p.suppliers?.name || p.collaborators?.full_name || 'Fornitore';
 
         const dateBadge = p.due_date ? `
             <div style="padding: 0.2rem; border-radius: 6px; background: var(--glass-highlight); text-align: center; min-width: 40px; border: 1px solid var(--glass-border); display: flex; flex-direction: column; justify-content: center; height: 100%;">
@@ -1107,7 +1107,7 @@ export function openPaymentModal(id) {
     let entityName = '';
     if (p.payment_type === 'Cliente' && p.clients?.business_name) entityName = p.clients.business_name;
     else if (p.payment_type === 'Collaboratore' && p.collaborators?.full_name) entityName = p.collaborators.full_name;
-    else if (p.payment_type === 'Fornitore' && p.suppliers?.name) entityName = p.suppliers.name;
+    else if (p.payment_type === 'Fornitore' && (p.suppliers?.name || p.collaborators?.full_name)) entityName = p.suppliers?.name || p.collaborators?.full_name;
     if (entityName) paymentCode += ` ${entityName}`;
 
     document.getElementById('pm-code-badge').textContent = paymentCode;
@@ -1116,7 +1116,7 @@ export function openPaymentModal(id) {
     let icon = 'help_outline';
     if (p.payment_type === 'Cliente') { subject = p.clients?.business_name || 'Cliente'; icon = 'business'; }
     else if (p.payment_type === 'Collaboratore') { subject = p.collaborators?.full_name || 'Collaboratore'; icon = 'person'; }
-    else if (p.payment_type === 'Fornitore') { subject = p.suppliers?.name || 'Fornitore'; icon = 'local_shipping'; }
+    else if (p.payment_type === 'Fornitore') { subject = p.suppliers?.name || p.collaborators?.full_name || 'Fornitore'; icon = 'local_shipping'; }
 
     document.getElementById('pm-subject').textContent = subject;
     document.getElementById('pm-subject-icon').textContent = icon;

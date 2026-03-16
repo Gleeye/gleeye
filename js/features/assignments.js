@@ -67,13 +67,13 @@ export async function renderAssignmentDetail(container) {
 
         // Find associated services
         const linkedServices = (state.collaboratorServices || []).filter(s => {
-            const matchOrder = s.order_id === assignment.order_id;
+            // Priority 1: Direct Link
+            if (s.assignment_id === assignment.id) return true;
+            
+            // Priority 2: Legacy Match (Order + Collaborator)
+            const matchOrder = s.order_id && s.order_id === assignment.order_id;
             const matchLegacyOrder = s.legacy_order_id && assignment.orders && s.legacy_order_id === assignment.orders.order_number;
-            const matchCollaborator = s.collaborator_id === assignment.collaborator_id;
-
-            if (matchOrder || matchLegacyOrder || matchCollaborator) {
-                console.log(`DEBUG: Checking service ${s.name} (${s.id}): OrderMatch=${matchOrder}, LegacyOrderMatch=${matchLegacyOrder}, CollabMatch=${matchCollaborator}`);
-            }
+            const matchCollaborator = s.collaborator_id && s.collaborator_id === assignment.collaborator_id;
 
             return (matchOrder || matchLegacyOrder) && matchCollaborator;
         });
@@ -82,10 +82,12 @@ export async function renderAssignmentDetail(container) {
         console.log('DEBUG: Linked Services:', linkedServices);
 
         const totalCost = linkedServices.reduce((sum, s) => sum + (parseFloat(s.total_cost) || 0), 0);
-        const totalRevenue = linkedServices.reduce((sum, s) => sum + (parseFloat(s.total_price) || 0), 0);
+        const totalRevenueFromServices = linkedServices.reduce((sum, s) => sum + (parseFloat(s.total_price) || 0), 0);
         const budget = parseFloat(assignment.total_amount) || 0;
-        const margin = totalRevenue - totalCost;
-        const marginPct = totalRevenue > 0 ? Math.round((margin / totalRevenue) * 100) : 0;
+        
+        // Use budget (total_amount) as the effective revenue for the assignment profitability
+        const margin = budget - totalCost;
+        const marginPct = budget > 0 ? Math.round((margin / budget) * 100) : 0;
 
         // Linked payments
         const linkedPayments = (state.payments || []).filter(p => p.assignment_id === assignment.id);
@@ -118,10 +120,10 @@ export async function renderAssignmentDetail(container) {
                                  </div>
                             </div>
                             <div style="display: flex; align-items: center; gap: 1rem; color: var(--text-tertiary); font-size: 0.85rem;">
-                                <span style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;" onclick="window.location.hash='#collaborator-detail/${assignment.collaborator_id}'">
+                                <span style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;" onclick="window.location.hash='collaborator-detail/${assignment.collaborator_id}'">
                                     <span class="material-icons-round" style="font-size: 1rem;">person</span> ${collabName}
                                 </span>
-                                <span style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;" onclick="window.location.hash='#order-detail/${assignment.order_id}'">
+                                <span style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;" onclick="window.location.hash='order-detail/${assignment.order_id}'">
                                     <span class="material-icons-round" style="font-size: 1rem;">shopping_bag</span> ${orderNumber} ${orderTitle ? `- ${orderTitle}` : ''}
                                 </span>
                             </div>
@@ -148,7 +150,7 @@ export async function renderAssignmentDetail(container) {
                     <!-- Column 1: Basic Info -->
                     <div style="display: flex; flex-direction: column; gap: 1rem;">
                         <!-- Collaborator Card -->
-                        <div class="glass-card" style="padding: 1.25rem; cursor: pointer;" onclick="window.location.hash='#collaborator-detail/${assignment.collaborator_id}'">
+                        <div class="glass-card" style="padding: 1.25rem; cursor: pointer;" onclick="window.location.hash='collaborator-detail/${assignment.collaborator_id}'">
                             <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 500; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Collaboratore</div>
                             <div style="display: flex; align-items: center; gap: 0.75rem;">
                                 <div style="width: 40px; height: 40px; border-radius: 50%; background: ${getAvatarColor(collabName)}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600;">${getInitials(collabName)}</div>
@@ -160,7 +162,7 @@ export async function renderAssignmentDetail(container) {
                         </div>
 
                         <!-- Order Link Card -->
-                        <div class="glass-card" style="padding: 1.25rem; cursor: pointer;" onclick="window.location.hash='#order-detail/${assignment.order_id}'">
+                        <div class="glass-card" style="padding: 1.25rem; cursor: pointer;" onclick="window.location.hash='order-detail/${assignment.order_id}'">
                             <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 500; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Ordine Collegato</div>
                             <div style="font-size: 0.95rem; font-weight: 600; color: var(--brand-blue); margin-bottom: 0.2rem;">${orderNumber}</div>
                             <div style="font-size: 0.8rem; color: var(--text-secondary); opacity: 0.8;">${orderTitle}</div>
@@ -236,14 +238,30 @@ export async function renderAssignmentDetail(container) {
 
                     <!-- Column 3: Economics & Payments -->
                     <div style="display: flex; flex-direction: column; gap: 1rem;">
-                        <!-- Budget Card -->
-                        <div class="glass-card" style="padding: 1.5rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), transparent); border: 2px solid rgba(139, 92, 246, 0.15); cursor: pointer; transition: all 0.2s;" onclick="window.editAssignmentEconomics('${assignment.id}')" onmouseover="this.style.transform='translateY(-2px)';" onmouseout="this.style.transform='translateY(0)';">
-                            <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                        <!-- Economics Card -->
+                        <div class="glass-card" style="padding: 1.5rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), transparent); border: 2px solid rgba(139, 92, 246, 0.15);">
+                            <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem;">
                                 <div style="flex: 1;">
-                                    <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Budget Incarico</div>
+                                    <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Budget Incarico (Ricavo)</div>
                                     <div style="font-size: 2rem; font-weight: 800; line-height: 1; color: #8b5cf6; font-family: var(--font-titles);">${formatAmount(budget)}€</div>
                                 </div>
-                                <span class="material-icons-round" style="color: #8b5cf6; font-size: 1.2rem; opacity: 0.6;">edit</span>
+                                <button class="icon-btn" onclick="window.editAssignmentEconomics('${assignment.id}')" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
+                                    <span class="material-icons-round">edit</span>
+                                </button>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding-top: 1rem; border-top: 1px solid rgba(139, 92, 246, 0.1);">
+                                <div>
+                                    <div style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Costo Totale</div>
+                                    <div style="font-size: 1.1rem; font-weight: 700; color: #ef4444;">${formatAmount(totalCost)}€</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Margine</div>
+                                    <div style="font-size: 1.1rem; font-weight: 700; color: ${margin >= 0 ? '#10b981' : '#ef4444'};">
+                                        ${formatAmount(margin)}€
+                                        <span style="font-size: 0.75rem; font-weight: 500; opacity: 0.8; margin-left: 2px;">(${marginPct}%)</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -952,7 +970,7 @@ window.openManualAssignmentPaymentModal = (assignmentId, collaboratorId) => {
             title,
             amount,
             due_date: date || null,
-            payment_type: 'Fornitore',
+            payment_type: 'Collaboratore',
             status: 'To Do',
             assignment_id: assignmentId,
             collaborator_id: collaboratorId,

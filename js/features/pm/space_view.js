@@ -77,7 +77,7 @@ export async function renderSpaceView(container, spaceId) {
         const kpis = calculateKPIs(items);
 
         // View Defaults
-        const defaultView = space.is_cluster ? 'projects' : 'tree';
+        const defaultView = 'overview';
         const activeView = previousView || defaultView;
 
         // Set Hub Context for Drawer
@@ -305,6 +305,9 @@ export async function renderSpaceView(container, spaceId) {
 
                 <!-- Tabs -->
                 <div class="pm-tabs-bar">
+                    <button class="tab-btn ${activeView === 'overview' ? 'active' : ''}" data-view="overview">
+                        <span class="material-icons-round">dashboard</span> Overview
+                    </button>
                     ${space.is_cluster ? `
                         <button class="tab-btn ${activeView === 'projects' ? 'active' : ''}" data-view="projects">
                             <span class="material-icons-round">folder_special</span> Progetti
@@ -403,7 +406,9 @@ export async function renderSpaceView(container, spaceId) {
                 tab.classList.add('active');
                 const view = tab.dataset.view;
 
-                if (view === 'tree') {
+                if (view === 'overview') {
+                    import('./components/space_overview.js?v=' + Date.now()).then(mod => mod.renderSpaceOverview(viewContent, spaceId, items, space));
+                } else if (view === 'tree') {
                     renderHubTree(viewContent, items, space, spaceId);
                 } else if (view === 'projects' && space.is_cluster) {
                     renderChildProjects(viewContent, childProjects);
@@ -648,7 +653,9 @@ export async function renderSpaceView(container, spaceId) {
 
 
         // Initial Content Render
-        if (activeView === 'people') {
+        if (activeView === 'overview') {
+            import('./components/space_overview.js?v=' + Date.now()).then(mod => mod.renderSpaceOverview(viewContent, spaceId, items, space));
+        } else if (activeView === 'people') {
             renderTeamTab(viewContent, spaceAssignees, latestCollabs, spaceId);
         } else if (activeView === 'projects' && space.is_cluster) {
             renderChildProjects(viewContent, childProjects);

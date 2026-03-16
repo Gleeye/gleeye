@@ -729,6 +729,21 @@ async function _expandAssignees(data) {
 
 // --- COMMENTS ---
 
+export async function fetchSpaceComments(spaceId, limit = 5) {
+    const { data, error } = await supabase
+        .from('pm_item_comments')
+        .select(`
+            *,
+            pm_items!inner(space_ref, title),
+            profiles!author_user_ref(id, full_name, avatar_url)
+        `)
+        .eq('pm_items.space_ref', spaceId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+    if (error) throw error;
+    return data || [];
+}
+
 export async function fetchItemComments(itemId, force = false) {
     const cacheKey = `pm_comments_${itemId}`;
     if (isCacheValid(cacheKey, force)) return state[cacheKey] || [];

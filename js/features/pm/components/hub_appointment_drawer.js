@@ -199,6 +199,13 @@ export async function openAppointmentDrawer(inputAppointment, contextId = null, 
                         <div style="height: 1px; background: #f1f5f9; margin: 0.5rem 0;"></div>
 
                         <div class="form-group">
+                            <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.4rem;">Posizione</label>
+                            <div style="font-size: 0.95rem; color: var(--text-primary);">${appointment.location || '-'}</div>
+                        </div>
+                        
+                        <div style="height: 1px; background: #f1f5f9; margin: 0.5rem 0;"></div>
+
+                        <div class="form-group">
                             <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.4rem;">Descrizione o Note</label>
                             <div style="font-size: 0.95rem; color: var(--text-primary); line-height: 1.6; white-space: pre-wrap;">${appointment.note || '-'}</div>
                         </div>
@@ -529,6 +536,7 @@ export async function openAppointmentDrawer(inputAppointment, contextId = null, 
                     opt.onclick = (e) => {
                         e.stopPropagation();
                         const id = opt.dataset.id;
+                        const type = opt.dataset.type;
                         if (type === 'client') { formState.client_id = id; formState.context_id = null; }
                         else { formState.context_id = id; formState.context_type = type; if (type === 'order') { const o = state.orders?.find(x => x.id === id); if (o) formState.client_id = o.client_id; } }
                         refreshContacts();

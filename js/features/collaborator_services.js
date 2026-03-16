@@ -508,8 +508,8 @@ export function initCollaboratorServiceModals() {
         } else if (key === 'service') {
             const { cost, price, type } = metadata;
             document.getElementById('cs-name').value = label;
-            if (cost) document.getElementById('cs-unit-cost').value = cost;
-            if (price) document.getElementById('cs-unit-price').value = price;
+            document.getElementById('cs-unit-cost').value = cost || 0;
+            document.getElementById('cs-unit-price').value = price || 0;
 
             const finalType = type || 'tariffa oraria';
             document.getElementById('cs-tariff-type').value = finalType;

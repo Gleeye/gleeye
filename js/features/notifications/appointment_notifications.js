@@ -86,7 +86,7 @@ async function processNotification(eventType, appt, changes = [], actorId) {
             changes: changes,
             link: `#pm/commessa/${appt.order_id}?tab=appointments&apptId=${appt.id}` // Deep link
         },
-        read: false,
+        is_read: false,
         created_at: new Date().toISOString()
     }));
 

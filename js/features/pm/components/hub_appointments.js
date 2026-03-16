@@ -174,10 +174,16 @@ function renderAppointmentCard(appt) {
             <div style="flex: 1; min-width: 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h4 style="margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${appt.title}</h4>
-                    <div style="display: flex; gap: 4px; align-items: center;">
-                        ${typeBadges}
-                        <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600; margin-left: 8px;">
-                            ${appt.status}
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <div class="avatar-stack" style="display: flex; margin-right: 8px;">
+                            ${avatars}
+                            ${clientBadge}
+                        </div>
+                        <div style="display: flex; gap: 4px; align-items: center;">
+                            ${typeBadges}
+                            <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600; margin-left: 8px;">
+                                ${appt.status}
+                            </div>
                         </div>
                     </div>
                 </div>

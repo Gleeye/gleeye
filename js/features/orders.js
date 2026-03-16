@@ -1902,8 +1902,8 @@ export function initOrderAssignmentModal() {
                                     <input type="number" id="asg-service-qty" class="modal-input" style="width: 100%;" min="0" step="0.5" placeholder="0" disabled>
                                 </div>
                                 <div style="width: 100px;">
-                                    <label style="font-size: 0.7rem; color: var(--text-tertiary); margin-bottom: 0.25rem; display:block;">Totale</label>
-                                    <div id="asg-service-total-display" style="padding: 0.6rem; background: var(--bg-secondary); border-radius: 8px; font-weight: 600; text-align: right;">€ 0.00</div>
+                                    <label style="font-size: 0.7rem; color: var(--text-tertiary); margin-bottom: 0.25rem; display:block;">Costo Totale</label>
+                                    <div id="asg-service-total-display" style="padding: 0.6rem; background: var(--bg-secondary); border-radius: 8px; font-weight: 600; text-align: right; color: #ef4444;">€ 0,00</div>
                                 </div>
                                 <button class="primary-btn small" id="asg-add-service-btn" onclick="window.addServiceToAssignmentList()" disabled style="height: 42px; width: 42px; padding: 0; display: flex; align-items: center; justify-content: center;">
                                     <span class="material-icons-round">add</span>
@@ -2283,8 +2283,7 @@ window.loadCollaboratorServicesForAssignment = async () => {
             // (state.services || []).forEach(s => selector.innerHTML += ...);
             selector.disabled = true;
         } else {
-            selector.innerHTML = '<option value="">Seleziona un servizio...</option>' +
-                relevantServices.map(s => `<option value="${s.id}" data-type="${s.type}" data-price="${s.price || 0}">${s.name}</option>`).join('');
+                relevantServices.map(s => `<option value="${s.id}" data-type="${s.type}" data-price="${s.price || 0}" data-cost="${s.cost || 0}">${s.name}</option>`).join('');
             selector.disabled = false;
         }
 
@@ -2316,6 +2315,7 @@ window.onAssignmentServiceSelect = () => {
     const option = selector.selectedOptions[0];
     const type = option.getAttribute('data-type');
     const price = parseFloat(option.getAttribute('data-price')) || 0;
+    const cost = parseFloat(option.getAttribute('data-cost')) || 0;
 
     // Configure Inputs based on Type
     qtyInput.disabled = false;
@@ -2329,27 +2329,27 @@ window.onAssignmentServiceSelect = () => {
 
     if (type === 'tariffa oraria') {
         unitLabel = 'Ore';
-        infoText = `Tariffa Oraria: € ${formatMoney(price)} / ora`;
+        infoText = `Costo Orario: € ${formatMoney(cost)} / ora`;
     } else if (type === 'tariffa mensile') {
         unitLabel = 'Mesi';
-        infoText = `Tariffa Mensile: € ${formatMoney(price)} / mese`;
+        infoText = `Costo Mensile: € ${formatMoney(cost)} / mese`;
     } else { // 'tariffa spot' or others
         unitLabel = 'Quantità';
-        infoText = `Tariffa Spot: € ${formatMoney(price)} cadauno`;
+        infoText = `Costo Spot: € ${formatMoney(cost)} cadauno`;
     }
 
     qtyLabel.textContent = unitLabel;
     tariffInfo.textContent = infoText;
     tariffInfo.style.display = 'block';
 
-    // Calculate initial total
-    const total = price * 1;
+    // Calculate initial total (using cost)
+    const total = cost * 1;
     totalDisplay.textContent = '€ ' + formatMoney(total);
 
     // Attach listener for dynamic calc
     qtyInput.oninput = () => {
         const qty = parseFloat(qtyInput.value) || 0;
-        const subTotal = price * qty;
+        const subTotal = cost * qty;
         totalDisplay.textContent = '€ ' + formatMoney(subTotal);
     };
 };
@@ -2365,6 +2365,7 @@ window.addServiceToAssignmentList = () => {
     const name = option.text;
     const type = option.getAttribute('data-type');
     const unitPrice = parseFloat(option.getAttribute('data-price')) || 0;
+    const unitCost = parseFloat(option.getAttribute('data-cost')) || 0;
     const qty = parseFloat(qtyInput.value) || 0;
 
     if (qty <= 0) {
@@ -2379,8 +2380,10 @@ window.addServiceToAssignmentList = () => {
         name: name,
         type: type,
         unit_price: unitPrice,
+        unit_cost: unitCost,
         quantity: qty,
-        total_price: unitPrice * qty
+        total_price: unitPrice * qty,
+        total_cost: unitCost * qty
     });
     console.log("Current State Services:", window.asgState.selectedServices);
 
@@ -2405,11 +2408,11 @@ window.renderSelectedServicesList = () => {
             <div style="flex: 1;">
                 <div style="font-weight: 600; font-size: 0.9rem;">${s.name}</div>
                 <div style="font-size: 0.75rem; color: var(--text-tertiary);">
-                    ${s.type === 'tariffa oraria' ? `${s.quantity} ore` : (s.type === 'tariffa mensile' ? `${s.quantity} mesi` : `Qtà: ${s.quantity}`)} @ € ${formatMoney(s.unit_price)}
+                    ${s.type === 'tariffa oraria' ? `${s.quantity} ore` : (s.type === 'tariffa mensile' ? `${s.quantity} mesi` : `Qtà: ${s.quantity}`)} @ Costo Unit: € ${formatMoney(s.unit_cost)}
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap: 1rem;">
-                <div style="font-weight: 700;">€ ${formatMoney(s.total_price)}</div>
+                <div style="font-weight: 700; color: #ef4444;">€ ${formatMoney(s.total_cost)}</div>
                 <button class="icon-btn small" onclick="window.removeServiceFromAssignmentList(${index})" style="color: var(--error-color);">
                     <span class="material-icons-round" style="font-size: 18px;">delete</span>
                 </button>
@@ -2507,8 +2510,9 @@ window.saveAssignmentMultiStep = async () => {
                 name: s.name,
                 quantity: s.quantity,
                 unit_price: s.unit_price,
+                unit_cost: s.unit_cost,
                 total_price: s.total_price,
-                total_cost: s.total_price
+                total_cost: s.total_cost
             });
         }
 

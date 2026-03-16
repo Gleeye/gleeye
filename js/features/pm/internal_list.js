@@ -128,14 +128,13 @@ export async function renderInternalProjects(container, initialFilter) {
                 visibleProjects = (spaces || []).filter(s => s.parent_ref === currentClusterId);
             }
 
+            const kpiClusters = currentClusterId === 'all' ? areaClusters.length : 1;
             const kpiTotal = visibleProjects.length;
-            const kpiOpen = visibleProjects.reduce((acc, p) => acc + (statsMap[p.id]?.activities.open || 0), 0);
-            const kpiOverdue = visibleProjects.reduce((acc, p) => acc + (statsMap[p.id]?.activities.overdue || 0), 0);
-
-            // Filter projects based on KPI
-            let filteredProjects = [...visibleProjects];
-            if (currentKpiFilter === 'open') filteredProjects = filteredProjects.filter(p => (statsMap[p.id]?.activities.open || 0) > 0);
-            else if (currentKpiFilter === 'overdue') filteredProjects = filteredProjects.filter(p => (statsMap[p.id]?.activities.overdue || 0) > 0);
+            let kpiActivities = 0;
+            if (currentClusterId !== 'all') {
+                 kpiActivities += statsMap[currentClusterId]?.activities.open || 0;
+            }
+            visibleProjects.forEach(p => kpiActivities += statsMap[p.id]?.activities.open || 0);
 
             const isPartner = (state.profile?.tags || []).includes('Partner') || state.profile?.role === 'admin';
             const managerId = areaManagers[currentAreaId];
@@ -208,7 +207,14 @@ export async function renderInternalProjects(container, initialFilter) {
                     .drop-opt:hover { background: var(--bg-secondary); }
 
                     /* Table & Grid */
-                    .m-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+                    
+                    .pm-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-bottom: 1.5rem; }
+                    .pm-card { background: white; border-radius: 16px; padding: 1.25rem; border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-left: 4px solid transparent; position: relative; overflow: hidden; display: flex; justify-content: space-between; align-items: flex-start; }
+                    .pm-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+                    .card-count { font-size: 1.75rem; font-weight: 700; color: var(--text-primary); line-height: 1; font-family: var(--font-titles); margin-top: 0.25rem; }
+                    
+                    .pm-filter-bar { padding: 1rem 1.5rem; display: flex; align-items: center; gap: 1.5rem; background: #fcfcfd; border-bottom: 1px solid var(--glass-border); }
+.m-table { width: 100%; border-collapse: separate; border-spacing: 0; }
                     .m-table th { padding: 1rem 1.25rem; text-align: left; font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 800; background: rgba(255,255,255,0.7); border-bottom: 2px solid var(--bg-primary); position: sticky; top: 0; z-index: 10; }
                     .m-table td { padding: 0.85rem 1.25rem; border-bottom: 1px solid rgba(0,0,0,0.025); vertical-align: middle; }
                     .m-row { cursor: pointer; transition: 0.2s; }
@@ -282,20 +288,16 @@ export async function renderInternalProjects(container, initialFilter) {
                         </aside>
 
                         <main class="hub-main-content">
-                            <header style="display: flex; justify-content: space-between; align-items: flex-end;">
-                                <div><div style="font-size: 0.6rem; font-weight: 800; color: var(--brand-blue); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 2px;">PANORAMICA AREA</div><h2 id="hub-title" style="font-size: 1.1rem; font-weight: 800; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.015em;">Overview ${activeArea.label}</h2></div>
-                                <div class="kpi-h-row">
-                                    <div class="kpi-h-card ${currentKpiFilter === 'all' ? 'active' : ''}" data-kpi="all"><span class="n">${kpiTotal}</span> <span class="l">Progetti</span></div>
-                                    <div class="kpi-h-card ${currentKpiFilter === 'open' ? 'active blue' : ''}" data-kpi="open"><span class="n">${kpiOpen}</span> <span class="l">Aperti</span></div>
-                                    <div class="kpi-h-card ${currentKpiFilter === 'overdue' ? 'active red' : ''}" data-kpi="overdue"><span class="n">${kpiOverdue}</span> <span class="l">Ritardi</span></div>
-                                </div>
+                            <header style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1rem;">
+                                <div><div style="font-size: 0.6rem; font-weight: 800; color: var(--brand-blue); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 2px;">PANORAMICA AREA</div><h2 id="hub-title" style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.015em;">Overview ${activeArea.label}</h2></div>
                             </header>
 
                             <div class="glass-card" style="display: flex; flex-direction: column; min-height: 600px; flex: 1; overflow: hidden; border: 1px solid var(--glass-border);">
                                 <div class="hub-tabs">
                                     <button class="hub-tab ${currentTab === 'overview' ? 'active' : ''}" data-tab="overview"><span class="material-icons-round">dashboard</span>Overview</button>
+                                    <button class="hub-tab ${currentTab === 'board' ? 'active' : ''}" data-tab="board"><span class="material-icons-round">view_kanban</span>Board</button>
+                                    <button class="hub-tab ${currentTab === 'appointments' ? 'active' : ''}" data-tab="appointments"><span class="material-icons-round">calendar_today</span>Appuntamenti</button>
                                     <button class="hub-tab ${currentTab === 'feed' ? 'active' : ''}" data-tab="feed"><span class="material-icons-round">history</span>Feed</button>
-                                    <button class="hub-tab ${currentTab === 'team' ? 'active' : ''}" data-tab="team"><span class="material-icons-round">groups</span>Team</button>
                                     <button class="hub-tab ${currentTab === 'docs' ? 'active' : ''}" data-tab="docs"><span class="material-icons-round">description</span>Documenti</button>
                                 </div>
                                 <div id="hub-tab-content" style="flex: 1; padding: 1.5rem; overflow-y: auto;">
@@ -310,7 +312,6 @@ export async function renderInternalProjects(container, initialFilter) {
             renderTab();
             bindBaseHandlers();
         };
-
         const renderTab = async () => {
             const content = container.querySelector('#hub-tab-content');
             const activeArea = COMPANY_AREAS.find(a => a.id === currentAreaId) || COMPANY_AREAS[0];
@@ -321,53 +322,87 @@ export async function renderInternalProjects(container, initialFilter) {
             } else {
                 visibleProjects = (spaces || []).filter(s => s.parent_ref === currentClusterId);
             }
-            const contextSpaceIds = [currentClusterId, ...visibleProjects.map(s => s.id)];
+
+            // FILTER LOGIC: Aggregate ALL spaces in the area/cluster context
+            let targetSpaceIds = [];
+            if (currentClusterId === 'all') {
+                targetSpaceIds = (spaces || []).filter(s => (s.area || '').toLowerCase() === activeArea.label.toLowerCase()).map(s => s.id);
+            } else {
+                targetSpaceIds = [currentClusterId, ...(spaces || []).filter(s => s.parent_ref === currentClusterId).map(s => s.id)];
+            }
+            if (targetSpaceIds.length === 0) targetSpaceIds = ['__empty__'];
 
             if (currentTab === 'overview') {
-                let filtered = [...visibleProjects];
-                if (currentKpiFilter === 'open') filtered = filtered.filter(p => (statsMap[p.id]?.activities.open || 0) > 0);
-                else if (currentKpiFilter === 'overdue') filtered = filtered.filter(p => (statsMap[p.id]?.activities.overdue || 0) > 0);
+                const spaceNamesMap = {};
+                (spaces || []).forEach(s => spaceNamesMap[s.id] = s.name);
+                
+                let cloudLinks = [];
+                (spaces || []).forEach(s => {
+                    if (targetSpaceIds.includes(s.id) && s.cloud_links) {
+                        try {
+                            const links = typeof s.cloud_links === 'string' ? JSON.parse(s.cloud_links) : s.cloud_links;
+                            if (Array.isArray(links)) cloudLinks.push(...links);
+                        } catch (e) {}
+                    }
+                });
 
-                content.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                        <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px;"><span class="material-icons-round" style="font-size: 1rem; color: var(--brand-viola);">insights</span> MONITORAGGIO PERFORMANCE</div>
-                        <div style="position: relative;"><input type="text" id="m-search" placeholder="Cerca nel workspace..." style="background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 6px 12px 6px 30px; font-size: 0.75rem; width: 180px; outline: none;"><span class="material-icons-round" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 1rem; color: var(--text-tertiary);">search</span></div>
-                    </div>
-                    <table class="m-table">
-                        <thead><tr><th style="width: 35%;">PROGETTO</th><th style="width: 20%;">TEAM</th><th style="width: 20%;">SAL</th><th style="width: 25%;">PROSSIMO STEP</th><th></th></tr></thead>
-                        <tbody id="m-tbody">
-                            ${filtered.length === 0 ? `<tr><td colspan="5" style="padding: 4rem; text-align: center; color: var(--text-tertiary); font-style: italic; font-size: 0.8rem;">Nessun progetto trovato per questo filtro.</td></tr>` : filtered.map(p => {
-                                const s = statsMap[p.id];
-                                const progress = s.activities.total > 0 ? Math.round(((s.activities.total - s.activities.open) / s.activities.total) * 100) : 0;
-                                const teamIds = Array.from(s.activities.team || []);
-                                const teamCollabs = teamIds.slice(0, 3).map(uid => getCollab(uid, null)).filter(Boolean);
-                                const pmRec = p.pm_space_assignees?.find(a => ['manager', 'pm', 'admin'].includes(a.role)) || { user_ref: p.default_pm_user_ref };
-                                const pm = getCollab(pmRec.user_ref, pmRec.collaborator_ref);
-                                const next = s.activities.nextAction;
-                                return `
-                                    <tr class="m-row" onclick="window.location.hash='#pm/space/${p.id}'">
-                                        <td><div style="display: flex; align-items: center; gap: 0.85rem;"><div class="health-dot ${s.activities.overdue > 0 ? 'urgent' : 'stable'}"></div><div style="min-width: 0;"><div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">${p.name}</div><div style="font-size: 0.6rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase;">ID: ${p.id.slice(0,8)}</div></div></div></td>
-                                        <td><div class="avatar-stack-v">${pm ? `<div class="face owner-v">${renderAvatar(pm, { size: 28, borderRadius: '50%' })}</div>` : ''}${teamCollabs.map((c, i) => `<div class="face" style="z-index: ${3-i}">${renderAvatar(c, { size: 28, borderRadius: '50%' })}</div>`).join('')}${teamIds.length > 4 ? `<div style="margin-left: -8px; width: 28px; height: 28px; border-radius: 50%; background: var(--bg-secondary); border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: 800; color: var(--text-secondary);">+${teamIds.length-4}</div>` : ''}</div></td>
-                                        <td><div style="display: flex; align-items: center; gap: 0.65rem;"><div style="flex: 1; height: 5px; background: var(--bg-secondary); border-radius: 5px; overflow: hidden;"><div style="width: ${progress}%; height: 100%; background: var(--brand-gradient);"></div></div><span style="font-size: 0.7rem; font-weight: 800; color: var(--text-primary);">${progress}%</span></div></td>
-                                        <td><div style="display: flex; flex-direction: column; gap: 2px; ${next?.date && new Date(next.date) < now ? 'color: #ef4444' : ''}"><span style="font-size: 0.75rem; font-weight: 700;">${next ? next.title : 'Non pianificato'}</span>${next?.date ? `<span style="font-size: 0.6rem; color: var(--text-tertiary); font-weight: 700; display: flex; align-items: center; gap: 4px;"><span class="material-icons-round" style="font-size: 0.9rem;">calendar_today</span> ${new Date(next.date).toLocaleDateString()}</span>` : ''}</div></td>
-                                        <td style="text-align: right;"><span class="material-icons-round" style="color: var(--text-tertiary); font-size: 1rem; opacity: 0.3;">arrow_forward</span></td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                `;
-                const sInput = content.querySelector('#m-search');
-                sInput.oninput = (e) => {
-                    const t = e.target.value.toLowerCase();
-                    content.querySelectorAll('#m-tbody tr').forEach(r => r.style.display = r.innerText.toLowerCase().includes(t) ? '' : 'none');
-                };
+                import('./components/area_overview.js?v=' + Date.now()).then(mod => {
+                    mod.renderAreaOverview(content, targetSpaceIds, spaceNamesMap, cloudLinks);
+                });
+
+            } else if (currentTab === 'board') {
+                content.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:200px;"><span class="loader"></span></div>`;
+                
+                // We need all items related to these spaces
+                const { data: boardItems, error: bErr } = await supabase
+                    .from('pm_items')
+                    .select('*, pm_item_assignees(*, user:collaborators(*))')
+                    .in('space_ref', targetSpaceIds)
+                    .is('archived_at', null);
+
+                if (bErr) { content.innerHTML = `<div style="padding:2rem; color:red;">Errore: ${bErr.message}</div>`; return; }
+
+                const dummySpace = { id: currentClusterId || 'area', name: activeArea.label, is_cluster: true, area: activeArea.id };
+                
+                import('./components/hub_tree.js?v=' + Date.now()).then(mod => {
+                    mod.renderHubTree(content, boardItems || [], dummySpace, currentClusterId || currentAreaId);
+                });
+
+            } else if (currentTab === 'appointments') {
+                content.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:200px;"><span class="loader"></span></div>`;
+                
+                const { fetchAppointments, fetchAppointmentTypes } = await import('../../modules/pm_api.js?v=1000');
+                
+                // Fetch appointments for all spaces in the target list
+                const { data: appts, error: aErr } = await supabase
+                    .from('appointments')
+                    .select('*, appointment_type_links(appointment_types(*)), appointment_internal_participants(*, user:collaborators(*))')
+                    .in('pm_space_id', targetSpaceIds);
+
+                const types = await fetchAppointmentTypes();
+
+                if (aErr) { content.innerHTML = `<div style="padding:2rem; color:red;">Errore: ${aErr.message}</div>`; return; }
+
+                // Map to the expected flat format for the component
+                const mappedAppts = (appts || []).map(a => ({
+                    ...a,
+                    types: (a.appointment_type_links || []).map(l => l.appointment_types).filter(Boolean),
+                    participants: {
+                        internal: (a.appointment_internal_participants || []).map(p => ({
+                            ...p,
+                            user: p.user
+                        }))
+                    }
+                }));
+
+                import('./components/hub_appointments.js?v=' + Date.now()).then(mod => {
+                    mod.renderHubAppointments(content, mappedAppts, types, currentClusterId || currentAreaId, 'space');
+                });
 
             } else if (currentTab === 'feed') {
                 content.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:200px;"><span class="loader"></span></div>`;
                 
-                const visibleProjectIds = visibleProjects.map(p => p.id);
-                const contextIds = [currentClusterId, ...visibleProjectIds];
+                const contextIds = targetSpaceIds;
                 
                 // Fetch and filter logs for the cluster context
                 const logs = await fetchPMActivityLogs(null, null, null, null);
@@ -376,12 +411,23 @@ export async function renderInternalProjects(container, initialFilter) {
                 content.innerHTML = `
                     <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;"><span class="material-icons-round" style="font-size: 1rem; color: var(--brand-blue);">history</span> FEED ATTIVITÀ CLUSTER</div>
                     ${filteredLogs.length === 0 ? `<div style="padding: 3rem; text-align: center; color: var(--text-tertiary); font-style: italic;">Nessuna attività recente registrata per questo cluster.</div>` : filteredLogs.slice(0, 30).map(l => `
-                        <div style="display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--bg-primary); animation: fadeIn 0.3s ease;">
+                        <div style="display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--bg-primary); animation: fadeIn 0.3s ease; cursor:pointer;" onclick="import('./components/hub_drawer.js?v=1000').then(m => m.openHubDrawer('${l.item_ref}', '${l.space_ref}'))">
                             ${renderAvatar(l.actor || { full_name: 'S' }, { size: 32, borderRadius: '50%' })}
                             <div style="flex: 1; min-width: 0;">
                                 <div style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.4;">
-                                    <strong>${l.authorName}</strong> ${l.action_type.replace(/_/g, ' ')} 
-                                    <span style="color: var(--brand-blue); font-weight: 600;">${l.item?.title || l.space?.name || ''}</span>
+                                    <strong>${l.authorName}</strong> 
+                                    ${(() => {
+                                        const at = (l.action_type || '').toLowerCase();
+                                        const vocabulary = { 'todo': 'Da Fare', 'in_progress': 'In Corso', 'blocked': 'Bloccato', 'review': 'In Revisione', 'done': 'Completata' };
+                                        const t = (v) => vocabulary[v?.toLowerCase()] || v;
+                                        if (at.includes('status')) return `ha cambiato lo stato in <strong style="text-transform:uppercase; font-size:0.75rem;">${t(l.details?.new || l.details?.new_value)}</strong> di`;
+                                        if (at.includes('created')) return 'ha creato';
+                                        if (at.includes('comment')) return 'ha commentato';
+                                        if (at.includes('user_ref')) return 'ha assegnato';
+                                        if (at.includes('cloud_links')) return 'ha aggiunto un link a';
+                                        return 'ha modificato';
+                                    })()}
+                                    <span style="color: var(--text-primary); font-weight: 700;">${l.item?.title || l.space?.name || ''}</span>
                                 </div>
                                 <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 4px;">${new Date(l.created_at).toLocaleString('it-IT')}</div>
                             </div>
@@ -389,32 +435,6 @@ export async function renderInternalProjects(container, initialFilter) {
                     `).join('')}
                 `;
 
-            } else if (currentTab === 'team') {
-                const uniqueTeamIds = new Set();
-                
-                // Aggregating team members from all projects within the cluster
-                visibleProjects.forEach(p => {
-                    const s = statsMap[p.id];
-                    if (s) s.activities.team.forEach(uid => uniqueTeamIds.add(uid));
-                });
-                
-                // Also add members assigned directly to the cluster space itself
-                const clusterStats = statsMap[currentClusterId];
-                if (clusterStats) clusterStats.activities.team.forEach(uid => uniqueTeamIds.add(uid));
-
-                const team = Array.from(uniqueTeamIds).map(uid => collaborators.find(c => c.user_id === uid)).filter(Boolean);
-
-                content.innerHTML = `
-                    <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;"><span class="material-icons-round" style="font-size: 1rem; color: var(--brand-blue);">groups</span> TEAM OPERATIVO CLUSTER</div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
-                        ${team.length === 0 ? `<div style="grid-column: 1/-1; padding: 3rem; text-align: center; color: var(--text-tertiary);">Nessun membro del team identificato per questo cluster.</div>` : team.map(c => `
-                            <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border); background: white;">
-                                ${renderAvatar(c, { size: 40, borderRadius: '50%' })}
-                                <div><div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">${c.full_name}</div><div style="font-size: 0.65rem; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase;">${c.role || 'Membro'}</div></div>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
 
             } else if (currentTab === 'docs') {
                 const visibleProjectIds = visibleProjects.map(p => p.id);

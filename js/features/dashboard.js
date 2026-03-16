@@ -778,7 +778,7 @@ export function renderDashboard(container) {
         const handleRowInteractions = (body) => {
             body.querySelectorAll('.clickable-row').forEach(row => {
                 row.addEventListener('click', () => {
-                    if (row.dataset.id) window.location.hash = `order - detail / ${row.dataset.id} `;
+                    if (row.dataset.id) window.location.hash = `order-detail/${row.dataset.id}`;
                 });
                 row.addEventListener('mouseenter', () => { row.style.background = 'var(--bg-secondary)'; row.style.cursor = 'pointer'; });
                 row.addEventListener('mouseleave', () => { row.style.background = 'white'; });
@@ -1012,7 +1012,7 @@ export function renderDashboard(container) {
             modal.querySelectorAll('.modal-clickable-row').forEach(row => {
                 row.addEventListener('click', () => {
                     closeModal(modalId);
-                    window.location.hash = `order - detail / ${row.dataset.id} `;
+                    window.location.hash = `order-detail/${row.dataset.id}`;
                 });
                 row.addEventListener('mouseenter', () => { row.style.background = 'var(--bg-secondary)'; });
                 row.addEventListener('mouseleave', () => { row.style.background = 'white'; });
