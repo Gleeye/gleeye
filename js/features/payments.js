@@ -155,8 +155,8 @@ export function renderPaymentsDashboard(container) {
                                 </div>
                             </div>
                         </div>
-                        <div id="list-content-view" style="display: none; height: 100%; flex-direction: column;">
-                            <div class="flex-between" style="margin-bottom: 1.5rem;">
+                        <div id="list-content-view" style="display: none; height: 100%; flex-direction: column; min-width: 0; overflow: hidden;">
+                            <div class="flex-between" style="margin-bottom: 1.5rem; flex-shrink: 0;">
                                 <div class="flex-start" style="gap: 1rem;">
                                     <button id="btn-back-to-chart" class="icon-container icon-container-sm" style="background: var(--glass-highlight); color: var(--text-secondary); border-radius: 12px; border: none; cursor: pointer;">
                                         <span class="material-icons-round">arrow_back</span>
@@ -168,7 +168,7 @@ export function renderPaymentsDashboard(container) {
                                 </div>
                                 <div id="list-view-total" style="font-weight: 700; font-size: 1.1rem; color: var(--brand-blue);">€ 0,00</div>
                             </div>
-                            <div id="dashboard-payments-list" style="flex: 1; overflow-y: auto; padding-right: 0.5rem;">
+                            <div id="dashboard-payments-list" style="flex: 1; overflow-y: auto; overflow-x: auto; padding-right: 0.5rem; min-width: 0;">
                                 <!-- Cards will be injected here -->
                             </div>
                         </div>
@@ -442,9 +442,12 @@ export function renderPaymentsDashboard(container) {
                 listContainer.style.display = 'grid';
                 listContainer.style.gridAutoFlow = 'column';
                 const colCount = (isUscite && (categorized.waiting?.length > 0 || !isBulk)) ? 4 : 3;
-                listContainer.style.gridTemplateColumns = `repeat(${colCount}, minmax(240px, 1fr))`;
-                listContainer.style.gap = '1.25rem';
-                listContainer.style.overflow = 'hidden';
+                listContainer.style.gridTemplateColumns = `repeat(${colCount}, minmax(280px, 1fr))`;
+                listContainer.style.gap = '1.5rem';
+                listContainer.style.paddingBottom = '1rem';
+                listContainer.style.overflowX = 'auto';
+                listContainer.style.overflowY = 'hidden';
+                listContainer.classList.add('custom-scrollbar');
 
                 const renderColumn = (label, icon, color, items) => `
                     <div class="flex-column" style="gap: 0.75rem; min-width: 0; height: 100%; overflow: hidden;">
