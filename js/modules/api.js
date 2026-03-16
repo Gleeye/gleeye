@@ -1127,15 +1127,13 @@ export async function upsertAssignment(assignmentData) {
     // Generate Custom ID if creating new (and no ID provided)
     // Generate Custom ID if creating new (and no ID provided)
     if (!assignmentData.id) {
-        const date = new Date();
-        const yy = date.getFullYear().toString().slice(-2);
         // Order Number or '0000'
         const orderNum = assignmentData.order_number || '0000';
         // Random 5 chars
         const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
 
-        // Format: YY-OrderNumber-Random (e.g., 25-0015-PC61g)
-        assignmentData.id = `${yy} - ${orderNum} - ${randomStr}`;
+        // Format: OrderNumber-Random (e.g., 25-0015-PC61G)
+        assignmentData.id = `${orderNum}-${randomStr}`;
     }
 
     // Sanitize payload: remove fields that don't exist in 'assignments' table
