@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v2004'; // Denormalization of names in passive invoices
+const CACHE_NAME = 'gleeye-pwa-cache-v2005'; // Fix for chrome-extension scheme error
 const urlsToCache = [
     '/',
     '/index.html',
@@ -19,6 +19,11 @@ self.addEventListener('install', event => {
 
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
+
+    // Skip unsupported schemes (like chrome-extension:// or other protocols)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return; // Let the browser handle it normally
+    }
 
     // 1. BYPASS CACHE FOR LOCAL DEVELOPMENT
     // If we are on localhost or a local IP, we want to see changes immediately without SW interference

@@ -1134,6 +1134,11 @@ export async function upsertAssignment(assignmentData) {
 
         // Format: OrderNumber-Random (e.g., 25-0015-PC61G)
         assignmentData.id = `${orderNum}-${randomStr}`;
+        
+        // Also set legacy_id to the new ID if not present (for automations)
+        if (!assignmentData.legacy_id) {
+            assignmentData.legacy_id = assignmentData.id;
+        }
     }
 
     // Sanitize payload: remove fields that don't exist in 'assignments' table
