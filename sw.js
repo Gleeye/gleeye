@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v2005'; // Fix for chrome-extension scheme error
+const CACHE_NAME = 'gleeye-pwa-cache-v2006'; // Extra robustness for cache.put and GET check
 const urlsToCache = [
     '/',
     '/index.html',
@@ -39,14 +39,26 @@ self.addEventListener('fetch', event => {
         url.pathname.endsWith('.js') ||
         url.pathname.endsWith('.css');
 
-    if (isLogicOrStyle) {
+    if (isLogicOrStyle && event.request.method === 'GET') {
         event.respondWith(
             fetch(event.request)
                 .then(response => {
+                    // Only cache successful responses (and ignore opaque/chrome-extension)
+                    if (!response || response.status !== 200) {
+                        return response;
+                    }
+
                     const responseClone = response.clone();
                     caches.open(CACHE_NAME).then(cache => {
-                        cache.put(event.request, responseClone);
-                    });
+                        try {
+                            const cacheUrl = new URL(event.request.url);
+                            if (cacheUrl.protocol === 'http:' || cacheUrl.protocol === 'https:') {
+                                cache.put(event.request, responseClone);
+                            }
+                        } catch (e) {
+                            // Silently fail if put fails (e.g. extension scripts)
+                        }
+                    }).catch(() => {});
                     return response;
                 })
                 .catch(() => caches.match(event.request))
