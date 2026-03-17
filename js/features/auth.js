@@ -111,17 +111,21 @@ async function handleSession(session) {
     if (setPasswordContainer) setPasswordContainer.classList.add('hidden');
     if (appContainer) appContainer.classList.add('hidden');
 
+    try {
+        if (session) {
+            // Fetch profile first to determine onboarding status
+            const profile = await fetchProfile().catch(e => {
+                console.error("fetchProfile failed:", e);
+                return null;
+            });
 
-    if (session) {
-        // Fetch profile first to determine onboarding status
-        const profile = await fetchProfile();
-
-        if (profile && !profile.is_onboarded) {
-            // First access: Show Set Password Screen
-            if (setPasswordContainer) setPasswordContainer.classList.remove('hidden');
-        } else {
-            // Normal access: Show Dashboard
-            console.log("Session valid, loading app data...");
+            if (profile && !profile.is_onboarded) {
+                // First access: Show Set Password Screen
+                if (setPasswordContainer) setPasswordContainer.classList.remove('hidden');
+                window.dispatchEvent(new Event('app:ready')); // Reveal screen (hide splash)
+            } else if (profile) {
+                // Normal access: Show Dashboard
+                console.log("Session valid, loading app data...");
 
             // CRITICAL: Update sidebar visibility BEFORE showing app
             // This prevents collaborators from seeing admin elements
@@ -247,10 +251,19 @@ async function handleSession(session) {
                 state.isFetching = false;
             });
 
+        } else {
+            console.error("Profile not found for session. Logging out.");
+                window.dispatchEvent(new Event('app:ready')); // Hide splash
+                handleLogout();
+            }
+        } else {
+            console.log("No session found, showing login.");
+            if (authContainer) authContainer.classList.remove('hidden');
+            window.dispatchEvent(new Event('app:ready')); // Reveal login (hide splash)
         }
-    } else {
-        console.log("No session found, showing login.");
-        if (authContainer) authContainer.classList.remove('hidden');
+    } catch (err) {
+        console.error("Error in handleSession:", err);
+        window.dispatchEvent(new Event('app:ready')); // Ensure splash is hidden on error
     }
 }
 
