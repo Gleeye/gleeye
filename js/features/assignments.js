@@ -141,6 +141,11 @@ export async function renderAssignmentDetail(container) {
                         <button class="primary-btn secondary" onclick="window.editAssignment('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
                             <span class="material-icons-round">edit</span> Modifica
                         </button>
+                        ${assignment.contract_url ? `
+                        <button class="primary-btn secondary" onclick="window.sendAssignmentEmail('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px; color: #10b981; border-color: rgba(16, 185, 129, 0.2);">
+                            <span class="material-icons-round">forward_to_inbox</span> Invia Email
+                        </button>
+                        ` : ''}
                         <button class="primary-btn" onclick="window.generateAssignmentLetter('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px; background: linear-gradient(135deg, #8b5cf6, #6366f1);">
                             <span class="material-icons-round">file_download</span> Lettera Incarico
                         </button>
@@ -1587,5 +1592,70 @@ window.generateAssignmentLetter = async (assignmentId) => {
     } catch (e) {
         console.error('Error in window.generateAssignmentLetter:', e);
         showGlobalAlert('Errore imprevisto nella generazione', 'error');
+    }
+};
+
+window.sendAssignmentEmail = async (assignmentId) => {
+    if (!confirm('Vuoi inviare la lettera di incarico al collaboratore via email?')) return;
+
+    showGlobalAlert('Invio email in corso...', 'info');
+
+    try {
+        const { data: assignment, error } = await supabase
+            .from('assignments')
+            .select(`
+                *,
+                orders(title),
+                collaborators(first_name, full_name, email)
+            `)
+            .eq('id', assignmentId)
+            .single();
+
+        if (error) throw error;
+        if (!assignment || !assignment.contract_url) throw new Error("Documento o incarico non trovato.");
+        
+        const collabEmail = assignment.collaborators?.email;
+        if (!collabEmail) {
+            showGlobalAlert('Il collaboratore non ha un indirizzo email configurato.', 'error');
+            return;
+        }
+
+        const { data: configs } = await supabase
+            .from('system_config')
+            .select('*')
+            .in('key', ['assignment_email_subject', 'assignment_email_body']);
+
+        let subjectTpl = configs?.find(c => c.key === 'assignment_email_subject')?.value || 'Nuovo incarico: {{project_name}}';
+        let bodyTpl = configs?.find(c => c.key === 'assignment_email_body')?.value || `Ciao {{collaborator_name}},\n\nEcco la tua lettera d'incarico per il progetto {{project_name}}:\n{{link}}\n\nSaluti,\nStudio Gleeye`;
+
+        const vars = {
+            collaborator_name: assignment.collaborators.first_name || assignment.collaborators.full_name || 'Collaboratore',
+            project_name: assignment.orders?.title || 'Progetto',
+            link: assignment.contract_url
+        };
+
+        const fillTemplate = (tpl, vars) => {
+            if (!tpl) return '';
+            return tpl.replace(/{{(\w+)}}/g, (match, key) => vars[key] !== undefined ? vars[key] : match);
+        };
+
+        const finalSubject = fillTemplate(subjectTpl, vars);
+        const finalBody = fillTemplate(bodyTpl, vars).replace(/\n/g, '<br/>');
+
+        const { data: result, error: invokeError } = await supabase.functions.invoke('send-email', {
+            body: { 
+                to: collabEmail,
+                subject: finalSubject,
+                html: finalBody
+            }
+        });
+
+        if (invokeError) throw invokeError;
+        if (result && !result.success) throw new Error(result.error);
+        
+        showGlobalAlert('Email inviata con successo!', 'success');
+    } catch (err) {
+        console.error('Email error:', err);
+        showGlobalAlert("Errore nell'invio: " + err.message, 'error');
     }
 };
