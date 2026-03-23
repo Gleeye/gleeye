@@ -159,13 +159,13 @@ function renderAppointmentCard(appt) {
 
     return `
         <div class="glass-card appointment-card" data-id="${appt.id}" style="
-            padding: 0.85rem 1rem; border-left: 4px solid ${statusColor}; 
+            padding: 0.85rem 1rem; 
             display: flex; gap: 1rem; align-items: center;
             cursor: pointer; transition: transform 0.2s;
             margin-bottom: 0.5rem;
         " onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
             <!-- Time Column -->
-            <div style="min-width: 70px; display: flex; flex-direction: column; align-items: flex-end; border-right: 1px solid var(--surface-2); padding-right: 1rem;">
+            <div style="min-width: 70px; display: flex; flex-direction: column; align-items: flex-end; padding-right: 1rem;">
                 <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);">${start.getHours()}:${String(start.getMinutes()).padStart(2, '0')}</div>
                 <div style="font-size: 0.75rem; color: var(--text-tertiary);">${end.getHours()}:${String(end.getMinutes()).padStart(2, '0')}</div>
             </div>
@@ -194,7 +194,7 @@ function renderAppointmentCard(appt) {
 
 function renderCalendarView(container, appointments, types, orderId) {
     container.innerHTML = `
-        <div style="text-align: center; padding: 3rem; background: white; border-radius: 12px; border: 1px dashed var(--surface-2);">
+        <div style="text-align: center; padding: 3rem; background: white; border-radius: 12px;">
             <h4 style="margin-bottom: 0.5rem;">Vista Calendario</h4>
             <p style="color: var(--text-secondary);">La visualizzazione calendario sarà disponibile a breve.</p>
             <div style="margin-top: 1rem; font-family: monospace; font-size: 0.8rem; background: var(--surface-1); padding: 1rem; border-radius: 8px; text-align: left; opacity: 0.7;">

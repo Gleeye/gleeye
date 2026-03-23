@@ -1,5 +1,6 @@
 import { state } from '/js/modules/state.js';
 import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=1000';
+import { supabase } from '../modules/config.js';
 import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment, deleteAssignment } from '../modules/api.js';
 import { openPaymentModal } from './payments.js?v=1000';
 import { CustomSelect } from '../components/CustomSelect.js?v=1000';
@@ -140,7 +141,7 @@ export async function renderAssignmentDetail(container) {
                         <button class="primary-btn secondary" onclick="window.editAssignment('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
                             <span class="material-icons-round">edit</span> Modifica
                         </button>
-                        <button class="primary-btn" style="padding: 0.6rem 1.25rem; border-radius: 10px; background: linear-gradient(135deg, #8b5cf6, #6366f1);">
+                        <button class="primary-btn" onclick="window.generateAssignmentLetter('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px; background: linear-gradient(135deg, #8b5cf6, #6366f1);">
                             <span class="material-icons-round">file_download</span> Lettera Incarico
                         </button>
                     </div>
@@ -325,13 +326,13 @@ export async function renderAssignmentDetail(container) {
                                         <div style="font-size: 0.65rem; color: var(--text-tertiary);">Materiali incarico</div>
                                     </div>
                                 </div>
-                                <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem; background: var(--bg-secondary); border-radius: 8px; opacity: 0.6; border: 1px solid var(--glass-border);">
+                                <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem; background: var(--bg-secondary); border-radius: 8px; cursor: ${assignment.contract_url ? 'pointer' : 'default'}; border: 1px solid var(--glass-border); ${!assignment.contract_url ? 'opacity: 0.6;' : ''}" ${assignment.contract_url ? `onclick="window.open('${assignment.contract_url}', '_blank')"` : ''}>
                                     <div style="width: 32px; height: 32px; border-radius: 8px; background: #DB4437; display: flex; align-items: center; justify-content: center; color: white;">
                                         <span class="material-icons-round" style="font-size: 1rem;">description</span>
                                     </div>
                                     <div>
                                         <div style="font-size: 0.8rem; font-weight: 600;">Lettera Incarico</div>
-                                        <div style="font-size: 0.65rem; color: var(--text-tertiary);">Non generata</div>
+                                        <div style="font-size: 0.65rem; color: var(--text-tertiary);">${assignment.contract_url ? 'Visualizza documento' : 'Non generata'}</div>
                                     </div>
                                 </div>
                             </div>
@@ -1448,5 +1449,143 @@ window.handleAssignmentStatusChange = async (id, newStatus) => {
     }
 };
 
-// Global listener to close status selector when clicking outside
-// (Note: CustomSelect handles its own closing, this was for the manual menu)
+window.generateAssignmentLetter = async (assignmentId) => {
+    try {
+        const assignment = state.assignments.find(a => a.id === assignmentId);
+        if (!assignment) {
+            showGlobalAlert('Incarico non trovato in memoria', 'error');
+            return;
+        }
+
+        // We should have collaborator and orders expanded
+        const c = assignment.collaborators || {};
+        const o = assignment.orders || {};
+        const cl = o.clients || {};
+
+        // Recalculate linkedServices
+        const linkedServices = (state.collaboratorServices || []).filter(s => {
+            if (s.assignment_id === assignment.id) return true;
+            const matchOrder = s.order_id && s.order_id === assignment.order_id;
+            const matchLegacyOrder = s.legacy_order_id && assignment.orders && s.legacy_order_id === assignment.orders.order_number;
+            const matchCollaborator = s.collaborator_id && s.collaborator_id === assignment.collaborator_id;
+            return (matchOrder || matchLegacyOrder) && matchCollaborator;
+        });
+
+        const servicesNames = linkedServices.length > 0 ?
+            linkedServices.map(s => s.services?.name || s.legacy_service_name || s.name || 'Servizio').join(', ') :
+            (assignment.description || 'Nessuna attività specificata');
+
+        const addressParts = [];
+        if (c.address) addressParts.push(c.address);
+        if (c.cap || c.city || c.province) {
+            let loc = [c.cap, c.city].filter(Boolean).join(' ');
+            if (c.province) loc += ` (${c.province})`;
+            addressParts.push(loc);
+        }
+        const addressStr = addressParts.join(', ');
+
+        const formatEuro = (val) => val.toString().replace('.', ',');
+
+        const getReconstructedPaymentTerms = (asg) => {
+            const mode = asg.payment_mode || 'saldo';
+            const amount = asg.total_amount || 0;
+            const depositPct = asg.deposit_percentage || 0;
+            const balancePct = asg.balance_percentage || (100 - depositPct);
+            const installments = asg.installments_count || 1;
+            const instType = asg.installment_type || 'Mensile';
+
+            const depositVal = formatEuro((amount * depositPct / 100).toFixed(2));
+            const balanceVal = formatEuro((amount * balancePct / 100).toFixed(2));
+            
+            const remainingForInstallments = amount * (1 - (depositPct / 100));
+            const installmentVal = formatEuro((remainingForInstallments / installments).toFixed(2));
+
+            const m = mode.toLowerCase();
+            if (m === 'saldo' || m === 'saldo alla chiusura del progetto') {
+                return 'Saldo alla chiusura del progetto';
+            } 
+            if (m === 'anticipo_saldo' || m === 'anticipo e saldo alla chiusura del progetto') {
+                return `Anticipo del ${Math.round(depositPct)} percento pari a ${depositVal} €. Saldo alla chiusura del progetto pari a ${Math.round(balancePct)} percento pari a ${balanceVal} €`;
+            }
+            if (m === 'rate') {
+                return `N. ${installments} rate da ${installmentVal} €. Tipo rateizzazione: ${instType}`;
+            }
+            if (m === 'anticipo_rate' || m === 'anticipo+ rate') {
+                return `Anticipo del ${Math.round(depositPct)} percento pari a ${depositVal} €. N. ${installments} rate da ${installmentVal} €. Tipo rateizzazione: ${instType}`;
+            }
+            
+            return asg.payment_terms || 'Modalità da concordare';
+        };
+
+        const payload = {
+            Id_Ordine: o.order_number || assignment.order_number || '',
+            Clienti: cl.business_name || '',
+            Titolo_Commessa: o.title || '',
+            Collaboratore: c.full_name || '',
+            Importo: assignment.total_amount || 0,
+            Attivita: servicesNames,
+            ModalitaPagamento: getReconstructedPaymentTerms(assignment),
+            Durata: assignment.contract_duration_months ? `Durata: La durata dell'incarico è pari a ${assignment.contract_duration_months} mesi` : "Durata: L'incarico termina con la consegna del progetto",
+            PartitaIva: c.vat_number || '',
+            Indirizzo: addressStr || '',
+            Pec: c.pec || '',
+            Email: c.email || '',
+            Ruolo: c.role || '',
+            NomeCollab: c.first_name || (c.full_name ? c.full_name.split(' ')[0] : ''),
+            Id_Incarico: assignment.legacy_id || assignment.id.substring(0, 8),
+            CodiceCollab: c.first_name ? c.first_name.toUpperCase() : (c.full_name ? c.full_name.split(' ')[0].toUpperCase() : ''),
+            CodiceFiscale: c.fiscal_code || '',
+            Datadinascita: c.birth_date || null,
+            Luogodinasciata: c.birth_place || ''
+        };
+
+        console.log("DEBUG: Sending request to trigger-webhook Edge Function with payload:", payload);
+        showGlobalAlert('Generazione Lettera in corso...', 'success');
+
+        const { data, error: invokeError } = await supabase.functions.invoke('trigger-webhook', {
+            body: { 
+                webhookUrl: 'https://sacred-roughy-renewing.ngrok-free.app/webhook/eaf303db-2451-47ea-b67b-1c0edaf7a3f7',
+                payload: payload
+            }
+        });
+
+        if (!invokeError && data) {
+            let docUrl = null;
+            if (typeof data === 'string') {
+                if (data.startsWith('http')) docUrl = data;
+                else if (data.trim().startsWith('{')) {
+                    try {
+                        const parsed = JSON.parse(data);
+                        docUrl = parsed.link || parsed.url || parsed.documentUrl;
+                        if (!docUrl && parsed.documentId) {
+                            docUrl = `https://docs.google.com/document/d/${parsed.documentId}/edit`;
+                        }
+                    } catch(e) {}
+                }
+            } else if (typeof data === 'object') {
+                docUrl = data.link || data.url || data.documentUrl;
+                if (!docUrl && data.documentId) {
+                    docUrl = `https://docs.google.com/document/d/${data.documentId}/edit`;
+                }
+            }
+
+            if (docUrl) {
+                await upsertAssignment({ id: assignmentId, contract_url: docUrl });
+                showGlobalAlert('Lettera generata e collegata!', 'success');
+                // Re-render
+                const container = document.getElementById('content-area');
+                if (container) await renderAssignmentDetail(container);
+            } else {
+                showGlobalAlert('Richiesta inviata!', 'success');
+            }
+        } else if (!invokeError) {
+            showGlobalAlert('Richiesta inviata!', 'success');
+        } else {
+            console.error('Edge Function/Webhook error:', invokeError);
+            showGlobalAlert('Errore nell\'invio al webhook', 'error');
+        }
+    } catch (e) {
+        console.error('Error in window.generateAssignmentLetter:', e);
+        showGlobalAlert('Errore imprevisto nella generazione', 'error');
+    }
+};

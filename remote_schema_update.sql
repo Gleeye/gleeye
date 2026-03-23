@@ -33,5 +33,10 @@ ADD COLUMN IF NOT EXISTS withholding_tax_rate NUMERIC(5,2) DEFAULT 0,
 ADD COLUMN IF NOT EXISTS payment_terms TEXT,
 ADD COLUMN IF NOT EXISTS bank_iban TEXT;
 
--- 3. Force schema cache reload (crucial for PGRST204 error)
+-- 4. Add contract_url to assignments
+ALTER TABLE public.assignments 
+ADD COLUMN IF NOT EXISTS contract_url TEXT;
+
+-- 5. Force schema cache reload (crucial for PGRST204 error)
 NOTIFY pgrst, 'reload config';
+NOTIFY pgrst, 'reload schema';

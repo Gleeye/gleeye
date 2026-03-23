@@ -12,8 +12,15 @@ const PRIORITY_CONFIG = {
 };
 
 const SPACE_COLORS = [
-    '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899'
+    '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899', '#8b5cf6'
 ];
+
+const STATUS_ICONS = {
+    'todo': { icon: 'circle', color: '#cbd5e1' },
+    'doing': { icon: 'play_circle', color: '#3b82f6' },
+    'blocked': { icon: 'error_outline', color: '#ef4444' },
+    'review': { icon: 'visibility', color: '#f59e0b' }
+};
 
 // --- MAIN COMPONENT ---
 export class TasksDashboard {
@@ -25,6 +32,7 @@ export class TasksDashboard {
             filterMode: 'my_tasks', // 'my_tasks' | 'delegated'
             priorityFilter: 'all', // 'all' | 'urgent' | 'high' | 'medium' | 'low'
             spaceTypeFilter: 'all', // 'all' | 'commessa' | 'interno'
+            itemTypeFilter: 'all', // 'all' | 'task' | 'attivita' | 'milestone'
             items: [],
             delegatedItems: [],
             spaces: {},
@@ -99,10 +107,24 @@ export class TasksDashboard {
     getFilteredItems() {
         let list = this.state.filterMode === 'delegated' ? this.state.delegatedItems : this.state.items;
         
+        // Priority Filter (Case-insensitive robust match)
         if (this.state.priorityFilter !== 'all') {
-            list = list.filter(item => item.priority === this.state.priorityFilter);
+            const filterValue = this.state.priorityFilter.toLowerCase();
+            list = list.filter(item => {
+                const p = (item.priority || 'medium').toLowerCase();
+                return p === filterValue;
+            });
         }
 
+        // Item Type Filter
+        if (this.state.itemTypeFilter !== 'all') {
+            list = list.filter(item => {
+                const type = item.item_type || 'task';
+                return type === this.state.itemTypeFilter;
+            });
+        }
+
+        // Space Type Filter
         if (this.state.spaceTypeFilter !== 'all') {
             list = list.filter(item => {
                 const type = item.space_ref?.type;
@@ -120,8 +142,14 @@ export class TasksDashboard {
         const week = new Date(now);
         week.setDate(week.getDate() + 7);
 
-        const buckets = { urgent: [], today: [], week: [], future: [] };
+        const buckets = { working: [], urgent: [], today: [], week: [], future: [] };
         items.forEach(i => {
+            // "In Corso" takes priority
+            if (i.status === 'working' || i.status === 'doing' || i.status === 'in_progress') {
+                buckets.working.push(i);
+                return;
+            }
+
             if (!i.due_date) { buckets.future.push(i); return; }
             const d = new Date(i.due_date);
             d.setHours(0, 0, 0, 0);
@@ -134,10 +162,12 @@ export class TasksDashboard {
     }
 
     categorizeByPriority(items) {
-        const buckets = { urgent: [], high: [], medium: [], low: [], other: [] };
+        // Force strings to lowercase keys and handle nulls/unknowns
+        const buckets = { urgent: [], high: [], medium: [], low: [] };
         items.forEach(i => {
-            if (buckets[i.priority]) buckets[i.priority].push(i);
-            else buckets.other.push(i);
+            const p = (i.priority || 'medium').toLowerCase();
+            if (buckets[p]) buckets[p].push(i);
+            else buckets.medium.push(i); // Fallback to medium column
         });
         return buckets;
     }
@@ -150,133 +180,183 @@ export class TasksDashboard {
         if (this.state.isLoading) return;
 
         const filteredItems = this.getFilteredItems();
-        const activeScopeItems = this.state.filterMode === 'my_tasks' ? this.state.items : this.state.delegatedItems;
-        const activeScopeBuckets = this.categorizeByTime(activeScopeItems);
-        
-        const activeTitle = this.state.filterMode === 'my_tasks' ? 'Le Mie Task' : 'Task Delegate';
-        const activeColor = this.state.filterMode === 'my_tasks' ? 'var(--brand-blue)' : 'var(--success-soft)';
+        const activeTitle = this.state.filterMode === 'my_tasks' ? 'Miei Task' : 'Delegati';
 
         this.container.innerHTML = `
-            <div class="animate-fade-in tasks-dashboard-container" style="width: 100%; padding: 1.5rem 2rem;">
+            <div class="tasks-clean-viewport">
                 <style>
-                    .tasks-sidebar { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 1.25rem; }
-                    .main-workspace { flex: 1; display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
-                    .context-toggle { display: flex; background: rgba(0,0,0,0.05); padding: 4px; border-radius: 12px; }
-                    .context-btn { flex: 1; border: none; background: transparent; padding: 8px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--text-secondary); }
-                    .context-btn.active { background: white; color: var(--brand-blue); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-                    .context-btn.active.success { color: var(--success-soft); }
-                    
-                    .kpi-summary { background: white; border-top: 4px solid ${activeColor}; padding: 1.25rem; border-radius: 16px; box-shadow: var(--shadow-sm); }
-                    .kpi-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.03); }
-                    
-                    .filter-group { background: white; padding: 1.25rem; border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 0.5rem; }
-                    .filter-title { font-size: 0.65rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; }
-                    .filter-btn { border: 1px solid transparent; background: transparent; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: 0.2s; color: var(--text-secondary); }
-                    .filter-btn:hover { background: rgba(0,0,0,0.03); }
-                    .filter-btn.active { background: rgba(0,102,255,0.05); color: var(--brand-blue); border-color: rgba(0,102,255,0.1); font-weight: 700; }
-                    
-                    .view-toggle-pill { display: flex; background: rgba(0,0,0,0.05); padding: 4px; border-radius: 10px; }
-                    .view-toggle-btn { border: none; background: transparent; padding: 6px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; color: var(--text-secondary); }
-                    .view-toggle-btn.active { background: white; color: var(--brand-blue); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+                    .tasks-clean-viewport { 
+                        display: flex;
+                        flex-direction: column;
+                        height: calc(100vh - 100px); 
+                        background: #fff;
+                        font-family: 'Outfit', sans-serif;
+                    }
 
-                    .task-card-new { background: white; border: 1px solid var(--surface-2); border-radius: 14px; padding: 1rem; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; gap: 0.75rem; }
-                    .task-card-new:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--brand-blue); }
+                    /* --- HEADER & TOOLBAR --- */
+                    .tasks-main-header {
+                        padding: 1.5rem 2rem;
+                        border-bottom: 1px solid #eee;
+                        background: #fff;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 1.25rem;
+                        flex-shrink: 0;
+                    }
+
+                    .header-top {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+                    .header-top h1 { margin: 0; font-size: 1.4rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
+
+                    .filter-bar {
+                        display: flex;
+                        align-items: center;
+                        gap: 1.5rem;
+                        flex-wrap: wrap;
+                    }
+
+                    .filter-group { display: flex; align-items: center; gap: 8px; }
+                    .filter-label { font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+
+                    .sub-pill-toggle { 
+                        display: flex; 
+                        background: #f1f5f9; 
+                        padding: 2px; 
+                        border-radius: 8px; 
+                        border: 1px solid #e2e8f0;
+                    }
+                    .sub-pill-toggle button {
+                        padding: 6px 14px;
+                        border: none;
+                        background: transparent;
+                        font-family: inherit;
+                        font-size: 0.75rem;
+                        font-weight: 700;
+                        color: #64748b;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                        transition: 0.15s;
+                    }
+                    .sub-pill-toggle button.active { 
+                        background: #fff; 
+                        color: var(--brand-blue); 
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.08); 
+                    }
+                    .sub-pill-toggle button:hover:not(.active) { color: #0f172a; background: rgba(255,255,255,0.5); }
+
+                    /* --- WORKSPACE --- */
+                    .kanban-view {
+                        flex: 1;
+                        padding: 1.5rem 2rem;
+                        display: flex;
+                        gap: 1.5rem;
+                        overflow-x: auto;
+                        background: #fdfdfd;
+                    }
+
+                    .kanban-col {
+                        width: 320px;
+                        flex-shrink: 0;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 1rem;
+                    }
+                    .kanban-col-head {
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        padding-bottom: 10px;
+                        border-bottom: 2px solid #f1f5f9;
+                    }
+                    .kanban-col-title { font-size: 0.8rem; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.02em; }
+                    .kanban-col-count { font-size: 0.75rem; color: #94a3b8; font-weight: 600; background: #f1f5f9; padding: 2px 8px; border-radius: 6px; }
+
+                    /* --- CARD --- */
+                    .clean-task-card {
+                        background: #fff;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 12px;
+                        padding: 1.1rem;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 10px;
+                        cursor: pointer;
+                        transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    }
+                    .clean-task-card:hover { 
+                        border-color: var(--brand-blue); 
+                        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); 
+                        transform: translateY(-2px);
+                    }
+                    .card-top { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; font-weight: 600; color: #94a3b8; }
+                    .card-body { font-size: 0.9rem; font-weight: 600; color: #1e293b; line-height: 1.4; }
+                    .card-footer { display: flex; align-items: center; gap: 12px; border-top: 1px dashed #f1f5f9; padding-top: 10px; }
+                    .card-meta { display: flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 600; color: #64748b; }
                 </style>
 
-                <div style="display: flex; gap: 1.5rem; height: calc(100vh - 130px); align-items: stretch;">
-                    
-                    <!-- SIDEBAR PANEL -->
-                    <div class="tasks-sidebar custom-scrollbar" style="overflow-y: auto;">
-                        
-                        <!-- Scope Switch -->
-                        <div class="context-toggle">
-                            <button class="context-btn ${this.state.filterMode === 'my_tasks' ? 'active' : ''}" onclick="window._dash.setMode('my_tasks')">
-                                <span class="material-icons-round" style="font-size: 1rem;">assignment_ind</span> Mie Task
-                            </button>
-                            <button class="context-btn ${this.state.filterMode === 'delegated' ? 'active success' : ''}" onclick="window._dash.setMode('delegated')">
-                                <span class="material-icons-round" style="font-size: 1rem;">send</span> Delegate
-                            </button>
-                        </div>
-
-                        <!-- Dynamic Summary -->
-                        <div class="kpi-summary flex-column">
-                            <span class="filter-title" style="margin-bottom: 0.5rem;">Riepilogo Scadenze</span>
-                            <div class="kpi-row">
-                                <div class="flex-start" style="gap: 8px;"><span class="material-icons-round" style="color: #ef4444; font-size: 1.1rem;">local_fire_department</span> Scadute</div>
-                                <span class="badge badge-neutral">${activeScopeBuckets.urgent.length}</span>
-                            </div>
-                            <div class="kpi-row">
-                                <div class="flex-start" style="gap: 8px;"><span class="material-icons-round" style="color: #f97316; font-size: 1.1rem;">bolt</span> Oggi</div>
-                                <span class="badge badge-neutral">${activeScopeBuckets.today.length}</span>
-                            </div>
-                            <div class="kpi-row">
-                                <div class="flex-start" style="gap: 8px;"><span class="material-icons-round" style="color: var(--brand-blue); font-size: 1.1rem;">date_range</span> Settimana</div>
-                                <span class="badge badge-neutral">${activeScopeBuckets.week.length}</span>
-                            </div>
-                        </div>
-
-                        <!-- Filter: Progetto -->
+                <header class="tasks-main-header">
+                    <div class="header-top">
+                        <h1>${activeTitle}</h1>
                         <div class="filter-group">
-                            <span class="filter-title">Profilo Progetto</span>
-                            <button class="filter-btn ${this.state.spaceTypeFilter === 'all' ? 'active' : ''}" onclick="window._dash.setSpaceTypeFilter('all')"><span>Tutti</span> ${this.state.spaceTypeFilter === 'all' ? '<i class="material-icons-round" style="font-size:1rem;">check</i>' : ''}</button>
-                            <button class="filter-btn ${this.state.spaceTypeFilter === 'commessa' ? 'active' : ''}" onclick="window._dash.setSpaceTypeFilter('commessa')"><span>Commesse</span> ${this.state.spaceTypeFilter === 'commessa' ? '<i class="material-icons-round" style="font-size:1rem;">check</i>' : ''}</button>
-                            <button class="filter-btn ${this.state.spaceTypeFilter === 'interno' ? 'active' : ''}" onclick="window._dash.setSpaceTypeFilter('interno')"><span>Progetti Interni</span> ${this.state.spaceTypeFilter === 'interno' ? '<i class="material-icons-round" style="font-size:1rem;">check</i>' : ''}</button>
-                        </div>
-
-                        <!-- Filter: Priorità -->
-                        <div class="filter-group">
-                            <span class="filter-title">Priorità</span>
-                            <button class="filter-btn ${this.state.priorityFilter === 'all' ? 'active' : ''}" onclick="window._dash.setPriorityFilter('all')"><span>Tutte</span> ${this.state.priorityFilter === 'all' ? '<i class="material-icons-round" style="font-size:1rem;">check</i>' : ''}</button>
-                            ${Object.entries(PRIORITY_CONFIG).map(([key, cfg]) => `
-                                <button class="filter-btn ${this.state.priorityFilter === key ? 'active' : ''}" onclick="window._dash.setPriorityFilter('${key}')">
-                                    <div class="flex-start" style="gap: 8px; color: ${this.state.priorityFilter === 'all' ? cfg.color : 'inherit'}">
-                                        <i class="material-icons-round" style="font-size: 1rem;">${cfg.icon}</i> ${cfg.label}
-                                    </div>
-                                    ${this.state.priorityFilter === key ? '<i class="material-icons-round" style="font-size:1rem;">check</i>' : ''}
-                                </button>
-                            `).join('')}
+                            <button class="btn btn-primary" onclick="window.openHubDrawer('', '')" style="border-radius: 8px; font-weight: 700; height: 38px; padding: 0 16px;">
+                                <i class="material-icons-round" style="font-size: 1.2rem;">add</i> Nuovo Task
+                            </button>
                         </div>
                     </div>
 
-                    <!-- MAIN CONTENT -->
-                    <div class="main-workspace glass-card" style="padding: 1.25rem; background: white; border-radius: 24px;">
-                        
-                        <!-- Header -->
-                        <div class="flex-between" style="padding-bottom: 1rem; border-bottom: 1px solid var(--surface-2);">
-                            <div class="flex-column">
-                                <span class="filter-title">Vista Workspace</span>
-                                <h2 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">${activeTitle}</h2>
-                            </div>
-                            
-                            <div class="flex-start" style="gap: 1rem;">
-                                <!-- Group Toggle -->
-                                <div class="view-toggle-pill">
-                                    <button class="view-toggle-btn ${this.state.groupBy === 'time' ? 'active' : ''}" onclick="window._dash.setGroupBy('time')" title="Ordina per Scadenza">
-                                        <i class="material-icons-round" style="font-size: 1.1rem;">schedule</i>
-                                    </button>
-                                    <button class="view-toggle-btn ${this.state.groupBy === 'priority' ? 'active' : ''}" onclick="window._dash.setGroupBy('priority')" title="Ordina per Priorità">
-                                        <i class="material-icons-round" style="font-size: 1.1rem;">priority_high</i>
-                                    </button>
-                                </div>
-
-                                <!-- View Toggle -->
-                                <div class="view-toggle-pill">
-                                    <button class="view-toggle-btn ${this.state.view === 'kanban' ? 'active' : ''}" onclick="window._dash.setView('kanban')" title="Vista Colonne">
-                                        <i class="material-icons-round" style="font-size: 1.1rem;">view_column</i>
-                                    </button>
-                                    <button class="view-toggle-btn ${this.state.view === 'list' ? 'active' : ''}" onclick="window._dash.setView('list')" title="Vista Lista">
-                                        <i class="material-icons-round" style="font-size: 1.1rem;">view_list</i>
-                                    </button>
-                                </div>
+                    <div class="filter-bar">
+                        <div class="filter-group">
+                            <span class="filter-label">Filtra</span>
+                            <div class="sub-pill-toggle">
+                                <button class="${this.state.filterMode === 'my_tasks' ? 'active' : ''}" onclick="window._dash.setMode('my_tasks')">Miei</button>
+                                <button class="${this.state.filterMode === 'delegated' ? 'active' : ''}" onclick="window._dash.setMode('delegated')">Delegati</button>
                             </div>
                         </div>
 
-                        <!-- Scroller Content -->
-                        <div id="dash-scroll-area" class="flex-column custom-scrollbar" style="flex: 1; overflow-y: auto; overflow-x: hidden;">
-                            ${this.state.view === 'kanban' ? this.renderKanban(filteredItems) : this.renderList(filteredItems)}
+                        <div class="filter-group">
+                            <div class="sub-pill-toggle">
+                                <button class="${this.state.itemTypeFilter === 'all' ? 'active' : ''}" onclick="window._dash.setItemTypeFilter('all')">Tutti</button>
+                                <button class="${this.state.itemTypeFilter === 'task' ? 'active' : ''}" onclick="window._dash.setItemTypeFilter('task')">Task</button>
+                                <button class="${this.state.itemTypeFilter === 'attivita' ? 'active' : ''}" onclick="window._dash.setItemTypeFilter('attivita')">Attività</button>
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <div class="sub-pill-toggle">
+                                <button class="${this.state.spaceTypeFilter === 'all' ? 'active' : ''}" onclick="window._dash.setSpaceTypeFilter('all')">Progetti</button>
+                                <button class="${this.state.spaceTypeFilter === 'commessa' ? 'active' : ''}" onclick="window._dash.setSpaceTypeFilter('commessa')">Commesse</button>
+                                <button class="${this.state.spaceTypeFilter === 'interno' ? 'active' : ''}" onclick="window._dash.setSpaceTypeFilter('interno')">Interni</button>
+                            </div>
+                        </div>
+
+                        <div style="flex: 1;"></div>
+
+                        <div class="filter-group">
+                            <span class="filter-label">Vista</span>
+                            <div class="sub-pill-toggle">
+                                <button class="${this.state.groupBy === 'time' ? 'active' : ''}" onclick="window._dash.setGroupBy('time')">Tempo</button>
+                                <button class="${this.state.groupBy === 'priority' ? 'active' : ''}" onclick="window._dash.setGroupBy('priority')">Priorità</button>
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <div class="sub-pill-toggle">
+                                <button class="${this.state.view === 'kanban' ? 'active' : ''}" onclick="window._dash.setView('kanban')"><i class="material-icons-round" style="font-size: 1.1rem;">view_kanban</i></button>
+                                <button class="${this.state.view === 'list' ? 'active' : ''}" onclick="window._dash.setView('list')"><i class="material-icons-round" style="font-size: 1.1rem;">view_headline</i></button>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </header>
+                
+                <main id="dash-scroll-area" class="kanban-view custom-scrollbar">
+                    ${this.state.view === 'kanban' ? this.renderKanban(filteredItems) : this.renderList(filteredItems)}
+                </main>
             </div>
         `;
 
@@ -285,7 +365,14 @@ export class TasksDashboard {
             setGroupBy: (g) => { this.state.groupBy = g; this.render(); },
             setMode: (m) => { this.state.filterMode = m; this.render(); },
             setPriorityFilter: (p) => { this.state.priorityFilter = p; this.render(); },
-            setSpaceTypeFilter: (t) => { this.state.spaceTypeFilter = t; this.render(); }
+            setItemTypeFilter: (t) => { this.state.itemTypeFilter = t; this.render(); },
+            setSpaceTypeFilter: (s) => { this.state.spaceTypeFilter = s; this.render(); },
+            resetFilters: () => {
+                this.state.priorityFilter = 'all';
+                this.state.spaceTypeFilter = 'all';
+                this.state.itemTypeFilter = 'all';
+                this.render();
+            }
         };
     }
 
@@ -293,10 +380,10 @@ export class TasksDashboard {
         const buckets = this.state.groupBy === 'time' ? this.categorizeByTime(items) : this.categorizeByPriority(items);
         
         const cols = this.state.groupBy === 'time' ? [
-            { id: 'urgent', label: 'Scadute / Urgenti', icon: 'local_fire_department', color: '#ef4444' },
-            { id: 'today', label: 'Per Oggi', icon: 'bolt', color: '#f97316' },
-            { id: 'week', label: 'Prossimi Giorni', icon: 'date_range', color: 'var(--brand-blue)' },
-            { id: 'future', label: 'Pianificate', icon: 'event_note', color: 'var(--text-tertiary)' }
+            { id: 'working', label: 'In Corso', icon: 'play_circle_outline', color: '#3b82f6' },
+            { id: 'urgent', label: 'Scaduti', icon: 'history', color: '#ef4444' },
+            { id: 'today', label: 'Oggi', icon: 'bolt', color: '#f59e0b' },
+            { id: 'week', label: 'Settimana', icon: 'calendar_today', color: '#3b82f6' }
         ] : [
             { id: 'urgent', label: 'Urgente', icon: 'priority_high', color: '#ef4444' },
             { id: 'high', label: 'Alta', icon: 'keyboard_double_arrow_up', color: '#f59e0b' },
@@ -305,23 +392,28 @@ export class TasksDashboard {
         ];
 
         return `
-            <div style="display: grid; grid-auto-flow: column; grid-auto-columns: minmax(280px, 1fr); gap: 1.25rem; height: 100%; padding: 1rem 0;">
-                ${cols.map(c => `
-                    <div class="flex-column" style="gap: 0.75rem; min-width: 0; min-height: 0;">
-                        <div class="flex-between" style="padding: 0.5rem 0.2rem; border-bottom: 2px solid ${c.color}20;">
-                            <div class="flex-start" style="gap: 8px;">
-                                <i class="material-icons-round" style="color: ${c.color}; font-size: 1.1rem;">${c.icon}</i>
-                                <span style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">${c.label}</span>
-                            </div>
-                            <span style="font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary);">${buckets[c.id]?.length || 0}</span>
+            ${cols.map(c => {
+                const colItems = buckets[c.id] || [];
+                const activitesCount = colItems.filter(i => i.item_type === 'attivita').length;
+                
+                return `
+                    <div class="kanban-col">
+                        <div class="kanban-col-head">
+                            <i class="material-icons-round" style="color: ${c.color}; font-size: 1.1rem;">${c.icon}</i>
+                            <span class="kanban-col-title">${c.label}</span>
+                            <span class="kanban-col-count" title="${activitesCount} attività">${colItems.length}</span>
                         </div>
-                        <div class="flex-column custom-scrollbar" style="gap: 0.75rem; overflow-y: auto; overflow-x: hidden; flex: 1; padding: 2px;">
-                            ${(buckets[c.id] || []).map(i => this.renderCard(i)).join('')}
-                            ${!buckets[c.id] || buckets[c.id].length === 0 ? '<div style="padding: 1.5rem; text-align: center; color: var(--text-tertiary); font-size: 0.8rem; font-style: italic; background: rgba(0,0,0,0.02); border-radius: 12px; margin-top: 0.5rem;">Nessuna task</div>' : ''}
+                        <div class="stack custom-scrollbar" style="display: flex; flex-direction: column; gap: 0.75rem; overflow-y: auto;">
+                            ${colItems.map(i => this.renderCard(i)).join('')}
+                            ${colItems.length === 0 ? `
+                                <div style="display:flex; justify-content:center; align-items:center; height:100px; color:#cbd5e1; font-size: 0.7rem; font-style:italic;">
+                                    Tutto programmato
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
-                `).join('')}
-            </div>
+                `;
+            }).join('')}
         `;
     }
 
@@ -341,8 +433,8 @@ export class TasksDashboard {
                     <div class="list-section">
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.75rem;">
                             <span style="height: 12px; width: 4px; background: var(--brand-blue); border-radius: 10px;"></span>
-                            <span style="font-weight: 800; font-size: 0.85rem; text-transform: uppercase; color: var(--text-primary);">${spaceName}</span>
-                            <span class="badge badge-neutral" style="font-size: 0.7rem;">${groups[spaceName].length}</span>
+                            <span style="font-weight: 600; font-size: 0.85rem; text-transform: uppercase; color: var(--text-primary);">${spaceName}</span>
+                            <span class="badge badge-neutral" style="font-size: 0.7rem; font-weight: 500;">${groups[spaceName].length}</span>
                         </div>
                         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
                             ${groups[spaceName].map(i => this.renderCard(i)).join('')}
@@ -356,45 +448,59 @@ export class TasksDashboard {
 
     renderCard(item) {
         const pr = PRIORITY_CONFIG[item.priority] || PRIORITY_CONFIG['medium'];
-        const spaceName = item.space_ref?.name || '---';
-        const isInternal = item.space_ref?.type === 'interno';
+        const spaceName = item.space_ref?.name || 'Inbox';
+        const isAttivita = item.item_type === 'attivita';
+        const isWorking = item.status === 'working' || item.status === 'doing';
         
-        let dateColor = 'var(--text-tertiary)';
-        let dateText = item.due_date ? formatDate(item.due_date) : 'Senza data';
+        let dateColor = '#94a3b8';
+        let dateText = item.due_date ? formatDate(item.due_date) : '';
         
         if (item.due_date) {
             const now = new Date(); now.setHours(0,0,0,0);
             const d = new Date(item.due_date); d.setHours(0,0,0,0);
             if (d < now) dateColor = '#ef4444';
-            else if (d.getTime() === now.getTime()) { dateColor = '#f97316'; dateText = 'Oggi'; }
+            else if (d.getTime() === now.getTime()) { dateColor = '#f59e0b'; dateText = 'Oggi'; }
         }
 
+        const statusCfg = STATUS_ICONS[item.status] || STATUS_ICONS['todo'];
+
         return `
-            <div class="task-card-new" onclick="window.openHubDrawer('${item.id}', '${item.space_ref?.id || ''}')">
-                <div class="flex-between">
-                    <div class="flex-start" style="gap: 6px;">
-                        <span style="font-size: 0.6rem; font-weight: 800; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: ${isInternal ? '#f1f5f9' : 'rgba(0,102,255,0.08)'}; color: ${isInternal ? '#64748b' : 'var(--brand-blue)'};">
-                            ${isInternal ? 'INTERNO' : 'CLIENTE'}
-                        </span>
-                        <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${spaceName}</span>
+            <div class="clean-task-card" onclick="window.openHubDrawer('${item.id}', '${item.space_ref?.id || ''}')" style="${isAttivita ? 'border-left: 4px solid #10b981;' : ''}">
+                <div class="card-top">
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        ${isAttivita ? '<i class="material-icons-round" style="font-size: 0.8rem; color: #10b981;">auto_awesome</i>' : ''}
+                        <span style="${isAttivita ? 'color: #10b981; font-weight: 700;' : ''}">${spaceName}</span>
                     </div>
-                    <i class="material-icons-round" style="color: ${pr.color}; font-size: 1.1rem;" title="Priorità: ${pr.label}">${pr.icon}</i>
+                    <i class="material-icons-round" style="color: ${pr.color}; font-size: 0.9rem;">${pr.icon}</i>
                 </div>
                 
-                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.9rem; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                    ${item.title}
-                </div>
-                
-                <div class="flex-between" style="border-top: 1px dashed rgba(0,0,0,0.05); padding-top: 0.75rem;">
-                    <div class="flex-start" style="gap: 4px; color: ${dateColor}; font-weight: 600; font-size: 0.75rem;">
-                        <i class="material-icons-round" style="font-size: 0.9rem;">event</i> ${dateText}
-                    </div>
-                    ${this.state.filterMode === 'delegated' && item.pm_item_assignees?.length > 0 ? `
-                        <div style="display: flex; gap: -4px; flex-direction: row-reverse;">
-                            <div style="width: 20px; height: 20px; border-radius: 50%; background: #e2e8f0; border: 1.5px solid white;"></div>
+                <div class="card-body" style="display: flex; flex-direction: column; gap: 4px;">
+                    <span>${item.title}</span>
+                    ${isWorking ? `
+                        <div style="display: flex; align-items: center; gap: 4px; font-size: 0.65rem; color: #3b82f6; font-weight: 700;">
+                            <span class="pulsing-dot" style="width: 6px; height: 6px; background: #3b82f6; border-radius: 50%;"></span>
+                            IN CORSO
                         </div>
                     ` : ''}
                 </div>
+
+                <div class="card-footer">
+                    <div class="card-meta">
+                        <i class="material-icons-round" style="font-size: 0.9rem; color: ${statusCfg.color};">${statusCfg.icon}</i>
+                        <span>${item.status}</span>
+                    </div>
+                    ${dateText ? `
+                        <div class="card-meta" style="color: ${dateColor}; font-weight: 600;">
+                            <i class="material-icons-round" style="font-size: 0.9rem;">event</i>
+                            <span>${dateText}</span>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <style>
+                    .pulsing-dot { animation: pulse 1.5s infinite; }
+                    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+                </style>
             </div>
         `;
     }

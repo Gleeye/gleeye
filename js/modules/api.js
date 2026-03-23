@@ -1096,12 +1096,18 @@ export async function fetchAssignmentDetail(id) {
         .from('assignments')
         .select(`
             *,
+            contract_url,
             orders(
                 id, order_number, title, status_works, client_id,
-                clients(business_name)
+                clients(business_name, client_code)
             ),
-            collaborators(id, full_name, role, email, phone, avatar_url)
-                `)
+            collaborators(
+                id, full_name, role, email, phone, avatar_url,
+                first_name, last_name, birth_date, birth_place,
+                fiscal_code, address, city, province, cap,
+                pec, vat_number
+            )
+        `)
         .eq('id', id)
         .single();
 

@@ -35,7 +35,7 @@ export async function renderClusterProjects(container, clusterId) {
 
             if (!projects || projects.length === 0) {
                 listContainer.innerHTML = `
-                    <div style="grid-column: 1/-1; text-align: center; padding: 4rem 2rem; background: var(--surface-1); border: 1px dashed var(--glass-border); border-radius: 16px;">
+                    <div style="grid-column: 1/-1; text-align: center; padding: 4rem 2rem; background: var(--surface-1); border-radius: 16px;">
                         <span class="material-icons-round" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem;">lan</span>
                         <div style="font-size: 1rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">Nessun progetto trovato</div>
                         <div style="font-size: 0.85rem; color: var(--text-tertiary);">Crea il tuo primo progetto interno in questo cluster.</div>
@@ -45,9 +45,9 @@ export async function renderClusterProjects(container, clusterId) {
             }
 
             listContainer.innerHTML = projects.map(p => `
-                <a href="#pm/space/${p.id}" class="glass-card animate-slide-in" style="padding: 1.25rem; text-decoration: none; transition: all 0.2s; display: block; border: 1px solid var(--glass-border);" 
-                   onmouseover="this.style.transform='translateY(-2px)'; this.style.borderColor='var(--brand-blue)'; this.style.boxShadow='var(--shadow-lg)'" 
-                   onmouseout="this.style.transform='translateY(0)'; this.style.borderColor='var(--glass-border)'; this.style.boxShadow='var(--shadow-sm)'">
+                <a href="#pm/space/${p.id}" class="glass-card animate-slide-in" style="padding: 1.25rem; text-decoration: none; transition: all 0.2s; display: block;" 
+                   onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='var(--shadow-lg)'" 
+                   onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='var(--shadow-sm)'">
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 1.25rem;">
                         <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(59, 130, 246, 0.08); display: flex; align-items: center; justify-content: center; color: var(--brand-blue); border: 1px solid rgba(59, 130, 246, 0.1);">
                             <span class="material-icons-round" style="font-size: 1.4rem;">business_center</span>

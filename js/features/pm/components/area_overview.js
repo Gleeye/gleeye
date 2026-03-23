@@ -73,7 +73,7 @@ export async function renderAreaOverview(container, spaceIds, spaceNamesMap, clo
                 @media (max-width: 1200px) { .overview-dash { grid-template-columns: 1fr 1fr; } }
                 @media (max-width: 768px) { .overview-dash { grid-template-columns: 1fr; } }
                 
-                .dash-box { background: white; border: 1px solid var(--glass-border); border-radius: 16px; padding: 1.5rem; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 1rem; }
+                .dash-box { background: white; border: none; border-radius: 16px; padding: 1.5rem; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 1rem; }
                 .dash-title { font-size: 1.1rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; justify-content: space-between; font-family: var(--font-titles); margin: 0 0 0.5rem 0;}
                 .dash-title .material-icons-round { color: var(--text-tertiary); font-size: 1.25rem; font-weight: normal; }
                 
@@ -102,7 +102,7 @@ export async function renderAreaOverview(container, spaceIds, spaceNamesMap, clo
                 .feed-item:last-child::before { display: none; }
                 .feed-item:last-child { padding-bottom: 0; }
                 
-                .dash-empty { padding: 3.5rem 1rem; text-align: center; color: var(--text-tertiary); font-size: 0.8rem; font-style: italic; background: var(--bg-secondary); border-radius: 12px; border: 1px dashed var(--glass-border); }
+                .dash-empty { padding: 3.5rem 1rem; text-align: center; color: var(--text-tertiary); font-size: 0.8rem; font-style: italic; background: var(--bg-secondary); border-radius: 12px; border: none; }
             </style>
             
             <div class="overview-dash">

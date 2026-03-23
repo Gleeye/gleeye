@@ -134,6 +134,11 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
                 border: 1px solid var(--surface-2);
                 min-width: 0;
             }
+
+            .hub-overview.is-interno .overview-card {
+                border: none;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.03); /* Slightly softer shadow for borderless cards */
+            }
             .stats-grid {
                 display: grid;
                 grid-template-columns: repeat(5, 1fr);
@@ -300,7 +305,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
                 }
             }
         </style>
-        <div class="hub-overview">
+        <div class="hub-overview ${space?.type === 'interno' ? 'is-interno' : ''}">
             
             <!-- Column 1: Board Overview (Stats + Urgencies) -->
             <div class="overview-card">

@@ -48,7 +48,7 @@ export async function renderActivityLog(container, options = {}) {
             
             if (!logs || logs.length === 0) {
                 logList.innerHTML = `
-                    <div style="text-align: center; padding: 3rem 1.5rem; background: #f8fafc; border: 1.5px dashed #e2e8f0; border-radius: 16px; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                    <div style="text-align: center; padding: 3rem 1.5rem; background: #f8fafc; border-radius: 16px; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
                         <span class="material-icons-round" style="font-size: 3rem; color: #cbd5e1;">history</span>
                         <div style="font-size: 0.9rem; color: #64748b; font-weight: 500;">Nessuna attività registrata.</div>
                     </div>

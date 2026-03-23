@@ -1,4 +1,5 @@
-import { fetchInternalSpaces, createInternalSpace, createCluster, createProjectInCluster, fetchPMActivityLogs } from '../../modules/pm_api.js?v=1241';
+import { fetchInternalSpaces, createInternalSpace, createCluster, createProjectInCluster, fetchPMActivityLogs, updateSpaceCloudLinks } from '../../modules/pm_api.js?v=1241';
+import { CloudLinksManager } from '../components/CloudLinksManager.js?v=1241';
 import { openProjectModal } from './components/project_modal.js?v=1241';
 import { supabase } from '../../modules/config.js';
 import { state } from '../../modules/state.js';
@@ -148,7 +149,7 @@ export async function renderInternalProjects(container, initialFilter) {
                     .hub-sidebar { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 1rem; }
                     .hub-main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
                     
-                    .glass-card { background: white; border: 1px solid var(--glass-border); border-radius: 12px; box-shadow: var(--shadow-sm); position: relative; }
+                    .glass-card { background: white; border: none; border-radius: 12px; box-shadow: var(--shadow-sm); position: relative; }
                     .sidebar-card { padding: 0.75rem 1rem; }
                     
                     /* Sidebar Area Switcher */
@@ -209,7 +210,7 @@ export async function renderInternalProjects(container, initialFilter) {
                     /* Table & Grid */
                     
                     .pm-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-bottom: 1.5rem; }
-                    .pm-card { background: white; border-radius: 16px; padding: 1.25rem; border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-left: 4px solid transparent; position: relative; overflow: hidden; display: flex; justify-content: space-between; align-items: flex-start; }
+                    .pm-card { background: white; border-radius: 16px; padding: 1.25rem; border: none; box-shadow: var(--shadow-sm); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-left: 4px solid transparent; position: relative; overflow: hidden; display: flex; justify-content: space-between; align-items: flex-start; }
                     .pm-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
                     .card-count { font-size: 1.75rem; font-weight: 700; color: var(--text-primary); line-height: 1; font-family: var(--font-titles); margin-top: 0.25rem; }
                     
@@ -292,13 +293,14 @@ export async function renderInternalProjects(container, initialFilter) {
                                 <div><div style="font-size: 0.6rem; font-weight: 800; color: var(--brand-blue); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 2px;">PANORAMICA AREA</div><h2 id="hub-title" style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.015em;">Overview ${activeArea.label}</h2></div>
                             </header>
 
-                            <div class="glass-card" style="display: flex; flex-direction: column; min-height: 600px; flex: 1; overflow: hidden; border: 1px solid var(--glass-border);">
+                            <div class="glass-card" style="display: flex; flex-direction: column; min-height: 600px; flex: 1; overflow: hidden; border: none;">
                                 <div class="hub-tabs">
                                     <button class="hub-tab ${currentTab === 'overview' ? 'active' : ''}" data-tab="overview"><span class="material-icons-round">dashboard</span>Overview</button>
                                     <button class="hub-tab ${currentTab === 'board' ? 'active' : ''}" data-tab="board"><span class="material-icons-round">view_kanban</span>Board</button>
                                     <button class="hub-tab ${currentTab === 'appointments' ? 'active' : ''}" data-tab="appointments"><span class="material-icons-round">calendar_today</span>Appuntamenti</button>
                                     <button class="hub-tab ${currentTab === 'feed' ? 'active' : ''}" data-tab="feed"><span class="material-icons-round">history</span>Feed</button>
                                     <button class="hub-tab ${currentTab === 'docs' ? 'active' : ''}" data-tab="docs"><span class="material-icons-round">description</span>Documenti</button>
+                                    <button class="hub-tab ${currentTab === 'risorse' ? 'active' : ''}" data-tab="risorse"><span class="material-icons-round">cloud</span>Risorse</button>
                                 </div>
                                 <div id="hub-tab-content" style="flex: 1; padding: 1.5rem; overflow-y: auto;">
                                     <div style="display:flex; align-items:center; justify-content:center; height:300px;"><span class="loader"></span></div>
@@ -437,31 +439,131 @@ export async function renderInternalProjects(container, initialFilter) {
 
 
             } else if (currentTab === 'docs') {
-                const visibleProjectIds = visibleProjects.map(p => p.id);
-                const contextIds = [currentClusterId, ...visibleProjectIds];
-                const docItems = (allItems || []).filter(item => contextIds.includes(item.space_ref) && item.cloud_links && item.cloud_links.length > 0);
-                const allLinks = [];
-                docItems.forEach(item => { 
-                    item.cloud_links.forEach(link => {
-                        const spaceName = spaces.find(s => s.id === item.space_ref)?.name || 'Progetto';
-                        allLinks.push({ ...link, itemTitle: item.title, spaceName }); 
-                    });
-                });
+                if (currentClusterId !== 'all') {
+                    // Show directly for the selected cluster
+                    content.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:300px;"><span class="loader"></span></div>`;
+                    const { renderDocsView } = await import('../docs/DocsView.js');
+                    await renderDocsView(content, currentClusterId);
+                } else {
+                    // Area level: Show list of cluster documentations
+                    if (areaClusters.length === 0) {
+                        content.innerHTML = `<div style="padding: 3rem; text-align: center; color: var(--text-tertiary);">Nessun cluster trovato in quest'area per visualizzare la documentazione.</div>`;
+                    } else {
+                        content.innerHTML = `
+                            <div style="max-width: 800px; margin: 0 auto;">
+                                <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 1.5rem; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;">
+                                    <span class="material-icons-round" style="font-size: 1rem; color: var(--brand-blue);">description</span> DOCUMENTAZIONE DEI CLUSTER
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                    ${areaClusters.map(c => `
+                                        <div class="docs-cluster-card" data-id="${c.id}" style="
+                                            padding: 1.5rem; background: white; border-radius: 12px; border: 1px solid var(--surface-2); 
+                                            cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 1rem;
+                                        " onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.borderColor='var(--surface-2)'; this.style.transform='none';">
+                                            <div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(59, 130, 246, 0.08); color: var(--brand-blue); display: flex; align-items: center; justify-content: center;">
+                                                <span class="material-icons-round">description</span>
+                                            </div>
+                                            <div style="flex: 1; min-width: 0;">
+                                                <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.name}</div>
+                                                <div style="font-size: 0.75rem; color: var(--text-tertiary);">Apri Notion</div>
+                                            </div>
+                                            <span class="material-icons-round" style="color: var(--text-tertiary); font-size: 1.25rem;">chevron_right</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                        content.querySelectorAll('.docs-cluster-card').forEach(card => {
+                            card.onclick = async () => {
+                                const cid = card.dataset.id;
+                                content.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:300px;"><span class="loader"></span></div>`;
+                                const { renderDocsView } = await import('../docs/DocsView.js');
+                                await renderDocsView(content, cid);
+                            };
+                        });
+                    }
+                }
 
-                content.innerHTML = `
-                    <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;"><span class="material-icons-round" style="font-size: 1rem; color: #f59e0b;">description</span> RISORSE E DOCUMENTI CLUSTER</div>
-                    ${allLinks.length === 0 ? `<div style="padding: 3rem; text-align: center; color: var(--text-tertiary);">Nessun documento o link cloud caricato in questo cluster.</div>` : `
-                        <div style="display: flex; flex-direction: column; gap: 8px;">
-                            ${allLinks.map(link => `
-                                <a href="${link.url}" target="_blank" style="display: flex; align-items: center; gap: 1rem; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--glass-border); background: white; text-decoration: none; transition: 0.2s;" onmouseover="this.style.borderColor='var(--brand-blue)'" onmouseout="this.style.borderColor='var(--glass-border)'">
-                                    <span class="material-icons-round" style="color: var(--brand-blue); font-size: 1.25rem;">link</span>
-                                    <div style="flex: 1;"><div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">${link.title || 'Senza titolo'}</div><div style="font-size: 0.65rem; color: var(--text-tertiary);">Rif. Task: ${link.itemTitle} (${link.spaceName})</div></div>
-                                    <span class="material-icons-round" style="color: var(--text-tertiary); font-size: 1rem;">open_in_new</span>
-                                </a>
-                            `).join('')}
+            } else if (currentTab === 'risorse') {
+                const activeSpaceId = currentClusterId !== 'all' ? currentClusterId : null;
+                const activeSpace = spaces.find(s => s.id === activeSpaceId);
+
+                if (!activeSpaceId) {
+                    content.innerHTML = `
+                        <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-tertiary); margin-bottom: 2rem; display: flex; align-items: center; gap: 8px; text-transform: uppercase;">
+                            <span class="material-icons-round" style="font-size: 1rem; color: #f59e0b;">cloud_queue</span> PANORAMICA RISORSE AREA
                         </div>
-                    `}
-                `;
+                        <div style="padding: 3rem; text-align: center; background: white; border-radius: 16px; border: 1px dashed var(--surface-2);">
+                            <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--bg-secondary); color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
+                                <span class="material-icons-round" style="font-size: 2rem;">mouse</span>
+                            </div>
+                            <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem;">Seleziona un Cluster per gestire le sue risorse</div>
+                            <div style="font-size: 0.85rem; color: var(--text-tertiary);">Per caricare nuovi link o documenti, seleziona un cluster specifico dalla barra laterale.</div>
+                        </div>
+                    `;
+                } else {
+                    content.innerHTML = `
+                        <div style="display: flex; flex-direction: column; gap: 2rem;">
+                            <section>
+                                <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;">
+                                    <span class="material-icons-round" style="font-size: 1rem; color: #f59e0b;">cloud_queue</span> RISORSE DIRETTE CLUSTER
+                                </div>
+                                <div id="space-cloud-links-container" style="background: white; padding: 1.5rem; border-radius: 16px; border: 1px solid var(--surface-2);"></div>
+                            </section>
+
+                            <section>
+                                <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-tertiary); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+                                    <span class="material-icons-round" style="font-size: 0.9rem; color: var(--text-tertiary);">link</span> LINK DALLE ATTIVITÀ (READ-ONLY)
+                                </div>
+                                <div id="task-links-container"></div>
+                            </section>
+                        </div>
+                    `;
+
+                    // Initialize Manager for Cluster Links
+                    new CloudLinksManager(
+                        content.querySelector('#space-cloud-links-container'),
+                        activeSpace.cloud_links || [],
+                        async (newLinks) => {
+                            try {
+                                await updateSpaceCloudLinks(activeSpaceId, newLinks);
+                                activeSpace.cloud_links = newLinks;
+                            } catch (e) {
+                                console.error("Error updating cloud links:", e);
+                                alert("Errore nel salvataggio dei link.");
+                            }
+                        }
+                    );
+
+                    // Task links
+                    const visibleProjectIds = (visibleProjects || []).map(p => p.id);
+                    const contextIds = [currentClusterId, ...visibleProjectIds];
+                    const docItems = (allItems || []).filter(item => contextIds.includes(item.space_ref) && item.cloud_links && item.cloud_links.length > 0);
+                    const allLinks = [];
+                    docItems.forEach(item => { 
+                        item.cloud_links.forEach(link => {
+                            const spaceName = spaces.find(s => s.id === item.space_ref)?.name || 'Progetto';
+                            allLinks.push({ ...link, itemTitle: item.title, spaceName }); 
+                        });
+                    });
+
+                    const taskContainer = content.querySelector('#task-links-container');
+                    if (allLinks.length === 0) {
+                        taskContainer.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--text-tertiary); font-size: 0.8rem; background: var(--bg-primary); border-radius: 12px; border: 1px solid var(--surface-2);">Nessun link trovato nelle attività del cluster.</div>`;
+                    } else {
+                        taskContainer.innerHTML = `
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                ${allLinks.map(link => `
+                                    <a href="${link.url}" target="_blank" style="display: flex; align-items: center; gap: 1rem; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--surface-2); background: white; text-decoration: none; transition: 0.2s;" onmouseover="this.style.borderColor='var(--brand-blue)'" onmouseout="this.style.borderColor='var(--surface-2)'">
+                                        <span class="material-icons-round" style="color: var(--text-tertiary); font-size: 1.25rem;">link</span>
+                                        <div style="flex: 1;"><div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">${link.title || 'Senza titolo'}</div><div style="font-size: 0.65rem; color: var(--text-tertiary);">Task: ${link.itemTitle}</div></div>
+                                        <span class="material-icons-round" style="color: var(--text-tertiary); font-size: 1rem;">open_in_new</span>
+                                    </a>
+                                `).join('')}
+                            </div>
+                        `;
+                    }
+                }
             }
         };
 
