@@ -39,7 +39,17 @@ export function renderAdminDashboard(container) {
                     ">
                         <span style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
                             <span class="material-icons-round">settings</span>
-                            Impostazioni
+                            Generali
+                        </span>
+                    </button>
+                    <button class="tab-btn" data-tab="email" style="
+                        flex: 1; padding: 1rem; border: none; background: none; 
+                        border-bottom: 2px solid transparent; color: var(--text-secondary); 
+                        font-weight: 500; cursor: pointer; transition: all 0.2s;
+                    ">
+                        <span style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <span class="material-icons-round">mail</span>
+                            Email
                         </span>
                     </button>
                     <button class="tab-btn" data-tab="labs" style="
@@ -117,82 +127,98 @@ export function renderAdminDashboard(container) {
                                 <input type="password" name="google_client_secret" class="modal-input" placeholder="Client secret..." style="width: 100%;">
                             </div>
 
-                            <!-- SMTP Configuration Section -->
-                            <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--glass-border); margin-top: 1rem;">
-                                <h3 style="font-size: 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                                    <span class="material-icons-round" style="color: var(--brand-blue);">mail</span>
-                                    Server SMTP (Invio Email Native)
-                                </h3>
-                                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.5;">
-                                    Configura il server di posta in uscita per permettere a Gleeye di inviare comunicazioni ufficiali, notifiche e lettere d'incarico direttamente dal sistema.
-                                </p>
-
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                                    <div class="form-group">
-                                        <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Host SMTP</label>
-                                        <input type="text" name="smtp_host" class="modal-input" placeholder="es. smtp.gmail.com" style="width: 100%;">
-                                    </div>
-                                    <div class="form-group">
-                                        <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Porta SMTP</label>
-                                        <input type="text" name="smtp_port" class="modal-input" placeholder="es. 465 o 587" style="width: 100%;">
-                                    </div>
-                                </div>
-
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                                    <div class="form-group">
-                                        <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Sicurezza</label>
-                                        <select name="smtp_security" class="modal-input" style="width: 100%;">
-                                            <option value="ssl">SSL / TLS</option>
-                                            <option value="starttls">STARTTLS</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Mittente (Nome visualizzato)</label>
-                                        <input type="text" name="smtp_from_name" class="modal-input" placeholder="es. Studio Gleeye" style="width: 100%;">
-                                    </div>
-                                </div>
-
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                                    <div class="form-group">
-                                        <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Nome Utente (Email)</label>
-                                        <input type="text" name="smtp_user" class="modal-input" placeholder="info@..." style="width: 100%;">
-                                    </div>
-                                    <div class="form-group">
-                                        <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Password (App Password)</label>
-                                        <input type="password" name="smtp_pass" class="modal-input" placeholder="Password SMTP..." style="width: 100%;">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Email Templates -->
-                            <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--glass-border); margin-top: 1rem;">
-                                <h3 style="font-size: 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                                    <span class="material-icons-round" style="color: var(--brand-blue);">edit_document</span>
-                                    Modelli Messaggi Email
-                                </h3>
-                                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.5;">
-                                    Personalizza i testi delle e-mail di sistema. Usa i campi dinamici nelle parentesi graffe: <strong>{{collaborator_name}}</strong>, <strong>{{project_name}}</strong>, <strong>{{link}}</strong>.
-                                </p>
-
-                                <h4 style="font-size: 0.95rem; margin-top: 1.5rem; margin-bottom: 0.5rem; color: var(--text-primary);">Invio Lettera di Incarico</h4>
-                                <div class="form-group" style="margin-bottom: 1rem;">
-                                    <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Oggetto Email</label>
-                                    <input type="text" name="assignment_email_subject" class="modal-input" placeholder="Nuovo incarico per te..." style="width: 100%;">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Testo dell'Email</label>
-                                    <textarea name="assignment_email_body" class="modal-input" rows="5" placeholder="Ciao {{collaborator_name}}, trova qui la tua lettera d'incarico..." style="width: 100%; resize: vertical;"></textarea>
-                                </div>
-                            </div>
-
                             <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
                                 <button type="submit" class="primary-btn" style="padding: 0.6rem 1.25rem;">
-                                    <span class="material-icons-round">save</span> Salva Configurazioni
+                                    <span class="material-icons-round">save</span> Salva
                                 </button>
                             </div>
                         </form>
                     </div>
+                    
+                    <!-- Notifications Settings will be injected here -->
+                    <div id="admin-notifications-container"></div>
+                </div>
+
+                <!-- Tab Content: Email -->
+                <div id="tab-email" class="tab-content hidden" style="padding: 2rem;">
+                    <div id="email-config-loader" style="text-align: center; padding: 1rem;"><span class="loader small"></span></div>
+                    <form id="email-config-form" style="display: none; gap: 1.5rem; flex-direction: column;">
+                        <!-- SMTP Configuration Section -->
+                        <div class="glass-card" style="padding: 1.5rem; border: 1px solid var(--glass-border);">
+                            <h3 style="font-size: 1.1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span class="material-icons-round" style="color: var(--brand-blue);">server</span>
+                                Server SMTP (Invio Email Native)
+                            </h3>
+                            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem; line-height: 1.5;">
+                                Configura il server di posta in uscita per permettere a Gleeye di inviare comunicazioni ufficiali, notifiche e lettere d'incarico direttamente dal sistema.
+                            </p>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                                <div class="form-group">
+                                    <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Host SMTP</label>
+                                    <input type="text" name="smtp_host" class="modal-input" placeholder="es. smtp.gmail.com" style="width: 100%;">
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Porta SMTP</label>
+                                    <input type="text" name="smtp_port" class="modal-input" placeholder="es. 465 o 587" style="width: 100%;">
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                                <div class="form-group">
+                                    <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Sicurezza</label>
+                                    <select name="smtp_security" class="modal-input" style="width: 100%;">
+                                        <option value="ssl">SSL / TLS</option>
+                                        <option value="starttls">STARTTLS</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Mittente (Nome visualizzato)</label>
+                                    <input type="text" name="smtp_from_name" class="modal-input" placeholder="es. Studio Gleeye" style="width: 100%;">
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                <div class="form-group">
+                                    <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Nome Utente (Email)</label>
+                                    <input type="text" name="smtp_user" class="modal-input" placeholder="info@..." style="width: 100%;">
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Password (App Password)</label>
+                                    <input type="password" name="smtp_pass" class="modal-input" placeholder="Password SMTP..." style="width: 100%;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Email Templates -->
+                        <div class="glass-card" style="padding: 1.5rem; border: 1px solid var(--glass-border);">
+                            <h3 style="font-size: 1.1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span class="material-icons-round" style="color: var(--brand-blue);">edit_document</span>
+                                Modelli Messaggi Email
+                            </h3>
+                            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem; line-height: 1.5;">
+                                Personalizza i testi delle e-mail di sistema. Usa i campi dinamici nelle parentesi graffe: <strong>{{collaborator_name}}</strong>, <strong>{{project_name}}</strong>, <strong>{{link}}</strong>.
+                            </p>
+
+                            <h4 style="font-size: 0.95rem; margin-top: 1.5rem; margin-bottom: 0.5rem; color: var(--text-primary);">Invio Lettera di Incarico</h4>
+                            <div class="form-group" style="margin-bottom: 1rem;">
+                                <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Oggetto Email</label>
+                                <input type="text" name="assignment_email_subject" class="modal-input" placeholder="Nuovo incarico per te..." style="width: 100%;">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Testo dell'Email</label>
+                                <textarea name="assignment_email_body" class="modal-input" rows="8" placeholder="Ciao {{collaborator_name}}, trova qui la tua lettera d'incarico..." style="width: 100%; resize: vertical;"></textarea>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+                            <button type="submit" class="primary-btn" style="padding: 0.6rem 1.25rem;">
+                                <span class="material-icons-round">save</span> Salva Configurazioni Email
+                            </button>
+                        </div>
+                    </form>
+                </div>
                     
                     <!-- Notifications Settings will be injected here -->
                     <div id="admin-notifications-container"></div>
@@ -346,72 +372,74 @@ export function renderAdminDashboard(container) {
         }
     });
 
-    // Load Google Config
-    loadGoogleConfigForm();
+    // Load All Configs
+    loadAdminConfigs();
 }
 
-async function loadGoogleConfigForm() {
-    const loader = document.getElementById('google-config-loader');
-    const form = document.getElementById('google-config-form');
-    if (!form || !loader) return;
+async function loadAdminConfigs() {
+    const googleLoader = document.getElementById('google-config-loader');
+    const googleForm = document.getElementById('google-config-form');
+    const emailLoader = document.getElementById('email-config-loader');
+    const emailForm = document.getElementById('email-config-form');
+    
+    if (!googleForm || !emailForm) return;
 
     try {
-        // Dynamic import to avoid circular deps
         const { fetchAllSystemConfig, upsertSystemConfig } = await import('../../modules/api.js?v=1000');
         const configs = await fetchAllSystemConfig();
 
-        const clientId = configs.find(c => c.key === 'google_client_id')?.value || '';
-        const clientSecret = configs.find(c => c.key === 'google_client_secret')?.value || '';
+        // 1. Google Config Populate
+        googleForm.querySelector('[name="google_client_id"]').value = configs.find(c => c.key === 'google_client_id')?.value || '';
+        googleForm.querySelector('[name="google_client_secret"]').value = configs.find(c => c.key === 'google_client_secret')?.value || '';
 
-        form.querySelector('[name="google_client_id"]').value = clientId;
-        form.querySelector('[name="google_client_secret"]').value = clientSecret;
-
-        // Populate new SMTP and Template fields
-        form.querySelector('[name="smtp_host"]').value = configs.find(c => c.key === 'smtp_host')?.value || '';
-        form.querySelector('[name="smtp_port"]').value = configs.find(c => c.key === 'smtp_port')?.value || '';
-        form.querySelector('[name="smtp_security"]').value = configs.find(c => c.key === 'smtp_security')?.value || 'ssl';
-        form.querySelector('[name="smtp_from_name"]').value = configs.find(c => c.key === 'smtp_from_name')?.value || '';
-        form.querySelector('[name="smtp_user"]').value = configs.find(c => c.key === 'smtp_user')?.value || '';
-        form.querySelector('[name="smtp_pass"]').value = configs.find(c => c.key === 'smtp_pass')?.value || '';
-        form.querySelector('[name="assignment_email_subject"]').value = configs.find(c => c.key === 'assignment_email_subject')?.value || '';
-        form.querySelector('[name="assignment_email_body"]').value = configs.find(c => c.key === 'assignment_email_body')?.value || '';
-
-        form.addEventListener('submit', async (e) => {
+        googleForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const formData = new FormData(form);
-
+            const clientId = googleForm.querySelector('[name="google_client_id"]').value.trim();
+            const clientSecret = googleForm.querySelector('[name="google_client_secret"]').value.trim();
             try {
-                const keysToSave = [
-                    { key: 'google_client_id', desc: 'Google OAuth Client ID' },
-                    { key: 'google_client_secret', desc: 'Google OAuth Client Secret' },
-                    { key: 'smtp_host', desc: 'SMTP Host Server' },
-                    { key: 'smtp_port', desc: 'SMTP Port' },
-                    { key: 'smtp_security', desc: 'SMTP Security Protocol' },
-                    { key: 'smtp_from_name', desc: 'SMTP Sender Name' },
-                    { key: 'smtp_user', desc: 'SMTP Username (Email)' },
-                    { key: 'smtp_pass', desc: 'SMTP Password' },
-                    { key: 'assignment_email_subject', desc: 'Assignment Letter Email Subject Model' },
-                    { key: 'assignment_email_body', desc: 'Assignment Letter Email Body Model' },
-                ];
-
-                for (const item of keysToSave) {
-                    const val = formData.get(item.key)?.trim() || formData.get(item.key);
-                    if (val !== undefined && val !== null) {
-                        await upsertSystemConfig(item.key, val, item.desc);
-                    }
-                }
-                
-                if (window.showGlobalAlert) window.showGlobalAlert('Configurazioni salvate con successo!', 'success');
+                await upsertSystemConfig('google_client_id', clientId, 'Google OAuth Client ID');
+                await upsertSystemConfig('google_client_secret', clientSecret, 'Google OAuth Client Secret');
+                if (window.showGlobalAlert) window.showGlobalAlert('Configurazione Google salvata!', 'success');
             } catch (err) {
-                console.error('Save config error:', err);
+                if (window.showGlobalAlert) window.showGlobalAlert('Errore: ' + err.message, 'error');
+            }
+        });
+
+        // 2. Email Config Populate
+        emailForm.querySelector('[name="smtp_host"]').value = configs.find(c => c.key === 'smtp_host')?.value || '';
+        emailForm.querySelector('[name="smtp_port"]').value = configs.find(c => c.key === 'smtp_port')?.value || '';
+        emailForm.querySelector('[name="smtp_security"]').value = configs.find(c => c.key === 'smtp_security')?.value || 'ssl';
+        emailForm.querySelector('[name="smtp_from_name"]').value = configs.find(c => c.key === 'smtp_from_name')?.value || '';
+        emailForm.querySelector('[name="smtp_user"]').value = configs.find(c => c.key === 'smtp_user')?.value || '';
+        emailForm.querySelector('[name="smtp_pass"]').value = configs.find(c => c.key === 'smtp_pass')?.value || '';
+        emailForm.querySelector('[name="assignment_email_subject"]').value = configs.find(c => c.key === 'assignment_email_subject')?.value || '';
+        emailForm.querySelector('[name="assignment_email_body"]').value = configs.find(c => c.key === 'assignment_email_body')?.value || '';
+
+        emailForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(emailForm);
+            try {
+                const keys = [
+                    { k: 'smtp_host', d: 'SMTP Host' }, { k: 'smtp_port', d: 'SMTP Port' },
+                    { k: 'smtp_security', d: 'SMTP Security' }, { k: 'smtp_from_name', d: 'SMTP Sender Name' },
+                    { k: 'smtp_user', d: 'SMTP User' }, { k: 'smtp_pass', d: 'SMTP Password' },
+                    { k: 'assignment_email_subject', d: 'Assignment Email Subject' },
+                    { k: 'assignment_email_body', d: 'Assignment Email Body' }
+                ];
+                for (const item of keys) {
+                    await upsertSystemConfig(item.k, formData.get(item.k)?.trim() || '', item.d);
+                }
+                if (window.showGlobalAlert) window.showGlobalAlert('Configurazioni Email salvate!', 'success');
+            } catch (err) {
                 if (window.showGlobalAlert) window.showGlobalAlert('Errore salvataggio: ' + err.message, 'error');
             }
         });
 
-        loader.style.display = 'none';
-        form.style.display = 'flex';
+        googleLoader.style.display = 'none';
+        googleForm.style.display = 'flex';
+        emailLoader.style.display = 'none';
+        emailForm.style.display = 'flex';
     } catch (err) {
-        console.error('Load Google config error:', err);
-        if (loader) loader.innerHTML = '<div style="color: var(--error-color); font-size: 0.85rem;">Errore caricamento configurazione.</div>';
+        console.error('Load admin config error:', err);
     }
 }
