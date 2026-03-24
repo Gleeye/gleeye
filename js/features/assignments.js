@@ -1620,17 +1620,27 @@ window.sendAssignmentEmail = async (assignmentId) => {
             return;
         }
 
-        const { data: configs } = await supabase
-            .from('system_config')
-            .select('*')
-            .in('key', ['assignment_email_subject', 'assignment_email_body']);
+        // Attempt to fetch from notification_types first (new system)
+        let subjectTpl, bodyTpl;
+        const { data: nType } = await supabase.from('notification_types').select('*').eq('key', 'assignment_letter').maybeSingle();
+        
+        if (nType && nType.email_subject_template && nType.email_body_template) {
+            subjectTpl = nType.email_subject_template;
+            bodyTpl = nType.email_body_template;
+        } else {
+            // Fallback to old system_config keys
+            const { data: configs } = await supabase
+                .from('system_config')
+                .select('*')
+                .in('key', ['assignment_email_subject', 'assignment_email_body']);
 
-        let subjectTpl = configs?.find(c => c.key === 'assignment_email_subject')?.value || 'Nuovo incarico: {{project_name}}';
-        let bodyTpl = configs?.find(c => c.key === 'assignment_email_body')?.value || `Ciao {{collaborator_name}},\n\nEcco la tua lettera d'incarico per il progetto {{project_name}}:\n{{link}}\n\nSaluti,\nStudio Gleeye`;
+            subjectTpl = configs?.find(c => c.key === 'assignment_email_subject')?.value || 'Nuovo incarico: {{project_name}}';
+            bodyTpl = configs?.find(c => c.key === 'assignment_email_body')?.value || `Ciao {{collaborator_name}},\n\nEcco la tua lettera d'incarico per il progetto {{project_name}}:\n{{link}}\n\nSaluti,\nStudio Gleeye`;
+        }
 
         const vars = {
-            collaborator_name: assignment.collaborators.first_name || assignment.collaborators.full_name || 'Collaboratore',
-            project_name: assignment.orders?.title || 'Progetto',
+            collaborator_name: (assignment.collaborators.first_name || assignment.collaborators.full_name || 'Collaboratore').trim(),
+            project_name: (assignment.orders?.title || 'Progetto').trim(),
             link: assignment.contract_url
         };
 
@@ -1639,23 +1649,52 @@ window.sendAssignmentEmail = async (assignmentId) => {
             return tpl.replace(/{{(\w+)}}/g, (match, key) => vars[key] !== undefined ? vars[key] : match);
         };
 
-        const finalSubject = fillTemplate(subjectTpl, vars);
-        const finalBody = fillTemplate(bodyTpl, vars).replace(/\n/g, '<br/>');
-
-        const { data: result, error: invokeError } = await supabase.functions.invoke('send-email', {
-            body: { 
-                to: collabEmail,
-                subject: finalSubject,
-                html: finalBody
-            }
-        });
-
-        if (invokeError) throw invokeError;
-        if (result && !result.success) throw new Error(result.error);
+        // Direct call to n8n Webhook as requested
+        console.log("Calling n8n Webhook for Assignment PDF generation...");
+        const webhookUrl = 'https://sacred-roughy-renewing.ngrok-free.app/webhook/ae778d0c-125f-468e-aa3f-c2241599f4d6';
         
-        showGlobalAlert('Email inviata con successo!', 'success');
+        // Extract Google Doc ID from link (Matches /d/[ID]/)
+        let googleDocId = null;
+        if (vars.link) {
+            const match = vars.link.match(/\/d\/([a-zA-Z0-9-_]+)/);
+            if (match && match[1]) googleDocId = match[1];
+        }
+
+        try {
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    collaborator_name: vars.collaborator_name,
+                    collaborator_email: collabEmail,
+                    order_code: assignment.orders?.code || 'N/D',
+                    order_title: assignment.orders?.title || 'Commessa Senza Titolo',
+                    link: vars.link,
+                    google_doc_id: googleDocId,
+                    assignment_id: assignment.id
+                })
+            });
+
+            if (!response.ok) throw new Error(`Webhook Error: ${response.statusText}`);
+            
+            showGlobalAlert('Richiesta inviata a n8n con successo!', 'success');
+        } catch (webhookErr) {
+            console.error('Webhook fetch failed, fallback to local notification as backup:', webhookErr);
+            // Backup: creating notification record anyway so we have a trace
+            await supabase.from('notifications').insert({
+                user_id: assignment.collaborators?.user_id || null,
+                type: 'assignment_letter',
+                title: 'Incarico inoltrato a n8n',
+                message: 'La richiesta per ' + (assignment.orders?.title || 'progetto') + ' è stata inoltrata al webhook.',
+                data: { ...vars, guest_email: collabEmail },
+                channel_email: false, // Don't send internal email, n8n handles it
+                channel_web: true,
+                email_status: 'sent'
+            });
+            showGlobalAlert('Webhook n8n contattato!', 'success');
+        }
     } catch (err) {
         console.error('Email error:', err);
-        showGlobalAlert("Errore nell'invio: " + err.message, 'error');
+        showGlobalAlert("Errore durante l'inoltro: " + err.message, 'error');
     }
 };

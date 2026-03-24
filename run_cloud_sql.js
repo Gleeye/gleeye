@@ -15,8 +15,7 @@ async function run() {
         console.log("Connected to CLOUD Supabase!");
 
         const queries = [
-            'ALTER TABLE "public"."pm_items" ADD COLUMN IF NOT EXISTS "price" NUMERIC(10, 2) DEFAULT 0;',
-            'ALTER TABLE "public"."pm_items" ADD COLUMN IF NOT EXISTS "cost" NUMERIC(10, 2) DEFAULT 0;'
+            'ALTER TABLE "public"."notification_types" ADD COLUMN IF NOT EXISTS "webhook_url" TEXT;'
         ];
 
         for (const q of queries) {

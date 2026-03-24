@@ -142,82 +142,60 @@ export function renderAdminDashboard(container) {
                 <!-- Tab Content: Email -->
                 <div id="tab-email" class="tab-content hidden" style="padding: 2rem;">
                     <div id="email-config-loader" style="text-align: center; padding: 1rem;"><span class="loader small"></span></div>
-                    <form id="email-config-form" style="display: none; gap: 1.5rem; flex-direction: column;">
-                        <!-- SMTP Configuration Section -->
+                    
+                    <div id="email-tabs-container" style="display: none; flex-direction: column; gap: 2rem;">
+                        
+                        <!-- 1. SMTP Accounts Section -->
                         <div class="glass-card" style="padding: 1.5rem; border: 1px solid var(--glass-border);">
                             <h3 style="font-size: 1.1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
                                 <span class="material-icons-round" style="color: var(--brand-blue);">server</span>
-                                Server SMTP (Invio Email Native)
+                                Account di Invio (SMTP)
                             </h3>
                             <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem; line-height: 1.5;">
-                                Configura il server di posta in uscita per permettere a Gleeye di inviare comunicazioni ufficiali, notifiche e lettere d'incarico direttamente dal sistema.
+                                Configura gli account email da cui il sistema invierà le comunicazioni.
                             </p>
 
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                                <div class="form-group">
-                                    <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Host SMTP</label>
-                                    <input type="text" name="smtp_host" class="modal-input" placeholder="es. smtp.gmail.com" style="width: 100%;">
-                                </div>
-                                <div class="form-group">
-                                    <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Porta SMTP</label>
-                                    <input type="text" name="smtp_port" class="modal-input" placeholder="es. 465 o 587" style="width: 100%;">
-                                </div>
+                            <div id="smtp-accounts-list" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
+                                <!-- Accounts Card logic here -->
                             </div>
 
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                                <div class="form-group">
-                                    <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Sicurezza</label>
-                                    <select name="smtp_security" class="modal-input" style="width: 100%;">
-                                        <option value="ssl">SSL / TLS</option>
-                                        <option value="starttls">STARTTLS</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Mittente (Nome visualizzato)</label>
-                                    <input type="text" name="smtp_from_name" class="modal-input" placeholder="es. Studio Gleeye" style="width: 100%;">
-                                </div>
-                            </div>
-
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                                <div class="form-group">
-                                    <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Nome Utente (Email)</label>
-                                    <input type="text" name="smtp_user" class="modal-input" placeholder="info@..." style="width: 100%;">
-                                </div>
-                                <div class="form-group">
-                                    <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Password (App Password)</label>
-                                    <input type="password" name="smtp_pass" class="modal-input" placeholder="Password SMTP..." style="width: 100%;">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Email Templates -->
-                        <div class="glass-card" style="padding: 1.5rem; border: 1px solid var(--glass-border);">
-                            <h3 style="font-size: 1.1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                                <span class="material-icons-round" style="color: var(--brand-blue);">edit_document</span>
-                                Modelli Messaggi Email
-                            </h3>
-                            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem; line-height: 1.5;">
-                                Personalizza i testi delle e-mail di sistema. Usa i campi dinamici nelle parentesi graffe: <strong>{{collaborator_name}}</strong>, <strong>{{project_name}}</strong>, <strong>{{link}}</strong>.
-                            </p>
-
-                            <h4 style="font-size: 0.95rem; margin-top: 1.5rem; margin-bottom: 0.5rem; color: var(--text-primary);">Invio Lettera di Incarico</h4>
-                            <div class="form-group" style="margin-bottom: 1rem;">
-                                <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Oggetto Email</label>
-                                <input type="text" name="assignment_email_subject" class="modal-input" placeholder="Nuovo incarico per te..." style="width: 100%;">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">Testo dell'Email</label>
-                                <textarea name="assignment_email_body" class="modal-input" rows="8" placeholder="Ciao {{collaborator_name}}, trova qui la tua lettera d'incarico..." style="width: 100%; resize: vertical;"></textarea>
-                            </div>
-                        </div>
-
-                        <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
-                            <button type="submit" class="primary-btn" style="padding: 0.6rem 1.25rem;">
-                                <span class="material-icons-round">save</span> Salva Configurazioni Email
+                            <button id="add-smtp-btn" class="secondary-btn" style="width: 100%; justify-content: center; padding: 0.75rem;">
+                                <span class="material-icons-round">add</span> Aggiungi Account SMTP
                             </button>
                         </div>
-                    </form>
+
+                        <!-- 2. System Notification Templates -->
+                        <div class="glass-card" style="padding: 1.5rem; border: 1px solid var(--glass-border);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                                <div>
+                                    <h3 style="font-size: 1.1rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                                        <span class="material-icons-round" style="color: var(--brand-blue);">edit_document</span>
+                                        Modelli Messaggi di Sistema
+                                    </h3>
+                                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">Personalizza i testi per ogni tipo di evento.</p>
+                                </div>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <select id="template-filter-cat" class="modal-input" style="padding: 4px 10px; font-size: 0.75rem;">
+                                        <option value="all">Tutti le categorie</option>
+                                        <option value="booking">Prenotazioni</option>
+                                        <option value="order">Commesse</option>
+                                        <option value="invoice">Contabilità</option>
+                                        <option value="general">Generale</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div id="notification-templates-list" style="display: grid; grid-template-columns: 1fr; gap: 1.5rem;">
+                                <!-- Notification templates will be injected here -->
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                           <button id="save-all-email-btn" class="primary-btn" style="padding: 0.75rem 2rem; font-size: 1rem;">
+                                <span class="material-icons-round">save</span> Salva Tutte le Configurazioni Email
+                           </button>
+                        </div>
+                    </div>
                 </div>
                     
                     <!-- Notifications Settings will be injected here -->
@@ -379,13 +357,15 @@ export function renderAdminDashboard(container) {
 async function loadAdminConfigs() {
     const googleLoader = document.getElementById('google-config-loader');
     const googleForm = document.getElementById('google-config-form');
-    const emailLoader = document.getElementById('email-config-loader');
-    const emailForm = document.getElementById('email-config-form');
+    const emailLoader = document.getElementById('email_config-loader') || document.getElementById('email-config-loader');
+    const emailTabsContainer = document.getElementById('email-tabs-container');
     
-    if (!googleForm || !emailForm) return;
+    if (!googleForm || !emailTabsContainer) return;
 
     try {
+        const { supabase } = await import('../../modules/config.js?v=1000');
         const { fetchAllSystemConfig, upsertSystemConfig } = await import('../../modules/api.js?v=1000');
+        
         const configs = await fetchAllSystemConfig();
 
         // 1. Google Config Populate
@@ -405,40 +385,193 @@ async function loadAdminConfigs() {
             }
         });
 
-        // 2. Email Config Populate
-        emailForm.querySelector('[name="smtp_host"]').value = configs.find(c => c.key === 'smtp_host')?.value || '';
-        emailForm.querySelector('[name="smtp_port"]').value = configs.find(c => c.key === 'smtp_port')?.value || '';
-        emailForm.querySelector('[name="smtp_security"]').value = configs.find(c => c.key === 'smtp_security')?.value || 'ssl';
-        emailForm.querySelector('[name="smtp_from_name"]').value = configs.find(c => c.key === 'smtp_from_name')?.value || '';
-        emailForm.querySelector('[name="smtp_user"]').value = configs.find(c => c.key === 'smtp_user')?.value || '';
-        emailForm.querySelector('[name="smtp_pass"]').value = configs.find(c => c.key === 'smtp_pass')?.value || '';
-        emailForm.querySelector('[name="assignment_email_subject"]').value = configs.find(c => c.key === 'assignment_email_subject')?.value || '';
-        emailForm.querySelector('[name="assignment_email_body"]').value = configs.find(c => c.key === 'assignment_email_body')?.value || '';
+        // 2. Email Section Handling
+        // Multiple SMTP Accounts
+        let smtpAccounts = [];
+        try {
+            const smtpJson = configs.find(c => c.key === 'smtp_accounts')?.value;
+            smtpAccounts = smtpJson ? JSON.parse(smtpJson) : [];
+        } catch (e) { console.warn("SMTP Accounts parsing error, using defaults"); }
 
-        emailForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(emailForm);
-            try {
-                const keys = [
-                    { k: 'smtp_host', d: 'SMTP Host' }, { k: 'smtp_port', d: 'SMTP Port' },
-                    { k: 'smtp_security', d: 'SMTP Security' }, { k: 'smtp_from_name', d: 'SMTP Sender Name' },
-                    { k: 'smtp_user', d: 'SMTP User' }, { k: 'smtp_pass', d: 'SMTP Password' },
-                    { k: 'assignment_email_subject', d: 'Assignment Email Subject' },
-                    { k: 'assignment_email_body', d: 'Assignment Email Body' }
-                ];
-                for (const item of keys) {
-                    await upsertSystemConfig(item.k, formData.get(item.k)?.trim() || '', item.d);
-                }
-                if (window.showGlobalAlert) window.showGlobalAlert('Configurazioni Email salvate!', 'success');
-            } catch (err) {
-                if (window.showGlobalAlert) window.showGlobalAlert('Errore salvataggio: ' + err.message, 'error');
+        // Fallback for old single SMTP if accounts list is empty
+        if (smtpAccounts.length === 0) {
+            const oldHost = configs.find(c => c.key === 'smtp_host')?.value;
+            if (oldHost) {
+                smtpAccounts.push({
+                    id: 'primary',
+                    name: configs.find(c => c.key === 'smtp_user')?.value || 'Account Principale',
+                    host: oldHost,
+                    port: configs.find(c => c.key === 'smtp_port')?.value || '587',
+                    security: configs.find(c => c.key === 'smtp_security')?.value || 'ssl',
+                    from_name: configs.find(c => c.key === 'smtp_from_name')?.value || '',
+                    user: configs.find(c => c.key === 'smtp_user')?.value || '',
+                    pass: configs.find(c => c.key === 'smtp_pass')?.value || ''
+                });
             }
-        });
+        }
+
+        const accountsList = document.getElementById('smtp-accounts-list');
+        const renderAccounts = () => {
+            accountsList.innerHTML = smtpAccounts.map((acc, index) => `
+                <div class="glass-card" style="padding: 1rem; background: var(--bg-primary); border: 1px solid var(--glass-border); position: relative;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <input type="text" class="modal-input" placeholder="Etichetta Interna (opzionale)" value="${acc.name}" 
+                               style="font-weight: 700; border: none; background: transparent; padding: 0; font-size: 1rem;"
+                               oninput="this.closest('.glass-card').querySelector('.smtp-label').textContent = '#' + (parseInt(this.dataset.index)+1) + ': ' + (this.closest('.glass-card').querySelector('.smtp-user-field').value || this.value)">
+                        <button onclick="window.removeSmtpAccount(${index})" class="text-error" style="background: none; border: none; cursor: pointer;">
+                            <span class="material-icons-round">delete</span>
+                        </button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                        <div class="form-group">
+                            <label style="font-size: 0.75rem;">Host</label>
+                            <input type="text" class="modal-input" value="${acc.host || ''}" onchange="window.updateSmtpAccount(${index}, 'host', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.75rem;">Porta</label>
+                            <input type="text" class="modal-input" value="${acc.port || ''}" onchange="window.updateSmtpAccount(${index}, 'port', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.75rem;">Utente (Email)</label>
+                            <input type="text" class="modal-input smtp-user-field" value="${acc.user || ''}" 
+                                   oninput="window.updateSmtpAccount(${index}, 'user', this.value); this.closest('.glass-card').querySelector('.smtp-label').textContent = '#' + (${index}+1) + ': ' + this.value">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.75rem;">Password</label>
+                            <input type="password" class="modal-input" value="${acc.pass || ''}" onchange="window.updateSmtpAccount(${index}, 'pass', this.value)">
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        window.updateSmtpAccount = (idx, key, val) => { smtpAccounts[idx][key] = val; };
+        window.removeSmtpAccount = (idx) => { smtpAccounts.splice(idx, 1); renderAccounts(); };
+        document.getElementById('add-smtp-btn').onclick = () => {
+            smtpAccounts.push({ id: Math.random().toString(36).substr(2, 9), name: '', host: '', port: '587', user: '', pass: '', security: 'ssl' });
+            renderAccounts();
+        };
+
+        renderAccounts();
+
+        // Notification Templates handling
+        const { data: notifTypes } = await supabase.from('notification_types').select('*').order('category');
+        const templatesList = document.getElementById('notification-templates-list');
+        const renderTemplates = (filter = 'all') => {
+            const filtered = filter === 'all' ? notifTypes : notifTypes.filter(t => t.category === filter);
+            templatesList.innerHTML = filtered.map(tpl => `
+                <div class="glass-card template-card" style="padding: 1.25rem; background: var(--bg-primary); border: 1px solid var(--glass-border);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+                        <div>
+                            <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--brand-blue); background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px;">${tpl.category || 'general'}</span>
+                            <h4 style="margin: 0.5rem 0 0; font-size: 1rem;">${tpl.label_it || tpl.key}</h4>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; flex-direction: column; align-items: flex-end;">
+                             <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Invia da:</div>
+                             <select class="modal-input tpl-smtp-id" data-id="${tpl.id}" style="padding: 4px 8px; font-size: 0.75rem;">
+                                <option value="">Predefinito (Prima casella)</option>
+                                ${smtpAccounts.map(acc => `
+                                    <option value="${acc.id}" ${tpl.smtp_account_id === acc.id ? 'selected' : ''}>
+                                        ${acc.user || acc.name || 'Account senza email'} ${acc.from_name ? `(${acc.from_name})` : ''}
+                                    </option>
+                                `).join('')}
+                             </select>
+                             <div style="margin-top: 0.5rem; display: flex; flex-direction: column; align-items: flex-end; width: 100%;">
+                                 <div style="font-size: 0.75rem; color: var(--brand-blue); margin-bottom: 0.25rem;">n8n Webhook (opzionale):</div>
+                                 <input type="url" class="modal-input tpl-webhook-url" data-id="${tpl.id}" value="${tpl.webhook_url || ''}" 
+                                        placeholder="https://n8n.your-instance.com/..." 
+                                        style="padding: 4px 8px; font-size: 0.75rem; width: 100%; text-align: right;">
+                             </div>
+                             <button onclick="window.toggleTemplateEditor('${tpl.id}')" class="secondary-btn" style="padding: 4px 8px; font-size: 0.75rem; margin-top: 0.75rem;">
+                                <span class="material-icons-round" style="font-size: 1rem;">expand_more</span> Modifica Testi
+                             </button>
+                        </div>
+                    </div>
+                    <div id="editor-${tpl.id}" class="hidden" style="margin-top: 1rem; border-top: 1px solid var(--glass-border); padding-top: 1rem; display: flex; flex-direction: column; gap: 1.5rem;">
+                        <p style="font-size: 0.75rem; color: var(--text-tertiary); margin: 0;">Variabili disponibili: <code>${(tpl.variables_schema || []).join(', ')}</code></p>
+                        
+                        <!-- Internal Template -->
+                        <div style="border: 1px solid var(--glass-border); padding: 1rem; border-radius: 8px; background: rgba(0,0,0,0.01);">
+                            <h5 style="margin: 0 0 1rem; font-size: 0.8rem; color: var(--brand-blue); text-transform: uppercase;">Messaggio Interno (Collaboratori)</h5>
+                            <div class="form-group" style="margin-bottom: 1rem;">
+                                <label style="font-size: 0.75rem;">Oggetto Email</label>
+                                <input type="text" class="modal-input tpl-subject" data-id="${tpl.id}" value="${tpl.email_subject_template || ''}" style="width: 100%;">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.75rem;">Corpo Messaggio (HTML)</label>
+                                <textarea class="modal-input tpl-body" data-id="${tpl.id}" rows="4" style="width: 100%; font-family: monospace; font-size: 0.8rem;">${tpl.email_body_template || ''}</textarea>
+                            </div>
+                        </div>
+
+                        <!-- Guest Template (if supported) -->
+                        ${(tpl.category === 'booking' || tpl.email_subject_template_guest) ? `
+                        <div style="border: 1px solid var(--glass-border); padding: 1rem; border-radius: 8px; background: rgba(16, 185, 129, 0.02);">
+                            <h5 style="margin: 0 0 1rem; font-size: 0.8rem; color: #10b981; text-transform: uppercase;">Messaggio per il Cliente (Guest)</h5>
+                            <div class="form-group" style="margin-bottom: 1rem;">
+                                <label style="font-size: 0.75rem;">Oggetto Email Guest</label>
+                                <input type="text" class="modal-input tpl-subject-guest" data-id="${tpl.id}" value="${tpl.email_subject_template_guest || ''}" style="width: 100%;">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.75rem;">Corpo Messaggio Guest (HTML)</label>
+                                <textarea class="modal-input tpl-body-guest" data-id="${tpl.id}" rows="4" style="width: 100%; font-family: monospace; font-size: 0.8rem;">${tpl.email_body_template_guest || ''}</textarea>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        window.toggleTemplateEditor = (id) => {
+            const el = document.getElementById(`editor-${id}`);
+            el.classList.toggle('hidden');
+        };
+
+        document.getElementById('template-filter-cat').onchange = (e) => renderTemplates(e.target.value);
+        renderTemplates();
+
+        // Save All Button
+        document.getElementById('save-all-email-btn').onclick = async () => {
+            try {
+                // 1. Save SMTP Accounts
+                await upsertSystemConfig('smtp_accounts', JSON.stringify(smtpAccounts), 'Configurazioni SMTP multiple');
+
+                // 2. Save Templates
+                const rows = templatesList.querySelectorAll('.template-card');
+                for (const row of rows) {
+                    const id = row.querySelector('.tpl-subject').dataset.id;
+                    const subject = row.querySelector('.tpl-subject').value;
+                    const body = row.querySelector('.tpl-body').value;
+                    const smtpId = row.querySelector('.tpl-smtp-id').value;
+                    const webhookUrl = row.querySelector('.tpl-webhook-url').value;
+                    
+                    const guestSubjectInput = row.querySelector('.tpl-subject-guest');
+                    const guestBodyInput = row.querySelector('.tpl-body-guest');
+                    
+                    const updates = {
+                        email_subject_template: subject,
+                        email_body_template: body,
+                        smtp_account_id: smtpId || null,
+                        webhook_url: webhookUrl || null
+                    };
+
+                    if (guestSubjectInput) updates.email_subject_template_guest = guestSubjectInput.value;
+                    if (guestBodyInput) updates.email_body_template_guest = guestBodyInput.value;
+
+                    await supabase.from('notification_types').update(updates).eq('id', id);
+                }
+
+                if (window.showGlobalAlert) window.showGlobalAlert('Configurazioni Email salvate con successo!', 'success');
+            } catch (err) {
+                console.error("Save all email configs failed:", err);
+                if (window.showGlobalAlert) window.showGlobalAlert('Errore durante il salvataggio: ' + err.message, 'error');
+            }
+        };
 
         googleLoader.style.display = 'none';
         googleForm.style.display = 'flex';
         emailLoader.style.display = 'none';
-        emailForm.style.display = 'flex';
+        emailTabsContainer.style.display = 'flex';
     } catch (err) {
         console.error('Load admin config error:', err);
     }

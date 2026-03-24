@@ -31,33 +31,62 @@ serve(async (req) => {
 
         if (configError) throw configError;
 
-        const config: any = {};
-        configRows?.forEach((r: any) => config[r.key] = r.value);
+        const allConfigs: any = {};
+        configRows?.forEach((r: any) => allConfigs[r.key] = r.value);
 
-        if (!config.smtp_host || !config.smtp_user || !config.smtp_pass) {
-            throw new Error("SMTP configuration is incomplete in system_config.");
+        let activeConfig: any = null;
+
+        // Try to load from smtp_accounts JSON
+        if (allConfigs.smtp_accounts) {
+            try {
+                const accounts = JSON.parse(allConfigs.smtp_accounts);
+                if (Array.isArray(accounts) && accounts.length > 0) {
+                    // Use first account as default for now
+                    activeConfig = accounts[0];
+                }
+            } catch (e) {
+                console.warn("Error parsing smtp_accounts JSON:", e);
+            }
         }
 
-        const port = parseInt(config.smtp_port || '587');
-        const secure = config.smtp_security === 'ssl' || port === 465;
+        // Fallback to legacy single config if no activeConfig from array
+        if (!activeConfig) {
+            if (allConfigs.smtp_host && allConfigs.smtp_user && allConfigs.smtp_pass) {
+                activeConfig = {
+                    host: allConfigs.smtp_host,
+                    port: allConfigs.smtp_port,
+                    security: allConfigs.smtp_security,
+                    from_name: allConfigs.smtp_from_name,
+                    user: allConfigs.smtp_user,
+                    pass: allConfigs.smtp_pass
+                };
+            }
+        }
+
+        if (!activeConfig || !activeConfig.host || !activeConfig.user || !activeConfig.pass) {
+            throw new Error("SMTP configuration is missing or incomplete in system_config.");
+        }
+
+        const port = parseInt(activeConfig.port || '587');
+        const secure = activeConfig.security === 'ssl' || port === 465;
 
         const transporter = nodemailer.createTransport({
-            host: config.smtp_host,
+            host: activeConfig.host,
             port,
             secure,
             auth: {
-                user: config.smtp_user,
-                pass: config.smtp_pass
+                user: activeConfig.user,
+                pass: activeConfig.pass
             },
             tls: {
                 rejectUnauthorized: false
             }
         });
 
-        const fromName = config.smtp_from_name || 'Gleeye System';
+        const fromName = activeConfig.from_name || 'Gleeye System';
         
         await transporter.sendMail({
-            from: `"${fromName}" <${config.smtp_user}>`,
+            from: `"${fromName}" <${activeConfig.user}>`,
             to,
             subject,
             html
