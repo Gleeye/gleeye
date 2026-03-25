@@ -571,8 +571,17 @@ const getFirstName = (collab, profile) => {
     return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
 };
 
-export async function renderHomepage(container) {
-    console.log("Rendering Homepage...");
+export async function renderHomepageAlt(container) {
+    console.log("Rendering Alt Homepage...");
+    
+    // Inject alt CSS if not present
+    if (!document.getElementById('homepage-alt-style')) {
+        const link = document.createElement('link');
+        link.id = 'homepage-alt-style';
+        link.rel = 'stylesheet';
+        link.href = 'css/components/homepage-alt.css?v=' + new Date().getTime();
+        document.head.appendChild(link);
+    }
 
     const user = state.session?.user;
     if (!user) return;
@@ -732,7 +741,7 @@ export async function renderHomepage(container) {
 
     // Skeleton
     container.innerHTML = `
-        <div class="homepage-container">
+        <div class="homepage-alt-container">
             <!-- Content raised: Greeting in top-bar, context in timeline header -->
             <div class="hp-mobile-spacer" style="height: 0.5rem;"></div>
 
@@ -746,7 +755,7 @@ export async function renderHomepage(container) {
                          <div class="greeting-mobile-only" style="display: none; margin-bottom: 0.5rem;">
                             <h1 style="font-size: 1.5rem; margin: 0;">${greetingText}, ${firstName}!</h1>
                          </div>
-                         <h2 id="hp-date-description" class="hp-date-text">Ecco cosa c'è in programma per oggi, ${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
+                         <h2 id="hp-date-description" class="hp-date-text">ALT: Ecco cosa c'è in programma per oggi, ${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
                          
                          <div class="hp-nav-controls">
                              <!-- Main Group -->
@@ -3097,7 +3106,11 @@ function timeAgo(date) {
     return "poco fa";
 }
 
-import { humanizeActivity } from '../modules/pm_activity_helper.js';
+const activityVocabulary = {
+    'todo': 'Da Fare', 'in_progress': 'In Corso', 'blocked': 'Bloccato', 
+    'review': 'In Revisione', 'done': 'Completata', 'attivita': 'Attività', 'task': 'Task'
+};
+const activityTranslate = (val) => activityVocabulary[val?.toLowerCase()] || val;
 
 function renderActivityFeed(container, activities) {
     if (!activities || activities.length === 0) {
@@ -3108,7 +3121,41 @@ function renderActivityFeed(container, activities) {
     container.innerHTML = `
         <div class="activity-log-list" style="display: flex; flex-direction: column; padding: 1rem 0;">
             ${activities.map(log => {
-                const human = humanizeActivity(log);
+                const details = log.details || log.metadata || {};
+                let description = details.description || log.description || '';
+                const actionType = (log.action_type || '').toLowerCase();
+                
+                const actorName = log.authorName || (log.actor_user_ref ? 'Utente' : 'Sistema');
+                const entityName = details.entity_name || log.item?.title || log.order?.title || log.space?.name || 'una risorsa';
+                
+                // Enhanced Logic for Homepage (Context is King here)
+                if (!description || description === 'UPDATE') {
+                    const assignee = details.user_ref_name || details.new_value_name || details.assignee_name;
+                    const containerName = log.order?.title || log.space?.name;
+                    const containerRef = containerName ? ` in **${containerName}**` : '';
+
+                    if (actionType.includes('status')) {
+                        const oldVal = activityTranslate(details.old || details.old_value);
+                        const newVal = activityTranslate(details.new || details.new_value);
+                        description = `ha cambiato lo stato di **${entityName}**${containerRef} ${oldVal && newVal ? `da **${oldVal}** a **${newVal}**` : `in **${newVal}**`}`;
+                    } else if (actionType.includes('user_ref')) {
+                        const targetUser = details.new_value_name || details.new || 'un utente';
+                        description = `ha assegnato **${entityName}**${containerRef} a **${targetUser}**`;
+                    } else if (actionType.includes('created')) {
+                        description = `ha creato l'attività **${entityName}**`;
+                        if (assignee) description += ` per **${assignee}**`;
+                        description += containerRef;
+                    } else if (actionType.includes('comment')) {
+                        description = `ha aggiunto un commento in **${entityName}**${containerRef}`;
+                    } else if (actionType.includes('cloud_links')) {
+                        description = `ha aggiunto un documento a **${entityName}**${containerRef}`;
+                    } else {
+                        description = `ha effettuato una modifica a **${entityName}**${containerRef}`;
+                    }
+                }
+
+                // Format Markdown to HTML
+                let formattedDesc = description.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-primary);">$1</strong>');
                 const timeStr = timeAgo(log.created_at);
 
                 return `
@@ -3117,13 +3164,13 @@ function renderActivityFeed(container, activities) {
                         <div style="position: absolute; left: 30px; top: 42px; bottom: 0; width: 2px; background: #f1f5f9; z-index: 1;"></div>
                         
                         <div class="actor-avatar" style="flex-shrink: 0; position: relative; z-index: 2;">
-                            ${renderAvatar(log.actor || { full_name: human.actorName }, { size: 32, borderRadius: '50%' })}
+                            ${renderAvatar(log.actor || { full_name: actorName }, { size: 32, borderRadius: '50%' })}
                         </div>
                         
                         <div class="log-content" style="flex: 1; padding-top: 2px;">
                             <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
-                                <span style="font-weight: 700; color: var(--text-primary);">${human.actorName}</span> 
-                                ${human.formattedDesc}
+                                <span style="font-weight: 700; color: var(--text-primary);">${actorName}</span> 
+                                ${formattedDesc}
                             </div>
                             <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 4px; display: flex; align-items: center; gap: 6px;">
                                 <span class="material-icons-round" style="font-size: 0.8rem;">schedule</span>

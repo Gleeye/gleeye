@@ -126,6 +126,10 @@ function render() {
                 if (pageTitle) pageTitle.textContent = 'Homepage';
                 import('../features/homepage.js?v=2000').then(m => m.renderHomepage(contentArea));
                 break;
+            case 'home-alt':
+                if (pageTitle) pageTitle.textContent = 'Homepage Alternativa';
+                import('../features/homepage-alt.js?v=' + new Date().getTime()).then(m => m.renderHomepageAlt(contentArea));
+                break;
             case 'dashboard':
                 if (pageTitle) pageTitle.textContent = 'Commercial Dashboard';
                 import('../features/dashboard.js?v=2000').then(m => m.renderDashboard(contentArea));
