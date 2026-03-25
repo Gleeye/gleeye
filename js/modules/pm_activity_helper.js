@@ -26,36 +26,57 @@ export function humanizeActivity(log, context = {}) {
     const actionType = (log.action_type || '').toLowerCase();
     
     const actorName = log.actor?.full_name || log.authorName || (log.actor_user_ref ? 'Utente' : 'Sistema');
-    const entityName = details.entity_name || log.item?.title || log.order?.title || log.space?.name || 'una risorsa';
+    
+    // Resolve Entity Name and catch fallbacks
+    let isFallback = false;
+    let entityName = details.entity_name || log.item?.title;
+    
+    if (!entityName) {
+        if (log.order?.title && !log.item?.id && !log.space?.id) {
+            entityName = log.order.title;
+        } else if (log.space?.name && !log.item?.id) {
+            entityName = log.space.name;
+        } else {
+            entityName = 'un\'attività';
+            isFallback = true;
+        }
+    }
     
     const assignee = details.user_ref_name || details.new_value_name || details.assignee_name;
     const containerName = log.order?.title || log.space?.name;
-    const containerRef = (containerName && !context.hideContainer) ? ` in **${containerName}**` : '';
+
+    // Rule 1: Prevent redundancy (Entity == Container)
+    const isRedundant = containerName && entityName && (entityName.trim().toLowerCase() === containerName.trim().toLowerCase());
+    const showContainer = containerName && !context.hideContainer && !isRedundant;
+    const containerRef = showContainer ? ` in **${containerName}**` : '';
 
     const isKnownAction = actionType.includes('status') || actionType.includes('user_ref') || actionType.includes('created') || actionType.includes('comment') || actionType.includes('cloud_links') || actionType.includes('due_date');
 
     if (!description || description === 'UPDATE' || isKnownAction) {
+        // Build generic entity strings if it's a fallback
+        const eStr = isFallback ? entityName : `**${entityName}**`;
+
         if (actionType.includes('status')) {
             const oldVal = activityTranslate(details.old || details.old_value);
             const newVal = activityTranslate(details.new || details.new_value);
-            description = `ha cambiato lo stato di **${entityName}**${containerRef} ${oldVal && newVal ? `da **${oldVal}** a **${newVal}**` : `in **${newVal}**`}`;
+            description = `ha cambiato lo stato di ${eStr}${containerRef} ${oldVal && newVal ? `da **${oldVal}** a **${newVal}**` : `in **${newVal}**`}`;
         } else if (actionType.includes('user_ref')) {
             const targetUser = details.new_value_name || details.new || 'un utente';
-            description = `ha assegnato **${entityName}**${containerRef} a **${targetUser}**`;
+            description = `ha assegnato ${eStr}${containerRef} a **${targetUser}**`;
         } else if (actionType.includes('created')) {
-            description = `ha creato **${entityName}**`;
+            description = `ha creato ${eStr}`;
             if (assignee) description += ` per **${assignee}**`;
             description += containerRef;
         } else if (actionType.includes('comment')) {
-            description = `ha aggiunto un commento in **${entityName}**${containerRef}`;
+            description = `ha aggiunto un commento in ${eStr}${containerRef}`;
         } else if (actionType.includes('cloud_links')) {
-            description = `ha aggiunto un documento a **${entityName}**${containerRef}`;
+            description = `ha aggiunto un documento a ${eStr}${containerRef}`;
         } else if (actionType.includes('due_date')) {
              const date = details.new || details.new_value;
              const dateStr = date ? new Date(date).toLocaleDateString('it-IT') : 'una nuova data';
-             description = `ha cambiato la scadenza di **${entityName}**${containerRef} al **${dateStr}**`;
+             description = `ha cambiato la scadenza di ${eStr}${containerRef} al **${dateStr}**`;
         } else if (!description || description === 'UPDATE') {
-            description = `ha effettuato una modifica a **${entityName}**${containerRef}`;
+            description = `ha modificato ${eStr}${containerRef}`;
         }
     }
 
