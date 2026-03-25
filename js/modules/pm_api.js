@@ -1386,6 +1386,23 @@ export async function updateItemCloudLinks(itemId, links) {
 }
 
 // --- ACTIVITY LOGS ---
+export async function fetchMyActivityFeed(limit = 50) {
+    const userId = state.profile?.id || state.session?.user?.id;
+    if (!userId) return [];
+
+    try {
+        // Fallback since the RPC get_my_activities is not in the live DB yet
+        const logs = await fetchPMActivityLogs({ limit: 100, isAccountLevel: true });
+        
+        // Basic fallback filtering: return logs where the user is the actor OR logs related to items they have access to.
+        // Since RLS already filters pm_activity_logs to items they have access to, we can just return the logs.
+        return logs.slice(0, limit);
+    } catch (error) {
+        console.error("Error fetching my activity feed fallback:", error);
+        return [];
+    }
+}
+
 export async function fetchPMActivityLogs(arg1 = null, arg2 = null, arg3 = null, arg4 = null) {
     let spaceId, itemId, orderId, itemIds, limit = 100, isAccountLevel = false;
 
@@ -1409,7 +1426,7 @@ export async function fetchPMActivityLogs(arg1 = null, arg2 = null, arg3 = null,
         .limit(limit);
 
     if (isAccountLevel) {
-        // Broad fetch for general activity
+        // Fetch everything, maybe prioritizing account level or just no filter
     } else if (orderId) {
         query = query.eq('order_ref', orderId);
     } else if (itemIds && itemIds.length > 0) {
@@ -1440,8 +1457,6 @@ export async function fetchPMActivityLogs(arg1 = null, arg2 = null, arg3 = null,
         return { ...log, authorName, avatarUrl };
     });
 }
-
-// --- ACTIVITY REGISTRY ---
 export async function fetchActivityRegistry() {
     const { data, error } = await supabase
         .from('pm_activity_registry')

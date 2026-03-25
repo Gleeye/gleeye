@@ -54,7 +54,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
         // 1. Appointments, Logs & Comments
         const [appts, logs, docSpace, { data: comms }] = await Promise.all([
             refId ? fetchAppointments(refId, refType) : [],
-            spaceId ? fetchPMActivityLogs(spaceId) : [],
+            spaceId ? fetchPMActivityLogs({ spaceId }) : [],
             spaceId ? ensureDocSpace(spaceId) : null,
             spaceId ? supabase.from('pm_item_comments').select(`
                 id, body, created_at, pm_item_ref,

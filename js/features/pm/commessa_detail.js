@@ -237,6 +237,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     height: fit-content;
                     opacity: 1;
                     visibility: visible;
+                    z-index: 10;
                 }
                 .hub-sidebar.collapsed {
                     width: 0;

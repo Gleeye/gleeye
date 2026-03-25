@@ -611,6 +611,12 @@ export async function renderInternalProjects(container, initialFilter) {
 
         // 10. Real-time Listeners
         const refreshHandler = (e) => {
+            if (!container.isConnected) {
+                console.log('[InternalProjects] Container disconnected, cleaning up listener...');
+                document.removeEventListener('pm-item-changed', refreshHandler);
+                document.removeEventListener('pm-space-changed', refreshHandler);
+                return;
+            }
             console.log('[InternalProjects] Change detected, refreshing list...');
             renderInternalProjects(container, currentAreaId);
         };

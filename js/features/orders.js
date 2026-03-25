@@ -1615,15 +1615,45 @@ window.openAddOrderAccountModal = (orderId) => {
 window.filterAccountList = () => {
     const list = document.getElementById('sea-list');
     const search = document.getElementById('acc-search').value.toLowerCase();
+    const orderId = state.currentOrderId;
+    const order = state.orders.find(o => o.id === orderId);
 
-    // Filter by tag "Account" and search term
+    // Get currently assigned account IDs to exclude them
+    const assignedIds = new Set();
+    if (order && order.order_collaborators) {
+        order.order_collaborators.forEach(oc => {
+            if (oc.role_in_order === 'Account' && oc.collaborator_id) {
+                assignedIds.add(oc.collaborator_id);
+            }
+        });
+    }
+
+    // Filter by tag "Account", search term, and exclusion of already assigned
     const accounts = (state.collaborators || []).filter(c => {
+        // Exclude if already assigned
+        if (assignedIds.has(c.id)) return false;
+        
         // Filter out inactive
         if (c.is_active === false || c.active === false) return false;
 
-        const hasAccountTag = (Array.isArray(c.tags) ? c.tags : (c.tags || '').split(',')).some(t => t.trim().toLowerCase() === 'account');
+        // Parse tags (can be Array, JSON string, or comma-separated string)
+        let tagsArray = [];
+        if (Array.isArray(c.tags)) {
+            tagsArray = c.tags;
+        } else if (typeof c.tags === 'string') {
+            const trimmed = c.tags.trim();
+            if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                try { tagsArray = JSON.parse(trimmed); } catch (e) { tagsArray = trimmed.split(','); }
+            } else {
+                tagsArray = trimmed.split(',');
+            }
+        }
+
+        const lowerTags = tagsArray.map(t => t.toString().trim().toLowerCase());
+        const isEligible = lowerTags.includes('account');
+        
         const matchesSearch = c.full_name.toLowerCase().includes(search);
-        return hasAccountTag && matchesSearch;
+        return isEligible && matchesSearch;
     });
 
     if (accounts.length === 0) {
@@ -1687,7 +1717,7 @@ window.confirmAddAccount = async (cid) => {
     try {
         await addOrderAccount(state.currentOrderId, cid);
         document.getElementById('add-account-modal').classList.remove('active');
-        await fetchOrders();
+        await fetchOrders(true);
         renderOrderDetail(document.getElementById('content-area'), state.currentOrderId);
         showGlobalAlert('Account assegnato', 'success');
     } catch (e) { showGlobalAlert('Errore', 'error'); }
@@ -1696,7 +1726,7 @@ window.confirmAddAccount = async (cid) => {
 window.removeOrderAccount = async (oid, cid) => {
     try {
         await removeOrderAccount(oid, cid);
-        await fetchOrders();
+        await fetchOrders(true);
         renderOrderDetail(document.getElementById('content-area'), oid);
         showGlobalAlert('Account rimosso', 'success');
     } catch (e) { showGlobalAlert('Errore', 'error'); }
@@ -1706,7 +1736,7 @@ window.confirmAddContact = async (cid) => {
     try {
         await addOrderContact(state.currentOrderId, cid);
         document.getElementById('add-contact-modal').classList.remove('active');
-        await fetchOrders();
+        await fetchOrders(true);
         renderOrderDetail(document.getElementById('content-area'), state.currentOrderId);
         showGlobalAlert('Referente aggiunto', 'success');
     } catch (e) { showGlobalAlert('Errore', 'error'); }
@@ -1715,7 +1745,7 @@ window.confirmAddContact = async (cid) => {
 window.removeOrderContact = async (oid, cid) => {
     try {
         await removeOrderContact(oid, cid);
-        await fetchOrders();
+        await fetchOrders(true);
         renderOrderDetail(document.getElementById('content-area'), oid);
         showGlobalAlert('Referente rimosso', 'success');
     } catch (e) { showGlobalAlert('Errore', 'error'); }

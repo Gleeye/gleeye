@@ -303,7 +303,8 @@
 .hp-bottom-grid {
     margin-top: 3rem;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto auto;
     gap: 2rem;
 }
 
@@ -1175,4 +1176,53 @@
     .bottom-grid {
         gap: 1rem;
     }
+}
+
+.activity-feed-item {
+    padding: 1rem;
+    border-bottom: 1px solid var(--glass-border);
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    transition: background 0.2s;
+}
+
+.activity-feed-item:hover {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.activity-feed-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.activity-feed-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.activity-feed-actor {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.activity-feed-action {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.activity-feed-object {
+    font-weight: 600;
+    color: var(--brand-blue);
+    cursor: pointer;
+}
+
+.activity-feed-time {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    margin-top: 4px;
 }

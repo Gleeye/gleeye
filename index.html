@@ -265,7 +265,16 @@
         }
     </style>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
+    <!-- Supabase Library (Local with CDN Fallback) -->
+    <script src="js/libs/supabase.js"></script>
+    <script>
+        if (!window.supabase) {
+            console.warn("Local Supabase missing or failed, trying CDN...");
+            const s = document.createElement('script');
+            s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+            document.head.appendChild(s);
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
     <script>
