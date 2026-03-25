@@ -618,9 +618,19 @@ export function initInvoiceModals() {
                                         <span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle; margin-right: 0.25rem;">calculate</span>
                                         Ritenuta 20%: € 0.00
                                     </p>
-                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                        <input type="checkbox" id="pinv-has-vat" style="width: 16px; height: 16px; cursor: pointer;">
-                                        <label for="pinv-has-vat" style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary); cursor: pointer;">+ IVA 22%</label>
+                                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                        <div style="display: flex; align-items: center; gap: 0.25rem;">
+                                            <input type="checkbox" id="pinv-has-rivalsa" style="width: 16px; height: 16px; cursor: pointer;">
+                                            <label for="pinv-has-rivalsa" style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary); cursor: pointer;">+ Rivalsa 4%</label>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 0.25rem;">
+                                            <input type="checkbox" id="pinv-has-vat" style="width: 16px; height: 16px; cursor: pointer;">
+                                            <label for="pinv-has-vat" style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary); cursor: pointer;">+ IVA 22%</label>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 0.25rem;">
+                                            <input type="checkbox" id="pinv-has-bollo" style="width: 16px; height: 16px; cursor: pointer;">
+                                            <label for="pinv-has-bollo" style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary); cursor: pointer;">+ Bollo €2</label>
+                                        </div>
                                     </div>
                                 </div>
                                 <p id="pinv-calc-details" style="margin: 0.5rem 0 0; font-size: 0.65rem; color: var(--text-tertiary);"></p>
@@ -737,6 +747,18 @@ export function initInvoiceModals() {
         // IVA checkbox → recalc when manually toggled
         document.getElementById('pinv-has-vat')?.addEventListener('change', () => {
             state._pinvVatManuallySet = true; // Flag to prevent auto-override
+            updateNettoCalculation();
+        });
+
+        // Rivalsa checkbox → recalc when manually toggled
+        document.getElementById('pinv-has-rivalsa')?.addEventListener('change', () => {
+            state._pinvRivalsaManuallySet = true;
+            updateNettoCalculation();
+        });
+
+        // Bollo checkbox → recalc when manually toggled
+        document.getElementById('pinv-has-bollo')?.addEventListener('change', () => {
+            state._pinvBolloManuallySet = true;
             updateNettoCalculation();
         });
 
@@ -1123,52 +1145,58 @@ function updateNettoCalculation() {
         let ritenuta = 0;
         let bollo = 0;
 
-        // Cassa
+        const hasRivalsa = document.getElementById('pinv-has-rivalsa')?.checked;
+        const hasBollo = document.getElementById('pinv-has-bollo')?.checked;
+
+        // Rivalsa (Cassa) Calculation
         const cassaInput = document.getElementById('pinv-cassa');
         const cassaContainer = document.getElementById('pinv-cassa-container');
-        
-        // Prestazione Occasionale NEVER has Cassa
-        const rate = (tipo === 'occasionale') ? 0 : (parseFloat(settings.cassaRate) || 0);
+        const rate = (tipo === 'occasionale') ? 0 : (parseFloat(settings.cassaRate) || 4); // Default to 4% for collaborators if not specified
 
-        if (rate > 0) {
-            if (cassaContainer) cassaContainer.style.display = 'block';
+        if (hasRivalsa && rate > 0) {
             cassa = importo * (rate / 100);
+            imponibile = importo + cassa;
             if (cassaInput) {
                 cassaInput.value = cassa.toFixed(2);
                 cassaInput.dataset.rate = rate;
             }
-            imponibile = importo + cassa;
+        } else {
+            cassa = 0;
+            imponibile = importo;
+            if (cassaInput) cassaInput.value = '';
+        }
+
+        // Show/hide cassa container regardless of checkbox (user wants to see the field if it *could* have cassa)
+        // Actually, let's keep it visible if rate > 0 or if it's forfettario/ritenuta/parcella
+        if (tipo !== 'occasionale' && tipo !== 'estero') {
+            if (cassaContainer) cassaContainer.style.display = 'block';
         } else {
             if (cassaContainer) cassaContainer.style.display = 'none';
-            cassa = 0;
-            if (cassaInput) cassaInput.value = '';
-            imponibile = importo;
         }
+
+        // Bollo Calculation
+        if (hasBollo) bollo = 2;
 
         if (tipo === 'forfettario') {
             iva = 0;
             ritenuta = 0;
-            if (imponibile > 77.47) bollo = 2;
             netto = imponibile + bollo;
-            desc = `(Imponibile + Cassa${bollo ? ' + Bollo' : ''})`;
+            desc = `(Imponibile${bollo ? ' + Bollo' : ''})`;
         } else if (tipo === 'occasionale') {
             iva = 0;
-            // For occasionale, ritenuta is 20% of gross (importo)
             ritenuta = importo * 0.20;
-            if (importo > 77.47) bollo = 2;
             netto = importo - ritenuta + bollo;
             desc = `(Importo - 20% Ritenuta${bollo ? ' + Bollo' : ''})`;
         } else if (tipo === 'fattura' || tipo === 'ritenuta' || tipo === 'parcella') {
-            // Regime Ordinario
             if (hasVat) iva = imponibile * 0.22;
-            ritenuta = imponibile * (settings.withholdingRate / 100);
-            netto = imponibile + iva - ritenuta;
-            desc = `(Imp. + Cassa + IVA - Ret.)`;
+            ritenuta = imponibile * ((parseFloat(settings.withholdingRate) || 20) / 100);
+            netto = imponibile + iva - ritenuta + bollo;
+            desc = `(Imp. + Cassa + IVA - Ret. ${bollo ? '+ Bollo' : ''})`;
         } else if (tipo === 'estero') {
             iva = 0;
             ritenuta = 0;
-            netto = imponibile;
-            desc = `(Imponibile - Estero/Rev.Charge)`;
+            netto = imponibile + bollo;
+            desc = `(Imponibile - Estero/Rev.Charge ${bollo ? '+ Bollo' : ''})`;
         } else if (tipo === 'nota_credito') {
             if (hasVat) iva = imponibile * 0.22;
             netto = imponibile + iva;
@@ -1212,15 +1240,25 @@ function updateNettoCalculation() {
 }
 
 function updateCalcHint(tipo) {
-    // Reset manual VAT override when tipo changes
+    // Reset manual overrides when tipo changes
     state._pinvVatManuallySet = false;
+    state._pinvRivalsaManuallySet = false;
+    state._pinvBolloManuallySet = false;
 
-    // Update auto-IVA based on tipo
+    // Update auto-checkboxes based on tipo
     const vatCheckbox = document.getElementById('pinv-has-vat');
-    if (vatCheckbox) {
-        // Forfettario e Occasionale di solito senza IVA
-        // Ritenuta/Fattura/Parcella di solito con IVA
+    const rivalsaCheckbox = document.getElementById('pinv-has-rivalsa');
+    const bolloCheckbox = document.getElementById('pinv-has-bollo');
+    const amount = parseFloat(document.getElementById('pinv-amount')?.value) || 0;
+
+    if (vatCheckbox && !state._pinvVatManuallySet) {
         vatCheckbox.checked = ['ritenuta', 'fattura', 'parcella'].includes(tipo);
+    }
+    if (rivalsaCheckbox && !state._pinvRivalsaManuallySet) {
+        rivalsaCheckbox.checked = ['ritenuta', 'fattura', 'parcella', 'forfettario'].includes(tipo);
+    }
+    if (bolloCheckbox && !state._pinvBolloManuallySet) {
+        bolloCheckbox.checked = (tipo === 'forfettario' || tipo === 'occasionale' || tipo === 'estero') && amount > 77.47;
     }
 
     // Recalculate
@@ -1314,6 +1352,8 @@ async function handleSavePassiveInvoice(e) {
 
     const orderId = document.getElementById('pinv-order').value;
     const hasVat = document.getElementById('pinv-has-vat').checked;
+    const hasRivalsa = document.getElementById('pinv-has-rivalsa').checked;
+    const hasBollo = document.getElementById('pinv-has-bollo').checked;
     const status = document.getElementById('pinv-status').value;
     const importo = parseFloat(document.getElementById('pinv-amount').value) || 0;
 
@@ -1331,30 +1371,35 @@ async function handleSavePassiveInvoice(e) {
         const colOpt = colSelect?.selectedOptions[0];
         const settings = colOpt?.dataset.settings ? JSON.parse(colOpt.dataset.settings) : { cassaRate: 4, withholdingRate: 20 };
 
-        // Prestazione Occasionale NEVER has Cassa
-        const rate = (tipo === 'occasionale') ? 0 : (parseFloat(settings.cassaRate) || 0);
-        rivalsa = compenso * (rate / 100);
-        imponibile = compenso + rivalsa;
+        // Rivalsa
+        const rate = (tipo === 'occasionale') ? 0 : (parseFloat(settings.cassaRate) || 4);
+        if (hasRivalsa && rate > 0) {
+            rivalsa = compenso * (rate / 100);
+            imponibile = compenso + rivalsa;
+        } else {
+            rivalsa = 0;
+            imponibile = compenso;
+        }
+
+        // Bollo
+        if (hasBollo) bollo = 2;
 
         if (tipo === 'forfettario') {
             iva = 0;
             ritenuta = 0;
-            if (imponibile > 77.47) bollo = 2;
             netto = imponibile + bollo;
         } else if (tipo === 'occasionale') {
             iva = 0;
-            // For occasionale, ritenuta is 20% of gross (compenso)
             ritenuta = compenso * 0.20;
-            if (compenso > 77.47) bollo = 2;
             netto = compenso - ritenuta + bollo;
         } else if (tipo === 'ritenuta' || tipo === 'fattura' || tipo === 'parcella') {
             if (hasVat) iva = imponibile * 0.22;
-            ritenuta = imponibile * (parseFloat(settings.withholdingRate) / 100);
-            netto = imponibile + iva - ritenuta;
+            ritenuta = imponibile * ((parseFloat(settings.withholdingRate) || 20) / 100);
+            netto = imponibile + iva - ritenuta + bollo;
         } else if (tipo === 'estero') {
             iva = 0;
             ritenuta = 0;
-            netto = imponibile;
+            netto = imponibile + bollo;
         } else if (tipo === 'nota_credito') {
             if (hasVat) iva = imponibile * 0.22;
             netto = imponibile + iva;
@@ -2095,7 +2140,9 @@ export async function openPassiveInvoiceForm(id = null, mode = 'collab') {
     if (!modal) return;
 
     state.currentPassiveInvoiceId = id;
-    state._pinvVatManuallySet = false; // Reset manual override
+    state._pinvVatManuallySet = false;
+    state._pinvRivalsaManuallySet = false;
+    state._pinvBolloManuallySet = false;
 
     // Populate collaborators/suppliers and UI setup
     const isPartner = mode === 'partner-wl';
@@ -2180,6 +2227,13 @@ export async function openPassiveInvoiceForm(id = null, mode = 'collab') {
             document.getElementById('pinv-amount').value = inv.amount_tax_excluded || '';
             document.getElementById('pinv-net').value = inv.amount_tax_included || '';
             document.getElementById('pinv-has-vat').checked = inv.iva_attiva || (inv.tax_amount > 0);
+            document.getElementById('pinv-has-rivalsa').checked = (inv.rivalsa_inps > 0 || inv.cassa_previdenziale > 0);
+            document.getElementById('pinv-has-bollo').checked = (inv.stamp_duty > 0);
+            
+            // Set manual overrides to true to prevent updateCalcHint from overwriting loaded values
+            state._pinvVatManuallySet = true;
+            state._pinvRivalsaManuallySet = true;
+            state._pinvBolloManuallySet = true;
             document.getElementById('pinv-status').value = inv.status || 'Da Pagare';
 
             if (mode === 'collab') {
