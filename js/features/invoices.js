@@ -1297,10 +1297,11 @@ function updatePassivePaymentsForCollaborator(collaboratorId, optionalOrderId = 
     }
 
     // Get payments for collaborator (passive) that are pending invoice
+    // We only want 'Invito Inviato' (In attesa fattura) OR payments already linked to this specific invoice
     const payments = (state.payments || []).filter(p =>
         p.collaborator_id === collaboratorId &&
         p.payment_type === 'Collaboratore' &&
-        (p.status === 'Invito Inviato' || (!p.status || p.status.toLowerCase().includes('to do') || p.status.toLowerCase().includes('pending'))) &&
+        (p.status === 'Invito Inviato' || p.passive_invoice_id === state.currentPassiveInvoiceId) &&
         (!optionalOrderId || p.order_id === optionalOrderId)
     );
 
