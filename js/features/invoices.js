@@ -1526,7 +1526,13 @@ async function handleSavePassiveInvoice(e) {
             if (selectedPayments.length > 0) {
                 for (const paymentId of selectedPayments) {
                     const updatePayload = { passive_invoice_id: savedId };
-                    if (status === 'Pagata') updatePayload.status = 'Saldato';
+                    // If invoice is already 'Pagata', mark payment as 'Saldato'
+                    // Otherwise, change status from 'Invito Inviato' to 'Fattura Ricevuta'
+                    if (status === 'Pagata') {
+                        updatePayload.status = 'Saldato';
+                    } else {
+                        updatePayload.status = 'Fattura Ricevuta';
+                    }
                     await supabase.from('payments').update(updatePayload).eq('id', paymentId);
                 }
             }

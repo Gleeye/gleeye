@@ -28,7 +28,7 @@ export function renderPaymentsDashboard(container) {
             const waiting = [];
 
             itemsList.forEach(p => {
-                if (p.status === 'Invito Inviato') {
+                if (p.status === 'Invito Inviato' && !p.passive_invoice_id) {
                     waiting.push(p);
                 } else if (!p.due_date) {
                     nodate.push(p);
@@ -1210,7 +1210,12 @@ async function handleBulkInvite() {
         const { error: edgeError } = await supabase.functions.invoke('trigger-webhook', { body: { webhookUrl, payload } });
         if (edgeError) throw edgeError;
 
-        await supabase.from('payments').update({ status: 'Invito Inviato', invited_at: sentAt }).in('id', state.selectedPaymentIds);
+        const today = new Date().toISOString().split('T')[0];
+        for (const p of selected) {
+            const updates = { status: 'Invito Inviato', invited_at: sentAt };
+            if (!p.due_date) updates.due_date = today;
+            await supabase.from('payments').update(updates).eq('id', p.id);
+        }
         state.selectedPaymentIds = []; state.isBulkInviteMode = false;
         await fetchPayments(); window.dispatchEvent(new HashChangeEvent("hashchange"));
         showGlobalAlert('Invito multiplo inviato correttamente!', 'success');
@@ -1235,7 +1240,9 @@ async function handleSendInvite(p, btn) {
         }];
         const { error } = await supabase.functions.invoke('trigger-webhook', { body: { webhookUrl, payload } });
         if (error) throw error;
-        await supabase.from('payments').update({ status: 'Invito Inviato' }).eq('id', p.id);
+        const updates = { status: 'Invito Inviato' };
+        if (!p.due_date) updates.due_date = new Date().toISOString().split('T')[0];
+        await supabase.from('payments').update(updates).eq('id', p.id);
         await fetchPayments(); openPaymentModal(p.id); showGlobalAlert('Inviato!');
     } catch (e) { showGlobalAlert(e.message, 'error'); btn.disabled = false; btn.innerHTML = original; }
 }
