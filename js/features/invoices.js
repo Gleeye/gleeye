@@ -1509,19 +1509,32 @@ async function handleSavePassiveInvoice(e) {
 
         showGlobalAlert(state.currentPassiveInvoiceId ? 'Fattura aggiornata!' : 'Fattura registrata!', 'success');
 
-        // Update linked payments status and LINK them to this invoice
-        if (selectedPayments.length > 0 && savedId) {
-            for (const paymentId of selectedPayments) {
-                const updatePayload = { passive_invoice_id: savedId };
-                if (status === 'Pagata') updatePayload.status = 'Saldato';
+        // Update linked payments associations
+        if (savedId) {
+            // Unlink any payments that were previously linked but are no longer selected
+            // (Only necessary on edit mode, but safe to check)
+            const { data: currentLinked } = await supabase.from('payments').select('id').eq('passive_invoice_id', savedId);
+            if (currentLinked) {
+                const toUnlink = currentLinked.filter(p => !selectedPayments.includes(p.id));
+                for (const p of toUnlink) {
+                    await supabase.from('payments').update({ passive_invoice_id: null }).eq('id', p.id);
+                }
+            }
 
-                await supabase.from('payments').update(updatePayload).eq('id', paymentId).throwOnError();
+            // Link all selected payments
+            if (selectedPayments.length > 0) {
+                for (const paymentId of selectedPayments) {
+                    const updatePayload = { passive_invoice_id: savedId };
+                    if (status === 'Pagata') updatePayload.status = 'Saldato';
+                    await supabase.from('payments').update(updatePayload).eq('id', paymentId);
+                }
             }
         }
 
         closePassiveInvoiceForm();
         await new Promise(r => setTimeout(r, 500)); // Delay for DB consistency
         await fetchPassiveInvoices(true);
+        if (selectedPayments.length > 0) await fetchPayments(true); // Refresh payments cache to see the links
 
         // Auto-switch year if invoice is from a different year
         const invYear = data.issue_date ? new Date(data.issue_date).getFullYear() : (state.passiveInvoiceYear || new Date().getFullYear());
@@ -1875,10 +1888,19 @@ export async function openInvoiceDetail(id, type) {
         // In fetchInvoices: `orders (id, order_number, title)`
         if (invoice.orders) relatedOrders.push(invoice.orders);
     } else {
-        // Passive: related_orders column (can be array of strings/IDs or JSON string)
+        // Passive: related_orders column (can be array of strings/IDs, JSON string, or comma-separated string)
         let linkedOrders = invoice.related_orders || [];
-        if (typeof linkedOrders === 'string') {
-            try { linkedOrders = JSON.parse(linkedOrders); } catch (e) { linkedOrders = [linkedOrders]; }
+        if (typeof linkedOrders === 'string' && linkedOrders.trim() !== '') {
+            try { 
+                linkedOrders = JSON.parse(linkedOrders); 
+            } catch (e) { 
+                // Not JSON, check for comma-separated list
+                if (linkedOrders.includes(',')) {
+                    linkedOrders = linkedOrders.split(',').map(s => s.trim());
+                } else {
+                    linkedOrders = [linkedOrders.trim()]; 
+                }
+            }
         }
 
         if (Array.isArray(linkedOrders)) {
