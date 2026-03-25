@@ -854,7 +854,7 @@ function updatePaymentsForOrder(orderId) {
     const payments = (state.payments || []).filter(p =>
         p.order_id === orderId &&
         p.payment_type === 'Cliente' &&
-        (!p.status || p.status.toLowerCase().includes('to do') || p.status.toLowerCase().includes('pending'))
+        (!p.invoice_id || p.invoice_id === state.currentInvoiceId)
     );
 
     if (payments.length === 0) {
@@ -862,16 +862,19 @@ function updatePaymentsForOrder(orderId) {
         return;
     }
 
-    list.innerHTML = payments.map(p => `
-        <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: white; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer;">
-            <input type="checkbox" class="inv-payment-check" value="${p.id}" style="width: 16px; height: 16px;">
+    list.innerHTML = payments.map(p => {
+        const isChecked = p.invoice_id === state.currentInvoiceId ? 'checked' : '';
+        return `
+            <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: white; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer;">
+                <input type="checkbox" class="inv-payment-check" value="${p.id}" ${isChecked} style="width: 16px; height: 16px;">
                 <div style="flex: 1;">
                     <div style="font-size: 0.85rem; font-weight: 600;">${p.title || 'Pagamento'}</div>
                     <div style="font-size: 0.7rem; color: var(--text-tertiary);">${p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT') : 'Senza scadenza'}</div>
                 </div>
                 <div style="font-weight: 700; color: var(--brand-blue);">€ ${formatAmount(p.amount)}</div>
             </label>
-    `).join('');
+        `;
+    }).join('');
 }
 
 export function openInvoiceForm(id = null) {
@@ -984,10 +987,25 @@ export async function handleSaveInvoice(e) {
         if (result.error) throw result.error;
         showGlobalAlert(state.currentInvoiceId ? 'Fattura aggiornata!' : 'Fattura creata!', 'success');
 
-        // Update linked payments status if invoice is Saldata
-        if (status === 'Saldata' && selectedPayments.length > 0) {
-            for (const paymentId of selectedPayments) {
-                await supabase.from('payments').update({ status: 'Saldato' }).eq('id', paymentId);
+        // Update linked payments associations
+        if (result.data && result.data[0]) {
+            const savedId = result.data[0].id;
+            // Unlink any payments that were previously linked but are no longer selected
+            const { data: currentLinked } = await supabase.from('payments').select('id').eq('invoice_id', savedId);
+            if (currentLinked) {
+                const toUnlink = currentLinked.filter(p => !selectedPayments.includes(p.id));
+                for (const p of toUnlink) {
+                    await supabase.from('payments').update({ invoice_id: null }).eq('id', p.id);
+                }
+            }
+
+            // Link all selected payments
+            if (selectedPayments.length > 0) {
+                for (const paymentId of selectedPayments) {
+                    const updatePayload = { invoice_id: savedId };
+                    if (status === 'Saldata') updatePayload.status = 'Saldato';
+                    await supabase.from('payments').update(updatePayload).eq('id', paymentId);
+                }
             }
         }
 
@@ -996,6 +1014,7 @@ export async function handleSaveInvoice(e) {
         // Small delay to ensure Supabase persistence before fetch
         await new Promise(r => setTimeout(r, 500));
         await fetchInvoices();
+        await fetchPayments(true); // Force refresh of payments for the dashboard
 
         // Auto-switch year to the new invoice's year to ensure it's visible
         const invYear = new Date(data.invoice_date).getFullYear();
