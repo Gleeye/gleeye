@@ -3097,127 +3097,80 @@ function timeAgo(date) {
     return "poco fa";
 }
 
+const activityVocabulary = {
+    'todo': 'Da Fare', 'in_progress': 'In Corso', 'blocked': 'Bloccato', 
+    'review': 'In Revisione', 'done': 'Completata', 'attivita': 'Attività', 'task': 'Task'
+};
+const activityTranslate = (val) => activityVocabulary[val?.toLowerCase()] || val;
+
 function renderActivityFeed(container, activities) {
     if (!activities || activities.length === 0) {
         container.innerHTML = `<div style="padding: 2rem; color: var(--text-tertiary); text-align: center; font-size: 0.85rem;">Nessuna attività recente</div>`;
         return;
     }
 
-    container.innerHTML = activities.map(act => {
-        const time = timeAgo(act.created_at);
-        const actorName = act.authorName || (act.actor_user_ref ? 'Utente' : 'Sistema');
-        const avatar = act.avatarUrl || act.actor_avatar;
-        
-        const itemTitle = act.item?.title || act.item_title;
-        const orderTitle = act.order?.title || act.order_title;
-        const spaceName = act.space?.name || act.space_name;
-        
-        let contextHtml = '';
-        if (itemTitle) {
-            contextHtml = `<span class="activity-feed-object" onclick="window.openPmItemDetails('${act.item_ref}')">${itemTitle}</span>`;
-        } else if (orderTitle) {
-             contextHtml = `<span class="activity-feed-object" onclick="window.location.hash='dashboard'">${orderTitle}</span>`;
-        } else if (spaceName) {
-             contextHtml = `<span class="activity-feed-object">${spaceName}</span>`;
-        }
-
-        // --- Sophisticated Action Formatting ---
-        let mainAction = '';
-        let detailsHtml = '';
-        
-        const actionType = (act.action_type || '').toLowerCase();
-        const details = act.details || act.metadata || {};
-
-        // Field Translation Map
-        const fieldMap = {
-            'status': 'lo stato', 'title': 'il titolo', 'notes': 'le note', 
-            'description': 'la descrizione', 'priority': 'la priorità',
-            'due_date': 'la scadenza', 'start_date': 'la data inizio',
-            'user_ref': 'l\'assegnazione', 'cloud_links': 'i documenti',
-            'pm_item_ref': 'il task correlato'
-        };
-
-        const statusMap = {
-            'todo': 'DA FARE', 'in_progress': 'IN CORSO', 'blocked': 'BLOCCATO', 
-            'review': 'IN REVISIONE', 'done': 'COMPLETATO'
-        };
-        const t = (val) => statusMap[val?.toLowerCase()] || val;
-
-        if (actionType.includes('created')) {
-            mainAction = 'ha creato';
-        } else if (actionType.includes('status')) {
-            const newVal = t(details.new || details.new_value);
-            const oldVal = t(details.old || details.old_value);
-            mainAction = `ha cambiato lo stato di`;
-            if (newVal) {
-                detailsHtml = `<div class="activity-feed-details">
-                    <span class="activity-feed-dot"></span> Stato aggiornato a <strong>${newVal}</strong>
-                    ${oldVal ? `<span style="opacity:0.6; margin-left:8px;">(era ${oldVal})</span>` : ''}
-                </div>`;
-            }
-        } else if (actionType.includes('comment')) {
-            mainAction = 'ha aggiunto un commento a';
-            const body = details.body || details.new_value || details.new;
-            if (body) {
-                detailsHtml = `<div class="activity-feed-details" style="font-style: italic; border-left-color: var(--brand-blue); background: rgba(59, 130, 246, 0.03);">
-                    "${body.length > 80 ? body.substring(0, 80) + '...' : body}"
-                </div>`;
-            }
-        } else if (actionType.includes('user_ref')) {
-            mainAction = 'ha assegnato';
-            const user = details.new_value_name || details.new || 'un utente';
-            detailsHtml = `<div class="activity-feed-details">
-                Assegnato a: <strong>${user}</strong>
-            </div>`;
-        } else if (actionType.includes('cloud_links')) {
-            mainAction = 'ha aggiunto un documento a';
-        } else if (actionType.includes('due_date')) {
-            mainAction = 'ha cambiato la scadenza di';
-            const date = details.new || details.new_value;
-            if (date) {
-                detailsHtml = `<div class="activity-feed-details">
-                    Nuova scadenza: <strong>${new Date(date).toLocaleDateString('it-IT')}</strong>
-                </div>`;
-            }
-        } else {
-            // Generic Modification
-            const col = details.col || details.column || (details.diff ? Object.keys(details.diff)[0] : null);
-            const friendlyCol = fieldMap[col] || (col ? col.replace(/_/g, ' ') : null);
-            
-            mainAction = friendlyCol ? `ha modificato ${friendlyCol} di` : 'ha modificato';
-            
-            // If it's a diff or specific column modification, show the change if useful
-            if (col && !actionType.includes('note') && !actionType.includes('description')) {
-                const newVal = details.new || details.new_value || (details.diff ? details.diff[col] : null);
-                if (newVal && String(newVal).length < 50) {
-                    detailsHtml = `<div class="activity-feed-details">
-                        Nuovo valore: <strong>${newVal}</strong>
-                    </div>`;
+    container.innerHTML = `
+        <div class="activity-log-list" style="display: flex; flex-direction: column; padding: 1rem 0;">
+            ${activities.map(log => {
+                const details = log.details || log.metadata || {};
+                let description = details.description || log.description || '';
+                const actionType = (log.action_type || '').toLowerCase();
+                
+                const actorName = log.authorName || (log.actor_user_ref ? 'Utente' : 'Sistema');
+                const entityName = details.entity_name || log.item?.title || log.order?.title || log.space?.name || 'una risorsa';
+                
+                // Fallback Logic matches activity_log.js exactly
+                if (!description || description === 'UPDATE') {
+                    if (actionType.includes('status')) {
+                        const oldVal = activityTranslate(details.old || details.old_value);
+                        const newVal = activityTranslate(details.new || details.new_value);
+                        description = `ha cambiato lo stato di **${entityName}** ${oldVal && newVal ? `da **${oldVal}** a **${newVal}**` : `in **${newVal}**`}`;
+                    } else if (actionType.includes('user_ref')) {
+                        const targetUser = details.new_value_name || details.new || 'un utente';
+                        description = `ha assegnato **${entityName}** a **${targetUser}**`;
+                    } else if (actionType.includes('created')) {
+                        description = `ha creato l'attività **${entityName}**`;
+                    } else if (actionType.includes('comment')) {
+                        description = `ha aggiunto un commento in **${entityName}**`;
+                    } else if (actionType.includes('cloud_links')) {
+                        description = `ha aggiunto un documento a **${entityName}**`;
+                    } else {
+                        description = `ha effettuato una modifica a **${entityName}**`;
+                    }
                 }
-            }
-        }
-        
-        // System / Actor Styling
-        const isSystem = !act.actor_user_ref && actorName.toLowerCase() === 'sistema';
-        const actorAvatarHtml = avatar ? 
-            `<img src="${avatar}" class="activity-feed-avatar">` : 
-            `<div class="activity-feed-avatar" style="background: ${isSystem ? 'var(--surface-3)' : 'var(--brand-viola)'}; color: ${isSystem ? 'var(--text-tertiary)' : 'white'}; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; border-color: var(--surface-2);">${isSystem ? '<span class="material-icons-round" style="font-size:16px;">settings</span>' : actorName.charAt(0)}</div>`;
 
-        return `
-            <div class="activity-feed-item">
-                ${actorAvatarHtml}
-                <div class="activity-feed-content">
-                    <div class="activity-feed-actor" style="${isSystem ? 'color: var(--text-tertiary); font-weight: 600;' : ''}">${actorName}</div>
-                    <div class="activity-feed-action">${mainAction} ${contextHtml}</div>
-                    ${detailsHtml}
-                    <div class="activity-feed-time">
-                        <span class="material-icons-round" style="font-size: 14px;">schedule</span>
-                        ${time}
+                // Format Markdown to HTML
+                let formattedDesc = description.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-primary);">$1</strong>');
+                const timeStr = timeAgo(log.created_at);
+
+                return `
+                    <div class="timeline-item" onclick="window.openPmItemDetails('${log.item_ref}', '${log.space_ref || ''}')" style="display: flex; gap: 1rem; position: relative; padding: 0.75rem 1rem; cursor: pointer; transition: background 0.2s;">
+                        <!-- Timeline Line -->
+                        <div style="position: absolute; left: 30px; top: 42px; bottom: 0; width: 2px; background: #f1f5f9; z-index: 1;"></div>
+                        
+                        <div class="actor-avatar" style="flex-shrink: 0; position: relative; z-index: 2;">
+                            ${renderAvatar(log.actor || { full_name: actorName }, { size: 32, borderRadius: '50%' })}
+                        </div>
+                        
+                        <div class="log-content" style="flex: 1; padding-top: 2px;">
+                            <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+                                <span style="font-weight: 700; color: var(--text-primary);">${actorName}</span> 
+                                ${formattedDesc}
+                            </div>
+                            <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 4px; display: flex; align-items: center; gap: 6px;">
+                                <span class="material-icons-round" style="font-size: 0.8rem;">schedule</span>
+                                ${timeStr}
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-        `;
-    }).join('');
+                `;
+            }).join('')}
+        </div>
+        <style>
+            .timeline-item:hover { background: rgba(0,0,0,0.02); }
+            .timeline-item:last-child div[style*="background: #f1f5f9"] { display: none; }
+        </style>
+    `;
 }
 
 window.openPmItemDetails = function (itemId, spaceId) {
