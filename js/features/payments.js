@@ -19,7 +19,12 @@ export function renderPaymentsDashboard(container) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const allPending = state.payments.filter(p => p.status !== 'Completato' && p.status !== 'Done');
+        const allPending = state.payments.filter(p => 
+            p.status !== 'Completato' && 
+            p.status !== 'Done' && 
+            !p.passive_invoice_id && 
+            !p.invoice_id
+        );
 
         const categorize = (itemsList) => {
             const overdue = [];
@@ -1217,7 +1222,7 @@ async function handleBulkInvite() {
             await supabase.from('payments').update(updates).eq('id', p.id);
         }
         state.selectedPaymentIds = []; state.isBulkInviteMode = false;
-        await fetchPayments(); window.dispatchEvent(new HashChangeEvent("hashchange"));
+        await fetchPayments(true); window.dispatchEvent(new HashChangeEvent("hashchange"));
         showGlobalAlert('Invito multiplo inviato correttamente!', 'success');
     } catch (e) { showGlobalAlert(e.message, 'error'); }
 }
@@ -1243,7 +1248,7 @@ async function handleSendInvite(p, btn) {
         const updates = { status: 'Invito Inviato' };
         if (!p.due_date) updates.due_date = new Date().toISOString().split('T')[0];
         await supabase.from('payments').update(updates).eq('id', p.id);
-        await fetchPayments(); openPaymentModal(p.id); showGlobalAlert('Inviato!');
+        await fetchPayments(true); openPaymentModal(p.id); showGlobalAlert('Inviato!');
     } catch (e) { showGlobalAlert(e.message, 'error'); btn.disabled = false; btn.innerHTML = original; }
 }
 
