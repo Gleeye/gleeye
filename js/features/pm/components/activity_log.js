@@ -1,7 +1,8 @@
 import { renderAvatar } from '../../../modules/utils.js?v=1241';
 import { supabase } from '../../../modules/config.js';
 import { state } from '../../../modules/state.js';
-import { fetchPMActivityLogs } from '../../../modules/pm_api.js?v=1241';
+import { fetchPMActivityLogs } from '../../../modules/pm_api.js?v=6000';
+import { humanizeActivity } from '../../../modules/pm_activity_helper.js?v=6000';
 
 const activitySubscriptions = new Map();
 
@@ -109,7 +110,6 @@ export async function renderActivityLog(container, options = {}) {
     loadLogs();
 }
 
-import { humanizeActivity } from '../../../modules/pm_activity_helper.js';
 
 /**
  * Standard translations and formatting (Legacy, keeping for minimal usage or cleanup)

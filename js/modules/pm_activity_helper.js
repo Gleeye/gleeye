@@ -32,7 +32,9 @@ export function humanizeActivity(log, context = {}) {
     const containerName = log.order?.title || log.space?.name;
     const containerRef = (containerName && !context.hideContainer) ? ` in **${containerName}**` : '';
 
-    if (!description || description === 'UPDATE') {
+    const isKnownAction = actionType.includes('status') || actionType.includes('user_ref') || actionType.includes('created') || actionType.includes('comment') || actionType.includes('cloud_links') || actionType.includes('due_date');
+
+    if (!description || description === 'UPDATE' || isKnownAction) {
         if (actionType.includes('status')) {
             const oldVal = activityTranslate(details.old || details.old_value);
             const newVal = activityTranslate(details.new || details.new_value);
@@ -41,7 +43,7 @@ export function humanizeActivity(log, context = {}) {
             const targetUser = details.new_value_name || details.new || 'un utente';
             description = `ha assegnato **${entityName}**${containerRef} a **${targetUser}**`;
         } else if (actionType.includes('created')) {
-            description = `ha creato l'attività **${entityName}**`;
+            description = `ha creato **${entityName}**`;
             if (assignee) description += ` per **${assignee}**`;
             description += containerRef;
         } else if (actionType.includes('comment')) {
@@ -52,7 +54,7 @@ export function humanizeActivity(log, context = {}) {
              const date = details.new || details.new_value;
              const dateStr = date ? new Date(date).toLocaleDateString('it-IT') : 'una nuova data';
              description = `ha cambiato la scadenza di **${entityName}**${containerRef} al **${dateStr}**`;
-        } else {
+        } else if (!description || description === 'UPDATE') {
             description = `ha effettuato una modifica a **${entityName}**${containerRef}`;
         }
     }

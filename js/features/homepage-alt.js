@@ -3,10 +3,9 @@ import { supabase } from '../modules/config.js';
 import { formatAmount, renderAvatar } from '../modules/utils.js?v=2000';
 
 import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment, fetchGoogleCalendarBusy } from '../modules/api.js';
-import { fetchAppointment, updatePMItem, fetchMyActivityFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=6000';
-import { humanizeActivity } from '../modules/pm_activity_helper.js?v=6000';
-import { openHubDrawer } from './pm/components/hub_drawer.js?v=6000';
-import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=6000';
+import { fetchAppointment, updatePMItem, fetchMyActivityFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=5004';
+import { openHubDrawer } from './pm/components/hub_drawer.js?v=5004';
+import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=5004';
 
 // We reuse fetchMyBookings but we might need a tighter scoped fetch for "Today"
 // Actually fetchMyBookings stores in `eventsCache` (not exported) or `window`?
@@ -572,8 +571,17 @@ const getFirstName = (collab, profile) => {
     return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
 };
 
-export async function renderHomepage(container) {
+export async function renderHomepageAlt(container) {
     console.log("Rendering Homepage...");
+    
+    // Inject alt CSS if not present
+    if (!document.getElementById('homepage-alt-style')) {
+        const link = document.createElement('link');
+        link.id = 'homepage-alt-style';
+        link.rel = 'stylesheet';
+        link.href = 'css/components/homepage-alt.css?v=' + new Date().getTime();
+        document.head.appendChild(link);
+    }
 
     const user = state.session?.user;
     if (!user) return;
@@ -733,145 +741,74 @@ export async function renderHomepage(container) {
 
     // Skeleton
     container.innerHTML = `
-        <div class="homepage-container">
-            <!-- Content raised: Greeting in top-bar, context in timeline header -->
+        <div class="homepage-alt-container">
             <div class="hp-mobile-spacer" style="height: 0.5rem;"></div>
 
-            <!-- Top Grid: Timeline + My Activities -->
-            <!-- Top Grid: Timeline + My Activities -->
-            <div class="hp-top-section">
-                <!-- LEFT: TIMELINE (Main) -->
-                <div class="hp-main-timeline">
-                    <!-- HEADER (Date Nav) -->
-                    <div class="hp-nav-header">
-                         <div class="greeting-mobile-only" style="display: none; margin-bottom: 0.5rem;">
-                            <h1 style="font-size: 1.5rem; margin: 0;">${greetingText}, ${firstName}!</h1>
-                         </div>
-                         <h2 id="hp-date-description" class="hp-date-text">Ecco cosa c'è in programma per oggi, ${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
-                         
-                         <div class="hp-nav-controls">
-                             <!-- Main Group -->
-                             <div class="hp-pill-group">
-                                 <button onclick="setHomepageMode('today')" id="btn-mode-today" class="nav-pill active-pill">Oggi</button>
-                                 <button onclick="setHomepageMode('tomorrow')" id="btn-mode-tomorrow" class="nav-pill">Domani</button>
-                                 <div class="hp-pill-divider"></div>
-                                 <button onclick="setHomepageMode('week')" id="btn-mode-week" class="nav-pill">Settimana</button>
-                             </div>
-
-                             <!-- Separated Date Button -->
-                             <div style="position: relative;">
-                                <button id="hp-date-picker-btn" onclick="toggleCustomDatePicker(this)" class="hp-date-btn">
-                                   <span class="material-icons-round" style="font-size: 18px; color: #8b5cf6;">calendar_today</span> 
-                                   <span>Data</span>
-                                </button>
-                             </div>
-                         </div>
+            <!-- TOP GRID: Only the Dark Block (My Activities) spanning horizontally -->
+            <div class="hp-alt-top-panel" style="margin-bottom: 2rem;">
+                <div class="glass-card side-activities-card hp-alt-horizontal-card">
+                    <div class="hp-v6-controls">
+                        <div onclick="window.setHpFilter('task', this)" class="hp-v6-pill ${(window.hpActivityFilter || 'task') === 'task' ? 'active' : ''}" title="Task">
+                            <span class="material-icons-round">check_circle</span>
+                            <span class="tab-count"></span>
+                        </div>
+                        <div onclick="window.setHpFilter('event', this)" class="hp-v6-pill ${window.hpActivityFilter === 'event' ? 'active' : ''}" title="Appuntamenti">
+                            <span class="material-icons-round">calendar_today</span>
+                            <span class="tab-count"></span>
+                        </div>
+                        <div id="hp-top-add-btn" onclick="window.toggleHpQuickEntry(this)" class="hp-v6-add-btn" title="Crea Nuovo">
+                            <span class="material-icons-round">add</span>
+                        </div>
+                    </div>
+                    
+                    <div class="hp-activities-list-container hp-alt-horizontal-list" id="hp-activities-list">
+                        <!-- Content Injected Below -->
                     </div>
 
-                    <!-- TIMELINE WRAPPER -->
-                    <div id="hp-timeline-wrapper" class="hp-timeline-card">
-                        <!-- Rendered by JS -->
-                    </div>
-                </div>
-
-                <!-- RIGHT: MY ACTIVITIES (Side Panel) -->
-                <div class="hp-sidebar-panel">
-                    <!-- "MY ACTIVITIES" CARD -->
-                    <div class="glass-card side-activities-card">
-                        <!-- SEGMENTED CONTROL TABS (Icons) -->
-                        <div class="hp-v6-controls">
-                            <div onclick="window.setHpFilter('task', this)" class="hp-v6-pill ${(window.hpActivityFilter || 'task') === 'task' ? 'active' : ''}" title="Task">
-                                <span class="material-icons-round">check_circle</span>
-                                <span class="tab-count"></span>
-                            </div>
-                            <div onclick="window.setHpFilter('event', this)" class="hp-v6-pill ${window.hpActivityFilter === 'event' ? 'active' : ''}" title="Appuntamenti">
-                                <span class="material-icons-round">calendar_today</span>
-                                <span class="tab-count"></span>
-                            </div>
-                            <div id="hp-top-add-btn" onclick="window.toggleHpQuickEntry(this)" class="hp-v6-add-btn" title="Crea Nuovo">
-                                <span class="material-icons-round">add</span>
-                            </div>
-                        </div>
-                        
-                        <div class="hp-activities-list-container" id="hp-activities-list">
-                            <!-- Content Injected Below -->
-                        </div>
-
-                        <div style="display: flex; align-items: center; gap: 8px; margin-top: auto;">
-                            <button id="hp-footer-action-btn" class="btn btn-primary vedi-agenda-btn" onclick="window.location.hash='#my-assignments'">
-                                ${(window.hpActivityFilter === 'event') ? 'Vedi Agenda' : 'Lista task'}
-                            </button>
-                            <div id="hp-overdue-filter" onclick="window.toggleOverdueFilter()" 
-                                class="overdue-filter-btn ${window.hpShowOverdue ? 'active' : ''}" 
-                                title="Mostra Scadute"
-                                style="display: ${(window.hpActivityFilter === 'task' || !window.hpActivityFilter) ? 'flex' : 'none'};">
-                                <span class="material-icons-round">history</span>
-                            </div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: auto;">
+                        <button id="hp-footer-action-btn" class="btn btn-primary vedi-agenda-btn" onclick="window.location.hash='#my-assignments'">
+                            ${(window.hpActivityFilter === 'event') ? 'Vedi Agenda' : 'Lista task'}
+                        </button>
+                        <div id="hp-overdue-filter" onclick="window.toggleOverdueFilter()" 
+                            class="overdue-filter-btn ${window.hpShowOverdue ? 'active' : ''}" 
+                            title="Mostra Scadute"
+                            style="display: ${(window.hpActivityFilter === 'task' || !window.hpActivityFilter) ? 'flex' : 'none'};">
+                            <span class="material-icons-round">history</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Bottom Grid -->
-            <div class="bottom-grid hp-bottom-grid">
+            <!-- BOTTOM: TIMELINE (Main) expanding horizontally -->
+            <div class="hp-main-timeline hp-alt-timeline">
+                <!-- HEADER (Date Nav) -->
+                <div class="hp-nav-header">
+                     <div class="greeting-mobile-only" style="display: none; margin-bottom: 0.5rem;">
+                        <h1 style="font-size: 1.5rem; margin: 0;">${greetingText}, ${firstName}!</h1>
+                     </div>
+                     <h2 id="hp-date-description" class="hp-date-text">ALT: Ecco cosa c'è in programma per oggi, ${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
+                     
+                     <div class="hp-nav-controls">
+                         <div class="hp-pill-group">
+                             <button onclick="setHomepageMode('today')" id="btn-mode-today" class="nav-pill active-pill">Oggi</button>
+                             <button onclick="setHomepageMode('tomorrow')" id="btn-mode-tomorrow" class="nav-pill">Domani</button>
+                             <div class="hp-pill-divider"></div>
+                             <button onclick="setHomepageMode('week')" id="btn-mode-week" class="nav-pill">Settimana</button>
+                         </div>
 
-                <!-- LEFT: PROJECTS -->
-                <div class="dashboard-widget">
-                    <div class="widget-header hp-widget-header">
-                        <h3 class="widget-title" id="hp-bottom-title">Progetti</h3>
-                        
-                        <div class="hp-widget-tabs">
-                            <button id="hp-bottom-tab-projects" onclick="window.setHpBottomTab('projects')" class="timeline-btn active">
-                                <span id="hp-bottom-projects-label">Commesse</span>
+                         <div style="position: relative;">
+                            <button id="hp-date-picker-btn" onclick="toggleCustomDatePicker(this)" class="hp-date-btn">
+                               <span class="material-icons-round" style="font-size: 18px; color: #8b5cf6;">calendar_today</span> 
+                               <span>Data</span>
                             </button>
-                            <button id="hp-bottom-tab-internal" onclick="window.setHpBottomTab('internal')" class="timeline-btn">
-                                Progetti Interni
-                            </button>
-                        </div>
-                        
-                        <div style="flex: 1;"></div>
-                        <button class="timeline-btn vedi-tutti-btn" onclick="window.location.hash='dashboard'">Vedi Tutti</button>
-                    </div>
-                    
-                    <div id="hp-bottom-kpis"></div>
-                    <div id="hp-bottom-content" class="premium-card-list custom-scrollbar hp-list-content">
-                         <span class="loader small"></span>
-                    </div>
+                         </div>
+                     </div>
                 </div>
 
-                <!-- MIDDLE: ACTIVITIES -->
-                <div class="dashboard-widget">
-                    <div class="widget-header hp-widget-header">
-                        <h3 class="widget-title">Le mie attività</h3>
-                        
-                        <div class="hp-widget-tabs">
-                            <button id="hp-act-tab-projects" onclick="window.setHpActivityTab('projects')" class="timeline-btn active">
-                                Commesse
-                            </button>
-                            <button id="hp-act-tab-internal" onclick="window.setHpActivityTab('internal')" class="timeline-btn">
-                                Progetti Interni
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div id="hp-activities-bottom-kpis"></div>
-                    <div id="hp-activities-bottom-content" class="premium-card-list custom-scrollbar hp-list-content">
-                         <span class="loader small"></span>
-                    </div>
+                <!-- TIMELINE WRAPPER -->
+                <div id="hp-timeline-wrapper" class="hp-timeline-card">
+                    <!-- Rendered by JS -->
                 </div>
-
-                <!-- RIGHT: ACTIVITY FEED -->
-                <div class="dashboard-widget">
-                    <div class="widget-header hp-widget-header">
-                        <h3 class="widget-title">Activity Feed</h3>
-                        <div class="hp-widget-tabs" id="hp-feed-tabs-container">
-                        </div>
-                    </div>
-                    <div id="hp-feed-content" class="premium-card-list custom-scrollbar hp-list-content">
-                         <span class="loader small"></span>
-                    </div>
-                </div>
-
             </div>
         </div>
     `;
@@ -3098,6 +3035,7 @@ function timeAgo(date) {
     return "poco fa";
 }
 
+import { humanizeActivity } from '../modules/pm_activity_helper.js';
 
 function renderActivityFeed(container, activities) {
     if (!activities || activities.length === 0) {
