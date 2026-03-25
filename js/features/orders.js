@@ -1968,9 +1968,9 @@ export function initOrderAssignmentModal() {
                             </div>
                         </div>
                         <div>
-                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem;">IMPORTO TOTALE (€)</label>
-                            <input type="number" id="asg-amount" class="modal-input" style="width: 100%; font-size: 1.5rem; font-weight: 700; color: var(--brand-blue);" placeholder="0.00">
-                            <p style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.5rem;">L'importo verrà calcolato automaticamente dai servizi selezionati, ma puoi modificarlo manualmente.</p>
+                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem;">IMPORTO TOTALE INCARICO (COSTO €)</label>
+                            <input type="number" id="asg-amount" class="modal-input" style="width: 100%; font-size: 1.5rem; font-weight: 700; color: #ef4444;" placeholder="0.00">
+                            <p style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.5rem;">L'importo è calcolato automaticamente in base ai <strong>costi interni</strong> dei servizi nel tariffario.</p>
                         </div>
                     </div>
 
@@ -2123,8 +2123,8 @@ window.asgNextStep = async () => {
         }
 
         if (window.asgState.step === 2) {
-            // Calculate total amount from selected services state
-            const total = window.asgState.selectedServices.reduce((sum, s) => sum + (s.total_price || 0), 0);
+            // Calculate total amount from selected services state (Switch to total_cost for Assignments)
+            const total = window.asgState.selectedServices.reduce((sum, s) => sum + (s.total_cost || 0), 0);
             document.getElementById("asg-amount").value = total.toFixed(2);
         }
 
@@ -2248,73 +2248,70 @@ window.loadCollaboratorServicesForAssignment = async () => {
         window.asgState.selectedServices = []; // Reset selected for new flow
         document.getElementById('asg-services-list').innerHTML = '<div style="text-align: center; color: var(--text-tertiary); padding: 1rem; font-size: 0.85rem;">Nessun servizio selezionato</div>';
 
-        // 1. Get Collaborator Tags/Role
-        // Safety check
-        if (!window.asgState.collaborator) {
-            console.error("Missing collaborator state in loadCollaboratorServicesForAssignment");
-            throw new Error("Stato collaboratore mancante");
-        }
+        // 1. Fetch data FIRST to ensure we have collaborator details (role/tags) for filtering
+        const { fetchServices, fetchCollaborators } = await import('../modules/api.js?v=1007');
+        if (!state.services || state.services.length === 0) await fetchServices();
+        if (!state.collaborators || state.collaborators.length === 0) await fetchCollaborators();
 
+        // 2. Identify collaborator and their specialized tags/roles
         const collabId = window.asgState.collaborator.id;
-        let collaborator = state.collaborators ? state.collaborators.find(c => c.id === collabId) : null;
+        const collaborator = state.collaborators.find(c => c.id === collabId);
 
-        if (!collaborator) {
-            console.warn("Collaborator not found in global state, attempting fetch or proceeding with limited info");
-            // Attempt to use basic info from asgState if possible, or wait for fetch if we had a mechanism.
-            // For now, if we can't find details, we can't filter services by tag.
-            // Let's create a dummy object to allow proceeding (maybe show all services?)
-            collaborator = { id: collabId, tags: [], role: '' };
-        }
-
-        let collabTags = [];
         let normalizedCollabTags = [];
-
         if (collaborator) {
+            let tags = [];
             if (collaborator.tags) {
-                collabTags = Array.isArray(collaborator.tags) ? collaborator.tags : (typeof collaborator.tags === 'string' ? collaborator.tags.split(',') : []);
+                if (typeof collaborator.tags === 'string') {
+                    try { 
+                        const parsed = JSON.parse(collaborator.tags);
+                        tags = Array.isArray(parsed) ? parsed : [collaborator.tags];
+                    } catch(e) { tags = collaborator.tags.split(',').map(t => t.trim()); }
+                } else if (Array.isArray(collaborator.tags)) {
+                    tags = collaborator.tags;
+                }
             }
-            normalizedCollabTags = collabTags.map(t => t.trim().toLowerCase());
-            if (collaborator.role) normalizedCollabTags.push(collaborator.role.toLowerCase());
+            normalizedCollabTags = tags.map(t => t.trim().toLowerCase());
+            if (collaborator.role) normalizedCollabTags.push(collaborator.role.trim().toLowerCase());
         }
 
-        // 2. Fetch Services (if not loaded)
-        const { fetchServices } = await import('../modules/api.js?v=1000' + Date.now());
-        if (!state.services || state.services.length === 0) {
-            await fetchServices();
-        }
+        // 3. Filter services by department/intersecting tags
+        const allServices = state.services || [];
+        const filtered = allServices.filter(s => {
+            // Ignore dummy/placeholder services if specifically not wanted
+            if (s.name === 'Servizio Base') return false; 
 
-        // 3. Filter Services
-        // "filtrati per i reparti a cui appartiene il collaboratore"
-        // Match if ANY of service tags overlap with collaborator tags
-
-        const relevantServices = (state.services || []).filter(s => {
             let serviceTags = [];
             if (s.tags) {
                 serviceTags = Array.isArray(s.tags) ? s.tags : (typeof s.tags === 'string' ? s.tags.split(',') : []);
             }
-            // If service has no tags, should it be shown? Assuming restricted unless matched.
+            const normalizedServiceTags = serviceTags.map(t => t.trim().toLowerCase());
 
-            // Check intersection
-            const hasMatch = serviceTags.some(tag => normalizedCollabTags.includes(tag.trim().toLowerCase()));
+            // General services (no tags) are shown to everyone
+            if (normalizedServiceTags.length === 0) return true;
 
-            // Fallback: If collaborator has NO tags, maybe show nothing or all?
-            // If normalizedCollabTags is empty, hasMatch is false.
-            // If we want to show ALL services when no tags match (e.g. data missing), uncomment below:
-            // if (normalizedCollabTags.length === 0) return true; 
+            // If collaborator has no tags/roles assigned, show all services to be safe
+            if (normalizedCollabTags.length === 0) return true;
 
-            return hasMatch;
-        });
+            // CROSS-MATCHING Logic: Match if tag is in collab tags, OR role contains tag, OR vice-versa
+            // e.g., service tag "Foto" matches role "Fotografo"
+            return normalizedServiceTags.some(sTag => 
+                normalizedCollabTags.some(cTag => cTag.includes(sTag) || sTag.includes(cTag))
+            );
+        }).sort((a, b) => a.name.localeCompare(b.name));
 
-        // 4. Populate Dropdown
-        if (relevantServices.length === 0) {
-            selector.innerHTML = '<option value="">Nessun servizio compatibile trovato</option>';
-            // Fallback: allow seeing all services if filtering yielded nothing?
-            // selector.innerHTML += '<option disabled>---</option>';
-            // (state.services || []).forEach(s => selector.innerHTML += ...);
-            selector.disabled = true;
-        } else {
-                relevantServices.map(s => `<option value="${s.id}" data-type="${s.type}" data-price="${s.price || 0}" data-cost="${s.cost || 0}">${s.name}</option>`).join('');
+        // 4. Populate Dropdown (Return to filtered list as per user preference)
+        if (filtered.length > 0) {
+            selector.innerHTML = '<option value="">Seleziona un servizio...</option>' + 
+                filtered.map(s => `<option value="${s.id}" data-type="${s.type || 'tariffa spot'}" data-price="${s.price || 0}" data-cost="${s.cost || 0}">${s.name}</option>`).join('');
             selector.disabled = false;
+        } else {
+            // Fallback: if no services match the specific department, show everything but labeled as full catalog
+            selector.innerHTML = '<option value="">Seleziona dal catalogo completo...</option>' + 
+                allServices.map(s => `<option value="${s.id}" data-type="${s.type || 'tariffa spot'}" data-price="${s.price || 0}" data-cost="${s.cost || 0}">${s.name}</option>`).join('');
+            selector.disabled = allServices.length === 0;
+            if (allServices.length === 0) {
+                selector.innerHTML = '<option value="">Nessun servizio nel Tariffario</option>';
+            }
         }
 
     } catch (e) {
@@ -2404,7 +2401,7 @@ window.addServiceToAssignmentList = () => {
     }
 
     // Add to state
-    console.log("Adding service to state:", { serviceId, name, qty, total: unitPrice * qty });
+    console.log("Adding service to assignment state:", { serviceId, name, qty, total_cost: unitCost * qty });
     window.asgState.selectedServices.push({
         id: serviceId, // Catalog ID
         name: name,

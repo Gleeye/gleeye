@@ -1109,14 +1109,7 @@ export function openPaymentModal(id) {
     const modal = document.getElementById('payment-modal');
     if (!modal) return;
 
-    let paymentCode = p.title || 'Pagamento';
-    if (p.orders?.order_number) paymentCode += ` ${p.orders.order_number}`;
-
-    let entityName = '';
-    if (p.payment_type === 'Cliente' && p.clients?.business_name) entityName = p.clients.business_name;
-    else if (p.payment_type === 'Collaboratore' && p.collaborators?.full_name) entityName = p.collaborators.full_name;
-    else if (p.payment_type === 'Fornitore' && (p.suppliers?.name || p.collaborators?.full_name)) entityName = p.suppliers?.name || p.collaborators?.full_name;
-    if (entityName) paymentCode += ` ${entityName}`;
+    const paymentCode = p.title || 'Pagamento';
 
     document.getElementById('pm-code-badge').textContent = paymentCode;
 

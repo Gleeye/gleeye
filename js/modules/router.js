@@ -209,7 +209,7 @@ function render() {
                 break;
             case 'order-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Ordine';
-                import('../features/orders.js?v=2000').then(m => m.renderOrderDetail(contentArea));
+                import('../features/orders.js?v=2005').then(m => m.renderOrderDetail(contentArea));
                 break;
             case 'suppliers':
                 state.currentPage = 'suppliers';
@@ -248,11 +248,11 @@ function render() {
                 break;
             case 'assignment-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Incarico';
-                import('../features/assignments.js?v=2000').then(m => m.renderAssignmentDetail(contentArea));
+                import('../features/assignments.js?v=2005').then(m => m.renderAssignmentDetail(contentArea));
                 break;
             case 'assignments':
                 if (pageTitle) pageTitle.textContent = 'Incarichi';
-                import('../features/assignments.js?v=2000').then(m => m.renderAssignmentsDashboard(contentArea));
+                import('../features/assignments.js?v=2005').then(m => m.renderAssignmentsDashboard(contentArea));
                 break;
             case 'payments':
                 if (pageTitle) pageTitle.textContent = 'Dashboard Pagamenti';

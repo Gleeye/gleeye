@@ -70,7 +70,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         // Only fetch orders if we are in commessa mode
         if (!isInternal && (!state.orders || state.orders.length === 0)) promises.push(fetchOrders());
 
-        const { fetchAssignments, fetchCollaborators } = await import('../../modules/api.js?v=1000');
+        const { fetchAssignments, fetchCollaborators } = await import('../../modules/api.js?v=2010');
         if (!state.assignments || state.assignments.length === 0) promises.push(fetchAssignments());
         if (!state.collaborators || state.collaborators.length === 0) promises.push(fetchCollaborators());
 
@@ -655,14 +655,14 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                             ${assignments.map(a => {
                     const collab = state.collaborators?.find(c => c.id === a.collaborator_id);
                     return `
-                                                    <div style="display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--glass-border);">
+                                                    <a href="#assignment-detail/${a.id}" style="display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--glass-border); text-decoration: none; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.background='white'; this.style.transform='translateX(4px)';" onmouseout="this.style.borderColor='var(--glass-border)'; this.style.background='var(--surface-1)'; this.style.transform='none';">
                                                         ${renderAvatar(collab || { full_name: 'Collab' }, { size: 28, borderRadius: '6px' })}
                                                         <div style="min-width: 0; flex: 1;">
                                                             <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${collab?.full_name || 'Incaricato'}</div>
                                                             <div style="font-size: 0.6rem; color: var(--text-tertiary);">${a.description || 'Incarico'}</div>
                                                         </div>
                                                         <div style="width: 8px; height: 8px; border-radius: 50%; background: ${a.status === 'completato' ? '#10b981' : '#f59e0b'};"></div>
-                                                    </div>
+                                                    </a>
                                                 `;
                 }).join('')}
                                         </div>
@@ -904,6 +904,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                 <button class="hub-tab" data-tab="feed"><span class="material-icons-round">history</span>Feed</button>
                                 <button class="hub-tab" data-tab="board"><span class="material-icons-round">account_tree</span>Board</button>
                                 <button class="hub-tab" data-tab="appointments"><span class="material-icons-round">event</span>Appuntamenti</button>
+                                ${!isInternal && order ? `<button class="hub-tab" data-tab="incarichi"><span class="material-icons-round">assignment_ind</span>Incarichi</button>` : ''}
                                 ${space?.is_cluster ? `<button id="mobile-projects-tab" class="hub-tab" data-tab="projects" style="display: none;"><span class="material-icons-round">lan</span>Progetti</button>` : ''}
                                 <button class="hub-tab" data-tab="docs"><span class="material-icons-round">description</span>Documenti</button>
                                 
@@ -1796,11 +1797,11 @@ function renderIncarichiTab(container, order) {
         const collab = state.collaborators?.find(c => c.id === a.collaborator_id);
         // Count items linked to this assignment (would need pm_item_incarichi data)
         return `
-                        <div class="glass-card incarico-card" data-id="${a.id}" style="padding: 1.25rem; cursor: pointer; transition: all 0.2s;">
+                        <a href="#assignment-detail/${a.id}" class="glass-card incarico-card" data-id="${a.id}" style="padding: 1.25rem; cursor: pointer; transition: all 0.2s; text-decoration: none; display: block;" onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.borderColor='var(--glass-border)'; this.style.transform='none';">
                             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
                                     ${renderAvatar(collab || { full_name: 'Collaboratore' }, { size: 44, borderRadius: '50%', fontSize: '1rem' })}
                                 <div style="flex: 1;">
-                                    <div style="font-weight: 600;">${collab?.full_name || 'Collaboratore'}</div>
+                                    <div style="font-weight: 600; color: var(--text-primary);">${collab?.full_name || 'Collaboratore'}</div>
                                     <div class="text-xs" style="color: var(--text-secondary);">${a.description || 'Incarico'}</div>
                                 </div>
                             </div>
@@ -1810,7 +1811,7 @@ function renderIncarichiTab(container, order) {
                                     ${a.status || 'attivo'}
                                 </span>
                             </div>
-                        </div>
+                        </a>
                     `;
     }).join('')}
             </div>

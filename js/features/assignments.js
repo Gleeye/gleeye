@@ -248,8 +248,8 @@ export async function renderAssignmentDetail(container) {
                         <div class="glass-card" style="padding: 1.5rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), transparent); border: 2px solid rgba(139, 92, 246, 0.15);">
                             <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem;">
                                 <div style="flex: 1;">
-                                    <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Budget Incarico (Ricavo)</div>
-                                    <div style="font-size: 2rem; font-weight: 800; line-height: 1; color: #8b5cf6; font-family: var(--font-titles);">${formatAmount(budget)}€</div>
+                                    <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Importo Incarico (Costo)</div>
+                                    <div style="font-size: 2rem; font-weight: 800; line-height: 1; color: #ef4444; font-family: var(--font-titles);">${formatAmount(budget)}€</div>
                                 </div>
                                 <button class="icon-btn" onclick="window.editAssignmentEconomics('${assignment.id}')" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
                                     <span class="material-icons-round">edit</span>
@@ -258,11 +258,11 @@ export async function renderAssignmentDetail(container) {
 
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding-top: 1rem; border-top: 1px solid rgba(139, 92, 246, 0.1);">
                                 <div>
-                                    <div style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Costo Totale</div>
-                                    <div style="font-size: 1.1rem; font-weight: 700; color: #ef4444;">${formatAmount(totalCost)}€</div>
+                                    <div style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Tariffario Suggerito</div>
+                                    <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-secondary);">${formatAmount(totalCost)}€</div>
                                 </div>
                                 <div>
-                                    <div style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Margine</div>
+                                    <div style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Delta Tariffario</div>
                                     <div style="font-size: 1.1rem; font-weight: 700; color: ${margin >= 0 ? '#10b981' : '#ef4444'};">
                                         ${formatAmount(margin)}€
                                         <span style="font-size: 0.75rem; font-weight: 500; opacity: 0.8; margin-left: 2px;">(${marginPct}%)</span>
@@ -408,7 +408,7 @@ function renderAssignmentServices(services) {
                     <div style="font-weight: 400; color: var(--text-primary);">${s.services?.name || s.legacy_service_name || s.name}</div>
                     <div style="text-align: right; color: var(--text-secondary);">${s.quantity || s.hours || '-'}</div>
                     <div style="text-align: right; color: var(--text-secondary);">${formatAmount(s.unit_cost)}€</div>
-                    <div style="text-align: right; font-weight: 400; color: var(--brand-blue);">${formatAmount(s.total_cost)}€</div>
+                    <div style="text-align: right; font-weight: 400; color: #ef4444;">${formatAmount(s.total_cost)}€</div>
                 </div>
             `).join('')}
         </div>
@@ -793,7 +793,7 @@ export function calculateProposedAssignmentPayments(assignment, startDateStr) {
 
     if (mode === 'saldo') {
         payments.push({
-            title: `Saldo Incarico ${assignment.legacy_id || ''}`,
+            title: `Saldo-${assignment.legacy_id || ''}`,
             amount: total,
             due_date: getDueDate(0),
             payment_mode: 'Saldo',
@@ -808,7 +808,7 @@ export function calculateProposedAssignmentPayments(assignment, startDateStr) {
         const depPct = assignment.deposit_percentage || 30;
         const depVal = total * (depPct / 100);
         payments.push({
-            title: `Anticipo (${depPct}%) Incarico ${assignment.legacy_id || ''}`,
+            title: `Anticipo (${depPct}%)-${assignment.legacy_id || ''}`,
             amount: depVal,
             due_date: getDueDate(0),
             payment_mode: 'Anticipo',
@@ -819,7 +819,7 @@ export function calculateProposedAssignmentPayments(assignment, startDateStr) {
             order_id: assignment.order_id
         });
         payments.push({
-            title: `Saldo Incarico ${assignment.legacy_id || ''}`,
+            title: `Saldo-${assignment.legacy_id || ''}`,
             amount: total - depVal,
             due_date: getDueDate(1),
             payment_mode: 'Saldo',
@@ -835,7 +835,7 @@ export function calculateProposedAssignmentPayments(assignment, startDateStr) {
         const val = total / n;
         for (let i = 0; i < n; i++) {
             payments.push({
-                title: `Rata ${i + 1}/${n} Incarico ${assignment.legacy_id || ''}`,
+                title: `Rata ${i + 1}/${n}-${assignment.legacy_id || ''}`,
                 amount: val,
                 due_date: getDueDate(i, assignment.installment_type),
                 payment_mode: 'Rata',
@@ -856,7 +856,7 @@ export function calculateProposedAssignmentPayments(assignment, startDateStr) {
         const rateVal = remainder / n;
 
         payments.push({
-            title: `Anticipo (${depPct}%) Incarico ${assignment.legacy_id || ''}`,
+            title: `Anticipo (${depPct}%)-${assignment.legacy_id || ''}`,
             amount: depVal,
             due_date: getDueDate(0),
             payment_mode: 'Anticipo',
@@ -869,7 +869,7 @@ export function calculateProposedAssignmentPayments(assignment, startDateStr) {
 
         for (let i = 0; i < n; i++) {
             payments.push({
-                title: `Rata ${i + 1}/${n} Incarico ${assignment.legacy_id || ''}`,
+                title: `Rata ${i + 1}/${n}-${assignment.legacy_id || ''}`,
                 amount: rateVal,
                 due_date: getDueDate(i + 1, assignment.installment_type),
                 payment_mode: 'Rata',
@@ -891,7 +891,7 @@ export function calculateProposedAssignmentPayments(assignment, startDateStr) {
         const rateVal = remainder / n;
 
         payments.push({
-            title: `Anticipo (${depPct}%) Incarico ${assignment.legacy_id || ''}`,
+            title: `Anticipo (${depPct}%)-${assignment.legacy_id || ''}`,
             amount: depVal,
             due_date: getDueDate(0),
             payment_mode: 'Anticipo',
@@ -904,7 +904,7 @@ export function calculateProposedAssignmentPayments(assignment, startDateStr) {
 
         for (let i = 0; i < n; i++) {
             payments.push({
-                title: `Rata ${i + 1}/${n} Incarico ${assignment.legacy_id || ''}`,
+                title: `Rata ${i + 1}/${n}-${assignment.legacy_id || ''}`,
                 amount: rateVal,
                 due_date: getDueDate(i + 1, assignment.installment_type),
                 payment_mode: 'Rata',
@@ -917,7 +917,7 @@ export function calculateProposedAssignmentPayments(assignment, startDateStr) {
         }
 
         payments.push({
-            title: `Saldo Finale (${balPct}%) Incarico ${assignment.legacy_id || ''}`,
+            title: `Saldo Finale (${balPct}%)-${assignment.legacy_id || ''}`,
             amount: balVal,
             due_date: getDueDate(n + 1),
             payment_mode: 'Saldo',
