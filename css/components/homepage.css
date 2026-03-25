@@ -1179,23 +1179,43 @@
 }
 
 .activity-feed-item {
-    padding: 1rem;
-    border-bottom: 1px solid var(--glass-border);
+    padding: 1.25rem 1rem;
     display: flex;
-    gap: 12px;
+    gap: 16px;
     align-items: flex-start;
-    transition: background 0.2s;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    margin-bottom: 0px;
 }
 
 .activity-feed-item:hover {
-    background: rgba(0, 0, 0, 0.02);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.activity-feed-item::before {
+    content: '';
+    position: absolute;
+    left: 26px; /* center of avatar/circle */
+    top: 3.5rem;
+    bottom: -1rem;
+    width: 2px;
+    background: var(--surface-2);
+    opacity: 0.5;
+}
+
+.activity-feed-item:last-child::before {
+    display: none;
 }
 
 .activity-feed-avatar {
     width: 32px;
     height: 32px;
-    border-radius: 8px;
+    border-radius: 50%;
     flex-shrink: 0;
+    z-index: 2;
+    border: 2px solid white;
+    box-shadow: 0 0 0 1px var(--surface-2);
 }
 
 .activity-feed-content {
@@ -1204,25 +1224,61 @@
 }
 
 .activity-feed-actor {
-    font-weight: 700;
+    font-weight: 800;
     font-size: 0.85rem;
     color: var(--text-primary);
+    margin-bottom: 2px;
 }
 
 .activity-feed-action {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.activity-feed-object {
+    font-weight: 800;
+    color: var(--brand-blue);
+    cursor: pointer;
+    background: rgba(59, 130, 246, 0.08);
+    padding: 1px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    transition: all 0.2s;
+}
+
+.activity-feed-object:hover {
+    background: var(--brand-blue);
+    color: white;
+}
+
+.activity-feed-time {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.activity-feed-details {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: var(--surface-1);
+    border-radius: 12px;
+    border-left: 3px solid var(--brand-viola);
+    font-size: 0.75rem;
     color: var(--text-secondary);
     line-height: 1.4;
 }
 
-.activity-feed-object {
-    font-weight: 600;
-    color: var(--brand-blue);
-    cursor: pointer;
-}
-
-.activity-feed-time {
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-    margin-top: 4px;
+.activity-feed-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--brand-blue);
+    display: inline-block;
 }

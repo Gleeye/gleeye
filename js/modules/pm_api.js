@@ -1416,7 +1416,7 @@ export async function fetchPMActivityLogs(arg1 = null, arg2 = null, arg3 = null,
     let query = supabase
         .from('pm_activity_logs')
         .select(`
-            id, action_type, details, created_at, item_ref, space_ref, order_ref,
+            id, action_type, details, created_at, item_ref, space_ref, order_ref, actor_user_ref,
             actor:actor_user_ref ( full_name, avatar_url, email ),
             item:item_ref ( title, item_type ),
             order:order_ref ( title ),

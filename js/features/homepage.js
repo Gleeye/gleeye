@@ -555,11 +555,20 @@ export async function fetchInternalProjects(collaboratorId, userId) {
 }
 
 const getFirstName = (collab, profile) => {
-    if (collab?.first_name) return collab.first_name;
-    if (collab?.full_name) return collab.full_name.split(' ')[0];
-    if (profile?.first_name) return profile.first_name;
-    if (profile?.full_name) return profile.full_name.split(' ')[0];
-    return 'Utente';
+    let name = collab?.first_name || collab?.full_name || profile?.first_name || profile?.full_name;
+    
+    if (!name || name === 'null' || name === 'undefined') {
+        const email = collab?.email || profile?.email || state.session?.user?.email;
+        if (email) name = email.split('@')[0];
+        else return 'Utente';
+    }
+
+    // Clean up technical strings (email prefixes, dots, underscores, exclamation marks)
+    const clean = name.split('@')[0].replace(/[._!]/g, ' ').trim();
+    const firstWord = clean.split(' ').filter(Boolean)[0] || 'Utente';
+    
+    // Capitalize properly
+    return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
 };
 
 export async function renderHomepage(container) {
@@ -3096,7 +3105,7 @@ function renderActivityFeed(container, activities) {
 
     container.innerHTML = activities.map(act => {
         const time = timeAgo(act.created_at);
-        const actorName = act.authorName || act.actor_name || 'Sistema';
+        const actorName = act.authorName || (act.actor_user_ref ? 'Utente' : 'Sistema');
         const avatar = act.avatarUrl || act.actor_avatar;
         
         const itemTitle = act.item?.title || act.item_title;
@@ -3112,32 +3121,99 @@ function renderActivityFeed(container, activities) {
              contextHtml = `<span class="activity-feed-object">${spaceName}</span>`;
         }
 
-        // Clean up description if it already contains the title? 
-        // Trigger templates often use {title}.
-        let description = act.description || '';
-        if (!description) {
-            // Fallback for DB environments without the 'description' column (pre-migration)
-            const actionType = (act.action_type || '').toLowerCase();
-            let displayAction = 'ha modificato';
-            if (actionType.includes('created')) displayAction = 'ha creato';
-            else if (actionType.includes('status')) displayAction = 'ha cambiato lo stato di';
-            else if (actionType.includes('comment')) displayAction = 'ha aggiunto un commento a';
-            else if (actionType.includes('delete')) displayAction = 'ha eliminato';
-            else if (actionType.includes('user_ref')) displayAction = 'ha assegnato';
-            else if (actionType.includes('cloud_links')) displayAction = 'ha aggiunto un documento a';
-            description = displayAction;
+        // --- Sophisticated Action Formatting ---
+        let mainAction = '';
+        let detailsHtml = '';
+        
+        const actionType = (act.action_type || '').toLowerCase();
+        const details = act.details || act.metadata || {};
+
+        // Field Translation Map
+        const fieldMap = {
+            'status': 'lo stato', 'title': 'il titolo', 'notes': 'le note', 
+            'description': 'la descrizione', 'priority': 'la priorità',
+            'due_date': 'la scadenza', 'start_date': 'la data inizio',
+            'user_ref': 'l\'assegnazione', 'cloud_links': 'i documenti',
+            'pm_item_ref': 'il task correlato'
+        };
+
+        const statusMap = {
+            'todo': 'DA FARE', 'in_progress': 'IN CORSO', 'blocked': 'BLOCCATO', 
+            'review': 'IN REVISIONE', 'done': 'COMPLETATO'
+        };
+        const t = (val) => statusMap[val?.toLowerCase()] || val;
+
+        if (actionType.includes('created')) {
+            mainAction = 'ha creato';
+        } else if (actionType.includes('status')) {
+            const newVal = t(details.new || details.new_value);
+            const oldVal = t(details.old || details.old_value);
+            mainAction = `ha cambiato lo stato di`;
+            if (newVal) {
+                detailsHtml = `<div class="activity-feed-details">
+                    <span class="activity-feed-dot"></span> Stato aggiornato a <strong>${newVal}</strong>
+                    ${oldVal ? `<span style="opacity:0.6; margin-left:8px;">(era ${oldVal})</span>` : ''}
+                </div>`;
+            }
+        } else if (actionType.includes('comment')) {
+            mainAction = 'ha aggiunto un commento a';
+            const body = details.body || details.new_value || details.new;
+            if (body) {
+                detailsHtml = `<div class="activity-feed-details" style="font-style: italic; border-left-color: var(--brand-blue); background: rgba(59, 130, 246, 0.03);">
+                    "${body.length > 80 ? body.substring(0, 80) + '...' : body}"
+                </div>`;
+            }
+        } else if (actionType.includes('user_ref')) {
+            mainAction = 'ha assegnato';
+            const user = details.new_value_name || details.new || 'un utente';
+            detailsHtml = `<div class="activity-feed-details">
+                Assegnato a: <strong>${user}</strong>
+            </div>`;
+        } else if (actionType.includes('cloud_links')) {
+            mainAction = 'ha aggiunto un documento a';
+        } else if (actionType.includes('due_date')) {
+            mainAction = 'ha cambiato la scadenza di';
+            const date = details.new || details.new_value;
+            if (date) {
+                detailsHtml = `<div class="activity-feed-details">
+                    Nuova scadenza: <strong>${new Date(date).toLocaleDateString('it-IT')}</strong>
+                </div>`;
+            }
+        } else {
+            // Generic Modification
+            const col = details.col || details.column || (details.diff ? Object.keys(details.diff)[0] : null);
+            const friendlyCol = fieldMap[col] || (col ? col.replace(/_/g, ' ') : null);
+            
+            mainAction = friendlyCol ? `ha modificato ${friendlyCol} di` : 'ha modificato';
+            
+            // If it's a diff or specific column modification, show the change if useful
+            if (col && !actionType.includes('note') && !actionType.includes('description')) {
+                const newVal = details.new || details.new_value || (details.diff ? details.diff[col] : null);
+                if (newVal && String(newVal).length < 50) {
+                    detailsHtml = `<div class="activity-feed-details">
+                        Nuovo valore: <strong>${newVal}</strong>
+                    </div>`;
+                }
+            }
         }
         
+        // System / Actor Styling
+        const isSystem = !act.actor_user_ref && actorName.toLowerCase() === 'sistema';
+        const actorAvatarHtml = avatar ? 
+            `<img src="${avatar}" class="activity-feed-avatar">` : 
+            `<div class="activity-feed-avatar" style="background: ${isSystem ? 'var(--surface-3)' : 'var(--brand-viola)'}; color: ${isSystem ? 'var(--text-tertiary)' : 'white'}; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; border-color: var(--surface-2);">${isSystem ? '<span class="material-icons-round" style="font-size:16px;">settings</span>' : actorName.charAt(0)}</div>`;
+
         return `
             <div class="activity-feed-item">
-                ${avatar ? 
-                    `<img src="${avatar}" class="activity-feed-avatar">` : 
-                    `<div class="activity-feed-avatar" style="background: var(--brand-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">${actorName.charAt(0)}</div>`
-                }
+                ${actorAvatarHtml}
                 <div class="activity-feed-content">
-                    <div class="activity-feed-actor">${actorName}</div>
-                    <div class="activity-feed-action">${description} ${contextHtml}</div>
-                    <div class="activity-feed-time">${time}</div>
+                    <div class="activity-feed-actor" style="${isSystem ? 'color: var(--text-tertiary); font-weight: 600;' : ''}">${actorName}</div>
+                    <div class="activity-feed-action">${mainAction} ${contextHtml}</div>
+                    ${detailsHtml}
+                    <div class="activity-feed-time">
+                        <span class="material-icons-round" style="font-size: 14px;">schedule</span>
+                        ${time}
+                    </div>
                 </div>
             </div>
         `;
