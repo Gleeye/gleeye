@@ -3119,23 +3119,29 @@ function renderActivityFeed(container, activities) {
                 const actorName = log.authorName || (log.actor_user_ref ? 'Utente' : 'Sistema');
                 const entityName = details.entity_name || log.item?.title || log.order?.title || log.space?.name || 'una risorsa';
                 
-                // Fallback Logic matches activity_log.js exactly
+                // Enhanced Logic for Homepage (Context is King here)
                 if (!description || description === 'UPDATE') {
+                    const assignee = details.user_ref_name || details.new_value_name || details.assignee_name;
+                    const containerName = log.order?.title || log.space?.name;
+                    const containerRef = containerName ? ` in **${containerName}**` : '';
+
                     if (actionType.includes('status')) {
                         const oldVal = activityTranslate(details.old || details.old_value);
                         const newVal = activityTranslate(details.new || details.new_value);
-                        description = `ha cambiato lo stato di **${entityName}** ${oldVal && newVal ? `da **${oldVal}** a **${newVal}**` : `in **${newVal}**`}`;
+                        description = `ha cambiato lo stato di **${entityName}**${containerRef} ${oldVal && newVal ? `da **${oldVal}** a **${newVal}**` : `in **${newVal}**`}`;
                     } else if (actionType.includes('user_ref')) {
                         const targetUser = details.new_value_name || details.new || 'un utente';
-                        description = `ha assegnato **${entityName}** a **${targetUser}**`;
+                        description = `ha assegnato **${entityName}**${containerRef} a **${targetUser}**`;
                     } else if (actionType.includes('created')) {
                         description = `ha creato l'attività **${entityName}**`;
+                        if (assignee) description += ` per **${assignee}**`;
+                        description += containerRef;
                     } else if (actionType.includes('comment')) {
-                        description = `ha aggiunto un commento in **${entityName}**`;
+                        description = `ha aggiunto un commento in **${entityName}**${containerRef}`;
                     } else if (actionType.includes('cloud_links')) {
-                        description = `ha aggiunto un documento a **${entityName}**`;
+                        description = `ha aggiunto un documento a **${entityName}**${containerRef}`;
                     } else {
-                        description = `ha effettuato una modifica a **${entityName}**`;
+                        description = `ha effettuato una modifica a **${entityName}**${containerRef}`;
                     }
                 }
 
