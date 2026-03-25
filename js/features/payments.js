@@ -1183,7 +1183,7 @@ export function openPaymentModal(id) {
     document.getElementById('info-status').innerHTML = `<span style="display: inline-flex; align-items: center; gap: 0.4rem;"><span style="width: 8px; height: 8px; border-radius: 50%; background: ${color};"></span>${p.status || 'N/A'}</span>`;
 
     document.getElementById('det-order-num').textContent = p.orders?.order_number || 'N/A';
-    document.getElementById('det-client').textContent = p.clients?.business_name || '-';
+    document.getElementById('det-client').textContent = p.clients?.business_name || p.orders?.clients?.business_name || '-';
     document.getElementById('det-order-title').textContent = p.orders?.title || 'N/A';
     document.getElementById('pm-notes-input').value = p.notes || '';
 
