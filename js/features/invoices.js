@@ -651,21 +651,21 @@ export function initInvoiceModals() {
                                 </div>
                             </div>
                             
-                            <!-- Row 5: Ordini (cascata per collaboratore) -->
+                            <!-- Row 5: Ordini (filtro opzionale) -->
                             <div>
-                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Ordine Collegato</label>
+                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Filtra per Ordine</label>
                                 <select id="pinv-order" class="modal-input" style="width: 100%;">
-                                    <option value="">Seleziona prima un collaboratore</option>
+                                    <option value="">Tutti gli ordini</option>
                                 </select>
-                                <p style="margin: 0.4rem 0 0; font-size: 0.65rem; color: var(--text-tertiary);">Ordini in cui il collaboratore ha incarichi</p>
                             </div>
                             
-                            <!-- Row 6: Pagamenti (cascata per ordine) -->
+                            <!-- Row 6: Pagamenti (tutti quelli in attesa per il collaboratore) -->
                             <div id="pinv-payments-container" style="display: none;">
-                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Collega Pagamenti</label>
-                                <div id="pinv-payments-list" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 120px; overflow-y: auto; padding: 0.5rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--glass-border);">
-                                    <p style="color: var(--text-tertiary); font-size: 0.8rem; text-align: center;">Seleziona un ordine per vedere i pagamenti</p>
+                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Collega Pagamenti *</label>
+                                <div id="pinv-payments-list" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 150px; overflow-y: auto; padding: 0.5rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--glass-border);">
+                                    <p style="color: var(--text-tertiary); font-size: 0.8rem; text-align: center;">Seleziona un collaboratore per vedere i pagamenti in attesa</p>
                                 </div>
+                                <p style="margin: 0.4rem 0 0; font-size: 0.65rem; color: var(--text-tertiary);">Seleziona uno o più pagamenti per questa fattura</p>
                             </div>
                             
                             <!-- Row 7: File Upload -->
@@ -762,14 +762,16 @@ export function initInvoiceModals() {
             updateNettoCalculation();
         });
 
-        // Collaboratore → Ordini cascade
+        // Collaboratore → Ordini e Pagamenti cascade
         document.getElementById('pinv-collaborator')?.addEventListener('change', (e) => {
             updatePassiveOrdersDropdown(e.target.value);
+            updatePassivePaymentsForCollaborator(e.target.value);
         });
 
-        // Ordine → Pagamenti cascade
+        // Ordine → Pagamenti filter
         document.getElementById('pinv-order')?.addEventListener('change', (e) => {
-            updatePassivePaymentsForOrder(e.target.value);
+            const collabId = document.getElementById('pinv-collaborator').value;
+            updatePassivePaymentsForCollaborator(collabId, e.target.value);
         });
 
         // Stato → Data Saldo conditional
@@ -1267,13 +1269,10 @@ function updateCalcHint(tipo) {
 
 function updatePassiveOrdersDropdown(collaboratorId) {
     const select = document.getElementById('pinv-order');
-    const paymentsContainer = document.getElementById('pinv-payments-container');
-
     if (!select) return;
 
     if (!collaboratorId) {
         select.innerHTML = '<option value="">Seleziona prima un collaboratore</option>';
-        if (paymentsContainer) paymentsContainer.style.display = 'none';
         return;
     }
 
@@ -1282,44 +1281,52 @@ function updatePassiveOrdersDropdown(collaboratorId) {
     const orderIds = [...new Set(collaboratorAssignments.map(a => a.order_id).filter(Boolean))];
     const orders = (state.orders || []).filter(o => orderIds.includes(o.id));
 
-    select.innerHTML = '<option value="">Nessun ordine</option>' +
-        orders.map(o => `<option value="${o.id}">${o.order_number} - ${o.title || 'Senza titolo'}</option>`).join('');
-
-    // Show payments container if orders available
-    if (paymentsContainer) paymentsContainer.style.display = orders.length > 0 ? 'block' : 'none';
+    select.innerHTML = '<option value="">Tutti gli ordini</option>' +
+        orders.map(o => `<option value="${o.id}">${o.order_number} - ${o.short_name || o.title || 'Senza titolo'}</option>`).join('');
 }
 
-function updatePassivePaymentsForOrder(orderId) {
+function updatePassivePaymentsForCollaborator(collaboratorId, optionalOrderId = null) {
     const list = document.getElementById('pinv-payments-list');
-    if (!list) return;
+    const container = document.getElementById('pinv-payments-container');
+    if (!list || !container) return;
 
-    if (!orderId) {
-        list.innerHTML = '<p style="color: var(--text-tertiary); font-size: 0.8rem; text-align: center;">Seleziona un ordine per vedere i pagamenti</p>';
+    if (!collaboratorId) {
+        container.style.display = 'none';
+        list.innerHTML = '<p style="color: var(--text-tertiary); font-size: 0.8rem; text-align: center;">Seleziona un collaboratore per vedere i pagamenti in attesa</p>';
         return;
     }
 
-    // Get payments for collaborator (passive) that are pending
+    // Get payments for collaborator (passive) that are pending invoice
     const payments = (state.payments || []).filter(p =>
-        p.order_id === orderId &&
+        p.collaborator_id === collaboratorId &&
         p.payment_type === 'Collaboratore' &&
-        (!p.status || p.status.toLowerCase().includes('to do') || p.status.toLowerCase().includes('pending'))
+        (p.status === 'Invito Inviato' || (!p.status || p.status.toLowerCase().includes('to do') || p.status.toLowerCase().includes('pending'))) &&
+        (!optionalOrderId || p.order_id === optionalOrderId)
     );
 
+    container.style.display = 'block';
+
     if (payments.length === 0) {
-        list.innerHTML = '<p style="color: var(--text-tertiary); font-size: 0.8rem; text-align: center;">Nessun pagamento da associare</p>';
+        list.innerHTML = `<p style="color: var(--text-tertiary); font-size: 0.8rem; text-align: center;">Nessun pagamento in attesa ${optionalOrderId ? 'per questo ordine' : 'per questo collaboratore'}</p>`;
         return;
     }
 
-    list.innerHTML = payments.map(p => `
-        <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: white; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer;">
-            <input type="checkbox" class="pinv-payment-check" value="${p.id}" style="width: 16px; height: 16px;">
-            <div style="flex: 1;">
-                <div style="font-size: 0.85rem; font-weight: 600;">${p.title || 'Pagamento'}</div>
-                <div style="font-size: 0.7rem; color: var(--text-tertiary);">${p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT') : 'Senza scadenza'}</div>
-            </div>
-            <div style="font-weight: 700; color: #8b5cf6;">€ ${formatAmount(p.amount)}</div>
-        </label>
-    `).join('');
+    list.innerHTML = payments.map(p => {
+        const order = state.orders?.find(o => o.id === p.order_id);
+        const orderInfo = order ? `${order.order_number} - ${order.short_name || order.title || 'Senza titolo'}` : 'Nessun ordine';
+        
+        return `
+            <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.6rem; background: white; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer; transition: all 0.2s;">
+                <input type="checkbox" class="pinv-payment-check" value="${p.id}" data-order-id="${p.order_id}" style="width: 16px; height: 16px; margin-top: 2px;">
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary);" class="text-truncate">${p.title || 'Pagamento'}</div>
+                    <div style="font-size: 0.65rem; color: var(--text-tertiary); font-weight: 500;" class="text-truncate">${orderInfo}</div>
+                    <div style="font-size: 0.6rem; color: var(--text-tertiary); margin-top: 1px;">Scadenza: ${p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT') : 'Nessuna'}</div>
+                </div>
+                <div style="font-weight: 800; color: #8b5cf6; font-size: 0.85rem; flex-shrink: 0; margin-left: auto;">€ ${formatAmount(p.amount)}</div>
+            </label>
+        `;
+    }).join('');
 }
 
 
@@ -1411,14 +1418,31 @@ async function handleSavePassiveInvoice(e) {
         netto = imponibile + iva;
     }
 
-    // Get selected payments
-    const selectedPayments = Array.from(document.querySelectorAll('.pinv-payment-check:checked')).map(cb => cb.value);
+    // Collect unique related orders from selected payments
+    const checkedPayments = Array.from(document.querySelectorAll('.pinv-payment-check:checked'));
+    const selectedPayments = checkedPayments.map(cb => cb.value);
+    
+    let relatedOrderIds = [...new Set(checkedPayments.map(cb => cb.dataset.orderId).filter(id => id && id !== 'undefined'))];
+    let relatedOrders = [];
+    
+    if (relatedOrderIds.length > 0 && state.orders) {
+        relatedOrderIds.forEach(oid => {
+            const order = state.orders.find(o => o.id === oid);
+            if (order) relatedOrders.push(order.order_number);
+        });
+    } else if (orderId && state.orders) {
+        // Fallback to the single filter dropdown if no specific payments were checked
+        const order = state.orders.find(o => o.id === orderId);
+        if (order) relatedOrders.push(order.order_number);
+    }
+    
+    const relatedOrdersString = relatedOrders.join(', ');
 
     // Handle file upload
     const fileInput = document.getElementById('pinv-file');
     let attachmentUrl = null;
 
-    if (fileInput.files.length > 0) {
+    if (fileInput && fileInput.files.length > 0) {
         const file = fileInput.files[0];
         const fileName = `passive-invoices/${Date.now()}_${file.name}`;
 
@@ -1436,13 +1460,6 @@ async function handleSavePassiveInvoice(e) {
             showGlobalAlert("Errore caricamento file: " + uploadErr.message, 'error');
             return;
         }
-    }
-
-    // Resolve related orders
-    let relatedOrders = [];
-    if (orderId && state.orders) {
-        const order = state.orders.find(o => o.id === orderId);
-        if (order) relatedOrders.push(order.order_number);
     }
 
     // Names for denormalization
@@ -1468,7 +1485,7 @@ async function handleSavePassiveInvoice(e) {
         supplier_id: mode === 'supplier' ? supplierId : null,
         supplier_name: supplierName,
         description: mode === 'supplier' ? description : null,
-        related_orders: relatedOrders,
+        related_orders: relatedOrdersString,
         attachment_url: attachmentUrl,
     };
 
@@ -2241,11 +2258,19 @@ export async function openPassiveInvoiceForm(id = null, mode = 'collab') {
                 document.getElementById('pinv-collaborator').value = inv.collaborator_id || '';
                 if (inv.collaborator_id) {
                     updatePassiveOrdersDropdown(inv.collaborator_id);
-                    if (inv.related_orders && inv.related_orders.length > 0) {
-                        // Find order id if possible, currently related_orders stores strings. 
-                        // Logic limitation for now: we don't easily map back to single order ID if multiple.
-                        // Keeping it simple for legacy/single order flow.
-                    }
+                    updatePassivePaymentsForCollaborator(inv.collaborator_id);
+                    
+                    // Mark previously linked payments as checked (logic: find payments already linked to this invoice)
+                    // This assumes we have a link through payments.passive_invoice_id
+                    setTimeout(() => {
+                        const { data: linkedPayments } = supabase.from('payments').select('id').eq('passive_invoice_id', inv.id);
+                        if (linkedPayments) {
+                            linkedPayments.forEach(p => {
+                                const cb = document.querySelector(`.pinv-payment-check[value="${p.id}"]`);
+                                if (cb) cb.checked = true;
+                            });
+                        }
+                    }, 500);
                 }
                 updateCalcHint(inv.category || 'ritenuta');
             } else {
