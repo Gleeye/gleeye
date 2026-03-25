@@ -1,6 +1,6 @@
 import { state } from '/js/modules/state.js';
 import { supabase } from '../modules/config.js';
-import { formatAmount } from '../modules/utils.js?v=1000';
+import { formatAmount, renderAvatar } from '../modules/utils.js?v=2000';
 
 import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment, fetchGoogleCalendarBusy } from '../modules/api.js';
 import { fetchAppointment, updatePMItem, fetchMyActivityFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=5004';
