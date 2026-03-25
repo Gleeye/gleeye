@@ -1192,6 +1192,22 @@ async function handleBulkInvite() {
     try {
         const webhookUrl = 'https://sacred-roughy-renewing.ngrok-free.app/webhook/ba8b70d5-643e-41fa-839a-096697554d19';
         const { supabase } = await import('../modules/config.js?v=1003');
+        const getBestAsgId = (payment) => {
+            if (payment.assignment_id) return payment.assignment_id;
+            if (payment.assignments?.id) return payment.assignments.id;
+            
+            // Fallback to searching Local State
+            const stateMatch = (state.assignments || []).find(a => a.order_id === payment.order_id && a.collaborator_id === payment.collaborator_id);
+            if (stateMatch) return stateMatch.id;
+
+            // Fallback to Title extraction
+            const titleMatch = (payment.title || '').match(/\d{2}-\d{4}-[A-Z0-9]{5}/);
+            if (titleMatch) return titleMatch[0];
+            
+            const orderStr = payment.orders?.order_number || 'ND';
+            return `MANUALE-${orderStr}`;
+        };
+
         const sentAt = new Date().toISOString();
         const payload = selected.map(p => ({
             ...p,
@@ -1201,6 +1217,11 @@ async function handleBulkInvite() {
             entity_first_name: entityFullName.split(' ')[0],
             entity_email: p.collaborators?.email || '-',
             order_number: p.orders?.order_number || '-',
+            assignment_id: getBestAsgId(p),
+            Id_Incarico: getBestAsgId(p),
+            recipient_name: entityFullName,
+            recipient_email: first.collaborators?.email || '-',
+            vat_number: first.collaborators?.vat_number || '-',
             action: 'bulk_invite_to_invoice',
             sent_at: sentAt
         }));
@@ -1226,6 +1247,20 @@ async function handleSendInvite(p, btn) {
         const webhookUrl = 'https://sacred-roughy-renewing.ngrok-free.app/webhook/ba8b70d5-643e-41fa-839a-096697554d19';
         btn.disabled = true; btn.innerHTML = `Invio...`;
         const { supabase } = await import('../modules/config.js?v=1005');
+        const getBestAsgId = (payment) => {
+            if (payment.assignment_id) return payment.assignment_id;
+            if (payment.assignments?.id) return payment.assignments.id;
+            
+            const stateMatch = (state.assignments || []).find(a => a.order_id === payment.order_id && a.collaborator_id === payment.collaborator_id);
+            if (stateMatch) return stateMatch.id;
+
+            const titleMatch = (payment.title || '').match(/\d{2}-\d{4}-[A-Z0-9]{5}/);
+            if (titleMatch) return titleMatch[0];
+            
+            const orderStr = payment.orders?.order_number || 'ND';
+            return `MANUALE-${orderStr}`;
+        };
+
         const entityFullName = p.collaborators?.full_name || p.suppliers?.name || '-';
         const payload = [{
             ...p,
@@ -1233,6 +1268,9 @@ async function handleSendInvite(p, btn) {
             entity_name: entityFullName,
             entity_first_name: entityFullName.split(' ')[0],
             entity_email: p.collaborators?.email || '-',
+            order_number: p.orders?.order_number || '-',
+            assignment_id: getBestAsgId(p),
+            Id_Incarico: getBestAsgId(p),
             action: 'invite_to_invoice',
             sent_at: new Date().toISOString()
         }];

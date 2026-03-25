@@ -1312,7 +1312,7 @@ async function refreshCurrentPage() {
         const { renderOrderDetail } = await import('../features/orders.js?v=1000');
         renderOrderDetail(container);
     } else if (hash.includes('payments')) {
-        const { renderPaymentsDashboard } = await import('../features/payments.js?v=1000');
+        const { renderPaymentsDashboard } = await import('../features/payments.js?v=2005');
         renderPaymentsDashboard(container);
     } else if (hash.includes('bank-transactions')) {
         const { renderBankTransactions } = await import('../features/bank_transactions.js?v=1000');

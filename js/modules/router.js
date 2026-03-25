@@ -256,7 +256,7 @@ function render() {
                 break;
             case 'payments':
                 if (pageTitle) pageTitle.textContent = 'Dashboard Pagamenti';
-                import('../features/payments.js?v=2000').then(m => {
+                import('../features/payments.js?v=2005').then(m => {
                     m.initPaymentModals();
                     m.renderPaymentsDashboard(contentArea);
                 });
