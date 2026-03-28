@@ -1107,17 +1107,32 @@ export async function renderHomepageAlt(container) {
 
     container.innerHTML = `
         <style>
-            .hp-alt-wrapper { display: flex; width: 100%; height: auto; min-height: 100%; background: #f8fafc; font-family: 'Outfit'; position: relative; }
-            .hp-alt-sidebar-left { width: 320px; flex-shrink: 0; min-height: calc(100vh - 70px); background: white; border-right: 1px solid #eef2f6; display: flex; flex-direction: column; position: relative; box-shadow: 10px 0 30px rgba(0,0,0,0.01); z-index: 10; }
-            .hp-main-content-area { flex: 1; display: flex; flex-direction: column; gap: 2rem; padding: 1.5rem 2.5rem; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; position: relative; width: 100%; box-sizing: border-box; }
+            /* FORCE FLEX ON GLOBAL ERP AREA */
+            #content-area { 
+                display: flex !important; 
+                flex-direction: row !important; 
+                height: calc(100vh - 70px) !important; 
+                width: 100% !important;
+                overflow: hidden !important; 
+                position: relative !important;
+                max-width: 100vw !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #f8fafc !important;
+            }
+
+            .hp-alt-wrapper { display: flex; width: 100%; height: 100%; background: #f8fafc; font-family: 'Outfit'; position: relative; overflow: hidden; flex: 1; }
+            .hp-alt-sidebar-left { width: 320px; flex-shrink: 0; height: 100%; background: white; border-right: 1px solid #eef2f6; display: flex; flex-direction: column; position: relative; box-shadow: 10px 0 30px rgba(0,0,0,0.01); z-index: 10; overflow: hidden; }
+            .hp-main-content-area { flex: 1; display: flex; flex-direction: column; gap: 2rem; padding: 1.5rem 2rem; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; position: relative; width: 100%; box-sizing: border-box; background: #f8fafc; }
             .hp-main-columns-container { display: flex; flex-direction: row; gap: 2rem; width: 100%; align-items: flex-start; }
             
             .hp-mobile-banner { display: none; }
             .hp-mobile-agenda-pop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 20000; align-items: center; justify-content: center; padding: 15px; }
             
             @media (max-width: 1150px) {
+                #content-area { height: auto !important; overflow: visible !important; }
                 .hp-alt-sidebar-left { display: none !important; }
-                .hp-main-content-area { padding: 95px 1.25rem 2rem 1.25rem !important; overflow-x: hidden; width: 100% !important; height: 100% !important; box-sizing: border-box; }
+                .hp-main-content-area { padding: 95px 1.25rem 2rem 1.25rem !important; overflow-x: hidden; width: 100% !important; height: auto !important; box-sizing: border-box; }
                 .hp-main-columns-container { flex-direction: column; gap: 1.5rem; width: 100%; border-radius: 0; }
                 
                 .hp-mobile-banner { 
@@ -3549,40 +3564,41 @@ window.setHpFilter = function (filter, btn) {
 
 function renderMyActivities(container, timers, tasks, events, filter = 'task') {
     if (!container) return;
-
-    // Data Safety & Counts
-    const safeTimers = timers || [];
-    const allPmItems = tasks || [];
-    const safeEvents = events || [];
-
-    // Separate PM Items into "Real Tasks" and "PM Activities"
-    // Assumption: 'activity' type or similar distinguishes them. 
-    // If not found, rely on title keywords or user feedback.
-    // For now assuming 'attivita' or 'activity' in raw_type.
-    const realTasks = [];
-    const pmActivities = [];
-
-    allPmItems.forEach(item => {
-        const type = (item.raw_type || '').toLowerCase();
-        if (type.includes('attivit') || type.includes('activity')) {
-            pmActivities.push(item);
-        } else {
-            realTasks.push(item);
-        }
-    });
-
-    // Total counts for tabs
-    const countTask = realTasks.length;
-    const countEvent = safeEvents.length;
-    const countActivity = safeTimers.length + pmActivities.length;
-
-    // Filter Logic
-    const showTimers = filter === 'timer'; // Attività (Timers + PM Activities)
-    const showEvents = filter === 'event'; // Appuntamenti (Agenda)
-    const showTasks = filter === 'task';  // Task
-
-    let html = '';
+    container.innerHTML = '';
     let hasContent = false;
+    
+    // 1. Timers (Prioritized)
+    const safeTimers = timers || [];
+    if (safeTimers.length > 0) {
+        safeTimers.forEach(t => {
+            hasContent = true;
+            renderActivityRow(container, { ...t, isTimer: true });
+        });
+    }
+
+    // 2. Filtered Content
+    if (filter === 'task') {
+        const safeTasks = tasks || [];
+        if (safeTasks.length > 0) {
+            safeTasks.forEach(t => {
+                hasContent = true;
+                renderActivityRow(container, t);
+            });
+        }
+    } else {
+        const safeEvents = events || [];
+        if (safeEvents.length > 0) {
+            safeEvents.forEach(e => {
+                hasContent = true;
+                renderActivityRow(container, { ...e, isEvent: true, type: 'event' });
+            });
+        }
+    }
+
+    if (!hasContent) {
+        container.innerHTML = `<div style="padding: 2.5rem 1rem; text-align: center; color: #94a3b8; font-size: 0.85rem; font-weight: 500;">Nessuna attività programmata</div>`;
+    }
+}
 
 // Helper to render an activity row (tasks/events)
 function renderActivityRow(container, t) {
@@ -3645,41 +3661,6 @@ function renderActivityRow(container, t) {
         ` : ''}
     `;
     container.appendChild(row);
-}
-
-function renderMyActivities(container, timers, tasks, events, filter = 'task') {
-    container.innerHTML = '';
-    let hasContent = false;
-    
-    // 1. Timers (Prioritized)
-    if (timers && timers.length > 0) {
-        timers.forEach(t => {
-            hasContent = true;
-            renderActivityRow(container, { ...t, isTimer: true });
-        });
-    }
-
-    // 2. Filtered Content
-    if (filter === 'task') {
-        if (tasks && tasks.length > 0) {
-            tasks.forEach(t => {
-                hasContent = true;
-                renderActivityRow(container, t);
-            });
-        }
-    } else {
-        if (events && events.length > 0) {
-            events.forEach(e => {
-                hasContent = true;
-                renderActivityRow(container, { ...e, isEvent: true, type: 'event' });
-            });
-        }
-    }
-
-    if (!hasContent) {
-        container.innerHTML = `<div style="padding: 2.5rem 1rem; text-align: center; color: #94a3b8; font-size: 0.85rem; font-weight: 500;">Nessuna attività programmata</div>`;
-    }
-}
 }
 
 // Helper for Task Completion
