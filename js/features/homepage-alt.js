@@ -110,9 +110,9 @@ function renderVerticalTimeline(container, events, date, rules) {
                     <div class="hp-status-toggle" 
                          onclick="event.stopPropagation(); window.quickCompleteTask('${ev.id}', this)" 
                          title="Segna come completata"
-                         style="width: 16px; height: 16px; border: 2px solid rgba(16, 185, 129, 0.4); border-radius: 5px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;"
-                         onmouseover="this.style.background='rgba(16, 185, 129, 0.1)'; this.style.borderColor='#10b981';"
-                         onmouseout="this.style.background='transparent'; this.style.borderColor='rgba(16, 185, 129, 0.4)';"
+                         style="width: 16px; height: 16px; border: 2px solid #e2e8f0; border-radius: 5px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;"
+                         onmouseover="this.style.background='rgba(78, 146, 216, 0.05)'; this.style.borderColor='#4e92d8';"
+                         onmouseout="this.style.background='transparent'; this.style.borderColor='#e2e8f0';"
                     >
                     </div>
                 </div>
@@ -3602,9 +3602,9 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                                 <div class="hp-status-toggle" 
                                      onclick="event.stopPropagation(); window.quickCompleteTask('${t.id}', this)" 
                                      title="Segna come completata"
-                                     style="width: 18px; height: 18px; border: 2px solid rgba(16, 185, 129, 0.4); border-radius: 6px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;"
-                                     onmouseover="this.style.background='rgba(16, 185, 129, 0.1)'; this.style.borderColor='#10b981';"
-                                     onmouseout="this.style.background='transparent'; this.style.borderColor='rgba(16, 185, 129, 0.4)';"
+                                     style="width: 18px; height: 18px; border: 2px solid #e2e8f0; border-radius: 6px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;"
+                                     onmouseover="this.style.background='rgba(78, 146, 216, 0.05)'; this.style.borderColor='#4e92d8';"
+                                     onmouseout="this.style.background='transparent'; this.style.borderColor='#e2e8f0';"
                                 >
                                 </div>
                             </div>
