@@ -1106,10 +1106,50 @@ export async function renderHomepageAlt(container) {
     window.hpActivityFilter = 'task';
 
     container.innerHTML = `
-        <div class="homepage-container" style="background: #f8fafc; padding: 0 !important; display: flex; height: 100vh; overflow: hidden; font-family: 'Outfit'; width: 100vw;">
+        <style>
+            .hp-alt-wrapper { display: flex; width: 100%; height: 100%; position: absolute; inset: 0; overflow: hidden; background: #f8fafc; font-family: 'Outfit'; }
+            .hp-alt-sidebar-left { width: 320px; flex-shrink: 0; height: 100%; background: white; border-right: 1px solid #eef2f6; display: flex; flex-direction: column; position: relative; box-shadow: 10px 0 30px rgba(0,0,0,0.01); z-index: 10; }
+            .hp-main-content-area { flex: 1; display: flex; flex-direction: column; gap: 2rem; padding: 2.5rem; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; position: relative; width: 100%; height: 100%; box-sizing: border-box; }
+            .hp-main-columns-container { display: flex; flex-direction: row; gap: 2rem; width: 100%; align-items: flex-start; flex-wrap: nowrap; }
             
-            <!-- 1. LEFT SIDEBAR (Stacked: Tasks -> Agenda) - 1/4 SCREEN -->
-            <div class="hp-alt-sidebar-left" style="width: 25%; height: 100vh; background: white; border-right: 1px solid #eef2f6; display: flex; flex-direction: column; position: relative; box-shadow: 10px 0 30px rgba(0,0,0,0.02); z-index: 10;">
+            .hp-mobile-banner { display: none; }
+            .hp-mobile-agenda-pop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 20000; align-items: center; justify-content: center; padding: 15px; }
+            
+            @media (max-width: 1150px) {
+                .hp-alt-sidebar-left { display: none !important; }
+                .hp-main-content-area { padding: 95px 1.25rem 2rem 1.25rem !important; overflow-x: hidden; width: 100% !important; height: 100% !important; box-sizing: border-box; }
+                .hp-main-columns-container { flex-direction: column; gap: 1.5rem; width: 100%; border-radius: 0; }
+                
+                .hp-mobile-banner { 
+                    display: flex; 
+                    position: fixed;
+                    top: 12px;
+                    left: 12px;
+                    right: 12px;
+                    background: rgba(255, 255, 255, 0.88); 
+                    backdrop-filter: blur(25px) saturate(180%); 
+                    -webkit-backdrop-filter: blur(25px) saturate(180%); 
+                    border: 1px solid rgba(255, 255, 255, 0.6);
+                    padding: 10px 18px;
+                    border-radius: 24px;
+                    z-index: 1000;
+                    box-shadow: 0 12px 35px rgba(0,0,0,0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+                    justify-content: space-between;
+                    align-items: center;
+                    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    cursor: pointer;
+                }
+                .hp-mobile-banner:active { transform: scale(0.97); }
+                
+                .hp-widget-panel { border-radius: 26px !important; width: 100% !important; box-sizing: border-box; background: white !important; border: 1px solid #f1f5f9 !important; box-shadow: 0 4px 15px rgba(0,0,0,0.03) !important; }
+                #hp-internal-dashboard-block { min-width: 100% !important; padding: 0 !important; width: 100% !important; }
+                #hp-internal-clusters-grid { grid-template-columns: repeat(3, 1fr) !important; width: 100% !important; gap: 8px !important; padding-top: 10px !important; }
+                #hp-pm-spaces-main-block { min-width: 100% !important; width: 100% !important; }
+            }
+        </style>
+
+            <!-- 1. LEFT SIDEBAR (Stacked: Tasks -> Agenda) - HIDDEN ON MOBILE -->
+            <div class="hp-alt-sidebar-left">
                 
                 <!-- HEADER (Premium Style - Minimalist) -->
                 <div style="padding: 1.75rem 1.75rem 1.25rem 1.75rem; border-bottom: 1px solid #f1f5f9; flex: 0 0 auto;">
@@ -1172,16 +1212,41 @@ export async function renderHomepageAlt(container) {
                 </div>
             </div>
 
-            <!-- 2. MAIN CONTENT AREA (Projects + Activities) - 3/4 SCREEN -->
-            <div class="hp-main-content-area" style="flex: 1; display: flex; flex-direction: column; gap: 2rem; padding: 2.5rem; background: #f8fafc; overflow-y: auto;">
+            <!-- 2. MAIN CONTENT AREA (Projects + Activities) -->
+            <div class="hp-main-content-area custom-scrollbar">
                  
-                 <div style="display: flex; gap: 2rem; flex: 1; width: 100%; min-width: 0;">
+                 <!-- MOBILE STICKY BANNER -->
+                 <div class="hp-mobile-banner" onclick="window.openMobileAgenda()">
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div style="width: 32px; height: 32px; border-radius: 10px; background: #f8fafc; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0;">
+                            <span class="material-icons-round" style="font-size: 18px; color: #1e293b;">auto_awesome</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0;">
+                            <span style="font-size: 0.62rem; font-weight: 800; color: #1e293b; letter-spacing: 0.12em; text-transform: uppercase;">JOURNAL</span>
+                            <div style="display: flex; align-items: center; gap: 10px; margin-top: -2px;">
+                                <div style="display: flex; align-items: center; gap: 4px;">
+                                    <span class="material-icons-round" style="color: #8b5cf6; font-size: 13px;">task_alt</span>
+                                    <span id="hp-banner-count-tasks" style="font-weight: 800; font-size: 0.9rem; color: #64748b;">0</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 4px;">
+                                    <span class="material-icons-round" style="color: #10b981; font-size: 13px;">calendar_today</span>
+                                    <span id="hp-banner-count-events" style="font-weight: 800; font-size: 0.9rem; color: #64748b;">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div onclick="event.stopPropagation(); window.toggleHpQuickEntry(this)" style="width: 36px; height: 36px; background: #1e293b; border: none; border-radius: 11px; color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 15px rgba(0,0,0,0.15); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        <span class="material-icons-round" style="font-size: 20px;">add</span>
+                    </div>
+                 </div>
+                 
+                 <div class="hp-main-columns-container">
                      <!-- COLUMN 1: COMMESSE (Existing) -->
                      <div id="hp-pm-spaces-main-block" style="
                          flex: 1.2; 
-                         min-width: 320px; 
-                         display: none; 
-                         max-height: 480px;
+                         min-width: 280px; 
+                         max-height: 520px;
                          display: flex;
                          flex-direction: column;
                      ">
@@ -1210,10 +1275,10 @@ export async function renderHomepageAlt(container) {
                       <!-- COLUMN 2: INTERNAL DASHBOARD (Hubs & Clusters - PRIORITY REVERSED) -->
                       <div id="hp-internal-dashboard-block" style="
                           flex: 1.2; 
-                          min-width: 320px; 
+                          min-width: 280px; 
                           display: flex;
                           flex-direction: column; 
-                          max-height: 480px;
+                          max-height: 520px;
                           padding: 0.5rem 1rem;
                       ">
                          <!-- TOP: Hub Buttons (Strategic Navigation - Carousel Slim) -->
@@ -1237,7 +1302,7 @@ export async function renderHomepageAlt(container) {
                       </div>
 
                      <!-- COLUMN 3: ADMIN + FEED -->
-                     <div style="flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 2rem;">
+                     <div style="flex: 1; min-width: 260px; display: flex; flex-direction: column; gap: 2rem;">
                          <!-- BOX: ACCOUNTING ALERTS -->
                          <div id="hp-accounting-alerts-block" class="hp-widget-panel" style="
                              display: none; 
@@ -1401,6 +1466,53 @@ export async function renderHomepageAlt(container) {
             eventBadge.style.background = '#8b5cf6';
         }
 
+        // --- UPDATE MOBILE TOP BANNER ---
+        const bTasks = document.getElementById('hp-banner-count-tasks');
+        const bEvents = document.getElementById('hp-banner-count-events');
+        const tStart = new Date(); tStart.setHours(0,0,0,0);
+        const tEnd = new Date(); tEnd.setHours(23,59,59,999);
+
+        const mTodayT = allTasks.filter(t => {
+            if (!t.due_date) return false;
+            const d = parseLocal(t.due_date);
+            return d >= tStart && d <= tEnd;
+        });
+        const mTodayE = (window.hpData?.timers || []).filter(e => {
+            if (!e.start) return false;
+            const d = new Date(e.start);
+            return d >= tStart && d <= tEnd;
+        });
+
+        if (bTasks) bTasks.textContent = mTodayT.length;
+        if (bEvents) bEvents.textContent = mTodayE.length;
+
+        const pContent = document.getElementById('hp-mobile-agenda-list');
+        const pPopup = document.getElementById('hp-mobile-agenda-popup');
+        
+        if (pContent && pPopup && pPopup.style.display === 'flex') {
+            pContent.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: 24px;">
+                    <div>
+                        <div style="font-size: 0.7rem; font-weight: 800; color: #8b5cf6; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.05em; text-transform: uppercase;">
+                            <span class="material-icons-round" style="font-size: 16px;">task_alt</span> Task Oggi (${mTodayT.length})
+                        </div>
+                        <div id="hp-mobile-pop-tasks" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.7rem; font-weight: 800; color: #10b981; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.05em; text-transform: uppercase;">
+                            <span class="material-icons-round" style="font-size: 16px;">calendar_today</span> Appuntamenti (${mTodayE.length})
+                        </div>
+                        <div id="hp-mobile-pop-events" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                    </div>
+                </div>
+            `;
+            const tT = document.getElementById('hp-mobile-pop-tasks');
+            const eT = document.getElementById('hp-mobile-pop-events');
+            if (mTodayT.length === 0) tT.innerHTML = '<div style="padding: 1rem; text-align: center; color: #94a3b8; font-size: 0.8rem;">Ottimo! Nessun task.</div>';
+            else mTodayT.forEach(t => renderActivityRow(tT, t));
+            if (mTodayE.length === 0) eT.innerHTML = '<div style="padding: 1rem; text-align: center; color: #94a3b8; font-size: 0.8rem;">Agenda libera.</div>';
+            else mTodayE.forEach(e => renderActivityRow(eT, e));
+        }
     };
 
     window.toggleHomepageView = (view) => {
@@ -2120,16 +2232,22 @@ function initClusterSortable(container, clusters) {
 
 // --- ROLE-BASED MAIN CONTENT DISPATCHER ---
 async function renderMainContent(container, role, data) {
-    // 1. Common Side-Panel Actions for ALL Roles (Feed, etc.)
-    await setupHomepageFeed(data);
+    try {
+        // 1. Common Side-Panel Actions for ALL Roles (Feed, etc.)
+        await setupHomepageFeed(data);
 
-    // 2. Dispatch to specific role view
-    switch(role) {
-        case 'partner':         return renderMainContent_Partner(container, data);
-        case 'amministrazione': return renderMainContent_Amministrazione(container, data);
-        case 'account':         return renderMainContent_Account(container, data);
-        case 'pm':              return renderMainContent_PM(container, data);
-        default:                return renderMainContent_Collaboratore(container, data);
+        // 2. Dispatch to specific role view
+        switch(role) {
+            case 'partner':         return await renderMainContent_Partner(container, data);
+            case 'amministrazione': return await renderMainContent_Amministrazione(container, data);
+            case 'account':         return await renderMainContent_Account(container, data);
+            case 'pm':              return await renderMainContent_PM(container, data);
+            default:                return await renderMainContent_Collaboratore(container, data);
+        }
+    } catch (err) {
+        console.error("Critical error in renderMainContent:", err);
+        const area = document.querySelector('.hp-main-columns-container');
+        if (area) area.innerHTML = `<div style="padding: 3rem; text-align: center; color: #94a3b8;">Si è verificato un errore nel caricamento della Dashboard. Per favore ricarica la pagina.</div>`;
     }
 }
 
@@ -2327,6 +2445,55 @@ async function renderMainContent_Partner(container, data) {
     window._hpReloadHandler = reloadHandler;
     document.addEventListener('appointment-changed', reloadHandler);
     document.addEventListener('pm-item-changed', reloadHandler);
+
+    // --- MOBILE POPUP (Structure only) ---
+    if (!document.getElementById('hp-mobile-agenda-popup')) {
+        const popup = document.createElement('div');
+        popup.id = 'hp-mobile-agenda-popup';
+        popup.className = 'hp-mobile-agenda-pop';
+        popup.innerHTML = `
+            <div class="glass-card" style="width: 100%; max-width: 420px; max-height: 80vh; display: flex; flex-direction: column; background: rgba(255,255,255,0.98); border-radius: 24px; border: 1px solid white; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.3);">
+                <div style="padding: 20px 24px; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                    <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
+                        <span class="material-icons-round" style="color: #4e92d8;">today</span>
+                        Riepilogo Giornaliero
+                    </h3>
+                    <div onclick="this.closest('.hp-mobile-agenda-pop').style.display='none'" style="width: 38px; height: 38px; border-radius: 12px; background: #fff; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                        <span class="material-icons-round" style="font-size: 20px; color: #64748b;">close</span>
+                    </div>
+                </div>
+                <div id="hp-mobile-agenda-list" class="custom-scrollbar" style="flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 24px;">
+                    <!-- Content will be injected by sync -->
+                </div>
+            </div>
+        `;
+        popup.onclick = (e) => { if (e.target === popup) popup.style.display = 'none'; };
+        
+        // Append to wrapper or container
+        const wrapper = document.querySelector('.hp-alt-wrapper') || container || document.body;
+        wrapper.appendChild(popup);
+        
+        window.openMobileAgenda = () => {
+            const el = document.getElementById('hp-mobile-agenda-popup');
+            if (el) {
+                el.style.display = 'flex';
+                window.syncHomepageActivities();
+            }
+        };
+    }
+
+    // Helper for Quick Add from Banner
+    window.toggleHpQuickEntry = (btn) => {
+        // Show a mini-menu or just default to adding task for now
+        // If we have openGlobalQuickAdd or similar, use it.
+        if (window.openQuickAddTask) {
+            window.openQuickAddTask();
+        } else {
+            // Fallback: search for existing add buttons
+            const addBtn = document.querySelector('[onclick*="openAddTask"]');
+            if (addBtn) addBtn.click();
+        }
+    };
 }
 
 // --- STUB VIEWS (Enhanced with correct IDs and initialization) ---
@@ -2428,14 +2595,33 @@ function renderProjects(pmList, pmProjects) {
         const showAccount = window.hpActiveFilters?.account !== false;
         const showPm = window.hpActiveFilters?.pm !== false;
 
-        // Update Tab Counts in the header buttons
-        const btnAccount = document.getElementById('hp-filter-account');
-        const btnPm = document.getElementById('hp-filter-pm');
-        const countAccount = pmProjects.filter(p => p.isAccount).length;
-        const countPm = pmProjects.filter(p => p.isPM).length;
-
-        if (btnAccount) btnAccount.innerHTML = `ACCOUNT <span style="margin-left: 4px; opacity: 0.6; font-weight: 400;">${countAccount}</span>`;
-        if (btnPm) btnPm.innerHTML = `PM <span style="margin-left: 4px; opacity: 0.6; font-weight: 400;">${countPm}</span>`;
+        // Ensure the stats bar is populated with its internal HTML structure if empty
+        const statsBar = document.getElementById('hp-projects-stats-bar');
+        if (statsBar && !statsBar.querySelector('#stat-count-projects')) {
+            statsBar.innerHTML = `
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding-left: 8px;">
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #3b82f6; letter-spacing: 0.05em; opacity: 0.8;">COMMESSE</span>
+                    <span id="stat-count-projects" style="font-size: 1.5rem; font-weight: 800; color: #3b82f6; line-height: 1;">0</span>
+                </div>
+                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">ATTIVITÀ</span>
+                    <span id="stat-count-activities" style="font-size: 1.5rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                </div>
+                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">TASK</span>
+                    <span id="stat-count-tasks" style="font-size: 1.5rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                </div>
+                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; padding-right: 8px;">
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em; opacity: 0.8;">APPUNTAMENTI</span>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span id="stat-count-events" style="font-size: 1.5rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
+                    </div>
+                </div>
+            `;
+        }
         
         const filtered = pmProjects.filter(p => {
             if (showAccount && p.isAccount) return true;
@@ -3394,260 +3580,103 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
 
     let html = '';
     let hasContent = false;
-    const now = new Date();
 
-    try {
-        // 1. ACTIVE TIMERS & PM ACTIVITIES (Attività Tab)
-        if (showTimers) {
-            // A. Timers
-            safeTimers.forEach(t => {
-                hasContent = true;
-                let title = 'Senza Commessa';
-                let clientShort = '';
-                let orderId = null;
-                if (t.orders) {
-                    const ord = Array.isArray(t.orders) ? t.orders[0] : t.orders;
-                    if (ord) {
-                        title = `#${ord.order_number || '?'} - ${ord.title || '...'}`;
-                        orderId = ord.id;
-                        if (ord.clients) {
-                            clientShort = ord.clients.client_code || ord.clients.business_name || '';
-                        }
+// Helper to render an activity row (tasks/events)
+function renderActivityRow(container, t) {
+    let fullTitle = 'Attività';
+    let clientShort = '';
+    let spaceId = null;
+    
+    // Extract space/order info
+    if (t.pm_spaces) {
+        const space = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
+        if (space) {
+            spaceId = space.id;
+            if (space.orders) {
+                const ord = Array.isArray(space.orders) ? space.orders[0] : space.orders;
+                if (ord) {
+                    fullTitle = `#${ord.order_number} - ${ord.title}`;
+                    if (ord.clients) {
+                        clientShort = ord.clients.client_code || ord.clients.business_name || '';
                     }
                 }
-                if (!clientShort && t.area) clientShort = t.area;
-                html += `
-                    <div onclick="window.location.hash = '#pm/commessa/${orderId || ''}'" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); padding: 0.75rem; border-radius: 10px; display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem; cursor: pointer;">
-                        <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;">
-                            <span class="material-icons-round" style="font-size: 18px;">play_arrow</span>
-                        </div>
-                        <div style="flex: 1; min-width: 0;">
-                            <div style="font-size: 0.62rem; color: #059669; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em;">In Corso (Timer)</div>
-                            <div style="font-weight: 700; font-size: 0.85rem; color: #064e3b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${title}">${title}</div>
-                            ${clientShort ? `<div style="font-size: 0.7rem; color: #374151; font-weight: 500; margin-top: 1px;">${clientShort}</div>` : ''}
-                        </div>
-                    </div>
-                `;
-            });
-
-            // B. PM Activities (Static)
-            pmActivities.forEach(t => {
-                hasContent = true;
-                let fullTitle = 'Attività';
-                let clientShort = '';
-                let spaceId = null;
-                if (t.pm_spaces) {
-                    const space = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
-                    if (space) {
-                        spaceId = space.id;
-                        if (space.orders) {
-                            const ord = Array.isArray(space.orders) ? space.orders[0] : space.orders;
-                            if (ord) {
-                                fullTitle = `#${ord.order_number} - ${ord.title}`;
-                                if (ord.clients) {
-                                    clientShort = ord.clients.client_code || ord.clients.business_name || '';
-                                }
-                            }
-                        }
-                        if (!clientShort && space.area) clientShort = space.area;
-                    }
-                }
-
-                const isPm = t.role === 'pm' || (t.role || '').toLowerCase().includes('manager');
-                const roleIcon = isPm ? 'stars' : 'person_outline';
-                const roleColor = isPm ? '#f59e0b' : '#94a3b8';
-                const roleTitle = isPm ? 'Project Manager' : 'Assegnatario';
-
-                html += `
-                    <div onclick="openPmItemDetails('${t.id}', '${spaceId || ''}')" style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 0.75rem; border-radius: 10px; display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 0.5rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
-                        <div style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; flex-shrink: 0; position: relative;">
-                            <span class="material-icons-round" style="font-size: 18px;">assignment</span>
-                            <span class="material-icons-round" title="${roleTitle}" style="position: absolute; bottom: -2px; right: -2px; font-size: 12px; color: ${roleColor}; background: white; border-radius: 50%; padding: 1px;">${roleIcon}</span>
-                        </div>
-                         <div style="flex: 1; min-width: 0;">
-                             <div style="font-size: 0.72rem; color: #64748b; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700;">
-                                 ${fullTitle}
-                            </div>
-                            <div style="font-weight: 700; font-size: 0.9rem; color: #1e293b; line-height: 1.3;">${t.title}</div>
-                            ${clientShort ? `<div style="font-size: 0.72rem; color: #64748b; font-weight: 500; margin-top: 2px;">${clientShort}</div>` : ''}
-                        </div>
-                    </div>
-                `;
-            });
-
-            if (!hasContent) html += `<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 2rem;">Nessuna attività.</div>`;
-        }
-
-        // 2. EVENTS (Agenda)
-        if (showEvents) {
-            if (safeEvents.length > 0) {
-                safeEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
-
-                // Group by date
-                const grouped = {};
-                safeEvents.forEach(evt => {
-                    const d = new Date(evt.start);
-                    d.setHours(0, 0, 0, 0);
-                    const key = d.getTime();
-                    if (!grouped[key]) grouped[key] = [];
-                    grouped[key].push(evt);
-                });
-
-                const sortedDates = Object.keys(grouped).sort((a, b) => a - b);
-
-                sortedDates.forEach(dateKey => {
-                    const d = new Date(parseInt(dateKey));
-                    const isToday = d.toDateString() === now.toDateString();
-                    const isTomorrow = d.toDateString() === new Date(now.getTime() + 86400000).toDateString();
-
-                    let dateLabel = d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
-                    if (isToday) dateLabel = "OGGI";
-                    else if (isTomorrow) dateLabel = "DOMANI";
-
-                    html += `
-                        <div style="font-size: 0.62rem; font-weight: 800; color: #94a3b8; margin: 0.6rem 0 0.4rem 0; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; text-transform: uppercase;">
-                            ${dateLabel}
-                        </div>
-                    `;
-
-                        grouped[dateKey].forEach(evt => {
-                        hasContent = true;
-                        const startDate = new Date(evt.start);
-                        const endDate = new Date(evt.end);
-                        const startStr = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                        const endStr = endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-                        const isPast = endDate < now;
-                        const isNow = startDate <= now && endDate > now;
-
-                        let opacity = '1';
-                        let border = '1px solid #f1f5f9';
-                        let bg = '#fff';
-
-                        if (isPast) opacity = '0.6';
-                        if (isNow) {
-                            border = '1px solid #8b5cf6';
-                            bg = 'rgba(139, 92, 246, 0.05)';
-                        }
-
-                        html += `
-                            <div style="background: ${bg}; border-bottom: ${border}; opacity: ${opacity}; padding: 0.75rem 0.65rem; display: flex; gap: 0.85rem; align-items: center; cursor: pointer; border-radius: 10px; margin-bottom: 4px; transition: all 0.2s;" onclick="openHomepageEventDetails('${evt.id}', '${evt.type}')" onmouseover="this.style.background='#fdfaff'" onmouseout="this.style.background='${bg}'">
-                                <div style="display: flex; flex-direction: column; align-items: center; width: 48px; flex-shrink: 0; background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px; border-radius: 8px;">
-                                    <span style="font-size: 0.78rem; font-weight: 800; color: #1e293b; line-height: 1.1;">${startStr}</span>
-                                    <span style="font-size: 0.62rem; font-weight: 600; color: #64748b; margin-top: 1px;">${endStr}</span>
-                                </div>
-                                <div style="flex: 1; min-width: 0;">
-                                    <div style="font-weight: 700; font-size: 0.9rem; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.title}</div>
-                                    <div style="font-size: 0.72rem; color: #64748b; font-weight: 500; margin-top: 1px;">${evt.client || ''}</div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                });
             }
-            if (!hasContent) html += `<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 2rem;">Nessun appuntamento oggi.</div>`;
+            if (!clientShort && space.area) clientShort = space.area;
         }
-
-        // 3. TASKS
-        if (showTasks) {
-            if (realTasks.length > 0) {
-                // Sort by Due Date
-                realTasks.sort((a, b) => {
-                    const da = a.due_date ? new Date(a.due_date) : new Date('9999-12-31');
-                    const db = b.due_date ? new Date(b.due_date) : new Date('9999-12-31');
-                    return da - db;
-                });
-
-                realTasks.forEach(t => {
-                    hasContent = true;
-                    // Correctly access nested Order fields
-                    let fullTitle = t.breadcrumb || 'Generico';
-                    let clientShort = '';
-                    if (t.orders) {
-                        const ord = Array.isArray(t.orders) ? t.orders[0] : t.orders;
-                        if (ord) {
-                            // If we have an order, the breadcrumb is still useful for sub-structure
-                            fullTitle = ord.title || t.title;
-                            // Construct NUMBER - CLIENT for the header
-                            const cName = ord.clients?.client_code || ord.clients?.business_name || '';
-                            clientShort = `#${ord.order_number || '---'}${cName ? ' - ' + cName : ''}`;
-                        }
-                    }
-                    if (!clientShort && t.area) clientShort = t.area;
-
-                    const breadcrumb = t.breadcrumb ? ` ${t.breadcrumb}` : '';
-
-                    const isLate = t.due_date && new Date(t.due_date) < new Date();
-                    const dateStr = t.due_date ? new Date(t.due_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : '';
-
-                    let spaceId = null;
-                    if (t.pm_spaces) {
-                        const space = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
-                        if (space) spaceId = space.id;
-                    }
-
-                    const isPm = t.role === 'pm' || (t.role || '').toLowerCase().includes('manager');
-                    const roleIcon = isPm ? 'stars' : 'person_outline';
-                    const roleColor = isPm ? '#f59e0b' : '#94a3b8';
-                    const roleTitle = isPm ? 'Project Manager' : 'Assegnatario';
-
-                    html += `
-                        <div class="activity-row" style="padding: 0.75rem 0.25rem; border-bottom: 1px solid #f1f5f9; display: flex; align-items: flex-start; gap: 0.75rem;">
-                            <div style="margin-top: 2px; color: ${roleColor}; flex-shrink: 0;" title="${roleTitle}">
-                                <span class="material-icons-round" style="font-size: 16px;">${roleIcon}</span>
-                            </div>
-                            <div style="flex: 1; min-width: 0; cursor: pointer;" onclick="openPmItemDetails('${t.id}', '${spaceId || ''}')">
-                                <div style="font-size: 0.65rem; color: #94a3b8; font-weight: 700; margin-bottom: 1px; text-transform: uppercase;">${clientShort || 'Incarico'}</div>
-                                <div style="font-weight: 700; font-size: 0.9rem; color: #1e293b; line-height: 1.25; margin-bottom: 3px; letter-spacing: -0.01em;">${t.title}</div>
-                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 1px;">
-                                    ${t.breadcrumb ? `<span style="font-size: 0.72rem; color: #64748b; font-weight: 500;">${t.breadcrumb}</span>` : ''}
-                                    ${dateStr ? `
-                                    <span style="font-size: 0.72rem; color: ${isLate ? '#ef4444' : '#94a3b8'}; font-weight: 600;">
-                                        ${t.breadcrumb ? '· ' : ''}${isLate ? 'Scaduto: ' : ''}${dateStr}
-                                    </span>` : ''}
-                                </div>
-                            </div>
-                            <div style="flex-shrink: 0; padding-top: 4px;">
-                                <div class="hp-status-toggle" 
-                                     onclick="event.stopPropagation(); window.quickCompleteTask('${t.id}', this)" 
-                                     title="Segna come completata"
-                                     style="width: 18px; height: 18px; border: 2px solid #e2e8f0; border-radius: 6px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;"
-                                     onmouseover="this.style.background='rgba(78, 146, 216, 0.05)'; this.style.borderColor='#4e92d8';"
-                                     onmouseout="this.style.background='transparent'; this.style.borderColor='#e2e8f0';"
-                                >
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-            }
-            if (!hasContent) html += `<div style="text-align: center; color: #94a3b8; font-size: 0.85rem; padding: 2.5rem; font-weight: 500;">Nessun task da completare.</div>`;
-        }
-
-        container.innerHTML = html;
-
-        // Try to update Tab Counts if buttons exist in parent
-        // This is a bit of a hack to avoid re-rendering the whole header, but effective.
-        try {
-            const card = container.closest('.glass-card');
-            if (card) {
-                const tabs = card.querySelectorAll('.hp-v6-pill');
-                if (tabs.length >= 2) {
-                    // Update counts safely without killing icons
-                    const setCnt = (btn, n) => {
-                        const s = btn.querySelector('.tab-count');
-                        if (s) s.textContent = n;
-                    };
-                    setCnt(tabs[0], countTask);
-                    setCnt(tabs[1], countEvent);
-                }
-            }
-        } catch (e) {/* ignore */ }
-
-    } catch (e) {
-        console.error("Render Activities Error:", e);
-        container.innerHTML = `<div style="color: #f87171; padding: 1rem;">Errore visualizzazione: ${e.message}</div>`;
     }
+
+    const isPm = t.role === 'pm' || (t.role || '').toLowerCase().includes('manager');
+    const roleIcon = isPm ? 'stars' : 'person_outline';
+    const roleColor = isPm ? '#f59e0b' : '#94a3b8';
+    const roleTitle = isPm ? 'Project Manager' : 'Assegnatario';
+
+    const row = document.createElement('div');
+    row.onclick = () => openPmItemDetails(t.id, spaceId || '');
+    row.style.cssText = `background: #f8fafc; border: 1px solid #f1f5f9; padding: 0.85rem; border-radius: 12px; display: flex; gap: 0.85rem; align-items: flex-start; cursor: pointer; transition: all 0.2s; margin-bottom: 8px;`;
+    row.onmouseover = () => { row.style.background = '#f1f5f9'; };
+    row.onmouseout = () => { row.style.background = '#f8fafc'; };
+    
+    const icon = t.isTimer ? 'play_arrow' : (t.type === 'event' ? 'calendar_today' : 'assignment');
+    const iconBg = t.isTimer ? '#10b981' : (t.type === 'event' ? '#8b5cf6' : '#e2e8f0');
+    const iconColor = t.isTimer || t.type === 'event' ? 'white' : '#64748b';
+
+    row.innerHTML = `
+        <div style="width: 32px; height: 32px; background: ${iconBg}; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: ${iconColor}; flex-shrink: 0; position: relative;">
+            <span class="material-icons-round" style="font-size: 18px;">${icon}</span>
+            <span class="material-icons-round" title="${roleTitle}" style="position: absolute; bottom: -2px; right: -2px; font-size: 12px; color: ${roleColor}; background: white; border-radius: 50%; padding: 1px;">${roleIcon}</span>
+        </div>
+        <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 0.72rem; color: #64748b; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700;">
+                ${fullTitle}
+            </div>
+            <div style="font-weight: 700; font-size: 0.9rem; color: #1e293b; line-height: 1.3;">${t.title}</div>
+            ${clientShort ? `<div style="font-size: 0.75rem; color: #64748b; margin-top: 3px; font-weight: 500;">${clientShort}</div>` : ''}
+        </div>
+        ${!t.isTimer && !t.isEvent ? `
+            <div style="flex-shrink: 0; padding-top: 4px;">
+                <div class="hp-status-toggle" 
+                     onclick="event.stopPropagation(); window.quickCompleteTask('${t.id}', this)" 
+                     style="width: 18px; height: 18px; border: 2px solid #e2e8f0; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+                </div>
+            </div>
+        ` : ''}
+    `;
+    container.appendChild(row);
+}
+
+function renderMyActivities(container, timers, tasks, events, filter = 'task') {
+    container.innerHTML = '';
+    let hasContent = false;
+    
+    // 1. Timers (Prioritized)
+    if (timers && timers.length > 0) {
+        timers.forEach(t => {
+            hasContent = true;
+            renderActivityRow(container, { ...t, isTimer: true });
+        });
+    }
+
+    // 2. Filtered Content
+    if (filter === 'task') {
+        if (tasks && tasks.length > 0) {
+            tasks.forEach(t => {
+                hasContent = true;
+                renderActivityRow(container, t);
+            });
+        }
+    } else {
+        if (events && events.length > 0) {
+            events.forEach(e => {
+                hasContent = true;
+                renderActivityRow(container, { ...e, isEvent: true, type: 'event' });
+            });
+        }
+    }
+
+    if (!hasContent) {
+        container.innerHTML = `<div style="padding: 2.5rem 1rem; text-align: center; color: #94a3b8; font-size: 0.85rem; font-weight: 500;">Nessuna attività programmata</div>`;
+    }
+}
 }
 
 // Helper for Task Completion
