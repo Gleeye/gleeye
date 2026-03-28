@@ -1002,109 +1002,7 @@ export async function renderHomepageAlt(container) {
     // Default filter state (User requested: Task, Appuntamenti, Attività)
     if (!window.hpActivityFilter) window.hpActivityFilter = 'task';
 
-    try {
-        // 1. TIMERS (Reserved for future use)
-        activeTimers = [];
-
-        // 2. TASKS (From PM Items)
-        // Use user_ref (Auth ID) for assignment check.
-        const targetUserId = myCollab.user_id || state.session?.user?.id;
-
-        const { data: pmTasks, error: pmError } = await supabase
-            .from('pm_items')
-            .select(`
-                id, title, status, due_date, item_type,
-                parent_ref,
-                parent_task:parent_ref(id, title, item_type),
-                pm_spaces (
-                    id, name, type, area, is_cluster, parent_ref,
-                    orders (
-                        order_number, 
-                        title,
-                        clients (id, business_name, client_code)
-                    ),
-                    cluster:parent_ref(id, name)
-                ),
-                pm_item_assignees!inner(user_ref, role),
-                all_assignees:pm_item_assignees(user_ref, role)
-            `)
-            .eq('pm_item_assignees.user_ref', targetUserId)
-            .neq('status', 'done');
-
-        if (pmError) console.error("PM Tasks fetch error:", pmError);
-
-        myTasks = (pmTasks || [])
-            .map(t => {
-                // Determine user's role for this item
-                const myAssignment = t.pm_item_assignees.find(a => a.user_ref === targetUserId);
-                const myRole = myAssignment ? myAssignment.role : 'viewer';
-
-                // Robustly extract order and breadcrumb
-                let ord = null;
-                let breadcrumb = '';
-                if (t.pm_spaces) {
-                    const space = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
-                    if (space && space.orders) {
-                        ord = Array.isArray(space.orders) ? space.orders[0] : space.orders;
-                    }
-
-                    const path = [];
-                    // Removed area from breadcrumb to display it more clearly on the bottom line
-                    const cluster = Array.isArray(space.cluster) ? space.cluster[0] : space.cluster;
-                    if (cluster && cluster.name) path.push(cluster.name);
-
-                    if (space && space.name && (!cluster || space.name !== cluster.name)) path.push(space.name);
-
-                    const parentTask = Array.isArray(t.parent_task) ? t.parent_task[0] : t.parent_task;
-                    if (parentTask && parentTask.title) path.push(parentTask.title);
-
-                    breadcrumb = path.join(' › ');
-                }
-
-                const spaceObj = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
-                const parentTask = Array.isArray(t.parent_task) ? t.parent_task[0] : t.parent_task;
-
-                const rawType = (t.item_type || 'task').toLowerCase();
-                const parentRawType = (parentTask?.item_type || '').toLowerCase();
-
-                const isActivity = rawType === 'activity' || rawType.includes('attivit');
-                const isParentActivity = parentRawType === 'activity' || parentRawType.includes('attivit');
-                const isSubActivity = isActivity && isParentActivity;
-
-                return {
-                    id: t.id,
-                    title: t.title,
-                    status: t.status,
-                    due_date: t.due_date,
-                    parent_id: t.parent_ref,
-                    orders: ord,
-                    breadcrumb: breadcrumb,
-                    area: spaceObj?.area || '',
-                    space_type: (spaceObj?.type || '').toLowerCase(),
-                    raw_type: rawType,
-                    is_activity: isActivity,
-                    is_sub_activity: isSubActivity,
-                    type: 'pm_task',
-                    role: myRole,
-                    all_assignees: t.all_assignees || []
-                };
-            });
-        // Removed strict role filter. 
-        // The inner join on pm_item_assignees.user_ref ensures we only fetch items assigned to the user.
-        // If they are assigned (even as PM), they should see it.
-
-        // 3. EVENTS (Next 14 days for "surely see future appointments")
-        const rangeEnd = new Date();
-        rangeEnd.setDate(rangeEnd.getDate() + 14);
-        events = await fetchDateEvents(myId, new Date(), rangeEnd);
-
-    } catch (err) {
-        console.error("Error fetching My Activities data:", err);
-    }
-
-    // Force Task filter for the top block in this alt view
-    window.hpActivityFilter = 'task';
-
+    // 1. Initial UI Flush (Skeleton) - This prevents the White Screen
     container.innerHTML = `
         <style>
             /* FORCE FLEX ON GLOBAL ERP AREA */
@@ -1130,25 +1028,30 @@ export async function renderHomepageAlt(container) {
             .hp-mobile-agenda-pop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 20000; align-items: center; justify-content: center; padding: 15px; }
             
             @media (max-width: 1150px) {
-                #content-area { height: auto !important; overflow: visible !important; }
+                /* FORCE GLOBAL UNLOCK FOR MOBILE SCROLL */
+                body, #app, .main-content { height: auto !important; overflow: visible !important; min-height: 100vh !important; }
+                #content-area { height: auto !important; overflow: visible !important; padding: 0 !important; }
+
+                .hp-alt-wrapper { height: auto !important; overflow: visible !important; min-height: 100vh !important; display: block !important; }
                 .hp-alt-sidebar-left { display: none !important; }
-                .hp-main-content-area { padding: 95px 1.25rem 2rem 1.25rem !important; overflow-x: hidden; width: 100% !important; height: auto !important; box-sizing: border-box; }
+                .hp-main-content-area { padding: 0.5rem 1.25rem 2rem 1.25rem !important; overflow: visible !important; width: 100% !important; height: auto !important; box-sizing: border-box; }
                 .hp-main-columns-container { flex-direction: column; gap: 1.5rem; width: 100%; border-radius: 0; }
                 
                 .hp-mobile-banner { 
                     display: flex; 
-                    position: fixed;
-                    top: 12px;
-                    left: 12px;
-                    right: 12px;
-                    background: rgba(255, 255, 255, 0.88); 
+                    position: sticky;
+                    top: env(safe-area-inset-top, 0px); 
+                    padding-top: 12px;
+                    z-index: 1000;
+                    margin-bottom: 1rem;
+                    background: rgba(255, 255, 255, 0.9); 
                     backdrop-filter: blur(25px) saturate(180%); 
                     -webkit-backdrop-filter: blur(25px) saturate(180%); 
                     border: 1px solid rgba(255, 255, 255, 0.6);
                     padding: 10px 18px;
-                    border-radius: 24px;
+                    border-radius: 20px;
                     z-index: 1000;
-                    box-shadow: 0 12px 35px rgba(0,0,0,0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
                     justify-content: space-between;
                     align-items: center;
                     transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -1232,13 +1135,10 @@ export async function renderHomepageAlt(container) {
                  
                  <!-- MOBILE STICKY BANNER -->
                  <div class="hp-mobile-banner" onclick="window.openMobileAgenda()">
-                    <div style="display: flex; align-items: center; gap: 16px;">
-                        <div style="width: 32px; height: 32px; border-radius: 10px; background: #f8fafc; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0;">
-                            <span class="material-icons-round" style="font-size: 18px; color: #1e293b;">auto_awesome</span>
-                        </div>
+                    <div style="display: flex; align-items: center; gap: 14px;">
                         <div style="display: flex; flex-direction: column; gap: 0;">
-                            <span style="font-size: 0.62rem; font-weight: 800; color: #1e293b; letter-spacing: 0.12em; text-transform: uppercase;">JOURNAL</span>
-                            <div style="display: flex; align-items: center; gap: 10px; margin-top: -2px;">
+                            <span style="font-size: 0.62rem; font-weight: 800; color: #1e293b; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 2px;">JOURNAL'S VIEW</span>
+                            <div style="display: flex; align-items: center; gap: 10px;">
                                 <div style="display: flex; align-items: center; gap: 4px;">
                                     <span class="material-icons-round" style="color: #8b5cf6; font-size: 13px;">task_alt</span>
                                     <span id="hp-banner-count-tasks" style="font-weight: 800; font-size: 0.9rem; color: #64748b;">0</span>
@@ -1374,8 +1274,29 @@ export async function renderHomepageAlt(container) {
                      </div>
                  </div>
 
-            </div>
-        </div>
+             </div> <!-- End main-content-area -->
+
+             <!-- 3. MOBILE OVERLAY POPUP (Replica of Desktop Sidebar) -->
+             <div id="hp-mobile-agenda-popup" class="hp-mobile-agenda-pop" onclick="window.closeMobileAgenda()">
+                <div onclick="event.stopPropagation()" style="background: white; width: 100%; max-width: 450px; border-radius: 30px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: hpPopSlide 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+                    <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.05em;">Journal's View</h3>
+                        <button onclick="window.closeMobileAgenda()" style="background: #f1f5f9; border: none; width: 40px; height: 40px; border-radius: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                            <span class="material-icons-round" style="font-size: 24px; color: #64748b;">close</span>
+                        </button>
+                    </div>
+                    <div id="hp-mobile-agenda-list" style="padding: 20px; max-height: 70vh; overflow-y: auto;">
+                        <!-- Mobile content replica injected here -->
+                    </div>
+                </div>
+             </div>
+
+             <style>
+                @keyframes hpPopSlide {
+                    from { opacity: 0; transform: translateY(40px) scale(0.95); }
+                    to { opacity: 1; transform: translateY(0) scale(1); }
+                }
+             </style>
     `;
 
     // --- Interaction Logic ---
@@ -1383,10 +1304,24 @@ export async function renderHomepageAlt(container) {
     window.homepageCurrentDate = new Date();
     window.homepageCollaboratorId = myCollab.id;
     window.hpView = 'daily'; // 'daily' | 'weekly'
+    window.hpActivityFilter = 'task'; // Default to tasks
+    
+    window.openMobileAgenda = () => {
+        const pop = document.getElementById('hp-mobile-agenda-popup');
+        if (pop) {
+            pop.style.display = 'flex';
+            window.syncHomepageActivities();
+        }
+    };
+    window.closeMobileAgenda = () => {
+        const pop = document.getElementById('hp-mobile-agenda-popup');
+        if (pop) pop.style.display = 'none';
+    };
+
     window.toggleOverdueFilter = () => {
         window.hpShowOverdue = !window.hpShowOverdue;
-        const btn = document.getElementById('hp-overdue-filter');
-        if (btn) btn.classList.toggle('active', window.hpShowOverdue);
+        const btn = document.getElementById('hp-mobile-overdue-filter');
+        if (btn) btn.style.color = window.hpShowOverdue ? '#ef4444' : '#94a3b8';
         window.syncHomepageActivities();
     };
 
@@ -1403,6 +1338,9 @@ export async function renderHomepageAlt(container) {
             start.setDate(diff); start.setHours(0, 0, 0, 0);
             end = new Date(start);
             end.setDate(start.getDate() + 6); end.setHours(23, 59, 59, 999);
+        } else if (window.hpView === 'tomorrow') {
+            start.setDate(start.getDate() + 1); start.setHours(0, 0, 0, 0);
+            end = new Date(start); end.setHours(23, 59, 59, 999);
         } else {
             start.setHours(0, 0, 0, 0);
             end.setHours(23, 59, 59, 999);
@@ -1448,7 +1386,14 @@ export async function renderHomepageAlt(container) {
             return d >= start && d <= end;
         });
 
-        const combinedTasks = [...filteredRealTasks, ...pmActivities];
+        const filteredPmActivities = pmActivities.filter(t => {
+            if (!t.due_date) return true; // Show undated activities in the list
+            const d = parseLocal(t.due_date);
+            return d >= start && d <= end;
+        });
+
+        // Davide wants ONLY tasks, no activities in the main list.
+        const combinedTasks = filteredRealTasks; 
         window.hpData.filteredTasks = combinedTasks;
 
         const actContainer = document.getElementById('hp-activities-list');
@@ -1481,7 +1426,7 @@ export async function renderHomepageAlt(container) {
             eventBadge.style.background = '#8b5cf6';
         }
 
-        // --- UPDATE MOBILE TOP BANNER ---
+        // --- MOBILE COUNTS FIX ---
         const bTasks = document.getElementById('hp-banner-count-tasks');
         const bEvents = document.getElementById('hp-banner-count-events');
         const tStart = new Date(); tStart.setHours(0,0,0,0);
@@ -1492,7 +1437,7 @@ export async function renderHomepageAlt(container) {
             const d = parseLocal(t.due_date);
             return d >= tStart && d <= tEnd;
         });
-        const mTodayE = (window.hpData?.timers || []).filter(e => {
+        const mTodayE = (window.hpData?.events || []).filter(e => {
             if (!e.start) return false;
             const d = new Date(e.start);
             return d >= tStart && d <= tEnd;
@@ -1501,33 +1446,118 @@ export async function renderHomepageAlt(container) {
         if (bTasks) bTasks.textContent = mTodayT.length;
         if (bEvents) bEvents.textContent = mTodayE.length;
 
+        // --- NEW POPUP STATS ---
+        const popT = document.getElementById('hp-mobile-stat-tasks');
+        const popE = document.getElementById('hp-mobile-stat-events');
+        const popO = document.getElementById('hp-mobile-stat-overdue');
+        const popOBox = document.getElementById('hp-mobile-stat-overdue-box');
+        
+        if (popT) popT.textContent = mTodayT.length;
+        if (popE) popE.textContent = mTodayE.length;
+        if (popO) {
+            popO.textContent = overdueCount;
+            if (popOBox) popOBox.style.display = overdueCount > 0 ? 'flex' : 'none';
+        }
+
         const pContent = document.getElementById('hp-mobile-agenda-list');
         const pPopup = document.getElementById('hp-mobile-agenda-popup');
         
         if (pContent && pPopup && pPopup.style.display === 'flex') {
+            const isTaskMode = (window.hpActivityFilter === 'task');
+            const dayDesc = window.hpView === 'weekly' ? 'Prossimi Giorni' : (window.hpView === 'tomorrow' ? 'Domani' : 'Oggi');
+
             pContent.innerHTML = `
-                <div style="display: flex; flex-direction: column; gap: 24px;">
-                    <div>
-                        <div style="font-size: 0.7rem; font-weight: 800; color: #8b5cf6; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.05em; text-transform: uppercase;">
-                            <span class="material-icons-round" style="font-size: 16px;">task_alt</span> Task Oggi (${mTodayT.length})
-                        </div>
-                        <div id="hp-mobile-pop-tasks" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                <!-- Mobile Popup Menu (Desktop Replica) -->
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+                    <div style="flex: 1; background: #f8fafc; padding: 4px; border-radius: 12px; display: flex; gap: 4px; border: 1px solid #f1f5f9;">
+                        <button onclick="window.setTimelineMode('today', true)" style="flex: 1; padding: 9px 4px; font-size: 0.7rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: ${window.hpView === 'daily' ? 'white' : 'transparent'}; color: ${window.hpView === 'daily' ? '#1e293b' : '#64748b'}; box-shadow: ${window.hpView === 'daily' ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'}; border: ${window.hpView === 'daily' ? '1px solid #e2e8f0' : '1px solid transparent'};">OGGI</button>
+                        <button onclick="window.setTimelineMode('tomorrow', true)" style="flex: 1; padding: 9px 4px; font-size: 0.7rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: ${window.hpView === 'tomorrow' ? 'white' : 'transparent'}; color: ${window.hpView === 'tomorrow' ? '#1e293b' : '#64748b'}; box-shadow: ${window.hpView === 'tomorrow' ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'}; border: ${window.hpView === 'tomorrow' ? '1px solid #e2e8f0' : '1px solid transparent'};">DOMANI</button>
+                        <button onclick="window.setTimelineMode('week', true)" style="flex: 1; padding: 9px 4px; font-size: 0.7rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: ${window.hpView === 'weekly' ? 'white' : 'transparent'}; color: ${window.hpView === 'weekly' ? '#1e293b' : '#64748b'}; box-shadow: ${window.hpView === 'weekly' ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'}; border: ${window.hpView === 'weekly' ? '1px solid #e2e8f0' : '1px solid transparent'};">SETTIMANA</button>
                     </div>
-                    <div>
-                        <div style="font-size: 0.7rem; font-weight: 800; color: #10b981; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.05em; text-transform: uppercase;">
-                            <span class="material-icons-round" style="font-size: 16px;">calendar_today</span> Appuntamenti (${mTodayE.length})
-                        </div>
-                        <div id="hp-mobile-pop-events" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                    <div style="position: relative; width: 42px; height: 42px; background: #f1f5f9; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #e2e8f0;" onclick="event.stopPropagation()">
+                         <span class="material-icons-round" style="color: #64748b; font-size: 20px;">event</span>
+                         <input type="date" onchange="window.setHpAlternativeDate(this.value)" onclick="event.stopPropagation()" style="position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer;">
                     </div>
                 </div>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 0 4px;">
+                    <div style="display: flex; background: #f8fafc; padding: 4px; border-radius: 12px; gap: 4px; border: 1px solid #f1f5f9;">
+                         <button onclick="window.setHpAltFilter('task')" style="position: relative; background: ${isTaskMode ? 'white' : 'transparent'}; color: ${isTaskMode ? '#3b82f6' : '#94a3b8'}; border: none; padding: 7px 10px; border-radius: 10px; display: flex; align-items: center; cursor: pointer; border: 1px solid ${isTaskMode ? '#e2e8f0' : 'transparent'}; box-shadow: ${isTaskMode ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'};">
+                             <span class="material-icons-round" style="font-size: 20px;">check_circle</span>
+                             <span id="hp-mobile-pop-stat-tasks" style="position: absolute; top: -4px; right: -4px; background: #3b82f6; color: white; font-size: 0.6rem; font-weight: 800; padding: 1px 5px; border-radius: 10px; border: 2px solid white;">${mTodayT.length}</span>
+                         </button>
+                         <button onclick="window.setHpAltFilter('event')" style="position: relative; background: ${!isTaskMode ? 'white' : 'transparent'}; color: ${!isTaskMode ? '#8b5cf6' : '#94a3b8'}; border: none; padding: 7px 10px; border-radius: 10px; display: flex; align-items: center; cursor: pointer; border: 1px solid ${!isTaskMode ? '#e2e8f0' : 'transparent'}; box-shadow: ${!isTaskMode ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'};">
+                             <span class="material-icons-round" style="font-size: 20px;">calendar_today</span>
+                             <span id="hp-mobile-pop-stat-events" style="position: absolute; top: -4px; right: -4px; background: #8b5cf6; color: white; font-size: 0.6rem; font-weight: 800; padding: 1px 5px; border-radius: 10px; border: 2px solid white;">${mTodayE.length}</span>
+                         </button>
+                    </div>
+                    <div style="display: flex; gap: 16px; align-items: center;">
+                        <div style="position: relative; cursor: pointer;" onclick="window.toggleOverdueFilter()">
+                            <span id="hp-mobile-overdue-filter" class="material-icons-round" style="font-size: 24px; color: ${window.hpShowOverdue ? '#ef4444' : '#94a3b8'};">history</span>
+                            <span id="hp-mobile-pop-stat-overdue" style="display: ${overdueCount > 0 ? 'block' : 'none'}; position: absolute; top: -4px; right: -6px; background: #ef4444; color: white; font-size: 0.6rem; font-weight: 800; padding: 1px 5px; border-radius: 10px; border: 2px solid white;">${overdueCount}</span>
+                        </div>
+                        <span class="material-icons-round" onclick="window.openPmItemDetails('NEW')" style="font-size: 26px; color: #3b82f6; cursor: pointer;">add_circle</span>
+                    </div>
+                </div>
+
+                <div style="padding: 0 4px; font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.05em;">
+                    ${dayDesc}
+                </div>
+
+                <div id="hp-mobile-rows-container" style="max-height: 400px; overflow-y: auto; padding-right: 4px;"></div>
+
+                <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 8px;">
+                    <a href="#my-assignments" onclick="window.closeMobileAgenda()" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #f8fafc; border-radius: 12px; text-decoration: none; color: #1e293b; font-size: 0.85rem; font-weight: 700; border: 1px solid #f1f5f9;">
+                         <div style="display: flex; align-items: center; gap: 10px;">
+                             <span class="material-icons-round" style="color: #3b82f6; font-size: 18px;">assignment</span>
+                             Vai a tutte le mie Task
+                         </div>
+                         <span class="material-icons-round" style="font-size: 18px; color: #94a3b8;">chevron_right</span>
+                    </a>
+                    <a href="#agenda" onclick="window.closeMobileAgenda()" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #f8fafc; border-radius: 12px; text-decoration: none; color: #1e293b; font-size: 0.85rem; font-weight: 700; border: 1px solid #f1f5f9;">
+                         <div style="display: flex; align-items: center; gap: 10px;">
+                             <span class="material-icons-round" style="color: #8b5cf6; font-size: 18px;">calendar_month</span>
+                             Vai all'Agenda completa
+                         </div>
+                         <span class="material-icons-round" style="font-size: 18px; color: #94a3b8;">chevron_right</span>
+                    </a>
+                </div>
             `;
-            const tT = document.getElementById('hp-mobile-pop-tasks');
-            const eT = document.getElementById('hp-mobile-pop-events');
-            if (mTodayT.length === 0) tT.innerHTML = '<div style="padding: 1rem; text-align: center; color: #94a3b8; font-size: 0.8rem;">Ottimo! Nessun task.</div>';
-            else mTodayT.forEach(t => renderActivityRow(tT, t));
-            if (mTodayE.length === 0) eT.innerHTML = '<div style="padding: 1rem; text-align: center; color: #94a3b8; font-size: 0.8rem;">Agenda libera.</div>';
-            else mTodayE.forEach(e => renderActivityRow(eT, e));
+            
+            const rowsContainer = document.getElementById('hp-mobile-rows-container');
+            if (isTaskMode) {
+                if (combinedTasks.length === 0) rowsContainer.innerHTML = '<div style="padding: 3rem 1rem; text-align: center; color: #94a3b8; font-size: 0.85rem; font-weight: 500;">Ottimo! Nessun task per questo periodo.</div>';
+                else combinedTasks.forEach(t => renderActivityRow(rowsContainer, t));
+            } else {
+                const dayEvents = (window.hpData?.events || []).filter(e => {
+                    if (!e.start) return false;
+                    const d = new Date(e.start);
+                    return d >= start && d <= end;
+                });
+                if (dayEvents.length === 0) rowsContainer.innerHTML = '<div style="padding: 3rem 1rem; text-align: center; color: #94a3b8; font-size: 0.85rem; font-weight: 500;">Agenda libera per oggi.</div>';
+                else dayEvents.forEach(e => renderActivityRow(rowsContainer, { ...e, isEvent: true, type: 'event' }));
+            }
         }
+    };
+
+    window.setHpAlternativeDate = (val) => {
+        if (!val) return;
+        const d = new Date(val);
+        window.homepageCurrentDate = d;
+        window.hpView = 'daily';
+        window.syncHomepageActivities();
+    };
+
+    window.setTimelineMode = (mode, isMobile = false) => {
+        if (mode === 'today') window.hpView = 'daily';
+        else if (mode === 'tomorrow') window.hpView = 'tomorrow';
+        else if (mode === 'week') window.hpView = 'weekly';
+        window.syncHomepageActivities();
+    };
+
+    window.setHpAltFilter = (filter) => {
+        window.hpActivityFilter = filter;
+        window.syncHomepageActivities();
     };
 
     window.toggleHomepageView = (view) => {
@@ -1537,14 +1567,15 @@ export async function renderHomepageAlt(container) {
         const dailyBtn = document.getElementById('view-daily-btn');
         const weeklyBtn = document.getElementById('view-weekly-btn');
         if (view === 'daily') {
-            dailyBtn.classList.add('active-pill'); dailyBtn.style.background = 'white'; dailyBtn.style.color = '#111';
-            weeklyBtn.classList.remove('active-pill'); weeklyBtn.style.background = 'transparent'; weeklyBtn.style.color = '#6b7280';
+            if (dailyBtn) { dailyBtn.classList.add('active-pill'); dailyBtn.style.background = 'white'; dailyBtn.style.color = '#111'; }
+            if (weeklyBtn) { weeklyBtn.classList.remove('active-pill'); weeklyBtn.style.background = 'transparent'; weeklyBtn.style.color = '#6b7280'; }
         } else {
-            weeklyBtn.classList.add('active-pill'); weeklyBtn.style.background = 'white'; weeklyBtn.style.color = '#111';
-            dailyBtn.classList.remove('active-pill'); dailyBtn.style.background = 'transparent'; dailyBtn.style.color = '#6b7280';
+            if (weeklyBtn) { weeklyBtn.classList.add('active-pill'); weeklyBtn.style.background = 'white'; weeklyBtn.style.color = '#111'; }
+            if (dailyBtn) { dailyBtn.classList.remove('active-pill'); dailyBtn.style.background = 'transparent'; dailyBtn.style.color = '#6b7280'; }
         }
 
         window.updateHomepageTimeline(window.homepageCurrentDate);
+        window.syncHomepageActivities(); // Added to ensure both sections stay in sync
     };
 
     // Function to update timeline and header date
@@ -1901,59 +1932,129 @@ export async function renderHomepageAlt(container) {
         }, 0);
     };
 
-    // --- Initial Load ---
-    try {
-        window.updateHomepageDateFromInput = (val) => {
-            if (!val) return;
-            window.homepageCurrentDate = new Date(val);
+    // --- Background Data Fetch & Initial Load ---
+    (async () => {
+        try {
+            // Re-fetch data in background to populate and sync
+            const targetUserId = myCollab.user_id || state.session?.user?.id;
+            const { data: pmTasks, error: pmError } = await supabase
+                .from('pm_items')
+                .select(`
+                    id, title, status, due_date, item_type,
+                    parent_ref,
+                    parent_task:parent_ref(id, title, item_type),
+                    pm_spaces (
+                        id, name, type, area, is_cluster, parent_ref,
+                        orders (
+                            order_number, 
+                            title,
+                            clients (id, business_name, client_code)
+                        ),
+                        cluster:parent_ref(id, name)
+                    ),
+                    pm_item_assignees!inner(user_ref, role),
+                    all_assignees:pm_item_assignees(user_ref, role)
+                `)
+                .eq('pm_item_assignees.user_ref', targetUserId)
+                .neq('status', 'done');
+
+            if (pmError) console.error("PM Tasks fetch error:", pmError);
+
+            const fetchedTasks = (pmTasks || []).map(t => {
+                const myAssignment = t.pm_item_assignees.find(a => a.user_ref === targetUserId);
+                const myRole = myAssignment ? myAssignment.role : 'viewer';
+                const space = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
+                const clients = space?.orders?.clients;
+                let clientCode = '';
+                if (clients) {
+                    if (Array.isArray(clients)) { clientCode = clients[0]?.client_code || ''; } 
+                    else { clientCode = clients.client_code || ''; }
+                }
+                let ord = space?.orders?.order_number || '';
+                if (clientCode && ord) ord = `${clientCode}-${ord}`;
+                
+                let breadcrumb = '';
+                if (space) {
+                    const path = [];
+                    const cluster = Array.isArray(space.cluster) ? space.cluster[0] : space.cluster;
+                    if (cluster && cluster.name) path.push(cluster.name);
+                    if (space && space.name && (!cluster || space.name !== cluster.name)) path.push(space.name);
+                    const pTask = Array.isArray(t.parent_task) ? t.parent_task[0] : t.parent_task;
+                    if (pTask && pTask.title) path.push(pTask.title);
+                    breadcrumb = path.join(' › ');
+                }
+                const rawType = (t.item_type || 'task').toLowerCase();
+                return {
+                    id: t.id, title: t.title, status: t.status, due_date: t.due_date,
+                    parent_id: t.parent_ref, orders: ord, breadcrumb: breadcrumb,
+                    area: space?.area || '', space_type: (space?.type || '').toLowerCase(),
+                    raw_type: rawType, type: 'pm_task', role: myRole, all_assignees: t.all_assignees || []
+                };
+            });
+
+            const rangeEnd = new Date();
+            rangeEnd.setDate(rangeEnd.getDate() + 14);
+            const fetchedEvents = await fetchDateEvents(myId, new Date(), rangeEnd);
+
+            // 1. Store data for filtering reference
+            window.hpData = {
+                timers: [],
+                tasks: fetchedTasks,
+                events: fetchedEvents,
+                filteredTasks: fetchedTasks
+            };
+
+            // 2. Initial sync for activities
+            window.syncHomepageActivities();
+
+            // 3. Timeline (Default Today)
             window.updateHomepageTimeline(window.homepageCurrentDate);
 
-            ['today', 'tomorrow', 'week'].forEach(m => {
-                const btn = document.getElementById('btn-mode-' + m);
-                if (btn) {
-                    btn.classList.remove('active-pill');
-                    btn.style.background = 'transparent';
-                    btn.style.color = '#6b7280';
-                }
+            // 4. Role-Based Dispatch
+            let userTags = [];
+            if (myCollab && myCollab.tags) {
+                if (typeof myCollab.tags === 'string') {
+                    try { userTags = JSON.parse(myCollab.tags); } catch (e) { userTags = myCollab.tags.split(',').map(t => t.trim()); }
+                } else { userTags = myCollab.tags; }
+            }
+            const normalizedTags = Array.isArray(userTags) ? userTags.map(t => (t || '').toLowerCase()) : [];
+            const detectedRole = detectUserRole(normalizedTags);
+            const actualTargetUserId = myCollab.user_id || state.session?.user?.id;
+            
+            await renderMainContent(container, detectedRole, {
+                myTasks: fetchedTasks, events: fetchedEvents, activeTimers: [], myCollab, myId,
+                normalizedTags, targetUserId: actualTargetUserId
             });
-            window.hpView = 'daily';
-        };
 
-        // 1. Store data for filtering reference
-        window.hpData = {
-            timers: activeTimers,
-            tasks: myTasks,
-            events: events,
-            filteredTasks: myTasks
-        };
-
-        // 2. Initial sync for activities
-        window.syncHomepageActivities();
-
-        // 3. Timeline (Default Today)
-        window.updateHomepageTimeline(window.homepageCurrentDate);
-
-        // 3. Load Bottom Section
-        let userTags = [];
-        if (myCollab && myCollab.tags) {
-            if (typeof myCollab.tags === 'string') {
-                try { userTags = JSON.parse(myCollab.tags); } catch (e) { userTags = myCollab.tags.split(',').map(t => t.trim()); }
-            } else { userTags = myCollab.tags; }
+        } catch (e) {
+            console.error("Home Data Load Error:", e);
         }
-        const normalizedTags = Array.isArray(userTags) ? userTags.map(t => (t || '').toLowerCase()) : [];
-        // --- ROLE-BASED DISPATCH ---
-        const detectedRole = detectUserRole(normalizedTags);
-        const actualTargetUserId = myCollab.user_id || state.session?.user?.id;
-        
-        await renderMainContent(container, detectedRole, {
-            myTasks, events, activeTimers, myCollab, myId,
-            normalizedTags, targetUserId: actualTargetUserId
-        });
-        return; // role-based rendering takes over from here
+    })();
 
-    } catch (e) {
-        console.error("Home Data Load Error:", e);
-    }
+    // --- GLOBAL REFRESHER FOR DASHBOARD ---
+    const setupRefresher = () => {
+        const reload = () => {
+            // Verify if the element is still in the DOM and visible
+            if (!document.getElementById('hp-pm-spaces-main-block')) {
+                document.removeEventListener('pm-item-changed', window._hpAltReloadHandler);
+                document.removeEventListener('appointment-changed', window._hpAltReloadHandler);
+                window._hpAltReloadHandler = null;
+                return;
+            }
+            console.log("[Homepage] Refreshing dashboard data...");
+            renderHomepageAlt(container);
+        };
+
+        // Prevent double registration
+        if (window._hpAltReloadHandler) {
+            document.removeEventListener('pm-item-changed', window._hpAltReloadHandler);
+            document.removeEventListener('appointment-changed', window._hpAltReloadHandler);
+        }
+        window._hpAltReloadHandler = reload;
+        document.addEventListener('pm-item-changed', reload);
+        document.addEventListener('appointment-changed', reload);
+    };
+    setupRefresher();
 }
 
 // --- INTERNAL HUB/CLUSTER ENGINES ---
@@ -2445,60 +2546,13 @@ async function renderMainContent_Partner(container, data) {
     // Initial render for delegated (removed)
     // window.setHpDelegatedTab('projects');
 
-    // Event Listener for Refresh (Sync with drawers)
-    const reloadHandler = (e) => {
-        // Check if we are still on homepage
-        if (!document.querySelector('.homepage-header')) return;
-
-        console.log("[Homepage] External change detected:", e.type, e.detail);
-        if (window.updateHomepageTimeline) {
-            window.updateHomepageTimeline(window.homepageCurrentDate);
+    window.openMobileAgenda = () => {
+        const el = document.getElementById('hp-mobile-agenda-popup');
+        if (el) {
+            el.style.display = 'flex';
+            window.syncHomepageActivities();
         }
     };
-
-    if (window._hpReloadHandler) {
-        document.removeEventListener('appointment-changed', window._hpReloadHandler);
-        document.removeEventListener('pm-item-changed', window._hpReloadHandler);
-    }
-    window._hpReloadHandler = reloadHandler;
-    document.addEventListener('appointment-changed', reloadHandler);
-    document.addEventListener('pm-item-changed', reloadHandler);
-
-    // --- MOBILE POPUP (Structure only) ---
-    if (!document.getElementById('hp-mobile-agenda-popup')) {
-        const popup = document.createElement('div');
-        popup.id = 'hp-mobile-agenda-popup';
-        popup.className = 'hp-mobile-agenda-pop';
-        popup.innerHTML = `
-            <div class="glass-card" style="width: 100%; max-width: 420px; max-height: 80vh; display: flex; flex-direction: column; background: rgba(255,255,255,0.98); border-radius: 24px; border: 1px solid white; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.3);">
-                <div style="padding: 20px 24px; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
-                    <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
-                        <span class="material-icons-round" style="color: #4e92d8;">today</span>
-                        Riepilogo Giornaliero
-                    </h3>
-                    <div onclick="this.closest('.hp-mobile-agenda-pop').style.display='none'" style="width: 38px; height: 38px; border-radius: 12px; background: #fff; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-                        <span class="material-icons-round" style="font-size: 20px; color: #64748b;">close</span>
-                    </div>
-                </div>
-                <div id="hp-mobile-agenda-list" class="custom-scrollbar" style="flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 24px;">
-                    <!-- Content will be injected by sync -->
-                </div>
-            </div>
-        `;
-        popup.onclick = (e) => { if (e.target === popup) popup.style.display = 'none'; };
-        
-        // Append to wrapper or container
-        const wrapper = document.querySelector('.hp-alt-wrapper') || container || document.body;
-        wrapper.appendChild(popup);
-        
-        window.openMobileAgenda = () => {
-            const el = document.getElementById('hp-mobile-agenda-popup');
-            if (el) {
-                el.style.display = 'flex';
-                window.syncHomepageActivities();
-            }
-        };
-    }
 
     // Helper for Quick Add from Banner
     window.toggleHpQuickEntry = (btn) => {
@@ -3600,62 +3654,82 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
     }
 }
 
-// Helper to render an activity row (tasks/events)
+// Helper to render an activity row (tasks/events/timers) - ZERO INVASIVITY VERSION
 function renderActivityRow(container, t) {
-    let fullTitle = 'Attività';
-    let clientShort = '';
+    let contextHeader = '';
     let spaceId = null;
     
-    // Extract space/order info
-    if (t.pm_spaces) {
-        const space = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
-        if (space) {
-            spaceId = space.id;
-            if (space.orders) {
-                const ord = Array.isArray(space.orders) ? space.orders[0] : space.orders;
-                if (ord) {
-                    fullTitle = `#${ord.order_number} - ${ord.title}`;
-                    if (ord.clients) {
-                        clientShort = ord.clients.client_code || ord.clients.business_name || '';
-                    }
-                }
-            }
-            if (!clientShort && space.area) clientShort = space.area;
-        }
+    // Extract info from mapped object
+    if (t.orders && t.orders.order_number) {
+        const ordNum = t.orders.order_number;
+        const clientShort = t.orders.clients?.client_code || '';
+        contextHeader = `#${ordNum}${clientShort ? ` • ${clientShort}` : ''}`;
+        spaceId = t.orders?.pm_spaces?.[0]?.id || null;
+    } else if (t.isEvent) {
+        contextHeader = `APPUNTAMENTO${t.location ? ` • ${t.location}` : ''}`;
+    } else {
+        contextHeader = t.breadcrumb || 'PROGETTO INTERNO';
     }
 
-    const isPm = t.role === 'pm' || (t.role || '').toLowerCase().includes('manager');
-    const roleIcon = isPm ? 'stars' : 'person_outline';
-    const roleColor = isPm ? '#f59e0b' : '#94a3b8';
-    const roleTitle = isPm ? 'Project Manager' : 'Assegnatario';
-
     const row = document.createElement('div');
-    row.onclick = () => openPmItemDetails(t.id, spaceId || '');
-    row.style.cssText = `background: #f8fafc; border: 1px solid #f1f5f9; padding: 0.85rem; border-radius: 12px; display: flex; gap: 0.85rem; align-items: flex-start; cursor: pointer; transition: all 0.2s; margin-bottom: 8px;`;
-    row.onmouseover = () => { row.style.background = '#f1f5f9'; };
-    row.onmouseout = () => { row.style.background = '#f8fafc'; };
+    row.onclick = () => {
+        if (t.isEvent) return; 
+        openPmItemDetails(t.id, spaceId || '');
+    };
     
-    const icon = t.isTimer ? 'play_arrow' : (t.type === 'event' ? 'calendar_today' : 'assignment');
-    const iconBg = t.isTimer ? '#10b981' : (t.type === 'event' ? '#8b5cf6' : '#e2e8f0');
-    const iconColor = t.isTimer || t.type === 'event' ? 'white' : '#64748b';
+    row.style.cssText = `
+        padding: 0.8rem 0; 
+        border-bottom: 1px solid #f1f5f9; 
+        display: flex; 
+        gap: 0.75rem; 
+        align-items: center; 
+        cursor: pointer; 
+        transition: all 0.2s;
+        background: transparent;
+    `;
+    row.onmouseover = () => { row.style.opacity = '0.7'; };
+    row.onmouseout = () => { row.style.opacity = '1'; };
+    
+    let dateStr = '';
+    if (t.due_date) {
+        const d = new Date(t.due_date);
+        dateStr = d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (t.due_date < todayStr) dateStr = '<span style="color: #ef4444; font-weight: 700;">! SCADUTO</span>';
+    } else if (t.isEvent && t.start) {
+        const dStart = new Date(t.start);
+        const dEnd = t.end ? new Date(t.end) : null;
+        const startT = dStart.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+        const endT = dEnd ? dEnd.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '';
+        dateStr = `<span style="display: flex; align-items: center; gap: 4px; color: #8b5cf6; font-weight: 600;">
+            <span class="material-icons-round" style="font-size: 14px; opacity: 0.8;">schedule</span> 
+            ${startT}${endT ? ` — ${endT}` : ''}
+        </span>`;
+    }
 
     row.innerHTML = `
-        <div style="width: 32px; height: 32px; background: ${iconBg}; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: ${iconColor}; flex-shrink: 0; position: relative;">
-            <span class="material-icons-round" style="font-size: 18px;">${icon}</span>
-            <span class="material-icons-round" title="${roleTitle}" style="position: absolute; bottom: -2px; right: -2px; font-size: 12px; color: ${roleColor}; background: white; border-radius: 50%; padding: 1px;">${roleIcon}</span>
-        </div>
         <div style="flex: 1; min-width: 0;">
-            <div style="font-size: 0.72rem; color: #64748b; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700;">
-                ${fullTitle}
+            <!-- ROW 1: Context (Order + Short Client or Appuntamento) -->
+            <div style="font-size: 0.65rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">
+                ${contextHeader}
             </div>
-            <div style="font-weight: 700; font-size: 0.9rem; color: #1e293b; line-height: 1.3;">${t.title}</div>
-            ${clientShort ? `<div style="font-size: 0.75rem; color: #64748b; margin-top: 3px; font-weight: 500;">${clientShort}</div>` : ''}
+            
+            <!-- ROW 2: Title -->
+            <div style="font-weight: 600; font-size: 0.9rem; color: #1e293b; line-height: 1.25; margin-bottom: 2px;">
+                ${t.title}
+            </div>
+            
+            <!-- ROW 3: Secondary Info (Activity Path or Time Range) -->
+            <div style="font-size: 0.75rem; color: #64748b; font-weight: 400; display: flex; align-items: center; gap: 4px;">
+                ${t.isEvent ? dateStr : `${t.breadcrumb || 'Attività'}${dateStr ? ` <span style="color: #cbd5e1; margin: 0 2px;">•</span> ${dateStr}` : ''}`}
+            </div>
         </div>
+
         ${!t.isTimer && !t.isEvent ? `
-            <div style="flex-shrink: 0; padding-top: 4px;">
+            <div style="flex-shrink: 0; padding-left: 10px;">
                 <div class="hp-status-toggle" 
                      onclick="event.stopPropagation(); window.quickCompleteTask('${t.id}', this)" 
-                     style="width: 18px; height: 18px; border: 2px solid #e2e8f0; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+                     style="width: 18px; height: 18px; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer; transition: all 0.3s; background: white;">
                 </div>
             </div>
         ` : ''}
@@ -3671,6 +3745,9 @@ window.quickCompleteTask = async function (id, element) {
 
     try {
         await updatePMItem(id, { status: 'done' });
+        
+        // Notify other modules and the dashboard refresher
+        document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { itemId: id, action: 'update' } }));
 
         // Update local data to keep consistency if filters change
         if (window.hpData && window.hpData.tasks) {

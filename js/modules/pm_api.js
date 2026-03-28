@@ -506,7 +506,11 @@ export async function deletePMItem(itemId) {
         .from('pm_items')
         .delete()
         .eq('id', itemId);
-    if (error) throw error;
+    if (error) {
+        console.error('[PM API] Delete Item ERROR:', error);
+        throw error;
+    }
+    console.log(`[PM API] Item ${itemId} successfully removed.`);
     return true;
 }
 

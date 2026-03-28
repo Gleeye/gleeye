@@ -1,0 +1,172 @@
+[
+  {
+    "id": "f26a78c0-4761-4292-a747-32b4e8907c98",
+    "table_name": "appointments",
+    "template_insert": "ha fissato un appuntamento: **{title}**",
+    "column_templates": {
+      "title": "ha rinominato l'appuntamento in **{new_value}**",
+      "status": "ha cambiato lo stato dell'appuntamento {entity} in {new_value}",
+      "start_time": "ha spostato l'appuntamento {entity} al {new_value}"
+    },
+    "track_columns": [
+      "status",
+      "start_time",
+      "title"
+    ],
+    "is_active": true
+  },
+  {
+    "id": "41694337-aa52-4863-9886-ef98ec1d846f",
+    "table_name": "assignments",
+    "template_insert": "ha creato l'incarico **{description}**",
+    "column_templates": {
+      "status": "ha cambiato lo stato dell'incarico {entity} in {new_value}",
+      "description": "ha cambiato la descrizione dell'incarico {entity}",
+      "collaborator_id": "ha assegnato l'incarico {entity} a {new_value}"
+    },
+    "track_columns": null,
+    "is_active": true
+  },
+  {
+    "id": "26fd37cc-9496-4e24-b43d-3832aca74bdd",
+    "table_name": "bank_transactions",
+    "template_insert": "ha registrato un movimento bancario di **{amount}** €",
+    "column_templates": null,
+    "track_columns": null,
+    "is_active": true
+  },
+  {
+    "id": "d5791327-f0c2-41a0-acac-c9d077bd74c2",
+    "table_name": "clients",
+    "template_insert": "ha creato il nuovo cliente **{business_name}**",
+    "column_templates": {
+      "business_name": "ha rinominato il cliente in **{new_value}**"
+    },
+    "track_columns": null,
+    "is_active": true
+  },
+  {
+    "id": "12a2430a-72b0-4cd6-8dea-842caa624392",
+    "table_name": "collaborators",
+    "template_insert": "ha aggiunto il collaboratore **{full_name}**",
+    "column_templates": {
+      "is_active": "ha cambiato lo stato di **{full_name}** in **{new_value}**"
+    },
+    "track_columns": null,
+    "is_active": true
+  },
+  {
+    "id": "43b3114b-e72c-439d-820d-bc2681314fe6",
+    "table_name": "doc_pages",
+    "template_insert": "ha caricato il file **{file_name}**",
+    "column_templates": {},
+    "track_columns": [
+      "file_name"
+    ],
+    "is_active": true
+  },
+  {
+    "id": "71392295-46e1-4281-9878-15eba2a5f9d0",
+    "table_name": "invoices",
+    "template_insert": "ha emesso la fattura **{invoice_number}** per **{client_name}**",
+    "column_templates": {
+      "amount": "ha modificato l'importo della fattura **{invoice_number}**"
+    },
+    "track_columns": null,
+    "is_active": true
+  },
+  {
+    "id": "7aebde53-85ff-42d5-aae5-18fada049f81",
+    "table_name": "orders",
+    "template_insert": "ha aperto la commessa {entity}",
+    "column_templates": {
+      "p_m": "ha assegnato la gestione della commessa {entity} a {new_value}",
+      "notes": "ha cambiato le note della commessa {entity}",
+      "offer_status": "ha cambiato lo stato offerta di {entity} in {new_value}",
+      "status_works": "ha aggiornato l'avanzamento di {entity} a {new_value}"
+    },
+    "track_columns": null,
+    "is_active": true
+  },
+  {
+    "id": "fbb01827-ac2b-470f-8f1a-1c703018e14d",
+    "table_name": "passive_invoices",
+    "template_insert": "ha registrato una fattura passiva da **{supplier_name}**",
+    "column_templates": {
+      "status": "ha aggiornato lo stato della fattura passiva di **{supplier_name}** a **{new_value}**"
+    },
+    "track_columns": null,
+    "is_active": true
+  },
+  {
+    "id": "bd4811ba-ad62-4e0b-bc66-f6398c4f6c77",
+    "table_name": "payments",
+    "template_insert": "ha registrato un pagamento di **{amount}** €",
+    "column_templates": {
+      "status": "ha segnato il pagamento di **{amount}** come **{new_value}**"
+    },
+    "track_columns": null,
+    "is_active": true
+  },
+  {
+    "id": "aa59a07e-c9a2-45f6-b1cb-b4497dd05f8e",
+    "table_name": "pm_item_assignees",
+    "template_insert": "ha assegnato **{user_ref}** a **{entity}**",
+    "column_templates": {},
+    "track_columns": null,
+    "is_active": true
+  },
+  {
+    "id": "e7784fc7-a09b-4891-ae9d-5a65126ed643",
+    "table_name": "pm_item_comments",
+    "template_insert": "ha aggiunto un commento in {entity}",
+    "column_templates": {},
+    "track_columns": null,
+    "is_active": true
+  },
+  {
+    "id": "8ae9346c-6a0f-4c9b-aa0a-af83a737d1ea",
+    "table_name": "pm_item_links",
+    "template_insert": "Risorsa inserita: {linked_entity_type}",
+    "column_templates": {},
+    "track_columns": null,
+    "is_active": true
+  },
+  {
+    "id": "37dff55d-5df2-475d-a331-f47370f69830",
+    "table_name": "pm_items",
+    "template_insert": "ha creato l'attività **{title}**",
+    "column_templates": {
+      "notes": "ha cambiato la descrizione di {entity}",
+      "title": "ha rinominato l'attività in **{new_value}**",
+      "status": "ha cambiato lo stato di {entity} da {old_value} a {new_value}",
+      "due_date": "ha spostato la scadenza di {entity} al {new_value}",
+      "priority": "ha impostato la priorità di {entity} a {new_value}",
+      "parent_ref": "ha spostato {entity} in {new_value}",
+      "cloud_links": "ha aggiornato le risorse di {entity}",
+      "pm_user_ref": "ha assegnato {entity} a {new_value}"
+    },
+    "track_columns": [
+      "status",
+      "priority",
+      "start_date",
+      "due_date",
+      "notes",
+      "title",
+      "cloud_links",
+      "pm_user_ref",
+      "parent_ref"
+    ],
+    "is_active": true
+  },
+  {
+    "id": "f190c73e-6733-41de-bb01-60ed2943b5a7",
+    "table_name": "pm_spaces",
+    "template_insert": "ha creato lo spazio **{name}**",
+    "column_templates": {
+      "name": "ha rinominato lo spazio in **{new_value}**"
+    },
+    "track_columns": null,
+    "is_active": true
+  }
+]
