@@ -2427,6 +2427,15 @@ function renderProjects(pmList, pmProjects) {
     const _internalRender = () => {
         const showAccount = window.hpActiveFilters?.account !== false;
         const showPm = window.hpActiveFilters?.pm !== false;
+
+        // Update Tab Counts in the header buttons
+        const btnAccount = document.getElementById('hp-filter-account');
+        const btnPm = document.getElementById('hp-filter-pm');
+        const countAccount = pmProjects.filter(p => p.isAccount).length;
+        const countPm = pmProjects.filter(p => p.isPM).length;
+
+        if (btnAccount) btnAccount.innerHTML = `ACCOUNT <span style="margin-left: 4px; opacity: 0.6; font-weight: 400;">${countAccount}</span>`;
+        if (btnPm) btnPm.innerHTML = `PM <span style="margin-left: 4px; opacity: 0.6; font-weight: 400;">${countPm}</span>`;
         
         const filtered = pmProjects.filter(p => {
             if (showAccount && p.isAccount) return true;
