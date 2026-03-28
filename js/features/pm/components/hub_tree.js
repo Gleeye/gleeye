@@ -180,6 +180,8 @@ export function renderHubTree(container, items, space, spaceId) {
             .tree-node.collapsed > .tree-children { display: none; }
             
             .tree-children { margin-left: 15px; border-left: 1px solid var(--surface-2); }
+            .tree-root-container { min-height: 200px; padding-bottom: 100px; }
+            .tree-root-container.root-drag-over { background: rgba(37, 99, 235, 0.05); }
             
             .status-pill { padding: 4px 10px; border-radius: 6px; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; background: var(--surface-1); color: var(--text-secondary); border: 1px solid var(--surface-2); }
             
@@ -453,7 +455,15 @@ function renderBoardView(container, tree, allItems, spaceId, sort, view, expande
         });
 
         if (flatList.length === 0) return `<div style="text-align: center; padding: 3rem; color: var(--text-tertiary);">Nessun risultato trovato.</div>`;
-        return `<div id="tree-content-scroll" style="overflow-x: auto; flex: 1;"><div style="min-width: 950px;">${renderTableHeader(sort)}<div id="tree-content">${renderTreeNodes(flatList, 0, spaceId, true, allItems, expandedNodes, sort)}</div></div></div>`;
+        return `
+            <div id="tree-content-scroll" style="overflow-x: auto; flex: 1;">
+                <div style="min-width: 950px;">
+                    ${renderTableHeader(sort)}
+                    <div id="tree-content" class="tree-root-container">
+                        ${renderTreeNodes(flatList, 0, spaceId, true, allItems, expandedNodes, sort)}
+                    </div>
+                </div>
+            </div>`;
     } else {
         const sortRecursive = (nodes) => {
             return [...nodes].sort((a, b) => {
@@ -465,7 +475,15 @@ function renderBoardView(container, tree, allItems, spaceId, sort, view, expande
         };
         const sortedTree = sortRecursive(filteredTree).filter(n => n._visible);
         if (sortedTree.length === 0) return `<div style="text-align: center; padding: 3rem; color: var(--text-tertiary);">Nessun risultato trovato.</div>`;
-        return `<div id="tree-content-scroll" style="overflow-x: auto; flex: 1;"><div style="min-width: 950px;">${renderTableHeader(sort)}<div id="tree-content">${renderTreeNodes(sortedTree, 0, spaceId, false, allItems, expandedNodes, sort)}</div></div></div>`;
+        return `
+            <div id="tree-content-scroll" style="overflow-x: auto; flex: 1;">
+                <div style="min-width: 950px;">
+                    ${renderTableHeader(sort)}
+                    <div id="tree-content" class="tree-root-container">
+                        ${renderTreeNodes(sortedTree, 0, spaceId, false, allItems, expandedNodes, sort)}
+                    </div>
+                </div>
+            </div>`;
     }
 }
 
@@ -625,8 +643,35 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
             };
         });
     } else {
+        const treeRoot = container.querySelector('.tree-root-container');
+        if (treeRoot && currentSort.column === 'type') {
+            treeRoot.ondragover = (e) => { e.preventDefault(); treeRoot.classList.add('root-drag-over'); };
+            treeRoot.ondragleave = () => treeRoot.classList.remove('root-drag-over');
+            treeRoot.ondrop = async (e) => {
+                e.preventDefault();
+                treeRoot.classList.remove('root-drag-over');
+                const draggedId = e.dataTransfer.getData('text/plain');
+                if (draggedId) {
+                    try {
+                        const { updatePMItem } = await import('../../../modules/pm_api.js?v=2000');
+                        await updatePMItem(draggedId, { parent_ref: null });
+                        document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId, action: 'update' } }));
+                    } catch (err) { console.error(err); }
+                }
+            };
+        }
+
+        let lastDragTime = 0;
+
         container.querySelectorAll('.tree-row').forEach(row => {
-            row.onclick = (e) => { if (!e.target.closest('.tree-toggle') && !e.target.closest('.add-child-btn')) import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => mod.openHubDrawer(row.dataset.id, spaceId)); };
+            row.onclick = (e) => {
+                // Prevent click if we just finished dragging (within 150ms)
+                if (Date.now() - lastDragTime < 150) return;
+                
+                if (!e.target.closest('.tree-toggle') && !e.target.closest('.add-child-btn')) {
+                    import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => mod.openHubDrawer(row.dataset.id, spaceId));
+                }
+            };
 
             // Re-implement Drag & Drop for Tree Hierarchy
             if (currentSort.column === 'type') {
@@ -636,6 +681,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
                     row.closest('.tree-node').classList.add('dragging');
                 };
                 row.ondragend = () => {
+                    lastDragTime = Date.now();
                     row.closest('.tree-node').classList.remove('dragging');
                     container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
                 };
@@ -653,7 +699,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
                     e.stopPropagation();
                     row.classList.remove('drag-over');
                     const draggedId = e.dataTransfer.getData('text/plain');
-                    if (draggedId && draggedId !== row.dataset.id) {
+                    if (draggedId && draggedId !== row.dataset.id && row.dataset.type === 'attivita') {
                         try {
                             const { updatePMItem } = await import('../../../modules/pm_api.js?v=1000');
                             await updatePMItem(draggedId, { parent_ref: row.dataset.id });

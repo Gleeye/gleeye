@@ -2085,8 +2085,8 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 const activeOrders = (state.orders || []).filter(o => {
                     const statusOffer = (o.offer_status || '').toLowerCase();
                     const statusWork = (o.status_works || '').toLowerCase();
-                    const isNotRejected = statusOffer !== 'offerta rifiutata';
-                    const isNotCompleted = statusOffer === 'offerta accettata' ? statusWork !== 'completato' : true;
+                    const isNotRejected = statusOffer !== 'rifiutata';
+                    const isNotCompleted = statusOffer === 'accettata' ? statusWork !== 'completato' : true;
 
                     const matchesSearch = `#${o.order_number} ${o.title}`.toLowerCase().includes(query) || o.clients?.business_name?.toLowerCase().includes(query);
                     const matchesClient = currentClientId ? o.client_id === currentClientId : true;

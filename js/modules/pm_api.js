@@ -28,7 +28,9 @@ export async function fetchAllCollaborators(force = false) {
         console.error("Error fetching collaborators:", error);
         return [];
     }
-    return data || [];
+    state.collaborators = data || [];
+    updateCacheTimestamp('collaborators');
+    return state.collaborators;
 }
 
 // --- SPACES ---
@@ -1386,22 +1388,114 @@ export async function updateItemCloudLinks(itemId, links) {
 }
 
 // --- ACTIVITY LOGS ---
-export async function fetchMyActivityFeed(limit = 50) {
-    const userId = state.profile?.id || state.session?.user?.id;
+export async function fetchSmartPersonalFeed(limit = 50, overrideUserId = null, overrideCollabId = null) {
+    const userId = overrideUserId || state.profile?.id || state.session?.user?.id;
+    const collaboratorId = overrideCollabId || state.profile?.collaborator_id;
     if (!userId) return [];
 
     try {
-        // Fallback since the RPC get_my_activities is not in the live DB yet
-        const logs = await fetchPMActivityLogs({ limit: 100, isAccountLevel: true });
+        // 0. Get user's departments (tags)
+        const myTags = (state.profile?.tags || []);
         
-        // Basic fallback filtering: return logs where the user is the actor OR logs related to items they have access to.
-        // Since RLS already filters pm_activity_logs to items they have access to, we can just return the logs.
-        return logs.slice(0, limit);
+        // 1. Get Orders where user is PM or Account (pm_space_assignees)
+        const { data: spaceManaged } = await supabase
+            .from('pm_space_assignees')
+            .select(`pm_spaces!inner ( ref_ordine )`)
+            .or(`user_ref.eq.${userId},collaborator_ref.eq.${collaboratorId}`);
+        
+        const managedOrderIds = (spaceManaged || [])
+            .map(sa => sa.pm_spaces?.ref_ordine)
+            .filter(Boolean);
+
+        // 2. Get Orders where user is currently assigned to items
+        const { data: itemAssigned } = await supabase
+            .from('pm_item_assignees')
+            .select(`pm_items!inner ( space_ref!inner ( ref_ordine ) )`)
+            .or(`user_ref.eq.${userId},collaborator_ref.eq.${collaboratorId}`);
+
+        const assignedOrderIds = (itemAssigned || [])
+            .map(ia => ia.pm_items?.space_ref?.ref_ordine)
+            .filter(Boolean);
+
+        // 3. Get Items belonging to the user's department
+        let departmentItemIds = [];
+        if (myTags.length > 0) {
+            const { data: deptItems } = await supabase
+                .from('pm_items')
+                .select('id')
+                .in('department', myTags)
+                .limit(200);
+            departmentItemIds = (deptItems || []).map(i => i.id);
+        }
+
+        // 4. Combined related lists
+        const relatedOrderIds = [...new Set([...managedOrderIds, ...assignedOrderIds])];
+
+        // 5. Fetch Logs Sets
+        const [myLogsResp, relatedLogsResp, deptLogsResp] = await Promise.all([
+            // My direct actions
+            supabase.from('pm_activity_logs').select(`
+                id, action_type, details, created_at, item_ref, space_ref, order_ref, actor_user_ref,
+                actor:actor_user_ref ( full_name, avatar_url, email ),
+                item:item_ref ( title, item_type ),
+                order:order_ref ( title ),
+                space:space_ref ( name )
+            `).eq('actor_user_ref', userId).order('created_at', { ascending: false }).limit(limit),
+
+            // Actions on related orders
+            relatedOrderIds.length > 0 
+              ? supabase.from('pm_activity_logs').select(`
+                    id, action_type, details, created_at, item_ref, space_ref, order_ref, actor_user_ref,
+                    actor:actor_user_ref ( full_name, avatar_url, email ),
+                    item:item_ref ( title, item_type ),
+                    order:order_ref ( title ),
+                    space:space_ref ( name )
+                `).in('order_ref', relatedOrderIds).order('created_at', { ascending: false }).limit(limit)
+              : Promise.resolve({ data: [] }),
+
+            // Actions in my department
+            departmentItemIds.length > 0
+              ? supabase.from('pm_activity_logs').select(`
+                    id, action_type, details, created_at, item_ref, space_ref, order_ref, actor_user_ref,
+                    actor:actor_user_ref ( full_name, avatar_url, email ),
+                    item:item_ref ( title, item_type ),
+                    order:order_ref ( title ),
+                    space:space_ref ( name )
+                `).in('item_ref', departmentItemIds).order('created_at', { ascending: false }).limit(limit)
+              : Promise.resolve({ data: [] })
+        ]);
+
+        const combined = [
+            ...(myLogsResp.data || []), 
+            ...(relatedLogsResp.data || []),
+            ...(deptLogsResp.data || [])
+        ];
+        
+        // De-duplicate by ID and sort
+        const map = new Map();
+        combined.forEach(l => map.set(l.id, l));
+        
+        const sorted = Array.from(map.values())
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            .slice(0, limit);
+
+        // Map authors for UI
+        return sorted.map(log => {
+            let authorName = 'Sistema';
+            let avatarUrl = 'https://ui-avatars.com/api/?name=Sistema&background=random';
+            if (log.actor) {
+                authorName = log.actor.full_name || log.actor.email?.split('@')[0] || 'Utente';
+                avatarUrl = log.actor.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random`;
+            }
+            return { ...log, authorName, avatarUrl };
+        });
+
     } catch (error) {
-        console.error("Error fetching my activity feed fallback:", error);
+        console.error("Error fetching smart activity feed:", error);
         return [];
     }
 }
+export { fetchSmartPersonalFeed as fetchMyActivityFeed };
 
 export async function fetchPMActivityLogs(arg1 = null, arg2 = null, arg3 = null, arg4 = null) {
     let spaceId, itemId, orderId, itemIds, limit = 100, isAccountLevel = false;

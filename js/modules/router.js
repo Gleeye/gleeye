@@ -124,10 +124,10 @@ function render() {
             switch (state.currentPage) {
             case 'home':
                 if (pageTitle) pageTitle.textContent = 'Homepage';
-                import('../features/homepage.js?v=2000').then(m => m.renderHomepage(contentArea));
+                import('../features/homepage-alt.js?v=' + new Date().getTime()).then(m => m.renderHomepageAlt(contentArea));
                 break;
             case 'home-alt':
-                if (pageTitle) pageTitle.textContent = 'Homepage Alternativa';
+                if (pageTitle) pageTitle.textContent = 'Elite Dashboard';
                 import('../features/homepage-alt.js?v=' + new Date().getTime()).then(m => m.renderHomepageAlt(contentArea));
                 break;
             case 'dashboard':

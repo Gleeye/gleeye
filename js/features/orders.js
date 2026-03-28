@@ -6,14 +6,16 @@ import { CloudLinksManager } from './components/CloudLinksManager.js?v=1000';
 import { CustomSelect } from '../components/CustomSelect.js';
 import { openPaymentModal } from './payments.js?v=1000';
 import { fetchProjectSpaceForOrder, fetchProjectItems, fetchAppointments } from '../modules/pm_api.js?v=1000';
+import { activityTranslate } from '../modules/pm_activity_helper.js';
 
 
 function getStatusColor(status) {
     const s = status?.toLowerCase() || '';
     if (s.includes('prev')) return '#3b82f6';
-    if (s.includes('lavo') || s.includes('corso')) return '#f59e0b';
-    if (s.includes('chiuso') || s.includes('finito') || s.includes('complet')) return '#10b981';
+    if (s.includes('lavo') || s.includes('corso') || s === 'in_svolgimento') return '#f59e0b';
+    if (s.includes('chiuso') || s.includes('finito') || s.includes('complet') || s === 'completato') return '#10b981';
     if (s.includes('annull')) return '#94a3b8';
+    if (s === 'da_iniziare') return '#6366f1';
     return '#6366f1';
 }
 
@@ -419,7 +421,7 @@ export async function renderOrderDetail(container, orderId) {
                             <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.75rem; letter-spacing: 0.05em;">Stato Lavorazione</div>
                             <div style="background: white; border: 1px solid var(--glass-border); padding: 0.75rem 1rem; border-radius: 12px; display: flex; align-items: center; gap: 0.75rem; box-shadow: var(--shadow-sm);">
                                 <div style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColor}; box-shadow: 0 0 8px ${statusColor}60;"></div>
-                                <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary);">${order.status_works || 'In Attesa'}</span>
+                                <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); text-transform: capitalize;">${activityTranslate(order.status_works) || 'Da Iniziare'}</span>
                             </div>
                         </div>
                         
@@ -468,11 +470,11 @@ export async function renderOrderDetail(container, orderId) {
                     <div class="glass-card" style="padding: 1.25rem; background: var(--bg-secondary); border: 1px solid var(--glass-border);">
                         <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.75rem; letter-spacing: 0.05em;">Stato Offerta</div>
                          <select id="order-offer-status-select-${order.id}" class="order-status-select" onchange="window.updateOrderOfferStatusQuick('${order.id}', this.value)">
-                             <option value="In Lavorazione" data-dot="var(--brand-viola)" ${order.offer_status === 'In Lavorazione' ? 'selected' : ''}>In Lavorazione</option>
-                             <option value="Invio Programmato" data-dot="#3b82f6" ${order.offer_status === 'Invio Programmato' ? 'selected' : ''}>Invio Programmato</option>
-                             <option value="In Attesa Di Risposta" data-dot="#f59e0b" ${order.offer_status === 'In Attesa Di Risposta' ? 'selected' : ''}>In Attesa Di Risposta</option>
-                             <option value="Offerta Accettata" data-dot="#10b981" ${order.offer_status === 'Offerta Accettata' ? 'selected' : ''}>Offerta Accettata</option>
-                             <option value="Offerta Rifiutata" data-dot="#ef4444" ${order.offer_status === 'Offerta Rifiutata' ? 'selected' : ''}>Offerta Rifiutata</option>
+                             <option value="in_lavorazione" data-dot="var(--brand-viola)" ${order.offer_status === 'in_lavorazione' ? 'selected' : ''}>In Lavorazione</option>
+                             <option value="invio_programmato" data-dot="#3b82f6" ${order.offer_status === 'invio_programmato' ? 'selected' : ''}>Invio Programmato</option>
+                             <option value="inviata" data-dot="#f59e0b" ${order.offer_status === 'inviata' ? 'selected' : ''}>Inviata</option>
+                             <option value="accettata" data-dot="#10b981" ${order.offer_status === 'accettata' ? 'selected' : ''}>Offerta Accettata</option>
+                             <option value="rifiutata" data-dot="#ef4444" ${order.offer_status === 'rifiutata' ? 'selected' : ''}>Offerta Rifiutata</option>
                          </select>
                     </div>
             <!-- Prezzi Finali Card -->
@@ -1765,8 +1767,8 @@ window.editOrder = (orderId) => {
     document.getElementById('ord-title').value = order.title || '';
     document.getElementById('ord-number').value = order.order_number || '';
     document.getElementById('ord-date').value = order.order_date ? new Date(order.order_date).toISOString().split('T')[0] : '';
-    document.getElementById('ord-status').value = order.status_works || 'In Corso';
-    document.getElementById('ord-offer-status').value = order.offer_status || 'In Lavorazione';
+    document.getElementById('ord-status').value = order.status_works || 'in_svolgimento';
+    document.getElementById('ord-offer-status').value = order.offer_status || 'in_lavorazione';
 
     modal.classList.add('active');
 };
@@ -1806,21 +1808,20 @@ export function initOrderModal() {
                         <div>
                             <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase;">Stato Offerta</label>
                             <select id="ord-offer-status" class="modal-input" style="width: 100%;">
-                                <option value="In Lavorazione">In Lavorazione</option>
-                                <option value="Invio Programmato">Invio Programmato</option>
-                                <option value="In Attesa Di Risposta">In Attesa Di Risposta</option>
-                                <option value="Offerta Accettata">Offerta Accettata</option>
-                                <option value="Offerta Rifiutata">Offerta Rifiutata</option>
+                                <option value="in_lavorazione">In Lavorazione</option>
+                                <option value="invio_programmato">Invio Programmato</option>
+                                <option value="inviata">Inviata</option>
+                                <option value="accettata">Offerta Accettata</option>
+                                <option value="rifiutata">Offerta Rifiutata</option>
                             </select>
                         </div>
                         <div>
                             <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase;">Stato Lavori</label>
                             <select id="ord-status" class="modal-input" style="width: 100%;">
-                                <option value="In Corso">In Corso</option>
-                                <option value="Lavoro in Attesa">In Attesa</option>
-                                <option value="Completato">Completato</option>
-                                <option value="Finito">Finito</option>
-                                <option value="Annullato">Annullato</option>
+                                <option value="in_svolgimento">In Svolgimento</option>
+                                <option value="da_iniziare">In Attesa</option>
+                                <option value="completato">Completato</option>
+                                <option value="annullato">Annullato</option>
                             </select>
                         </div>
                     </div>
@@ -2940,8 +2941,8 @@ export function initNewOrderModal() {
                 title,
                 order_number: nextNumber,
                 order_date: today,
-                offer_status: 'In Lavorazione',
-                status_works: 'In Attesa',
+                offer_status: 'in_lavorazione',
+                status_works: 'da_iniziare',
             };
             if (newOrderState.selectedClient) {
                 orderData.client_id = newOrderState.selectedClient.id;

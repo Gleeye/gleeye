@@ -310,15 +310,12 @@ export async function updateOrder(id, updates) {
     if (updates.offer_status) {
         const s = updates.offer_status.toLowerCase();
         // Check triggers: "accettata", "vinta"
-        if (s.includes('accettat') || s === 'vinta') {
+        if (s === 'accettata' || s === 'vinta') {
             console.log("Offer accepted automation triggered...");
 
             // 1. Auto-set 'status_works' if not manually provided in this same update
-            // (Only if it's currently null/empty to avoid overwriting existing progress? 
-            //  User said: "deve comparire... in attesa". So usually this is the start. 
-            //  Let's force it if it's missing, or maybe overwrite 'preventivo' status.)
             if (!updates.status_works) {
-                updates.status_works = 'Lavoro in Attesa';
+                updates.status_works = 'da_iniziare';
             }
 
             // 2. Ensure PM Space exists (Lazy Load)

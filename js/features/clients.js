@@ -4,6 +4,7 @@ import { formatAmount } from '../modules/utils.js?v=1000';
 // We assume fetch functions are available in api.js if needed, but we rely on state mostly
 import { fetchOrders, fetchInvoices, fetchPayments, upsertClient, fetchClients } from '../modules/api.js';
 import { showGlobalAlert } from '../modules/utils.js?v=1000';
+import { activityTranslate } from '../modules/pm_activity_helper.js';
 
 export async function renderClients(container) {
     // Ensure we have orders for analytics
@@ -47,12 +48,15 @@ export async function renderClients(container) {
             }
 
             // Logic for active stats
-            const isOffer = (o.offer_status === 'Offerta' || o.status === 'Offerta');
-            const isRefused = (o.offer_status === 'Rifiutata' || o.status === 'Rifiutata' || o.offer_status === 'Persa');
-            const isAccepted = (o.offer_status === 'Accettata' || o.offer_status === 'Offerta Accettata');
-            const isWorking = o.status_works !== 'Completato' && o.status_works !== 'Chiuso';
+            const offStatus = (o.offer_status || '').toLowerCase();
+            const workStatus = (o.status_works || '').toLowerCase();
+            
+            const isOfferPending = ['in_lavorazione', 'invio_programmato', 'inviata', 'offerta'].includes(offStatus);
+            const isAccepted = offStatus === 'accettata';
+            const isRefused = offStatus === 'rifiutata';
+            const isWorking = !['completato', 'chiuso'].includes(workStatus);
 
-            if ((isOffer && !isRefused) || (isAccepted && isWorking)) {
+            if (isOfferPending || (isAccepted && isWorking)) {
                 activeClientsIds.add(o.client_id);
             }
         });
@@ -87,14 +91,16 @@ export async function renderClients(container) {
         return state.orders.some(o => {
             if (o.client_id !== client.id) return false;
 
-            // Case 1: Pending Offer (neither accepted nor rejected)
-            const isOffer = (o.offer_status === 'Offerta' || o.status === 'Offerta');
-            const isRefused = (o.offer_status === 'Rifiutata' || o.status === 'Rifiutata' || o.offer_status === 'Persa');
-            if (isOffer && !isRefused) return true;
+            const offStatus = (o.offer_status || '').toLowerCase();
+            const workStatus = (o.status_works || '').toLowerCase();
+
+            // Case 1: Pending Offer
+            const isOfferPending = ['in_lavorazione', 'invio_programmato', 'inviata', 'offerta'].includes(offStatus);
+            if (isOfferPending) return true;
 
             // Case 2: Accepted Offer but work is not completed
-            const isAccepted = (o.offer_status === 'Accettata' || o.offer_status === 'Offerta Accettata');
-            const isWorking = o.status_works !== 'Completato' && o.status_works !== 'Chiuso';
+            const isAccepted = offStatus === 'accettata';
+            const isWorking = !['completato', 'chiuso'].includes(workStatus);
             if (isAccepted && isWorking) return true;
 
             return false;
@@ -622,7 +628,7 @@ export function renderClientDetail(container) {
                                      <td>${o.order_number}</td>
                                      <td>${new Date(o.order_date).toLocaleDateString()}</td>
                                      <td>${o.title}</td>
-                                     <td><span class="status-badge">${o.status_works || 'In corso'}</span></td>
+                                     <td><span class="status-badge">${activityTranslate(o.status_works) || 'In Corso'}</span></td>
                                  </tr>
                              `).join('') : '<tr><td colspan="4" style="text-align:center; padding:1rem; opacity:0.6;">Nessuna commessa registrata.</td></tr>'}
                         </tbody>

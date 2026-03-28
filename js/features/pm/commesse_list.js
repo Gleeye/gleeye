@@ -6,7 +6,7 @@ import { formatAmount } from '../../modules/utils.js';
 // Real status values for PM view
 const STATUS_CONFIG = {
     'in_svolgimento': { label: 'In Svolgimento', color: '#3b82f6', bg: '#eff6ff', icon: 'play_circle' },
-    'lavoro_in_attesa': { label: 'In Attesa', color: '#f59e0b', bg: '#fffbeb', icon: 'hourglass_empty' },
+    'da_iniziare': { label: 'In Attesa', color: '#f59e0b', bg: '#fffbeb', icon: 'hourglass_empty' },
     'in_pausa': { label: 'In Pausa', color: '#64748b', bg: '#f1f5f9', icon: 'pause_circle' },
     'manutenzione': { label: 'Ongoing', color: '#06b6d4', bg: '#ecfeff', icon: 'published_with_changes' },
     'completato': { label: 'Completato', color: '#10b981', bg: '#ecfdf5', icon: 'check_circle' }
@@ -19,7 +19,7 @@ function normalizeStatus(status) {
     if (s.includes('pausa') || s.includes('sospeso')) return 'in_pausa';
     if (s.includes('manutenzione') || s.includes('assistenza')) return 'manutenzione';
     if (s.includes('svolgimento') || s.includes('in corso')) return 'in_svolgimento';
-    if (s.includes('attesa')) return 'lavoro_in_attesa';
+    if (s.includes('attesa')) return 'da_iniziare';
     return 'altro';
 }
 
@@ -312,7 +312,7 @@ export async function renderCommesseList(container) {
                         <!-- Top Summary Cards (Funnel Style) -->
                         <div class="pm-summary-grid" id="pm-funnel">
                             <!-- In Attesa Card -->
-                            <div class="pm-card funnel-card" data-status="lavoro_in_attesa" style="border-left-color: #f59e0b;">
+                            <div class="pm-card funnel-card" data-status="da_iniziare" style="border-left-color: #f59e0b;">
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
                                     <div style="flex: 1;">
                                         <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">In Attesa</div>
@@ -408,7 +408,7 @@ export async function renderCommesseList(container) {
                                         <div class="pm-dropdown-menu">
                                             <div class="pm-dropdown-item" data-value="">Tutti</div>
                                             <div class="pm-dropdown-item" data-value="in_svolgimento">In Svolgimento</div>
-                                            <div class="pm-dropdown-item" data-value="lavoro_in_attesa">In Attesa</div>
+                                            <div class="pm-dropdown-item" data-value="da_iniziare">In Attesa</div>
                                             <div class="pm-dropdown-item" data-value="manutenzione">Ongoing</div>
                                             <div class="pm-dropdown-item" data-value="in_pausa">In Pausa</div>
                                             <div class="pm-dropdown-item" data-value="completato">Completate</div>
@@ -523,7 +523,7 @@ export async function renderCommesseList(container) {
             const sorted = [...filtered].sort((a, b) => {
                 const sA = normalizeStatus(a.status_works);
                 const sB = normalizeStatus(b.status_works);
-                const p = { 'in_svolgimento': 1, 'lavoro_in_attesa': 2, 'manutenzione': 3, 'in_pausa': 4, 'completato': 5, 'altro': 6 };
+                const p = { 'in_svolgimento': 1, 'da_iniziare': 2, 'manutenzione': 3, 'in_pausa': 4, 'completato': 5, 'altro': 6 };
                 if (p[sA] !== p[sB]) return p[sA] - p[sB];
                 return new Date(b.created_at) - new Date(a.created_at);
             });

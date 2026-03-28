@@ -1,6 +1,7 @@
 import { state } from '/js/modules/state.js';
 import { formatAmount, renderModal, closeModal } from '../modules/utils.js?v=1000';
 import { initNewOrderModal } from './orders.js?v=1000';
+import { activityTranslate } from '../modules/pm_activity_helper.js';
 
 export const DashboardData = {
     getStats: (year, passiveFilter = 'all') => {
@@ -238,9 +239,9 @@ export function renderDashboard(container) {
 
         // Commercial Funnel - only first 3 stages
         const funnelStates = [
-            { key: 'In Lavorazione', label: 'In Lavorazione', icon: 'pending_actions', color: '#e3f2fd', textColor: '#1976d2' },
-            { key: 'Invio Programmato', label: 'Invio Programmato', icon: 'schedule', color: '#e0f2f1', textColor: '#00796b' },
-            { key: 'In Attesa Di Risposta', label: 'In Attesa Di Risposta', icon: 'hourglass_empty', color: '#e1f5fe', textColor: '#0288d1' }
+            { key: 'in_lavorazione', label: 'In Lavorazione', icon: 'pending_actions', color: '#e3f2fd', textColor: '#1976d2' },
+            { key: 'invio_programmato', label: 'Invio Programmato', icon: 'schedule', color: '#e0f2f1', textColor: '#00796b' },
+            { key: 'inviata', label: 'Inviata', icon: 'hourglass_empty', color: '#e1f5fe', textColor: '#0288d1' }
         ];
 
         // Process funnel stats
@@ -258,12 +259,12 @@ export function renderDashboard(container) {
 
         // Special Stats for Side Box
         const acceptedInProgress = baseOrders.filter(o =>
-            (o.offer_status || '').toLowerCase() === 'offerta accettata' &&
+            (o.offer_status || '').toLowerCase() === 'accettata' &&
             (o.status_works || '').toLowerCase() !== 'completato'
         );
 
-        const acceptedAll = baseOrders.filter(o => (o.offer_status || '').toLowerCase() === 'offerta accettata');
-        const rejectedAll = baseOrders.filter(o => (o.offer_status || '').toLowerCase() === 'offerta rifiutata');
+        const acceptedAll = baseOrders.filter(o => (o.offer_status || '').toLowerCase() === 'accettata');
+        const rejectedAll = baseOrders.filter(o => (o.offer_status || '').toLowerCase() === 'rifiutata');
 
         // YTD Stats
         const currentYear = new Date().getFullYear();
@@ -344,7 +345,7 @@ export function renderDashboard(container) {
                         <td style="padding: 1rem 1.5rem; font-weight: 600; font-size: 0.85rem; color: var(--text-primary); white-space: nowrap;">${order.order_number}</td>
                         <td style="padding: 1rem 1.5rem;">
                             <div style="font-weight: 500; font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0.25rem;">${order.title || 'Senza Titolo'}</div>
-                            <div style="font-size: 0.7rem; color: var(--text-tertiary); font-weight: 400;">${order.offer_status || (order.status_works ? 'Lavori: ' + order.status_works : '-')}</div>
+                            <div style="font-size: 0.7rem; color: var(--text-tertiary); font-weight: 400;">${activityTranslate(order.offer_status) || (order.status_works ? 'Lavori: ' + activityTranslate(order.status_works) : '-')}</div>
                         </td>
                         <td style="padding: 1rem 1.5rem; font-size: 0.85rem; color: var(--text-secondary); font-weight: 400;">${order.clients?.business_name || 'N/D'}</td>
                         <td style="padding: 1rem 1.5rem; text-align: right; font-weight: 600; font-size: 0.85rem; white-space: nowrap; font-variant-numeric: tabular-nums;">€ ${formatAmount(displayPrice)}</td>
@@ -806,7 +807,10 @@ export function renderDashboard(container) {
                     match = match && (o.clients?.business_name === currentClientFilter || o.client_code === currentClientFilter);
                 }
                 if (currentStatusFilter) {
-                    match = match && (o.offer_status === currentStatusFilter || o.status_works === currentStatusFilter);
+                    match = match && (
+                        (o.offer_status || '').toLowerCase() === currentStatusFilter.toLowerCase() || 
+                        (o.status_works || '').toLowerCase() === currentStatusFilter.toLowerCase()
+                    );
                 }
                 return match;
             });
@@ -836,7 +840,7 @@ export function renderDashboard(container) {
             updateDropdownUI('status', currentStatusFilter, 'Stato');
 
             const hasAnyFilter = currentFunnelFilter || currentYearFilter || currentClientFilter || currentStatusFilter;
-            tableTitle.textContent = currentFunnelFilter ? `Ordini: ${currentFunnelFilter} ` : 'Elenco Ordini';
+            tableTitle.textContent = currentFunnelFilter ? `Ordini: ${activityTranslate(currentFunnelFilter)} ` : 'Elenco Ordini';
             resetBtn.style.display = hasAnyFilter ? 'block' : 'none';
             filterBadge.style.display = hasAnyFilter ? 'block' : 'none';
 

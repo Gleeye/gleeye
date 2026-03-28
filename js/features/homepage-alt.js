@@ -3,12 +3,160 @@ import { supabase } from '../modules/config.js';
 import { formatAmount, renderAvatar } from '../modules/utils.js?v=2000';
 
 import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment, fetchGoogleCalendarBusy } from '../modules/api.js';
-import { fetchAppointment, updatePMItem, fetchMyActivityFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=6000';
+import { fetchAppointment, updatePMItem, fetchSmartPersonalFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=6000';
 import { humanizeActivity } from '../modules/pm_activity_helper.js?v=6000';
 import { openHubDrawer } from './pm/components/hub_drawer.js?v=6000';
 import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=6000';
 
-// We reuse fetchMyBookings but we might need a tighter scoped fetch for "Today"
+// --- VERTICAL TIMELINE HELPERS ---
+
+function renderVerticalTimeline(container, events, date, rules) {
+    container.innerHTML = '';
+    const pxPerHour = 80; // Standard for readability
+    const totalHeight = 24 * pxPerHour;
+    const pixelsPerMinute = pxPerHour / 60;
+    const isToday = new Date().toDateString() === date.toDateString();
+
+    const timelineContainer = document.createElement('div');
+    timelineContainer.className = 'vertical-timeline-track';
+    timelineContainer.style.position = 'relative';
+    timelineContainer.style.height = `${totalHeight}px`;
+    timelineContainer.style.background = '#ffffff';
+
+    // 1. GRID LINES & LABELS (Y-AXIS)
+    for (let h = 0; h < 24; h++) {
+        // Grid Line
+        const row = document.createElement('div');
+        row.className = 'v-hour-row';
+        row.style.position = 'absolute';
+        row.style.top = `${h * pxPerHour}px`;
+        row.style.left = '45px';
+        row.style.right = '0';
+        row.style.height = '1px';
+        row.style.background = '#f1f5f9';
+        
+        // Hour Label
+        const label = document.createElement('div');
+        label.className = 'v-hour-label';
+        label.innerText = `${h.toString().padStart(2, '0')}:00`;
+        label.style.position = 'absolute';
+        label.style.left = '8px';
+        label.style.top = `${(h * pxPerHour) - 8}px`;
+        label.style.fontSize = '0.7rem';
+        label.style.color = '#94a3b8';
+        label.style.fontWeight = '600';
+        label.style.fontFamily = 'var(--font-titles)';
+        
+        timelineContainer.appendChild(row);
+        timelineContainer.appendChild(label);
+    }
+
+    // Overlay for elements (Slots, Events)
+    const overlay = document.createElement('div');
+    overlay.className = 'v-timeline-overlay';
+    overlay.style.position = 'absolute';
+    overlay.style.top = '0';
+    overlay.style.left = '45px';
+    overlay.style.right = '0';
+    overlay.style.height = '100%';
+    overlay.style.pointerEvents = 'none';
+
+    // 2. RENDER AVAILABILITY SLOTS (Light background)
+    const dayId = date.getDay();
+    const dayRules = (rules || []).filter(r => r.day_of_week === dayId);
+    dayRules.forEach(r => {
+        if (!r.start_time || !r.end_time) return;
+        const [sh, sm] = r.start_time.split(':').map(Number);
+        const [eh, em] = r.end_time.split(':').map(Number);
+        const sM = (sh * 60) + sm;
+        const eM = (eh * 60) + em;
+
+        const slot = document.createElement('div');
+        slot.style.position = 'absolute';
+        slot.style.top = `${sM * pixelsPerMinute}px`;
+        slot.style.height = `${(eM - sM) * pixelsPerMinute}px`;
+        slot.style.left = '0'; slot.style.right = '0';
+        slot.style.background = '#fcfaff'; // Very subtle purple
+        slot.style.zIndex = '0';
+        overlay.appendChild(slot);
+    });
+
+    // 3. RENDER EVENTS (PACKING)
+    const eventsSafe = events || [];
+    const sortedEvents = eventsSafe.map(ev => ({
+        ...ev,
+        _start: (ev.start.getHours() * 60) + ev.start.getMinutes(),
+        _end: (ev.end.getHours() * 60) + ev.end.getMinutes(),
+        durationM: (ev.end - ev.start) / (1000 * 60)
+    })).sort((a, b) => a._start - b._start);
+
+    sortedEvents.forEach(ev => {
+        const top = ev._start * pixelsPerMinute;
+        const height = Math.max((ev._end - ev._start) * pixelsPerMinute, 30);
+
+        const card = document.createElement('div');
+        card.className = `v-agenda-card ${ev.type}`;
+        card.style.position = 'absolute';
+        card.style.top = `${top}px`;
+        card.style.height = `${height}px`;
+        card.style.left = '4px';
+        card.style.right = '4px';
+        card.style.pointerEvents = 'auto';
+        card.style.zIndex = '10';
+        
+        card.innerHTML = `
+            <div class="v-card-inner" style="display: flex; gap: 10px; align-items: flex-start; padding: 6px 10px;">
+                <div style="flex-shrink: 0; margin-top: 1px;">
+                    <div class="hp-status-toggle" 
+                         onclick="event.stopPropagation(); window.quickCompleteTask('${ev.id}', this)" 
+                         title="Segna come completata"
+                         style="width: 16px; height: 16px; border: 2px solid rgba(16, 185, 129, 0.4); border-radius: 5px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;"
+                         onmouseover="this.style.background='rgba(16, 185, 129, 0.1)'; this.style.borderColor='#10b981';"
+                         onmouseout="this.style.background='transparent'; this.style.borderColor='rgba(16, 185, 129, 0.4)';"
+                    >
+                        <span class="material-icons-round" style="font-size: 12px; color: #10b981; display: none;">check</span>
+                    </div>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div class="v-card-time" style="font-size: 0.62rem; color: #64748b; font-weight: 600; margin-bottom: 1px;">${ev.start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                    <div class="v-card-title" style="font-size: 0.8rem; font-weight: 700; color: #1e293b; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${ev.title}</div>
+                </div>
+            </div>
+        `;
+        card.onclick = () => {
+            if (ev.type === 'appointment') openAppointmentDrawer(ev.id);
+        };
+        overlay.appendChild(card);
+    });
+
+    // 4. NOW LINE
+    if (isToday) {
+        const now = new Date();
+        const nowM = (now.getHours() * 60) + now.getMinutes();
+        const top = nowM * pixelsPerMinute;
+
+        const nowLine = document.createElement('div');
+        nowLine.className = 'v-now-line';
+        nowLine.style.position = 'absolute';
+        nowLine.style.top = `${top}px`;
+        nowLine.style.left = ' -45px'; // Cover labels area too
+        nowLine.style.right = '0';
+        nowLine.style.height = '0';
+        nowLine.style.borderTop = '2px dashed #06b6d4';
+        nowLine.style.zIndex = '100';
+
+        const timePill = document.createElement('div');
+        timePill.innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        timePill.className = 'v-now-pill';
+        nowLine.appendChild(timePill);
+        overlay.appendChild(nowLine);
+    }
+
+    timelineContainer.appendChild(overlay);
+    container.appendChild(timelineContainer);
+}
+
+// --- MAIN RENDER LOGIC ---
 // Actually fetchMyBookings stores in `eventsCache` (not exported) or `window`?
 // Let's create a dedicated fetch or use the general one if accessible.
 // Since `personal_agenda.js` doesn't export the cache cleanly, we'll fetch explicitly here.
@@ -128,11 +276,25 @@ async function fetchDateEvents(collaboratorId, startArg, endArg) {
 async function fetchRecentProjects(collabId, userUuid) {
     try {
         const userId = userUuid || state.session?.user?.id;
-        const collaboratorId = collabId || state.profile?.id;
+        let collaboratorId = collabId || state.profile?.collaborator_id;
 
         if (!userId) {
             console.log("[Homepage] No user session found for recent projects");
             return [];
+        }
+
+        // --- ID RESOLUTION FIX ---
+        // If we have a userId but no collaboratorId (common for admin profiles), resolve it
+        if (userId && !collaboratorId) {
+            const { data: c } = await supabase
+                .from('collaborators')
+                .select('id')
+                .eq('user_id', userId)
+                .maybeSingle();
+            if (c) {
+                collaboratorId = c.id;
+                console.log("[Homepage] Resolved collaboratorId for current user:", collaboratorId);
+            }
         }
 
         // SECURITY FIX: If we are impersonating or viewing as a specific collab, ensure we ONLY match that ID.
@@ -151,25 +313,23 @@ async function fetchRecentProjects(collabId, userUuid) {
         const userTags = state.profile?.tags || [];
         const isPrivileged = userTags.includes('Partner') || userTags.includes('Amministrazione') || userTags.includes('Account') || userTags.some(t => t.toLowerCase() === 'project manager' || t.toLowerCase() === 'pm');
 
-        // FOR STANDARD COLLABORATORS: Fetch Tasks (assignments), NOT Projects
-        if (!isPrivileged) {
-            const { data: myAssignments } = await supabase
-                .from('pm_items')
-                .select(`
-                    id, title, status, created_at,
-                    pm_spaces (
-                        orders (id, order_number, title, clients(business_name))
-                    ),
-                    pm_item_assignees!inner(user_ref)
-                `)
-                .eq('pm_item_assignees.user_ref', userId)
-                .neq('status', 'done')
-                .order('created_at', { ascending: false })
-                .limit(100);
+        // Always fetch Tasks (assignments) first for the sidebar
+        const { data: myAssignments } = await supabase
+            .from('pm_items')
+            .select(`
+                id, title, status, created_at,
+                pm_spaces (
+                    orders (id, order_number, title, clients(business_name, client_code))
+                ),
+                pm_item_assignees!inner(user_ref)
+            `)
+            .eq('pm_item_assignees.user_ref', userId)
+            .order('created_at', { ascending: false })
+            .limit(100);
 
-            if (!myAssignments) return [];
-
-            return myAssignments.map(t => {
+        let finalTasksResults = [];
+        if (myAssignments) {
+            finalTasksResults = myAssignments.map(t => {
                 let ord = null;
                 if (t.pm_spaces) {
                     const space = Array.isArray(t.pm_spaces) ? t.pm_spaces[0] : t.pm_spaces;
@@ -182,7 +342,7 @@ async function fetchRecentProjects(collabId, userUuid) {
                     type: 'task',
                     title: t.title,
                     order_number: ord?.order_number || '',
-                    client: ord?.clients?.business_name || 'Incarico',
+                    client: ord?.clients?.client_code || ord?.clients?.business_name || 'Incarico',
                     status: t.status,
                     last_active: t.created_at,
                     link: '' // Handled by onclick
@@ -190,11 +350,12 @@ async function fetchRecentProjects(collabId, userUuid) {
             });
         }
 
-        // 2. Filter for "In Svolgimento" only (as requested)
-        const isInSvolgimento = (status) => {
-            if (!status) return false;
-            const s = status.toLowerCase();
-            return s.includes('svolgimento') || s.includes('in corso');
+        const isOrderActive = (status_works, offer_status) => {
+            const sw = (status_works || '').toLowerCase().trim();
+            const os = (offer_status || '').toLowerCase().trim();
+            // User requested ONLY Accepted Offers AND (Ongoing OR Paused OR Maintenance)
+            if (os !== 'accettata') return false;
+            return sw === 'in_svolgimento' || sw === 'in_pausa' || sw === 'manutenzione' || sw === 'da_iniziare';
         };
 
         const projectsMap = new Map();
@@ -205,67 +366,42 @@ async function fetchRecentProjects(collabId, userUuid) {
                 .from('order_collaborators')
                 .select(`
                     role_in_order,
-                    orders (id, title, order_number, status_works, clients(business_name), created_at)
+                    orders (id, title, order_number, status_works, offer_status, clients(business_name, client_code), created_at)
                 `)
                 .eq('collaborator_id', collaboratorId);
 
             if (assigned) {
                 assigned.forEach(item => {
                     const o = item.orders;
-                    if (!o || projectsMap.has(o.id)) return;
-                    if (!isInSvolgimento(o.status_works)) return;
+                    if (!o) return;
 
-                    // FILTER: Logica Opt-In (Stretta)
-                    // Mostriamo la commessa SOLO se il ruolo è esplicitamente PM o Tecnico/Operativo.
-                    // Se il ruolo è generico ("collaboratore"), vuoto, o puramente amministrativo ("account", "partner"), LO SALTIAMO.
+                    // FILTER: Logica Opt-In (Stretta) for PM check
                     const role = (item.role_in_order || '').toLowerCase().trim();
+                    const rolesThatArePMMatch = role.includes('pm') || role.includes('project') || role.includes('manager') || role.includes('responsabile') || role.includes('socio') || role.includes('coordinatore') || role.includes('lead');
+                    const rolesThatAreAccountMatch = role.includes('account') || role.includes('partner');
 
-                    // Whitelist operational roles
-                    const isPM = role.includes('pm') || role.includes('project') || role.includes('manager');
-                    const isTech = role.includes('svilupp') || role.includes('dev') || role.includes('social') || role.includes('ads') || role.includes('seo') || role.includes('copy') || role.includes('design') || role.includes('grafic') || role.includes('tecni');
-
-                    // STRICT CHECK: Must be PM or Tech. Everything else (Account, Partner, empty, generic collaborator) is hidden in this view.
-                    if (!isPM && !isTech) {
-                        return;
+                    const existing = projectsMap.get(o.id);
+                    if (existing) {
+                        if (rolesThatArePMMatch) existing.isPM = true;
+                        if (rolesThatAreAccountMatch) existing.isAccount = true;
+                    } else if (isOrderActive(o.status_works, o.offer_status)) {
+                        projectsMap.set(o.id, {
+                            id: o.id,
+                            order_number: o.order_number,
+                            title: o.title || 'Senza Titolo',
+                            client: o.clients?.client_code || o.clients?.business_name || 'No Cliente',
+                            status: o.status_works,
+                            offer_status: o.offer_status,
+                            last_active: o.created_at,
+                            link: `#pm/commessa/${o.id}`,
+                            isPM: rolesThatArePMMatch,
+                            isAccount: rolesThatAreAccountMatch
+                        });
                     }
-
-                    projectsMap.set(o.id, {
-                        id: o.id,
-                        order_number: o.order_number,
-                        title: o.title || 'Senza Titolo',
-                        client: o.clients?.business_name || 'No Cliente',
-                        status: o.status_works,
-                        last_active: o.created_at,
-                        link: `#pm/commessa/${o.id}`
-                    });
                 });
             }
         }
 
-        // --- STEP 2: Fetch Orders where user is PM (orders.pm_id) ---
-        if (collaboratorId || userId) {
-            const { data: managed } = await supabase
-                .from('orders')
-                .select('id, title, order_number, status_works, clients(business_name), created_at')
-                .or(`pm_id.eq.${collaboratorId},pm_id_uuid.eq.${userId}`); // Handle both potential ID types if they exist
-
-            if (managed) {
-                managed.forEach(o => {
-                    if (projectsMap.has(o.id)) return;
-                    if (!isInSvolgimento(o.status_works)) return;
-
-                    projectsMap.set(o.id, {
-                        id: o.id,
-                        order_number: o.order_number,
-                        title: o.title || 'Senza Titolo',
-                        client: o.clients?.business_name || 'No Cliente',
-                        status: o.status_works,
-                        last_active: o.created_at,
-                        link: `#pm/commessa/${o.id}`
-                    });
-                });
-            }
-        }
 
         // --- STEP 3: Fetch Orders where user is PM in related Space or Default PM ---
         if (collaboratorId || userId) {
@@ -275,7 +411,7 @@ async function fetchRecentProjects(collabId, userUuid) {
                     role,
                     pm_spaces!inner (
                         ref_ordine,
-                        orders!inner (id, title, order_number, status_works, clients(business_name), created_at)
+                        orders!inner (id, title, order_number, status_works, offer_status, clients(business_name, client_code), created_at)
                     )
                 `)
                 .eq('role', 'pm')
@@ -284,43 +420,78 @@ async function fetchRecentProjects(collabId, userUuid) {
             if (spaceManaged) {
                 spaceManaged.forEach(sa => {
                     const o = sa.pm_spaces?.orders;
-                    if (!o || projectsMap.has(o.id)) return;
-                    if (!isInSvolgimento(o.status_works)) return;
+                    if (!o) return;
 
-                    projectsMap.set(o.id, {
-                        id: o.id,
-                        order_number: o.order_number,
-                        title: o.title || 'Senza Titolo',
-                        client: o.clients?.business_name || 'No Cliente',
-                        status: o.status_works,
-                        last_active: o.created_at,
-                        link: `#pm/commessa/${o.id}`
-                    });
+                    const existing = projectsMap.get(o.id);
+                    if (existing) {
+                        existing.isPM = true;
+                    } else if (isOrderActive(o.status_works, o.offer_status)) {
+                        projectsMap.set(o.id, {
+                            id: o.id,
+                            order_number: o.order_number,
+                            title: o.title || 'Senza Titolo',
+                            client: o.clients?.client_code || o.clients?.business_name || 'No Cliente',
+                            status: o.status_works,
+                            offer_status: o.offer_status,
+                            last_active: o.created_at,
+                            link: `#pm/commessa/${o.id}`,
+                            isPM: true,
+                            isAccount: false
+                        });
+                    }
                 });
             }
+        }
 
-            // REMOVED: default_pm_user_ref check.
-            // This field often defaults to the creator or an admin, causing "false positives"
-            // where a user sees a project they technically "own" in the DB but don't manage.
+        // --- STEP 3.5: Fetch Orders where user is Account Manager (orders.account_id) ---
+        if (collaboratorId) {
+            const { data: accountOrders } = await supabase
+                .from('orders')
+                .select('id, title, order_number, status_works, offer_status, clients(business_name, client_code), created_at')
+                .eq('account_id', collaboratorId)
+                .neq('offer_status', 'rifiutata')
+                .neq('status_works', 'completato');
+
+            if (accountOrders) {
+                accountOrders.forEach(o => {
+                    const existing = projectsMap.get(o.id);
+                    if (existing) {
+                        existing.isAccount = true;
+                    } else if (isOrderActive(o.status_works, o.offer_status)) {
+                        projectsMap.set(o.id, {
+                            id: o.id,
+                            order_number: o.order_number,
+                            title: o.title || 'Senza Titolo',
+                            client: o.clients?.client_code || o.clients?.business_name || 'No Cliente',
+                            status: o.status_works,
+                            offer_status: o.offer_status,
+                            last_active: o.created_at,
+                            link: `#pm/commessa/${o.id}`,
+                            isPM: false,
+                            isAccount: true
+                        });
+                    }
+                });
+            }
         }
 
         // --- STEP 4: Update Last Active from Personal Activity (activity_logs) ---
-        // We only use logs to sort existing projects, NOT to add new ones.
-        // This prevents accidental "views" from cluttering the home list.
-        if (collaboratorId) {
+        // ... (sorting stuff) ...
+        // Combined results will be handled after enrichment
+        if (collaboratorId || userId) {
             const { data: recentLogs } = await supabase
-                .from('activity_logs')
+                .from('pm_activity_logs')
                 .select(`
                     created_at,
-                    orders (id)
+                    order:order_ref (id)
                 `)
-                .eq('collaborator_id', collaboratorId)
+                .or(`actor_user_ref.eq.${userId},actor_user_ref.eq.${collaboratorId}`) // Broad actor match
                 .order('created_at', { ascending: false })
                 .limit(50);
 
             if (recentLogs) {
                 recentLogs.forEach(log => {
-                    const oId = log.orders?.id;
+                    const oId = log.order?.id;
                     if (!oId) return;
 
                     if (projectsMap.has(oId)) {
@@ -333,14 +504,16 @@ async function fetchRecentProjects(collabId, userUuid) {
             }
         }
 
-        // Final sort by activity date
-        let results = Array.from(projectsMap.values())
+        // Final sort and merge with tasks
+        const sortedProjects = Array.from(projectsMap.values())
             .sort((a, b) => new Date(b.last_active) - new Date(a.last_active))
-            .slice(0, 200);
+            .slice(0, 100);
+        
+        let finalResults = [...finalTasksResults, ...sortedProjects];
 
         // ENRICH WITH STATS
-        if (results.length > 0) {
-            const orderIds = results.map(r => r.id);
+        if (sortedProjects.length > 0) {
+            const orderIds = sortedProjects.map(r => r.id);
 
             // 1. Get Spaces for these Orders
             const { data: spaces } = await supabase
@@ -404,7 +577,7 @@ async function fetchRecentProjects(collabId, userUuid) {
                         });
                     }
 
-                    results.forEach(r => {
+                    sortedProjects.forEach(r => {
                         const relatedSpaces = orderToSpaces[r.id] || [];
                         const stats = { tasks: 0, activities: 0, overdue: 0, imminent: 0, in_progress: 0, appointments: orderApptsCount[r.id] || 0 };
                         relatedSpaces.forEach(sid => {
@@ -422,11 +595,126 @@ async function fetchRecentProjects(collabId, userUuid) {
             }
         }
 
-        console.log("[Homepage] Verified Personal Projects:", results.length, results);
-        return results;
+        console.log("Activity items enriched with stats:", finalResults.length);
+        return finalResults;
+    } catch (error) {
+        console.error("Error fetching recent projects:", error);
+        return [];
+    }
+}
 
-    } catch (e) {
-        console.error("Error fetching recent projects:", e);
+/**
+ * Fetches OPERATIONAL alerts for Amministrazione users.
+ *
+ * Schema verified from codebase:
+ * - invoices: status = 'Bozza' | 'Inviata' | 'Saldata'. payment_date = null se non saldata.
+ *   => Non usare due_date (spesso null). Usa status != 'Saldata' AND payment_date IS NULL.
+ *
+ * - passive_invoices: status = 'Da Pagare' | 'Pagata'. payment_date = null se non pagata.
+ *   => Da pagare = status = 'Da Pagare'
+ *
+ * - payments: payment_type = 'Collaboratore'|'Cliente'|'Fornitore'.
+ *   status = 'Da Fare'|'To Do'|'Invito Inviato'|'In Attesa'|'Completato'|'Done'
+ *   => Pagato = 'Completato' OR 'Done'. Invito inviato = in attesa di fattura dal collab.
+ *
+ * Routes verificate da router.js:
+ *   Fatture attive → #invoices
+ *   Fatture passive collab → #passive-invoices-collab
+ *   Fatture passive fornitori → #passive-invoices-suppliers
+ *   Pagamenti → #payments
+ */
+async function fetchAdminOperationalAlerts() {
+    try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const alerts = [];
+
+        const isInvoicePaid = (i) => {
+            if (!i) return true;
+            const s = (i.status || '').toLowerCase();
+            return s.includes('saldat') || s.includes('pagat') || !!i.payment_date;
+        };
+
+        // --- ENTRATE (SOLDI IN ENTRATA) ---
+
+        // 1. FATTURE ATTIVE DA INCASSARE
+        const { data: invData } = await supabase.from('invoices')
+            .select('id, status, payment_date')
+            .eq('status', 'Inviata');
+
+        if (invData && invData.length > 0) {
+            alerts.push({
+                id: 'active_invoices',
+                priority: 'urgent',
+                count: invData.length,
+                label: `Fatture attive da incassare`,
+                link: '#invoices',
+                color: '#ef4444'
+            });
+        }
+
+        // 2. PAGAMENTI ATTIVI IN RITARDO
+        const { data: actPay } = await supabase.from('payments')
+            .select('id, status, payment_type, due_date')
+            .eq('payment_type', 'Cliente')
+            .is('invoice_id', null)
+            .neq('status', 'Completato')
+            .neq('status', 'Done')
+            .lt('due_date', todayStr);
+
+        if (actPay && actPay.length > 0) {
+            alerts.push({
+                id: 'active_payments',
+                priority: 'high',
+                count: actPay.length,
+                label: `Pagamenti attivi in ritardo`,
+                link: '#payments',
+                color: '#f59e0b'
+            });
+        }
+
+        // --- USCITE (SOLDI IN USCITA) ---
+
+        // 3. PAGAMENTI COLLABORATORI SCADUTI (5)
+        const { data: collPay } = await supabase.from('payments')
+            .select('id, status, payment_type, due_date')
+            .eq('payment_type', 'Collaboratore')
+            .is('passive_invoice_id', null)
+            .neq('status', 'Completato')
+            .neq('status', 'Done')
+            .lt('due_date', todayStr);
+
+        if (collPay && collPay.length > 0) {
+            alerts.push({
+                id: 'collab_overdue_payments',
+                priority: 'medium',
+                count: collPay.length > 5 ? 5 : collPay.length,
+                label: `Pagamenti collaboratori scaduti`,
+                link: '#payments',
+                color: '#8b5cf6'
+            });
+        }
+
+        // 4. FATTURE PASSIVE DA PAGARE
+        const { data: passData } = await supabase.from('passive_invoices')
+            .select('id, status, payment_date');
+
+        if (passData) {
+            const unpaid = passData.filter(p => !isInvoicePaid(p));
+            if (unpaid.length > 0) {
+                alerts.push({
+                    id: 'passive_overdue_invoices',
+                    priority: 'low',
+                    count: unpaid.length,
+                    label: `Fatture passive da pagare`,
+                    link: '#passive-invoices-collab',
+                    color: '#64748b'
+                });
+            }
+        }
+
+        return alerts;
+    } catch (err) {
+        console.error("FetchAdminAlerts Error:", err);
         return [];
     }
 }
@@ -437,16 +725,33 @@ export async function fetchInternalProjects(collaboratorId, userId) {
 
         // 1. Fetch Internal Spaces (Clusters and Projects)
         // We look for spaces assigned to the user or where PM
-        const { data: assigned } = await supabase
-            .from('pm_spaces')
-            .select(`
+        const currentEffectiveRole = state.impersonatedRole || state.profile?.role;
+        const isAdmin = currentEffectiveRole === 'admin';
+
+        let selectString = `
+            id, name, type, area, is_cluster, parent_ref, created_at,
+            cluster:parent_ref ( name ),
+            pm_space_assignees ( user_ref, collaborator_ref )
+        `;
+        if (!isAdmin) {
+            selectString = `
                 id, name, type, area, is_cluster, parent_ref, created_at,
                 cluster:parent_ref ( name ),
                 pm_space_assignees!inner ( user_ref, collaborator_ref )
-            `)
+            `;
+        }
+
+        let query = supabase
+            .from('pm_spaces')
+            .select(selectString)
             .eq('type', 'interno')
-            .eq('is_cluster', false)
-            .or(`pm_space_assignees.user_ref.eq.${userId},pm_space_assignees.collaborator_ref.eq.${collaboratorId}`);
+            .eq('is_cluster', false);
+
+        if (!isAdmin) {
+            query = query.or(`pm_space_assignees.user_ref.eq.${userId},pm_space_assignees.collaborator_ref.eq.${collaboratorId}`);
+        }
+
+        const { data: assigned } = await query;
 
         if (assigned) {
             assigned.forEach(s => {
@@ -572,6 +877,51 @@ const getFirstName = (collab, profile) => {
     return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
 };
 
+/**
+ * Renders the operational Admin alert list on the homepage.
+ * Shows actionable items requiring attention, not financial KPIs.
+ */
+function renderAdminAlerts(alerts) {
+    const block = document.getElementById('hp-accounting-alerts-block');
+    const grid = document.getElementById('hp-admin-alert-list');
+    if (!block || !grid) return;
+
+    if (alerts.length === 0) {
+        grid.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px 0; color: #166534; opacity: 0.7;">
+                <span class="material-icons-round" style="font-size: 16px;">check_circle</span>
+                <span style="font-size: 0.8rem; font-weight: 500;">Tutto in ordine</span>
+            </div>
+        `;
+    } else {
+        const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+        const sorted = [...alerts].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+
+        grid.innerHTML = sorted.map(alert => `
+            <div class="hp-alert-item" onclick="window.location.hash='${alert.link}'" style="
+                display: flex; align-items: center; gap: 12px;
+                padding: 10px 0; cursor: pointer;
+                border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+                transition: all 0.2s;">
+                <span style="font-size: 1.05rem; font-weight: 800; color: #1e293b; min-width: 24px; line-height: 1; text-align: center;">${alert.count}</span>
+                <span style="font-size: 0.75rem; font-weight: 500; color: #475569; flex: 1; line-height: 1.2;">${alert.label}</span>
+                <span class="material-icons-round" style="color: #94a3b8; font-size: 16px;">chevron_right</span>
+            </div>
+        `).join('');
+    }
+
+    block.style.display = 'flex';
+}
+
+// --- ROLE DETECTION HELPER ---
+function detectUserRole(normalizedTags) {
+    if (normalizedTags.includes('partner')) return 'partner';
+    if (normalizedTags.includes('amministrazione')) return 'amministrazione';
+    if (normalizedTags.includes('account')) return 'account';
+    if (normalizedTags.includes('project manager') || normalizedTags.includes('pm')) return 'pm';
+    return 'collaboratore';
+}
+
 export async function renderHomepageAlt(container) {
     console.log("Rendering Homepage...");
     
@@ -589,32 +939,45 @@ export async function renderHomepageAlt(container) {
 
     // Determine which collaborator to show (support impersonation)
     let myCollab;
+    
+    // 1. If impersonating, we MUST find that person
     if (state.impersonatedCollaboratorId) {
-        myCollab = state.collaborators.find(c => c.id === state.impersonatedCollaboratorId);
+        myCollab = state.collaborators.find(c => c.id == state.impersonatedCollaboratorId);
+        
+        // If not found in list yet (race condition), try to guess from sidebar or synthesise
+        if (!myCollab) {
+            console.log("[Homepage] Impersonated collaborator not in state.collaborators yet. Checking sidebar...");
+            const sidebarName = document.querySelector('.sidebar-profile h3')?.textContent;
+            if (sidebarName && sidebarName !== (state.profile?.full_name || 'Utente')) {
+                myCollab = { full_name: sidebarName, first_name: sidebarName.split(' ')[0] };
+            }
+        }
     }
+
+    // 2. Normal lookup for self
     if (!myCollab) {
         myCollab = state.collaborators.find(c => c.email === user.email);
     }
-    // Fallback: search by user_id
+    
+    // 3. Fallback: search by user_id
     if (!myCollab && state.profile) {
         myCollab = state.collaborators.find(c => c.user_id === state.profile.id);
     }
 
-    // Graceful fallback if still not found: synthesize a minimal profile
+    // 4. Final Fallback: use profile data
     if (!myCollab) {
-        console.warn("[Homepage] Collaborator profile not found for current user. Using fallback.");
         myCollab = {
             id: state.profile?.id || user.id,
             user_id: state.profile?.id || user.id,
-            first_name: state.profile?.first_name || user.user_metadata?.first_name || 'Utente',
+            first_name: state.profile?.first_name || user.user_metadata?.first_name || '',
             last_name: state.profile?.last_name || user.user_metadata?.last_name || '',
-            full_name: state.profile ? `${state.profile.first_name} ${state.profile.last_name || ''}`.trim() : 'Utente',
+            full_name: state.profile?.full_name || 'Utente',
             email: user.email
         };
     }
 
     const firstName = getFirstName(myCollab, state.profile);
-    const myId = myCollab.id;
+    const myId = myCollab.id || state.profile?.id;
 
     // --- MANAGE TOP BAR GREETING ---
     const pageTitle = document.getElementById('page-title');
@@ -740,76 +1103,198 @@ export async function renderHomepageAlt(container) {
         console.error("Error fetching My Activities data:", err);
     }
 
-    // Skeleton
-    container.innerHTML = `
-        <div class="homepage-alt-container">
-            <div class="hp-mobile-spacer" style="height: 0.5rem;"></div>
+    // Force Task filter for the top block in this alt view
+    window.hpActivityFilter = 'task';
 
-            <!-- TOP GRID: Only the Dark Block (My Activities) spanning horizontally -->
-            <div class="hp-alt-top-panel" style="margin-bottom: 2rem;">
-                <div class="glass-card side-activities-card hp-alt-horizontal-card">
-                    <div class="hp-v6-controls">
-                        <div onclick="window.setHpFilter('task', this)" class="hp-v6-pill ${(window.hpActivityFilter || 'task') === 'task' ? 'active' : ''}" title="Task">
-                            <span class="material-icons-round">check_circle</span>
-                            <span class="tab-count"></span>
-                        </div>
-                        <div onclick="window.setHpFilter('event', this)" class="hp-v6-pill ${window.hpActivityFilter === 'event' ? 'active' : ''}" title="Appuntamenti">
-                            <span class="material-icons-round">calendar_today</span>
-                            <span class="tab-count"></span>
-                        </div>
-                        <div id="hp-top-add-btn" onclick="window.toggleHpQuickEntry(this)" class="hp-v6-add-btn" title="Crea Nuovo">
-                            <span class="material-icons-round">add</span>
-                        </div>
+    container.innerHTML = `
+        <div class="homepage-container" style="background: #f8fafc; padding: 0 !important; display: flex; height: 100vh; overflow: hidden; font-family: 'Outfit'; width: 100vw;">
+            
+            <!-- 1. LEFT SIDEBAR (Stacked: Tasks -> Agenda) - 1/4 SCREEN -->
+            <div class="hp-alt-sidebar-left" style="width: 25%; height: 100vh; background: white; border-right: 1px solid #eef2f6; display: flex; flex-direction: column; position: relative; box-shadow: 10px 0 30px rgba(0,0,0,0.02); z-index: 10;">
+                
+                <!-- HEADER (Premium Style - Minimalist) -->
+                <div style="padding: 1.75rem 1.75rem 1.25rem 1.75rem; border-bottom: 1px solid #f1f5f9; flex: 0 0 auto;">
+                     <!-- Hidden Benvenuto, Visible Data -->
+                     <h1 id="page-title" style="display: none;"></h1>
+                     <h2 id="hp-date-description" style="font-size: 0.85rem; font-weight: 500; color: #64748b; margin: 0; margin-bottom: 1.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></h2>
+
+                     <div class="hp-nav-controls" style="display: flex; flex-direction: row; gap: 8px; align-items: stretch; height: 38px;">
+                         <div class="hp-pill-group" style="display: flex; flex: 1; border-radius: 12px; padding: 3px; background: #f8fafc; border: 1px solid #f1f5f9;">
+                             <button onclick="setHomepageMode('today')" id="btn-mode-today" class="nav-pill active-pill" style="flex: 1; border-radius: 9px; font-size: 0.72rem; border: none;">Oggi</button>
+                             <button onclick="setHomepageMode('tomorrow')" id="btn-mode-tomorrow" class="nav-pill" style="flex: 1; border-radius: 9px; font-size: 0.72rem; border: none;">Domani</button>
+                             <button onclick="setHomepageMode('week')" id="btn-mode-week" class="nav-pill" style="flex: 1; border-radius: 9px; font-size: 0.72rem; border: none;">Settimana</button>
+                         </div>
+
+                         <button id="hp-date-picker-btn" onclick="toggleCustomDatePicker(this)" style="width: 38px; height: 38px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; color: #64748b; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+                            <span class="material-icons-round" style="font-size: 18px; color: #8b5cf6;">calendar_today</span> 
+                         </button>
+
+                         <button id="hp-top-add-btn" onclick="window.toggleHpQuickEntry(this)" style="width: 38px; height: 38px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; color: #111; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+                            <span class="material-icons-round" style="font-size: 20px;">add</span>
+                         </button>
+                     </div>
+                </div>
+
+                <!-- 2. TASKS SECTION (Top Block - with faceted switcher) -->
+                <div class="hp-sidebar-list-block" style="flex: 0 0 auto; min-height: 380px; max-height: 440px; display: flex; flex-direction: column; padding: 1.5rem 1.75rem; border-bottom: 2px solid #f8fafc; background: #fff; font-family: 'Outfit';">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                         
+                         <!-- Segmented Control (Icons Only) -->
+                         <div style="display: flex; align-items: center; gap: 2px; background: #f8fafc; padding: 4px; border-radius: 12px; border: 1px solid #f1f5f9;">
+                            <div id="hp-filter-task" onclick="window.setHpAltFilter('task')" style="position: relative; cursor: pointer; width: 42px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); background: ${window.hpActivityFilter === 'task' ? '#fff' : 'transparent'}; color: ${window.hpActivityFilter === 'task' ? '#64748b' : '#64748b'}; border: ${window.hpActivityFilter === 'task' ? '1px solid #e2e8f0' : '1px solid transparent'}; box-shadow: ${window.hpActivityFilter === 'task' ? '0 4px 10px rgba(0,0,0,0.05)' : 'none'};">
+                                <span class="material-icons-round" style="font-size: 20px;">check_circle</span>
+                                <div id="hp-badge-task" style="display: none; position: absolute; top: -3px; right: -3px; background: #ef4444; color: white; font-size: 8px; font-weight: 800; min-width: 15px; height: 15px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1.5px solid #fff;">0</div>
+                            </div>
+                            <div id="hp-filter-event" onclick="window.setHpAltFilter('event')" style="position: relative; cursor: pointer; width: 42px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); background: ${window.hpActivityFilter === 'event' ? '#fff' : 'transparent'}; color: ${window.hpActivityFilter === 'event' ? '#64748b' : '#64748b'}; border: ${window.hpActivityFilter === 'event' ? '1px solid #e2e8f0' : '1px solid transparent'}; box-shadow: ${window.hpActivityFilter === 'event' ? '0 4px 10px rgba(0,0,0,0.05)' : 'none'};">
+                                <span class="material-icons-round" style="font-size: 20px;">calendar_today</span>
+                                <div id="hp-badge-event" style="display: none; position: absolute; top: -3px; right: -3px; background: #8b5cf6; color: white; font-size: 8px; font-weight: 800; min-width: 15px; height: 15px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1.5px solid #fff;">0</div>
+                            </div>
+                         </div>
+
+                         <div style="display: flex; align-items: center; gap: 8px;">
+                            <a id="hp-task-list-link" href="#my-assignments" style="text-decoration: none; font-size: 0.7rem; font-weight: 700; color: #1e293b; background: #fff; padding: 7px 14px; border-radius: 10px; border: 1px solid #e2e8f0; transition: all 0.25s; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">Lista</a>
+                            <div id="hp-overdue-toggle" onclick="window.toggleHpOverdue()" style="cursor: pointer; position: relative; width: 36px; height: 36px; border-radius: 10px; background: #fff; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+                                <span class="material-icons-round" style="font-size: 19px; color: #ef4444;">history</span>
+                                <div id="hp-overdue-badge" style="display: none; position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; font-size: 8px; font-weight: 800; min-width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.2);">0</div>
+                            </div>
+                         </div>
                     </div>
                     
-                    <div class="hp-activities-list-container hp-alt-horizontal-list" id="hp-activities-list">
-                        <!-- Content Injected Below -->
+                    <div id="hp-activities-list" style="flex: 1; overflow-y: auto;">
+                        <!-- Tasks live here -->
                     </div>
+                </div>
 
-                    <div style="display: flex; align-items: center; gap: 8px; margin-top: auto;">
-                        <button id="hp-footer-action-btn" class="btn btn-primary vedi-agenda-btn" onclick="window.location.hash='#my-assignments'">
-                            ${(window.hpActivityFilter === 'event') ? 'Vedi Agenda' : 'Lista task'}
-                        </button>
-                        <div id="hp-overdue-filter" onclick="window.toggleOverdueFilter()" 
-                            class="overdue-filter-btn ${window.hpShowOverdue ? 'active' : ''}" 
-                            title="Mostra Scadute"
-                            style="display: ${(window.hpActivityFilter === 'task' || !window.hpActivityFilter) ? 'flex' : 'none'};">
-                            <span class="material-icons-round">history</span>
-                        </div>
+                <!-- 3. AGENDA SECTION (Bottom Block - Vertical Timeline - No Header) -->
+                <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #fff;">
+                    <div id="hp-timeline-wrapper" style="flex: 1; overflow-y: auto; position: relative;">
+                        <!-- Timeline lives here -->
                     </div>
                 </div>
             </div>
 
-            <!-- BOTTOM: TIMELINE (Main) expanding horizontally -->
-            <div class="hp-main-timeline hp-alt-timeline">
-                <!-- HEADER (Date Nav) -->
-                <div class="hp-nav-header">
-                     <div class="greeting-mobile-only" style="display: none; margin-bottom: 0.5rem;">
-                        <h1 style="font-size: 1.5rem; margin: 0;">${greetingText}, ${firstName}!</h1>
+            <!-- 2. MAIN CONTENT AREA (Projects + Activities) - 3/4 SCREEN -->
+            <div class="hp-main-content-area" style="flex: 1; display: flex; flex-direction: column; gap: 2rem; padding: 2.5rem; background: #f8fafc; overflow-y: auto;">
+                 
+                 <div style="display: flex; gap: 2rem; flex: 1; width: 100%; min-width: 0;">
+                     <!-- COLUMN 1: COMMESSE (Existing) -->
+                     <div id="hp-pm-spaces-main-block" style="
+                         flex: 1.2; 
+                         min-width: 320px; 
+                         display: none; 
+                         max-height: 480px;
+                         display: flex;
+                         flex-direction: column;
+                     ">
+                        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.25rem;">
+                             <div style="display: flex; justify-content: space-between; align-items: center; padding-left: 8px;">
+                                 <h3 style="font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
+                                     <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.6); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);">
+                                         <span class="material-icons-round" style="color: #64748b; font-size: 18px;">dashboard</span>
+                                     </div>
+                                     Le mie Commesse 
+                                 </h3>
+                                 <div style="display: flex; gap: 6px; background: rgba(0,0,0,0.03); padding: 4px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.02); margin-right: 8px;">
+                                    <button id="hp-filter-account" class="hp-filter-pill active" onclick="togglePmFilter('account')" style="padding: 4px 10px; border-radius: 7px; border: none; font-size: 0.65rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;">ACCOUNT</button>
+                                    <button id="hp-filter-pm" class="hp-filter-pill active" onclick="togglePmFilter('pm')" style="padding: 4px 10px; border-radius: 7px; border: none; font-size: 0.65rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;">PM</button>
+                                 </div>
+                             </div>
+                        </div>
+                        <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0.5rem; margin-bottom: 1.5rem;">
+                            <!-- Stats injected dynamically -->
+                        </div>
+                        <div id="hp-pm-spaces-main-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; padding: 4px 8px 60px 8px;">
+                            <!-- PM Orders cards populated here -->
+                        </div>
                      </div>
-                     <h2 id="hp-date-description" class="hp-date-text">ALT: Ecco cosa c'è in programma per oggi, ${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
-                     
-                     <div class="hp-nav-controls">
-                         <div class="hp-pill-group">
-                             <button onclick="setHomepageMode('today')" id="btn-mode-today" class="nav-pill active-pill">Oggi</button>
-                             <button onclick="setHomepageMode('tomorrow')" id="btn-mode-tomorrow" class="nav-pill">Domani</button>
-                             <div class="hp-pill-divider"></div>
-                             <button onclick="setHomepageMode('week')" id="btn-mode-week" class="nav-pill">Settimana</button>
+
+                      <!-- COLUMN 2: INTERNAL DASHBOARD (Hubs & Clusters - PRIORITY REVERSED) -->
+                      <div id="hp-internal-dashboard-block" style="
+                          flex: 1.2; 
+                          min-width: 320px; 
+                          display: flex;
+                          flex-direction: column; 
+                          max-height: 480px;
+                          padding: 0.5rem 1rem;
+                      ">
+                         <!-- TOP: Hub Buttons (Strategic Navigation - Carousel Slim) -->
+                         <div style="margin-bottom: 2rem;">
+                             <div id="hp-internal-hubs-buttons" style="
+                                 display: flex; 
+                                 gap: 12px; 
+                                 overflow-x: auto; 
+                                 padding-bottom: 12px; 
+                                 scrollbar-width: none; 
+                                 -ms-overflow-style: none;
+                             ">
+                                 <!-- Hub buttons populated here -->
+                             </div>
                          </div>
 
-                         <div style="position: relative;">
-                            <button id="hp-date-picker-btn" onclick="toggleCustomDatePicker(this)" class="hp-date-btn">
-                               <span class="material-icons-round" style="font-size: 18px; color: #8b5cf6;">calendar_today</span> 
-                               <span>Data</span>
-                            </button>
+                         <!-- BOTTOM: Clusters Grid (Operation First) -->
+                         <div id="hp-internal-clusters-grid" class="custom-scrollbar" style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; overflow-y: auto; padding-bottom: 2rem;">
+                             <!-- Cluster icons populated here -->
+                         </div>
+                      </div>
+
+                     <!-- COLUMN 3: ADMIN + FEED -->
+                     <div style="flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 2rem;">
+                         <!-- BOX: ACCOUNTING ALERTS -->
+                         <div id="hp-accounting-alerts-block" class="hp-widget-panel" style="
+                             display: none; 
+                             flex-direction: column; 
+                             height: auto;
+                             background: rgba(255, 255, 255, 0.2) !important;
+                             backdrop-filter: blur(20px) saturate(180%);
+                             -webkit-backdrop-filter: blur(20px) saturate(180%);
+                             border: 1px solid rgba(255, 255, 255, 0.3) !important;
+                             border-radius: 28px;
+                             padding: 1.5rem;
+                             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+                         ">
+                             <div class="flex-start" style="gap: 12px; align-items: center; margin-bottom: 1rem;">
+                                 <div style="width: 36px; height: 36px; border-radius: 12px; background: rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);">
+                                     <span class="material-icons-round" style="color: #64748b; font-size: 20px;">notifications_active</span>
+                                 </div>
+                                 <h4 style="font-size: 1.05rem; font-weight: 600; color: #1e293b; margin: 0; letter-spacing: -0.02em;">Alert Amministrazione</h4>
+                             </div>
+                             <div id="hp-admin-alert-list" style="display: flex; flex-direction: column; gap: 4px;">
+                                 <!-- Alerts injected dynamically -->
+                             </div>
+                         </div>
+
+                         <!-- BOX: ACTIVITY FEED -->
+                         <div id="hp-activity-feed-block" class="hp-widget-panel" style="
+                             flex: 1; 
+                             display: flex; 
+                             flex-direction: column; 
+                             max-height: 480px;
+                             background: rgba(255, 255, 255, 0.2) !important;
+                             backdrop-filter: blur(20px) saturate(180%);
+                             -webkit-backdrop-filter: blur(20px) saturate(180%);
+                             border: 1px solid rgba(255, 255, 255, 0.3) !important;
+                             border-radius: 28px;
+                             padding: 1.5rem;
+                             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+                         ">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                                 <h3 style="font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.02em;">
+                                     <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);">
+                                         <span class="material-icons-round" style="color: #64748b; font-size: 18px;">rss_feed</span>
+                                     </div>
+                                     Feed
+                                 </h3>
+                                 <div id="hp-feed-tabs-container" style="display: flex; gap: 4px; background: rgba(0,0,0,0.03); padding: 4px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.02);">
+                                     <!-- Tabs are populated by the setupHomepageFeed function -->
+                                 </div>
+                            </div>
+                            <div id="hp-feed-content" class="custom-scrollbar" style="flex: 1; overflow-y: auto; overflow-x: hidden; padding-right: 8px;">
+                                <!-- Feed populated by JS -->
+                            </div>
                          </div>
                      </div>
-                </div>
+                 </div>
 
-                <!-- TIMELINE WRAPPER -->
-                <div id="hp-timeline-wrapper" class="hp-timeline-card">
-                    <!-- Rendered by JS -->
-                </div>
             </div>
         </div>
     `;
@@ -891,6 +1376,32 @@ export async function renderHomepageAlt(container) {
         if (actContainer) {
             renderMyActivities(actContainer, window.hpData.timers, combinedTasks, window.hpData.events, window.hpActivityFilter);
         }
+
+        // Update Overdue UI
+        const overdueToggle = document.getElementById('hp-overdue-toggle');
+        const overdueBadge = document.getElementById('hp-overdue-badge');
+        const nowAtStartOfDay = new Date(); nowAtStartOfDay.setHours(0,0,0,0);
+        const overdueCount = allTasks.filter(t => t.due_date && new Date(t.due_date) < nowAtStartOfDay && t.status !== 'done').length;
+
+        // Update Switcher Badges
+        const taskBadge = document.getElementById('hp-badge-task');
+        const eventBadge = document.getElementById('hp-badge-event');
+        // Count ONLY REAL TASKS (no activities) for the actual view to be 100% accurate
+        const realTasksCount = filteredRealTasks.length; 
+        const activitiesOnlyCount = pmActivities.length;
+        const countEvent = (window.hpData?.events || []).length;
+
+        if (taskBadge) { 
+            taskBadge.textContent = realTasksCount; 
+            taskBadge.style.display = realTasksCount > 0 ? 'flex' : 'none'; 
+        }
+        if (eventBadge) { 
+            eventBadge.textContent = countEvent; 
+            eventBadge.style.display = countEvent > 0 ? 'flex' : 'none'; 
+            // Use purple for events as it's less critical than tasks
+            eventBadge.style.background = '#8b5cf6';
+        }
+
     };
 
     window.toggleHomepageView = (view) => {
@@ -939,11 +1450,16 @@ export async function renderHomepageAlt(container) {
             dateText = `Ecco cosa c'è in programma per ${date.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}.`;
         }
 
-        // Update header date
-        headerDate.innerHTML = dateText;
+        // Update header date (with null check)
+        if (headerDate) headerDate.innerHTML = dateText;
 
         // Keep Greeting in sync (especially if time passed or name changed)
-        const currentFirstName = getFirstName(null, state.profile);
+        let myCollab;
+        if (state.impersonatedCollaboratorId) {
+            myCollab = state.collaborators.find(c => c.id == state.impersonatedCollaboratorId);
+        }
+        
+        const currentFirstName = getFirstName(myCollab, state.profile);
         const hours = new Date().getHours();
         let greeting = 'Buongiorno';
         if (hours >= 14 && hours < 19) greeting = 'Buon pomeriggio';
@@ -972,11 +1488,17 @@ export async function renderHomepageAlt(container) {
                 const dayId = date.getDay();
                 const dayRules = rules.filter(r => r.day_of_week === dayId);
 
-                // MOBILE UX FIX: Check screen width
-                if (window.innerWidth <= 768) {
-                    renderMobileAgenda(timelineWrapper, events, date, dayRules);
-                } else {
-                    renderTimeline(timelineWrapper, events, date, dayRules, googleBusy, overrides);
+                // FORCE VERTICAL TIMELINE
+                renderVerticalTimeline(timelineWrapper, events, date, rules);
+
+                // Auto-scroll to now if today
+                if (new Date().toDateString() === date.toDateString()) {
+                    const now = new Date();
+                    const nowM = (now.getHours() * 60) + now.getMinutes();
+                    const top = nowM * (80 / 60); // pxPerHour = 80
+                    setTimeout(() => {
+                        timelineWrapper.scrollTo({ top: top - 100, behavior: 'smooth' });
+                    }, 500);
                 }
             }
 
@@ -1041,8 +1563,51 @@ export async function renderHomepageAlt(container) {
         }
     };
 
+    window.toggleHpOverdue = () => {
+        window.hpShowOverdue = !window.hpShowOverdue;
+        
+        // Update ONLY the task list, not the whole agenda
+        if (window.syncHomepageActivities) {
+            window.syncHomepageActivities();
+        }
+    };
+
+    window.setHpAltFilter = (filter) => {
+        window.hpActivityFilter = filter;
+        
+        // Update UI
+        const taskBtn = document.getElementById('hp-filter-task');
+        const eventBtn = document.getElementById('hp-filter-event');
+        const taskLink = document.getElementById('hp-task-list-link');
+        const overdueToggle = document.getElementById('hp-overdue-toggle');
+
+        if (taskBtn && eventBtn) {
+            if (filter === 'task') {
+                taskBtn.style.background = '#fff'; taskBtn.style.color = '#8b5cf6'; taskBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'; taskBtn.style.borderColor = '#e2e8f0';
+                eventBtn.style.background = 'transparent'; eventBtn.style.color = '#64748b'; eventBtn.style.boxShadow = 'none'; eventBtn.style.borderColor = 'transparent';
+                if (taskLink) {
+                    taskLink.textContent = 'Lista task';
+                    taskLink.href = '#my-assignments';
+                }
+                if (overdueToggle) overdueToggle.style.display = 'flex';
+            } else {
+                eventBtn.style.background = '#fff'; eventBtn.style.color = '#8b5cf6'; eventBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'; eventBtn.style.borderColor = '#e2e8f0';
+                taskBtn.style.background = 'transparent'; taskBtn.style.color = '#64748b'; taskBtn.style.boxShadow = 'none'; taskBtn.style.borderColor = 'transparent';
+                if (taskLink) {
+                    taskLink.textContent = 'Vedi Agenda';
+                    taskLink.href = '#agenda';
+                }
+                if (overdueToggle) overdueToggle.style.display = 'none';
+            }
+        }
+        
+        if (window.syncHomepageActivities) {
+            window.syncHomepageActivities();
+        }
+    };
+
     // --- CUSTOM DATE PICKER ---
-    let pickerCurrentDate = new Date(); // Tracks the displayed month
+    window.hpPickerDate = new Date(); // Use window for global access
 
     window.toggleCustomDatePicker = (btn) => {
         const existing = document.getElementById('custom-datepicker-popover');
@@ -1051,35 +1616,31 @@ export async function renderHomepageAlt(container) {
             return;
         }
 
-        // Initialize picker date to current selected date
-        pickerCurrentDate = new Date(window.homepageCurrentDate);
+        window.hpPickerDate = new Date(window.homepageCurrentDate);
 
-        // Create Popover
         const rect = btn.getBoundingClientRect();
         const popoverWidth = 300;
         const popover = document.createElement('div');
         popover.id = 'custom-datepicker-popover';
-        popover.className = 'glass-card'; // Reuse global class
+        popover.className = 'glass-card';
         popover.style.cssText = `
             position: fixed;
             top: ${rect.bottom + 8}px;
-            left: ${rect.right - popoverWidth}px; /* Align Right Edge */
-            background: white; /* Light Theme */
-            color: #1f2937; /* Gray-800 */
+            left: ${rect.right - popoverWidth}px;
+            background: white;
+            color: #1f2937;
             padding: 16px;
             border-radius: 12px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); /* Soft shadow */
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
             z-index: 9999;
             width: ${popoverWidth}px;
-            border: 1px solid #e5e7eb; /* Light border */
-            font-family: var(--font-base, sans-serif);
+            border: 1px solid #e5e7eb;
+            font-family: inherit;
         `;
 
-        // Render Initial View
-        renderCalendar(popover);
+        window.renderHpPickerCalendar(popover);
         document.body.appendChild(popover);
 
-        // Click Outside to Close
         setTimeout(() => {
             const closeHandler = (e) => {
                 if (!popover.contains(e.target) && !btn.contains(e.target)) {
@@ -1091,13 +1652,82 @@ export async function renderHomepageAlt(container) {
         }, 0);
     };
 
+    window.renderHpPickerCalendar = (container) => {
+        const year = window.hpPickerDate.getFullYear();
+        const month = window.hpPickerDate.getMonth();
+        const monthNames = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+
+        let html = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <button onclick="window.changeHpPickerMonth(-1)" style="background:transparent; border:none; color:#374151; cursor:pointer; padding:4px; border-radius:4px;">
+                    <span class="material-icons-round">chevron_left</span>
+                </button>
+                <div style="font-weight: 700; font-size: 0.95rem; color:#111;">${monthNames[month]} ${year}</div>
+                <button onclick="window.changeHpPickerMonth(1)" style="background:transparent; border:none; color:#374151; cursor:pointer; padding:4px; border-radius:4px;">
+                    <span class="material-icons-round">chevron_right</span>
+                </button>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 8px;">
+        `;
+
+        const days = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
+        days.forEach(d => {
+            html += `<div style="text-align: center; font-size: 0.75rem; color: #9ca3af; font-weight: 600;">${d}</div>`;
+        });
+        html += `</div><div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">`;
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const adjustedFirstDay = (firstDay === 0 ? 6 : firstDay - 1);
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const today = new Date();
+        const currentSelected = window.homepageCurrentDate;
+
+        for (let i = 0; i < adjustedFirstDay; i++) { html += `<div></div>`; }
+
+        for (let i = 1; i <= daysInMonth; i++) {
+            let bg = 'transparent';
+            let color = '#374151';
+            let weight = '500';
+            if (i === currentSelected.getDate() && month === currentSelected.getMonth() && year === currentSelected.getFullYear()) {
+                bg = '#8b5cf6'; color = 'white'; weight = '700';
+            } else if (i === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+                bg = '#eff6ff'; color = '#3b82f6'; weight = '700';
+            }
+
+            html += `
+                <button onclick="window.selectHpPickerDate(${i})" style="
+                    width: 100%; aspect-ratio: 1; border: none; background: ${bg}; color: ${color};
+                    border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: ${weight};
+                    display: flex; align-items: center; justify-content: center;
+                ">
+                    ${i}
+                </button>
+            `;
+        }
+        html += `</div>`;
+        container.innerHTML = html;
+    };
+
+    window.changeHpPickerMonth = (offset) => {
+        window.hpPickerDate.setMonth(window.hpPickerDate.getMonth() + offset);
+        const popover = document.getElementById('custom-datepicker-popover');
+        if (popover) window.renderHpPickerCalendar(popover);
+    };
+
+    window.selectHpPickerDate = (day) => {
+        const newDate = new Date(window.hpPickerDate.getFullYear(), window.hpPickerDate.getMonth(), day);
+        const offset = newDate.getTimezoneOffset();
+        const localDate = new Date(newDate.getTime() - (offset * 60 * 1000));
+        const dateStr = localDate.toISOString().split('T')[0];
+        window.updateHomepageDateFromInput(dateStr);
+        const popover = document.getElementById('custom-datepicker-popover');
+        if (popover) popover.remove();
+    };
+
     // --- QUICK ENTRY MENU ---
     window.toggleHpQuickEntry = (btn) => {
         const existing = document.getElementById('hp-quick-entry-popover');
-        if (existing) {
-            existing.remove();
-            return;
-        }
+        if (existing) { existing.remove(); return; }
 
         const rect = btn.getBoundingClientRect();
         const popoverWidth = 240;
@@ -1105,21 +1735,10 @@ export async function renderHomepageAlt(container) {
         popover.id = 'hp-quick-entry-popover';
         popover.className = 'glass-card';
         popover.style.cssText = `
-            position: fixed;
-            top: ${rect.bottom + 8}px;
-            left: ${rect.right - popoverWidth}px;
-            background: white;
-            color: #1f2937;
-            padding: 8px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
-            z-index: 99999;
-            width: ${popoverWidth}px;
-            border: 1px solid #e5e7eb;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            font-family: var(--font-base, sans-serif);
+            position: fixed; top: ${rect.bottom + 8}px; left: ${rect.right - popoverWidth}px;
+            background: white; color: #1f2937; padding: 8px; border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); z-index: 99999;
+            width: ${popoverWidth}px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; gap: 4px;
         `;
 
         const items = [
@@ -1129,17 +1748,10 @@ export async function renderHomepageAlt(container) {
 
         items.forEach(item => {
             const row = document.createElement('div');
-            row.style.cssText = `
-                display: flex; align-items: center; gap: 12px; padding: 10px 12px;
-                cursor: pointer; border-radius: 8px; transition: all 0.2s;
-            `;
+            row.style.cssText = `display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; border-radius: 8px; transition: all 0.2s;`;
             row.onmouseover = () => { row.style.background = '#f3f4f6'; };
             row.onmouseout = () => { row.style.background = 'transparent'; };
-            row.onclick = () => {
-                popover.remove();
-                item.action();
-            };
-
+            row.onclick = () => { popover.remove(); item.action(); };
             row.innerHTML = `
                 <div style="width: 32px; height: 32px; border-radius: 8px; background: ${item.color}15; color: ${item.color}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                     <span class="material-icons-round" style="font-size: 18px;">${item.icon}</span>
@@ -1153,121 +1765,23 @@ export async function renderHomepageAlt(container) {
         });
 
         document.body.appendChild(popover);
-
         setTimeout(() => {
             const closeHandler = (e) => {
                 if (!popover.contains(e.target) && !btn.contains(e.target)) {
-                    popover.remove();
-                    document.removeEventListener('click', closeHandler);
+                    popover.remove(); document.removeEventListener('click', closeHandler);
                 }
             };
             document.addEventListener('click', closeHandler);
         }, 0);
     };
 
-    function renderCalendar(container) {
-        const year = pickerCurrentDate.getFullYear();
-        const month = pickerCurrentDate.getMonth(); // 0-11
-        const monthNames = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
-
-        // Header
-        let html = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <button onclick="changePickerMonth(-1)" style="background:transparent; border:none; color:#374151; cursor:pointer; padding:4px; border-radius:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
-                    <span class="material-icons-round">chevron_left</span>
-                </button>
-                <div style="font-weight: 700; font-size: 0.95rem; color:#111;">${monthNames[month]} ${year}</div>
-                <button onclick="changePickerMonth(1)" style="background:transparent; border:none; color:#374151; cursor:pointer; padding:4px; border-radius:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
-                    <span class="material-icons-round">chevron_right</span>
-                </button>
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 8px;">
-        `;
-
-        // Weekdays
-        const days = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
-        days.forEach(d => {
-            html += `<div style="text-align: center; font-size: 0.75rem; color: #9ca3af; font-weight: 600;">${d}</div>`;
-        });
-        html += `</div><div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">`;
-
-        // Days Grid
-        const firstDay = new Date(year, month, 1).getDay(); // 0=Sun (need adjustment to Mon=0)
-        const adjustedFirstDay = (firstDay === 0 ? 6 : firstDay - 1);
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const today = new Date(); // To highlight today
-        const currentSelected = window.homepageCurrentDate;
-
-        // Empty slots
-        for (let i = 0; i < adjustedFirstDay; i++) {
-            html += `<div></div>`;
-        }
-
-        // Day slots
-        for (let i = 1; i <= daysInMonth; i++) {
-            let bg = 'transparent';
-            let color = '#374151'; // Gray-700
-            let weight = '500';
-
-            // Highlight Selected (Prioritize over today)
-            if (i === currentSelected.getDate() && month === currentSelected.getMonth() && year === currentSelected.getFullYear()) {
-                bg = 'var(--brand-purple, #a855f7)';
-                color = 'white';
-                weight = '700';
-            }
-            // Highlight Today (secondary)
-            else if (i === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
-                bg = '#eff6ff'; // Blue-50
-                color = '#3b82f6'; // Blue-500
-                weight = '700';
-            }
-
-            html += `
-                <button onclick="selectPickerDate(${i})" style="
-                    width: 100%; aspect-ratio: 1; border: none; background: ${bg}; color: ${color};
-                    border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: ${weight};
-                    display: flex; align-items: center; justify-content: center; transition: background 0.2s;
-                " onmouseover="this.style.background = '${bg === 'transparent' ? '#f3f4f6' : bg}'"
-                  onmouseout="this.style.background = '${bg}'">
-                    ${i}
-                </button>
-            `;
-        }
-
-        html += `</div>`;
-        container.innerHTML = html;
-    }
-
-    // Global helpers for pure HTML interaction
-    window.changePickerMonth = (offset) => {
-        pickerCurrentDate.setMonth(pickerCurrentDate.getMonth() + offset);
-        const popover = document.getElementById('custom-datepicker-popover');
-        if (popover) renderCalendar(popover);
-    };
-
-    window.selectPickerDate = (day) => {
-        const newDate = new Date(pickerCurrentDate.getFullYear(), pickerCurrentDate.getMonth(), day);
-        // Date input needs YYYY-MM-DD usually, but our logic handles Date obj
-        const offset = newDate.getTimezoneOffset();
-        const localDate = new Date(newDate.getTime() - (offset * 60 * 1000));
-        const dateStr = localDate.toISOString().split('T')[0];
-
-        window.updateHomepageDateFromInput(dateStr);
-
-        // Remove popover
-        const popover = document.getElementById('custom-datepicker-popover');
-        if (popover) popover.remove();
-    };
-
     // --- Initial Load ---
     try {
-        // Date Input Handler
         window.updateHomepageDateFromInput = (val) => {
             if (!val) return;
             window.homepageCurrentDate = new Date(val);
             window.updateHomepageTimeline(window.homepageCurrentDate);
 
-            // Clear visual active state from mode buttons since we are on custom date
             ['today', 'tomorrow', 'week'].forEach(m => {
                 const btn = document.getElementById('btn-mode-' + m);
                 if (btn) {
@@ -1276,19 +1790,18 @@ export async function renderHomepageAlt(container) {
                     btn.style.color = '#6b7280';
                 }
             });
-            // Ensure Daily View
             window.hpView = 'daily';
         };
 
-        // 1. Store data for filtering reference BEFORE timeline update
+        // 1. Store data for filtering reference
         window.hpData = {
             timers: activeTimers,
-            tasks: myTasks,  // Full list, filtering happens in updateHomepageTimeline
+            tasks: myTasks,
             events: events,
-            filteredTasks: myTasks // Will be overwritten by updateHomepageTimeline
+            filteredTasks: myTasks
         };
 
-        // 2. Timeline (Default Today) - This also renders My Activities with filtered data
+        // 2. Timeline (Default Today)
         window.updateHomepageTimeline(window.homepageCurrentDate);
 
         // 3. Load Bottom Section
@@ -1299,179 +1812,721 @@ export async function renderHomepageAlt(container) {
             } else { userTags = myCollab.tags; }
         }
         const normalizedTags = Array.isArray(userTags) ? userTags.map(t => (t || '').toLowerCase()) : [];
-        const isPrivileged = normalizedTags.includes('partner') || normalizedTags.includes('amministrazione') || normalizedTags.includes('account') || normalizedTags.includes('project manager') || normalizedTags.includes('pm');
-
-        const bottomTitle = document.getElementById('hp-bottom-title');
-        const projectsLabel = document.getElementById('hp-bottom-projects-label');
-        if (bottomTitle) bottomTitle.textContent = isPrivileged ? 'Commesse in corso' : 'Incarichi in corso';
-        if (projectsLabel) projectsLabel.textContent = isPrivileged ? 'Commesse' : 'Incarichi';
-
-        const targetUserId = state.session?.user?.id;
-        const myActualCollabId = state.profile?.collaborator_id;
-
-        const projects = await fetchRecentProjects(myActualCollabId, targetUserId);
-        const internalProjects = await fetchInternalProjects(myActualCollabId, targetUserId);
-
-        // Tab switching logic
-        window.setHpBottomTab = (tab) => {
-            const projectsBtn = document.getElementById('hp-bottom-tab-projects');
-            const internalBtn = document.getElementById('hp-bottom-tab-internal');
-            const content = document.getElementById('hp-bottom-content');
-            if (!content) return;
-
-            if (tab === 'projects') {
-                projectsBtn?.classList.add('active');
-                internalBtn?.classList.remove('active');
-                renderProjects(content, projects);
-            } else {
-                internalBtn?.classList.add('active');
-                projectsBtn?.classList.remove('active');
-                renderProjects(content, internalProjects);
-            }
-        };
-
-        // Initial render: show internal if no projects, else show projects
-        if (!projects || projects.length === 0) {
-            window.setHpBottomTab('internal');
-        } else {
-            window.setHpBottomTab('projects');
-        }
-
-        // --- HIERARCHICAL SORTING ---
-        // Helper to put children under parents
-        const sortHierarchical = (items) => {
-            const result = [];
-            const roots = items.filter(t => !t.parent_id || !items.find(p => p.id === t.parent_id));
-
-            // Sort roots by date
-            roots.sort((a, b) => {
-                if (!a.due_date) return 1;
-                if (!b.due_date) return -1;
-                return new Date(a.due_date) - new Date(b.due_date);
-            });
-
-            const addChild = (parent) => {
-                result.push(parent);
-                const children = items.filter(t => t.parent_id === parent.id);
-                children.sort((a, b) => {
-                    if (!a.due_date) return 1;
-                    if (!b.due_date) return -1;
-                    return new Date(a.due_date) - new Date(b.due_date);
-                });
-                children.forEach(c => addChild(c));
-            };
-
-            roots.forEach(root => addChild(root));
-            return result;
-        };
-
-        // --- ACTIVITIES WIDGET LOGIC ---
-        // Include BOTH Activities and Tasks in the right box
-        const allFiltered = myTasks;
-        const allActivities = sortHierarchical(allFiltered);
-
-        const taskProjects = allActivities.filter(t => t.space_type.includes('commessa') || t.space_type.includes('order'));
-        const taskInternal = allActivities.filter(t => t.space_type.includes('interno') || t.space_type.includes('cluster') || t.space_type.includes('space') || t.space_type === '');
-
-        window.setHpActivityTab = (tab) => {
-            const pBtn = document.getElementById('hp-act-tab-projects');
-            const iBtn = document.getElementById('hp-act-tab-internal');
-            const content = document.getElementById('hp-activities-bottom-content');
-            if (!content) return;
-
-            if (tab === 'projects') {
-                pBtn?.classList.add('active');
-                iBtn?.classList.remove('active');
-                renderBottomTasks(content, taskProjects);
-            } else {
-                iBtn?.classList.add('active');
-                pBtn?.classList.remove('active');
-                renderBottomTasks(content, taskInternal);
-            }
-        };
-
-        // Glow Effect Handler for Premium Cards
-        const handleGlow = (e) => {
-            for (const card of document.getElementsByClassName("project-card")) {
-                const rect = card.getBoundingClientRect(),
-                    x = e.clientX - rect.left,
-                    y = e.clientY - rect.top;
-
-                card.style.setProperty("--mouse-x", `${x}px`);
-                card.style.setProperty("--mouse-y", `${y}px`);
-            }
-        };
-        container.addEventListener("mousemove", handleGlow);
-
-        // Initial render for activities
-        window.setHpActivityTab('projects');
-
-        // --- ACTIVITY FEED LOGIC ---
-        const isPartner = normalizedTags.includes('partner') || normalizedTags.includes('amministrazione') || normalizedTags.includes('account');
+        // --- ROLE-BASED DISPATCH ---
+        const detectedRole = detectUserRole(normalizedTags);
+        const actualTargetUserId = myCollab.user_id || state.session?.user?.id;
         
-        const feedTabs = document.getElementById('hp-feed-tabs-container');
-        if (feedTabs) {
-            feedTabs.innerHTML = `
-                <button id="hp-feed-tab-mine" onclick="window.setHpFeedTab('mine')" class="timeline-btn active">Recenti</button>
-                ${isPartner ? `<button id="hp-feed-tab-all" onclick="window.setHpFeedTab('all')" class="timeline-btn">Tutte</button>` : ''}
-            `;
-        }
-
-        window.setHpFeedTab = async (tab) => {
-            const mineBtn = document.getElementById('hp-feed-tab-mine');
-            const allBtn = document.getElementById('hp-feed-tab-all');
-            const content = document.getElementById('hp-feed-content');
-            if (!content) return;
-
-            content.innerHTML = '<span class="loader small"></span>';
-
-            if (tab === 'mine') {
-                mineBtn?.classList.add('active');
-                allBtn?.classList.remove('active');
-                const activities = await fetchMyActivityFeed(20);
-                renderActivityFeed(content, activities);
-            } else {
-                allBtn?.classList.add('active');
-                mineBtn?.classList.remove('active');
-                const activities = await fetchPMActivityLogs({ limit: 50, isAccountLevel: true });
-                renderActivityFeed(content, activities);
-            }
-        };
-
-        // Initial render for feed
-        window.setHpFeedTab('mine');
-
-        // Note: Delegated tasks widget was removed in favor of Activity Feed per user request? 
-        // Actually the user said "una card", so I replaced one. 
-        // I could also add more rows to the grid if they want both.
-        // For now, replacing the less used 'Delegated' is a safe bet for a clean UI.
-
-        // Initial render for delegated (removed)
-        // window.setHpDelegatedTab('projects');
-
-        // Event Listener for Refresh (Sync with drawers)
-        const reloadHandler = (e) => {
-            // Check if we are still on homepage
-            if (!document.querySelector('.homepage-header')) return;
-
-            console.log("[Homepage] External change detected:", e.type, e.detail);
-            if (window.updateHomepageTimeline) {
-                window.updateHomepageTimeline(window.homepageCurrentDate);
-            }
-        };
-
-        if (window._hpReloadHandler) {
-            document.removeEventListener('appointment-changed', window._hpReloadHandler);
-            document.removeEventListener('pm-item-changed', window._hpReloadHandler);
-        }
-        window._hpReloadHandler = reloadHandler;
-        document.addEventListener('appointment-changed', reloadHandler);
-        document.addEventListener('pm-item-changed', reloadHandler);
+        await renderMainContent(container, detectedRole, {
+            myTasks, events, activeTimers, myCollab, myId,
+            normalizedTags, targetUserId: actualTargetUserId
+        });
+        return; // role-based rendering takes over from here
 
     } catch (e) {
         console.error("Home Data Load Error:", e);
     }
 }
+
+// --- INTERNAL HUB/CLUSTER ENGINES ---
+async function fetchInternalHubsAndClusters(collaboratorId, userId, isPrivileged = false) {
+    try {
+        const { fetchInternalSpaces } = await import('../modules/pm_api.js');
+        const COMPANY_AREAS = [
+            { id: 'amministrazione', label: 'Amministrazione', color: '#6366f1', icon: 'account_balance' },
+            { id: 'marketing', label: 'Marketing', color: '#f59e0b', icon: 'campaign' },
+            { id: 'produzione', label: 'Produzione', color: '#10b981', icon: 'factory' },
+            { id: 'ricerca_sviluppo', label: 'Ricerca e Sviluppo', color: '#8b5cf6', icon: 'biotech' },
+            { id: 'risorse_umane', label: 'Risorse Umane', color: '#f97316', icon: 'groups' },
+            { id: 'servizi', label: 'Servizi', color: '#64748b', icon: 'cleaning_services' },
+            { id: 'vendite', label: 'Vendite', color: '#ef4444', icon: 'shopping_cart' }
+        ];
+
+        // 1. Get official Internal Spaces from Gleeye API
+        const rawData = await fetchInternalSpaces();
+
+        // 2. Fetch Area Managers for Hubs
+        const { data: configData } = await supabase.from('system_config').select('key, value').like('key', 'area_manager_%');
+        const areaManagers = {};
+        (configData || []).forEach(row => {
+            const areaId = row.key.replace('area_manager_', '');
+            areaManagers[areaId] = String(row.value);
+        });
+
+        const hubs = COMPANY_AREAS.map(a => {
+             const mng = areaManagers[a.id];
+             const isResp = mng && (String(mng) === String(collaboratorId) || String(mng) === String(userId));
+             return { ...a, isResponsible: isResp };
+        });
+
+        const visibleHubs = hubs.filter(h => h.isResponsible);
+        
+        // 4. Cluster Logic: Filter + Apply Custom Sort Order + Enhanced Mapping
+        const iconMap = {
+            'legale': 'gavel',
+            'social': 'public',
+            'marketing': 'campaign',
+            'commercialista': 'calculate',
+            'contabil': 'account_balance_wallet',
+            'erp': 'terminal',
+            'sviluppo': 'code',
+            'amministrazione': 'account_balance',
+            'vendite': 'trending_up',
+            'commerciale': 'shopping_cart',
+            'ricerca': 'biotech',
+            'risorse': 'diversity_3',
+            'produzione': 'factory',
+            'servizi': 'cleaning_services',
+            'formazione': 'school',
+            'sicurezza': 'security',
+            'logistica': 'local_shipping',
+            'business': 'insights',
+            'progetto': 'folder',
+            'archivio': 'inventory_2',
+            'ufficio': 'apartment',
+            'tecnico': 'engineering',
+            'partner': 'handshake',
+            'web': 'language',
+            'design': 'palette',
+            'creativ': 'token',
+            'media': 'movie',
+            'evento': 'celebration',
+            'task': 'task_alt',
+            'agenda': 'event',
+            'clienti': 'assignment_ind',
+            'finance': 'payments',
+            'brand': 'star',
+            'auto': 'directions_car',
+            'form': 'description',
+            'help': 'help_center',
+            'cloud': 'cloud_queue',
+            'hardware': 'computer',
+            'infra': 'settings_suggest'
+        };
+
+        // 4. Cluster Logic: Filter + Apply Custom Sort Order + Enhanced Mapping
+        
+        // Find spaces where user is directly assigned or PM
+        const visibleSpaces = (rawData || []).filter(s => {
+            const assignees = s.pm_space_assignees || [];
+            const isDirectAssignee = assignees.some(a => 
+                (a.user_ref && String(a.user_ref) === String(userId)) || 
+                (a.collaborator_ref && String(a.collaborator_ref) === String(collaboratorId))
+            );
+            const isPM = s.default_pm_user_ref && String(s.default_pm_user_ref) === String(userId);
+            return isDirectAssignee || isPM;
+        });
+
+        // Determine grid items with absolute strictness
+        let clusters = (rawData || []).filter(s => {
+            // Check if user is explicitly part of the team (assignee)
+            const assignees = s.pm_space_assignees || [];
+            const isDirectTeamMember = assignees.some(a => 
+                (a.user_ref && String(a.user_ref) === String(userId)) || 
+                (a.collaborator_ref && String(a.collaborator_ref) === String(collaboratorId))
+            );
+
+            if (s.is_cluster) {
+                // CLUSTERS: STRICT Operational Visibility
+                // Davide only wants to see clusters where he is IN THE TEAM.
+                // Admin roles or Default PM roles are ignored here to keep the grid clean.
+                return isDirectTeamMember;
+            } else {
+                // PROJECTS (Surfacing):
+                // Show project if:
+                // 1. User is a direct team member
+                // 2. AND the parent cluster is NOT already shown in the grid
+                if (!isDirectTeamMember) return false;
+
+                let parentInGrid = false;
+                if (s.parent_ref) {
+                    const parent = (rawData || []).find(p => p.id === s.parent_ref);
+                    const parentAssignees = parent?.pm_space_assignees || [];
+                    parentInGrid = parentAssignees.some(a => 
+                        (a.user_ref && String(a.user_ref) === String(userId)) || 
+                        (a.collaborator_ref && String(a.collaborator_ref) === String(collaboratorId))
+                    );
+                }
+                return !parentInGrid;
+            }
+        }).map(c => {
+            const area = COMPANY_AREAS.find(a => 
+                (a.label.toLowerCase() === (c.area || '').toLowerCase()) || 
+                (a.id.toLowerCase() === (c.area || '').toLowerCase())
+            );
+            
+            // Detect dynamic icon based on name
+            let clusterIcon = 'workspaces'; // Fallback
+            const nameLower = c.name.toLowerCase();
+            for (const [key, icon] of Object.entries(iconMap)) {
+                if (nameLower.includes(key)) {
+                    clusterIcon = icon;
+                    break;
+                }
+            }
+
+            return { ...c, areaInfo: area, clusterIcon };
+        });
+
+        // Apply saved order if exists
+        const savedOrder = localStorage.getItem(`hp_cluster_order_${userId || collaboratorId}`);
+        if (savedOrder) {
+            const orderArr = JSON.parse(savedOrder);
+            clusters.sort((a, b) => {
+                const idxA = orderArr.indexOf(String(a.id));
+                const idxB = orderArr.indexOf(String(b.id));
+                if (idxA === -1 && idxB === -1) return 0;
+                if (idxA === -1) return 1;
+                if (idxB === -1) return -1;
+                return idxA - idxB;
+            });
+        }
+
+        return { hubs: visibleHubs, clusters };
+    } catch (e) {
+        console.error("Error fetching internal hubs/clusters:", e);
+        return { hubs: [], clusters: [] };
+    }
+}
+
+function renderInternalDashboard(hubs, clusters) {
+    const hubContainer = document.getElementById('hp-internal-hubs-buttons');
+    const clusterContainer = document.getElementById('hp-internal-clusters-grid');
+    if (!hubContainer || !clusterContainer) return;
+
+    if (hubs.length === 0 && clusters.length === 0) {
+        clusterContainer.innerHTML = `<div style="padding: 1rem; color: #94a3b8; font-size: 0.8rem; font-family: 'Outfit', sans-serif; font-style: italic;">In attesa di Hub e Cluster...</div>`;
+        return;
+    }
+
+    // --- CLUSTERS ABOVE ---
+    if (clusters.length === 0) {
+        clusterContainer.innerHTML = `<div style="grid-column: 1 / -1; padding: 2rem; text-align: center; color: #94a3b8; font-size: 0.75rem; font-family: 'Outfit', sans-serif;">Nessun cluster trovato.</div>`;
+    } else {
+        clusterContainer.innerHTML = clusters.map((c, i) => {
+            const color = c.color || c.areaInfo?.color || '#cbd5e1';
+            return `
+                <div draggable="true" 
+                    data-id="${c.id}"
+                    data-index="${i}"
+                    onclick="window.location.hash='#pm/space/${c.id}'" 
+                    class="hp-cluster-card"
+                    style="
+                        display: flex; flex-direction: column; align-items: center; gap: 10px; 
+                        cursor: grab; transition: all 0.2s; padding: 10px; border-radius: 20px;
+                    " onmouseover="this.querySelector('.cluster-icon-box').style.transform='scale(1.1)';" onmouseout="this.querySelector('.cluster-icon-box').style.transform='none';">
+                    <div class="cluster-icon-box" style="
+                        width: 58px; height: 58px; border-radius: 18px; background: white; 
+                        display: flex; align-items: center; justify-content: center; 
+                        box-shadow: 0 6px 16px ${color}15; border: 1px solid rgba(0,0,0,0.03);
+                        transition: all 0.2s; pointer-events: none; position: relative;
+                    ">
+                        <span class="material-icons-round" style="font-size: 28px; color: ${color};">${c.clusterIcon}</span>
+                        <!-- Area Badge Inside Icon Box -->
+                        ${c.areaInfo ? `
+                            <div style="
+                                position: absolute; bottom: -4px; right: -4px; 
+                                width: 22px; height: 22px; border-radius: 8px; 
+                                background: white; border: 2px solid white;
+                                box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+                                display: flex; align-items: center; justify-content: center;
+                            ">
+                                <span class="material-icons-round" style="font-size: 12px; color: ${color};">${c.areaInfo.icon}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div style="text-align: center; pointer-events: none;">
+                        <div style="font-family: 'Outfit', sans-serif; font-size: 0.78rem; font-weight: 600; color: #1e293b; line-height: 1.1; max-width: 100px; word-wrap: break-word;">${c.name}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Attach Sortable Logic
+        initClusterSortable(clusterContainer, clusters);
+    }
+
+    // --- HUBS ON TOP (Slim Expandable Pills) ---
+    const respHubs = hubs.filter(h => h.isResponsible);
+    
+    if (respHubs.length === 0) {
+        hubContainer.parentElement.style.display = 'none';
+        hubContainer.innerHTML = '';
+    } else {
+        hubContainer.parentElement.style.display = 'block';
+        hubContainer.innerHTML = respHubs.map(h => `
+            <button onclick="window.location.hash='#pm/interni?area=${h.id}'" 
+                class="hp-hub-pill"
+                style="
+                    padding: 4px; border-radius: 100px; border: none; 
+                    background: transparent; color: #1e293b; font-size: 0.72rem; font-weight: 600;
+                    font-family: 'Outfit', sans-serif; text-transform: uppercase; letter-spacing: 0.05em;
+                    display: flex; align-items: center; gap: 0; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    flex-shrink: 0; overflow: hidden; max-width: 36px; min-width: 36px; height: 36px;
+                    justify-content: flex-start;
+                " onmouseover="this.style.maxWidth='220px'; this.style.gap='10px'; this.style.padding='4px 16px 4px 4px'; this.style.background='${h.color}10'; this.style.transform='translateY(-1px)';" onmouseout="this.style.maxWidth='36px'; this.style.gap='0'; this.style.padding='4px'; this.style.background='transparent'; this.style.transform='none';">
+                <div style="width: 28px; height: 28px; border-radius: 50%; background: ${h.color}15; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <span class="material-icons-round" style="font-size: 15px; color: ${h.color};">${h.icon || 'hub'}</span>
+                </div>
+                <span class="hp-hub-label" style="opacity: 0; transition: opacity 0.2s 0.1s; display: inline-block;">${h.label}</span>
+            </button>
+        `).join('');
+
+        // Targeted script for the label span
+        hubContainer.querySelectorAll('.hp-hub-pill').forEach(btn => {
+            btn.addEventListener('mouseenter', () => {
+                const label = btn.querySelector('.hp-hub-label');
+                if (label) label.style.opacity = '1';
+            });
+            btn.addEventListener('mouseleave', () => {
+                const label = btn.querySelector('.hp-hub-label');
+                if (label) label.style.opacity = '0';
+            });
+        });
+    }
+}
+
+function initClusterSortable(container, clusters) {
+    let draggedItem = null;
+
+    container.querySelectorAll('.hp-cluster-card').forEach(card => {
+        card.addEventListener('dragstart', (e) => {
+            draggedItem = card;
+            card.style.opacity = '0.4';
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        card.addEventListener('dragend', () => {
+            draggedItem = card;
+            card.style.opacity = '1';
+            
+            // Save new order
+            const newOrder = Array.from(container.querySelectorAll('.hp-cluster-card')).map(el => el.dataset.id);
+            const userId = state.profile?.id || state.profile?.collaborator_id;
+            localStorage.setItem(`hp_cluster_order_${userId}`, JSON.stringify(newOrder));
+        });
+
+        card.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            const target = e.target.closest('.hp-cluster-card');
+            if (target && target !== draggedItem) {
+                const rect = target.getBoundingClientRect();
+                const next = (e.clientX - rect.left) > (rect.width / 2);
+                container.insertBefore(draggedItem, next ? target.nextSibling : target);
+            }
+        });
+    });
+}
+
+// --- ROLE-BASED MAIN CONTENT DISPATCHER ---
+async function renderMainContent(container, role, data) {
+    // 1. Common Side-Panel Actions for ALL Roles (Feed, etc.)
+    await setupHomepageFeed(data);
+
+    // 2. Dispatch to specific role view
+    switch(role) {
+        case 'partner':         return renderMainContent_Partner(container, data);
+        case 'amministrazione': return renderMainContent_Amministrazione(container, data);
+        case 'account':         return renderMainContent_Account(container, data);
+        case 'pm':              return renderMainContent_PM(container, data);
+        default:                return renderMainContent_Collaboratore(container, data);
+    }
+}
+
+async function setupHomepageFeed(data) {
+    const { myId, targetUserId, normalizedTags } = data;
+    const isPartner = normalizedTags.includes('partner') || normalizedTags.includes('amministrazione') || normalizedTags.includes('account');
+    
+    const feedTabs = document.getElementById('hp-feed-tabs-container');
+    if (feedTabs) {
+        feedTabs.innerHTML = `
+            <button id="hp-feed-tab-mine" onclick="window.setHpFeedTab('mine')" class="hp-filter-pill active" style="padding: 4px 10px; border-radius: 7px; border: none; font-size: 0.65rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: white; color: #1e293b; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">PER ME</button>
+            ${isPartner ? `<button id="hp-feed-tab-all" onclick="window.setHpFeedTab('all')" class="hp-filter-pill" style="padding: 4px 10px; border-radius: 7px; border: none; font-size: 0.65rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: transparent; color: #94a3b8;">TUTTE</button>` : ''}
+        `;
+    }
+
+    window.setHpFeedTab = async (tab) => {
+        const mineBtn = document.getElementById('hp-feed-tab-mine');
+        const allBtn = document.getElementById('hp-feed-tab-all');
+        const content = document.getElementById('hp-feed-content');
+        if (!content) return;
+
+        // Visual Toggle
+        if (mineBtn) {
+            mineBtn.style.background = tab === 'mine' ? 'white' : 'transparent';
+            mineBtn.style.color = tab === 'mine' ? '#1e293b' : '#94a3b8';
+            mineBtn.style.boxShadow = tab === 'mine' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none';
+        }
+        if (allBtn) {
+            allBtn.style.background = tab === 'all' ? 'white' : 'transparent';
+            allBtn.style.color = tab === 'all' ? '#1e293b' : '#94a3b8';
+            allBtn.style.boxShadow = tab === 'all' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none';
+        }
+
+        content.innerHTML = '<span class="loader small"></span>';
+
+        if (tab === 'mine') {
+            const activities = await fetchSmartPersonalFeed(20, targetUserId, myId);
+            renderActivityFeed(content, activities);
+        } else {
+            const activities = await fetchPMActivityLogs({ limit: 50, isAccountLevel: true });
+            renderActivityFeed(content, activities);
+        }
+    };
+
+    // Initial load
+    window.setHpFeedTab('mine');
+}
+
+// --- PARTNER VIEW (Original full homepage logic) ---
+async function renderMainContent_Partner(container, data) {
+    const { myTasks, events, activeTimers, myCollab, myId, normalizedTags } = data;
+    const isPrivileged = normalizedTags.includes('partner') || normalizedTags.includes('amministrazione') || normalizedTags.includes('account') || normalizedTags.includes('project manager') || normalizedTags.includes('pm');
+
+    const bottomTitle = document.getElementById('hp-bottom-title');
+    const projectsLabel = document.getElementById('hp-bottom-projects-label');
+    if (bottomTitle) bottomTitle.textContent = isPrivileged ? 'Commesse in corso' : 'Incarichi in corso';
+    if (projectsLabel) projectsLabel.textContent = isPrivileged ? 'Commesse' : 'Incarichi';
+
+    const targetUserId = data.targetUserId;
+    const myActualCollabId = data.myId;
+
+    // Fetch Admin Stats (if privileged)
+    const isAdmin = normalizedTags.includes('amministrazione') || state.profile?.role === 'admin';
+    if (isAdmin) {
+        const alerts = await fetchAdminOperationalAlerts();
+        renderAdminAlerts(alerts);
+    }
+
+    const projects = await fetchRecentProjects(myActualCollabId, targetUserId);
+    const internalProjects = await fetchInternalProjects(myActualCollabId, targetUserId);
+    
+    // Fetch Hubs/Clusters
+    const { hubs, clusters } = await fetchInternalHubsAndClusters(myActualCollabId, targetUserId);
+    renderInternalDashboard(hubs, clusters);
+
+    // Tab switching logic
+    window.setHpBottomTab = (tab) => {
+        const projectsBtn = document.getElementById('hp-bottom-tab-projects');
+        const internalBtn = document.getElementById('hp-bottom-tab-internal');
+        const content = document.getElementById('hp-pm-spaces-main-list');
+        if (!content) return;
+
+        if (tab === 'projects') {
+            projectsBtn?.classList.add('active');
+            internalBtn?.classList.remove('active');
+            renderProjects(content, projects);
+        } else {
+            internalBtn?.classList.add('active');
+            projectsBtn?.classList.remove('active');
+            renderProjects(content, internalProjects);
+        }
+    };
+
+    // Initial render: show internal if no projects, else show projects
+    if (!projects || projects.length === 0) {
+        window.setHpBottomTab('internal');
+    } else {
+        window.setHpBottomTab('projects');
+    }
+
+    // --- HIERARCHICAL SORTING ---
+    // Helper to put children under parents
+    const sortHierarchical = (items) => {
+        const result = []; // No need to redeclare results here
+        const roots = items.filter(t => !t.parent_id || !items.find(p => p.id === t.parent_id));
+
+        // Sort roots by date
+        roots.sort((a, b) => {
+            if (!a.due_date) return 1;
+            if (!b.due_date) return -1;
+            return new Date(a.due_date) - new Date(b.due_date);
+        });
+
+        const addChild = (parent) => {
+            result.push(parent);
+            const children = items.filter(t => t.parent_id === parent.id);
+            children.sort((a, b) => {
+                if (!a.due_date) return 1;
+                if (!b.due_date) return -1;
+                return new Date(a.due_date) - new Date(b.due_date);
+            });
+            children.forEach(c => addChild(c));
+        };
+
+        roots.forEach(root => addChild(root));
+        return result;
+    };
+
+    // --- ACTIVITIES WIDGET LOGIC ---
+    // Include BOTH Activities and Tasks in the right box
+    const allFiltered = myTasks;
+    const allActivities = sortHierarchical(allFiltered);
+
+    const taskProjects = allActivities.filter(t => t.space_type.includes('commessa') || t.space_type.includes('order'));
+    const taskInternal = allActivities.filter(t => t.space_type.includes('interno') || t.space_type.includes('cluster') || t.space_type.includes('space') || t.space_type === '');
+
+    window.setHpActivityTab = (tab) => {
+        const pBtn = document.getElementById('hp-act-tab-projects');
+        const iBtn = document.getElementById('hp-act-tab-internal');
+        const content = document.getElementById('hp-activities-bottom-content');
+        if (!content) return;
+
+        if (tab === 'projects') {
+            pBtn?.classList.add('active');
+            iBtn?.classList.remove('active');
+            renderBottomTasks(content, taskProjects);
+        } else {
+            iBtn?.classList.add('active');
+            pBtn?.classList.remove('active');
+            renderBottomTasks(content, taskInternal);
+        }
+    };
+
+    // Glow Effect Handler for Premium Cards
+    const handleGlow = (e) => {
+        for (const card of document.getElementsByClassName("project-card")) {
+            const rect = card.getBoundingClientRect(),
+                x = e.clientX - rect.left,
+                y = e.clientY - rect.top;
+
+            card.style.setProperty("--mouse-x", `${x}px`);
+            card.style.setProperty("--mouse-y", `${y}px`);
+        }
+    };
+    container.addEventListener("mousemove", handleGlow);
+
+    // Initial render for activities
+    window.setHpActivityTab('projects');
+
+    // Feed is now handled by the shared dispatcher setupHomepageFeed
+
+    // Note: Delegated tasks widget was removed in favor of Activity Feed per user request? 
+    // Actually the user said "una card", so I replaced one. 
+    // I could also add more rows to the grid if they want both.
+    // For now, replacing the less used 'Delegated' is a safe bet for a clean UI.
+
+    // Initial render for delegated (removed)
+    // window.setHpDelegatedTab('projects');
+
+    // Event Listener for Refresh (Sync with drawers)
+    const reloadHandler = (e) => {
+        // Check if we are still on homepage
+        if (!document.querySelector('.homepage-header')) return;
+
+        console.log("[Homepage] External change detected:", e.type, e.detail);
+        if (window.updateHomepageTimeline) {
+            window.updateHomepageTimeline(window.homepageCurrentDate);
+        }
+    };
+
+    if (window._hpReloadHandler) {
+        document.removeEventListener('appointment-changed', window._hpReloadHandler);
+        document.removeEventListener('pm-item-changed', window._hpReloadHandler);
+    }
+    window._hpReloadHandler = reloadHandler;
+    document.addEventListener('appointment-changed', reloadHandler);
+    document.addEventListener('pm-item-changed', reloadHandler);
+}
+
+// --- STUB VIEWS (Enhanced with correct IDs and initialization) ---
+async function renderMainContent_Amministrazione(container, data) {
+    const isAdmin = data.normalizedTags.includes('amministrazione') || state.profile?.role === 'admin';
+    if (isAdmin) {
+        const alerts = await fetchAdminOperationalAlerts();
+        renderAdminAlerts(alerts);
+    }
+    const content = document.getElementById('hp-pm-spaces-main-list');
+    if (!content) return;
+    const targetUserId = data.targetUserId;
+    const myActualCollabId = data.myId;
+    const projects = await fetchRecentProjects(myActualCollabId, targetUserId);
+    
+    // Fetch Hubs/Clusters (Pass true for global access)
+    const { hubs, clusters } = await fetchInternalHubsAndClusters(myActualCollabId, targetUserId, true);
+    renderInternalDashboard(hubs, clusters);
+    
+    renderProjects(content, projects);
+}
+async function renderMainContent_Account(container, data) {
+    const content = document.getElementById('hp-pm-spaces-main-list');
+    if (!content) return;
+    const targetUserId = data.targetUserId;
+    const myActualCollabId = data.myId;
+    const projects = await fetchRecentProjects(myActualCollabId, targetUserId);
+    
+    // Fetch Hubs/Clusters (Pass true for account level)
+    const { hubs, clusters } = await fetchInternalHubsAndClusters(myActualCollabId, targetUserId, true);
+    renderInternalDashboard(hubs, clusters);
+    
+    renderProjects(content, projects);
+}
+async function renderMainContent_PM(container, data) {
+    const content = document.getElementById('hp-pm-spaces-main-list');
+    if (!content) return;
+    const targetUserId = data.targetUserId;
+    const myActualCollabId = data.myId;
+    const projects = await fetchRecentProjects(myActualCollabId, targetUserId);
+    
+    // Fetch Hubs/Clusters (Pass true for PM level)
+    const { hubs, clusters } = await fetchInternalHubsAndClusters(myActualCollabId, targetUserId, true);
+    renderInternalDashboard(hubs, clusters);
+    
+    renderProjects(content, projects);
+}
+async function renderMainContent_Collaboratore(container, data) {
+    const content = document.getElementById('hp-pm-spaces-main-list');
+    if (!content) return;
+    const targetUserId = data.targetUserId;
+    const myActualCollabId = data.myId;
+    const projects = await fetchRecentProjects(myActualCollabId, targetUserId);
+    
+    // Fetch Hubs/Clusters (False for collaborator - assigned only)
+    const { hubs, clusters } = await fetchInternalHubsAndClusters(myActualCollabId, targetUserId, false);
+    renderInternalDashboard(hubs, clusters);
+    
+    renderProjects(content, projects);
+}
+
+// --- SHARED PROJECTS RENDERING ENGINE ---
+function renderProjects(pmList, pmProjects) {
+    if (!pmList || !pmProjects) return;
+    
+    // Ensure the block is visible
+    const pmBlock = document.getElementById('hp-pm-spaces-main-block');
+    if (pmBlock) pmBlock.style.display = 'flex';
+    if (!document.getElementById('hp-projects-stats-bar')) {
+        pmList.parentElement.insertAdjacentHTML('afterbegin', `
+            <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0.5rem; margin-bottom: 1.5rem;">
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding-left: 8px;">
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #60a5fa; letter-spacing: 0.05em;">COMMESSE</span>
+                    <span id="stat-count-projects" style="font-size: 1.4rem; font-weight: 800; color: #3b82f6; line-height: 1;">0</span>
+                </div>
+                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">ATTIVITÀ</span>
+                    <span id="stat-count-activities" style="font-size: 1.4rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                </div>
+                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">TASK</span>
+                    <span id="stat-count-tasks" style="font-size: 1.4rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                </div>
+                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; padding-right: 8px;">
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em;">APPUNTAMENTI</span>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="material-icons-round" style="font-size: 14px; color: #10b981; opacity: 0.7;">calendar_today</span>
+                        <span id="stat-count-events" style="font-size: 1.4rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+
+    const _internalRender = () => {
+        const showAccount = window.hpActiveFilters?.account !== false;
+        const showPm = window.hpActiveFilters?.pm !== false;
+        
+        const filtered = pmProjects.filter(p => {
+            if (showAccount && p.isAccount) return true;
+            if (showPm && p.isPM) return true;
+            return false;
+        });
+
+        // Update stats in the bar
+        const statProjects = document.getElementById('stat-count-projects');
+        const statActivities = document.getElementById('stat-count-activities');
+        const statTasks = document.getElementById('stat-count-tasks');
+        const statEvents = document.getElementById('stat-count-events');
+        
+        // Sum up pre-calculated stats from individual projects
+        let totalAct = 0;
+        let totalTask = 0;
+        let totalEvt = 0;
+        
+        filtered.forEach(p => {
+            const s = p.stats || {};
+            totalAct += (s.activities || 0);
+            totalTask += (s.tasks || 0);
+            totalEvt += (s.appointments || 0);
+        });
+        
+        if (statProjects) statProjects.textContent = filtered.length;
+        if (statActivities) statActivities.textContent = totalAct;
+        if (statTasks) statTasks.textContent = totalTask;
+        if (statEvents) statEvents.textContent = totalEvt;
+
+        pmList.innerHTML = filtered.map((p, idx) => {
+            const isMaintenance = p.status && p.status.toLowerCase().includes('manutenzione');
+            const isPaused = p.status && (p.status.toLowerCase().includes('pausa') || p.status.toLowerCase().includes('hold'));
+            
+            return `
+                <div onclick="window.location.hash = '#pm/commessa/${p.id}'" style="
+                    background: rgba(255, 255, 255, 0.92); 
+                    backdrop-filter: blur(28px) saturate(190%); 
+                    -webkit-backdrop-filter: blur(28px) saturate(190%);
+                    border: 1px solid rgba(255, 255, 255, 0.8); 
+                    padding: 16px 20px; 
+                    border-radius: 20px; 
+                    cursor: pointer; 
+                    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
+                    position: relative;
+                    margin-bottom: 4px;
+                " onmouseover="this.style.background='rgba(255, 255, 255, 1)'; this.style.transform='translateX(8px)'; this.style.borderColor='rgba(255, 255, 255, 1)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.92)'; this.style.transform='translateX(0)'; this.style.borderColor='rgba(255, 255, 255, 0.8)'">
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+                                <span style="font-size: 0.62rem; color: #94a3b8; font-weight: 300; letter-spacing: -0.01em; flex-shrink: 0;">#${p.order_number || '---'}</span>
+                                <div style="height: 10px; width: 1px; background: rgba(0,0,0,0.06); flex-shrink: 0;"></div>
+                                <span style="font-size: 0.65rem; color: #64748b; font-weight: 300; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; letter-spacing: -0.01em;">${p.client || 'Gleeye'}</span>
+                            </div>
+                            <div style="display: flex; gap: 5px; flex-shrink: 0; margin-left: 8px; align-items: center;">
+                                ${isMaintenance ? `<span class="material-icons-round" style="font-size: 0.8rem; color: #94a3b8;" title="Manutenzione">settings</span>` : 
+                                  (isPaused ? `<span class="material-icons-round" style="font-size: 0.8rem; color: #94a3b8;" title="In Pausa">pause_circle</span>` : 
+                                   `<span class="material-icons-round" style="font-size: 0.8rem; color: #94a3b8;" title="In Svolgimento">play_circle</span>`)}
+                                
+                                <div style="width: 4px;"></div>
+                                
+                                ${p.isAccount ? `<div title="Account" style="width: 14px; height: 14px; background: transparent; color: #3b82f6; border: 1.25px solid #3b82f630; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.52rem; font-weight: 900;">A</div>` : ''}
+                                ${p.isPM ? `<div title="Project Manager" style="width: 14px; height: 14px; background: transparent; color: #8b5cf6; border: 1.25px solid #8b5cf630; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.52rem; font-weight: 900;">P</div>` : ''}
+                            </div>
+                        </div>
+                        <div style="font-weight: 500; font-size: 0.88rem; color: #1e293b; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; letter-spacing: -0.01em;">${p.title}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    };
+
+    _internalRender();
+    
+    // External hook for filter update
+    window._hpCurrentProjectsRenderer = _internalRender; 
+}
+
+window.togglePmFilter = (type) => {
+    if (!window.hpActiveFilters) window.hpActiveFilters = { account: true, pm: true };
+    window.hpActiveFilters[type] = !window.hpActiveFilters[type];
+    
+    const btnAccount = document.getElementById('hp-filter-account');
+    const btnPm = document.getElementById('hp-filter-pm');
+    
+    // Update visual states
+    if (btnAccount) {
+        btnAccount.style.background = window.hpActiveFilters.account ? '#fff' : 'transparent';
+        btnAccount.style.boxShadow = window.hpActiveFilters.account ? '0 2px 6px rgba(0,0,0,0.06)' : 'none';
+        btnAccount.style.color = window.hpActiveFilters.account ? '#1e293b' : '#94a3b8';
+    }
+    if (btnPm) {
+        btnPm.style.background = window.hpActiveFilters.pm ? '#fff' : 'transparent';
+        btnPm.style.boxShadow = window.hpActiveFilters.pm ? '0 2px 6px rgba(0,0,0,0.06)' : 'none';
+        btnPm.style.color = window.hpActiveFilters.pm ? '#1e293b' : '#94a3b8';
+    }
+
+    if (window._hpCurrentProjectsRenderer) window._hpCurrentProjectsRenderer();
+};
 
 // --- WEEKLY RENDER LOGIC ---
 
@@ -2354,14 +3409,14 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                 }
                 if (!clientShort && t.area) clientShort = t.area;
                 html += `
-                    <div onclick="window.location.hash = '#pm/commessa/${orderId || ''}'" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem; cursor: pointer;">
+                    <div onclick="window.location.hash = '#pm/commessa/${orderId || ''}'" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); padding: 0.75rem; border-radius: 10px; display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem; cursor: pointer;">
                         <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;">
                             <span class="material-icons-round" style="font-size: 18px;">play_arrow</span>
                         </div>
                         <div style="flex: 1; min-width: 0;">
-                            <div style="font-size: 0.65rem; color: #6ee7b7; font-weight: 700; text-transform: uppercase;">In Corso (Timer)</div>
-                            <div style="font-weight: 600; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${title}">${title}</div>
-                            ${clientShort ? `<div style="font-size: 0.7rem; color: #94a3b8; font-weight: 500; margin-top: 1px;">${clientShort}</div>` : ''}
+                            <div style="font-size: 0.62rem; color: #059669; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em;">In Corso (Timer)</div>
+                            <div style="font-weight: 700; font-size: 0.85rem; color: #064e3b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${title}">${title}</div>
+                            ${clientShort ? `<div style="font-size: 0.7rem; color: #374151; font-weight: 500; margin-top: 1px;">${clientShort}</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -2392,27 +3447,27 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
 
                 const isPm = t.role === 'pm' || (t.role || '').toLowerCase().includes('manager');
                 const roleIcon = isPm ? 'stars' : 'person_outline';
-                const roleColor = isPm ? '#f59e0b' : 'rgba(255,255,255,0.4)';
+                const roleColor = isPm ? '#f59e0b' : '#94a3b8';
                 const roleTitle = isPm ? 'Project Manager' : 'Assegnatario';
 
                 html += `
-                    <div onclick="openPmItemDetails('${t.id}', '${spaceId || ''}')" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 8px; display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 0.5rem; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
-                        <div style="width: 32px; height: 32px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; position: relative;">
+                    <div onclick="openPmItemDetails('${t.id}', '${spaceId || ''}')" style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 0.75rem; border-radius: 10px; display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 0.5rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+                        <div style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; flex-shrink: 0; position: relative;">
                             <span class="material-icons-round" style="font-size: 18px;">assignment</span>
-                            <span class="material-icons-round" title="${roleTitle}" style="position: absolute; bottom: -2px; right: -2px; font-size: 12px; color: ${roleColor}; background: #1e293b; border-radius: 50%; padding: 1px;">${roleIcon}</span>
+                            <span class="material-icons-round" title="${roleTitle}" style="position: absolute; bottom: -2px; right: -2px; font-size: 12px; color: ${roleColor}; background: white; border-radius: 50%; padding: 1px;">${roleIcon}</span>
                         </div>
                          <div style="flex: 1; min-width: 0;">
-                             <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">
+                             <div style="font-size: 0.72rem; color: #64748b; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700;">
                                  ${fullTitle}
                             </div>
-                            <div style="font-weight: 500; font-size: 0.9rem; color: white; line-height: 1.3;">${t.title}</div>
-                            ${clientShort ? `<div style="font-size: 0.7rem; color: #64748b; font-weight: 500; margin-top: 2px;">${clientShort}</div>` : ''}
+                            <div style="font-weight: 700; font-size: 0.9rem; color: #1e293b; line-height: 1.3;">${t.title}</div>
+                            ${clientShort ? `<div style="font-size: 0.72rem; color: #64748b; font-weight: 500; margin-top: 2px;">${clientShort}</div>` : ''}
                         </div>
                     </div>
                 `;
             });
 
-            if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessuna attività.</div>`;
+            if (!hasContent) html += `<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 2rem;">Nessuna attività.</div>`;
         }
 
         // 2. EVENTS (Agenda)
@@ -2442,45 +3497,47 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                     else if (isTomorrow) dateLabel = "DOMANI";
 
                     html += `
-                        <div style="font-size: 0.62rem; font-weight: 800; color: #94a3b8; margin: 0.4rem 0 0.4rem 0; letter-spacing: 0.05em; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px; text-transform: uppercase;">
+                        <div style="font-size: 0.62rem; font-weight: 800; color: #94a3b8; margin: 0.6rem 0 0.4rem 0; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; text-transform: uppercase;">
                             ${dateLabel}
                         </div>
                     `;
 
-                    grouped[dateKey].forEach(evt => {
+                        grouped[dateKey].forEach(evt => {
                         hasContent = true;
                         const startDate = new Date(evt.start);
                         const endDate = new Date(evt.end);
-                        const timeStr = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        const startStr = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        const endStr = endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                         const isPast = endDate < now;
                         const isNow = startDate <= now && endDate > now;
 
                         let opacity = '1';
-                        let border = '1px solid rgba(255, 255, 255, 0.05)';
-                        let bg = 'transparent';
+                        let border = '1px solid #f1f5f9';
+                        let bg = '#fff';
 
-                        if (isPast) opacity = '0.65';
+                        if (isPast) opacity = '0.6';
                         if (isNow) {
-                            border = '1px solid var(--brand-blue)';
-                            bg = 'rgba(59, 130, 246, 0.15)';
+                            border = '1px solid #8b5cf6';
+                            bg = 'rgba(139, 92, 246, 0.05)';
                         }
 
                         html += `
-                            <div style="background: ${bg}; border-bottom: ${border}; opacity: ${opacity}; padding: 0.65rem 0.5rem; display: flex; gap: 0.75rem; align-items: center; cursor: pointer; border-radius: 6px; margin-bottom: 2px;" onclick="openHomepageEventDetails('${evt.id}', '${evt.type}')">
-                                <div style="display: flex; flex-direction: column; align-items: center; width: 44px; flex-shrink: 0; background: rgba(255,255,255,0.08); padding: 5px; border-radius: 6px;">
-                                    <span style="font-size: 0.75rem; font-weight: 700; color: white;">${timeStr}</span>
+                            <div style="background: ${bg}; border-bottom: ${border}; opacity: ${opacity}; padding: 0.75rem 0.65rem; display: flex; gap: 0.85rem; align-items: center; cursor: pointer; border-radius: 10px; margin-bottom: 4px; transition: all 0.2s;" onclick="openHomepageEventDetails('${evt.id}', '${evt.type}')" onmouseover="this.style.background='#fdfaff'" onmouseout="this.style.background='${bg}'">
+                                <div style="display: flex; flex-direction: column; align-items: center; width: 48px; flex-shrink: 0; background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px; border-radius: 8px;">
+                                    <span style="font-size: 0.78rem; font-weight: 800; color: #1e293b; line-height: 1.1;">${startStr}</span>
+                                    <span style="font-size: 0.62rem; font-weight: 600; color: #64748b; margin-top: 1px;">${endStr}</span>
                                 </div>
                                 <div style="flex: 1; min-width: 0;">
-                                    <div style="font-weight: 700; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.title}</div>
-                                    <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 500; margin-top: 1px;">${evt.client || ''}</div>
+                                    <div style="font-weight: 700; font-size: 0.9rem; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.title}</div>
+                                    <div style="font-size: 0.72rem; color: #64748b; font-weight: 500; margin-top: 1px;">${evt.client || ''}</div>
                                 </div>
                             </div>
                         `;
                     });
                 });
             }
-            if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessun appuntamento oggi.</div>`;
+            if (!hasContent) html += `<div style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 2rem;">Nessun appuntamento oggi.</div>`;
         }
 
         // 3. TASKS
@@ -2502,7 +3559,10 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                         const ord = Array.isArray(t.orders) ? t.orders[0] : t.orders;
                         if (ord) {
                             // If we have an order, the breadcrumb is still useful for sub-structure
-                            fullTitle = `#${ord.order_number} - ${ord.title}`;
+                            fullTitle = ord.title || t.title;
+                            // Construct NUMBER - CLIENT for the header
+                            const cName = ord.clients?.client_code || ord.clients?.business_name || '';
+                            clientShort = `#${ord.order_number || '---'}${cName ? ' - ' + cName : ''}`;
                         }
                     }
                     if (!clientShort && t.area) clientShort = t.area;
@@ -2520,33 +3580,41 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
 
                     const isPm = t.role === 'pm' || (t.role || '').toLowerCase().includes('manager');
                     const roleIcon = isPm ? 'stars' : 'person_outline';
-                    const roleColor = isPm ? '#f59e0b' : 'rgba(255,255,255,0.4)';
+                    const roleColor = isPm ? '#f59e0b' : '#94a3b8';
                     const roleTitle = isPm ? 'Project Manager' : 'Assegnatario';
 
                     html += `
-                        <div class="activity-row" style="padding: 0.45rem 0; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: flex-start; gap: 0.75rem;">
+                        <div class="activity-row" style="padding: 0.75rem 0.25rem; border-bottom: 1px solid #f1f5f9; display: flex; align-items: flex-start; gap: 0.75rem;">
                             <div style="margin-top: 2px; color: ${roleColor}; flex-shrink: 0;" title="${roleTitle}">
                                 <span class="material-icons-round" style="font-size: 16px;">${roleIcon}</span>
                             </div>
                             <div style="flex: 1; min-width: 0; cursor: pointer;" onclick="openPmItemDetails('${t.id}', '${spaceId || ''}')">
-                                <div style="font-size: 0.6rem; color: #94a3b8; font-weight: 600; margin-bottom: -1px;">${clientShort || 'Incarico'}</div>
-                                <div style="font-weight: 600; font-size: 0.8rem; color: white; line-height: 1.2; margin-bottom: 1px; letter-spacing: -0.01em;">${t.title}</div>
+                                <div style="font-size: 0.65rem; color: #94a3b8; font-weight: 700; margin-bottom: 1px; text-transform: uppercase;">${clientShort || 'Incarico'}</div>
+                                <div style="font-weight: 700; font-size: 0.9rem; color: #1e293b; line-height: 1.25; margin-bottom: 3px; letter-spacing: -0.01em;">${t.title}</div>
                                 <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 1px;">
-                                    ${t.breadcrumb ? `<span style="font-size: 0.7rem; color: #64748b; font-weight: 500;">${t.breadcrumb}</span>` : ''}
+                                    ${t.breadcrumb ? `<span style="font-size: 0.72rem; color: #64748b; font-weight: 500;">${t.breadcrumb}</span>` : ''}
                                     ${dateStr ? `
-                                    <span style="font-size: 0.7rem; color: ${isLate ? '#f87171' : '#94a3b8'}; font-weight: 500;">
+                                    <span style="font-size: 0.72rem; color: ${isLate ? '#ef4444' : '#94a3b8'}; font-weight: 600;">
                                         ${t.breadcrumb ? '· ' : ''}${isLate ? 'Scaduto: ' : ''}${dateStr}
                                     </span>` : ''}
                                 </div>
                             </div>
-                            <div style="padding-top: 2px;">
-                                <input type="checkbox" class="task-checkbox" style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer; opacity: 0.3;" onclick="window.quickCompleteTask('${t.id}', this)" title="Segna come completata">
+                            <div style="flex-shrink: 0; padding-top: 4px;">
+                                <div class="hp-status-toggle" 
+                                     onclick="event.stopPropagation(); window.quickCompleteTask('${t.id}', this)" 
+                                     title="Segna come completata"
+                                     style="width: 18px; height: 18px; border: 2px solid rgba(16, 185, 129, 0.4); border-radius: 6px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;"
+                                     onmouseover="this.style.background='rgba(16, 185, 129, 0.1)'; this.style.borderColor='#10b981';"
+                                     onmouseout="this.style.background='transparent'; this.style.borderColor='rgba(16, 185, 129, 0.4)';"
+                                >
+                                    <span class="material-icons-round" style="font-size: 14px; color: #10b981; display: none;">check</span>
+                                </div>
                             </div>
                         </div>
                     `;
                 });
             }
-            if (!hasContent) html += `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessun task da completare.</div>`;
+            if (!hasContent) html += `<div style="text-align: center; color: #94a3b8; font-size: 0.85rem; padding: 2.5rem; font-weight: 500;">Nessun task da completare.</div>`;
         }
 
         container.innerHTML = html;
@@ -2577,7 +3645,7 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
 
 // Helper for Task Completion
 window.quickCompleteTask = async function (id, element) {
-    const row = element.closest('.activity-row');
+    const row = element.closest('.activity-row') || element.closest('.v-agenda-card');
     const container = row?.parentElement;
     if (row) row.style.opacity = '0.4';
 
@@ -2596,12 +3664,12 @@ window.quickCompleteTask = async function (id, element) {
             row.style.transform = 'translateX(10px)';
             row.style.opacity = '0';
 
-            // Instantly update the counter in the tab
+            // Instantly update the counter in the tab (sidebar)
             const card = row.closest('.glass-card');
             if (card) {
                 const tabs = card.querySelectorAll('.hp-v6-pill');
                 if (tabs.length > 0) {
-                    const countEl = tabs[0].querySelector('.tab-count'); // Task count is always first
+                    const countEl = tabs[0].querySelector('.tab-count');
                     if (countEl) {
                         const current = parseInt(countEl.textContent) || 0;
                         countEl.textContent = Math.max(0, current - 1);
@@ -2611,7 +3679,7 @@ window.quickCompleteTask = async function (id, element) {
 
             setTimeout(() => {
                 row.remove();
-                if (container && container.children.length === 0) {
+                if (container && container.children.length === 0 && container.classList.contains('hp-activities-list')) {
                     container.innerHTML = `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 2rem;">Nessun task da completare.</div>`;
                 }
             }, 200);
@@ -2619,114 +3687,13 @@ window.quickCompleteTask = async function (id, element) {
     } catch (e) {
         console.error("Task completion failed", e);
         if (row) {
-            row.style.opacity = '1';
-            row.style.transform = 'none';
+             row.style.opacity = '1';
+             row.style.transform = 'none';
         }
-        alert("Errore nel completamento task.");
     }
-};
-
-function renderProjects(container, projects) {
-    if (!projects || !projects.length) {
-        const kpiContainer = document.getElementById('hp-bottom-kpis');
-        if (kpiContainer) kpiContainer.innerHTML = '';
-        container.innerHTML = `
-            <div style="padding: 4rem 2rem; text-align: center; color: var(--text-tertiary);">
-                <span class="material-icons-round" style="font-size: 4rem; opacity: 0.1; margin-bottom: 1rem;">folder_open</span>
-                <p style="font-size: 1.1rem; font-weight: 500;">Nessun progetto attivo in questa categoria.</p>
-            </div>
-        `;
-        return;
-    }
-
-    // Calculate overall stats for KPIs
-    const activeTab = document.getElementById('hp-bottom-tab-projects')?.classList.contains('active') ? 'Commesse' : 'Progetti';
-    const totalProjects = projects.length;
-    const totalActivities = projects.reduce((acc, p) => acc + (p.stats?.activities || 0), 0);
-    const totalTasks = projects.reduce((acc, p) => acc + (p.stats?.tasks || 0), 0);
-    const totalAppts = projects.reduce((acc, p) => acc + (p.stats?.appointments || 0), 0);
-    const totalOverdue = projects.reduce((acc, p) => acc + (p.stats?.overdue || 0), 0);
-
-    const kpiHtml = `
-        <div class="widget-kpi-row">
-            <div class="kpi-pill status-info">
-                <span class="kpi-label">${activeTab}</span>
-                <span class="kpi-value">${totalProjects}</span>
-            </div>
-            <div class="kpi-pill">
-                <span class="kpi-label">Attività</span>
-                <span class="kpi-value">${totalActivities}</span>
-            </div>
-            <div class="kpi-pill">
-                <span class="kpi-label">Task</span>
-                <span class="kpi-value">${totalTasks}</span>
-            </div>
-            ${totalAppts > 0 ? `
-                <div class="kpi-pill status-success">
-                    <span class="kpi-label">Appuntamenti</span>
-                    <span class="kpi-value"><i class="material-icons-round">event</i> ${totalAppts}</span>
-                </div>
-            ` : ''}
-            ${totalOverdue > 0 ? `
-                <div class="kpi-pill status-danger">
-                    <span class="kpi-label">In Ritardo</span>
-                    <span class="kpi-value"><i class="material-icons-round">history</i> ${totalOverdue}</span>
-                </div>
-            ` : ''}
-        </div>
-    `;
-
-    const kpiContainer = document.getElementById('hp-bottom-kpis');
-    if (kpiContainer) kpiContainer.innerHTML = kpiHtml;
-
-    container.innerHTML = projects.map(p => {
-        const isTask = p.type === 'task';
-        const clickAction = isTask ? `openPmItemDetails('${p.id}', null)` : `window.location.hash='${p.link.replace('#', '')}'`;
-
-        const s = p.stats || { tasks: 0, activities: 0, overdue: 0, imminent: 0, appointments: 0 };
-
-        return `
-        <div class="project-card" onclick="${clickAction}">
-            <div class="card-main">
-                <div class="card-meta">
-                    ${p.order_number ? `<span class="card-badge-id">#${p.order_number}</span>` : ''}
-                    ${p.client ? `<span>${p.client}</span>` : ''}
-                </div>
-                <div class="card-title">${p.title}</div>
-            </div>
-            
-            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                <!-- Granular Stats with Icons -->
-                ${s.overdue > 0 ? `
-                    <div title="In Ritardo" style="display: flex; align-items: center; gap: 3px; padding: 2px 6px; background: #fee2e2; color: #ef4444; border-radius: 6px; font-weight: 800; font-size: 0.65rem;">
-                        <span class="material-icons-round" style="font-size: 11px;">history</span>
-                        <span>${s.overdue}</span>
-                    </div>
-                ` : ''}
-                ${s.activities > 0 ? `
-                    <div title="Attività" style="display: flex; align-items: center; gap: 3px; padding: 2px 6px; background: #f3f4f6; color: #4b5563; border-radius: 6px; font-weight: 800; font-size: 0.65rem;">
-                        <span class="material-icons-round" style="font-size: 11px;">assignment</span>
-                        <span>${s.activities}</span>
-                    </div>
-                ` : ''}
-                ${s.tasks > 0 ? `
-                    <div title="Task" style="display: flex; align-items: center; gap: 3px; padding: 2px 6px; background: #f3e8ff; color: #7e22ce; border-radius: 6px; font-weight: 800; font-size: 0.65rem;">
-                        <span class="material-icons-round" style="font-size: 11px;">task_alt</span>
-                        <span>${s.tasks}</span>
-                    </div>
-                ` : ''}
-                ${s.appointments > 0 ? `
-                    <div title="Appuntamenti" style="display: flex; align-items: center; gap: 3px; padding: 2px 6px; background: #dcfce7; color: #15803d; border-radius: 6px; font-weight: 800; font-size: 0.65rem;">
-                        <span class="material-icons-round" style="font-size: 11px;">event</span>
-                        <span>${s.appointments}</span>
-                    </div>
-                ` : ''}
-
-                <span class="material-icons-round" style="color: var(--text-tertiary); opacity: 0.3; font-size: 16px; margin-left: 2px;">chevron_right</span>
-            </div>
-        </div>
-    `}).join('');
 }
+
+
 
 function renderBottomActivities(container) {
     // We use data already fetched for the sidebar if available
@@ -2896,9 +3863,9 @@ function renderBottomTasks(container, tasks) {
                     </div>
                     <div class="row-meta">
                         <span class="row-context">${orderCode}</span>
-                        ${clientPart ? `<span>· ${clientPart}</span>` : ''}
-                        ${t.breadcrumb ? `<span class="row-breadcrumb">· ${t.breadcrumb}</span>` : ''}
-                        ${dueText ? `<span style="${isOverdue ? 'color: #ef4444; font-weight: 700;' : ''}">· ${dueText}</span>` : ''}
+                        ${clientPart ? `<span> ${clientPart}</span>` : ''}
+                        ${t.breadcrumb ? `<span class="row-breadcrumb"> ${t.breadcrumb}</span>` : ''}
+                        ${dueText ? `<span style="${isOverdue ? 'color: #ef4444; font-weight: 700;' : ''}"> ${dueText}</span>` : ''}
                     </div>
                 </div>
 
@@ -2915,7 +3882,7 @@ function renderBottomTasks(container, tasks) {
                             <span>${childCount}</span>
                         </div>
                     ` : ''}
-                    <span class="material-icons-round" style="color: var(--text-tertiary); opacity: 0.3; font-size: 16px; margin-left: 2px;">chevron_right</span>
+                    <span class="material-icons-round" style="color: #94a3b8; font-size: 16px; margin-left: 2px; transition: all 0.2s;" onmouseover="this.style.color='#8b5cf6'; this.style.transform='translateX(2px)'" onmouseout="this.style.color='#94a3b8'; this.style.transform='translateX(0)'">chevron_right</span>
                 </div>
             </div>
         `;
@@ -2988,9 +3955,9 @@ function renderDelegatedTasks(container, tasks) {
                     <div class="row-title" title="${t.title}" style="margin-bottom: 2px;">${t.title}</div>
                     <div class="row-meta" style="margin-bottom: 6px;">
                         <span class="row-context">${orderCode}</span>
-                        ${clientPart ? `<span>· ${clientPart}</span>` : ''}
-                        ${t.breadcrumb ? `<span class="row-breadcrumb">· ${t.breadcrumb}</span>` : ''}
-                        ${dateStr ? `<span style="${isOverdue ? 'color: #ef4444; font-weight: 700;' : ''}">· ${isOverdue ? 'Scaduto: ' : 'Scadenza: '}${dateStr}</span>` : ''}
+                        ${clientPart ? `<span> ${clientPart}</span>` : ''}
+                        ${t.breadcrumb ? `<span class="row-breadcrumb"> ${t.breadcrumb}</span>` : ''}
+                        ${dateStr ? `<span style="${isOverdue ? 'color: #ef4444; font-weight: 700;' : ''}"> ${isOverdue ? 'Scaduto: ' : 'Scadenza: '}${dateStr}</span>` : ''}
                     </div>
                     
                     <!-- EXECUTORS ROW (Avatars) -->
@@ -3009,7 +3976,7 @@ function renderDelegatedTasks(container, tasks) {
 
                 <!-- 3. Right Col (Auto) - Just Chevron -->
                 <div style="display: flex; align-items: center; justify-content: flex-end; height: 100%; padding-top: 4px;">
-                    <span class="material-icons-round" style="color: var(--text-tertiary); opacity: 0.3; font-size: 16px;">chevron_right</span>
+                    <span class="material-icons-round" style="color: #94a3b8; font-size: 16px; transition: all 0.2s;" onmouseover="this.style.color='#8b5cf6'; this.style.transform='translateX(2px)'" onmouseout="this.style.color='#94a3b8'; this.style.transform='translateX(0)'">chevron_right</span>
                 </div>
             </div>
         `;
@@ -3050,21 +4017,20 @@ function renderActivityFeed(container, activities) {
                 const timeStr = timeAgo(log.created_at);
 
                 return `
-                    <div class="timeline-item" onclick="window.openPmItemDetails('${log.item_ref}', '${log.space_ref || ''}')" style="display: flex; gap: 1rem; position: relative; padding: 0.75rem 1rem; cursor: pointer; transition: background 0.2s;">
+                    <div class="timeline-item" onclick="window.openPmItemDetails('${log.item_ref}', '${log.space_ref || ''}')" style="display: flex; gap: 0.75rem; position: relative; padding: 0.45rem 0.75rem; cursor: pointer; transition: all 0.2s; border-radius: 14px;">
                         <!-- Timeline Line -->
-                        <div style="position: absolute; left: 30px; top: 42px; bottom: 0; width: 2px; background: #f1f5f9; z-index: 1;"></div>
+                        <div style="position: absolute; left: 26px; top: 38px; bottom: 0; width: 1.5px; background: rgba(0,0,0,0.03); z-index: 1;"></div>
                         
                         <div class="actor-avatar" style="flex-shrink: 0; position: relative; z-index: 2;">
-                            ${renderAvatar(log.actor || { full_name: human.actorName }, { size: 32, borderRadius: '50%' })}
+                            ${renderAvatar(log.actor || { full_name: human.actorName }, { size: 28, borderRadius: '8px' })}
                         </div>
-                        
-                        <div class="log-content" style="flex: 1; padding-top: 2px;">
-                            <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
-                                <span style="font-weight: 700; color: var(--text-primary);">${human.actorName}</span> 
-                                ${human.formattedDesc}
+                        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+                            <div style="font-size: 0.82rem; color: #334155; line-height: 1.4; font-weight: 400;">
+                                <span style="font-weight: 700; color: #0f172a;">${human.actorName}</span> 
+                                <span style="color: #64748b;">${human.formattedDesc}</span>
                             </div>
-                            <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 4px; display: flex; align-items: center; gap: 6px;">
-                                <span class="material-icons-round" style="font-size: 0.8rem;">schedule</span>
+                            <div style="font-size: 0.65rem; color: #94a3b8; margin-top: 4px; display: flex; align-items: center; gap: 5px; font-weight: 500;">
+                                <span class="material-icons-round" style="font-size: 0.8rem; color: #cbd5e1;">schedule</span>
                                 ${timeStr}
                             </div>
                         </div>

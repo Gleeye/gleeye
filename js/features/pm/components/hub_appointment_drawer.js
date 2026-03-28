@@ -484,7 +484,7 @@ export async function openAppointmentDrawer(inputAppointment, contextId = null, 
                 const orders = (state.orders || []).filter(o => {
                     const statusOffer = (o.offer_status || '').toLowerCase();
                     const statusWork = (o.status_works || '').toLowerCase();
-                    const isActive = statusOffer !== 'offerta rifiutata' && (statusOffer === 'offerta accettata' ? statusWork !== 'completato' : true);
+                    const isActive = statusOffer !== 'rifiutata' && (statusOffer === 'accettata' ? statusWork !== 'completato' : true);
                     const matchesSearch = `#${o.order_number} ${o.title}`.toLowerCase().includes(query) || o.clients?.business_name?.toLowerCase().includes(query);
                     const matchesClient = formState.client_id ? o.client_id === formState.client_id : true;
                     return isActive && matchesSearch && matchesClient;

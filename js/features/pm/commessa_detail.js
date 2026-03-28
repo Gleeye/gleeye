@@ -11,7 +11,7 @@ console.log('--- COMMESSA DETAIL LOADED v999 ---');
 // Status colors for "Stato Lavori"
 const STATUS_CONFIG = {
     'in_svolgimento': { label: 'In Svolgimento', color: '#3b82f6', bg: '#eff6ff', icon: 'play_circle' },
-    'lavoro_in_attesa': { label: 'In Attesa', color: '#f59e0b', bg: '#fffbeb', icon: 'hourglass_empty' },
+    'da_iniziare': { label: 'In Attesa', color: '#f59e0b', bg: '#fffbeb', icon: 'hourglass_empty' },
     'in_pausa': { label: 'In Pausa', color: '#64748b', bg: '#f1f5f9', icon: 'pause_circle' },
     'manutenzione': { label: 'Ongoing', color: '#06b6d4', bg: '#ecfeff', icon: 'published_with_changes' },
     'completato': { label: 'Completato', color: '#10b981', bg: '#ecfdf5', icon: 'check_circle' }
@@ -33,8 +33,8 @@ function normalizeStatus(status) {
     if (s.includes('pausa') || s.includes('sospeso')) return 'in_pausa';
     if (s.includes('manutenzione') || s.includes('assistenza')) return 'manutenzione';
     if (s.includes('svolgimento') || s.includes('in corso')) return 'in_svolgimento';
-    if (s.includes('attesa')) return 'lavoro_in_attesa';
-    return 'lavoro_in_attesa';
+    if (s.includes('attesa')) return 'da_iniziare';
+    return 'da_iniziare';
 }
 
 // Calculate KPIs from items

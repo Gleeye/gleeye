@@ -124,8 +124,9 @@ async function handleSession(session) {
                 if (setPasswordContainer) setPasswordContainer.classList.remove('hidden');
                 window.dispatchEvent(new Event('app:ready')); // Reveal screen (hide splash)
             } else if (profile) {
-                // Normal access: Show Dashboard
-                console.log("Session valid, loading app data...");
+                // 1. Fetch CRITICAL COLLABORATOR DATA early (especially for impersonation)
+            const { fetchAllCollaborators } = await import('../modules/pm_api.js?v=2001');
+            await fetchAllCollaborators().catch(e => console.warn("fetchAllCollaborators failed:", e));
 
             // CRITICAL: Update sidebar visibility BEFORE showing app
             // This prevents collaborators from seeing admin elements
@@ -193,18 +194,13 @@ async function handleSession(session) {
             state.isFetching = true;
 
             try {
-                console.log("[Auth] Loading critical app data...");
-                // Note: These are imported at top-level now to ensure consistency
-                const { fetchInternalSpaces, fetchAllCollaborators } = await import('../modules/pm_api.js?v=2000');
-                // We use the top-level fetchAllProfiles from line 3
-
                 // 1. Critical Data for Dashboard (Orders, Assignments, PM Spaces)
                 // We await these before showing the app to the user
+                const { fetchInternalSpaces } = await import('../modules/pm_api.js?v=2000');
                 const [ordersData] = await Promise.all([
                     fetchOrders(), 
                     fetchAssignments(), 
                     fetchInternalSpaces(),
-                    fetchAllCollaborators(),
                     fetchAllProfiles()
                 ]);
 

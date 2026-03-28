@@ -10,7 +10,7 @@ const ITEM_STATUS = {
 
 const COMMESSA_STATUS = {
     'in_svolgimento': { label: 'In Svolgimento', color: '#3b82f6' },
-    'lavoro_in_attesa': { label: 'In Attesa', color: '#f59e0b' },
+    'da_iniziare': { label: 'In Attesa', color: '#f59e0b' },
     'in_pausa': { label: 'In Pausa', color: '#64748b' },
     'manutenzione': { label: 'Ongoing', color: '#06b6d4' },
     'completato': { label: 'Completato', color: '#10b981' }
@@ -24,7 +24,7 @@ function getCommessaStatusInfo(status) {
     else if (s.includes('pausa') || s.includes('sospeso')) key = 'in_pausa';
     else if (s.includes('ongoing') || s.includes('manutenzione') || s.includes('assistenza')) key = 'manutenzione';
     else if (s.includes('svolgimento') || s.includes('in corso')) key = 'in_svolgimento';
-    else if (s.includes('attesa')) key = 'lavoro_in_attesa';
+    else if (s.includes('attesa')) key = 'da_iniziare';
 
     if (key && COMMESSA_STATUS[key]) return COMMESSA_STATUS[key];
     return { label: status, color: 'var(--text-primary)' };

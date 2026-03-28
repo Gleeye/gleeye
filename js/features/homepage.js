@@ -2509,11 +2509,12 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                         </div>
                     `;
 
-                    grouped[dateKey].forEach(evt => {
+                        grouped[dateKey].forEach(evt => {
                         hasContent = true;
                         const startDate = new Date(evt.start);
                         const endDate = new Date(evt.end);
-                        const timeStr = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        const startStr = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        const endStr = endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                         const isPast = endDate < now;
                         const isNow = startDate <= now && endDate > now;
@@ -2531,7 +2532,8 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                         html += `
                             <div style="background: ${bg}; border-bottom: ${border}; opacity: ${opacity}; padding: 0.65rem 0.5rem; display: flex; gap: 0.75rem; align-items: center; cursor: pointer; border-radius: 6px; margin-bottom: 2px;" onclick="openHomepageEventDetails('${evt.id}', '${evt.type}')">
                                 <div style="display: flex; flex-direction: column; align-items: center; width: 44px; flex-shrink: 0; background: rgba(255,255,255,0.08); padding: 5px; border-radius: 6px;">
-                                    <span style="font-size: 0.75rem; font-weight: 700; color: white;">${timeStr}</span>
+                                    <span style="font-size: 0.72rem; font-weight: 700; color: white; line-height: 1;">${startStr}</span>
+                                    <span style="font-size: 0.6rem; font-weight: 500; color: rgba(255,255,255,0.4); margin-top: 1px;">${endStr}</span>
                                 </div>
                                 <div style="flex: 1; min-width: 0;">
                                     <div style="font-weight: 700; font-size: 0.85rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${evt.title}</div>

@@ -1178,86 +1178,291 @@
     }
 }
 
-/* Alt Layout Overrides */
-.hp-alt-top-panel {
+/* Alt Layout Overrides: Premium Integrated Sidebar */
+
+.homepage-container {
+    padding-top: 0 !important;
+    min-height: 100vh;
+    background: #f8fafc;
+}
+
+.hp-main-empty {
+    flex: 1;
+}
+
+.hp-alt-sidebar-left {
+    width: 25% !important;
+}
+
+.hp-main-content-area {
+    flex: 1;
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #f8fafc;
+    padding: 2.5rem;
     display: flex;
     flex-direction: row;
-    width: 100%;
+    gap: 2rem;
 }
 
-.hp-alt-horizontal-card {
+.hp-widget-panel {
+    background: white;
+    border-radius: 24px;
+    border: 1px solid #eef2f6;
+    padding: 1.75rem;
     display: flex;
-    flex-direction: row !important;
-    align-items: center;
-    width: 100%;
-    height: 180px !important;
-    gap: 1.5rem;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.02);
 }
 
-.hp-alt-top-panel .hp-v6-controls {
-    display: flex !important;
-    flex-direction: column !important;
-    background: #0f172a !important;
-    padding: 5px !important;
-    border-radius: 12px !important;
-    gap: 6px !important;
-    height: 100% !important;
-    width: auto !important;
-    margin-bottom: 0 !important;
-    box-sizing: border-box !important;
-    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+/* 3-Column Responsive Adjustments */
+@media (max-width: 1400px) {
+    .hp-main-center-area {
+        padding: 2rem 2.5rem;
+    }
 }
 
-.hp-alt-top-panel .hp-v6-pill, 
-.hp-alt-top-panel .hp-v6-add-btn {
-    flex: 1 !important;
-    width: 44px !important;
+@media (max-width: 1200px) {
+    .homepage-container {
+        flex-direction: column !important;
+        overflow-y: auto !important;
+        height: auto !important;
+    }
+    .hp-alt-sidebar-left, 
+    .hp-alt-sidebar-right, 
+    .hp-main-center-area {
+        width: 100% !important;
+        height: auto !important;
+        min-height: auto !important;
+        position: static !important;
+        border: none !important;
+    }
+    .hp-alt-sidebar-left {
+        max-height: 800px;
+        border-bottom: 1px solid #eef2f6 !important;
+    }
+    .hp-main-center-area {
+        min-width: 0 !important;
+        padding: 2rem 1.5rem !important;
+    }
 }
 
-.hp-alt-top-panel .hp-v6-pill .tab-count {
+/* Header & Navigation */
+.hp-alt-sidebar-right .hp-pill-group {
+    background: #f1f5f9;
+}
+
+.hp-alt-sidebar-right .nav-pill {
+    font-size: 0.8rem;
+    padding: 8px 12px;
+}
+
+/* Selectively hide icons for tasks, but KEEP time box for events */
+.hp-sidebar-list-block .activity-row > div:first-child {
     display: none !important;
 }
 
-.hp-alt-horizontal-list {
-    flex: 1 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    flex-wrap: wrap !important;
-    align-content: flex-start;
-    gap: 1rem;
-    height: 100% !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    padding-bottom: 0 !important;
+/* Adjust padding when icons are hidden - only for tasks */
+.hp-sidebar-list-block .activity-row > div:nth-child(2) {
+    padding-left: 0 !important;
 }
 
-.hp-alt-horizontal-list .activity-row {
-    width: 300px;
-    flex: 0 0 calc(50% - 0.5rem) !important;
-    background: rgba(255, 255, 255, 0.05);
+/* Optimize spacing for event rows (which have inline styles) */
+.hp-sidebar-list-block #hp-activities-list [onclick*="Event"] {
+    padding: 0.5rem !important;
+    gap: 0.5rem !important;
+}
+.hp-sidebar-list-block #hp-activities-list [onclick*="Event"] > div:first-child {
+    width: 38px !important;
+    padding: 3px !important;
+    background: #f1f5f9 !important;
+}
+.hp-sidebar-list-block #hp-activities-list [onclick*="Event"] > div:first-child span {
+    color: #1e293b !important;
+}
+.hp-sidebar-list-block #hp-activities-list [onclick*="Event"] > div:first-child span:last-child {
+    color: #64748b !important;
+}
+
+/* Task Section (Light Theme Integration) */
+.hp-sidebar-list-block {
+    background: white !important;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+/* Force dark text for list items in the sidebar */
+.hp-sidebar-list-block div, 
+.hp-sidebar-list-block span:not(.material-icons-round) {
+    color: inherit;
+}
+
+.hp-sidebar-list-block .hp-activities-list-container [style*="color: white"],
+.hp-sidebar-list-block .hp-activities-list-container [style*="color:white"] {
+    color: #1e293b !important;
+}
+
+.hp-sidebar-list-block .hp-activities-list-container [style*="color: #94a3b8"],
+.hp-sidebar-list-block .hp-activities-list-container [style*="color: #64748b"] {
+    color: #64748b !important;
+}
+
+/* Fix visibility of 'Nessun task...' placeholder which defaults to light color */
+.hp-sidebar-list-block #hp-activities-list > div {
+    color: #1e293b !important;
+    font-weight: 500 !important;
+    opacity: 1 !important;
+}
+
+.hp-sidebar-list-block .hp-activities-list-container .activity-row,
+.hp-sidebar-list-block .hp-activities-list-container [style*="background: rgba(255, 255, 255, 0.05)"] {
+    border-bottom: 1px solid #f1f5f9 !important;
+    background: transparent !important;
+}
+
+/* Redesign buttons to be more prominent */
+#hp-task-list-link, #hp-overdue-toggle {
+    background: white !important;
+    border: 1.5px solid #e2e8f0 !important;
+    color: #1e293b !important;
+    font-weight: 700 !important;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02) !important;
+}
+
+#hp-task-list-link:hover {
+    border-color: #8b5cf6 !important;
+    color: #8b5cf6 !important;
+    box-shadow: 0 8px 15px rgba(139, 92, 246, 0.1) !important;
+}
+
+#hp-overdue-toggle:hover {
+    border-color: #ef4444 !important;
+    color: #ef4444 !important;
+    box-shadow: 0 8px 15px rgba(239, 68, 68, 0.1) !important;
+}
+
+.hp-sidebar-list-block .hp-activities-list-container {
+    scrollbar-width: thin;
+    scrollbar-color: #e2e8f0 transparent;
+}
+
+/* Vertical Timeline */
+#hp-timeline-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    background: #ffffff;
+    position: relative;
+    border-top: 1px solid #f1f5f9;
+}
+
+.vertical-timeline-track {
+    position: relative;
+    padding-bottom: 5rem;
+}
+
+.v-hour-row {
+    border-top: 1px solid #f8fafc;
+}
+
+.v-hour-label {
+    font-family: 'Outfit', sans-serif;
+    color: #94a3b8;
+    font-weight: 700;
+    font-size: 0.7rem;
+}
+
+.v-agenda-card {
+    background: #ffffff;
     border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.05);
-    box-sizing: border-box;
-    margin-top: 0 !important;
-    padding: 8px 12px !important;
+    border: 1px solid #f1f5f9;
+    border-left: 4px solid #8b5cf6;
+    padding: 12px 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.hp-alt-horizontal-list .activity-row:hover {
-    background: rgba(255, 255, 255, 0.1);
+.v-agenda-card:hover {
+    transform: translateX(4px);
+    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.1);
 }
 
-.hp-alt-top-panel .vedi-agenda-btn {
-    height: 100% !important;
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    padding: 10px 6px !important;
-    width: 44px !important;
+.v-card-time {
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #8b5cf6;
+    margin-bottom: 4px;
+    text-transform: uppercase;
 }
 
-.hp-alt-top-panel .overdue-filter-btn {
-    margin-top: 8px;
+.v-card-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-.hp-alt-timeline {
+.v-now-line {
     width: 100%;
+    border-top: 2px dashed #06b6d4;
+    z-index: 100;
+}
+
+.v-now-pill {
+    position: absolute;
+    right: 15px;
+    top: -12px;
+    background: #06b6d4;
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 6px;
+    box-shadow: 0 4px 10px rgba(6, 182, 212, 0.3);
+}
+
+/* KPI ADMIN CARDS - PREMIUM HOVER EFFECTS */
+.hp-kpi-card {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.hp-kpi-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(139, 92, 246, 0.5) !important;
+    box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.1), 0 4px 6px -2px rgba(139, 92, 246, 0.05) !important;
+}
+
+.hp-kpi-card:active {
+    transform: translateY(-1px);
+}
+
+/* Sottile ed elegante Apple-style scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* Raffinamento extra-sottile e trasparente */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 2.5px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.04);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.08);
 }
