@@ -1107,10 +1107,10 @@ export async function renderHomepageAlt(container) {
 
     container.innerHTML = `
         <style>
-            .hp-alt-wrapper { display: flex; width: 100%; height: 100%; position: absolute; inset: 0; overflow: hidden; background: #f8fafc; font-family: 'Outfit'; }
-            .hp-alt-sidebar-left { width: 320px; flex-shrink: 0; height: 100%; background: white; border-right: 1px solid #eef2f6; display: flex; flex-direction: column; position: relative; box-shadow: 10px 0 30px rgba(0,0,0,0.01); z-index: 10; }
-            .hp-main-content-area { flex: 1; display: flex; flex-direction: column; gap: 2rem; padding: 2.5rem; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; position: relative; width: 100%; height: 100%; box-sizing: border-box; }
-            .hp-main-columns-container { display: flex; flex-direction: row; gap: 2rem; width: 100%; align-items: flex-start; flex-wrap: nowrap; }
+            .hp-alt-wrapper { display: flex; width: 100%; height: auto; min-height: 100%; background: #f8fafc; font-family: 'Outfit'; position: relative; }
+            .hp-alt-sidebar-left { width: 320px; flex-shrink: 0; min-height: calc(100vh - 70px); background: white; border-right: 1px solid #eef2f6; display: flex; flex-direction: column; position: relative; box-shadow: 10px 0 30px rgba(0,0,0,0.01); z-index: 10; }
+            .hp-main-content-area { flex: 1; display: flex; flex-direction: column; gap: 2rem; padding: 1.5rem 2.5rem; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; position: relative; width: 100%; box-sizing: border-box; }
+            .hp-main-columns-container { display: flex; flex-direction: row; gap: 2rem; width: 100%; align-items: flex-start; }
             
             .hp-mobile-banner { display: none; }
             .hp-mobile-agenda-pop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 20000; align-items: center; justify-content: center; padding: 15px; }
@@ -1213,7 +1213,7 @@ export async function renderHomepageAlt(container) {
             </div>
 
             <!-- 2. MAIN CONTENT AREA (Projects + Activities) -->
-            <div class="hp-main-content-area custom-scrollbar">
+            <div class="hp-main-content-area custom-scrollbar" style="padding-top: 1rem;">
                  
                  <!-- MOBILE STICKY BANNER -->
                  <div class="hp-mobile-banner" onclick="window.openMobileAgenda()">
@@ -1912,7 +1912,10 @@ export async function renderHomepageAlt(container) {
             filteredTasks: myTasks
         };
 
-        // 2. Timeline (Default Today)
+        // 2. Initial sync for activities
+        window.syncHomepageActivities();
+
+        // 3. Timeline (Default Today)
         window.updateHomepageTimeline(window.homepageCurrentDate);
 
         // 3. Load Bottom Section
