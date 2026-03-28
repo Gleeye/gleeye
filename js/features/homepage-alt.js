@@ -114,7 +114,6 @@ function renderVerticalTimeline(container, events, date, rules) {
                          onmouseover="this.style.background='rgba(16, 185, 129, 0.1)'; this.style.borderColor='#10b981';"
                          onmouseout="this.style.background='transparent'; this.style.borderColor='rgba(16, 185, 129, 0.4)';"
                     >
-                        <span class="material-icons-round" style="font-size: 12px; color: #10b981; display: none;">check</span>
                     </div>
                 </div>
                 <div style="flex: 1; min-width: 0;">
@@ -3607,7 +3606,6 @@ function renderMyActivities(container, timers, tasks, events, filter = 'task') {
                                      onmouseover="this.style.background='rgba(16, 185, 129, 0.1)'; this.style.borderColor='#10b981';"
                                      onmouseout="this.style.background='transparent'; this.style.borderColor='rgba(16, 185, 129, 0.4)';"
                                 >
-                                    <span class="material-icons-round" style="font-size: 14px; color: #10b981; display: none;">check</span>
                                 </div>
                             </div>
                         </div>
