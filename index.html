@@ -44,6 +44,66 @@
         }
     </style>
     <link rel="stylesheet" href="css/components/custom-select.css?v=6005">
+    
+    <!-- MOBILE HEADER FIX - BYPASS CACHE -->
+    <style>
+        @media (max-width: 768px) {
+            .top-bar {
+                height: auto !important;
+                min-height: 64px !important;
+                padding-top: calc(10px + env(safe-area-inset-top, 20px)) !important;
+                padding-bottom: 12px !important;
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                background: white !important;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.05) !important;
+                position: relative !important;
+                z-index: 1000 !important;
+            }
+
+            .header-actions {
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                gap: 10px !important;
+            }
+
+            .top-bar .icon-btn {
+                width: 42px !important;
+                height: 42px !important;
+                border-radius: 50% !important;
+                background: #f8fafc !important;
+                border: 1px solid #f1f5f9 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.02) !important;
+            }
+
+            .top-bar h2 {
+                margin: 0 !important;
+                font-size: 1.15rem !important;
+                font-weight: 800 !important;
+            }
+            
+            #back-btn {
+                margin-right: 5px !important;
+            }
+
+            /* FORCE SIDEBAR ON TOP */
+            .sidebar {
+                z-index: 99999 !important;
+            }
+
+            /* Ensure back-btn is hidden on home regardless of JS */
+            body:has(a[href="#home"].active) #back-btn,
+            body:has(#hp-alt-container) #back-btn {
+                display: none !important;
+            }
+        }
+    </style>
     <!-- <link rel="stylesheet" href="css/components/chat.css?v=3000"> -->
 
     <style>
@@ -637,10 +697,13 @@
         <!-- Main Content -->
         <main class="main-content">
             <header class="top-bar">
-                <button id="mobile-menu-btn" class="icon-btn hidden-desktop" style="margin-right: 12px;">
-                    <span class="material-icons-round">menu</span>
-                </button>
-                <h2 id="page-title">Ordini</h2>
+                <div class="top-bar-left">
+                    <button id="back-btn" class="icon-btn hidden" onclick="window.goBack()" title="Indietro">
+                        <span class="material-icons-round">arrow_back</span>
+                    </button>
+                    <h2 id="page-title">Ordini</h2>
+                </div>
+                
                 <div class="actions">
                     <div class="search-bar">
                         <span class="material-icons-round">search</span>
@@ -653,6 +716,9 @@
                                 <span class="notification-badge hidden"></span>
                             </button>
                         </div>
+                        <button id="mobile-menu-btn" class="icon-btn hidden-desktop">
+                            <span class="material-icons-round">menu</span>
+                        </button>
                     </div>
                 </div>
             </header>

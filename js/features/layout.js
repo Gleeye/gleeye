@@ -53,6 +53,10 @@ export function initLayout() {
 
     mobileOverlay.addEventListener('click', closeMobileSidebar);
 
+    // Initial navigation state
+    updateTopBarNavigation();
+    window.addEventListener('hashchange', updateTopBarNavigation);
+
     // Optionally add a close button inside sidebar header for mobile
     let mobileCloseBtn = sidebar?.querySelector('.sidebar-mobile-close');
     if (sidebar && !mobileCloseBtn && window.innerWidth <= 768) {
@@ -63,7 +67,7 @@ export function initLayout() {
             mobileCloseBtn.innerHTML = '<span class="material-icons-round">close</span>';
             mobileCloseBtn.addEventListener('click', closeMobileSidebar);
             // Insert before brand or append
-            header.insertBefore(mobileCloseBtn, header.firstChild);
+            header.appendChild(mobileCloseBtn);
         }
     }
 
@@ -79,6 +83,39 @@ export function initLayout() {
                 closeMobileSidebar();
             }
         });
+    }
+}
+
+// Global Navigation Helpers
+window.goBack = () => {
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        window.location.hash = 'home';
+    }
+};
+
+export function updateTopBarNavigation() {
+    const hash = window.location.hash || '#home';
+    const backBtn = document.getElementById('back-btn');
+    if (!backBtn) return;
+
+    // Hardcoded list of root views where back button MUST NEVER be visible
+    const rootHashes = ['', '#', '#home', '#dashboard', '#agenda', '#my-assignments', '#assignments', '#booking', '#pm/commesse', '#pm/interni', '#pm/my-work', '#invoices', '#sales', '#employees', '#settings', '#profile'];
+    
+    // Exact check + logic for sub-pages
+    const isRoot = rootHashes.includes(hash);
+    const isDetail = hash.includes('/') || hash.includes('-detail') || (hash.split('-').length > 2 && hash.length > 20);
+
+    if (!isRoot && isDetail) {
+        backBtn.classList.remove('hidden');
+    } else {
+        backBtn.classList.add('hidden');
+    }
+
+    // EXTRA SAFETY: Force hide if we are at home based on container presence
+    if (document.getElementById('hp-alt-container') || document.getElementById('hp-container')) {
+        backBtn.classList.add('hidden');
     }
 }
 
