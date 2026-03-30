@@ -299,8 +299,20 @@ export class TasksDashboard {
                     .kanban-col-head .count { font-size: 0.72rem; font-weight: 800; color: #697386; background: #fff; padding: 2px 8px; border-radius: 6px; border: 1.2px solid #f1f5f9; }
 
                     /* TASK CARDS */
-                    .premium-task-card { background: #fff; border: 1.2px solid rgba(0,0,0,0.04); border-radius: 16px; padding: 1.15rem; display: flex; flex-direction: column; gap: 8px; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 2px 10px rgba(0,0,0,0.015); position: relative; }
-                    .premium-task-card:hover { transform: translateY(-3px) scale(1.005); box-shadow: 0 15px 35px rgba(78, 146, 216, 0.08); border-color: rgba(78, 146, 216, 0.2); }
+                    /* TASK CARDS */
+                    .premium-task-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1.2px solid rgba(0,0,0,0.04); border-radius: 16px; padding: 1.15rem; display: flex; flex-direction: column; gap: 8px; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 4px 12px rgba(0,0,0,0.01); position: relative; overflow: hidden; }
+                    .premium-task-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; transition: all 0.2s; }
+                    
+                    /* Type Accents */
+                    .premium-task-card.type-commessa { border-color: rgba(78, 146, 216, 0.1); }
+                    .premium-task-card.type-commessa::before { background: #4e92d8; opacity: 0.7; }
+                    .premium-task-card.type-commessa:hover { border-color: rgba(78, 146, 216, 0.3); box-shadow: 0 8px 24px rgba(78, 146, 216, 0.1); }
+                    
+                    .premium-task-card.type-interno { border-color: rgba(104, 117, 237, 0.1); }
+                    .premium-task-card.type-interno::before { background: #6875ed; opacity: 0.7; }
+                    .premium-task-card.type-interno:hover { border-color: rgba(104, 117, 237, 0.3); box-shadow: 0 8px 24px rgba(104, 117, 237, 0.1); }
+                    
+                    .premium-task-card:hover { transform: translateY(-3px) scale(1.005); }
                     .card-title { font-family: 'Satoshi', sans-serif; font-size: 0.95rem; font-weight: 700; color: #1a1f36; line-height: 1.3; margin: 0; padding-right: 30px; letter-spacing: -0.01em; flex: 1; }
                     .card-check-btn { position: absolute; top: 1.15rem; right: 1.15rem; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #cbd5e1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); background: #fff; color: #94a3b8; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
                     .card-check-btn:hover { background: #10b981; border-color: #10b981; color: #fff; transform: scale(1.15) rotate(12deg); box-shadow: 0 8px 20px rgba(16,185,129,0.2); }
@@ -486,8 +498,10 @@ export class TasksDashboard {
             else if (d.getTime() === now.getTime()) { dateColor = '#f59e0b'; dateText = 'Oggi'; }
         }
 
+        const typeClass = spaceRef?.type === 'interno' ? 'type-interno' : 'type-commessa';
+        
         return `
-            <div id="card-${item.id}" data-task-id="${item.id}" class="premium-task-card" onclick="window.openHubDrawer('${item.id}', '${item.space_ref?.id || ''}')">
+            <div id="card-${item.id}" data-task-id="${item.id}" class="premium-task-card ${typeClass}" onclick="window.openHubDrawer('${item.id}', '${item.space_ref?.id || ''}')">
                 <div class="card-check-btn" onclick="event.stopPropagation(); window._dash.completeTask('${item.id}')"><i class="material-icons-round" style="font-size: 14px;">done</i></div>
                 <div class="card-title-row">
                     <h4 class="card-title">${item.title} ${isWorking ? `<div style="display:inline-flex; align-items:center; gap:4px; font-size:0.55rem; color:#3b82f6; font-weight:800; margin-left:8px;"><span class="pulsing-dot" style="width:4px; height:4px; background: #3b82f6;"></span>IN CORSO</div>` : ''}</h4>
