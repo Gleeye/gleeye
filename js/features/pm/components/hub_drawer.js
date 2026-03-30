@@ -507,7 +507,10 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                     @media (max-width: 768px) {
                         #full-screen-btn { display: none !important; }
-                        .drawer-header { padding: 0.75rem 1rem !important; }
+                        .drawer-header { 
+                            padding: 0.75rem 1rem !important; 
+                            padding-top: calc(0.75rem + env(safe-area-inset-top, 40px)) !important; 
+                        }
                         .drawer-body { padding: 0 0.75rem !important; }
                         .metadata-container {
                             padding: 0.5rem 0.75rem !important;
@@ -580,6 +583,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 </style>
                 <div class="drawer-header" style="
                     padding: 1.25rem 1.5rem; 
+                    padding-top: calc(1.5rem + env(safe-area-inset-top, 30px));
                     border-bottom: 1px solid #f1f5f9; 
                     display: flex; 
                     flex-direction: column;
@@ -602,45 +606,45 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     <!-- Middle Row: Title & Actions -->
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 1rem;">
                         <div id="item-title-container" style="min-width: 0; flex: 1;">
-                            <h2 id="item-title-view" style="margin: 0; font-size: 1.35rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; font-family: 'Satoshi', sans-serif; letter-spacing: -0.02em; cursor: pointer; border-radius: 6px; padding: 4px 8px; margin-left: -8px; transition: all 0.2s; border: 1px solid transparent; width: fit-content;" onmouseover="this.style.background='rgba(59, 130, 246, 0.05)'; this.style.borderColor='rgba(59, 130, 246, 0.15)';" onmouseout="this.style.background='transparent'; this.style.borderColor='transparent';">
+                            <h2 id="item-title-view" style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #1a1f36; line-height: 1.25; font-family: 'Satoshi', sans-serif; letter-spacing: -0.02em; cursor: pointer; border-radius: 12px; padding: 4px 10px; margin-left: -10px; transition: all 0.2s; border: 1.2px solid transparent; width: fit-content;" onmouseover="this.style.background='rgba(78, 146, 216, 0.05)'; this.style.borderColor='rgba(78, 146, 216, 0.15)';" onmouseout="this.style.background='transparent'; this.style.borderColor='transparent';">
                                 ${item.title || 'Senza Titolo'}
                             </h2>
                         </div>
-                        <div style="display: flex; gap: 0.6rem; align-items: center; flex-shrink: 0;">
+                        <div style="display: flex; gap: 0.75rem; align-items: center; flex-shrink: 0;">
                             ${isEdit ? `
-                                <button id="toggle-subscription-btn" class="icon-btn" title="${isSubscribed ? 'Smetti di seguire' : 'Segui attività'}" style="width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: ${isSubscribed ? 'rgba(59, 130, 246, 0.08)' : '#fff'}; border: 1px solid ${isSubscribed ? 'rgba(59, 130, 246, 0.3)' : '#e2e8f0'}; color: ${isSubscribed ? 'var(--brand-blue)' : 'var(--text-tertiary)'}; transition: all 0.2s;">
-                                    <span class="material-icons-round" style="font-size: 1.2rem;">${isSubscribed ? 'notifications_active' : 'notifications_none'}</span>
+                                <button id="toggle-subscription-btn" class="icon-btn" title="${isSubscribed ? 'Smetti di seguire' : 'Segui attività'}" style="width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: ${isSubscribed ? 'rgba(59, 130, 246, 0.08)' : '#fff'}; border: 1.2px solid ${isSubscribed ? 'rgba(59, 130, 246, 0.3)' : '#e2e8f0'}; color: ${isSubscribed ? 'var(--brand-blue)' : 'var(--text-tertiary)'}; transition: all 0.2s;">
+                                    <span class="material-icons-round" style="font-size: 20px;">${isSubscribed ? 'notifications_active' : 'notifications_none'}</span>
                                 </button>
                             ` : ''}
                             
-                            <div style="display: flex; align-items: center; gap: 0.4rem; padding-left: 0.4rem; border-left: 1px solid #e2e8f0;">
-                                <button class="icon-btn more-actions-btn" id="header-more-actions" style="width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #e2e8f0; color: var(--text-tertiary);">
-                                    <span class="material-icons-round" style="font-size: 1.2rem;">more_vert</span>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding-left: 0.5rem; border-left: 1.2px solid #e2e8f0;">
+                                <button class="icon-btn more-actions-btn" id="header-more-actions" style="width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1.2px solid #e2e8f0; color: var(--text-tertiary);">
+                                    <span class="material-icons-round" style="font-size: 20px;">more_vert</span>
                                 </button>
-                                <button class="icon-btn" id="header-close-btn" style="width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #e2e8f0; color: var(--text-tertiary);">
-                                    <span class="material-icons-round" style="font-size: 1.2rem;">close</span>
+                                <button class="icon-btn" id="header-close-btn" style="width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1.2px solid #e2e8f0; color: var(--text-tertiary);">
+                                    <span class="material-icons-round" style="font-size: 20px;">close</span>
                                 </button>
                             </div>
                         </div>
                     </div>
 
                     <!-- Bottom Row: Breadcrumb (Full Width) -->
-                    <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform:uppercase; font-weight: 500; display: flex; align-items: center; gap: 2px; flex-wrap: wrap; line-height: 1.4; margin-top: 2px;">
+                    <div style="font-size: 0.72rem; color: #697386; text-transform: uppercase; font-weight: 700; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; line-height: 1.5; margin-top: 6px; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.05em;">
                         ${breadcrumb}
                     </div>
                 </div>
-                <div id="more-actions-menu" class="hidden dropdown-menu glass-card" style="position: absolute; top: 120px; right: 24px; padding: 6px; z-index: 1000; min-width: 190px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); border: 1px solid var(--glass-border); background: white;">
-                    <div class="menu-action-opt" id="duplicate-item-btn" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--text-primary); transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                        <span class="material-icons-round" style="font-size: 1.1rem; color: #64748b;">content_copy</span>
+                <div id="more-actions-menu" class="hidden dropdown-menu glass-card" style="position: absolute; top: 120px; right: 24px; padding: 6px; z-index: 1000; min-width: 210px; box-shadow: 0 16px 48px rgba(0,0,0,0.12); border: 1.2px solid rgba(0, 0, 0, 0.06); background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(20px); border-radius: 16px;">
+                    <div class="menu-action-opt" id="duplicate-item-btn" style="padding: 12px 16px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 0.9rem; color: #1a1f36; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600;" onmouseover="this.style.background='rgba(78, 146, 216, 0.05)'; this.style.color='#4e92d8';" onmouseout="this.style.background='transparent'; this.style.color='#1a1f36';">
+                        <span class="material-icons-round" style="font-size: 1.25rem; opacity: 0.8;">content_copy</span>
                         <span>Duplica</span>
                     </div>
-                    <div class="menu-action-opt" id="copy-link-btn" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--text-primary); transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                        <span class="material-icons-round" style="font-size: 1.1rem; color: #64748b;">link</span>
+                    <div class="menu-action-opt" id="copy-link-btn" style="padding: 12px 16px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 0.9rem; color: #1a1f36; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600;" onmouseover="this.style.background='rgba(78, 146, 216, 0.05)'; this.style.color='#4e92d8';" onmouseout="this.style.background='transparent'; this.style.color='#1a1f36';">
+                        <span class="material-icons-round" style="font-size: 1.25rem; opacity: 0.8;">link</span>
                         <span>Copia link diretto</span>
                     </div>
-                    <div style="height: 1px; background: #f1f5f9; margin: 4px 6px;"></div>
-                    <div class="menu-action-opt" id="delete-item-btn" style="padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #ef4444; transition: background 0.2s;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">
-                        <span class="material-icons-round" style="font-size: 1.1rem; color: #ef4444;">delete_outline</span>
+                    <div style="height: 1.2px; background: #f1f5f9; margin: 6px 10px;"></div>
+                    <div class="menu-action-opt" id="delete-item-btn" style="padding: 12px 16px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 0.9rem; color: #ef4444; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">
+                        <span class="material-icons-round" style="font-size: 1.25rem; color: #ef4444; opacity: 0.9;">delete_outline</span>
                         <span>Elimina</span>
                     </div>
                 </div>
@@ -653,38 +657,38 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
                             
                             <!-- Desktop Metadata Grid (Hidden on Mobile via CSS) -->
-                            <div class="metadata-grid" style="display: grid; grid-template-columns: ${isExpanded ? '1fr 1fr' : 'repeat(4, 1fr)'}; gap: 1rem 2rem; width: 100%; transition: all 0.3s ease;">
+                            <div class="metadata-grid" style="display: grid; grid-template-columns: ${isExpanded ? '1fr 1fr' : 'repeat(4, 1fr)'}; gap: 1.25rem 2.5rem; width: 100%; transition: all 0.3s ease;">
                                 <!-- Inizio -->
                                 <div id="start-date-btn" class="date-trigger" style="cursor: pointer; min-width: 0;">
-                                    <label class="hover-label" style="display: block; font-size: 0.62rem; font-weight: 500; color: #94a3b8; text-transform:uppercase; letter-spacing: 0.05em;">INIZIO</label>
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <span class="material-icons-round" style="font-size: 1.1rem; color: #8b5cf6; opacity: 0.6;">calendar_today</span>
-                                        <span style="font-size: 0.85rem; font-weight: 500; color: var(--text-primary); white-space: nowrap;">${item.start_date ? new Date(item.start_date).toLocaleDateString('it-IT') : 'Imposta...'}</span>
+                                    <label class="hover-label" style="display: block; font-size: 0.65rem; font-weight: 800; color: #697386; text-transform: uppercase; letter-spacing: 0.06em; font-family: 'Plus Jakarta Sans', sans-serif; margin-bottom: 6px;">INIZIO</label>
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span class="material-icons-round" style="font-size: 1.15rem; color: #614aa2; opacity: 0.85;">calendar_today</span>
+                                        <span style="font-size: 1rem; font-weight: 700; color: #1a1f36; white-space: nowrap; font-family: 'Plus Jakarta Sans', sans-serif;">${item.start_date ? new Date(item.start_date).toLocaleDateString('it-IT') : 'Imposta...'}</span>
                                     </div>
                                 </div>
 
                                 <!-- Fine -->
                                 <div id="due-date-btn" class="date-trigger" style="cursor: pointer; min-width: 0;">
-                                    <label class="hover-label" style="display: block; font-size: 0.62rem; font-weight: 500; color: #94a3b8; text-transform:uppercase; letter-spacing: 0.05em;">SCADENZA</label>
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <span class="material-icons-round" style="font-size: 1.1rem; color: #f43f5e; opacity: 0.6;">event</span>
-                                        <span style="font-size: 0.85rem; font-weight: 500; color: ${item.due_date && new Date(item.due_date) < new Date() ? '#ef4444' : 'var(--text-primary)'}; white-space: nowrap;">${item.due_date ? new Date(item.due_date).toLocaleDateString('it-IT') : 'Imposta...'}</span>
+                                    <label class="hover-label" style="display: block; font-size: 0.65rem; font-weight: 800; color: #697386; text-transform: uppercase; letter-spacing: 0.06em; font-family: 'Plus Jakarta Sans', sans-serif; margin-bottom: 6px;">SCADENZA</label>
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span class="material-icons-round" style="font-size: 1.15rem; color: #ef4444; opacity: 0.85;">event</span>
+                                        <span style="font-size: 1rem; font-weight: 700; color: ${item.due_date && new Date(item.due_date) < new Date() ? '#ef4444' : '#1a1f36'}; white-space: nowrap; font-family: 'Plus Jakarta Sans', sans-serif;">${item.due_date ? new Date(item.due_date).toLocaleDateString('it-IT') : 'Imposta...'}</span>
                                     </div>
                                 </div>
 
-                                <!-- Priorità (Desktop Only part of grid) -->
+                                <!-- Priorità -->
                                 <div style="min-width: 0;">
-                                    <label class="hover-label" style="display: block; font-size: 0.62rem; font-weight: 500; color: #94a3b8; text-transform:uppercase; letter-spacing: 0.05em;">PRIORITÀ</label>
-                                    <button class="priority-trigger priority-trigger-btn-desktop" style="appearance: none; border: none; padding: 5px 10px; border-radius: 8px; background: ${ITEM_PRIORITY[item.priority || 'medium']?.color}12; color: ${ITEM_PRIORITY[item.priority || 'medium']?.color}; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600;">
-                                        <span class="material-icons-round" style="font-size: 1rem;">flag</span>
+                                    <label class="hover-label" style="display: block; font-size: 0.65rem; font-weight: 800; color: #697386; text-transform: uppercase; letter-spacing: 0.06em; font-family: 'Plus Jakarta Sans', sans-serif; margin-bottom: 6px;">PRIORITÀ</label>
+                                    <button class="priority-trigger priority-trigger-btn-desktop" style="appearance: none; border: none; padding: 6px 14px; border-radius: 10px; background: ${ITEM_PRIORITY[item.priority || 'medium']?.color}14; color: ${ITEM_PRIORITY[item.priority || 'medium']?.color}; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif;">
+                                        <span class="material-icons-round" style="font-size: 1.15rem;">flag</span>
                                         <span>${ITEM_PRIORITY[item.priority || 'medium']?.label}</span>
                                     </button>
                                 </div>
 
-                                <!-- Stato (Desktop Only part of grid) -->
+                                <!-- Stato -->
                                 <div style="min-width: 0;">
-                                    <label class="hover-label" style="display: block; font-size: 0.62rem; font-weight: 500; color: #94a3b8; text-transform:uppercase; letter-spacing: 0.05em;">STATO</label>
-                                    <button class="status-trigger status-trigger-btn-desktop" style="appearance: none; border: none; padding: 5px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; background-color: ${ITEM_STATUS[item.status]?.bg || '#f1f5f9'}; color: ${ITEM_STATUS[item.status]?.color || '#64748b'}; cursor: pointer;">
+                                    <label class="hover-label" style="display: block; font-size: 0.65rem; font-weight: 800; color: #697386; text-transform: uppercase; letter-spacing: 0.06em; font-family: 'Plus Jakarta Sans', sans-serif; margin-bottom: 6px;">STATO</label>
+                                    <button class="status-trigger status-trigger-btn-desktop" style="appearance: none; border: none; padding: 6px 16px; border-radius: 10px; font-size: 0.9rem; font-weight: 800; background-color: ${ITEM_STATUS[item.status]?.bg || '#f1f5f9'}; color: ${ITEM_STATUS[item.status]?.color || '#697386'}; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif;">
                                         <span>${ITEM_STATUS[item.status]?.label || item.status}</span>
                                     </button>
                                 </div>
@@ -693,25 +697,25 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             <!-- Ultra-Compact Mobile Metadata Bar (Single Row) -->
                             <div class="mobile-metadata-bar" style="display: none;">
                                 <!-- Single Line Dates: separately clickable -->
-                                <div class="mobile-date-text" style="display: flex; align-items: center; gap: 4px;">
-                                    <span class="material-icons-round" style="font-size: 0.9rem; color: #94a3b8;">calendar_today</span>
-                                    <span id="mobile-start-date" style="cursor: pointer;">${item.start_date ? new Date(item.start_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '--'}</span>
+                                <div class="mobile-date-text" style="display: flex; align-items: center; gap: 6px; font-family: 'Plus Jakarta Sans', sans-serif;">
+                                    <span class="material-icons-round" style="font-size: 1rem; color: #697386;">calendar_today</span>
+                                    <span id="mobile-start-date" style="cursor: pointer; font-weight: 700; color: #1a1f36;">${item.start_date ? new Date(item.start_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '--'}</span>
                                     <span style="color: #cbd5e1; margin: 0 4px;">–</span>
-                                    <span id="mobile-due-date" style="cursor: pointer;">${item.due_date ? new Date(item.due_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '--'}</span>
+                                    <span id="mobile-due-date" style="cursor: pointer; font-weight: 700; color: ${item.due_date && new Date(item.due_date) < new Date() ? '#ef4444' : '#1a1f36'};">${item.due_date ? new Date(item.due_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '--'}</span>
                                 </div>
 
-                                <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
                                     <!-- Priority -->
-                                    <button class="priority-trigger mobile-meta-item" style="color: ${ITEM_PRIORITY[item.priority || 'medium']?.color};">
-                                        <span class="material-icons-round" style="font-size: 0.9rem;">flag</span>
+                                    <button class="priority-trigger mobile-meta-item" style="color: ${ITEM_PRIORITY[item.priority || 'medium']?.color}; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; display: flex; align-items: center; gap: 4px;">
+                                        <span class="material-icons-round" style="font-size: 1rem;">flag</span>
                                         <span>${ITEM_PRIORITY[item.priority || 'medium']?.label}</span>
                                     </button>
 
                                     <span style="color: #f1f5f9;">|</span>
 
                                     <!-- Status -->
-                                    <button class="status-trigger mobile-meta-item" style="color: ${ITEM_STATUS[item.status]?.color || '#64748b'};">
-                                        <div style="width: 6px; height: 6px; border-radius: 50%; background: ${ITEM_STATUS[item.status]?.color || '#64748b'};"></div>
+                                    <button class="status-trigger mobile-meta-item" style="color: ${ITEM_STATUS[item.status]?.color || '#697386'}; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; display: flex; align-items: center; gap: 6px;">
+                                        <div style="width: 6px; height: 6px; border-radius: 50%; background: ${ITEM_STATUS[item.status]?.color || '#697386'};"></div>
                                         <span>${ITEM_STATUS[item.status]?.label || item.status}</span>
                                     </button>
                                 </div>
@@ -737,44 +741,44 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         </div>
 
                         <!-- Team Section (PM & Assignees) -->
-                        <div class="team-section-grid" style="display: grid; grid-template-columns: ${isExpanded ? '1fr' : '1fr 1fr'}; gap: ${isExpanded ? '1.75rem' : '2rem'}; margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px dashed #f1f5f9; align-items: flex-start;">
+                        <div class="team-section-grid" style="display: grid; grid-template-columns: ${isExpanded ? '1fr' : '1fr 1fr'}; gap: ${isExpanded ? '1.5rem' : '1.75rem'}; margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1.2px dashed #f1f5f9; align-items: flex-start;">
                             <!-- Project Manager -->
                             <div style="width: 100%; display: flex; flex-direction: column;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                    <label style="display: block; font-size: 0.65rem; font-weight: 500; color: #94a3b8; text-transform:uppercase; letter-spacing: 0.05em; line-height: 1;">RESPONSABILE</label>
-                                    <span class="material-icons-round team-expand-toggle" data-target="pm-list" style="font-size: 1rem; color: #94a3b8; cursor: pointer; display: none;">expand_more</span>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <label style="display: block; font-size: 0.65rem; font-weight: 800; color: #697386; text-transform: uppercase; letter-spacing: 0.06em; line-height: 1; font-family: 'Plus Jakarta Sans', sans-serif;">RESPONSABILE</label>
+                                    <span class="material-icons-round team-expand-toggle" data-target="pm-list" style="font-size: 1rem; color: #697386; cursor: pointer; display: none;">expand_more</span>
                                 </div>
-                                <div id="pm-list" class="mobile-team-list is-collapsed" style="display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; min-height: 32px; position: relative;">
+                                <div id="pm-list" class="mobile-team-list is-collapsed" style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; min-height: 36px; position: relative;">
                                     ${assignees.filter(a => a.role === 'pm').map(a => `
-                                        <div class="assignee-pill" style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; padding-left: 4px; background: rgba(139, 92, 246, 0.04); border: 1px solid rgba(139, 92, 246, 0.1); border-radius: 20px; font-size: 0.8rem; font-weight: 400; color: #8b5cf6; min-width: 0; height: 32px; box-sizing: border-box; position: relative; padding-right: 28px;">
-                                            ${renderAvatar(a.user, { size: 24, borderRadius: '50%' })}
+                                        <div class="assignee-pill" style="display: flex; align-items: center; gap: 8px; padding: 4px 12px; padding-left: 4px; background: #f5f3ff; border: 1.2px solid #ddd6fe; border-radius: 20px; font-size: 0.85rem; font-weight: 500; color: #7c3aed; min-width: 0; height: 36px; box-sizing: border-box; position: relative; padding-right: 32px; font-family: 'Outfit', sans-serif;">
+                                            ${renderAvatar(a.user, { size: 28, borderRadius: '50%' })}
                                             <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${a.user?.full_name && a.user.full_name !== 'null' ? a.user.full_name : joinNames(a.user?.first_name, a.user?.last_name) || 'PM'}</span>
-                                            <div onclick="window.quickRemoveAssignee('${itemId}', '${a.id}')" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; background: rgba(139, 92, 246, 0.1); color: #8b5cf6; transition: all 0.2s;" onmouseover="this.style.background='rgba(139, 92, 246, 0.3)'" onmouseout="this.style.background='rgba(139, 92, 246, 0.1)'">
-                                                <span class="material-icons-round" style="font-size: 12px;">close</span>
+                                            <div onclick="window.quickRemoveAssignee('${itemId}', '${a.id}')" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; background: #ede9fe; color: #7c3aed; transition: all 0.2s;" onmouseover="this.style.background='#ddd6fe'" onmouseout="this.style.background='#ede9fe'">
+                                                <span class="material-icons-round" style="font-size: 14px;">close</span>
                                             </div>
                                         </div>
                                     `).join('')}
-                                    <button id="add-pm-btn" class="icon-btn" style="width: 26px; height: 26px; border-radius: 50%; border: 1px dashed #8b5cf6; background: transparent; color: #8b5cf6; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.6; flex-shrink: 0;"><span class="material-icons-round" style="font-size: 1rem;">add</span></button>
+                                    <button id="add-pm-btn" class="icon-btn" style="width: 32px; height: 32px; border-radius: 50%; border: 1.2px dashed #7c3aed; background: transparent; color: #7c3aed; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.7; flex-shrink: 0;"><span class="material-icons-round" style="font-size: 18px;">add</span></button>
                                 </div>
                             </div>
 
                             <!-- Assegnatari -->
                             <div style="flex: 1; display: flex; flex-direction: column;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                    <label style="display: block; font-size: 0.65rem; font-weight: 500; color: #94a3b8; text-transform:uppercase; letter-spacing: 0.05em; line-height: 1;">ASSEGNATARI</label>
-                                    <span class="material-icons-round team-expand-toggle" data-target="assignee-list" style="font-size: 1rem; color: #94a3b8; cursor: pointer; display: none;">expand_more</span>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <label style="display: block; font-size: 0.65rem; font-weight: 800; color: #697386; text-transform: uppercase; letter-spacing: 0.06em; line-height: 1; font-family: 'Plus Jakarta Sans', sans-serif;">ASSEGNATARI</label>
+                                    <span class="material-icons-round team-expand-toggle" data-target="assignee-list" style="font-size: 1rem; color: #697386; cursor: pointer; display: none;">expand_more</span>
                                 </div>
-                                <div id="assignee-list" class="mobile-team-list is-collapsed" style="display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; min-height: 32px; position: relative;">
+                                <div id="assignee-list" class="mobile-team-list is-collapsed" style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; min-height: 36px; position: relative;">
                                     ${assignees.filter(a => a.role !== 'pm').map(a => `
-                                        <div class="assignee-pill" style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; padding-left: 4px; background: #fff; border: 1px solid #f1f5f9; border-radius: 20px; font-size: 0.8rem; font-weight: 400; color: var(--text-secondary); box-shadow: 0 1px 2px rgba(0,0,0,0.02); min-width: 0; height: 32px; box-sizing: border-box; position: relative; padding-right: 28px;">
-                                            ${renderAvatar(a.user, { size: 24, borderRadius: '50%' })}
+                                        <div class="assignee-pill" style="display: flex; align-items: center; gap: 8px; padding: 4px 12px; padding-left: 4px; background: #f8fafc; border: 1.2px solid #e2e8f0; border-radius: 20px; font-size: 0.85rem; font-weight: 500; color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.02); min-width: 0; height: 36px; box-sizing: border-box; position: relative; padding-right: 32px; font-family: 'Outfit', sans-serif;">
+                                            ${renderAvatar(a.user, { size: 28, borderRadius: '50%' })}
                                             <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${a.user?.full_name && a.user.full_name !== 'null' ? a.user.full_name : joinNames(a.user?.first_name, a.user?.last_name) || 'User'}</span>
-                                            <div onclick="window.quickRemoveAssignee('${itemId}', '${a.id}')" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #64748b; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
-                                                <span class="material-icons-round" style="font-size: 12px;">close</span>
+                                            <div onclick="window.quickRemoveAssignee('${itemId}', '${a.id}')" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #64748b; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                                                <span class="material-icons-round" style="font-size: 14px;">close</span>
                                             </div>
                                         </div>
                                     `).join('')}
-                                    <button id="add-assignee-btn" class="icon-btn" style="width: 26px; height: 26px; border-radius: 50%; border: 1px dashed #cbd5e1; background: transparent; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.7; flex-shrink: 0;"><span class="material-icons-round" style="font-size: 1rem;">add</span></button>
+                                    <button id="add-assignee-btn" class="icon-btn" style="width: 32px; height: 32px; border-radius: 50%; border: 1.2px dashed #cbd5e1; background: transparent; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.8; flex-shrink: 0;"><span class="material-icons-round" style="font-size: 18px;">add</span></button>
                                 </div>
                             </div>
                         </div>
@@ -791,53 +795,53 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     </div>
 
                     <!-- Description Section -->
-                    <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0; position: relative;">
-                         <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); margin-bottom: 0.75rem; text-transform:uppercase; letter-spacing: 0.05em; font-family: 'Satoshi', sans-serif;">DESCRIZIONE</label>
-                         <div id="item-description-container" style="min-height: 80px;">
-                            <div id="item-description-view" style="font-size: 0.95rem; color: var(--text-primary); line-height: 1.6; white-space: pre-wrap; border-radius: 12px; cursor: pointer; padding: 14px; transition: all 0.2s; background: #f8fafc; border: 1px solid #f1f5f9; width: 100%; word-break: break-word; margin: 0;" onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.background='white'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.03)'" onmouseout="this.style.borderColor='#f1f5f9'; this.style.background='#f8fafc'; this.style.boxShadow='none'">${(item.notes && item.notes.trim()) || '<span style="color: #94a3b8; font-style: italic;">Aggiungi una descrizione per dare più contesto al team...</span>'}</div>
+                    <div style="padding: 1.5rem 1.75rem; border-bottom: 1.2px solid #f1f5f9; position: relative;">
+                         <label style="display: block; font-size: 0.65rem; font-weight: 800; color: #697386; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.06em; font-family: 'Plus Jakarta Sans', sans-serif;">DESCRIZIONE</label>
+                         <div id="item-description-container" style="min-height: 100px;">
+                            <div id="item-description-view" style="font-size: 1rem; color: #1a1f36; line-height: 1.6; white-space: pre-wrap; border-radius: 16px; cursor: pointer; padding: 20px; transition: all 0.3s; background: #fafbfc; border: 1.2px solid rgba(0,0,0,0.04); width: 100%; word-break: break-word; margin: 0; font-family: 'Plus Jakarta Sans', sans-serif;" onmouseover="this.style.borderColor='#4e92d8'; this.style.background='white'; this.style.boxShadow='0 12px 32px rgba(78, 146, 216, 0.08)'" onmouseout="this.style.borderColor='rgba(0,0,0,0.04)'; this.style.background='#fafbfc'; this.style.boxShadow='none'">${(item.notes && item.notes.trim()) || '<span style="color: #a0aec0; font-style: italic;">Aggiungi una descrizione per dare più contesto al team...</span>'}</div>
                          </div>
-                         <div id="desc-saving-indicator" class="hidden" style="position: absolute; top: 1.5rem; right: 1.5rem; font-size: 0.65rem; color: var(--brand-blue); font-weight: 700; display: flex; align-items: center; gap: 4px;">
-                              <span class="material-icons-round" style="font-size: 0.8rem; animation: spin-hub 1s linear infinite;">sync</span> SALVATAGGIO...
+                         <div id="desc-saving-indicator" class="hidden" style="position: absolute; top: 1.5rem; right: 1.75rem; font-size: 0.72rem; color: #4e92d8; font-weight: 800; display: flex; align-items: center; gap: 6px; font-family: 'Plus Jakarta Sans', sans-serif;">
+                              <span class="material-icons-round" style="font-size: 1rem; animation: spin-hub 1s linear infinite;">sync</span> SALVATAGGIO...
                          </div>
                     </div>
 
                     ${isExpanded ? '</div> <!-- Close sidebar --><div class="drawer-content-main" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f8fafc;">' : ''}
 
                     <!-- Tab Navigation -->
-                    <div class="drawer-tabs" style="display: flex; flex-wrap: nowrap; border-bottom: 1px solid #e2e8f0; background: #ffffff !important; position: sticky; top: 0; z-index: 100; padding: 0 1rem; gap: 0.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.03); overflow-x: auto; min-width: 0; width: 100%; max-width: 100%;">
+                    <div class="drawer-tabs" style="display: flex; flex-wrap: nowrap; border-bottom: 1.2px solid #f1f5f9; background: #ffffff !important; position: sticky; top: 0; z-index: 100; padding: 0 1.25rem; gap: 0.5rem; box-shadow: 0 4px 20px rgba(0,0,0,0.02); overflow-x: auto; min-width: 0; width: 100%; max-width: 100%; scrollbar-width: none;">
                         ${state.profile?.role === 'admin' ? `
-                        <div class="drawer-tab ${item.item_type === 'task' ? 'active' : ''}" data-tab="activity" style="padding: 1rem 0.75rem; font-size: 0.85rem; font-weight: ${item.item_type === 'task' ? '700' : '600'}; color: ${item.item_type === 'task' ? 'var(--brand-blue)' : 'var(--text-tertiary)'}; border-bottom: 2px solid ${item.item_type === 'task' ? 'var(--brand-blue)' : 'transparent'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
-                            <span class="material-icons-round" style="font-size: 1rem;">history</span>
+                        <div class="drawer-tab ${item.item_type === 'task' ? 'active' : ''}" data-tab="activity" style="padding: 1.1rem 1rem; font-size: 0.85rem; font-weight: ${item.item_type === 'task' ? '700' : '600'}; color: ${item.item_type === 'task' ? '#4e92d8' : '#697386'}; border-bottom: 2.5px solid ${item.item_type === 'task' ? '#4e92d8' : 'transparent'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
+                            <span class="material-icons-round" style="font-size: 1.1rem;">history</span>
                             Feed
                         </div>
                         ` : ''}
 
                         ${(item.item_type || itemType) !== 'task' ? `
-                        <div class="drawer-tab ${(item.item_type || itemType) !== 'task' ? 'active' : ''}" data-tab="subtasks" style="padding: 1rem 0.75rem; font-size: 0.85rem; font-weight: ${(item.item_type || itemType) !== 'task' ? '700' : '600'}; color: ${(item.item_type || itemType) !== 'task' ? 'var(--brand-blue)' : 'var(--text-tertiary)'}; border-bottom: 2px solid ${(item.item_type || itemType) !== 'task' ? 'var(--brand-blue)' : 'transparent'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
-                            <span class="material-icons-round" style="font-size: 1rem;">checklist</span>
+                        <div class="drawer-tab ${(item.item_type || itemType) !== 'task' ? 'active' : ''}" data-tab="subtasks" style="padding: 1.1rem 1rem; font-size: 0.85rem; font-weight: ${(item.item_type || itemType) !== 'task' ? '700' : '600'}; color: ${(item.item_type || itemType) !== 'task' ? '#4e92d8' : '#697386'}; border-bottom: 2.5px solid ${(item.item_type || itemType) !== 'task' ? '#4e92d8' : 'transparent'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
+                            <span class="material-icons-round" style="font-size: 1.1rem;">checklist</span>
                             Board
-                             ${subItems.length > 0 ? `<span style="font-size: 0.75rem; opacity: 0.6;">(${subItems.length})</span>` : ''}
+                             ${subItems.length > 0 ? `<span style="font-size: 0.75rem; background: rgba(78, 146, 216, 0.08); padding: 2px 6px; border-radius: 6px; margin-left: 2px;">${subItems.length}</span>` : ''}
                         </div>
                         ` : ''}
 
-                        <div class="drawer-tab ${item.item_type === 'task' && state.profile?.role !== 'admin' ? 'active' : ''}" data-tab="comments" style="padding: 1rem 0.75rem; font-size: 0.85rem; font-weight: ${item.item_type === 'task' && state.profile?.role !== 'admin' ? '700' : '600'}; color: ${item.item_type === 'task' && state.profile?.role !== 'admin' ? 'var(--brand-blue)' : 'var(--text-tertiary)'}; border-bottom: 2px solid ${item.item_type === 'task' && state.profile?.role !== 'admin' ? 'var(--brand-blue)' : 'transparent'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
-                            <span class="material-icons-round" style="font-size: 1rem;">chat_bubble_outline</span>
+                        <div class="drawer-tab ${item.item_type === 'task' && state.profile?.role !== 'admin' ? 'active' : ''}" data-tab="comments" style="padding: 1.1rem 1rem; font-size: 0.85rem; font-weight: ${item.item_type === 'task' && state.profile?.role !== 'admin' ? '700' : '600'}; color: ${item.item_type === 'task' && state.profile?.role !== 'admin' ? '#4e92d8' : '#697386'}; border-bottom: 2.5px solid ${item.item_type === 'task' && state.profile?.role !== 'admin' ? '#4e92d8' : 'transparent'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
+                            <span class="material-icons-round" style="font-size: 1.1rem;">chat_bubble_outline</span>
                             Commenti
                             ${unreadCommentsCount > 0 && state.profile?.role === 'admin' ? `
-                                <span class="unread-badge" style="background: var(--error-soft); color: white; min-width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; margin-left: 2px; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);">
+                                <span class="unread-badge" style="background: #ef4444; color: white; min-width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; margin-left: 4px; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);">
                                     ${unreadCommentsCount}
                                 </span>
                             ` : ''}
                         </div>
 
-                        <div class="drawer-tab" data-tab="resources" style="padding: 1rem 0.75rem; font-size: 0.85rem; font-weight: 600; color: var(--text-tertiary); border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
-                            <span class="material-icons-round" style="font-size: 1rem;">cloud_queue</span>
+                        <div class="drawer-tab" data-tab="resources" style="padding: 1.1rem 1rem; font-size: 0.85rem; font-weight: 600; color: #697386; border-bottom: 2.5px solid transparent; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
+                            <span class="material-icons-round" style="font-size: 1.1rem;">cloud_queue</span>
                             Risorse
-                            ${item.cloud_links?.length > 0 ? `<span style="font-size: 0.75rem; opacity: 0.6;">(${item.cloud_links.length})</span>` : ''}
+                            ${item.cloud_links?.length > 0 ? `<span style="font-size: 0.75rem; background: #f1f5f9; padding: 2px 6px; border-radius: 6px; margin-left: 2px;">${item.cloud_links.length}</span>` : ''}
                         </div>
 
-                        <div class="drawer-tab" data-tab="report" style="padding: 1rem 0.75rem; font-size: 0.85rem; font-weight: 600; color: var(--text-tertiary); border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
-                            <span class="material-icons-round" style="font-size: 1rem;">description</span>
+                        <div class="drawer-tab" data-tab="report" style="padding: 1.1rem 1rem; font-size: 0.85rem; font-weight: 600; color: #697386; border-bottom: 2.5px solid transparent; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
+                            <span class="material-icons-round" style="font-size: 1.1rem;">description</span>
                             Report
                         </div>
                     </div>
@@ -845,49 +849,54 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     ${isExpanded ? '<div class="panes-scrollable" style="flex: 1; overflow-y: auto;">' : ''}
 
                     <div id="tab-subtasks" class="tab-pane ${item.item_type !== 'task' ? '' : 'hidden'}">
-                        <div class="sub-items-section" style="padding: 1.5rem;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                                <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); text-transform:uppercase; letter-spacing: 0.05em; font-family: 'Satoshi', sans-serif;">BOARD</label>
+                        <div class="sub-items-section" style="padding: 1.5rem 1.75rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                                <label style="display: block; font-size: 0.65rem; font-weight: 800; color: #697386; text-transform: uppercase; letter-spacing: 0.06em; font-family: 'Plus Jakarta Sans', sans-serif;">BOARD</label>
                                 <div style="position: relative;">
-                                    <button id="add-sub-item-btn" style="display: flex; align-items: center; gap: 4px; border: none; background: transparent; color: var(--brand-blue); font-size: 0.75rem; font-weight: 700; cursor: pointer; padding: 6px 10px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.05)'" onmouseout="this.style.background='transparent'">
-                                        <span class="material-icons-round" style="font-size: 1.1rem;">add</span> NUOVA
+                                    <button id="add-sub-item-btn" style="display: flex; align-items: center; gap: 6px; border: none; background: transparent; color: #4e92d8; font-size: 0.8rem; font-weight: 800; cursor: pointer; padding: 8px 12px; border-radius: 10px; transition: all 0.2s; font-family: 'Satoshi', sans-serif;" onmouseover="this.style.background='rgba(78, 146, 216, 0.08)'" onmouseout="this.style.background='transparent'">
+                                        <span class="material-icons-round" style="font-size: 1.2rem;">add</span> NUOVA
                                     </button>
-                                    <div id="add-sub-item-menu" class="hidden dropdown-menu glass-card" style="position: absolute; top: calc(100% + 4px); right: 0; width: 190px; z-index: 1000;">
-                                        <div class="menu-item add-sub-item-opt" data-type="attivita" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: 0.2s;">
-                                            <span class="material-icons-round" style="font-size: 1.2rem; color: #f59e0b;">folder</span>
-                                            <span style="font-size: 0.85rem; font-weight: 600;">Sotto-attività</span>
+                                    <div id="add-sub-item-menu" class="hidden dropdown-menu glass-card" style="position: absolute; top: calc(100% + 6px); right: 0; width: 210px; z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding: 6px;">
+                                        <div class="menu-item add-sub-item-opt" data-type="attivita" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; transition: 0.2s; border-radius: 8px;">
+                                            <span class="material-icons-round" style="font-size: 1.25rem; color: #f59e0b;">folder</span>
+                                            <span style="font-size: 0.9rem; font-weight: 600; font-family: 'Outfit', sans-serif;">Sotto-attività</span>
                                         </div>
-                                        <div class="menu-item add-sub-item-opt" data-type="task" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: 0.2s;">
-                                            <span class="material-icons-round" style="font-size: 1.2rem; color: #3b82f6;">check_circle_outline</span>
-                                            <span style="font-size: 0.85rem; font-weight: 600;">Task</span>
+                                        <div class="menu-item add-sub-item-opt" data-type="task" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; transition: 0.2s; border-radius: 8px;">
+                                            <span class="material-icons-round" style="font-size: 1.25rem; color: #3b82f6;">check_circle_outline</span>
+                                            <span style="font-size: 0.9rem; font-weight: 600; font-family: 'Outfit', sans-serif;">Task</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <div id="sub-items-list" style="display: flex; flex-direction: column; gap: 10px;">
+                            <div id="sub-items-list" style="display: flex; flex-direction: column; gap: 12px;">
                                 ${(() => {
-                    const activeSubItems = subItems; // Show all or filter as before? User said "mettile nelle tab", I'll show current logic but in tab
+                    const activeSubItems = subItems;
                     if (activeSubItems.length === 0) {
-                        return `<div style="font-size: 0.85rem; color: #94a3b8; font-style: italic; padding: 20px; text-align: center; background: #f8fafc; border: 1.5px dashed #e2e8f0; border-radius: 12px;">Nessuna sotto-attività presente.</div>`;
+                        return `
+                            <div style="font-size: 0.9rem; color: #94a3b8; font-style: italic; padding: 40px 20px; text-align: center; background: #fff; border: 1.5px dashed #f1f5f9; border-radius: 16px; font-family: 'Outfit', sans-serif; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+                                <span class="material-icons-round" style="font-size: 2.5rem; opacity: 0.2;">auto_stories</span>
+                                Nessun contenuto qui. Inizia aggiungendo una task o attività.
+                            </div>`;
                     }
                     return activeSubItems.map(si => `
-                                    <div class="sub-item-row" data-id="${si.id}" style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; cursor: pointer; transition: all 0.2s;">
-                                        <div style="width: 32px; height: 32px; border-radius: 8px; background: ${si.item_type === 'attivita' ? '#fff7ed' : '#eff6ff'}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                            <span class="material-icons-round" style="font-size: 1.1rem; color: ${si.item_type === 'attivita' ? '#f59e0b' : '#3b82f6'};">
+                                    <div class="sub-item-row" data-id="${si.id}" style="display: flex; align-items: center; gap: 14px; padding: 14px; background: #fff; border: 1.2px solid #f1f5f9; border-radius: 14px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.01);" onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.boxShadow='0 4px 12px rgba(59, 130, 246, 0.05)'; this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='#f1f5f9'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.01)'; this.style.transform='none'">
+                                        <div style="width: 36px; height: 36px; border-radius: 10px; background: ${si.item_type === 'attivita' ? '#fff7ed' : '#eff6ff'}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                            <span class="material-icons-round" style="font-size: 1.2rem; color: ${si.item_type === 'attivita' ? '#f59e0b' : '#3b82f6'};">
                                                 ${si.item_type === 'attivita' ? 'folder' : 'check_circle_outline'}
                                             </span>
                                         </div>
-                                        <div style="flex: 1; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">${si.title}</div>
+                                        <div style="flex: 1; font-size: 0.95rem; font-weight: 600; color: var(--text-primary); font-family: 'Outfit', sans-serif; letter-spacing: -0.01em;">${si.title}</div>
                                         <div style="display: flex; align-items: center;">
                                             ${(si.pm_item_assignees || []).slice(0, 3).map((a, idx) => `
-                                                <div class="avatar-stack-item" style="margin-left: ${idx === 0 ? '0' : '-8px'}; z-index: ${5 - idx}; border: 1.5px solid white; border-radius: 50%;">
-                                                    ${renderAvatar(a.user, { size: 24, borderRadius: '50%', fontSize: '9px' })}
+                                                <div class="avatar-stack-item" style="margin-left: ${idx === 0 ? '0' : '-10px'}; z-index: ${5 - idx}; border: 2px solid white; border-radius: 50%;">
+                                                    ${renderAvatar(a.user, { size: 26, borderRadius: '50%', fontSize: '10px' })}
                                                 </div>
                                             `).join('')}
+                                            ${(si.pm_item_assignees || []).length > 3 ? `<div style="margin-left: -10px; z-index: 1; width: 26px; height: 26px; border-radius: 50%; background: #f1f5f9; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; color: #64748b;">+${si.pm_item_assignees.length - 3}</div>` : ''}
                                         </div>
                                         ${si.due_date ? `
-                                            <div style="font-size: 0.75rem; color: ${new Date(si.due_date) < new Date() ? '#ef4444' : '#64748b'}; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: ${new Date(si.due_date) < new Date() ? '#fef2f2' : '#f1f5f9'}; border-radius: 6px;">
-                                                <span class="material-icons-round" style="font-size: 0.95rem;">${new Date(si.due_date) < new Date() ? 'history' : 'event'}</span>
+                                            <div style="font-size: 0.75rem; color: ${new Date(si.due_date) < new Date() ? '#ef4444' : '#64748b'}; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 4px; padding: 5px 10px; background: ${new Date(si.due_date) < new Date() ? '#fef2f2' : '#f8fafc'}; border: 1px solid ${new Date(si.due_date) < new Date() ? '#fee2e2' : '#f1f5f9'}; border-radius: 8px; font-family: 'Outfit', sans-serif;">
+                                                <span class="material-icons-round" style="font-size: 1rem;">${new Date(si.due_date) < new Date() ? 'history' : 'event'}</span>
                                                 ${new Date(si.due_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
                                             </div>
                                         ` : ''}
@@ -904,22 +913,23 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     ` : ''}
 
                     <div id="tab-comments" class="tab-pane ${state.profile?.role === 'admin' ? 'hidden' : ''}">
-                        <div class="comments-section" style="padding: 1.5rem;">
-                            <div id="comments-list" style="margin-bottom: 5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+                        <div class="comments-section" style="padding: 1.5rem 1.75rem;">
+                            <div id="comments-list" style="margin-bottom: 5rem; display: flex; flex-direction: column; gap: 1.5rem;">
                                 ${comments.length === 0 ? `
-                                    <div style="text-align: center; padding: 2rem 0; color: var(--text-tertiary);">
-                                        <span class="material-icons-round" style="font-size: 2.5rem; opacity: 0.3; margin-bottom: 0.5rem;">forum</span>
-                                        <p style="font-size: 0.85rem;">Nessun commento qui.</p>
+                                    <div style="text-align: center; padding: 4rem 1rem; color: #a0aec0; font-family: 'Plus Jakarta Sans', sans-serif;">
+                                        <span class="material-icons-round" style="font-size: 3rem; opacity: 0.15; margin-bottom: 0.75rem;">chat_bubble_outline</span>
+                                        <p style="font-size: 0.95rem; font-weight: 500;">Ancora nessun commento.</p>
+                                        <p style="font-size: 0.8rem; opacity: 0.7;">Inizia la conversazione taggando un collega.</p>
                                     </div>
                                 ` : comments.map(c => `
-                                    <div style="display: flex; gap: 12px;">
-                                        ${renderAvatar(c.profiles, { size: 32, borderRadius: '50%' })}
+                                    <div style="display: flex; gap: 14px;">
+                                        ${renderAvatar(c.profiles, { size: 36, borderRadius: '50%' })}
                                         <div style="flex: 1;">
-                                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 4px;">
-                                                <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">${c.profiles?.full_name || 'Utente'}</span>
-                                                <span style="font-size: 0.65rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.02em;">${new Date(c.created_at).toLocaleDateString('it-IT')}</span>
+                                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px;">
+                                                <span style="font-size: 0.9rem; font-weight: 700; color: #1a1f36; font-family: 'Plus Jakarta Sans', sans-serif;">${c.profiles?.full_name || 'Utente'}</span>
+                                                <span style="font-size: 0.65rem; font-weight: 700; color: #697386; text-transform: uppercase; letter-spacing: 0.05em; font-family: 'Plus Jakarta Sans', sans-serif;">${new Date(c.created_at).toLocaleDateString('it-IT')}</span>
                                             </div>
-                                            <div class="comment-bubble" style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; padding: 10px 14px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 0 12px 12px 12px; position: relative; width: fit-content; max-width: 100%; box-sizing: border-box; word-break: break-word;">
+                                            <div class="comment-bubble" style="font-size: 0.95rem; color: #1a1f36; line-height: 1.6; padding: 12px 16px; background: #fafbfc; border: 1.2px solid rgba(0,0,0,0.04); border-radius: 0 16px 16px 16px; position: relative; width: fit-content; max-width: 100%; box-sizing: border-box; word-break: break-word; font-family: 'Plus Jakarta Sans', sans-serif;">
                                                 ${c.body}
                                                 ${(() => {
                         const myRole = assignees.find(a => a.user_ref === state.profile?.id)?.role;
@@ -929,8 +939,8 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                         if (isAdmin || isAuthor || isPM) {
                             return `
-                                                    <button class="delete-comment-btn" data-id="${c.id}" style="position: absolute; right: 4px; top: -10px; width: 20px; height: 20px; border-radius: 50%; border: 1px solid #fee2e2; background: #fff; color: #ef4444; cursor: pointer; opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" title="Elimina commento">
-                                                        <span class="material-icons-round" style="font-size: 12px;">close</span>
+                                                    <button class="delete-comment-btn" data-id="${c.id}" style="position: absolute; right: 4px; top: -12px; width: 22px; height: 22px; border-radius: 50%; border: 1.2px solid #fee2e2; background: #fff; color: #ef4444; cursor: pointer; opacity: 0; transition: all 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 8px rgba(0,0,0,0.06);" title="Elimina commento">
+                                                        <span class="material-icons-round" style="font-size: 14px;">close</span>
                                                     </button>
                                                 `;
                         }
@@ -938,8 +948,8 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     })()}
                                             </div>
                                             <style>
-                                                .comment-bubble:hover .delete-comment-btn { opacity: 1 !important; }
-                                                .delete-comment-btn:hover { color: var(--error-soft) !important; }
+                                                .comment-bubble:hover .delete-comment-btn { opacity: 1 !important; transform: scale(1.1); }
+                                                .delete-comment-btn:hover { background: #fef2f2 !important; }
                                             </style>
                                         </div>
                                     </div>
@@ -957,34 +967,34 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     <div id="tab-report" class="tab-pane hidden">
                         <div class="report-section" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
                             <!-- Upload Area -->
-                            <div id="report-upload-zone" style="
-                                border: 2px dashed #cbd5e1;
-                                border-radius: 16px;
-                                padding: 2rem;
+                                <div id="report-upload-zone" style="
+                                border: 2.2px dashed rgba(78, 146, 216, 0.2);
+                                border-radius: 20px;
+                                padding: 3rem 2rem;
                                 text-align: center;
-                                background: #f8fafc;
+                                background: #fafbfc;
                                 cursor: pointer;
-                                transition: all 0.2s ease;
-                            " onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.background='#eff6ff';" onmouseout="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc';">
-                                <span class="material-icons-round" style="font-size: 3rem; color: var(--brand-blue); opacity: 0.5; margin-bottom: 1rem;">mic</span>
-                                <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">Trascina qui il memo vocale</div>
-                                <div style="font-size: 0.8rem; color: var(--text-tertiary);">Supporta MP3, WAV, M4A (Max 50MB)</div>
+                                transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                            " onmouseover="this.style.borderColor='#4e92d8'; this.style.background='white'; this.style.boxShadow='0 20px 40px rgba(78, 146, 216, 0.08)';" onmouseout="this.style.borderColor='rgba(78, 146, 216, 0.2)'; this.style.background='#fafbfc'; this.style.boxShadow='none';">
+                                <span class="material-icons-round" style="font-size: 3.5rem; color: #4e92d8; opacity: 0.4; margin-bottom: 1.25rem;">mic</span>
+                                <div style="font-weight: 700; color: #1a1f36; margin-bottom: 0.5rem; font-family: 'Satoshi', sans-serif; font-size: 1.1rem;">Trascina qui il memo vocale</div>
+                                <div style="font-size: 0.82rem; color: #697386; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 500;">Supporta MP3, WAV, M4A (Max 50MB)</div>
                                 <input type="file" id="report-audio-input" accept="audio/*" style="display: none;">
                             </div>
 
                             <!-- Action Bar -->
-                            <div id="report-action-bar" class="hidden" style="display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 1rem; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-                                <div style="display: flex; align-items: center; gap: 12px;">
-                                    <div style="width: 32px; height: 32px; border-radius: 8px; background: #eff6ff; display: flex; align-items: center; justify-content: center;">
-                                        <span class="material-icons-round" style="font-size: 1.2rem; color: var(--brand-blue);">audiotrack</span>
+                            <div id="report-action-bar" class="hidden" style="display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 1.25rem; border: 1.2px solid #f1f5f9; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.03);">
+                                <div style="display: flex; align-items: center; gap: 14px;">
+                                    <div style="width: 38px; height: 38px; border-radius: 12px; background: rgba(78, 146, 216, 0.08); display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-icons-round" style="font-size: 1.35rem; color: #4e92d8;">audiotrack</span>
                                     </div>
                                     <div style="min-width: 0;">
-                                        <div id="selected-audio-name" style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;">file_senza_nome.mp3</div>
-                                        <div id="selected-audio-size" style="font-size: 0.7rem; color: var(--text-tertiary);">1.2 MB</div>
+                                        <div id="selected-audio-name" style="font-size: 0.9rem; font-weight: 700; color: #1a1f36; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px; font-family: 'Plus Jakarta Sans', sans-serif;">file_senza_nome.mp3</div>
+                                        <div id="selected-audio-size" style="font-size: 0.72rem; color: #697386; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600;">1.2 MB</div>
                                     </div>
                                 </div>
-                                <button id="generate-report-btn" class="primary-btn" style="padding: 8px 16px; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;">
-                                    <span class="material-icons-round" style="font-size: 1.1rem;">auto_awesome</span> GENERA REPORT AI
+                                <button id="generate-report-btn" class="nt-btn-premium" style="padding: 10px 20px; font-size: 0.82rem;">
+                                    <span class="material-icons-round" style="font-size: 1.2rem;">auto_awesome</span> GENERA REPORT AI
                                 </button>
                             </div>
 
@@ -1270,15 +1280,65 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
             });
         } else {
             drawer.innerHTML = `
-                <div class="drawer-header" style="padding: 1.25rem 2rem; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); flex-shrink: 0; position: sticky; top: 0; z-index: 10;">
-                    <div style="display: flex; flex-direction: column; overflow: hidden;">
+                <style>
+                    #item-form .form-group label {
+                        font-family: 'Plus Jakarta Sans', sans-serif !important;
+                        font-weight: 700 !important;
+                        letter-spacing: 0.05em !important;
+                        color: #697386 !important;
+                        text-transform: uppercase !important;
+                        font-size: 0.65rem !important;
+                        margin-bottom: 0.65rem !important;
+                        display: block;
+                    }
+                    #item-form .input-modern {
+                        font-family: 'Plus Jakarta Sans', sans-serif !important;
+                        transition: all 0.3s ease !important;
+                        border: 1.2px solid #f1f5f9 !important;
+                        background: #fff !important;
+                        border-radius: 10px !important;
+                        color: #1a1f36 !important;
+                        font-weight: 500 !important;
+                    }
+                    #item-form .input-modern:focus {
+                        border-color: #4e92d8 !important;
+                        box-shadow: 0 0 0 4px rgba(78, 146, 216, 0.12) !important;
+                    }
+                    .form-grid-2 {
+                        display: grid; 
+                        grid-template-columns: 1fr 1fr; 
+                        gap: 1.5rem;
+                    }
+                    @media (max-width: 768px) {
+                        .drawer-header-new {
+                            padding: 1.25rem 1rem !important;
+                            padding-top: calc(1rem + env(safe-area-inset-top, 40px)) !important;
+                        }
+                        .drawer-body-new {
+                            padding: 1rem !important;
+                        }
+                        .form-grid-2 {
+                            grid-template-columns: 1fr !important;
+                            gap: 1.25rem !important;
+                        }
+                        #item-form {
+                            gap: 1.25rem !important;
+                        }
+                        .drawer-footer-new {
+                            padding: 1rem !important;
+                            padding-bottom: calc(1rem + env(safe-area-inset-bottom, 20px)) !important;
+                        }
+                    }
+                </style>
+                <div class="drawer-header drawer-header-new" style="padding: 1.25rem 2rem; border-bottom: 1.2px solid rgba(0,0,0,0.06); display: flex; justify-content: space-between; align-items: center; background: #ffffff !important; flex-shrink: 0; position: sticky; top: 0; z-index: 100;">
+                    <div style="display: flex; flex-direction: column; overflow: hidden; min-width: 0;">
                         ${item && item.parent_item ? `
-                        <div id="back-to-parent-btn" style="display: flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 800; color: var(--brand-blue); cursor: pointer; margin-bottom: 4px; text-transform: uppercase; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
+                        <div id="back-to-parent-btn" style="display: flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 800; color: #4e92d8; cursor: pointer; margin-bottom: 4px; text-transform: uppercase; transition: opacity 0.2s; font-family: 'Plus Jakarta Sans', sans-serif;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
                             <span class="material-icons-round" style="font-size: 1rem;">arrow_back</span>
                             Torna a ${item.parent_item.title}
                         </div>
                         ` : ''}
-                        <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600; color: var(--text-primary); letter-spacing: -0.01em; font-family: var(--font-titles); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        <h2 style="margin: 0; font-size: 1.35rem; font-weight: 700; color: #1a1f36; letter-spacing: -0.02em; font-family: 'Satoshi', sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             ${isEdit ? 'Modifica' : 'Nuova'} ${(() => {
                     switch (item.item_type || itemType) {
                         case 'task': return 'Task';
@@ -1290,9 +1350,9 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 })()}
                         </h2>
                     </div>
-                    <button id="header-close-btn" class="icon-btn" style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; transition: all 0.2s;"><span class="material-icons-round" style="font-size: 20px;">close</span></button>
+                    <button id="header-close-btn" class="icon-btn" style="width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: #fafbfc; border: 1.2px solid #f1f5f9; color: #a0aec0; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#ef4444'; this.style.color='#ef4444';" onmouseout="this.style.borderColor='#f1f5f9'; this.style.color='#a0aec0';"><span class="material-icons-round" style="font-size: 20px;">close</span></button>
                 </div>
-                <div class="drawer-body" style="flex: 1; overflow-y: auto; padding: 1.5rem 2rem;">
+                <div class="drawer-body drawer-body-new" style="flex: 1; overflow-y: auto; padding: 2rem; background: #fcfcfd;">
                     <form id="item-form" style="display: flex; flex-direction: column; gap: 1.75rem; max-width: 580px; margin: 0 auto;">
                         <input type="hidden" id="task-space-ref" name="space_ref" value="${currentSpaceId || ''}">
                         <input type="hidden" name="item_type" value="${item.item_type || itemType}">
@@ -1302,12 +1362,12 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         <!-- Context Selection -->
                         ${!currentSpaceId ? `
                         <div class="form-group">
-                            <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Progetto o Commessa</label>
+                            <label>Progetto o Commessa</label>
                             <div style="position: relative;">
                                 <div id="context-picker-trigger" style="
-                                    padding: 0 14px; height: 44px; background: #f8fafc; border: 1.2px solid #e2e8f0; border-radius: 10px; 
+                                    padding: 0 14px; height: 44px; background: #fff; border: 1.2px solid #e2e8f0; border-radius: 10px; 
                                     font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
-                                    transition: all 0.2s;
+                                    transition: all 0.2s; font-family: 'Outfit', sans-serif;
                                 ">
                                     <div style="display: flex; align-items: center; gap: 10px;">
                                         <span class="material-icons-round" style="font-size: 18px; color: var(--brand-blue);">
@@ -1353,29 +1413,29 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                         <!-- Title -->
                         <div class="form-group">
-                            <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Titolo</label>
-                            <input type="text" name="title" required value="${item.title || ''}" class="input-modern" style="height: 44px; padding: 0 14px; border-radius: 10px; font-weight: 500; font-size: 1rem; border: 1.2px solid #e2e8f0; width: 100%; box-sizing: border-box; background: var(--input-bg);">
+                            <label>Titolo</label>
+                            <input type="text" name="title" required value="${item.title || ''}" class="input-modern" style="height: 48px; padding: 0 16px; border-radius: 12px; font-weight: 600; font-size: 1rem; border: 1.2px solid #e2e8f0; width: 100%; box-sizing: border-box; background: #fff;" placeholder="Cosa dobbiamo fare?">
                         </div>
 
                         <div style="height: 1px; background: #f1f5f9; margin: 0.5rem 0;"></div>
                         
                         <!-- People -->
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        <div class="form-grid-2">
                             <div class="form-group">
-                                <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Project Manager</label>
-                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px; border: 1.2px solid #e2e8f0; border-radius: 10px; min-height: 44px; background: white;">
+                                <label>Project Manager</label>
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px; border: 1.2px solid #e2e8f0; border-radius: 12px; min-height: 48px; background: white; box-sizing: border-box;">
                                     ${pendingAssignees.filter(a => a.role === 'pm').map((a) => {
                         const originalIdx = pendingAssignees.indexOf(a);
                         return `
-                                        <div class="pending-assignee-pill" style="display: flex; align-items: center; gap: 6px; background: #f5f3ff; color: #7c3aed; padding: 3px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 400; border: 1px solid #ddd6fe; max-width: 100%;">
-                                            <img src="${a.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(a.displayName)}" style="width: 18px; height: 18px; border-radius: 4px;">
+                                        <div class="pending-assignee-pill" style="display: flex; align-items: center; gap: 6px; background: #f5f3ff; color: #7c3aed; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 500; border: 1px solid #ddd6fe; max-width: 100%; font-family: 'Outfit', sans-serif;">
+                                            <img src="${a.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(a.displayName)}" style="width: 20px; height: 20px; border-radius: 6px;">
                                             <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${a.displayName || a.user?.full_name || [a.user?.first_name, a.user?.last_name].filter(v => v && v !== 'null').join(' ') || 'User'}</span>
                                             <span class="material-icons-round remove-pending-btn" data-idx="${originalIdx}" style="font-size: 14px; cursor: pointer; opacity: 0.6;">close</span>
                                         </div>
                                         `;
                     }).join('')}
                                     <div style="position: relative;">
-                                        <button type="button" id="form-add-pm-btn" style="width: 28px; height: 28px; border-radius: 6px; border: 1.2px dashed #cbd5e1; background: transparent; color: var(--text-tertiary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"><span class="material-icons-round" style="font-size: 18px;">add</span></button>
+                                        <button type="button" id="form-add-pm-btn" style="width: 32px; height: 32px; border-radius: 8px; border: 1.2px dashed #cbd5e1; background: transparent; color: var(--text-tertiary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"><span class="material-icons-round" style="font-size: 20px;">add</span></button>
                                         <div id="form-pm-picker" class="hidden glass-card" style="position: absolute; top: calc(100% + 6px); left: 0; width: 260px; background: white; border: 1.2px solid #e2e8f0; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); z-index: 1000; padding: 0; overflow: hidden;">
                                             ${renderUserPicker(currentSpaceId, 'pm', new Set(pendingAssignees.filter(a => a.role === 'pm').map(a => a.user_ref || a.collaborator_ref)), new Set(spaceAssigneesPool.map(sa => sa.collaborator_ref || sa.user_ref)), 'Tutti i responsabili')}
                                         </div>
@@ -1384,21 +1444,21 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             </div>
 
                             <div class="form-group">
-                                <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Assegnato a</label>
-                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px; border: 1.2px solid #e2e8f0; border-radius: 10px; min-height: 44px; background: white;">
+                                <label>Assegnato a</label>
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px; border: 1.2px solid #e2e8f0; border-radius: 12px; min-height: 48px; background: white; box-sizing: border-box;">
                                     ${pendingAssignees.filter(a => a.role !== 'pm').map((a) => {
                         const originalIdx = pendingAssignees.indexOf(a);
                         return `
-                                        <div class="pending-assignee-pill" style="display: flex; align-items: center; gap: 6px; background: #f8fafc; padding: 3px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 400; border: 1.2px solid #e2e8f0; color: var(--text-primary); max-width: 100%;">
-                                            <img src="${a.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(a.displayName)}" style="width: 18px; height: 18px; border-radius: 4px;">
+                                        <div class="pending-assignee-pill" style="display: flex; align-items: center; gap: 6px; background: #f8fafc; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 500; border: 1.2px solid #e2e8f0; color: var(--text-primary); max-width: 100%; font-family: 'Outfit', sans-serif;">
+                                            <img src="${a.user?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(a.displayName)}" style="width: 20px; height: 20px; border-radius: 6px;">
                                             <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${a.displayName}</span>
                                             <span class="material-icons-round remove-pending-btn" data-idx="${originalIdx}" style="font-size: 14px; cursor: pointer; color: var(--text-tertiary);">close</span>
                                         </div>
                                         `;
                     }).join('')}
                                     <div style="position: relative;">
-                                        <button type="button" id="form-add-assignee-btn" style="width: 28px; height: 28px; border-radius: 6px; border: 1.2px dashed #cbd5e1; background: transparent; color: var(--text-tertiary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"><span class="material-icons-round" style="font-size: 18px;">add</span></button>
-                                        <div id="form-assignee-picker" class="hidden glass-card" style="position: absolute; top: calc(100% + 6px); left: 0; width: 260px; background: var(--card-bg); border: 1.2px solid var(--glass-border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); z-index: 1000; padding: 0; overflow: hidden;">
+                                        <button type="button" id="form-add-assignee-btn" style="width: 32px; height: 32px; border-radius: 8px; border: 1.2px dashed #cbd5e1; background: transparent; color: var(--text-tertiary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"><span class="material-icons-round" style="font-size: 20px;">add</span></button>
+                                        <div id="form-assignee-picker" class="hidden glass-card" style="position: absolute; top: calc(100% + 6px); left: 0; width: 260px; background: #fff; border: 1.2px solid #e2e8f0; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); z-index: 1000; padding: 0; overflow: hidden;">
                                             ${renderUserPicker(currentSpaceId, 'assignee', new Set(pendingAssignees.filter(a => a.role !== 'pm').map(a => a.user_ref || a.collaborator_ref)), new Set(spaceAssigneesPool.map(sa => sa.collaborator_ref || sa.user_ref)), 'Tutti i collaboratori')}
                                         </div>
                                     </div>
@@ -1410,36 +1470,36 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         <div style="height: 1px; background: #f1f5f9; margin: 0.5rem 0;"></div>
 
                         <!-- Dates & Priority -->
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        <div class="form-grid-2">
                             <div class="form-group">
-                                <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Pianificazione</label>
+                                <label>Pianificazione</label>
                                 <div style="display: flex; gap: 8px;">
-                                    <div id="form-start-date-trigger" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 44px; background: var(--input-bg); border: 1.2px solid #e2e8f0; border-radius: 10px; padding: 0 12px; font-size: 0.9rem;">
+                                    <div id="form-start-date-trigger" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 48px; background: #fff; border: 1.2px solid #e2e8f0; border-radius: 12px; padding: 0 12px; font-size: 0.9rem; font-family: 'Outfit', sans-serif;">
                                         <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">play_arrow</span>
-                                        <span style="${!item.start_date ? 'color: var(--text-tertiary);' : 'font-weight: 500;'}">${item.start_date ? new Date(item.start_date).toLocaleDateString('it-IT') : 'Inizio'}</span>
+                                        <span style="${!item.start_date ? 'color: var(--text-tertiary);' : 'font-weight: 600;'}">${item.start_date ? new Date(item.start_date).toLocaleDateString('it-IT') : 'Inizio'}</span>
                                     </div>
-                                    <div id="form-due-date-trigger" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 44px; background: var(--input-bg); border: 1.2px solid #e2e8f0; border-radius: 10px; padding: 0 12px; font-size: 0.9rem;">
+                                    <div id="form-due-date-trigger" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 48px; background: #fff; border: 1.2px solid #e2e8f0; border-radius: 12px; padding: 0 12px; font-size: 0.9rem; font-family: 'Outfit', sans-serif;">
                                         <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">event_available</span>
-                                        <span style="${!item.due_date ? 'color: var(--text-tertiary);' : 'font-weight: 500;'}">${item.due_date ? new Date(item.due_date).toLocaleDateString('it-IT') : 'Scadenza'}</span>
+                                        <span style="${!item.due_date ? 'color: var(--text-tertiary);' : 'font-weight: 600;'}">${item.due_date ? new Date(item.due_date).toLocaleDateString('it-IT') : 'Scadenza'}</span>
                                     </div>
                                 </div>
                                 <input type="hidden" name="start_date" value="${item.start_date || ''}">
                                 <input type="hidden" name="due_date" value="${item.due_date || ''}">
                             </div>
                             <div class="form-group">
-                                <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Stato e Priorità</label>
+                                <label>Stato e Priorità</label>
                                 <div style="display: flex; gap: 8px;">
                                      <div style="flex: 1.2; position: relative;">
-                                        <div id="form-status-trigger" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 1.2px solid var(--glass-border); background: var(--input-bg); font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                                        <div id="form-status-trigger" style="height: 48px; padding: 0 12px; border-radius: 12px; border: 1.2px solid #e2e8f0; background: #fff; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-family: 'Outfit', sans-serif;">
                                             <div style="display: flex; align-items: center; gap: 8px;">
                                                 <div style="width: 8px; height: 8px; border-radius: 50%; background: ${ITEM_STATUS[item.status || 'todo']?.color || '#94a3b8'};"></div>
                                                 <span>${ITEM_STATUS[item.status || 'todo']?.label || 'Da Fare'}</span>
                                             </div>
                                             <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">expand_more</span>
                                         </div>
-                                        <div id="form-status-picker" class="hidden glass-card" style="position: absolute; top: calc(100% + 6px); left: 0; width: 100%; z-index: 1000; background: var(--card-bg); border: 1.2px solid var(--glass-border); border-radius: 12px; box-shadow: 0 12px 48px rgba(0,0,0,0.12); padding: 6px;">
+                                        <div id="form-status-picker" class="hidden glass-card" style="position: absolute; top: calc(100% + 6px); left: 0; width: 100%; z-index: 1000; background: #fff; border: 1.2px solid #e2e8f0; border-radius: 12px; box-shadow: 0 12px 48px rgba(0,0,0,0.12); padding: 6px;">
                                             ${Object.keys(ITEM_STATUS).map(k => `
-                                                <div class="status-option-item" data-value="${k}" style="padding: 8px 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; transition: background 0.2s;">
+                                                <div class="status-option-item" data-value="${k}" style="padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; transition: background 0.2s; font-family: 'Outfit', sans-serif; font-weight: 600;">
                                                     <div style="width: 8px; height: 8px; border-radius: 50%; background: ${ITEM_STATUS[k].color};"></div>
                                                     <span>${ITEM_STATUS[k].label}</span>
                                                 </div>
@@ -1448,16 +1508,16 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                         <input type="hidden" name="status" value="${item.status || 'todo'}">
                                     </div>
                                     <div style="flex: 1; position: relative;">
-                                        <div id="form-priority-trigger" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 1.2px solid var(--glass-border); background: var(--input-bg); font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                                        <div id="form-priority-trigger" style="height: 48px; padding: 0 12px; border-radius: 12px; border: 1.2px solid #e2e8f0; background: #fff; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-family: 'Outfit', sans-serif;">
                                             <div style="display: flex; align-items: center; gap: 8px;">
                                                 <span class="material-icons-round" style="font-size: 18px; color: ${ITEM_PRIORITY[item.priority || 'medium']?.color || '#94a3b8'};">flag</span>
                                                 <span>${ITEM_PRIORITY[item.priority || 'medium']?.label || 'Media'}</span>
                                             </div>
                                             <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">expand_more</span>
                                         </div>
-                                        <div id="form-priority-picker" class="hidden glass-card" style="position: absolute; top: calc(100% + 6px); left: 0; width: 100%; z-index: 1000; background: var(--card-bg); border: 1.2px solid var(--glass-border); border-radius: 12px; box-shadow: 0 12px 48px rgba(0,0,0,0.12); padding: 6px;">
+                                        <div id="form-priority-picker" class="hidden glass-card" style="position: absolute; top: calc(100% + 6px); left: 0; width: 100%; z-index: 1000; background: #fff; border: 1.2px solid #e2e8f0; border-radius: 12px; box-shadow: 0 12px 48px rgba(0,0,0,0.12); padding: 6px;">
                                             ${Object.keys(ITEM_PRIORITY).map(k => `
-                                                <div class="priority-option-item" data-value="${k}" style="padding: 8px 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; transition: background 0.2s;">
+                                                <div class="priority-option-item" data-value="${k}" style="padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; transition: background 0.2s; font-family: 'Outfit', sans-serif; font-weight: 600;">
                                                     <span class="material-icons-round" style="font-size: 18px; color: ${ITEM_PRIORITY[k].color || '#94a3b8'};">flag</span>
                                                     <span>${ITEM_PRIORITY[k].label}</span>
                                                 </div>
@@ -1475,25 +1535,25 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         ${!isEdit ? `
                         <div class="recurrence-section">
                             <button type="button" id="toggle-recurrence-btn" style="
-                                width: 100%; padding: 0.75rem 1rem; background: #f8fafc; border: 1.2px solid #e2e8f0; 
-                                border-radius: 10px; display: flex; align-items: center; justify-content: space-between;
-                                cursor: pointer; transition: all 0.2s;
+                                width: 100%; padding: 0.85rem 1rem; background: #fff; border: 1.2px solid #e2e8f0; 
+                                border-radius: 12px; display: flex; align-items: center; justify-content: space-between;
+                                cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 6px rgba(0,0,0,0.02);
                             ">
-                                <div style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-weight: 500; font-size: 0.85rem;">
-                                    <span class="material-icons-round" style="font-size: 18px; color: var(--brand-blue);">cached</span>
+                                <div style="display: flex; align-items: center; gap: 10px; color: var(--text-primary); font-weight: 600; font-size: 0.9rem; font-family: 'Outfit', sans-serif;">
+                                    <span class="material-icons-round" style="font-size: 20px; color: var(--brand-blue);">cached</span>
                                     Pianifica come Ricorrente
                                 </div>
-                                <span class="material-icons-round toggle-icon" style="color: var(--text-tertiary); transition: transform 0.3s;">expand_more</span>
+                                <span class="material-icons-round toggle-icon" style="color: var(--text-tertiary); transition: transform 0.3s; font-size: 20px;">expand_more</span>
                             </button>
                             
                             <div id="recurrence-settings-content" class="hidden" style="
                                 padding: 1.5rem; background: #fff; border: 1.2px solid #e2e8f0; border-top: none; 
-                                border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; margin-top: -1px;
+                                border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; margin-top: -1px;
                             ">
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.25rem;">
+                                <div class="form-grid-2" style="margin-bottom: 1.25rem;">
                                     <div>
-                                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 0.4rem;">Frequenza</label>
-                                        <select name="rec_freq" style="height: 38px; width: 100%; border-radius: 8px; border: 1.2px solid #e2e8f0; padding: 0 8px; font-size: 0.9rem;">
+                                        <label>Frequenza</label>
+                                        <select name="rec_freq" style="height: 44px; width: 100%; border-radius: 10px; border: 1.2px solid #e2e8f0; padding: 0 10px; font-size: 0.9rem; font-family: 'Outfit', sans-serif; font-weight: 500;">
                                             <option value="">Nessuna</option>
                                             <option value="DAILY">Ogni giorno</option>
                                             <option value="WEEKLY">Ogni settimana</option>
@@ -1502,10 +1562,10 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                         </select>
                                     </div>
                                     <div>
-                                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 0.4rem;">Ogni quanto</label>
+                                        <label>Ogni quanto</label>
                                         <div style="display: flex; gap: 8px;">
-                                            <input type="number" name="rec_interval" value="1" min="1" style="width: 50px; height: 38px; text-align: center; border-radius: 8px; border: 1.2px solid #e2e8f0; padding: 0;">
-                                            <select name="rec_unit" style="flex: 1; height: 38px; border-radius: 8px; border: 1.2px solid #e2e8f0; padding: 0 8px; font-size: 0.85rem;">
+                                            <input type="number" name="rec_interval" value="1" min="1" style="width: 60px; height: 44px; text-align: center; border-radius: 10px; border: 1.2px solid #e2e8f0; padding: 0; font-family: 'Outfit', sans-serif; font-weight: 600;">
+                                            <select name="rec_unit" style="flex: 1; height: 44px; border-radius: 10px; border: 1.2px solid #e2e8f0; padding: 0 10px; font-size: 0.9rem; font-family: 'Outfit', sans-serif; font-weight: 500;">
                                                 <option value="day">giorno</option>
                                                 <option value="workday">giorno lav.</option>
                                                 <option value="week">settimana</option>
@@ -1515,44 +1575,44 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                         </div>
                                     </div>
                                 </div>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.25rem;">
+                                <div class="form-grid-2" style="margin-bottom: 1.25rem;">
                                     <div>
-                                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 0.4rem;">Dalla data</label>
-                                        <div id="form-rec-start-trigger" style="cursor: pointer; display: flex; align-items: center; gap: 8px; height: 38px; border-radius: 8px; border: 1.2px solid var(--glass-border); padding: 0 10px; font-size: 0.9rem; background: var(--input-bg);">
-                                            <span class="material-icons-round" style="font-size: 16px; color: var(--text-tertiary);">event</span>
-                                            <span style="font-weight: 500;">${new Date().toLocaleDateString('it-IT')}</span>
+                                        <label>Dalla data</label>
+                                        <div id="form-rec-start-trigger" style="cursor: pointer; display: flex; align-items: center; gap: 10px; height: 44px; border-radius: 10px; border: 1.2px solid #e2e8f0; padding: 0 12px; font-size: 0.9rem; background: #fff; font-family: 'Outfit', sans-serif;">
+                                            <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">event</span>
+                                            <span style="font-weight: 600;">${new Date().toLocaleDateString('it-IT')}</span>
                                         </div>
                                         <input type="hidden" name="rec_start" value="${new Date().toISOString().split('T')[0]}">
                                     </div>
                                     <div>
-                                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 0.4rem;">Fino a (opz.)</label>
-                                        <div id="form-rec-until-trigger" style="cursor: pointer; display: flex; align-items: center; gap: 8px; height: 38px; border-radius: 8px; border: 1.2px solid var(--glass-border); padding: 0 10px; font-size: 0.9rem; background: var(--input-bg);">
-                                            <span class="material-icons-round" style="font-size: 16px; color: var(--text-tertiary);">event_busy</span>
+                                        <label>Fino a (opz.)</label>
+                                        <div id="form-rec-until-trigger" style="cursor: pointer; display: flex; align-items: center; gap: 10px; height: 44px; border-radius: 10px; border: 1.2px solid #e2e8f0; padding: 0 12px; font-size: 0.9rem; background: #fff; font-family: 'Outfit', sans-serif;">
+                                            <span class="material-icons-round" style="font-size: 18px; color: var(--text-tertiary);">event_busy</span>
                                             <span style="color: var(--text-tertiary); font-style: italic;">Sempre</span>
                                         </div>
                                         <input type="hidden" name="rec_until" value="">
                                     </div>
                                 </div>
 
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; border-top: 1px solid #f1f5f9; padding-top: 1.25rem;">
-                                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">
-                                            <input type="checkbox" name="rec_limit_active" style="width: 16px; height: 16px;">
+                                <div class="form-grid-2" style="border-top: 1px solid #f1f5f9; padding-top: 1.25rem;">
+                                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text-secondary); font-size: 0.9rem; font-weight: 600; font-family: 'Outfit', sans-serif; text-transform: none !important;">
+                                            <input type="checkbox" name="rec_limit_active" style="width: 18px; height: 18px; border-radius: 4px; accent-color: var(--brand-blue);">
                                             Termina dopo
                                         </label>
-                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                            <input type="number" name="rec_limit_count" value="10" min="1" style="width: 60px; height: 32px; border-radius: 6px; border: 1.2px solid #e2e8f0; text-align: center; font-size: 0.85rem;">
-                                            <span style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase;">volte</span>
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <input type="number" name="rec_limit_count" value="10" min="1" style="width: 70px; height: 36px; border-radius: 8px; border: 1.2px solid #e2e8f0; text-align: center; font-size: 0.9rem; font-weight: 600; font-family: 'Outfit', sans-serif;">
+                                            <span style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase;">volte</span>
                                         </div>
                                     </div>
-                                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">
-                                            <input type="checkbox" name="rec_advance_active" style="width: 16px; height: 16px;">
+                                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text-secondary); font-size: 0.9rem; font-weight: 600; font-family: 'Outfit', sans-serif; text-transform: none !important;">
+                                            <input type="checkbox" name="rec_advance_active" style="width: 18px; height: 18px; border-radius: 4px; accent-color: var(--brand-blue);">
                                             Crea in anticipo
                                         </label>
-                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                            <input type="number" name="rec_advance_count" value="1" min="1" style="width: 60px; height: 32px; border-radius: 6px; border: 1.2px solid #e2e8f0; text-align: center; font-size: 0.85rem;">
-                                            <span style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase;">task</span>
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <input type="number" name="rec_advance_count" value="1" min="1" style="width: 70px; height: 36px; border-radius: 8px; border: 1.2px solid #e2e8f0; text-align: center; font-size: 0.9rem; font-weight: 600; font-family: 'Outfit', sans-serif;">
+                                            <span style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase;">task</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1564,14 +1624,14 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                         <!-- Notes -->
                         <div class="form-group" style="padding-top: 0.5rem;">
-                            <label style="display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem;">Descrizione o Note</label>
-                            <textarea name="notes" rows="4" class="input-modern" style="padding: 12px; font-size: 0.95rem; line-height: 1.6; border-radius: 10px; border: 1.2px solid var(--glass-border); width: 100%; box-sizing: border-box; resize: vertical; min-height: 100px; background: var(--input-bg);" placeholder="Aggiungi dettagli...">${item.notes || ''}</textarea>
+                            <label>Descrizione o Note</label>
+                            <textarea name="notes" rows="6" class="input-modern" style="padding: 16px; font-size: 1rem; line-height: 1.6; border-radius: 12px; border: 1.2px solid #e2e8f0; width: 100%; box-sizing: border-box; resize: vertical; min-height: 120px; background: #fff;" placeholder="Aggiungi dettagli importanti...">${item.notes || ''}</textarea>
                         </div>
                     </form>
                 </div>
-                <div class="drawer-footer" style="padding: 1.25rem 2rem; border-top: 1px solid var(--glass-border); display: flex; justify-content: flex-end; gap: 0.75rem; background: var(--card-bg); flex-shrink: 0; position: sticky; bottom: 0; z-index: 10;">
-                    <button type="button" class="secondary-btn" id="cancel-edit-btn" style="padding: 0.6rem 1.25rem; font-weight: 500; border-radius: 8px; border: 1.2px solid var(--glass-border); background: var(--input-bg); color: var(--text-secondary); cursor: pointer; transition: all 0.2s;">Annulla</button>
-                    <button type="submit" form="item-form" class="primary-btn" style="padding: 0.6rem 1.5rem; font-weight: 600; border-radius: 8px; background: var(--brand-blue); color: white; border: none; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(78, 146, 216, 0.2);">${isEdit ? 'Salva Modifiche' : 'Crea Attività'}</button>
+                <div class="drawer-footer drawer-footer-new" style="padding: 1.25rem 2rem; border-top: 1px solid var(--glass-border); display: flex; justify-content: flex-end; gap: 0.75rem; background: #ffffff !important; flex-shrink: 0; position: sticky; bottom: 0; z-index: 100;">
+                    <button type="button" class="secondary-btn" id="cancel-edit-btn" style="padding: 0.75rem 1.5rem; font-weight: 600; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif;">Annulla</button>
+                    <button type="submit" form="item-form" class="primary-btn" style="padding: 0.75rem 2rem; font-weight: 700; border-radius: 12px; background: var(--brand-blue); color: white; border: none; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25); font-family: 'Outfit', sans-serif;">${isEdit ? 'Salva Modifiche' : 'Crea Attività'}</button>
                 </div>
             `;
             attachEditModeListeners();

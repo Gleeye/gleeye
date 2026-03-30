@@ -1,25 +1,14 @@
 import { supabase } from '../../modules/config.js';
 import { state } from '../../modules/state.js';
-import { showGlobalAlert, formatDate, renderAvatar } from '../../modules/utils.js?v=1000';
+import { showGlobalAlert, formatDate } from '../../modules/utils.js?v=1000';
 import { openHubDrawer } from '../pm/components/hub_drawer.js?v=1000';
 
 // --- VISUAL CONSTANTS ---
 const PRIORITY_CONFIG = {
-    'urgent': { label: 'Urgente', icon: 'priority_high', color: '#ef4444', bg: '#fee2e2' },
-    'high': { label: 'Alta', icon: 'keyboard_double_arrow_up', color: '#f59e0b', bg: '#fef3c7' },
-    'medium': { label: 'Media', icon: 'drag_handle', color: '#3b82f6', bg: '#dbeafe' },
-    'low': { label: 'Bassa', icon: 'keyboard_arrow_down', color: '#64748b', bg: '#f1f5f9' }
-};
-
-const SPACE_COLORS = [
-    '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899', '#8b5cf6'
-];
-
-const STATUS_ICONS = {
-    'todo': { icon: 'circle', color: '#cbd5e1' },
-    'doing': { icon: 'play_circle', color: '#3b82f6' },
-    'blocked': { icon: 'error_outline', color: '#ef4444' },
-    'review': { icon: 'visibility', color: '#f59e0b' }
+    'urgent': { label: 'Urgente', icon: 'error_outline', color: '#ef4444', bg: '#fff5f5' },
+    'high': { label: 'Alta', icon: 'keyboard_double_arrow_up', color: '#f59e0b', bg: '#fffbeb' },
+    'medium': { label: 'Media', icon: 'drag_handle', color: '#4e92d8', bg: '#f0f7ff' },
+    'low': { label: 'Bassa', icon: 'keyboard_arrow_down', color: '#6875ed', bg: '#f5f3ff' }
 };
 
 // --- MAIN COMPONENT ---
@@ -27,16 +16,13 @@ export class TasksDashboard {
     constructor(container) {
         this.container = container;
         this.state = {
-            view: 'kanban', // 'kanban' | 'list'
-            groupBy: 'time', // 'time' | 'priority'
-            filterMode: 'my_tasks', // 'my_tasks' | 'delegated'
-            priorityFilter: 'all', // 'all' | 'urgent' | 'high' | 'medium' | 'low'
-            spaceTypeFilter: 'all', // 'all' | 'commessa' | 'interno'
-            itemTypeFilter: 'all', // 'all' | 'task' | 'attivita' | 'milestone'
+            view: 'kanban',
+            groupBy: 'time',
+            filterMode: 'all', // 'all' | 'my_tasks' | 'delegated'
+            spaceFilter: 'all', // 'all' | 'commessa' | 'interno'
             items: [],
-            delegatedItems: [],
-            spaces: {},
-            isLoading: true
+            isLoading: true,
+            activeBucket: null // For mobile view
         };
 
         this.render = this.render.bind(this);
@@ -49,10 +35,12 @@ export class TasksDashboard {
         await this.fetchData();
         this.render();
         document.addEventListener('pm-item-changed', this.refresh);
+        window.addEventListener('resize', this.render);
     }
 
     destroy() {
         document.removeEventListener('pm-item-changed', this.refresh);
+        window.removeEventListener('resize', this.render);
     }
 
     async refresh() {
@@ -60,42 +48,63 @@ export class TasksDashboard {
         this.render();
     }
 
+    getTargetUserId() {
+        if (state.impersonatedCollaboratorId) {
+            const collab = (state.collaborators || []).find(c => c.id === state.impersonatedCollaboratorId);
+            if (collab && collab.user_id) return collab.user_id;
+        }
+        return state.session?.user?.id;
+    }
+
+    getTargetAuthContext() {
+        if (state.impersonatedRole === 'collaborator' && state.impersonatedCollaboratorId) {
+             const collab = (state.collaborators || []).find(c => c.id === state.impersonatedCollaboratorId);
+             if (collab) {
+                 let tags = collab.tags || [];
+                 if (typeof tags === 'string') {
+                     try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
+                 }
+                 return {
+                     role: 'user',
+                     tags: Array.isArray(tags) ? tags.map(t => t.toLowerCase()) : []
+                 };
+             }
+        }
+        return {
+            role: state.profile?.role || 'user',
+            tags: (state.profile?.tags || []).map(t => t.toLowerCase())
+        };
+    }
+
     async fetchData() {
         try {
-            const user = state.session.user;
-            if (!user) return;
+            const targetUserId = this.getTargetUserId();
+            if (!targetUserId) return;
 
-            const { data: myTasks, error: err1 } = await supabase
+            const selectQuery = `
+                *,
+                space_ref ( 
+                    id, name, type, ref_ordine, is_cluster, parent_ref,
+                    order:ref_ordine ( 
+                        id, title, order_number, 
+                        clients ( id, business_name, client_code ) 
+                    ),
+                    parent:parent_ref ( id, name )
+                ),
+                parent:parent_ref ( id, title ),
+                pm_item_assignees( user_ref ),
+                pm_item_incarichi ( incarico_ref )
+            `;
+
+            const { data, error } = await supabase
                 .from('pm_items')
-                .select(`
-                    *,
-                    space_ref ( id, name, type, ref_ordine ),
-                    pm_item_assignees!inner ( user_ref )
-                `)
-                .eq('pm_item_assignees.user_ref', user.id)
+                .select(selectQuery)
                 .neq('status', 'done')
                 .neq('status', 'archived');
-            if (err1) throw err1;
+            
+            if (error) throw error;
 
-            const { data: createdByMe, error: err2 } = await supabase
-                .from('pm_items')
-                .select(`
-                    *,
-                    space_ref ( id, name, type, ref_ordine ),
-                    pm_item_assignees ( user_ref, collaborator_ref )
-                `)
-                .eq('created_by_user_ref', user.id)
-                .neq('status', 'done')
-                .neq('status', 'archived');
-            if (err2) throw err2;
-
-            const delegated = createdByMe.filter(item => {
-                const assignees = item.pm_item_assignees || [];
-                return !assignees.some(a => a.user_ref === user.id);
-            });
-
-            this.state.items = myTasks || [];
-            this.state.delegatedItems = delegated || [];
+            this.state.items = data || [];
             this.state.isLoading = false;
         } catch (err) {
             console.error("Dashboard Fetch Error:", err);
@@ -104,357 +113,353 @@ export class TasksDashboard {
         }
     }
 
+    async completeTask(id) {
+        try {
+            const { error } = await supabase
+                .from('pm_items')
+                .update({ status: 'done' })
+                .eq('id', id);
+            
+            if (error) throw error;
+            showGlobalAlert('Task completata!', 'success');
+            
+            // Remove locally for snappiness
+            this.state.items = this.state.items.filter(i => i.id !== id);
+            this.render();
+            
+            // Global events
+            document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { id, type: 'task', action: 'completed' }}));
+            if (window.updatePmList) window.updatePmList();
+
+        } catch (err) {
+            console.error("Complete Task Error:", err);
+            showGlobalAlert('Errore completamento task', 'error');
+        }
+    }
+
     getFilteredItems() {
-        let list = this.state.filterMode === 'delegated' ? this.state.delegatedItems : this.state.items;
-        
-        // Priority Filter (Case-insensitive robust match)
-        if (this.state.priorityFilter !== 'all') {
-            const filterValue = this.state.priorityFilter.toLowerCase();
+        const targetUserId = this.getTargetUserId();
+        if (!targetUserId) return [];
+
+        let list = this.state.items;
+        list = list.filter(item => (item.item_type || 'task') === 'task');
+
+        if (this.state.spaceFilter !== 'all') {
+            list = list.filter(item => (item.space_ref?.type || 'unknown') === this.state.spaceFilter);
+        }
+
+        if (this.state.filterMode === 'my_tasks') {
             list = list.filter(item => {
-                const p = (item.priority || 'medium').toLowerCase();
-                return p === filterValue;
+                const assignees = item.pm_item_assignees || [];
+                const isOnlyMe = assignees.length === 1 && assignees[0].user_ref === targetUserId;
+                const isPmNoAssignees = item.pm_user_ref === targetUserId && assignees.length === 0;
+                return isOnlyMe || isPmNoAssignees;
+            });
+        } else if (this.state.filterMode === 'delegated') {
+            list = list.filter(item => {
+                const isOwner = item.pm_user_ref === targetUserId || item.created_by_user_ref === targetUserId;
+                const assignees = item.pm_item_assignees || [];
+                const hasOthers = assignees.some(a => a.user_ref !== targetUserId);
+                return isOwner && hasOthers;
+            });
+        } else {
+            list = list.filter(item => {
+                const assignees = item.pm_item_assignees || [];
+                const isAssigned = assignees.some(a => a.user_ref === targetUserId);
+                const isPm = item.pm_user_ref === targetUserId;
+                const isCreator = item.created_by_user_ref === targetUserId;
+                return isAssigned || isPm || isCreator;
             });
         }
 
-        // Item Type Filter
-        if (this.state.itemTypeFilter !== 'all') {
-            list = list.filter(item => {
-                const type = item.item_type || 'task';
-                return type === this.state.itemTypeFilter;
-            });
-        }
-
-        // Space Type Filter
-        if (this.state.spaceTypeFilter !== 'all') {
-            list = list.filter(item => {
-                const type = item.space_ref?.type;
-                if (this.state.spaceTypeFilter === 'commessa') return type === 'commessa';
-                if (this.state.spaceTypeFilter === 'interno') return type === 'interno';
-                return true;
-            });
-        }
         return list;
     }
 
     categorizeByTime(items) {
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-        const week = new Date(now);
-        week.setDate(week.getDate() + 7);
+        const now = new Date(); now.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
+        const weekEnd = new Date(now); weekEnd.setDate(weekEnd.getDate() + 7);
 
-        const buckets = { working: [], urgent: [], today: [], week: [], future: [] };
+        const buckets = { urgent: [], today: [], tomorrow: [], week: [], future: [] };
         items.forEach(i => {
-            // "In Corso" takes priority
-            if (i.status === 'working' || i.status === 'doing' || i.status === 'in_progress') {
-                buckets.working.push(i);
-                return;
-            }
-
             if (!i.due_date) { buckets.future.push(i); return; }
-            const d = new Date(i.due_date);
-            d.setHours(0, 0, 0, 0);
-            if (d < now) buckets.urgent.push(i);
-            else if (d.getTime() === now.getTime()) buckets.today.push(i);
-            else if (d <= week) buckets.week.push(i);
+            const d = new Date(i.due_date); d.setHours(0, 0, 0, 0);
+            const time = d.getTime();
+             if (time < now.getTime()) buckets.urgent.push(i);
+            else if (time === now.getTime()) buckets.today.push(i);
+            else if (time === tomorrow.getTime()) buckets.tomorrow.push(i);
+            else if (time <= weekEnd.getTime()) buckets.week.push(i);
             else buckets.future.push(i);
         });
         return buckets;
     }
 
     categorizeByPriority(items) {
-        // Force strings to lowercase keys and handle nulls/unknowns
         const buckets = { urgent: [], high: [], medium: [], low: [] };
         items.forEach(i => {
             const p = (i.priority || 'medium').toLowerCase();
-            if (buckets[p]) buckets[p].push(i);
-            else buckets.medium.push(i); // Fallback to medium column
+            if (buckets[p]) buckets[p].push(i); else buckets.medium.push(i);
         });
         return buckets;
     }
 
     renderSkeleton() {
-        return `<div class="animate-pulse" style="padding: 1.5rem 2rem;"><div style="display: grid; grid-template-columns: 320px 1fr; gap: 1.25rem;"><div style="height: 600px; background: white; border-radius: 24px;"></div><div style="height: 600px; background: white; border-radius: 24px;"></div></div></div>`;
+        return `
+            <div class="animate-pulse" style="padding: 1.5rem 2rem;">
+                <div style="height: 68px; background: white; border-radius: 22px; margin-bottom: 2rem; border: 1px solid #f1f5f9;"></div>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem;">
+                    <div style="height: 600px; background: rgba(255,255,255,0.5); border-radius: 24px; border: 1px solid #f1f5f9;"></div>
+                    <div style="height: 600px; background: rgba(255,255,255,0.5); border-radius: 24px; border: 1px solid #f1f5f9;"></div>
+                    <div style="height: 600px; background: rgba(255,255,255,0.5); border-radius: 24px; border: 1px solid #f1f5f9;"></div>
+                    <div style="height: 600px; background: rgba(255,255,255,0.5); border-radius: 24px; border: 1px solid #f1f5f9;"></div>
+                </div>
+            </div>`;
     }
 
     render() {
         if (this.state.isLoading) return;
 
-        const filteredItems = this.getFilteredItems();
-        const activeTitle = this.state.filterMode === 'my_tasks' ? 'Miei Task' : 'Delegati';
+        const isMobile = window.innerWidth <= 768;
+        let filteredItems = this.getFilteredItems();
 
-        this.container.innerHTML = `
-            <div class="tasks-clean-viewport">
-                <style>
-                    .tasks-clean-viewport { 
-                        display: flex;
-                        flex-direction: column;
-                        height: calc(100vh - 100px); 
-                        background: #fff;
-                        font-family: 'Outfit', sans-serif;
-                    }
+        const pScore = { 'urgent': 4, 'high': 3, 'medium': 2, 'low': 1 };
+        filteredItems.sort((a, b) => {
+            if (a.due_date && b.due_date) {
+                const da = new Date(a.due_date).getTime();
+                const db = new Date(b.due_date).getTime();
+                if (da !== db) return da - db;
+            } else if (a.due_date) return -1; else if (b.due_date) return 1;
+            const pa = pScore[a.priority?.toLowerCase()] || 2;
+            const pb = pScore[b.priority?.toLowerCase()] || 2;
+            return pb - pa;
+        });
 
-                    /* --- HEADER & TOOLBAR --- */
-                    .tasks-main-header {
-                        padding: 1.5rem 2rem;
-                        border-bottom: 1px solid #eee;
-                        background: #fff;
-                        display: flex;
-                        flex-direction: column;
-                        gap: 1.25rem;
-                        flex-shrink: 0;
-                    }
-
-                    .header-top {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                    }
-                    .header-top h1 { margin: 0; font-size: 1.4rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
-
-                    .filter-bar {
-                        display: flex;
-                        align-items: center;
-                        gap: 1.5rem;
-                        flex-wrap: wrap;
-                    }
-
-                    .filter-group { display: flex; align-items: center; gap: 8px; }
-                    .filter-label { font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
-
-                    .sub-pill-toggle { 
-                        display: flex; 
-                        background: #f1f5f9; 
-                        padding: 2px; 
-                        border-radius: 8px; 
-                        border: 1px solid #e2e8f0;
-                    }
-                    .sub-pill-toggle button {
-                        padding: 6px 14px;
-                        border: none;
-                        background: transparent;
-                        font-family: inherit;
-                        font-size: 0.75rem;
-                        font-weight: 700;
-                        color: #64748b;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        gap: 6px;
-                        transition: 0.15s;
-                    }
-                    .sub-pill-toggle button.active { 
-                        background: #fff; 
-                        color: var(--brand-blue); 
-                        box-shadow: 0 1px 3px rgba(0,0,0,0.08); 
-                    }
-                    .sub-pill-toggle button:hover:not(.active) { color: #0f172a; background: rgba(255,255,255,0.5); }
-
-                    /* --- WORKSPACE --- */
-                    .kanban-view {
-                        flex: 1;
-                        padding: 1.5rem 2rem;
-                        display: flex;
-                        gap: 1.5rem;
-                        overflow-x: auto;
-                        background: #fdfdfd;
-                    }
-
-                    .kanban-col {
-                        width: 320px;
-                        flex-shrink: 0;
-                        display: flex;
-                        flex-direction: column;
-                        gap: 1rem;
-                    }
-                    .kanban-col-head {
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                        padding-bottom: 10px;
-                        border-bottom: 2px solid #f1f5f9;
-                    }
-                    .kanban-col-title { font-size: 0.8rem; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.02em; }
-                    .kanban-col-count { font-size: 0.75rem; color: #94a3b8; font-weight: 600; background: #f1f5f9; padding: 2px 8px; border-radius: 6px; }
-
-                    /* --- CARD --- */
-                    .clean-task-card {
-                        background: #fff;
-                        border: 1px solid #e2e8f0;
-                        border-radius: 12px;
-                        padding: 1.1rem;
-                        display: flex;
-                        flex-direction: column;
-                        gap: 10px;
-                        cursor: pointer;
-                        transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                    }
-                    .clean-task-card:hover { 
-                        border-color: var(--brand-blue); 
-                        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); 
-                        transform: translateY(-2px);
-                    }
-                    .card-top { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; font-weight: 600; color: #94a3b8; }
-                    .card-body { font-size: 0.9rem; font-weight: 600; color: #1e293b; line-height: 1.4; }
-                    .card-footer { display: flex; align-items: center; gap: 12px; border-top: 1px dashed #f1f5f9; padding-top: 10px; }
-                    .card-meta { display: flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 600; color: #64748b; }
-                </style>
-
-                <header class="tasks-main-header">
-                    <div class="header-top">
-                        <h1>${activeTitle}</h1>
-                        <div class="filter-group">
-                            <button class="btn btn-primary" onclick="window.openHubDrawer('', '')" style="border-radius: 8px; font-weight: 700; height: 38px; padding: 0 16px;">
-                                <i class="material-icons-round" style="font-size: 1.2rem;">add</i> Nuovo Task
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="filter-bar">
-                        <div class="filter-group">
-                            <span class="filter-label">Filtra</span>
-                            <div class="sub-pill-toggle">
-                                <button class="${this.state.filterMode === 'my_tasks' ? 'active' : ''}" onclick="window._dash.setMode('my_tasks')">Miei</button>
-                                <button class="${this.state.filterMode === 'delegated' ? 'active' : ''}" onclick="window._dash.setMode('delegated')">Delegati</button>
-                            </div>
-                        </div>
-
-                        <div class="filter-group">
-                            <div class="sub-pill-toggle">
-                                <button class="${this.state.itemTypeFilter === 'all' ? 'active' : ''}" onclick="window._dash.setItemTypeFilter('all')">Tutti</button>
-                                <button class="${this.state.itemTypeFilter === 'task' ? 'active' : ''}" onclick="window._dash.setItemTypeFilter('task')">Task</button>
-                                <button class="${this.state.itemTypeFilter === 'attivita' ? 'active' : ''}" onclick="window._dash.setItemTypeFilter('attivita')">Attività</button>
-                            </div>
-                        </div>
-
-                        <div class="filter-group">
-                            <div class="sub-pill-toggle">
-                                <button class="${this.state.spaceTypeFilter === 'all' ? 'active' : ''}" onclick="window._dash.setSpaceTypeFilter('all')">Progetti</button>
-                                <button class="${this.state.spaceTypeFilter === 'commessa' ? 'active' : ''}" onclick="window._dash.setSpaceTypeFilter('commessa')">Commesse</button>
-                                <button class="${this.state.spaceTypeFilter === 'interno' ? 'active' : ''}" onclick="window._dash.setSpaceTypeFilter('interno')">Interni</button>
-                            </div>
-                        </div>
-
-                        <div style="flex: 1;"></div>
-
-                        <div class="filter-group">
-                            <span class="filter-label">Vista</span>
-                            <div class="sub-pill-toggle">
-                                <button class="${this.state.groupBy === 'time' ? 'active' : ''}" onclick="window._dash.setGroupBy('time')">Tempo</button>
-                                <button class="${this.state.groupBy === 'priority' ? 'active' : ''}" onclick="window._dash.setGroupBy('priority')">Priorità</button>
-                            </div>
-                        </div>
-
-                        <div class="filter-group">
-                            <div class="sub-pill-toggle">
-                                <button class="${this.state.view === 'kanban' ? 'active' : ''}" onclick="window._dash.setView('kanban')"><i class="material-icons-round" style="font-size: 1.1rem;">view_kanban</i></button>
-                                <button class="${this.state.view === 'list' ? 'active' : ''}" onclick="window._dash.setView('list')"><i class="material-icons-round" style="font-size: 1.1rem;">view_headline</i></button>
-                            </div>
-                        </div>
-                    </div>
-                </header>
-                
-                <main id="dash-scroll-area" class="kanban-view custom-scrollbar">
-                    ${this.state.view === 'kanban' ? this.renderKanban(filteredItems) : this.renderList(filteredItems)}
-                </main>
-            </div>
-        `;
-
-        window._dash = {
-            setView: (v) => { this.state.view = v; this.render(); },
-            setGroupBy: (g) => { this.state.groupBy = g; this.render(); },
-            setMode: (m) => { this.state.filterMode = m; this.render(); },
-            setPriorityFilter: (p) => { this.state.priorityFilter = p; this.render(); },
-            setItemTypeFilter: (t) => { this.state.itemTypeFilter = t; this.render(); },
-            setSpaceTypeFilter: (s) => { this.state.spaceTypeFilter = s; this.render(); },
-            resetFilters: () => {
-                this.state.priorityFilter = 'all';
-                this.state.spaceTypeFilter = 'all';
-                this.state.itemTypeFilter = 'all';
-                this.render();
-            }
-        };
-    }
-
-    renderKanban(items) {
-        const buckets = this.state.groupBy === 'time' ? this.categorizeByTime(items) : this.categorizeByPriority(items);
-        
+        const buckets = this.state.groupBy === 'time' ? this.categorizeByTime(filteredItems) : this.categorizeByPriority(filteredItems);
         const cols = this.state.groupBy === 'time' ? [
-            { id: 'working', label: 'In Corso', icon: 'play_circle_outline', color: '#3b82f6' },
             { id: 'urgent', label: 'Scaduti', icon: 'history', color: '#ef4444' },
             { id: 'today', label: 'Oggi', icon: 'bolt', color: '#f59e0b' },
-            { id: 'week', label: 'Settimana', icon: 'calendar_today', color: '#3b82f6' }
+            { id: 'tomorrow', label: 'Domani', icon: 'schedule', color: '#3b82f6' },
+            { id: 'week', label: 'Settimana', icon: 'calendar_today', color: '#8b5cf6' }
         ] : [
             { id: 'urgent', label: 'Urgente', icon: 'priority_high', color: '#ef4444' },
             { id: 'high', label: 'Alta', icon: 'keyboard_double_arrow_up', color: '#f59e0b' },
             { id: 'medium', label: 'Media', icon: 'drag_handle', color: '#3b82f6' },
-            { id: 'low', label: 'Bassa', icon: 'keyboard_arrow_down', color: '#64748b' }
+            { id: 'low', label: 'Bassa', icon: 'keyboard_arrow_down', color: '#94a3b8' }
         ];
 
-        return `
-            ${cols.map(c => {
-                const colItems = buckets[c.id] || [];
-                const activitesCount = colItems.filter(i => i.item_type === 'attivita').length;
-                
-                return `
-                    <div class="kanban-col">
-                        <div class="kanban-col-head">
-                            <i class="material-icons-round" style="color: ${c.color}; font-size: 1.1rem;">${c.icon}</i>
-                            <span class="kanban-col-title">${c.label}</span>
-                            <span class="kanban-col-count" title="${activitesCount} attività">${colItems.length}</span>
+        if (isMobile && !this.state.activeBucket) {
+            this.state.activeBucket = cols.find(c => buckets[c.id]?.length > 0)?.id || cols[0].id;
+        }
+
+        const ctx = this.getTargetAuthContext();
+        const isAuthForDelegated = ctx.tags.includes('account') || ctx.tags.includes('project manager') || ctx.role === 'admin';
+
+        this.container.innerHTML = `
+            <div class="tasks-premium-viewport ${isMobile ? 'is-mobile' : ''}">
+                <style>
+                    .tasks-premium-viewport { 
+                        display: flex; flex-direction: column; height: calc(100vh - 70px); background: #fafbfc; font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; position: relative;
+                    }
+                    
+                    /* EXTREME GLASS TOOLBAR (DESKTOP) */
+                    .tasks-toolbar-wrapper {
+                        padding: 24px 2rem 1.5rem 2rem; flex-shrink: 0; display: flex; justify-content: center; z-index: 1000;
+                    }
+                    .tasks-toolbar-glass {
+                        width: 100%; max-width: 1400px; height: 72px; background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(30px) saturate(210%); -webkit-backdrop-filter: blur(30px) saturate(210%); border: 1.2px solid rgba(0, 0, 0, 0.06); border-radius: 24px; display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; box-shadow: 0 16px 45px rgba(0,0,0,0.04), inset 0 0 0 1.2px rgba(255,255,255,0.3);
+                    }
+                    
+                    /* PILL TOGGLES */
+                    .premium-pill-toggle { display: flex; background: rgba(0, 0, 0, 0.05); padding: 5px; border-radius: 14px; height: 44px; align-items: center; gap: 4px; }
+                    .premium-pill-toggle button { padding: 0 14px; border: none; background: transparent; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.75rem; font-weight: 700; color: #697386; border-radius: 10px; cursor: pointer; display: flex; align-items: center; transition: all 0.3s; white-space: nowrap; height: 34px; border: 1px solid transparent; }
+                    .premium-pill-toggle button.active { background: #fff; color: #1a1f36; border-color: rgba(0,0,0,0.03); box-shadow: 0 6px 16px rgba(0,0,0,0.07); transform: scale(1.02); }
+                    .premium-pill-toggle button:hover:not(.active) { color: #4e92d8; }
+                    
+                    /* NEW TASK BUTTON (SIGNATURE) */
+                    .nt-btn-premium { 
+                        background: linear-gradient(135deg, #4e92d8 0%, #614aa2 100%) !important; color: white !important; font-family: 'Satoshi', sans-serif !important; border: none !important; padding: 12px 24px !important; border-radius: 12px !important; font-size: 0.85rem !important; font-weight: 700 !important; cursor: pointer !important; display: flex !important; align-items: center !important; gap: 8px !important; box-shadow: 0 8px 20px rgba(78, 146, 216, 0.2) !important; transition: all 0.3s !important;
+                    }
+                    .nt-btn-premium:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(78, 146, 216, 0.3); filter: brightness(1.1); }
+
+                    /* KANBAN GRID (DESKTOP) */
+                    .kanban-view:not(.is-mobile-view) { flex: 1; padding: 0.5rem 2rem 2.5rem 2rem; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; overflow: hidden; }
+                    .kanban-col { display: flex; flex-direction: column; background: rgba(241, 245, 249, 0.5); border-radius: 28px; padding: 1.5rem; height: 100%; border: 1.2px solid rgba(255,255,255,0.7); overflow: hidden; }
+                    .col-scroll-area { flex: 1; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; padding: 4px; scrollbar-width: none; }
+                    .kanban-col-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; font-family: 'Satoshi', sans-serif; }
+                    .kanban-col-head .label { font-size: 1rem; font-weight: 700; color: #1a1f36; letter-spacing: -0.01em; }
+                    .kanban-col-head .count { font-size: 0.8rem; font-weight: 800; color: #697386; background: #fff; padding: 3px 10px; border-radius: 8px; border: 1.2px solid #f1f5f9; }
+
+                    /* TASK CARDS */
+                    .premium-task-card { background: #fff; border: 1.2px solid rgba(0,0,0,0.05); border-radius: 22px; padding: 1.5rem; display: flex; flex-direction: column; gap: 8px; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 4px 20px rgba(0,0,0,0.02); position: relative; }
+                    .premium-task-card:hover { transform: translateY(-4px) scale(1.01); box-shadow: 0 24px 48px rgba(78, 146, 216, 0.12); border-color: rgba(78, 146, 216, 0.3); }
+                    .card-title { font-family: 'Satoshi', sans-serif; font-size: 1.1rem; font-weight: 700; color: #1a1f36; line-height: 1.35; margin: 0; letter-spacing: -0.02em; flex: 1; }
+                    .card-check-btn { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid #f1f5f9; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; flex-shrink: 0; background: #fff; color: #cbd5e1; }
+                    .card-check-btn:hover { background: #10b981; border-color: #10b981; color: #fff; transform: rotate(10deg); }
+                    
+                    .card-path { font-family: 'Plus Jakarta Sans', sans-serif !important; font-size: 0.68rem !important; font-weight: 600 !important; color: #697386 !important; text-transform: uppercase !important; line-height: 1.5 !important; letter-spacing: 0.08em !important; margin-bottom: 4px; }
+                    .card-footer { display: flex; align-items: center; justify-content: space-between; border-top: 1.2px solid #f8fafc; padding-top: 12px; margin-top: 8px; }
+                    .meta-id { font-size: 0.72rem; font-weight: 700; color: #614aa2; background: #f5f3ff; padding: 3px 8px; border-radius: 7px; font-family: 'Plus Jakarta Sans', sans-serif; }
+                    .meta-client { font-size: 0.7rem; font-weight: 700; color: #475569; background: #f1f5f9; padding: 3px 8px; border-radius: 7px; text-transform: uppercase; font-family: 'Plus Jakarta Sans', sans-serif; }
+                    .meta-date { font-size: 0.8rem; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; }
+                    
+                    /* MOBILE */
+                    .tasks-premium-viewport.is-mobile { background: #fafbfc; height: 100vh; }
+                    .is-mobile .mobile-scroll-container { 
+                        flex: 1; overflow-y: scroll; -webkit-overflow-scrolling: touch; padding: 20px 1.25rem 240px 1.25rem; display: flex; flex-direction: column; gap: 14px;
+                    }
+
+                    /* FIXED BOTTOM NAV */
+                    .is-mobile .bottom-nav-container {
+                        position: fixed; bottom: 0; left: 0; width: 100%; z-index: 5000;
+                        background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(40px) saturate(230%); -webkit-backdrop-filter: blur(40px) saturate(230%); border-top: 1.2px solid rgba(0, 0, 0, 0.06); 
+                        padding: 16px 1.25rem calc(20px + env(safe-area-inset-bottom, 0px)) 1.25rem; box-shadow: 0 -20px 50px rgba(0,0,0,0.08);
+                        display: flex; flex-direction: column; gap: 16px; border-radius: 28px 28px 0 0;
+                    }
+                    .is-mobile .bucket-nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; }
+                    .is-mobile .bucket-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 0; border-radius: 20px; background: rgba(0,0,0,0.04); transition: all 0.3s; border: 1.2px solid transparent; width: 100%; }
+                    .is-mobile .bucket-btn.active { background: #fff; border-color: #f1f5f9; box-shadow: 0 10px 30px rgba(0,0,0,0.08); transform: translateY(-3px); }
+                    .is-mobile .bucket-count { font-size: 1.35rem; font-weight: 800; line-height: 1.1; margin-bottom: 2px; font-family: 'Satoshi', sans-serif; }
+                    .is-mobile .btn-label { font-size: 0.62rem; font-weight: 800; color: #697386; text-transform: uppercase; letter-spacing: 0.05em; font-family: 'Plus Jakarta Sans', sans-serif; }
+                    .is-mobile .bucket-btn.active .btn-label { color: #1a1f36; }
+                    
+                    .is-mobile .mobile-fab { 
+                        background: linear-gradient(135deg, #4e92d8 0%, #614aa2 100%); width: 52px; height: 52px; border-radius: 16px; color: #fff;
+                        display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(78, 146, 216, 0.25); border: none; flex-shrink: 0;
+                    }
+                    
+                    .is-mobile .lower-controls-bar { display: flex; align-items: center; justify-content: space-between; gap: 5px; width: 100%; }
+                    .is-mobile .mobile-toggles-row { flex: 1; display: flex; gap: 4px; min-width: 0; align-items: center; }
+                    .is-mobile .mobile-fab { width: 50px; height: 50px; border-radius: 16px; background: #000; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(0,0,0,0.25); border: none; flex-shrink: 0; margin-left: 2px; }
+                    .is-mobile .premium-pill-toggle { height: 38px; padding: 3px; background: rgba(0,0,0,0.06); gap: 1px; }
+                    .is-mobile .premium-pill-toggle button { padding: 0 6px; height: 32px; border-radius: 8px; }
+                </style>
+
+                ${!isMobile ? `
+                <div class="tasks-toolbar-wrapper">
+                    <div class="tasks-toolbar-glass">
+                        <div style="display: flex; gap: 1.5rem; align-items: center;">
+                            <div class="premium-pill-toggle">
+                                <button class="${this.state.groupBy === 'time' ? 'active' : ''}" onclick="window._dash.setGroupBy('time')"><span class="material-icons-round">schedule</span></button>
+                                <button class="${this.state.groupBy === 'priority' ? 'active' : ''}" onclick="window._dash.setGroupBy('priority')"><span class="material-icons-round">segment</span></button>
+                            </div>
+                            <div class="premium-pill-toggle">
+                                <button class="${this.state.filterMode === 'all' ? 'active' : ''}" onclick="window._dash.setMode('all')"><span class="material-icons-round">public</span></button>
+                                <button class="${this.state.filterMode === 'my_tasks' ? 'active' : ''}" onclick="window._dash.setMode('my_tasks')"><span class="material-icons-round">person</span></button>
+                                <button class="${this.state.filterMode === 'delegated' ? 'active' : ''}" onclick="window._dash.setMode('delegated')"><span class="material-icons-round">share</span></button>
+                            </div>
+                            <div class="premium-pill-toggle">
+                                <button class="${this.state.spaceFilter === 'all' ? 'active' : ''}" onclick="window._dash.setSpaceFilter('all')"><span class="material-icons-round">layers</span></button>
+                                <button class="${this.state.spaceFilter === 'commessa' ? 'active' : ''}" onclick="window._dash.setSpaceFilter('commessa')"><span class="material-icons-round">business</span></button>
+                                <button class="${this.state.spaceFilter === 'interno' ? 'active' : ''}" onclick="window._dash.setSpaceFilter('interno')"><span class="material-icons-round">home</span></button>
+                            </div>
                         </div>
-                        <div class="stack custom-scrollbar" style="display: flex; flex-direction: column; gap: 0.75rem; overflow-y: auto;">
-                            ${colItems.map(i => this.renderCard(i)).join('')}
-                            ${colItems.length === 0 ? `
-                                <div style="display:flex; justify-content:center; align-items:center; height:100px; color:#cbd5e1; font-size: 0.7rem; font-style:italic;">
-                                    Tutto programmato
-                                </div>
-                            ` : ''}
-                        </div>
+                        <button class="nt-btn-premium" onclick="window.openHubDrawer('', '')"><i class="material-icons-round" style="font-size: 1.1rem;">add</i> NUOVA TASK</button>
                     </div>
-                `;
-            }).join('')}
-        `;
-    }
+                </div>
+                ` : ''}
 
-    renderList(items) {
-        const groups = {};
-        items.forEach(i => {
-            const key = i.space_ref?.name || 'Senza Progetto';
-            if (!groups[key]) groups[key] = [];
-            groups[key].push(i);
-        });
+                <div class="${isMobile ? 'mobile-scroll-container custom-scrollbar' : 'kanban-view'}">
+                    ${isMobile ? `
+                        ${(buckets[this.state.activeBucket] || []).map(i => this.renderCard(i)).join('')}
+                        ${!buckets[this.state.activeBucket]?.length ? `
+                            <div style="padding: 12rem 0; text-align: center; color: #94a3b8; font-family: 'Outfit', sans-serif; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+                                <span class="material-icons-round" style="font-size: 4rem; opacity: 0.1;">task_alt</span>
+                                <div style="font-size: 1.1rem; font-weight: 700; color: #cbd5e1;">Tutto programmato</div>
+                                <div style="font-size: 0.85rem; font-weight: 500; opacity: 0.6; max-width: 200px;">Ottimo lavoro! Non ci sono task urgenti in questa sezione.</div>
+                            </div>` : ''}
+                    ` : this.renderKanban(buckets, cols)}
+                </div>
 
-        const sortedGroupKeys = Object.keys(groups).sort();
-
-        return `
-            <div style="display: flex; flex-direction: column; gap: 1.5rem; padding: 1rem 0;">
-                ${sortedGroupKeys.map(spaceName => `
-                    <div class="list-section">
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.75rem;">
-                            <span style="height: 12px; width: 4px; background: var(--brand-blue); border-radius: 10px;"></span>
-                            <span style="font-weight: 600; font-size: 0.85rem; text-transform: uppercase; color: var(--text-primary);">${spaceName}</span>
-                            <span class="badge badge-neutral" style="font-size: 0.7rem; font-weight: 500;">${groups[spaceName].length}</span>
-                        </div>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
-                            ${groups[spaceName].map(i => this.renderCard(i)).join('')}
-                        </div>
+                ${isMobile ? `
+                <div class="bottom-nav-container">
+                    <div class="bucket-nav">
+                        ${cols.map(c => `
+                            <button class="bucket-btn ${this.state.activeBucket === c.id ? 'active' : ''}" onclick="window._dash.setBucket('${c.id}')">
+                                <div class="bucket-count" style="color: ${c.color}">${buckets[c.id]?.length || 0}</div>
+                                <span class="btn-label" style="${this.state.activeBucket === c.id ? 'color:#1e293b' : ''}">${c.label}</span>
+                            </button>
+                        `).join('')}
                     </div>
-                `).join('')}
-                ${items.length === 0 ? '<div style="padding: 3rem; text-align: center; color: var(--text-tertiary); font-style: italic;">Nessun risultato cercato</div>' : ''}
+                    <div class="lower-controls-bar">
+                         <div class="mobile-toggles-row">
+                            <div class="premium-pill-toggle" style="flex-shrink:0;">
+                                <button class="${this.state.groupBy === 'time' ? 'active' : ''}" onclick="window._dash.setGroupBy('time')"><span class="material-icons-round" style="font-size:18px;">schedule</span></button>
+                                <button class="${this.state.groupBy === 'priority' ? 'active' : ''}" onclick="window._dash.setGroupBy('priority')"><span class="material-icons-round" style="font-size:18px;">segment</span></button>
+                            </div>
+                            <div class="premium-pill-toggle" style="flex:1;">
+                                <button class="${this.state.filterMode === 'all' ? 'active' : ''}" onclick="window._dash.setMode('all')" style="flex:1;"><span class="material-icons-round" style="font-size:18px;">public</span></button>
+                                <button class="${this.state.filterMode === 'my_tasks' ? 'active' : ''}" onclick="window._dash.setMode('my_tasks')" style="flex:1;"><span class="material-icons-round" style="font-size:18px;">person</span></button>
+                                <button class="${this.state.filterMode === 'delegated' ? 'active' : ''}" onclick="window._dash.setMode('delegated')" style="flex:1;"><span class="material-icons-round" style="font-size:18px;">share</span></button>
+                            </div>
+                            <div class="premium-pill-toggle" style="flex:1;">
+                                <button class="${this.state.spaceFilter === 'all' ? 'active' : ''}" onclick="window._dash.setSpaceFilter('all')" style="flex:1;"><span class="material-icons-round" style="font-size:18px;">layers</span></button>
+                                <button class="${this.state.spaceFilter === 'commessa' ? 'active' : ''}" onclick="window._dash.setSpaceFilter('commessa')" style="flex:1;"><span class="material-icons-round" style="font-size:18px;">business</span></button>
+                                <button class="${this.state.spaceFilter === 'interno' ? 'active' : ''}" onclick="window._dash.setSpaceFilter('interno')" style="flex:1;"><span class="material-icons-round" style="font-size:18px;">home</span></button>
+                            </div>
+                         </div>
+                         <button class="mobile-fab" onclick="window.openHubDrawer('', '')"><span class="material-icons-round">add</span></button>
+                    </div>
+                </div>
+                ` : ''}
             </div>
         `;
+
+        window._dash = {
+            setGroupBy: (g) => { this.state.groupBy = g; this.state.activeBucket = null; this.render(); },
+            setMode: (m) => { this.state.filterMode = m; this.render(); },
+            setSpaceFilter: (s) => { this.state.spaceFilter = s; this.render(); },
+            setBucket: (b) => { this.state.activeBucket = b; this.render(); },
+            completeTask: (id) => { this.completeTask(id); }
+        };
+    }
+
+    renderKanban(buckets, cols) {
+        return cols.map(c => `
+            <div class="kanban-col">
+                <div class="kanban-col-head">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="material-icons-round" style="color: ${c.color}; font-size: 1.25rem;">${c.icon}</i>
+                        <span class="label">${c.label}</span>
+                    </div>
+                    <span class="count">${buckets[c.id]?.length || 0}</span>
+                </div>
+                <div class="col-scroll-area custom-scrollbar">
+                    ${(buckets[c.id] || []).map(i => this.renderCard(i)).join('')}
+                    ${!buckets[c.id]?.length ? `
+                        <div style="padding: 6rem 0; text-align: center; color: #e2e8f0; font-family: 'Outfit', sans-serif; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+                            <span class="material-icons-round" style="font-size: 3rem; opacity: 0.2;">auto_awesome</span>
+                            <div style="font-size: 0.85rem; font-weight: 700;">Nessuna attività</div>
+                        </div>` : ''}
+                </div>
+            </div>
+        `).join('');
     }
 
     renderCard(item) {
         const pr = PRIORITY_CONFIG[item.priority] || PRIORITY_CONFIG['medium'];
-        const spaceName = item.space_ref?.name || 'Inbox';
-        const isAttivita = item.item_type === 'attivita';
         const isWorking = item.status === 'working' || item.status === 'doing';
+        const spaceRef = item.space_ref;
         
+        let pathParts = [];
+        if (spaceRef?.type === 'commessa') {
+            const orderTitle = spaceRef?.order?.title;
+            const activityName = spaceRef?.name;
+            if (orderTitle) pathParts.push(orderTitle);
+            if (activityName && activityName !== 'Inbox') pathParts.push(activityName);
+        } else if (spaceRef?.type === 'interno') {
+            const cluster = spaceRef?.parent?.name;
+            const project = spaceRef?.name;
+            if (cluster) pathParts.push(cluster);
+            if (project) pathParts.push(project);
+        }
+        if (item.parent?.title) pathParts.push(item.parent.title);
+        const pathHtml = pathParts.join(' <span style="opacity: 0.4;">&rsaquo;</span> ');
+        
+        let orderId = spaceRef?.order?.order_number || '';
+        const clientShort = spaceRef?.order?.clients?.client_code || '';
+
         let dateColor = '#94a3b8';
         let dateText = item.due_date ? formatDate(item.due_date) : '';
-        
         if (item.due_date) {
             const now = new Date(); now.setHours(0,0,0,0);
             const d = new Date(item.due_date); d.setHours(0,0,0,0);
@@ -462,51 +467,28 @@ export class TasksDashboard {
             else if (d.getTime() === now.getTime()) { dateColor = '#f59e0b'; dateText = 'Oggi'; }
         }
 
-        const statusCfg = STATUS_ICONS[item.status] || STATUS_ICONS['todo'];
-
         return `
-            <div class="clean-task-card" onclick="window.openHubDrawer('${item.id}', '${item.space_ref?.id || ''}')" style="${isAttivita ? 'border-left: 4px solid #10b981;' : ''}">
-                <div class="card-top">
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                        ${isAttivita ? '<i class="material-icons-round" style="font-size: 0.8rem; color: #10b981;">auto_awesome</i>' : ''}
-                        <span style="${isAttivita ? 'color: #10b981; font-weight: 700;' : ''}">${spaceName}</span>
-                    </div>
-                    <i class="material-icons-round" style="color: ${pr.color}; font-size: 0.9rem;">${pr.icon}</i>
+            <div class="premium-task-card" onclick="window.openHubDrawer('${item.id}', '${item.space_ref?.id || ''}')">
+                <div class="card-title-row">
+                    <h4 class="card-title">${item.title} ${isWorking ? `<div style="display:inline-flex; align-items:center; gap:4px; font-size:0.55rem; color:#3b82f6; font-weight:800; margin-left:8px;"><span class="pulsing-dot" style="width:4px; height:4px; background: #3b82f6;"></span>IN CORSO</div>` : ''}</h4>
+                    <div class="card-check-btn" onclick="event.stopPropagation(); window._dash.completeTask('${item.id}')"><i class="material-icons-round" style="font-size: 16px;">done</i></div>
                 </div>
-                
-                <div class="card-body" style="display: flex; flex-direction: column; gap: 4px;">
-                    <span>${item.title}</span>
-                    ${isWorking ? `
-                        <div style="display: flex; align-items: center; gap: 4px; font-size: 0.65rem; color: #3b82f6; font-weight: 700;">
-                            <span class="pulsing-dot" style="width: 6px; height: 6px; background: #3b82f6; border-radius: 50%;"></span>
-                            IN CORSO
-                        </div>
-                    ` : ''}
-                </div>
-
+                ${pathHtml ? `<div class="card-path">${pathHtml}</div>` : ''}
                 <div class="card-footer">
-                    <div class="card-meta">
-                        <i class="material-icons-round" style="font-size: 0.9rem; color: ${statusCfg.color};">${statusCfg.icon}</i>
-                        <span>${item.status}</span>
+                    <div class="card-footer-left">
+                        ${orderId ? `<span class="meta-id">${orderId}</span>` : ''}
+                        ${clientShort ? `<span class="meta-client" title="${clientShort}">${clientShort}</span>` : ''}
                     </div>
-                    ${dateText ? `
-                        <div class="card-meta" style="color: ${dateColor}; font-weight: 600;">
-                            <i class="material-icons-round" style="font-size: 0.9rem;">event</i>
-                            <span>${dateText}</span>
-                        </div>
-                    ` : ''}
+                    <div class="card-footer-right">
+                        <i class="material-icons-round" style="color: ${pr.color}; font-size: 0.95rem;">${pr.icon}</i>
+                        ${dateText ? `<span class="meta-date" style="color: ${dateColor}">${dateText}</span>` : ''}
+                    </div>
                 </div>
-                
-                <style>
-                    .pulsing-dot { animation: pulse 1.5s infinite; }
-                    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-                </style>
             </div>
         `;
     }
 }
 
-// Global bridge
 window.openHubDrawer = openHubDrawer;
 export async function renderMyWork(container) {
     container.innerHTML = `<div id="tasks-dashboard-container" style="min-height: 400px; padding: 0;"></div>`;

@@ -798,7 +798,7 @@ export async function renderHomepage(container) {
                         </div>
 
                         <div style="display: flex; align-items: center; gap: 8px; margin-top: auto;">
-                            <button id="hp-footer-action-btn" class="btn btn-primary vedi-agenda-btn" onclick="window.location.hash='#my-assignments'">
+                            <button id="hp-footer-action-btn" class="btn btn-primary vedi-agenda-btn" onclick="window.location.hash='#tasks-summary'">
                                 ${(window.hpActivityFilter === 'event') ? 'Vedi Agenda' : 'Lista task'}
                             </button>
                             <div id="hp-overdue-filter" onclick="window.toggleOverdueFilter()" 
@@ -2337,7 +2337,7 @@ window.setHpFilter = function (filter, btn) {
     if (footerBtn) {
         if (filter === 'task') {
             footerBtn.innerText = 'Lista task';
-            footerBtn.onclick = () => window.location.hash = '#my-assignments';
+            footerBtn.onclick = () => window.location.hash = '#tasks-summary';
             if (overdueFilter) overdueFilter.style.display = 'flex';
         } else if (filter === 'event') {
             footerBtn.innerText = 'Vedi Agenda';

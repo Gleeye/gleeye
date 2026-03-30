@@ -65,7 +65,7 @@ export function router() {
     const isProjectManager = userTags.some(t => t === 'project manager' || t === 'pm');
 
     // List of pages allowed for Collaborators (standard - no special tags)
-    const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'my-assignments', 'booking', 'notifications', 'chat', 'assignment-detail', 'assignments', 'pm', 'leads', 'lead-detail', 'contact-forms'];
+    const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'tasks-summary', 'booking', 'notifications', 'chat', 'assignment-detail', 'assignments', 'pm', 'leads', 'lead-detail', 'contact-forms'];
 
     if (isPrivilegedCollaborator || isAccount) {
         allowedPagesForCollaborator.push('dashboard', 'order-detail', 'client-detail', 'collaborator-detail', 'sap-services', 'sap-service-detail');
@@ -145,8 +145,8 @@ function render() {
                 if (pageTitle) pageTitle.textContent = 'Agenda Personale';
                 import('../features/personal_agenda.js?v=2000').then(m => m.renderAgenda(contentArea));
                 break;
-            case 'my-assignments':
-                if (pageTitle) pageTitle.textContent = 'I Miei Incarichi';
+            case 'tasks-summary':
+                if (pageTitle) pageTitle.textContent = 'Le mie task';
                 import('../features/dashboard/TasksDashboard.js?v=2000').then(m => m.renderMyWork(contentArea));
                 break;
             case 'sales': // Clients list

@@ -913,6 +913,129 @@ function renderAdminAlerts(alerts) {
 }
 
 // --- ROLE DETECTION HELPER ---
+// --- COLLABORATOR SPECIFIC FETCHERS ---
+async function fetchCollaboratorAssignments(collaboratorId) {
+    if (!collaboratorId) return [];
+
+    try {
+        const { data, error } = await supabase
+            .from('assignments')
+            .select(`
+                id, legacy_id, description, status, total_amount, start_date,
+                orders (id, title, order_number, clients(business_name, client_code))
+            `)
+            .eq('collaborator_id', collaboratorId)
+            .neq('status', 'Completato')
+            .neq('status', 'Annullato')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        return (data || []).map(a => ({
+            id: a.id,
+            legacy_id: a.legacy_id,
+            title: a.orders?.title || 'Incarico Senza Titolo',
+            order_number: a.orders?.order_number || '',
+            client: a.orders?.clients?.client_code || a.orders?.clients?.business_name || 'No Cliente',
+            status: a.status,
+            amount: a.total_amount,
+            start_date: a.start_date,
+            link: `#assignment-detail/${a.id}`
+        }));
+    } catch (err) {
+        console.error("Error fetching collaborator assignments:", err);
+        return [];
+    }
+}
+
+async function fetchCollaboratorPayments(collaboratorId) {
+    if (!collaboratorId) return { nextPayments: [], nextInvoices: [] };
+
+    try {
+        const today = new Date().toISOString().split('T')[0];
+
+        // 1. Fetch Next Payments (Public.payments)
+        const { data: payments, error: pError } = await supabase
+            .from('payments')
+            .select('id, title, amount, due_date, status, notes')
+            .eq('collaborator_id', collaboratorId)
+            .neq('status', 'Completato')
+            .neq('status', 'Done')
+            .order('due_date', { ascending: true })
+            .limit(5);
+
+        // 2. Fetch Next Invoices (Public.passive_invoices)
+        const { data: invoices, error: iError } = await supabase
+            .from('passive_invoices')
+            .select('id, invoice_number, amount_tax_included, status, due_date')
+            .eq('collaborator_id', collaboratorId)
+            .neq('status', 'Pagato')
+            .order('due_date', { ascending: true })
+            .limit(5);
+
+        return {
+            nextPayments: payments || [],
+            nextInvoices: invoices || []
+        };
+    } catch (err) {
+        console.error("Error fetching collaborator payments:", err);
+        return { nextPayments: [], nextInvoices: [] };
+    }
+}
+
+function renderCollaboratorPayments(data) {
+    const payContainer = document.getElementById('hp-collab-payments-list');
+    const invContainer = document.getElementById('hp-collab-invoices-list');
+    if (!payContainer || !invContainer) return;
+
+    const { nextPayments, nextInvoices } = data;
+
+    // --- PAYMENTS BOX ---
+    if (nextPayments.length === 0) {
+        payContainer.innerHTML = `<div style="padding: 2rem; text-align: center; color: #94a3b8; font-size: 0.8rem;">Nessun pagamento in sospeso.</div>`;
+    } else {
+        payContainer.innerHTML = nextPayments.map(p => {
+            const date = p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : 'N.D.';
+            return `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.03);">
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+                        <span class="material-icons-round" style="color: #3b82f6; font-size: 16px; opacity: 0.7;">payment</span>
+                        <div style="display: flex; flex-direction: column; gap: 2px; overflow: hidden;">
+                            <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.title || 'Pagamento'}</span>
+                            <span style="font-size: 0.65rem; color: #64748b; font-weight: 500;">Scadenza: ${date}</span>
+                        </div>
+                    </div>
+                    <div style="text-align: right; margin-left: 10px; flex-shrink: 0;">
+                        <div style="font-size: 0.9rem; font-weight: 800; color: #3b82f6; letter-spacing: -0.01em;">${formatAmount(p.amount)}</div>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    // --- INVOICES BOX ---
+    if (nextInvoices.length === 0) {
+        invContainer.innerHTML = `<div style="padding: 2rem; text-align: center; color: #94a3b8; font-size: 0.8rem;">Nessuna fattura in attesa.</div>`;
+    } else {
+        invContainer.innerHTML = nextInvoices.map(i => {
+            const statusColor = (i.status === 'Da Pagare') ? '#f59e0b' : '#10b981';
+            const icon = (i.status === 'Da Pagare') ? 'hourglass_empty' : 'receipt_long';
+            return `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.03);">
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+                        <span class="material-icons-round" style="color: ${statusColor}; font-size: 16px; opacity: 0.7;">${icon}</span>
+                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                            <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Fattura n.${i.invoice_number || 'N.D.'}</span>
+                            <span style="font-size: 0.65rem; color: ${statusColor}; font-weight: 700;">${i.status || 'Inviata'}</span>
+                        </div>
+                    </div>
+                    <div style="text-align: right; margin-left: 10px; flex-shrink: 0;">
+                        <div style="font-size: 0.9rem; font-weight: 800; color: #1e293b; letter-spacing: -0.01em;">${formatAmount(i.amount_tax_included)}</div>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+}
+
 function detectUserRole(normalizedTags) {
     if (normalizedTags.includes('partner')) return 'partner';
     if (normalizedTags.includes('amministrazione')) return 'amministrazione';
@@ -977,6 +1100,20 @@ export async function renderHomepageAlt(container) {
 
     const firstName = getFirstName(myCollab, state.profile);
     const myId = myCollab.id || state.profile?.id;
+
+    // --- ROLE DETECTION (Fixed for Impersonation) ---
+    let userTagsRaw = [];
+    if (myCollab && myCollab.tags) {
+        if (typeof myCollab.tags === 'string') {
+            try { userTagsRaw = JSON.parse(myCollab.tags); } catch (e) { userTagsRaw = myCollab.tags.split(',').map(t => t.trim()); }
+        } else { userTagsRaw = myCollab.tags || []; }
+    } else {
+        userTagsRaw = state.profile?.tags || [];
+    }
+
+    const normalizedTagsForHtml = Array.isArray(userTagsRaw) ? userTagsRaw.map(t => (t || '').toLowerCase()) : [];
+    const htmlRole = detectUserRole(normalizedTagsForHtml);
+    const isCollaborator = htmlRole === 'collaboratore';
 
     // --- MANAGE TOP BAR GREETING ---
     const pageTitle = document.getElementById('page-title');
@@ -1109,7 +1246,7 @@ export async function renderHomepageAlt(container) {
                          </div>
 
                          <div style="display: flex; align-items: center; gap: 8px;">
-                            <a id="hp-task-list-link" href="#my-assignments" style="text-decoration: none; font-size: 0.7rem; font-weight: 700; color: #1e293b; background: #fff; padding: 7px 14px; border-radius: 10px; border: 1px solid #e2e8f0; transition: all 0.25s; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">Lista</a>
+                            <a id="hp-task-list-link" href="#tasks-summary" style="text-decoration: none; font-size: 0.7rem; font-weight: 700; color: #1e293b; background: #fff; padding: 7px 14px; border-radius: 10px; border: 1px solid #e2e8f0; transition: all 0.25s; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">Lista</a>
                             <div id="hp-overdue-toggle" onclick="window.toggleHpOverdue()" style="cursor: pointer; position: relative; width: 36px; height: 36px; border-radius: 10px; background: #fff; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
                                 <span class="material-icons-round" style="font-size: 19px; color: #ef4444;">history</span>
                                 <div id="hp-overdue-badge" style="display: none; position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; font-size: 8px; font-weight: 800; min-width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.2);">0</div>
@@ -1121,6 +1258,7 @@ export async function renderHomepageAlt(container) {
                         <!-- Tasks live here -->
                     </div>
                 </div>
+                
 
                 <!-- 3. AGENDA SECTION (Bottom Block - Vertical Timeline - No Header) -->
                 <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #fff;">
@@ -1133,6 +1271,70 @@ export async function renderHomepageAlt(container) {
             <!-- 2. MAIN CONTENT AREA (Projects + Activities) -->
             <div class="hp-main-content-area custom-scrollbar" style="padding-top: 1rem;">
                  
+                 <!-- RESPONSIVE DASHBOARD STYLES -->
+                 <style>
+                     .hp-dash-collab-main {
+                         display: flex;
+                         gap: 2.5rem;
+                         align-items: flex-start;
+                         width: 100%;
+                     }
+                     .hp-dash-collab-left {
+                         flex: 2.4;
+                         display: flex;
+                         flex-direction: column;
+                         gap: 2.5rem;
+                         min-width: 0;
+                     }
+                     .hp-dash-collab-right {
+                         flex: 1;
+                         min-width: 260px;
+                         display: flex;
+                         flex-direction: column;
+                     }
+                     .hp-dash-collab-top {
+                         display: grid;
+                         grid-template-columns: 0.9fr 1.15fr;
+                         gap: 2.5rem;
+                         align-items: stretch;
+                         width: 100%;
+                     }
+                     .hp-dash-collab-fin {
+                         display: grid;
+                         grid-template-columns: 1fr 1fr;
+                         gap: 2.5rem;
+                         align-items: stretch;
+                         width: 100%;
+                     }
+                     .hp-dash-partner-main {
+                         display: grid;
+                         grid-template-columns: 1.15fr 0.85fr 1fr;
+                         gap: 2rem;
+                         align-items: stretch;
+                         width: 100%;
+                     }
+                     
+                     .hp-dash-collab-top > div, .hp-dash-partner-main > div {
+                         max-height: 520px;
+                         display: flex;
+                         flex-direction: column;
+                         overflow: hidden;
+                     }
+
+                     @media (max-width: 1100px) {
+                         .hp-dash-collab-main, .hp-dash-collab-top, .hp-dash-collab-fin, .hp-dash-partner-main {
+                             display: flex;
+                             flex-direction: column;
+                             grid-template-columns: none;
+                         }
+                         .hp-dash-collab-top > div, .hp-dash-partner-main > div {
+                             max-height: 600px;
+                             width: 100%;
+                             flex: none;
+                         }
+                     }
+                 </style>
+
                  <!-- MOBILE STICKY BANNER -->
                  <div class="hp-mobile-banner" onclick="window.openMobileAgenda()">
                     <div style="display: flex; align-items: center; gap: 14px;">
@@ -1157,126 +1359,142 @@ export async function renderHomepageAlt(container) {
                  </div>
                  
                  <div class="hp-main-columns-container">
-                     <!-- COLUMN 1: COMMESSE (Existing) -->
-                     <div id="hp-pm-spaces-main-block" style="
-                         flex: 1.2; 
-                         min-width: 280px; 
-                         max-height: 520px;
-                         display: flex;
-                         flex-direction: column;
-                     ">
-                        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.25rem;">
-                             <div style="display: flex; justify-content: space-between; align-items: center; padding-left: 8px;">
-                                 <h3 style="font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
-                                     <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.6); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);">
-                                         <span class="material-icons-round" style="color: #64748b; font-size: 18px;">dashboard</span>
-                                     </div>
-                                     Le mie Commesse 
-                                 </h3>
-                                 <div style="display: flex; gap: 6px; background: rgba(0,0,0,0.03); padding: 4px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.02); margin-right: 8px;">
-                                    <button id="hp-filter-account" class="hp-filter-pill active" onclick="togglePmFilter('account')" style="padding: 4px 10px; border-radius: 7px; border: none; font-size: 0.65rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;">ACCOUNT</button>
-                                    <button id="hp-filter-pm" class="hp-filter-pill active" onclick="togglePmFilter('pm')" style="padding: 4px 10px; border-radius: 7px; border: none; font-size: 0.65rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;">PM</button>
+                     ${isCollaborator ? `
+                     <!-- ==================== COLLABORATOR ==================== -->
+                     <div class="hp-dash-collab-main">
+                         
+                         <!-- LEFT SIDE: Tasks, Activities, Financials -->
+                         <div class="hp-dash-collab-left">
+                             <!-- ROW 1: TOP BLOCKS -->
+                             <div class="hp-dash-collab-top">
+                                 <!-- Left: Tasks (Collab) -->
+                                 <div id="hp-pm-spaces-main-block" style="padding: 0;">
+                                    <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 0.75rem; flex-shrink: 0;">
+                                         <div style="display: flex; justify-content: space-between; align-items: center;">
+                                             <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
+                                                 <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.6); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);">
+                                                     <span class="material-icons-round" style="color: #64748b; font-size: 18px;">dashboard</span>
+                                                 </div>
+                                                 I miei incarichi
+                                             </h3>
+                                         </div>
+                                    </div>
+                                    <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; flex-shrink: 0;"></div>
+                                    <div id="hp-pm-spaces-main-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; padding: 0 8px 30px 0; min-height: 0;"></div>
+                                 </div>
+
+                                 <!-- Right: Internal Activities (Collab) -->
+                                 <div id="hp-internal-dashboard-block" style="padding: 0;">
+                                    <div style="margin-bottom: 1.25rem; display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+                                        <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.6); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);">
+                                            <span class="material-icons-round" style="color: #64748b; font-size: 18px;">business_center</span>
+                                        </div>
+                                        <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; letter-spacing: -0.01em;">Attività interne</h3>
+                                    </div>
+                                    <div style="margin-bottom: 2rem; flex-shrink: 0;">
+                                        <div id="hp-internal-hubs-buttons" style="display: flex; gap: 12px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none; -ms-overflow-style: none;"></div>
+                                    </div>
+                                    <div id="hp-internal-clusters-grid" class="custom-scrollbar" style="flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 1rem; overflow-y: auto; padding: 0 4px 2rem 4px; min-height: 0;"></div>
                                  </div>
                              </div>
-                        </div>
-                        <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0.5rem; margin-bottom: 1.5rem;">
-                            <!-- Stats injected dynamically -->
-                        </div>
-                        <div id="hp-pm-spaces-main-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; padding: 4px 8px 60px 8px;">
-                            <!-- PM Orders cards populated here -->
-                        </div>
-                     </div>
 
-                      <!-- COLUMN 2: INTERNAL DASHBOARD (Hubs & Clusters - PRIORITY REVERSED) -->
-                      <div id="hp-internal-dashboard-block" style="
-                          flex: 1.2; 
-                          min-width: 280px; 
-                          display: flex;
-                          flex-direction: column; 
-                          max-height: 520px;
-                          padding: 0.5rem 1rem;
-                      ">
-                         <!-- TOP: Hub Buttons (Strategic Navigation - Carousel Slim) -->
-                         <div style="margin-bottom: 2rem;">
-                             <div id="hp-internal-hubs-buttons" style="
-                                 display: flex; 
-                                 gap: 12px; 
-                                 overflow-x: auto; 
-                                 padding-bottom: 12px; 
-                                 scrollbar-width: none; 
-                                 -ms-overflow-style: none;
-                             ">
-                                 <!-- Hub buttons populated here -->
+                             <!-- ROW 2: FINANCIAL BLOCKS (Collab) -->
+                             <div class="hp-dash-collab-fin">
+                                 <div id="hp-collaborator-payments-box" class="hp-widget-panel" style="display: flex; flex-direction: column; padding: 1.5rem; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 28px; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);">
+                                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                                          <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
+                                              <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.6); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">payment</span></div>
+                                              Stato Pagamenti
+                                          </h3>
+                                          <a href="#tasks-summary" style="font-size: 0.75rem; font-weight: 700; color: #8b5cf6; text-decoration: none;">VEDI STORICO</a>
+                                      </div>
+                                      <div id="hp-collab-payments-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; padding-right: 8px;"><div style="padding: 2rem; text-align: center; color: #94a3b8;"><span class="loader small"></span></div></div>
+                                 </div>
+                                 <div id="hp-collaborator-invoices-box" class="hp-widget-panel" style="display: flex; flex-direction: column; padding: 1.5rem; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 28px; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);">
+                                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                                          <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
+                                              <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.6); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">receipt_long</span></div>
+                                              Stato Fatture
+                                          </h3>
+                                          <a href="#tasks-summary" style="font-size: 0.75rem; font-weight: 700; color: #8b5cf6; text-decoration: none;">VEDI PASSIVE</a>
+                                      </div>
+                                      <div id="hp-collab-invoices-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; padding-right: 8px;"><div style="padding: 2rem; text-align: center; color: #94a3b8;"><span class="loader small"></span></div></div>
+                                 </div>
                              </div>
                          </div>
-
-                         <!-- BOTTOM: Clusters Grid (Operation First) -->
-                         <div id="hp-internal-clusters-grid" class="custom-scrollbar" style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; overflow-y: auto; padding-bottom: 2rem;">
-                             <!-- Cluster icons populated here -->
+                         
+                         <!-- RIGHT SIDE: FEED -->
+                         <div class="hp-dash-collab-right">
+                              <!-- FEED BLOCK -->
+                              <div id="hp-activity-feed-block" class="hp-widget-panel" style="flex: 1; display: flex; flex-direction: column; max-height: 520px; background: rgba(255, 255, 255, 0.2) !important; backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.3) !important; border-radius: 28px; padding: 1.5rem; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07); min-height: 0;">
+                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-shrink: 0;">
+                                      <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.02em;">
+                                          <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">rss_feed</span></div>Feed
+                                      </h3>
+                                      <div id="hp-feed-tabs-container" style="display: flex; gap: 4px; background: rgba(0,0,0,0.03); padding: 4px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.02);"></div>
+                                 </div>
+                                 <div id="hp-feed-content" class="custom-scrollbar" style="flex: 1; overflow-y: auto; overflow-x: hidden; padding-right: 8px; min-height: 0;"></div>
+                              </div>
                          </div>
+
+                     </div>
+                     ` : `
+                      <!-- ==================== PARTNER / ADMIN ==================== -->
+                      <!-- 3 COLUMNS FLEX GRID -->
+                      <div class="hp-dash-partner-main" style="padding-bottom: 3rem;">
+                          
+                          <!-- Col 1: Commesse -->
+                          <div id="hp-pm-spaces-main-block">
+                             <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.25rem; flex-shrink: 0;">
+                                  <div style="display: flex; justify-content: space-between; align-items: center; padding-left: 8px;">
+                                      <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
+                                          <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.6); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">dashboard</span></div>
+                                          Le mie Commesse
+                                      </h3>
+                                      <div style="display: flex; gap: 6px; background: rgba(0,0,0,0.03); padding: 4px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.02); margin-right: 8px;">
+                                        <button id="hp-filter-account" class="hp-filter-pill active" onclick="togglePmFilter('account')" style="font-family: 'Outfit', sans-serif; padding: 4px 10px; border-radius: 7px; border: none; font-size: 0.65rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;">ACCOUNT</button>
+                                        <button id="hp-filter-pm" class="hp-filter-pill active" onclick="togglePmFilter('pm')" style="font-family: 'Outfit', sans-serif; padding: 4px 10px; border-radius: 7px; border: none; font-size: 0.65rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;">PM</button>
+                                      </div>
+                                  </div>
+                             </div>
+                             <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0.5rem; margin-bottom: 1.5rem; flex-shrink: 0;"></div>
+                             <div id="hp-pm-spaces-main-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; padding: 4px 8px 60px 8px; min-height: 0;"></div>
+                          </div>
+
+                          <!-- Col 2: Attività Interne -->
+                          <div id="hp-internal-dashboard-block">
+                               <div id="hp-internal-hubs-buttons" style="display: flex; gap: 12px; overflow-x: auto; padding-bottom: 24px; scrollbar-width: none; -ms-overflow-style: none; padding-top: 10px;"></div>
+                               <div id="hp-internal-clusters-grid" class="custom-scrollbar" style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; overflow-y: auto; padding-bottom: 2rem; min-height: 0;"></div>
+                          </div>
+
+                          <!-- Col 3: FEED & ALERTS -->
+                          <div style="display: flex; flex-direction: column; gap: 2rem;">
+                              <!-- ALERT BLOCK -->
+                              <div id="hp-accounting-alerts-block" class="hp-widget-panel" style="display: none; flex-direction: column; background: rgba(255, 255, 255, 0.2) !important; backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.3) !important; border-radius: 28px; padding: 1.5rem; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07); flex-shrink: 0;">
+                                  <div class="flex-start" style="gap: 12px; align-items: center; margin-bottom: 1rem;">
+                                      <div style="width: 36px; height: 36px; border-radius: 12px; background: rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 20px;">notifications_active</span></div>
+                                      <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.05rem; font-weight: 600; color: #1e293b; margin: 0; letter-spacing: -0.02em;">Alert Amministrazione</h4>
+                                  </div>
+                                  <div id="hp-admin-alert-list" style="display: flex; flex-direction: column; gap: 4px;"></div>
+                              </div>
+
+                              <!-- FEED BLOCK -->
+                              <div id="hp-activity-feed-block" class="hp-widget-panel" style="flex: 1; display: flex; flex-direction: column; max-height: 520px; background: rgba(255, 255, 255, 0.2) !important; backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.3) !important; border-radius: 28px; padding: 1.5rem; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07); min-height: 0;">
+                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-shrink: 0;">
+                                      <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.02em;">
+                                          <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">rss_feed</span></div>Feed
+                                      </h3>
+                                      <div id="hp-feed-tabs-container" style="display: flex; gap: 4px; background: rgba(0,0,0,0.03); padding: 4px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.02);"></div>
+                                 </div>
+                                 <div id="hp-feed-content" class="custom-scrollbar" style="flex: 1; overflow-y: auto; overflow-x: hidden; padding-right: 8px; min-height: 0;"></div>
+                              </div>
+                          </div>
                       </div>
-
-                     <!-- COLUMN 3: ADMIN + FEED -->
-                     <div style="flex: 1; min-width: 260px; display: flex; flex-direction: column; gap: 2rem;">
-                         <!-- BOX: ACCOUNTING ALERTS -->
-                         <div id="hp-accounting-alerts-block" class="hp-widget-panel" style="
-                             display: none; 
-                             flex-direction: column; 
-                             height: auto;
-                             background: rgba(255, 255, 255, 0.2) !important;
-                             backdrop-filter: blur(20px) saturate(180%);
-                             -webkit-backdrop-filter: blur(20px) saturate(180%);
-                             border: 1px solid rgba(255, 255, 255, 0.3) !important;
-                             border-radius: 28px;
-                             padding: 1.5rem;
-                             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-                         ">
-                             <div class="flex-start" style="gap: 12px; align-items: center; margin-bottom: 1rem;">
-                                 <div style="width: 36px; height: 36px; border-radius: 12px; background: rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);">
-                                     <span class="material-icons-round" style="color: #64748b; font-size: 20px;">notifications_active</span>
-                                 </div>
-                                 <h4 style="font-size: 1.05rem; font-weight: 600; color: #1e293b; margin: 0; letter-spacing: -0.02em;">Alert Amministrazione</h4>
-                             </div>
-                             <div id="hp-admin-alert-list" style="display: flex; flex-direction: column; gap: 4px;">
-                                 <!-- Alerts injected dynamically -->
-                             </div>
-                         </div>
-
-                         <!-- BOX: ACTIVITY FEED -->
-                         <div id="hp-activity-feed-block" class="hp-widget-panel" style="
-                             flex: 1; 
-                             display: flex; 
-                             flex-direction: column; 
-                             max-height: 480px;
-                             background: rgba(255, 255, 255, 0.2) !important;
-                             backdrop-filter: blur(20px) saturate(180%);
-                             -webkit-backdrop-filter: blur(20px) saturate(180%);
-                             border: 1px solid rgba(255, 255, 255, 0.3) !important;
-                             border-radius: 28px;
-                             padding: 1.5rem;
-                             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-                         ">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
-                                 <h3 style="font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.02em;">
-                                     <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);">
-                                         <span class="material-icons-round" style="color: #64748b; font-size: 18px;">rss_feed</span>
-                                     </div>
-                                     Feed
-                                 </h3>
-                                 <div id="hp-feed-tabs-container" style="display: flex; gap: 4px; background: rgba(0,0,0,0.03); padding: 4px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.02);">
-                                     <!-- Tabs are populated by the setupHomepageFeed function -->
-                                 </div>
-                            </div>
-                            <div id="hp-feed-content" class="custom-scrollbar" style="flex: 1; overflow-y: auto; overflow-x: hidden; padding-right: 8px;">
-                                <!-- Feed populated by JS -->
-                            </div>
-                         </div>
-                     </div>
-                 </div>
-
-             </div> <!-- End main-content-area -->
-
-             <!-- 3. MOBILE OVERLAY POPUP (Replica of Desktop Sidebar) -->
+                      `}
+                 </div> <!-- End hp-main-columns-container -->
+                 
+            </div> <!-- End main-content-area -->
+<!-- 3. MOBILE OVERLAY POPUP (Replica of Desktop Sidebar) -->
              <div id="hp-mobile-agenda-popup" class="hp-mobile-agenda-pop" onclick="window.closeMobileAgenda()">
                 <div onclick="event.stopPropagation()" style="background: white; width: 100%; max-width: 450px; border-radius: 30px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: hpPopSlide 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
                     <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
@@ -1507,7 +1725,7 @@ export async function renderHomepageAlt(container) {
                 <div id="hp-mobile-rows-container" style="max-height: 400px; overflow-y: auto; padding-right: 4px;"></div>
 
                 <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 8px;">
-                    <a href="#my-assignments" onclick="window.closeMobileAgenda()" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #f8fafc; border-radius: 12px; text-decoration: none; color: #1e293b; font-size: 0.85rem; font-weight: 700; border: 1px solid #f1f5f9;">
+                    <a href="#tasks-summary" onclick="window.closeMobileAgenda()" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #f8fafc; border-radius: 12px; text-decoration: none; color: #1e293b; font-size: 0.85rem; font-weight: 700; border: 1px solid #f1f5f9;">
                          <div style="display: flex; align-items: center; gap: 10px;">
                              <span class="material-icons-round" style="color: #3b82f6; font-size: 18px;">assignment</span>
                              Vai a tutte le mie Task
@@ -1749,7 +1967,7 @@ export async function renderHomepageAlt(container) {
                 eventBtn.style.background = 'transparent'; eventBtn.style.color = '#64748b'; eventBtn.style.boxShadow = 'none'; eventBtn.style.borderColor = 'transparent';
                 if (taskLink) {
                     taskLink.textContent = 'Lista task';
-                    taskLink.href = '#my-assignments';
+                    taskLink.href = '#tasks-summary';
                 }
                 if (overdueToggle) overdueToggle.style.display = 'flex';
             } else {
@@ -1998,6 +2216,16 @@ export async function renderHomepageAlt(container) {
             });
 
             const rangeEnd = new Date();
+            rangeEnd.setDate(rangeEnd.getDate() + 30);
+
+            // Fetch Payments & Invoices for Collaborator
+            if (isCollaborator) {
+                fetchCollaboratorPayments(myCollab.id).then(payData => {
+                    renderCollaboratorPayments(payData);
+                });
+            }
+
+            // Sync Timeline Initially
             rangeEnd.setDate(rangeEnd.getDate() + 14);
             const fetchedEvents = await fetchDateEvents(myId, new Date(), rangeEnd);
 
@@ -2016,14 +2244,9 @@ export async function renderHomepageAlt(container) {
             window.updateHomepageTimeline(window.homepageCurrentDate);
 
             // 4. Role-Based Dispatch
-            let userTags = [];
-            if (myCollab && myCollab.tags) {
-                if (typeof myCollab.tags === 'string') {
-                    try { userTags = JSON.parse(myCollab.tags); } catch (e) { userTags = myCollab.tags.split(',').map(t => t.trim()); }
-                } else { userTags = myCollab.tags; }
-            }
-            const normalizedTags = Array.isArray(userTags) ? userTags.map(t => (t || '').toLowerCase()) : [];
-            const detectedRole = detectUserRole(normalizedTags);
+            // We already parsed this above into 'normalizedTagsForHtml' and 'htmlRole'. We reuse it.
+            const normalizedTags = normalizedTagsForHtml;
+            const detectedRole = htmlRole;
             const actualTargetUserId = myCollab.user_id || state.session?.user?.id;
             
             await renderMainContent(container, detectedRole, {
@@ -2621,15 +2844,75 @@ async function renderMainContent_PM(container, data) {
 async function renderMainContent_Collaboratore(container, data) {
     const content = document.getElementById('hp-pm-spaces-main-list');
     if (!content) return;
-    const targetUserId = data.targetUserId;
     const myActualCollabId = data.myId;
-    const projects = await fetchRecentProjects(myActualCollabId, targetUserId);
+    const targetUserId = data.targetUserId;
+
+    // Fetch Assignments instead of Projects for Collaborator
+    const assignments = await fetchCollaboratorAssignments(myActualCollabId);
     
     // Fetch Hubs/Clusters (False for collaborator - assigned only)
     const { hubs, clusters } = await fetchInternalHubsAndClusters(myActualCollabId, targetUserId, false);
     renderInternalDashboard(hubs, clusters);
     
-    renderProjects(content, projects);
+    if (assignments && assignments.length > 0) {
+        renderAssignments(content, assignments);
+    } else {
+        // Fallback or show empty state
+        renderProjects(content, []);
+    }
+}
+
+// --- ASSIGNMENTS RENDERING ---
+function renderAssignments(pmList, assignments) {
+    if (!pmList || !assignments) return;
+    
+    // Reset Stats Bar for Assignments
+    const statsBar = document.getElementById('hp-projects-stats-bar');
+    if (statsBar) {
+        statsBar.innerHTML = `
+            <div style="display: flex; align-items: flex-end; gap: 12px; padding-left: 8px;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-size: 0.6rem; font-weight: 800; color: #8b5cf6; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">Incarichi Attivi</span>
+                    <span id="stat-count-assignments" style="font-size: 1.6rem; font-weight: 800; color: #1e293b; line-height: 1;">${assignments.length}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    pmList.innerHTML = assignments.map(a => `
+        <div class="project-card" onclick="window.location.hash='${a.link}'" style="
+            background: white;
+            border-radius: 16px;
+            padding: 0.85rem 1rem;
+            border: 1px solid #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+            position: relative;
+            overflow: hidden;
+        ">
+            <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(139, 92, 246, 0.06); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                 <span class="material-icons-round" style="color: #8b5cf6; font-size: 20px;">assignment</span>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
+                     <span style="font-size: 0.6rem; font-weight: 800; color: #8b5cf6; text-transform: uppercase;">${a.legacy_id || 'INC'}</span>
+                </div>
+                <h4 style="font-size: 0.95rem; font-weight: 700; color: #1e293b; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">
+                    ${a.title}
+                </h4>
+                <div style="font-size: 0.72rem; color: #64748b; font-weight: 500;">${a.client}</div>
+            </div>
+            <div style="text-align: right; flex-shrink: 0;">
+                <div class="status-badge" style="display: inline-block; background: rgba(16, 185, 129, 0.1); color: #10b981; font-weight: 700; font-size: 0.6rem; padding: 4px 10px; border-radius: 8px; border: none;">
+                    ${(a.status || 'ATTIVO').toUpperCase()}
+                </div>
+            </div>
+        </div>
+    `).join('');
 }
 
 // --- SHARED PROJECTS RENDERING ENGINE ---
@@ -3601,7 +3884,7 @@ window.setHpFilter = function (filter, btn) {
     if (footerBtn) {
         if (filter === 'task') {
             footerBtn.innerText = 'Lista task';
-            footerBtn.onclick = () => window.location.hash = '#my-assignments';
+            footerBtn.onclick = () => window.location.hash = '#tasks-summary';
             if (overdueFilter) overdueFilter.style.display = 'flex';
         } else if (filter === 'event') {
             footerBtn.innerText = 'Vedi Agenda';

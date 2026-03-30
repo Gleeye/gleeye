@@ -625,14 +625,16 @@ window.impersonateCollaborator = async (collaboratorId) => {
     if (await window.showConfirm(`Vuoi impersonare ${c.full_name}? Vedrai l'interfaccia come se fossi questo collaboratore.`)) {
         state.impersonatedRole = 'collaborator';
         state.impersonatedCollaboratorId = c.id;
+        sessionStorage.setItem('gleeye_impersonatedRole', 'collaborator');
+        sessionStorage.setItem('gleeye_impersonatedCollaboratorId', c.id);
 
         // Update Sidebar
         import('./layout.js?v=1000').then(({ updateSidebarVisibility, renderSidebarProfile }) => {
             updateSidebarVisibility();
             renderSidebarProfile(); // Update avatar
 
-            // Redirect to a safe page
-            window.location.hash = 'booking';
+            // Redirect to a safe page (Home as requested)
+            window.location.hash = 'home';
             window.showAlert(`Stai vedendo l'app come: ${c.full_name}`, 'success');
         });
     }

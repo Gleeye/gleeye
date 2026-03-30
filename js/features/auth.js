@@ -155,7 +155,7 @@ async function handleSession(session) {
 
             // Base allowed pages for all collaborators
             let allowedPagesForCollaborator = [
-                'home', 'booking', 'profile', 'agenda', 'my-assignments',
+                'home', 'booking', 'profile', 'agenda', 'tasks-summary',
                 'pm', 'notifications', 'chat', 'assignment-detail', 'assignments'
             ];
 

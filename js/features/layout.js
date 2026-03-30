@@ -118,7 +118,7 @@ export function updateTopBarNavigation() {
     if (!backBtn) return;
 
     // Hardcoded list of root views where back button MUST NEVER be visible
-    const rootHashes = ['', '#', '#home', '#dashboard', '#agenda', '#my-assignments', '#assignments', '#booking', '#pm/commesse', '#pm/interni', '#pm/my-work', '#invoices', '#sales', '#employees', '#settings', '#profile'];
+    const rootHashes = ['', '#', '#home', '#dashboard', '#agenda', '#tasks-summary', '#assignments', '#booking', '#pm/commesse', '#pm/interni', '#pm/my-work', '#invoices', '#sales', '#employees', '#settings', '#profile'];
     
     // Exact check + logic for sub-pages
     const isRoot = rootHashes.includes(hash);
@@ -452,6 +452,8 @@ export function renderSidebarProfile() {
 export function exitImpersonation() {
     state.impersonatedRole = null;
     state.impersonatedCollaboratorId = null;
+    sessionStorage.removeItem('gleeye_impersonatedRole');
+    sessionStorage.removeItem('gleeye_impersonatedCollaboratorId');
     console.log("[Impersonation] Exited impersonation mode.");
 
     updateSidebarVisibility();
@@ -544,6 +546,16 @@ export function updateSidebarVisibility() {
             if (toggle) toggle.classList.remove('hidden');
         } else {
             navPm.classList.add('hidden');
+        }
+    }
+
+    // Collaborator Incarichi Section (Visible for normal collaborators)
+    const navAssignmentsCollab = currentPrimary.querySelector('#nav-assignments-collab');
+    if (navAssignmentsCollab) {
+        if (activeRole === 'collaborator' && !isPrivilegedCollaborator) {
+            navAssignmentsCollab.classList.remove('hidden');
+        } else {
+            navAssignmentsCollab.classList.add('hidden');
         }
     }
 
