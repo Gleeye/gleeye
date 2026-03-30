@@ -1349,6 +1349,20 @@ export async function addOrderAccount(orderId, collaboratorId) {
     return data;
 }
 
+export async function fetchOrderAccounts(orderId) {
+    const { data, error } = await supabase
+        .from('order_collaborators')
+        .select('*, collaborators (id, full_name, role, avatar_url)')
+        .eq('order_id', orderId)
+        .eq('role_in_order', 'Account');
+
+    if (error) {
+        console.warn("Error fetching order accounts:", error);
+        return [];
+    }
+    return data;
+}
+
 export async function fetchAvailabilityRules(collaboratorId) {
     try {
         const { data: rules, error } = await supabase

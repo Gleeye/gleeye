@@ -1,7 +1,7 @@
 import { state } from '/js/modules/state.js';
 import { supabase } from '../modules/config.js';
 import { formatAmount, showGlobalAlert, showConfirm, getInitials, getAvatarColor, renderAvatar } from '../modules/utils.js?v=1000';
-import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, addOrderContact, removeOrderContact, fetchOrderContacts, updateOrderCloudLinks, generateNextOrderNumber } from '../modules/api.js';
+import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, fetchOrderAccounts, addOrderContact, removeOrderContact, fetchOrderContacts, updateOrderCloudLinks, generateNextOrderNumber } from '../modules/api.js';
 import { CloudLinksManager } from './components/CloudLinksManager.js?v=1000';
 import { CustomSelect } from '../components/CustomSelect.js';
 import { openPaymentModal } from './payments.js?v=1000';
@@ -52,9 +52,19 @@ export async function renderOrderDetail(container, orderId) {
         return;
     }
 
-    let accountList = (order.order_collaborators || [])
-        .filter(oc => oc.role_in_order === 'Account')
-        .map(oc => oc.collaborators);
+    let accountList = [];
+    try {
+        const rawAccounts = await fetchOrderAccounts(orderId);
+        accountList = rawAccounts.map(ra => ra.collaborators);
+    } catch (e) {
+        console.warn("Error fetching accounts list", e);
+    }
+    
+    if (accountList.length === 0 && order.order_collaborators) {
+        accountList = order.order_collaborators
+            .filter(oc => oc.role_in_order === 'Account')
+            .map(oc => oc.collaborators);
+    }
 
     if (accountList.length === 0 && order.account) {
         accountList.push(order.account);
