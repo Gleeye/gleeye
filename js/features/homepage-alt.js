@@ -1325,6 +1325,7 @@ export async function renderHomepageAlt(container) {
                           flex-direction: column;
                           overflow: hidden;
                           min-height: 0;
+                          max-height: calc(100vh - 160px);
                       }
 
                      @media (max-width: 1100px) {
@@ -1463,7 +1464,6 @@ export async function renderHomepageAlt(container) {
                                       </div>
                                   </div>
                              </div>
-                             <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0.5rem; margin-bottom: 1.5rem; flex-shrink: 0;"></div>
                              <div id="hp-pm-spaces-main-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; padding: 4px 8px 60px 8px; min-height: 0;"></div>
                           </div>
 
@@ -2946,6 +2946,7 @@ function renderProjects(pmList, pmProjects) {
     // Ensure the block is visible
     const pmBlock = document.getElementById('hp-pm-spaces-main-block');
     if (pmBlock) pmBlock.style.display = 'flex';
+    if (!document.getElementById('hp-projects-stats-bar')) {
         pmList.insertAdjacentHTML('beforebegin', `
             <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0.5rem; margin-bottom: 1.5rem; flex-shrink: 0;">
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding-left: 8px;">
@@ -2969,6 +2970,7 @@ function renderProjects(pmList, pmProjects) {
                 </div>
             </div>
         `);
+    }
 
     const _internalRender = () => {
         const showAccount = window.hpActiveFilters?.account !== false;
