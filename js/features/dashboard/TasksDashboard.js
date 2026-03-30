@@ -299,20 +299,30 @@ export class TasksDashboard {
                     .kanban-col-head .count { font-size: 0.72rem; font-weight: 800; color: #697386; background: #fff; padding: 2px 8px; border-radius: 6px; border: 1.2px solid #f1f5f9; }
 
                     /* TASK CARDS */
-                    /* TASK CARDS */
-                    .premium-task-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1.2px solid rgba(0,0,0,0.04); border-radius: 16px; padding: 1.15rem; display: flex; flex-direction: column; gap: 8px; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 4px 12px rgba(0,0,0,0.01); position: relative; overflow: hidden; }
-                    .premium-task-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; transition: all 0.2s; }
+                    .premium-task-card { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px); border: 1.2px solid rgba(0,0,0,0.04); border-radius: 16px; padding: 1.15rem; display: flex; flex-direction: column; gap: 8px; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 4px 12px rgba(0,0,0,0.015); position: relative; overflow: hidden; }
                     
-                    /* Type Accents */
-                    .premium-task-card.type-commessa { border-color: rgba(78, 146, 216, 0.1); }
-                    .premium-task-card.type-commessa::before { background: #4e92d8; opacity: 0.7; }
-                    .premium-task-card.type-commessa:hover { border-color: rgba(78, 146, 216, 0.3); box-shadow: 0 8px 24px rgba(78, 146, 216, 0.1); }
+                    /* Type Accents - Gradient Tints */
+                    .premium-task-card.type-commessa { 
+                        background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(235, 245, 255, 0.85));
+                        border-color: rgba(78, 146, 216, 0.08); 
+                    }
+                    .premium-task-card.type-commessa:hover { 
+                        background: linear-gradient(135deg, rgba(255, 255, 255, 1), rgba(224, 242, 254, 0.9));
+                        border-color: rgba(78, 146, 216, 0.2); 
+                        box-shadow: 0 10px 25px rgba(78, 146, 216, 0.1);
+                    }
                     
-                    .premium-task-card.type-interno { border-color: rgba(104, 117, 237, 0.1); }
-                    .premium-task-card.type-interno::before { background: #6875ed; opacity: 0.7; }
-                    .premium-task-card.type-interno:hover { border-color: rgba(104, 117, 237, 0.3); box-shadow: 0 8px 24px rgba(104, 117, 237, 0.1); }
+                    .premium-task-card.type-interno { 
+                        background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(245, 243, 255, 0.85));
+                        border-color: rgba(104, 117, 237, 0.08); 
+                    }
+                    .premium-task-card.type-interno:hover { 
+                        background: linear-gradient(135deg, rgba(255, 255, 255, 1), rgba(238, 242, 255, 0.9));
+                        border-color: rgba(104, 117, 237, 0.2); 
+                        box-shadow: 0 10px 25px rgba(104, 117, 237, 0.1);
+                    }
                     
-                    .premium-task-card:hover { transform: translateY(-3px) scale(1.005); }
+                    .premium-task-card:hover { transform: translateY(-4px) scale(1.01); }
                     .card-title { font-family: 'Satoshi', sans-serif; font-size: 0.95rem; font-weight: 700; color: #1a1f36; line-height: 1.3; margin: 0; padding-right: 30px; letter-spacing: -0.01em; flex: 1; }
                     .card-check-btn { position: absolute; top: 1.15rem; right: 1.15rem; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #cbd5e1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); background: #fff; color: #94a3b8; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
                     .card-check-btn:hover { background: #10b981; border-color: #10b981; color: #fff; transform: scale(1.15) rotate(12deg); box-shadow: 0 8px 20px rgba(16,185,129,0.2); }
