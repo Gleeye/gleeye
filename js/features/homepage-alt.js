@@ -1316,9 +1316,8 @@ export async function renderHomepageAlt(container) {
                          display: grid;
                          grid-template-columns: 1.3fr 1.05fr 0.65fr;
                          gap: 2.5rem;
-                         align-items: start;
+                         align-items: stretch;
                          width: 100%;
-                         min-height: 0;
                      }
                      
                       .hp-dash-collab-top > div, .hp-dash-partner-main > div {
@@ -1326,7 +1325,6 @@ export async function renderHomepageAlt(container) {
                           flex-direction: column;
                           overflow: hidden;
                           min-height: 0;
-                          max-height: calc(100vh - 180px);
                       }
 
                      @media (max-width: 1100px) {
@@ -1452,8 +1450,8 @@ export async function renderHomepageAlt(container) {
                       <div class="hp-dash-partner-main" style="padding-bottom: 3rem;">
                           
                           <!-- Col 1: Commesse -->
-                          <div id="hp-pm-spaces-main-block" style="display: flex; flex-direction: column;">
-                             <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 0.5rem; flex-shrink: 0;">
+                          <div id="hp-pm-spaces-main-block">
+                             <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.25rem; flex-shrink: 0;">
                                   <div style="display: flex; justify-content: space-between; align-items: center; padding-left: 8px;">
                                       <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
                                           <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.6); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">dashboard</span></div>
@@ -1465,14 +1463,14 @@ export async function renderHomepageAlt(container) {
                                       </div>
                                   </div>
                              </div>
-                             
-                             <div id="hp-pm-spaces-main-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; overflow-x: hidden; padding: 4px 4px 60px 4px; min-height: 0;"></div>
+                             <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0.5rem; margin-bottom: 1.5rem; flex-shrink: 0;"></div>
+                             <div id="hp-pm-spaces-main-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; padding: 4px 8px 60px 8px; min-height: 0;"></div>
                           </div>
 
                           <!-- Col 2: Attività Interne -->
-                          <div id="hp-internal-dashboard-block" style="display: flex; flex-direction: column;">
+                          <div id="hp-internal-dashboard-block">
                                <div id="hp-internal-hubs-buttons" style="display: flex; gap: 12px; overflow-x: auto; padding-bottom: 24px; scrollbar-width: none; -ms-overflow-style: none; padding-top: 10px;"></div>
-                               <div id="hp-internal-clusters-grid" class="custom-scrollbar" style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-content: start; overflow-y: auto; padding-bottom: 2rem; min-height: 0;"></div>
+                               <div id="hp-internal-clusters-grid" class="custom-scrollbar" style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; overflow-y: auto; padding-bottom: 2rem; min-height: 0;"></div>
                           </div>
 
                           <!-- Col 3: FEED & ALERTS -->
@@ -2885,24 +2883,26 @@ function renderAssignments(pmList, assignments, clusters = [], events = []) {
         const uniqueOrders = new Set(assignments.map(a => a.order_number).filter(Boolean));
         
         statsBar.innerHTML = `
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding-left: 12px;">
-                <span style="font-size: 0.6rem; font-weight: 800; color: #60a5fa; letter-spacing: 0.05em; text-transform: uppercase;">COMMESSE</span>
-                <span id="stat-count-assignments" style="font-size: 1.6rem; font-weight: 800; color: #3b82f6; line-height: 1.1;">${uniqueOrders.size}</span>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: flex-start; padding-left: 8px;">
+                <span style="font-size: 0.58rem; font-weight: 700; color: #3b82f6; letter-spacing: 0.05em; opacity: 0.8;">COMMESSE</span>
+                <span style="font-size: 1.25rem; font-weight: 800; color: #3b82f6; line-height: 1;">${uniqueOrders.size}</span>
             </div>
-            <div style="width: 1px; height: 35px; background: rgba(0,0,0,0.06);"></div>
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
-                <span style="font-size: 0.6rem; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;">ATTIVITÀ</span>
-                <span style="font-size: 1.6rem; font-weight: 800; color: #1e293b; line-height: 1.1;">${clusters.length}</span>
+            <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
+                <span style="font-size: 0.58rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">ATTIVITÀ</span>
+                <span style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">${clusters.length}</span>
             </div>
-            <div style="width: 1px; height: 35px; background: rgba(0,0,0,0.06);"></div>
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
-                <span style="font-size: 0.6rem; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;">TASK</span>
-                <span style="font-size: 1.6rem; font-weight: 800; color: #1e293b; line-height: 1.1;">${assignments.length}</span>
+            <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
+                <span style="font-size: 0.58rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">TASK</span>
+                <span style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">${assignments.length}</span>
             </div>
-            <div style="width: 1px; height: 35px; background: rgba(0,0,0,0.06);"></div>
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; padding-right: 12px;">
-                <span style="font-size: 0.6rem; font-weight: 800; color: #34d399; letter-spacing: 0.05em; text-transform: uppercase;">APPUNTAMENTI</span>
-                <span style="font-size: 1.6rem; font-weight: 800; color: #10b981; line-height: 1.1;">${events.length}</span>
+            <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: flex-end; padding-right: 8px;">
+                <span style="font-size: 0.58rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em; opacity: 0.8;">APPUNTAMENTI</span>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <span style="font-size: 1.25rem; font-weight: 800; color: #10b981; line-height: 1;">${events.length}</span>
+                </div>
             </div>
         `;
     }
@@ -2946,31 +2946,29 @@ function renderProjects(pmList, pmProjects) {
     // Ensure the block is visible
     const pmBlock = document.getElementById('hp-pm-spaces-main-block');
     if (pmBlock) pmBlock.style.display = 'flex';
-    if (!document.getElementById('hp-projects-stats-bar')) {
         pmList.insertAdjacentHTML('beforebegin', `
-            <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; margin-bottom: 2rem; flex-shrink: 0; background: white; border-radius: 16px; border: 1px solid #f1f5f9; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding-left: 0;">
-                    <span style="font-size: 0.65rem; font-weight: 800; color: #60a5fa; letter-spacing: 0.05em; text-transform: uppercase;">COMMESSE</span>
-                    <span id="stat-count-projects" style="font-size: 2rem; font-weight: 800; color: #3b82f6; line-height: 1;">0</span>
+            <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0.5rem; margin-bottom: 1.5rem; flex-shrink: 0;">
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding-left: 8px;">
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #3b82f6; letter-spacing: 0.05em; opacity: 0.8;">COMMESSE</span>
+                    <span id="stat-count-projects" style="font-size: 1.5rem; font-weight: 800; color: #3b82f6; line-height: 1;">0</span>
                 </div>
-                <div style="width: 1px; height: 40px; background: rgba(0,0,0,0.05);"></div>
+                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
-                    <span style="font-size: 0.65rem; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;">ATTIVITÀ</span>
-                    <span id="stat-count-activities" style="font-size: 2rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">ATTIVITÀ</span>
+                    <span id="stat-count-activities" style="font-size: 1.5rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
                 </div>
-                <div style="width: 1px; height: 40px; background: rgba(0,0,0,0.05);"></div>
+                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
-                    <span style="font-size: 0.65rem; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;">TASK</span>
-                    <span id="stat-count-tasks" style="font-size: 2rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">TASK</span>
+                    <span id="stat-count-tasks" style="font-size: 1.5rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
                 </div>
-                <div style="width: 1px; height: 40px; background: rgba(0,0,0,0.05);"></div>
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; padding-right: 0;">
-                    <span style="font-size: 0.65rem; font-weight: 800; color: #34d399; letter-spacing: 0.05em; text-transform: uppercase;">APPUNTAMENTI</span>
-                    <span id="stat-count-events" style="font-size: 2rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
+                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; padding-right: 8px;">
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em; opacity: 0.8;">APPUNTAMENTI</span>
+                    <span id="stat-count-events" style="font-size: 1.5rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
                 </div>
             </div>
         `);
-    }
 
     const _internalRender = () => {
         const showAccount = window.hpActiveFilters?.account !== false;
@@ -2980,24 +2978,24 @@ function renderProjects(pmList, pmProjects) {
         const statsBar = document.getElementById('hp-projects-stats-bar');
         if (statsBar && !statsBar.querySelector('#stat-count-projects')) {
             statsBar.innerHTML = `
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding-left: 0;">
-                    <span style="font-size: 0.65rem; font-weight: 800; color: #60a5fa; letter-spacing: 0.05em; text-transform: uppercase;">COMMESSE</span>
-                    <span id="stat-count-projects" style="font-size: 2rem; font-weight: 800; color: #3b82f6; line-height: 1;">0</span>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding-left: 8px;">
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #3b82f6; letter-spacing: 0.05em; opacity: 0.8;">COMMESSE</span>
+                    <span id="stat-count-projects" style="font-size: 1.5rem; font-weight: 800; color: #3b82f6; line-height: 1;">0</span>
                 </div>
-                <div style="width: 1px; height: 40px; background: rgba(0,0,0,0.05);"></div>
+                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
-                    <span style="font-size: 0.65rem; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;">ATTIVITÀ</span>
-                    <span id="stat-count-activities" style="font-size: 2rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">ATTIVITÀ</span>
+                    <span id="stat-count-activities" style="font-size: 1.5rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
                 </div>
-                <div style="width: 1px; height: 40px; background: rgba(0,0,0,0.05);"></div>
+                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
-                    <span style="font-size: 0.65rem; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;">TASK</span>
-                    <span id="stat-count-tasks" style="font-size: 2rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">TASK</span>
+                    <span id="stat-count-tasks" style="font-size: 1.5rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
                 </div>
-                <div style="width: 1px; height: 40px; background: rgba(0,0,0,0.05);"></div>
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; padding-right: 0;">
-                    <span style="font-size: 0.65rem; font-weight: 800; color: #34d399; letter-spacing: 0.05em; text-transform: uppercase;">APPUNTAMENTI</span>
-                    <span id="stat-count-events" style="font-size: 2rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
+                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; padding-right: 8px;">
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em; opacity: 0.8;">APPUNTAMENTI</span>
+                    <span id="stat-count-events" style="font-size: 1.5rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
                 </div>
             `;
         }
