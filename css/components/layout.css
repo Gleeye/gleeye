@@ -420,3 +420,14 @@
         /* Smooth scrolling on iOS */
     }
 }
+
+/* Global Refresh Button Styling */
+#refresh-btn:hover span {
+    animation: rotate-once 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    color: var(--brand-blue);
+}
+
+@keyframes rotate-once {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}

@@ -53,6 +53,23 @@ export function initLayout() {
 
     mobileOverlay.addEventListener('click', closeMobileSidebar);
 
+    // Refresh Button Logic
+    const refreshBtn = document.getElementById('refresh-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            const icon = refreshBtn.querySelector('.material-icons-round');
+            if (icon) {
+                icon.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                icon.style.transform = 'rotate(360deg)';
+                setTimeout(() => {
+                    window.location.reload();
+                }, 500);
+            } else {
+                window.location.reload();
+            }
+        });
+    }
+
     // Initial navigation state
     updateTopBarNavigation();
     window.addEventListener('hashchange', updateTopBarNavigation);
