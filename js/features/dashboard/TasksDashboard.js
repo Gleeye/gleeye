@@ -303,23 +303,23 @@ export class TasksDashboard {
                     
                     /* Type Accents - Gradient Tints */
                     .premium-task-card.type-commessa { 
-                        background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(235, 245, 255, 0.85));
+                        background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(235, 245, 255, 0.7));
                         border-color: rgba(78, 146, 216, 0.08); 
                     }
                     .premium-task-card.type-commessa:hover { 
-                        background: linear-gradient(135deg, rgba(255, 255, 255, 1), rgba(224, 242, 254, 0.9));
-                        border-color: rgba(78, 146, 216, 0.2); 
-                        box-shadow: 0 10px 25px rgba(78, 146, 216, 0.1);
+                        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(186, 230, 253, 0.5));
+                        border-color: rgba(78, 146, 216, 0.3); 
+                        box-shadow: 0 10px 25px rgba(78, 146, 216, 0.12);
                     }
                     
                     .premium-task-card.type-interno { 
-                        background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(245, 243, 255, 0.85));
+                        background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(245, 243, 255, 0.7));
                         border-color: rgba(104, 117, 237, 0.08); 
                     }
                     .premium-task-card.type-interno:hover { 
-                        background: linear-gradient(135deg, rgba(255, 255, 255, 1), rgba(238, 242, 255, 0.9));
-                        border-color: rgba(104, 117, 237, 0.2); 
-                        box-shadow: 0 10px 25px rgba(104, 117, 237, 0.1);
+                        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(224, 231, 255, 0.5));
+                        border-color: rgba(104, 117, 237, 0.3); 
+                        box-shadow: 0 10px 25px rgba(104, 117, 237, 0.12);
                     }
                     
                     .premium-task-card:hover { transform: translateY(-4px) scale(1.01); }
