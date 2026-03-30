@@ -1112,7 +1112,13 @@ export async function renderHomepageAlt(container) {
     }
 
     const normalizedTagsForHtml = Array.isArray(userTagsRaw) ? userTagsRaw.map(t => (t || '').toLowerCase()) : [];
-    const htmlRole = detectUserRole(normalizedTagsForHtml);
+    let htmlRole = detectUserRole(normalizedTagsForHtml);
+    
+    // FORCE PARTNER VIEW FOR ADMINS/SOCI
+    if (state.profile?.role === 'admin' || normalizedTagsForHtml.includes('socio') || normalizedTagsForHtml.includes('partner')) {
+        htmlRole = 'partner';
+    }
+    
     const isCollaborator = htmlRole === 'collaboratore';
 
     // --- MANAGE TOP BAR GREETING ---
@@ -1153,12 +1159,12 @@ export async function renderHomepageAlt(container) {
                 max-width: 100vw !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                background: #f8fafc !important;
+                background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
             }
 
-            .hp-alt-wrapper { display: flex; width: 100%; height: 100%; background: #f8fafc; font-family: 'Outfit'; position: relative; overflow: hidden; flex: 1; }
+            .hp-alt-wrapper { display: flex; width: 100%; height: 100%; background: transparent; font-family: 'Outfit'; position: relative; overflow: hidden; flex: 1; }
             .hp-alt-sidebar-left { width: 320px; flex-shrink: 0; height: 100%; background: white; border-right: 1px solid #eef2f6; display: flex; flex-direction: column; position: relative; box-shadow: 10px 0 30px rgba(0,0,0,0.01); z-index: 10; overflow: hidden; }
-            .hp-main-content-area { flex: 1; display: flex; flex-direction: column; gap: 2rem; padding: 1.5rem 2rem; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; position: relative; width: 100%; box-sizing: border-box; background: #f8fafc; }
+            .hp-main-content-area { flex: 1; display: flex; flex-direction: column; gap: 2rem; padding: 1.5rem 2rem; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; position: relative; width: 100%; box-sizing: border-box; background: transparent; }
             .hp-main-columns-container { display: flex; flex-direction: row; gap: 2rem; width: 100%; align-items: flex-start; }
             
             .hp-mobile-banner { display: none; }
@@ -1308,18 +1314,18 @@ export async function renderHomepageAlt(container) {
                      }
                      .hp-dash-partner-main {
                          display: grid;
-                         grid-template-columns: 1.15fr 0.85fr 1fr;
-                         gap: 2rem;
+                         grid-template-columns: 1.3fr 1.05fr 0.65fr;
+                         gap: 2.5rem;
                          align-items: stretch;
                          width: 100%;
                      }
                      
-                     .hp-dash-collab-top > div, .hp-dash-partner-main > div {
-                         max-height: 520px;
-                         display: flex;
-                         flex-direction: column;
-                         overflow: hidden;
-                     }
+                      .hp-dash-collab-top > div, .hp-dash-partner-main > div {
+                          display: flex;
+                          flex-direction: column;
+                          overflow: hidden;
+                          min-height: 0;
+                      }
 
                      @media (max-width: 1100px) {
                          .hp-dash-collab-main, .hp-dash-collab-top, .hp-dash-collab-fin, .hp-dash-partner-main {
@@ -2854,8 +2860,12 @@ async function renderMainContent_Collaboratore(container, data) {
     const { hubs, clusters } = await fetchInternalHubsAndClusters(myActualCollabId, targetUserId, false);
     renderInternalDashboard(hubs, clusters);
     
+    // Fetch Appointments for Collaborator
+    const { fetchCollaboratorAppointments } = await import('/js/modules/pm_api.js?v=' + Date.now());
+    const events = await fetchCollaboratorAppointments(myActualCollabId) || [];
+    
     if (assignments && assignments.length > 0) {
-        renderAssignments(content, assignments);
+        renderAssignments(content, assignments, clusters, events);
     } else {
         // Fallback or show empty state
         renderProjects(content, []);
@@ -2863,17 +2873,35 @@ async function renderMainContent_Collaboratore(container, data) {
 }
 
 // --- ASSIGNMENTS RENDERING ---
-function renderAssignments(pmList, assignments) {
+function renderAssignments(pmList, assignments, clusters = [], events = []) {
     if (!pmList || !assignments) return;
     
     // Reset Stats Bar for Assignments
     const statsBar = document.getElementById('hp-projects-stats-bar');
     if (statsBar) {
+        // Calculate unique orders (Commesse)
+        const uniqueOrders = new Set(assignments.map(a => a.order_number).filter(Boolean));
+        
         statsBar.innerHTML = `
-            <div style="display: flex; align-items: flex-end; gap: 12px; padding-left: 8px;">
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                    <span style="font-size: 0.6rem; font-weight: 800; color: #8b5cf6; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">Incarichi Attivi</span>
-                    <span id="stat-count-assignments" style="font-size: 1.6rem; font-weight: 800; color: #1e293b; line-height: 1;">${assignments.length}</span>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: flex-start; padding-left: 8px;">
+                <span style="font-size: 0.58rem; font-weight: 700; color: #3b82f6; letter-spacing: 0.05em; opacity: 0.8;">COMMESSE</span>
+                <span style="font-size: 1.25rem; font-weight: 800; color: #3b82f6; line-height: 1;">${uniqueOrders.size}</span>
+            </div>
+            <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
+                <span style="font-size: 0.58rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">ATTIVITÀ</span>
+                <span style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">${clusters.length}</span>
+            </div>
+            <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
+                <span style="font-size: 0.58rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">TASK</span>
+                <span style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">${assignments.length}</span>
+            </div>
+            <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: flex-end; padding-right: 8px;">
+                <span style="font-size: 0.58rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em; opacity: 0.8;">APPUNTAMENTI</span>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <span style="font-size: 1.25rem; font-weight: 800; color: #10b981; line-height: 1;">${events.length}</span>
                 </div>
             </div>
         `;
@@ -2882,20 +2910,21 @@ function renderAssignments(pmList, assignments) {
     pmList.innerHTML = assignments.map(a => `
         <div class="project-card" onclick="window.location.hash='${a.link}'" style="
             background: white;
-            border-radius: 16px;
-            padding: 0.85rem 1rem;
+            border-radius: 14px;
+            padding: 0.75rem 0.85rem;
             border: 1px solid #f1f5f9;
             display: flex;
             align-items: center;
-            gap: 1.25rem;
+            gap: 1rem;
             cursor: pointer;
             transition: all 0.3s;
             box-shadow: 0 4px 10px rgba(0,0,0,0.02);
             position: relative;
             overflow: hidden;
+            margin-bottom: 4px;
         ">
-            <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(139, 92, 246, 0.06); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                 <span class="material-icons-round" style="color: #8b5cf6; font-size: 20px;">assignment</span>
+            <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(139, 92, 246, 0.06); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                 <span class="material-icons-round" style="color: #8b5cf6; font-size: 18px;">assignment</span>
             </div>
             <div style="flex: 1; min-width: 0;">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
@@ -2905,11 +2934,6 @@ function renderAssignments(pmList, assignments) {
                     ${a.title}
                 </h4>
                 <div style="font-size: 0.72rem; color: #64748b; font-weight: 500;">${a.client}</div>
-            </div>
-            <div style="text-align: right; flex-shrink: 0;">
-                <div class="status-badge" style="display: inline-block; background: rgba(16, 185, 129, 0.1); color: #10b981; font-weight: 700; font-size: 0.6rem; padding: 4px 10px; border-radius: 8px; border: none;">
-                    ${(a.status || 'ATTIVO').toUpperCase()}
-                </div>
             </div>
         </div>
     `).join('');
@@ -2922,34 +2946,29 @@ function renderProjects(pmList, pmProjects) {
     // Ensure the block is visible
     const pmBlock = document.getElementById('hp-pm-spaces-main-block');
     if (pmBlock) pmBlock.style.display = 'flex';
-    if (!document.getElementById('hp-projects-stats-bar')) {
-        pmList.parentElement.insertAdjacentHTML('afterbegin', `
-            <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0.5rem; margin-bottom: 1.5rem;">
+        pmList.insertAdjacentHTML('beforebegin', `
+            <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0.5rem; margin-bottom: 1.5rem; flex-shrink: 0;">
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding-left: 8px;">
-                    <span style="font-size: 0.6rem; font-weight: 700; color: #60a5fa; letter-spacing: 0.05em;">COMMESSE</span>
-                    <span id="stat-count-projects" style="font-size: 1.4rem; font-weight: 800; color: #3b82f6; line-height: 1;">0</span>
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #3b82f6; letter-spacing: 0.05em; opacity: 0.8;">COMMESSE</span>
+                    <span id="stat-count-projects" style="font-size: 1.5rem; font-weight: 800; color: #3b82f6; line-height: 1;">0</span>
                 </div>
                 <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
-                    <span style="font-size: 0.6rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">ATTIVITÀ</span>
-                    <span id="stat-count-activities" style="font-size: 1.4rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">ATTIVITÀ</span>
+                    <span id="stat-count-activities" style="font-size: 1.5rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
                 </div>
                 <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
-                    <span style="font-size: 0.6rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em;">TASK</span>
-                    <span id="stat-count-tasks" style="font-size: 1.4rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">TASK</span>
+                    <span id="stat-count-tasks" style="font-size: 1.5rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
                 </div>
                 <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; padding-right: 8px;">
-                    <span style="font-size: 0.6rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em;">APPUNTAMENTI</span>
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span class="material-icons-round" style="font-size: 14px; color: #10b981; opacity: 0.7;">calendar_today</span>
-                        <span id="stat-count-events" style="font-size: 1.4rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
-                    </div>
+                    <span style="font-size: 0.6rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em; opacity: 0.8;">APPUNTAMENTI</span>
+                    <span id="stat-count-events" style="font-size: 1.5rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
                 </div>
             </div>
         `);
-    }
 
     const _internalRender = () => {
         const showAccount = window.hpActiveFilters?.account !== false;
@@ -2976,9 +2995,7 @@ function renderProjects(pmList, pmProjects) {
                 <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; padding-right: 8px;">
                     <span style="font-size: 0.6rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em; opacity: 0.8;">APPUNTAMENTI</span>
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span id="stat-count-events" style="font-size: 1.5rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
-                    </div>
+                    <span id="stat-count-events" style="font-size: 1.5rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
                 </div>
             `;
         }

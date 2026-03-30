@@ -115,6 +115,13 @@ export class TasksDashboard {
 
     async completeTask(id) {
         try {
+            // Find element for animation
+            const card = this.container.querySelector(`[data-task-id="${id}"]`);
+            if (card) card.classList.add('task-completing');
+
+            // Wait for animation to build anticipation
+            await new Promise(r => setTimeout(r, 500));
+
             const { error } = await supabase
                 .from('pm_items')
                 .update({ status: 'done' })
@@ -134,6 +141,8 @@ export class TasksDashboard {
         } catch (err) {
             console.error("Complete Task Error:", err);
             showGlobalAlert('Errore completamento task', 'error');
+            // Re-render to restore card if error
+            this.render();
         }
     }
 
@@ -263,44 +272,54 @@ export class TasksDashboard {
                     
                     /* EXTREME GLASS TOOLBAR (DESKTOP) */
                     .tasks-toolbar-wrapper {
-                        padding: 24px 2rem 1.5rem 2rem; flex-shrink: 0; display: flex; justify-content: center; z-index: 1000;
+                        padding: 16px 2rem 1rem 2rem; flex-shrink: 0; display: flex; justify-content: center; z-index: 1000;
                     }
                     .tasks-toolbar-glass {
-                        width: 100%; max-width: 1400px; height: 72px; background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(30px) saturate(210%); -webkit-backdrop-filter: blur(30px) saturate(210%); border: 1.2px solid rgba(0, 0, 0, 0.06); border-radius: 24px; display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; box-shadow: 0 16px 45px rgba(0,0,0,0.04), inset 0 0 0 1.2px rgba(255,255,255,0.3);
+                        width: 100%; max-width: 1400px; height: 60px; background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(30px) saturate(210%); -webkit-backdrop-filter: blur(30px) saturate(210%); border: 1.2px solid rgba(0, 0, 0, 0.05); border-radius: 20px; display: flex; align-items: center; justify-content: space-between; padding: 0 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.03), inset 0 0 0 1.2px rgba(255,255,255,0.3);
                     }
                     
                     /* PILL TOGGLES */
-                    .premium-pill-toggle { display: flex; background: rgba(0, 0, 0, 0.05); padding: 5px; border-radius: 14px; height: 44px; align-items: center; gap: 4px; }
-                    .premium-pill-toggle button { padding: 0 14px; border: none; background: transparent; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.75rem; font-weight: 700; color: #697386; border-radius: 10px; cursor: pointer; display: flex; align-items: center; transition: all 0.3s; white-space: nowrap; height: 34px; border: 1px solid transparent; }
-                    .premium-pill-toggle button.active { background: #fff; color: #1a1f36; border-color: rgba(0,0,0,0.03); box-shadow: 0 6px 16px rgba(0,0,0,0.07); transform: scale(1.02); }
+                    .premium-pill-toggle { display: flex; background: rgba(0, 0, 0, 0.05); padding: 4px; border-radius: 12px; height: 38px; align-items: center; gap: 2px; }
+                    .premium-pill-toggle button { padding: 0 12px; border: none; background: transparent; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.72rem; font-weight: 700; color: #697386; border-radius: 9px; cursor: pointer; display: flex; align-items: center; transition: all 0.3s; white-space: nowrap; height: 30px; border: 1px solid transparent; }
+                    .premium-pill-toggle button.active { background: #fff; color: #1a1f36; border-color: rgba(0,0,0,0.02); box-shadow: 0 4px 10px rgba(0,0,0,0.05); transform: scale(1.01); }
                     .premium-pill-toggle button:hover:not(.active) { color: #4e92d8; }
                     
                     /* NEW TASK BUTTON (SIGNATURE) */
                     .nt-btn-premium { 
-                        background: linear-gradient(135deg, #4e92d8 0%, #614aa2 100%) !important; color: white !important; font-family: 'Satoshi', sans-serif !important; border: none !important; padding: 12px 24px !important; border-radius: 12px !important; font-size: 0.85rem !important; font-weight: 700 !important; cursor: pointer !important; display: flex !important; align-items: center !important; gap: 8px !important; box-shadow: 0 8px 20px rgba(78, 146, 216, 0.2) !important; transition: all 0.3s !important;
+                        background: linear-gradient(135deg, #4e92d8 0%, #614aa2 100%) !important; color: white !important; font-family: 'Satoshi', sans-serif !important; border: none !important; padding: 10px 20px !important; border-radius: 10px !important; font-size: 0.8rem !important; font-weight: 700 !important; cursor: pointer !important; display: flex !important; align-items: center !important; gap: 8px !important; box-shadow: 0 6px 15px rgba(78, 146, 216, 0.15) !important; transition: all 0.3s !important;
                     }
-                    .nt-btn-premium:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(78, 146, 216, 0.3); filter: brightness(1.1); }
+                    .nt-btn-premium:hover { transform: translateY(-1.5px); box-shadow: 0 10px 22px rgba(78, 146, 216, 0.25); filter: brightness(1.05); }
 
                     /* KANBAN GRID (DESKTOP) */
-                    .kanban-view:not(.is-mobile-view) { flex: 1; padding: 0.5rem 2rem 2.5rem 2rem; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; overflow: hidden; }
-                    .kanban-col { display: flex; flex-direction: column; background: rgba(241, 245, 249, 0.5); border-radius: 28px; padding: 1.5rem; height: 100%; border: 1.2px solid rgba(255,255,255,0.7); overflow: hidden; }
-                    .col-scroll-area { flex: 1; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; padding: 4px; scrollbar-width: none; }
-                    .kanban-col-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; font-family: 'Satoshi', sans-serif; }
-                    .kanban-col-head .label { font-size: 1rem; font-weight: 700; color: #1a1f36; letter-spacing: -0.01em; }
-                    .kanban-col-head .count { font-size: 0.8rem; font-weight: 800; color: #697386; background: #fff; padding: 3px 10px; border-radius: 8px; border: 1.2px solid #f1f5f9; }
+                    .kanban-view:not(.is-mobile-view) { flex: 1; padding: 0rem 2rem 2rem 2rem; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; overflow: hidden; }
+                    .kanban-col { display: flex; flex-direction: column; background: rgba(241, 245, 249, 0.5); border-radius: 20px; padding: 1.25rem; height: 100%; border: 1.2px solid rgba(255,255,255,0.7); overflow: hidden; }
+                    .col-scroll-area { flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; padding: 4px; scrollbar-width: none; }
+                    .kanban-col-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; font-family: 'Satoshi', sans-serif; }
+                    .kanban-col-head .label { font-size: 0.88rem; font-weight: 700; color: #1a1f36; letter-spacing: -0.01em; }
+                    .kanban-col-head .count { font-size: 0.72rem; font-weight: 800; color: #697386; background: #fff; padding: 2px 8px; border-radius: 6px; border: 1.2px solid #f1f5f9; }
 
                     /* TASK CARDS */
-                    .premium-task-card { background: #fff; border: 1.2px solid rgba(0,0,0,0.05); border-radius: 22px; padding: 1.5rem; display: flex; flex-direction: column; gap: 8px; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 4px 20px rgba(0,0,0,0.02); position: relative; }
-                    .premium-task-card:hover { transform: translateY(-4px) scale(1.01); box-shadow: 0 24px 48px rgba(78, 146, 216, 0.12); border-color: rgba(78, 146, 216, 0.3); }
-                    .card-title { font-family: 'Satoshi', sans-serif; font-size: 1.1rem; font-weight: 700; color: #1a1f36; line-height: 1.35; margin: 0; letter-spacing: -0.02em; flex: 1; }
-                    .card-check-btn { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid #f1f5f9; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; flex-shrink: 0; background: #fff; color: #cbd5e1; }
-                    .card-check-btn:hover { background: #10b981; border-color: #10b981; color: #fff; transform: rotate(10deg); }
+                    .premium-task-card { background: #fff; border: 1.2px solid rgba(0,0,0,0.04); border-radius: 16px; padding: 1.15rem; display: flex; flex-direction: column; gap: 8px; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 2px 10px rgba(0,0,0,0.015); position: relative; }
+                    .premium-task-card:hover { transform: translateY(-3px) scale(1.005); box-shadow: 0 15px 35px rgba(78, 146, 216, 0.08); border-color: rgba(78, 146, 216, 0.2); }
+                    .card-title { font-family: 'Satoshi', sans-serif; font-size: 0.95rem; font-weight: 700; color: #1a1f36; line-height: 1.3; margin: 0; padding-right: 30px; letter-spacing: -0.01em; flex: 1; }
+                    .card-check-btn { position: absolute; top: 1.15rem; right: 1.15rem; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #cbd5e1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); background: #fff; color: #94a3b8; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+                    .card-check-btn:hover { background: #10b981; border-color: #10b981; color: #fff; transform: scale(1.15) rotate(12deg); box-shadow: 0 8px 20px rgba(16,185,129,0.2); }
                     
-                    .card-path { font-family: 'Plus Jakarta Sans', sans-serif !important; font-size: 0.68rem !important; font-weight: 600 !important; color: #697386 !important; text-transform: uppercase !important; line-height: 1.5 !important; letter-spacing: 0.08em !important; margin-bottom: 4px; }
-                    .card-footer { display: flex; align-items: center; justify-content: space-between; border-top: 1.2px solid #f8fafc; padding-top: 12px; margin-top: 8px; }
-                    .meta-id { font-size: 0.72rem; font-weight: 700; color: #614aa2; background: #f5f3ff; padding: 3px 8px; border-radius: 7px; font-family: 'Plus Jakarta Sans', sans-serif; }
-                    .meta-client { font-size: 0.7rem; font-weight: 700; color: #475569; background: #f1f5f9; padding: 3px 8px; border-radius: 7px; text-transform: uppercase; font-family: 'Plus Jakarta Sans', sans-serif; }
-                    .meta-date { font-size: 0.8rem; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; }
+                    /* COMPLETION ANIMATION */
+                    @keyframes taskOutcome {
+                        0% { transform: scale(1) translateY(0); opacity: 1; filter: blur(0); }
+                        35% { transform: scale(1.02) translateY(-4px); opacity: 0.8; filter: blur(2px); }
+                        100% { transform: scale(0.95) translateY(20px); opacity: 0; filter: blur(12px); }
+                    }
+                    .task-completing { animation: taskOutcome 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards; pointer-events: none; z-index: 9; }
+
+                    .card-path { font-family: 'Plus Jakarta Sans', sans-serif !important; font-size: 0.58rem !important; font-weight: 500 !important; color: #94a3b8 !important; text-transform: uppercase !important; line-height: 1.4 !important; letter-spacing: 0.05em !important; margin-top: 2px; margin-bottom: 2px; }
+                    .card-footer { display: flex; align-items: center; justify-content: space-between; border-top: 1.2px solid #f8fafc; padding-top: 10px; margin-top: 6px; }
+                    .card-footer-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+                    .card-footer-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; white-space: nowrap; }
+                    .meta-id { font-size: 0.65rem; font-weight: 800; color: #614aa2; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.02em; }
+                    .meta-client { font-size: 0.65rem; font-weight: 500; color: #697386; text-transform: uppercase; font-family: 'Plus Jakarta Sans', sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+                    .meta-date { font-size: 0.72rem; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif; white-space: nowrap; }
                     
                     /* MOBILE */
                     .tasks-premium-viewport.is-mobile { background: #fafbfc; height: 100vh; }
@@ -468,19 +487,22 @@ export class TasksDashboard {
         }
 
         return `
-            <div class="premium-task-card" onclick="window.openHubDrawer('${item.id}', '${item.space_ref?.id || ''}')">
+            <div id="card-${item.id}" data-task-id="${item.id}" class="premium-task-card" onclick="window.openHubDrawer('${item.id}', '${item.space_ref?.id || ''}')">
+                <div class="card-check-btn" onclick="event.stopPropagation(); window._dash.completeTask('${item.id}')"><i class="material-icons-round" style="font-size: 14px;">done</i></div>
                 <div class="card-title-row">
                     <h4 class="card-title">${item.title} ${isWorking ? `<div style="display:inline-flex; align-items:center; gap:4px; font-size:0.55rem; color:#3b82f6; font-weight:800; margin-left:8px;"><span class="pulsing-dot" style="width:4px; height:4px; background: #3b82f6;"></span>IN CORSO</div>` : ''}</h4>
-                    <div class="card-check-btn" onclick="event.stopPropagation(); window._dash.completeTask('${item.id}')"><i class="material-icons-round" style="font-size: 16px;">done</i></div>
                 </div>
                 ${pathHtml ? `<div class="card-path">${pathHtml}</div>` : ''}
                 <div class="card-footer">
                     <div class="card-footer-left">
                         ${orderId ? `<span class="meta-id">${orderId}</span>` : ''}
-                        ${clientShort ? `<span class="meta-client" title="${clientShort}">${clientShort}</span>` : ''}
+                        ${clientShort ? `
+                            <div style="width: 1px; height: 10px; background: rgba(0,0,0,0.06);"></div>
+                            <span class="meta-client" title="${clientShort}">${clientShort}</span>
+                        ` : ''}
                     </div>
                     <div class="card-footer-right">
-                        <i class="material-icons-round" style="color: ${pr.color}; font-size: 0.95rem;">${pr.icon}</i>
+                        <i class="material-icons-round" style="color: ${pr.color}; font-size: 0.9rem;">${pr.icon}</i>
                         ${dateText ? `<span class="meta-date" style="color: ${dateColor}">${dateText}</span>` : ''}
                     </div>
                 </div>

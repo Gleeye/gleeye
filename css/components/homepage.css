@@ -197,8 +197,8 @@
 }
 
 .hp-v6-pill .tab-count {
-    font-size: 0.85rem !important;
-    font-weight: 800 !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
     font-family: var(--font-titles) !important;
     color: inherit !important;
 }
@@ -446,9 +446,9 @@
 }
 
 .greeting-section h1 {
-    font-size: 2.5rem;
+    font-size: 1.85rem;
     font-weight: 700;
-    margin: 0 0 0.5rem 0;
+    margin: 0 0 0.25rem 0;
     font-family: var(--font-titles);
     background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
     -webkit-background-clip: text;
@@ -456,9 +456,13 @@
     -webkit-text-fill-color: transparent;
 }
 
+@media (max-width: 768px) {
+    .greeting-section h1 { font-size: 2.2rem; }
+}
+
 .greeting-section p {
     color: var(--text-secondary);
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     margin: 0;
 }
 
@@ -507,11 +511,11 @@
 }
 
 .widget-title {
-    font-size: 1.25rem;
+    font-size: 1.05rem;
     font-weight: 800;
     color: var(--text-primary);
     margin: 0;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
 }
 
 /* Timeline Widget (Top Left) */
@@ -939,7 +943,7 @@
 }
 
 .kpi-pill .kpi-value {
-    font-size: 1.4rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1.1;
