@@ -2943,6 +2943,7 @@ export function initNewOrderModal() {
                 order_date: today,
                 offer_status: 'in_lavorazione',
                 status_works: 'da_iniziare',
+                status_sales: null // Prevent DB DEFAULT 'draft' from violating the check constraint
             };
             if (newOrderState.selectedClient) {
                 orderData.client_id = newOrderState.selectedClient.id;

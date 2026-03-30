@@ -206,6 +206,7 @@ export async function fetchOrders(force = false) {
             order_number,
             title,
             status_works,
+            status_sales,
             offer_status,
             price_planned,
             price_actual,
@@ -262,6 +263,7 @@ export async function upsertOrder(order) {
             order_number,
             title,
             status_works,
+            status_sales,
             offer_status,
             price_planned,
             price_actual,
@@ -347,6 +349,7 @@ export async function updateOrder(id, updates) {
             order_number,
             title,
             status_works,
+            status_sales,
             offer_status,
             pm_id,
             price_planned,
@@ -1095,7 +1098,7 @@ export async function fetchAssignmentDetail(id) {
             *,
             contract_url,
             orders(
-                id, order_number, title, status_works, client_id,
+                id, order_number, title, status_works, status_sales, client_id,
                 clients(business_name, client_code)
             ),
             collaborators(
