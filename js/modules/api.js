@@ -225,10 +225,10 @@ export async function fetchOrders(force = false) {
             installments_count,
             cloud_links,
             client_id,
-            clients (id, business_name, client_code),
-             order_collaborators (
+            clients(id, business_name, client_code),
+            order_collaborators(
                 role_in_order,
-                collaborators (id, full_name, role, avatar_url)
+                collaborators(id, full_name, role, avatar_url)
             )
         `)
         .order('order_number', { ascending: false })
@@ -281,10 +281,10 @@ export async function upsertOrder(order) {
             installments_count,
             cloud_links,
             client_id,
-            clients (id, business_name, client_code),
-             order_collaborators (
+            clients(id, business_name, client_code),
+            order_collaborators(
                 role_in_order,
-                collaborators (id, full_name, role, avatar_url)
+                collaborators(id, full_name, role, avatar_url)
             )
         `)
         .single();
@@ -366,10 +366,10 @@ export async function updateOrder(id, updates) {
             installment_type,
             installments_count,
             client_id,
-            clients (id, business_name, client_code),
-             order_collaborators (
+            clients(id, business_name, client_code),
+            order_collaborators(
                 role_in_order,
-                collaborators (id, full_name, role, user_id, avatar_url)
+                collaborators(id, full_name, role, user_id, avatar_url)
             )
         `)
         .single();
