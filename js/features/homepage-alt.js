@@ -1622,6 +1622,11 @@ export async function renderHomepageAlt(container) {
         if (hours >= 14 && hours < 19) greeting = 'Buon pomeriggio';
         else if (hours >= 19 || hours < 5) greeting = 'Buonasera';
         if (headerTitle) headerTitle.textContent = `${greeting}, ${currentFirstName}!`;
+        
+        if (!timelineWrapper) {
+            console.log("[Homepage] timelineWrapper not found, aborting update.");
+            return;
+        }
 
         timelineWrapper.innerHTML = `<div style="padding: 2rem; width: 100%; text-align: center; color: var(--text-tertiary);"><span class="loader small"></span> Caricamento...</div>`;
 
