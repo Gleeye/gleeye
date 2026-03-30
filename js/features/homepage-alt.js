@@ -1316,8 +1316,9 @@ export async function renderHomepageAlt(container) {
                          display: grid;
                          grid-template-columns: 1.3fr 1.05fr 0.65fr;
                          gap: 2.5rem;
-                         align-items: stretch;
+                         align-items: start;
                          width: 100%;
+                         min-height: 0;
                      }
                      
                       .hp-dash-collab-top > div, .hp-dash-partner-main > div {
@@ -1433,7 +1434,7 @@ export async function renderHomepageAlt(container) {
                          <!-- RIGHT SIDE: FEED -->
                          <div class="hp-dash-collab-right">
                               <!-- FEED BLOCK -->
-                              <div id="hp-activity-feed-block" class="hp-widget-panel" style="flex: 1; display: flex; flex-direction: column; max-height: 520px; background: rgba(255, 255, 255, 0.2) !important; backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.3) !important; border-radius: 28px; padding: 1.5rem; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07); min-height: 0;">
+                              <div id="hp-activity-feed-block" style="flex: 1; display: flex; flex-direction: column; max-height: 520px; border-radius: 28px; padding: 1.5rem; min-height: 0; background: white; border: 1px solid rgba(0,0,0,0.03);">
                                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-shrink: 0;">
                                       <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.02em;">
                                           <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">rss_feed</span></div>Feed
@@ -1451,7 +1452,7 @@ export async function renderHomepageAlt(container) {
                       <div class="hp-dash-partner-main" style="padding-bottom: 3rem;">
                           
                           <!-- Col 1: Commesse -->
-                          <div id="hp-pm-spaces-main-block">
+                          <div id="hp-pm-spaces-main-block" style="display: flex; flex-direction: column;">
                              <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.25rem; flex-shrink: 0;">
                                   <div style="display: flex; justify-content: space-between; align-items: center; padding-left: 8px;">
                                       <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
@@ -1470,13 +1471,13 @@ export async function renderHomepageAlt(container) {
                           <!-- Col 2: Attività Interne -->
                           <div id="hp-internal-dashboard-block">
                                <div id="hp-internal-hubs-buttons" style="display: flex; gap: 12px; overflow-x: auto; padding-bottom: 24px; scrollbar-width: none; -ms-overflow-style: none; padding-top: 10px;"></div>
-                               <div id="hp-internal-clusters-grid" class="custom-scrollbar" style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; overflow-y: auto; padding-bottom: 2rem; min-height: 0;"></div>
+                               <div id="hp-internal-clusters-grid" class="custom-scrollbar" style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-content: start; overflow-y: auto; padding-bottom: 2rem; min-height: 0;"></div>
                           </div>
 
                           <!-- Col 3: FEED & ALERTS -->
                           <div style="display: flex; flex-direction: column; gap: 2rem;">
                               <!-- ALERT BLOCK -->
-                              <div id="hp-accounting-alerts-block" class="hp-widget-panel" style="display: none; flex-direction: column; background: rgba(255, 255, 255, 0.2) !important; backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.3) !important; border-radius: 28px; padding: 1.5rem; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07); flex-shrink: 0;">
+                              <div id="hp-accounting-alerts-block" style="display: none; flex-direction: column; background: white; border-radius: 28px; padding: 1.5rem; border: 1px solid rgba(0,0,0,0.03); flex-shrink: 0;">
                                   <div class="flex-start" style="gap: 12px; align-items: center; margin-bottom: 1rem;">
                                       <div style="width: 36px; height: 36px; border-radius: 12px; background: rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 20px;">notifications_active</span></div>
                                       <h4 style="font-family: 'Outfit', sans-serif; font-size: 1.05rem; font-weight: 600; color: #1e293b; margin: 0; letter-spacing: -0.02em;">Alert Amministrazione</h4>
@@ -1485,7 +1486,7 @@ export async function renderHomepageAlt(container) {
                               </div>
 
                               <!-- FEED BLOCK -->
-                              <div id="hp-activity-feed-block" class="hp-widget-panel" style="flex: 1; display: flex; flex-direction: column; max-height: 520px; background: rgba(255, 255, 255, 0.2) !important; backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.3) !important; border-radius: 28px; padding: 1.5rem; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07); min-height: 0;">
+                              <div id="hp-activity-feed-block" style="flex: 1; display: flex; flex-direction: column; max-height: 520px; border-radius: 28px; padding: 1.5rem; min-height: 0; background: white; border: 1px solid rgba(0,0,0,0.03);">
                                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-shrink: 0;">
                                       <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.02em;">
                                           <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">rss_feed</span></div>Feed
