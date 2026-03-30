@@ -1316,8 +1316,9 @@ export async function renderHomepageAlt(container) {
                          display: grid;
                          grid-template-columns: 1.3fr 1.05fr 0.65fr;
                          gap: 2.5rem;
-                         align-items: stretch;
+                         align-items: start;
                          width: 100%;
+                         min-height: 0;
                      }
                      
                       .hp-dash-collab-top > div, .hp-dash-partner-main > div {
@@ -1325,6 +1326,7 @@ export async function renderHomepageAlt(container) {
                           flex-direction: column;
                           overflow: hidden;
                           min-height: 0;
+                          max-height: calc(100vh - 180px);
                       }
 
                      @media (max-width: 1100px) {
@@ -1464,7 +1466,7 @@ export async function renderHomepageAlt(container) {
                                   </div>
                              </div>
                              
-                             <div id="hp-pm-spaces-main-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; padding: 4px 8px 60px 8px; min-height: 0;"></div>
+                             <div id="hp-pm-spaces-main-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; overflow-x: hidden; padding: 4px 4px 60px 4px; min-height: 0;"></div>
                           </div>
 
                           <!-- Col 2: Attività Interne -->
