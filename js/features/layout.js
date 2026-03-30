@@ -495,7 +495,7 @@ export function updateSidebarVisibility() {
     // Accounting Section
     if (navAccounting) {
         const toggle = navAccounting.querySelector('#main-accounting-toggle');
-        const canSeeAccounting = activeRole === 'admin' || isPrivilegedCollaborator || isAccount || isProjectManager;
+        const canSeeAccounting = activeRole === 'admin' || isPrivilegedCollaborator || isAccount;
         if (canSeeAccounting) {
             navAccounting.classList.remove('hidden');
             if (toggle) toggle.classList.remove('hidden');
@@ -507,7 +507,7 @@ export function updateSidebarVisibility() {
             const booking = navAccounting.querySelector('a[data-target="booking"]');
 
             if (activeRole !== 'admin') {
-                // Now Partners, Account and Amministrazione CAN see Ordini and Incarichi
+                // Now Partners, Account and Amministrazione CAN see Ordini and Incarichi (but NOT basic PM unless they have Account tag)
                 if (ordini) ordini.classList.toggle('hidden', !canSeeAccounting);
                 if (incarichi) incarichi.classList.toggle('hidden', !canSeeAccounting);
                 if (booking) booking.classList.toggle('hidden', !canSeeAccounting);

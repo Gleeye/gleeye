@@ -62,13 +62,20 @@ export function router() {
 
     const isPrivilegedCollaborator = userTags.some(t => t === 'partner' || t === 'amministrazione');
     const isAccount = userTags.includes('account');
-    const isProjectManager = userTags.includes('project manager');
+    const isProjectManager = userTags.some(t => t === 'project manager' || t === 'pm');
 
     // List of pages allowed for Collaborators (standard - no special tags)
     const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'my-assignments', 'booking', 'notifications', 'chat', 'assignment-detail', 'assignments', 'pm', 'leads', 'lead-detail', 'contact-forms'];
 
-    if (isPrivilegedCollaborator || isAccount || isProjectManager) {
-        allowedPagesForCollaborator.push('dashboard', 'sap-services', 'sap-service-detail');
+    if (isPrivilegedCollaborator || isAccount) {
+        allowedPagesForCollaborator.push('dashboard', 'order-detail', 'client-detail', 'collaborator-detail', 'sap-services', 'sap-service-detail');
+    }
+
+    if (isProjectManager) {
+        // Project managers might specifically need to see the collaborator detail for their team members
+        if (!allowedPagesForCollaborator.includes('collaborator-detail')) {
+            allowedPagesForCollaborator.push('collaborator-detail');
+        }
     }
 
     // Specific check for Project Management page access
