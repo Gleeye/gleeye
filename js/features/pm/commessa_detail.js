@@ -7,7 +7,7 @@ import { renderAvatar, joinNames } from '../../modules/utils.js?v=1241';
 import { supabase } from '../../modules/config.js';
 
 // Status colors for "Stato Lavori"
-console.log('--- COMMESSA DETAIL LOADED v999 ---');
+console.log('--- COMMESSA DETAIL LOADED v1000 ---');
 // Status colors for "Stato Lavori"
 const STATUS_CONFIG = {
     'in_svolgimento': { label: 'In Svolgimento', color: '#3b82f6', bg: '#eff6ff', icon: 'play_circle' },
@@ -990,6 +990,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         const renderTab = async (tabName) => {
             tabs.forEach(t => t.classList.remove('active'));
             container.querySelector(`[data-tab="${tabName}"]`)?.classList.add('active');
+            localStorage.setItem('pm_last_tab', tabName);
 
             // Reset padding by default, specific tabs might override
             tabContent.style.padding = '1.5rem';
@@ -1004,7 +1005,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     renderActivityLog(tabContent, { spaceId });
                     break;
                 case 'board':
-                    const { renderHubTree } = await import('./components/hub_tree.js?v=1321');
+                    const { renderHubTree } = await import('./components/hub_tree.js?v=3000');
                     renderHubTree(tabContent, items, space, spaceId);
                     break;
                 case 'list':
@@ -1270,12 +1271,12 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
         // 9. Central Refresh Logic
         const refreshHub = async () => {
-            const { fetchProjectItems, fetchSpace, fetchSpaceAssignees } = await import('../../modules/pm_api.js?v=2000');
+            const { fetchProjectItems, fetchSpace, fetchSpaceAssignees } = await import('../../modules/pm_api.js?v=3000');
             try {
                 console.log('[ProjectHub] Syncing fresh data...');
                 const [newSpace, newItems, newAssignees] = await Promise.all([
                     fetchSpace(spaceId),
-                    fetchProjectItems(spaceId),
+                    fetchProjectItems(spaceId, true),
                     fetchSpaceAssignees(spaceId, true)
                 ]);
 
@@ -1427,6 +1428,20 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
             if (isRelevant) {
                 console.log('[ProjectHub] Item change received, refreshing...');
+                
+                // Auto-expand parent if creating a child
+                if (e.detail.action === 'create' && e.detail.parentId) {
+                    try {
+                        const treeStateKey = `hub_tree_state_${spaceId}`;
+                        const stored = JSON.parse(localStorage.getItem(treeStateKey) || '{}');
+                        if (!stored.expandedNodes) stored.expandedNodes = [];
+                        if (!stored.expandedNodes.includes(String(e.detail.parentId))) {
+                            stored.expandedNodes.push(String(e.detail.parentId));
+                            localStorage.setItem(treeStateKey, JSON.stringify(stored));
+                        }
+                    } catch (err) { console.error("Error auto-expanding parent:", err); }
+                }
+
                 if (e.detail.action === 'delete' && e.detail.itemId) {
                     items = items.filter(i => String(i.id) !== String(e.detail.itemId));
                     kpis = calculateKPIs(items);
@@ -1485,7 +1500,10 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         });
 
         // 11. Initial render
-        renderTab('overview');
+        // Initial Tab load - Restore last used or default to overview
+        const lastTab = localStorage.getItem('pm_last_tab');
+        const initialTab = (lastTab && container.querySelector(`[data-tab="${lastTab}"]`)) ? lastTab : 'overview';
+        renderTab(initialTab);
 
         // Multi-PM Picker Logic Helpers
         const renderPmOptions = () => {
@@ -1761,7 +1779,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
 // Drawer function (exported for use by child components)
 export function openItemDrawer(itemId, spaceId, parentId = null, itemType = 'task') {
-    import('./components/hub_drawer.js?v=1000').then(mod => {
+    import('./components/hub_drawer.js?v=3000').then(mod => {
         mod.openHubDrawer(itemId, spaceId, parentId, itemType);
     });
 }

@@ -1,4 +1,4 @@
-import { CustomSelect } from '/js/components/CustomSelect.js?v=1000';
+import { CustomSelect } from '/js/components/CustomSelect.js?v=3000';
 
 // Global state to persist view/sort across refreshes
 const hubTreePersistentState = new Map();
@@ -701,7 +701,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
                     const draggedId = e.dataTransfer.getData('text/plain');
                     if (draggedId && draggedId !== row.dataset.id && row.dataset.type === 'attivita') {
                         try {
-                            const { updatePMItem } = await import('../../../modules/pm_api.js?v=1000');
+                            const { updatePMItem } = await import('../../../modules/pm_api.js?v=3000');
                             await updatePMItem(draggedId, { parent_ref: row.dataset.id });
                             document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId, action: 'update' } }));
                         } catch (err) { console.error(err); }
@@ -743,7 +743,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
                         }
                     });
                 } else {
-                    import('./hub_drawer.js?v=1000').then(mod => mod.openHubDrawer(null, spaceId, btn.dataset.parent, type));
+                    import('./hub_drawer.js?v=3000').then(mod => mod.openHubDrawer(null, spaceId, btn.dataset.parent, type));
                 }
                 menu.remove();
             };

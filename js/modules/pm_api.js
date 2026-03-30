@@ -408,6 +408,13 @@ const sanitizePMItemData = (data) => {
     return clean;
 };
 
+const clearProjectItemsCache = (spaceId) => {
+    if (!spaceId) return;
+    const cacheKey = `pm_items_${spaceId}`;
+    if (state[cacheKey]) delete state[cacheKey];
+    if (state.lastFetchTimestamps?.[cacheKey]) delete state.lastFetchTimestamps[cacheKey];
+};
+
 export async function createPMItem(itemData) {
     // itemData: { space_ref, title, ... }
     const cleanData = sanitizePMItemData(itemData);
@@ -416,6 +423,7 @@ export async function createPMItem(itemData) {
     const recurrenceRule = cleanData.recurrence_rule;
     delete cleanData.recurrence_rule;
 
+    let result = null;
     if (recurrenceRule && recurrenceRule.freq) {
         const recurrenceId = crypto.randomUUID();
         const startBasis = cleanData.due_date || cleanData.start_date || new Date().toISOString();
@@ -424,9 +432,6 @@ export async function createPMItem(itemData) {
         // Handle "Crea in anticipo" limit
         const createInAdvance = parseInt(recurrenceRule.create_advance) || 1;
         if (createInAdvance > 0) {
-            // Wrike logic: create_advance includes the original? 
-            // If create_advance = 1, only the original is created.
-            // If create_advance = 2, original + 1 recurrence.
             occurrences = occurrences.slice(0, createInAdvance - 1);
         }
 
@@ -436,13 +441,13 @@ export async function createPMItem(itemData) {
             .insert({
                 ...cleanData,
                 recurrence_id: recurrenceId,
-                recurrence_rule: recurrenceRule, // Store the full rule in the first item
+                recurrence_rule: recurrenceRule,
                 created_by_user_ref: state.profile?.id
             })
             .select();
 
         if (error) throw error;
-        const mainItem = data[0];
+        result = data[0];
 
         // 2. Insert Occurrences
         if (occurrences.length > 0) {
@@ -470,19 +475,21 @@ export async function createPMItem(itemData) {
             });
             await supabase.from('pm_items').insert(others);
         }
-        return mainItem;
+    } else {
+        const { data, error } = await supabase
+            .from('pm_items')
+            .insert({
+                ...cleanData,
+                created_by_user_ref: state.profile?.id
+            })
+            .select();
+
+        if (error) throw error;
+        result = data?.[0];
     }
 
-    const { data, error } = await supabase
-        .from('pm_items')
-        .insert({
-            ...cleanData,
-            created_by_user_ref: state.profile?.id
-        })
-        .select();
-
-    if (error) throw error;
-    return data?.[0];
+    if (result?.space_ref) clearProjectItemsCache(result.space_ref);
+    return result;
 }
 
 export async function updatePMItem(itemId, itemData) {
@@ -498,10 +505,15 @@ export async function updatePMItem(itemId, itemData) {
         .select();
 
     if (error) throw error;
-    return data?.[0];
+    const result = data?.[0];
+    if (result?.space_ref) clearProjectItemsCache(result.space_ref);
+    return result;
 }
 
 export async function deletePMItem(itemId) {
+    // We need to fetch it first to know which space cache to clear
+    const { data: item } = await supabase.from('pm_items').select('space_ref').eq('id', itemId).single();
+    
     const { error } = await supabase
         .from('pm_items')
         .delete()
@@ -510,6 +522,7 @@ export async function deletePMItem(itemId) {
         console.error('[PM API] Delete Item ERROR:', error);
         throw error;
     }
+    if (item?.space_ref) clearProjectItemsCache(item.space_ref);
     console.log(`[PM API] Item ${itemId} successfully removed.`);
     return true;
 }

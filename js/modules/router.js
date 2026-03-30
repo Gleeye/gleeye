@@ -302,7 +302,7 @@ function render() {
                 // Route: Commessa Detail (#pm/commessa/:orderId)
                 if (state.currentSubPage === 'commessa' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Commessa';
-                    import('../features/pm/commessa_detail.js?v=2000')
+                    import('../features/pm/commessa_detail.js?v=3000')
                         .then(async module => {
                             try {
                                 await module.renderCommessaDetail(contentArea, state.currentId, false);
@@ -319,7 +319,7 @@ function render() {
                     // Route: Internal Project Detail (#pm/space/:spaceId)
                 } else if (state.currentSubPage === 'space' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Workspace';
-                    import('../features/pm/commessa_detail.js?v=2000')
+                    import('../features/pm/commessa_detail.js?v=3000')
                         .then(async module => {
                             try {
                                 await module.renderCommessaDetail(contentArea, state.currentId, true);
@@ -336,7 +336,7 @@ function render() {
                     // Route: Internal Projects List (#pm/interni)
                 } else if (state.currentSubPage === 'interni') {
                     if (pageTitle) pageTitle.textContent = 'Progetti Interni';
-                    import('../features/pm/internal_list.js?v=2000')
+                    import('../features/pm/internal_list.js?v=3000')
                         .then(module => {
                             module.renderInternalProjects(contentArea, state.currentId);
                         })
@@ -360,7 +360,7 @@ function render() {
 
                 } else {
                     // Standard PM views (Dashboard)
-                    import('../features/pm/index.js?v=2000')
+                    import('../features/pm/index.js?v=3000')
                         .then(module => {
                             module.renderPM(contentArea);
                         })

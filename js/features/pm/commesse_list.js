@@ -1,6 +1,6 @@
 import { fetchOrders, fetchCollaborators } from '../../modules/api.js';
 import { state } from '../../modules/state.js';
-import { fetchProjectSpaceForOrder, fetchCommesseTeamSummary } from '../../modules/pm_api.js';
+import { fetchProjectSpaceForOrder, fetchCommesseTeamSummary } from '../../modules/pm_api.js?v=3000';
 import { formatAmount } from '../../modules/utils.js';
 
 // Real status values for PM view
@@ -24,15 +24,15 @@ function normalizeStatus(status) {
     return 'altro';
 }
 
-export async function renderCommesseList(container) {
-    console.log("[CommesseList] Starting render...");
+export async function renderCommesseList(container, forceRefresh = false) {
+    console.log(`[CommesseList] Starting render (force: ${forceRefresh})...`);
     container.innerHTML = '<div style="padding:4rem; text-align:center;"><span class="loader"></span> Caricamento Dashboard Commesse...</div>';
 
     try {
         // --- 1. DATA FETCHING ---
         const fetchPromises = [];
-        if (!state.orders || state.orders.length === 0) fetchPromises.push(fetchOrders());
-        if (!state.collaborators || state.collaborators.length === 0) fetchPromises.push(fetchCollaborators());
+        if (!state.orders || state.orders.length === 0 || forceRefresh) fetchPromises.push(fetchOrders(forceRefresh));
+        if (!state.collaborators || state.collaborators.length === 0 || forceRefresh) fetchPromises.push(fetchCollaborators(forceRefresh));
         fetchPromises.push(fetchCommesseTeamSummary());
 
         const results = await Promise.all(fetchPromises);
@@ -690,7 +690,7 @@ export async function renderCommesseList(container) {
         // Real-time Listeners
         const refreshHandler = () => {
              console.log('[CommesseList] Change detected, refreshing list...');
-             renderCommesseList(container);
+             renderCommesseList(container, true);
         };
         if (window._commesseRefresher) {
             document.removeEventListener('pm-item-changed', window._commesseRefresher);

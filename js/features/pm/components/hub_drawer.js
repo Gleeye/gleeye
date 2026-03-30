@@ -2523,6 +2523,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             spaceId: rawData.space_ref || spaceId || null,
                             clientId: currentClientId || null,
                             itemId: newItem.id,
+                            parentId: rawData.parent_ref || null,
                             action: 'create'
                         }
                     }));
