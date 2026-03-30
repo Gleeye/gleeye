@@ -14,7 +14,8 @@ const STATUS_CONFIG = {
     'da_iniziare': { label: 'In Attesa', color: '#f59e0b', bg: '#fffbeb', icon: 'hourglass_empty' },
     'in_pausa': { label: 'In Pausa', color: '#64748b', bg: '#f1f5f9', icon: 'pause_circle' },
     'manutenzione': { label: 'Ongoing', color: '#06b6d4', bg: '#ecfeff', icon: 'published_with_changes' },
-    'completato': { label: 'Completato', color: '#10b981', bg: '#ecfdf5', icon: 'check_circle' }
+    'completato': { label: 'Completato', color: '#10b981', bg: '#ecfdf5', icon: 'check_circle' },
+    'altro': { label: 'Altro', color: '#64748b', bg: '#f8fafc', icon: 'help_outline' }
 };
 
 // Item status colors
