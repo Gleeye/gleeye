@@ -1317,7 +1317,7 @@ export async function renderHomepageAlt(container) {
                          grid-template-columns: 1.15fr 1fr 0.85fr;
                          gap: 2.5rem;
                          align-items: stretch;
-                         height: 670px;
+                         height: 530px;
 
                          width: 100%;
                          min-height: 0;
