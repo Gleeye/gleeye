@@ -1165,7 +1165,7 @@ export async function renderHomepageAlt(container) {
             .hp-alt-wrapper { display: flex; width: 100%; height: 100%; background: transparent; font-family: 'Outfit'; position: relative; overflow: hidden; flex: 1; }
             .hp-alt-sidebar-left { width: 320px; flex-shrink: 0; height: 100%; background: white; border-right: 1px solid #eef2f6; display: flex; flex-direction: column; position: relative; box-shadow: 10px 0 30px rgba(0,0,0,0.01); z-index: 10; overflow: hidden; }
             .hp-main-content-area { flex: 1; display: flex; flex-direction: column; gap: 2rem; padding: 1.5rem 2rem; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; position: relative; width: 100%; box-sizing: border-box; background: transparent; }
-            .hp-main-columns-container { display: flex; flex-direction: row; gap: 2rem; width: 100%; align-items: flex-start; }
+            .hp-main-columns-container { display: flex; flex-direction: row; gap: 2rem; width: 100%; align-items: stretch; }
             
             .hp-mobile-banner { display: none; }
             .hp-mobile-agenda-pop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 20000; align-items: center; justify-content: center; padding: 15px; }
@@ -1316,7 +1316,7 @@ export async function renderHomepageAlt(container) {
                          display: grid;
                          grid-template-columns: 1.15fr 1fr 0.85fr;
                          gap: 2.5rem;
-                         align-items: start;
+                         align-items: stretch;
                          width: 100%;
                          min-height: 0;
                      }
@@ -1326,7 +1326,7 @@ export async function renderHomepageAlt(container) {
                           flex-direction: column;
                           overflow: hidden;
                           min-height: 0;
-                          max-height: calc(100vh - 220px);
+                          height: 100%;
                       }
 
                      @media (max-width: 1100px) {
@@ -1449,10 +1449,10 @@ export async function renderHomepageAlt(container) {
                      ` : `
                       <!-- ==================== PARTNER / ADMIN ==================== -->
                       <!-- 3 COLUMNS FLEX GRID -->
-                      <div class="hp-dash-partner-main" style="padding-bottom: 3rem;">
+                      <div class="hp-dash-partner-main" style="padding-bottom: 0;">
                           
                           <!-- Col 1: Commesse -->
-                          <div id="hp-pm-spaces-main-block" style="display: flex; flex-direction: column; max-height: calc(100vh - 160px); min-height: 0;">
+                          <div id="hp-pm-spaces-main-block" style="display: flex; flex-direction: column; height: 100%; min-height: 0;">
                              <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.25rem; flex-shrink: 0;">
                                   <div style="display: flex; justify-content: space-between; align-items: center; padding-left: 8px;">
                                       <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
@@ -1469,7 +1469,7 @@ export async function renderHomepageAlt(container) {
                           </div>
 
                           <!-- Col 2: Attività Interne -->
-                          <div id="hp-internal-dashboard-block" style="display: flex; flex-direction: column; max-height: calc(100vh - 160px); min-height: 0;">
+                          <div id="hp-internal-dashboard-block" style="display: flex; flex-direction: column; height: 100%; min-height: 0;">
                                <div style="display: flex; justify-content: space-between; align-items: center; padding-left: 8px; margin-bottom: 1.25rem; flex-shrink: 0;">
                                   <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
                                       <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.6); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">business_center</span></div>
@@ -1481,7 +1481,7 @@ export async function renderHomepageAlt(container) {
                           </div>
 
                           <!-- Col 3: FEED & ALERTS -->
-                          <div style="display: flex; flex-direction: column; gap: 2rem; height: calc(100vh - 160px); min-height: 0;">
+                          <div style="display: flex; flex-direction: column; gap: 2rem; height: 100%; min-height: 0;">
                               <!-- ALERT BLOCK -->
                               <div id="hp-accounting-alerts-block" style="display: none; flex-direction: column; background: white; border-radius: 28px; padding: 1.5rem; border: 1px solid rgba(0,0,0,0.03); flex-shrink: 0;">
                                   <div class="flex-start" style="gap: 12px; align-items: center; margin-bottom: 1rem;">
@@ -1492,7 +1492,7 @@ export async function renderHomepageAlt(container) {
                               </div>
 
                               <!-- FEED BLOCK -->
-                              <div id="hp-activity-feed-block" style="flex: 1; display: flex; flex-direction: column; border-radius: 28px; padding: 1.5rem; min-height: 0; background: white; border: 1px solid rgba(0,0,0,0.03);">
+                              <div id="hp-activity-feed-block" style="flex: 1; display: flex; flex-direction: column; border-radius: 28px; padding: 1.5rem; min-height: 0; background: white; border: 1px solid rgba(0,0,0,0.03); overflow: hidden;">
                                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-shrink: 0;">
                                       <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.02em;">
                                           <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">rss_feed</span></div>Feed
