@@ -323,6 +323,7 @@ export class TasksDashboard {
                     }
                     
                     .premium-task-card:hover { transform: translateY(-4px) scale(1.01); }
+                    .premium-task-card { min-height: 110px; }
                     .card-title { font-family: 'Satoshi', sans-serif; font-size: 0.95rem; font-weight: 700; color: #1a1f36; line-height: 1.3; margin: 0; padding-right: 30px; letter-spacing: -0.01em; flex: 1; }
                     .card-check-btn { position: absolute; top: 1.15rem; right: 1.15rem; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #cbd5e1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); background: #fff; color: #94a3b8; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
                     .card-check-btn:hover { background: #10b981; border-color: #10b981; color: #fff; transform: scale(1.15) rotate(12deg); box-shadow: 0 8px 20px rgba(16,185,129,0.2); }
@@ -494,6 +495,7 @@ export class TasksDashboard {
             if (project) pathParts.push(project);
         }
         if (item.parent?.title) pathParts.push(item.parent.title);
+        if (pathParts.length === 0) pathParts.push('<span style="opacity: 0.6;">Generale / Inbox</span>');
         const pathHtml = pathParts.join(' <span style="opacity: 0.4;">&rsaquo;</span> ');
         
         let orderId = spaceRef?.order?.order_number || '';
@@ -516,10 +518,10 @@ export class TasksDashboard {
                 <div class="card-title-row">
                     <h4 class="card-title">${item.title} ${isWorking ? `<div style="display:inline-flex; align-items:center; gap:4px; font-size:0.55rem; color:#3b82f6; font-weight:800; margin-left:8px;"><span class="pulsing-dot" style="width:4px; height:4px; background: #3b82f6;"></span>IN CORSO</div>` : ''}</h4>
                 </div>
-                ${pathHtml ? `<div class="card-path">${pathHtml}</div>` : ''}
+                ${pathHtml ? `<div class="card-path">${pathHtml}</div>` : `<div class="card-path" style="opacity:0">&nbsp;</div>`}
                 <div class="card-footer">
                     <div class="card-footer-left">
-                        ${orderId ? `<span class="meta-id">${orderId}</span>` : ''}
+                        ${orderId ? `<span class="meta-id">${orderId}</span>` : `<span class="meta-id" style="opacity:0.25;">#TASK-${item.id.slice(0,4)}</span>`}
                         ${clientShort ? `
                             <div style="width: 1px; height: 10px; background: rgba(0,0,0,0.06);"></div>
                             <span class="meta-client" title="${clientShort}">${clientShort}</span>
@@ -527,7 +529,7 @@ export class TasksDashboard {
                     </div>
                     <div class="card-footer-right">
                         <i class="material-icons-round" style="color: ${pr.color}; font-size: 0.9rem;">${pr.icon}</i>
-                        ${dateText ? `<span class="meta-date" style="color: ${dateColor}">${dateText}</span>` : ''}
+                        ${dateText ? `<span class="meta-date" style="color: ${dateColor}">${dateText}</span>` : `<span class="meta-date" style="color: #cbd5e1; font-weight:400; opacity:0.6;">&mdash;</span>`}
                     </div>
                 </div>
             </div>
