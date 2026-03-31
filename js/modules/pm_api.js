@@ -1390,7 +1390,7 @@ export async function fetchCollaboratorAppointments(collaboratorId) {
         .select(`
             id, title, start_time, end_time, location, mode, note, status,
             order_id, 
-            orders:order_id ( order_number, title, clients ( business_name ) ),
+            orders:order_id ( order_number, title, clients ( business_name, client_code ) ),
             appointment_types ( name, color ),
             appointment_internal_participants!inner ( collaborator_id )
         `)

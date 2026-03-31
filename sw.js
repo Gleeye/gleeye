@@ -27,7 +27,7 @@ self.addEventListener('fetch', event => {
 
     // 1. BYPASS CACHE FOR LOCAL DEVELOPMENT
     // If we are on localhost or a local IP, we want to see changes immediately without SW interference
-    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname.startsWith('192.168.')) {
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname.startsWith('192.168.') || url.hostname.includes('supabase.co')) {
         return; // Let the browser handle it normally (bypass SW)
     }
 

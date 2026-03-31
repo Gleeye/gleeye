@@ -65,7 +65,7 @@ export function router() {
     const isProjectManager = userTags.some(t => t === 'project manager' || t === 'pm');
 
     // List of pages allowed for Collaborators (standard - no special tags)
-    const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'tasks-summary', 'booking', 'notifications', 'chat', 'assignment-detail', 'assignments', 'pm', 'leads', 'lead-detail', 'contact-forms'];
+    const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'tasks-summary', 'booking', 'notifications', 'chat', 'assignment-detail', 'assignments', 'pm', 'leads', 'lead-detail', 'contact-forms', 'my-assignments'];
 
     if (isPrivilegedCollaborator || isAccount) {
         allowedPagesForCollaborator.push('dashboard', 'order-detail', 'client-detail', 'collaborator-detail', 'sap-services', 'sap-service-detail');
@@ -264,6 +264,10 @@ function render() {
             case 'assignments':
                 if (pageTitle) pageTitle.textContent = 'Incarichi';
                 import('../features/assignments.js?v=2005').then(m => m.renderAssignmentsDashboard(contentArea));
+                break;
+            case 'my-assignments':
+                if (pageTitle) pageTitle.textContent = 'I miei incarichi';
+                import('../features/my_assignments.js?v=1000').then(m => m.renderMyAssignments(contentArea));
                 break;
             case 'payments':
                 if (pageTitle) pageTitle.textContent = 'Dashboard Pagamenti';

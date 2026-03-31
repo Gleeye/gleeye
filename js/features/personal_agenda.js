@@ -972,14 +972,14 @@ function renderTimeline() {
                         let richerSubtitle = '';
                         if (ev.isAppointment && ev.orders) {
                             const orderInfo = ev.orders.order_number ? `#${ev.orders.order_number}` : '';
-                            const clientInfo = ev.orders.clients?.business_name || ev.client_name || '';
-                            if (clientInfo && orderInfo) {
+                            const clientShort = ev.orders.clients?.client_code || ev.orders.clients?.business_name || ev.client_name || '';
+                            if (clientShort && orderInfo) {
                                 richerSubtitle = `<div class="event-subtitle" style="color: #475569; font-size: 0.7rem; margin-top: 2px;">
-                                    <span style="font-weight: 600;">${clientInfo}</span> • ${orderInfo}
+                                    <span style="font-weight: 600;">${clientShort}</span> • ${orderInfo}
                                 </div>`;
-                            } else if (clientInfo || orderInfo) {
+                            } else if (clientShort || orderInfo) {
                                 richerSubtitle = `<div class="event-subtitle" style="color: #475569; font-size: 0.7rem; margin-top: 2px;">
-                                    ${clientInfo || orderInfo}
+                                    ${clientShort || orderInfo}
                                 </div>`;
                             }
                         } else if (ev.client_name) {
@@ -1200,7 +1200,7 @@ function renderSideEventList() {
             let subtitle = '';
 
             if (ev.isAppointment && ev.orders) {
-                subtitle = ev.orders.clients?.business_name || ev.client_name || '';
+                subtitle = ev.orders.clients?.client_code || ev.orders.clients?.business_name || ev.client_name || '';
             } else if (ev.client_name) {
                 subtitle = ev.client_name;
             }

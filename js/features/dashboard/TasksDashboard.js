@@ -301,32 +301,32 @@ export class TasksDashboard {
                     /* TASK CARDS */
                     .premium-task-card { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px); border: 1.2px solid rgba(0,0,0,0.04); border-radius: 16px; padding: 1.15rem; display: flex; flex-direction: column; gap: 8px; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 4px 12px rgba(0,0,0,0.015); position: relative; overflow: hidden; }
                     
-                    /* Type Accents - Gradient Tints */
+                    /* Type Accents - Vibrant Gradient Tints */
                     .premium-task-card.type-commessa { 
-                        background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(235, 245, 255, 0.7));
-                        border-color: rgba(78, 146, 216, 0.08); 
+                        background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(219, 234, 254, 0.85));
+                        border-color: rgba(59, 130, 246, 0.15); 
                     }
                     .premium-task-card.type-commessa:hover { 
-                        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(186, 230, 253, 0.5));
-                        border-color: rgba(78, 146, 216, 0.3); 
-                        box-shadow: 0 10px 25px rgba(78, 146, 216, 0.12);
+                        background: linear-gradient(135deg, rgba(255, 255, 255, 1), rgba(191, 219, 254, 0.95));
+                        border-color: rgba(59, 130, 246, 0.4); 
+                        box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
                     }
                     
                     .premium-task-card.type-interno { 
-                        background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(245, 243, 255, 0.7));
-                        border-color: rgba(104, 117, 237, 0.08); 
+                        background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(238, 242, 255, 0.85));
+                        border-color: rgba(99, 102, 241, 0.15); 
                     }
                     .premium-task-card.type-interno:hover { 
-                        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(224, 231, 255, 0.5));
-                        border-color: rgba(104, 117, 237, 0.3); 
-                        box-shadow: 0 10px 25px rgba(104, 117, 237, 0.12);
+                        background: linear-gradient(135deg, rgba(255, 255, 255, 1), rgba(224, 231, 255, 0.95));
+                        border-color: rgba(99, 102, 241, 0.4); 
+                        box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
                     }
                     
-                    .premium-task-card:hover { transform: translateY(-4px) scale(1.01); }
+                    .premium-task-card:hover { transform: translateY(-2px) scale(1.01); }
                     .premium-task-card { min-height: 110px; }
                     .card-title { font-family: 'Satoshi', sans-serif; font-size: 0.95rem; font-weight: 700; color: #1a1f36; line-height: 1.3; margin: 0; padding-right: 30px; letter-spacing: -0.01em; flex: 1; }
-                    .card-check-btn { position: absolute; top: 1.15rem; right: 1.15rem; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #cbd5e1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); background: #fff; color: #94a3b8; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
-                    .card-check-btn:hover { background: #10b981; border-color: #10b981; color: #fff; transform: scale(1.15) rotate(12deg); box-shadow: 0 8px 20px rgba(16,185,129,0.2); }
+                    .card-check-btn { position: absolute; top: 1.15rem; right: 1.15rem; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #cbd5e1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); background: rgba(255,255,255,0.8); color: #94a3b8; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+                    .card-check-btn:hover { background: #10b981 !important; border-color: #10b981 !important; color: #fff !important; transform: scale(1.2) rotate(15deg); box-shadow: 0 8px 20px rgba(16,185,129,0.35); }
                     
                     /* COMPLETION ANIMATION */
                     @keyframes taskOutcome {
@@ -353,27 +353,29 @@ export class TasksDashboard {
                     /* FIXED BOTTOM NAV */
                     .is-mobile .bottom-nav-container {
                         position: fixed; bottom: 0; left: 0; width: 100%; z-index: 5000;
-                        background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(40px) saturate(230%); -webkit-backdrop-filter: blur(40px) saturate(230%); border-top: 1.2px solid rgba(0, 0, 0, 0.06); 
-                        padding: 16px 1.25rem calc(20px + env(safe-area-inset-bottom, 0px)) 1.25rem; box-shadow: 0 -20px 50px rgba(0,0,0,0.08);
-                        display: flex; flex-direction: column; gap: 16px; border-radius: 28px 28px 0 0;
+                        background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(40px) saturate(230%); -webkit-backdrop-filter: blur(40px) saturate(230%); border-top: 1.2px solid rgba(0, 0, 0, 0.06); 
+                        padding: 16px 1.25rem calc(16px + env(safe-area-inset-bottom, 0px)) 1.25rem; box-shadow: 0 -20px 50px rgba(0,0,0,0.12);
+                        display: flex; flex-direction: column; gap: 14px; border-radius: 32px 32px 0 0;
                     }
-                    .is-mobile .bucket-nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; }
-                    .is-mobile .bucket-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 0; border-radius: 20px; background: rgba(0,0,0,0.04); transition: all 0.3s; border: 1.2px solid transparent; width: 100%; }
-                    .is-mobile .bucket-btn.active { background: #fff; border-color: #f1f5f9; box-shadow: 0 10px 30px rgba(0,0,0,0.08); transform: translateY(-3px); }
-                    .is-mobile .bucket-count { font-size: 1.35rem; font-weight: 800; line-height: 1.1; margin-bottom: 2px; font-family: 'Satoshi', sans-serif; }
-                    .is-mobile .btn-label { font-size: 0.62rem; font-weight: 800; color: #697386; text-transform: uppercase; letter-spacing: 0.05em; font-family: 'Plus Jakarta Sans', sans-serif; }
-                    .is-mobile .bucket-btn.active .btn-label { color: #1a1f36; }
+                    .is-mobile .bucket-nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 100%; }
+                    .is-mobile .bucket-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 4px; border-radius: 20px; background: #f8fafc; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid #f1f5f9; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+                    .is-mobile .bucket-btn.active { background: #fff !important; border-color: rgba(78, 146, 216, 0.2); box-shadow: 0 10px 25px rgba(0,0,0,0.08); transform: translateY(-3px); }
+                    .is-mobile .bucket-count { font-size: 1.45rem; font-weight: 800; line-height: 1; margin-bottom: 3px; font-family: 'Satoshi', sans-serif; letter-spacing: -0.01em; }
+                    .is-mobile .btn-label { font-size: 0.6rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; font-family: 'Plus Jakarta Sans', sans-serif; }
+                    .is-mobile .bucket-btn.active .btn-label { color: #1a1f36; opacity: 1; }
                     
-                    .is-mobile .mobile-fab { 
-                        background: linear-gradient(135deg, #4e92d8 0%, #614aa2 100%); width: 52px; height: 52px; border-radius: 16px; color: #fff;
-                        display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(78, 146, 216, 0.25); border: none; flex-shrink: 0;
-                    }
+                    .is-mobile .lower-controls-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
+                    .is-mobile .mobile-toggles-row { flex: 1; display: flex; gap: 4px; min-width: 0; align-items: center; background: rgba(0,0,0,0.05); padding: 5px; border-radius: 16px; }
+                    .is-mobile .mobile-fab { width: 52px; height: 52px; border-radius: 18px; background: #000; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px rgba(0,0,0,0.25); border: none; flex-shrink: 0; cursor: pointer; transform: scale(1); transition: all 0.2s; }
+                    .is-mobile .mobile-fab:active { transform: scale(0.92); }
+                    .is-mobile .premium-pill-toggle { height: 38px; padding: 2px; background: transparent; gap: 1px; flex: 1; box-shadow: none; border: none; }
+                    .is-mobile .premium-pill-toggle button { padding: 0; height: 34px; border-radius: 12px; flex: 1; }
+                    .is-mobile .premium-pill-toggle button.active { background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
                     
-                    .is-mobile .lower-controls-bar { display: flex; align-items: center; justify-content: space-between; gap: 5px; width: 100%; }
-                    .is-mobile .mobile-toggles-row { flex: 1; display: flex; gap: 4px; min-width: 0; align-items: center; }
-                    .is-mobile .mobile-fab { width: 50px; height: 50px; border-radius: 16px; background: #000; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(0,0,0,0.25); border: none; flex-shrink: 0; margin-left: 2px; }
-                    .is-mobile .premium-pill-toggle { height: 38px; padding: 3px; background: rgba(0,0,0,0.06); gap: 1px; }
-                    .is-mobile .premium-pill-toggle button { padding: 0 6px; height: 32px; border-radius: 8px; }
+                    /* ELITE CARDS */
+                    .premium-task-card { border: none !important; box-shadow: 0 2px 8px rgba(0,0,0,0.03) !important; background: white !important; }
+                    .premium-task-card:hover { transform: none !important; }
+                    .card-check-btn { border-color: #f1f5f9 !important; background: #f8fafc !important; }
                 </style>
 
                 ${!isMobile ? `

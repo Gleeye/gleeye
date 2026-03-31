@@ -161,7 +161,11 @@ export function humanizeActivity(log, context = {}) {
         if (oldValRaw && oldValRaw !== oldValTr) description = description.replace(new RegExp(`\\b${oldValRaw}\\b`, 'g'), oldValTr);
         
         // Final Placeholder Guard (Bug 1 & 3 rescue)
-        description = description.replace('{entity}', entityName).replace('{title}', details.title || entityName);
+        const someone = (details || {}).user_ref_name || (details || {}).new_value_name || (details || {}).assignee_name || (details || {}).full_name || "qualcuno";
+        description = (description || "")
+            .replace(/{user_ref}|{target_ref}|{item_ref}/g, someone)
+            .replace('{entity}', entityName)
+            .replace('{title}', (details || {}).title || entityName);
     }
 
     // Format Markdown to HTML (Subtle Highlight)

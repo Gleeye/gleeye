@@ -180,8 +180,7 @@ async function fetchDateEvents(collaboratorId, startArg, endArg) {
         .select(`
             *,
             booking_items (name, duration_minutes),
-            booking_assignments!inner(collaborator_id),
-            guest_info
+            booking_assignments!inner(collaborator_id)
         `)
         .eq('booking_assignments.collaborator_id', collaboratorId)
         .gte('start_time', startIso)
@@ -198,7 +197,8 @@ async function fetchDateEvents(collaboratorId, startArg, endArg) {
                 appointment_types (id, name, color)
             ),
             orders (
-                clients (business_name)
+                order_number,
+                clients (business_name, client_code)
             )
         `)
         .eq('appointment_internal_participants.collaborator_id', collaboratorId)
@@ -718,72 +718,41 @@ async function fetchAdminOperationalAlerts() {
     }
 }
 
-export async function fetchInternalProjects(collaboratorId, userId) {
+export async function fetchInternalProjects(collaboratorId, userId, isAdmin = false) {
     try {
         const projectsMap = new Map();
 
-        // 1. Fetch Internal Spaces (Clusters and Projects)
-        // We look for spaces assigned to the user or where PM
-        const currentEffectiveRole = state.impersonatedRole || state.profile?.role;
-        const isAdmin = currentEffectiveRole === 'admin';
-
-        let selectString = `
-            id, name, type, area, is_cluster, parent_ref, created_at,
-            cluster:parent_ref ( name ),
-            pm_space_assignees ( user_ref, collaborator_ref )
-        `;
-        if (!isAdmin) {
-            selectString = `
-                id, name, type, area, is_cluster, parent_ref, created_at,
-                cluster:parent_ref ( name ),
-                pm_space_assignees!inner ( user_ref, collaborator_ref )
-            `;
-        }
-
-        let query = supabase
+        const { data: rawData, error } = await supabase
             .from('pm_spaces')
-            .select(selectString)
+            .select(`
+                *,
+                cluster:parent_ref ( name ),
+                pm_space_assignees (*)
+            `)
             .eq('type', 'interno')
             .eq('is_cluster', false);
 
-        if (!isAdmin) {
-            query = query.or(`pm_space_assignees.user_ref.eq.${userId},pm_space_assignees.collaborator_ref.eq.${collaboratorId}`);
-        }
+        if (error) throw error;
 
-        const { data: assigned } = await query;
+        // Filter: Staff/Partners see only their involved spaces. 
+        const assigned = (rawData || []).filter(s => {
+            const assignees = s.pm_space_assignees || [];
+            const isAssigned = assignees.some(a => 
+                (a.user_ref && String(a.user_ref) === String(userId)) || 
+                (a.collaborator_ref && String(a.collaborator_ref) === String(collaboratorId))
+            );
+            const isPM = s.default_pm_user_ref && String(s.default_pm_user_ref) === String(userId);
+            return isAssigned || isPM;
+        });
 
         if (assigned) {
             assigned.forEach(s => {
                 const path = s.cluster?.name ? `${s.cluster.name} > ${s.name}` : s.name;
                 projectsMap.set(s.id, {
                     id: s.id,
-                    order_number: '', // Removed prefix
+                    order_number: '',
                     title: s.name,
-                    client: path, // Full path
-                    status: 'active',
-                    last_active: s.created_at,
-                    link: `#pm/space/${s.id}`
-                });
-            });
-        }
-
-        // Also fetch where is PM by default
-        const { data: managed } = await supabase
-            .from('pm_spaces')
-            .select('id, name, type, area, is_cluster, parent_ref, created_at, cluster:parent_ref ( name )')
-            .eq('type', 'interno')
-            .eq('is_cluster', false)
-            .eq('default_pm_user_ref', userId);
-
-        if (managed) {
-            managed.forEach(s => {
-                if (projectsMap.has(s.id)) return;
-                const path = s.cluster?.name ? `${s.cluster.name} > ${s.name}` : s.name;
-                projectsMap.set(s.id, {
-                    id: s.id,
-                    order_number: '', // Removed prefix
-                    title: s.name,
-                    client: path, // Full path
+                    client: path,
                     status: 'active',
                     last_active: s.created_at,
                     link: `#pm/space/${s.id}`
@@ -828,7 +797,7 @@ export async function fetchInternalProjects(collaboratorId, userId) {
                     }
                 });
 
-                // Get User Appointments in these Spaces
+                // Get User Appointments
                 const { data: userAppts } = await supabase
                     .from('appointments')
                     .select('id, pm_space_id, appointment_internal_participants!inner(collaborator_id)')
@@ -852,7 +821,6 @@ export async function fetchInternalProjects(collaboratorId, userId) {
         }
 
         return results;
-
     } catch (e) {
         console.error("Error fetching internal projects:", e);
         return [];
@@ -885,6 +853,16 @@ function renderAdminAlerts(alerts) {
     const grid = document.getElementById('hp-admin-alert-list');
     if (!block || !grid) return;
 
+    // Safety check: skip if user is ONLY account/pm (without higher tier roles)
+    const tags = window.normalizedTagsForHtml || [];
+    const isTrueAdmin = tags.includes('partner') || tags.includes('amministrazione') || tags.includes('socio') || state.profile?.role === 'admin';
+    const isAccountOrPM = tags.includes('account') || tags.includes('project manager') || tags.includes('pm');
+    
+    if (isAccountOrPM && !isTrueAdmin) {
+        block.style.display = 'none';
+        return;
+    }
+
     if (alerts.length === 0) {
         grid.innerHTML = `
             <div style="display: flex; align-items: center; gap: 10px; padding: 10px 0; color: #166534; opacity: 0.7;">
@@ -907,6 +885,16 @@ function renderAdminAlerts(alerts) {
                 <span class="material-icons-round" style="color: #94a3b8; font-size: 16px;">chevron_right</span>
             </div>
         `).join('');
+    }
+
+    if (alerts.length > 0) {
+        block.style.background = 'linear-gradient(135deg, rgba(255, 241, 242, 0.8), rgba(255, 255, 255, 0.9))';
+        block.style.border = '1px solid rgba(251, 113, 133, 0.15)';
+        block.style.boxShadow = '0 10px 25px -5px rgba(251, 113, 133, 0.08), 0 8px 10px -6px rgba(251, 113, 133, 0.04)';
+    } else {
+        block.style.background = 'white';
+        block.style.border = '1px solid #f1f5f9';
+        block.style.boxShadow = '0 4px 15px rgba(0,0,0,0.03)';
     }
 
     block.style.display = 'flex';
@@ -954,24 +942,23 @@ async function fetchCollaboratorPayments(collaboratorId) {
     try {
         const today = new Date().toISOString().split('T')[0];
 
-        // 1. Fetch Next Payments (Public.payments)
+        // 1. Fetch Next Payments — escludi completati, ordina per scadenza
         const { data: payments, error: pError } = await supabase
             .from('payments')
-            .select('id, title, amount, due_date, status, notes')
+            .select('id, title, amount, due_date, status, assignment_id, orders(order_number, title, clients(client_code, business_name))')
             .eq('collaborator_id', collaboratorId)
             .neq('status', 'Completato')
             .neq('status', 'Done')
             .order('due_date', { ascending: true })
-            .limit(5);
+            .limit(10);
 
-        // 2. Fetch Next Invoices (Public.passive_invoices)
+        // 2. Fetch Invoices — tutte, ordinate per data emissione decrescente (riepilogo recenti)
         const { data: invoices, error: iError } = await supabase
             .from('passive_invoices')
-            .select('id, invoice_number, amount_tax_included, status, due_date')
+            .select('id, invoice_number, amount_tax_included, status, issue_date, due_date, collaborator_name')
             .eq('collaborator_id', collaboratorId)
-            .neq('status', 'Pagato')
-            .order('due_date', { ascending: true })
-            .limit(5);
+            .order('issue_date', { ascending: false })
+            .limit(10);
 
         return {
             nextPayments: payments || [],
@@ -992,21 +979,28 @@ function renderCollaboratorPayments(data) {
 
     // --- PAYMENTS BOX ---
     if (nextPayments.length === 0) {
-        payContainer.innerHTML = `<div style="padding: 2rem; text-align: center; color: #94a3b8; font-size: 0.8rem;">Nessun pagamento in sospeso.</div>`;
+        payContainer.innerHTML = `<div style="padding: 1rem 0; text-align: center; color: #94a3b8; font-size: 0.78rem;">Nessun pagamento in sospeso.</div>`;
     } else {
         payContainer.innerHTML = nextPayments.map(p => {
             const date = p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : 'N.D.';
+            const isOverdue = p.due_date && new Date(p.due_date) < new Date();
+            const statusLabel = p.status || 'In attesa';
+            const statusColor = isOverdue ? '#ef4444' : '#f59e0b';
+            const statusBg = isOverdue ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)';
+            const clientName = p.orders?.clients?.client_code || p.orders?.clients?.business_name || '';
+            const orderInfo = p.orders
+                ? `${p.orders.order_number || ''}${clientName ? ' · ' + clientName : ''}`
+                : (p.assignment_id || '');
             return `
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.03);">
-                    <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
-                        <span class="material-icons-round" style="color: #3b82f6; font-size: 16px; opacity: 0.7;">payment</span>
-                        <div style="display: flex; flex-direction: column; gap: 2px; overflow: hidden;">
-                            <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.title || 'Pagamento'}</span>
-                            <span style="font-size: 0.65rem; color: #64748b; font-weight: 500;">Scadenza: ${date}</span>
-                        </div>
+                <div style="padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                        <span style="font-size: 0.82rem; font-weight: 600; color: #1e293b; line-height: 1.35;">${p.title || 'Pagamento'}</span>
+                        <span style="font-size: 0.85rem; font-weight: 700; color: #1e293b; flex-shrink: 0; letter-spacing: -0.01em;">${formatAmount(p.amount)} €</span>
                     </div>
-                    <div style="text-align: right; margin-left: 10px; flex-shrink: 0;">
-                        <div style="font-size: 0.9rem; font-weight: 800; color: #3b82f6; letter-spacing: -0.01em;">${formatAmount(p.amount)}</div>
+                    ${orderInfo ? `<div style="margin-top: 3px; font-size: 0.68rem; color: #64748b; font-weight: 500;">${orderInfo}</div>` : ''}
+                    <div style="display: flex; align-items: center; gap: 6px; margin-top: 5px;">
+                        <span style="font-size: 0.65rem; color: #94a3b8;">Scad. ${date}</span>
+                        <span style="font-size: 0.62rem; font-weight: 700; color: ${statusColor}; background: ${statusBg}; padding: 1px 6px; border-radius: 4px;">${statusLabel}</span>
                     </div>
                 </div>`;
         }).join('');
@@ -1014,22 +1008,23 @@ function renderCollaboratorPayments(data) {
 
     // --- INVOICES BOX ---
     if (nextInvoices.length === 0) {
-        invContainer.innerHTML = `<div style="padding: 2rem; text-align: center; color: #94a3b8; font-size: 0.8rem;">Nessuna fattura in attesa.</div>`;
+        invContainer.innerHTML = `<div style="padding: 1rem 0; text-align: center; color: #94a3b8; font-size: 0.78rem;">Nessuna fattura presente.</div>`;
     } else {
         invContainer.innerHTML = nextInvoices.map(i => {
-            const statusColor = (i.status === 'Da Pagare') ? '#f59e0b' : '#10b981';
-            const icon = (i.status === 'Da Pagare') ? 'hourglass_empty' : 'receipt_long';
+            const isPaid = i.status === 'Pagata' || i.status === 'Pagato';
+            const isPending = i.status === 'Da Pagare';
+            const statusColor = isPaid ? '#10b981' : isPending ? '#f59e0b' : '#64748b';
+            const statusBg = isPaid ? 'rgba(16,185,129,0.08)' : isPending ? 'rgba(245,158,11,0.08)' : 'rgba(100,116,139,0.08)';
+            const issueDate = i.issue_date ? new Date(i.issue_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: '2-digit' }) : 'N.D.';
             return `
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.03);">
-                    <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
-                        <span class="material-icons-round" style="color: ${statusColor}; font-size: 16px; opacity: 0.7;">${icon}</span>
-                        <div style="display: flex; flex-direction: column; gap: 2px;">
-                            <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Fattura n.${i.invoice_number || 'N.D.'}</span>
-                            <span style="font-size: 0.65rem; color: ${statusColor}; font-weight: 700;">${i.status || 'Inviata'}</span>
-                        </div>
+                <div style="padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                        <span style="font-size: 0.82rem; font-weight: 600; color: #1e293b; line-height: 1.35;">Fattura n.${i.invoice_number || 'N.D.'}</span>
+                        <span style="font-size: 0.85rem; font-weight: 700; color: #1e293b; flex-shrink: 0; letter-spacing: -0.01em;">${formatAmount(i.amount_tax_included)} €</span>
                     </div>
-                    <div style="text-align: right; margin-left: 10px; flex-shrink: 0;">
-                        <div style="font-size: 0.9rem; font-weight: 800; color: #1e293b; letter-spacing: -0.01em;">${formatAmount(i.amount_tax_included)}</div>
+                    <div style="display: flex; align-items: center; gap: 6px; margin-top: 5px;">
+                        <span style="font-size: 0.65rem; color: #94a3b8;">${issueDate}</span>
+                        <span style="font-size: 0.62rem; font-weight: 700; color: ${statusColor}; background: ${statusBg}; padding: 1px 6px; border-radius: 4px;">${i.status || 'Emessa'}</span>
                     </div>
                 </div>`;
         }).join('');
@@ -1089,21 +1084,22 @@ export async function renderHomepageAlt(container) {
     // 4. Final Fallback: use profile data
     if (!myCollab) {
         myCollab = {
-            id: state.profile?.id || user.id,
-            user_id: state.profile?.id || user.id,
+            id: state.profile?.collaborator_id || null,   // ← numeric collaborator ID
+            user_id: state.profile?.id || user.id,        // ← UUID auth (corretto per query UUID)
             first_name: state.profile?.first_name || user.user_metadata?.first_name || '',
             last_name: state.profile?.last_name || user.user_metadata?.last_name || '',
             full_name: state.profile?.full_name || 'Utente',
-            email: user.email
+            email: user.email,
+            tags: state.profile?.tags || []               // ← aggiungi anche i tags per il role detection
         };
     }
 
     const firstName = getFirstName(myCollab, state.profile);
-    const myId = myCollab.id || state.profile?.id;
+    const myId = myCollab.id || state.profile?.collaborator_id || state.profile?.id;
 
     // --- ROLE DETECTION (Fixed for Impersonation) ---
     let userTagsRaw = [];
-    if (myCollab && myCollab.tags) {
+    if (myCollab?.tags && (Array.isArray(myCollab.tags) ? myCollab.tags.length > 0 : myCollab.tags)) {
         if (typeof myCollab.tags === 'string') {
             try { userTagsRaw = JSON.parse(myCollab.tags); } catch (e) { userTagsRaw = myCollab.tags.split(',').map(t => t.trim()); }
         } else { userTagsRaw = myCollab.tags || []; }
@@ -1112,14 +1108,21 @@ export async function renderHomepageAlt(container) {
     }
 
     const normalizedTagsForHtml = Array.isArray(userTagsRaw) ? userTagsRaw.map(t => (t || '').toLowerCase()) : [];
+    window.normalizedTagsForHtml = normalizedTagsForHtml; // needed by renderAdminAlerts
     let htmlRole = detectUserRole(normalizedTagsForHtml);
     
-    // FORCE PARTNER VIEW FOR ADMINS/SOCI
-    if (state.profile?.role === 'admin' || normalizedTagsForHtml.includes('socio') || normalizedTagsForHtml.includes('partner')) {
+    // FORCE PARTNER VIEW FOR ADMINS/SOCI — skip when impersonating
+    const isImpersonating = !!state.impersonatedCollaboratorId;
+    if (!isImpersonating && (state.profile?.role === 'admin' || normalizedTagsForHtml.includes('socio') || normalizedTagsForHtml.includes('partner'))) {
         htmlRole = 'partner';
     }
     
-    const isCollaborator = htmlRole === 'collaboratore';
+    // Collaboratore, PM e Account usano il layout con payments box
+    // Partner non ce l'ha (i soci non hanno incarichi personali)
+    const isCollaborator = htmlRole === 'collaboratore' || htmlRole === 'pm' || htmlRole === 'account';
+    const isAccountUser = normalizedTagsForHtml.includes('account');
+    const isPmUser = normalizedTagsForHtml.includes('project manager') || normalizedTagsForHtml.includes('pm');
+    const showAccountPmToggle = isAccountUser && isPmUser;
 
     // --- MANAGE TOP BAR GREETING ---
     const pageTitle = document.getElementById('page-title');
@@ -1165,7 +1168,7 @@ export async function renderHomepageAlt(container) {
             .hp-alt-wrapper { display: flex; width: 100%; height: 100%; background: transparent; font-family: 'Outfit'; position: relative; overflow: hidden; flex: 1; }
             .hp-alt-sidebar-left { width: 320px; flex-shrink: 0; height: 100%; background: white; border-right: 1px solid #eef2f6; display: flex; flex-direction: column; position: relative; box-shadow: 10px 0 30px rgba(0,0,0,0.01); z-index: 10; overflow: hidden; }
             .hp-main-content-area { flex: 1; display: flex; flex-direction: column; gap: 2rem; padding: 1.5rem 2rem; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; position: relative; width: 100%; box-sizing: border-box; background: transparent; }
-            .hp-main-columns-container { display: flex; flex-direction: row; gap: 2rem; width: 100%; align-items: stretch; height: 670px; }
+            .hp-main-columns-container { display: flex; flex-direction: row; gap: 2rem; width: 100%; align-items: stretch; min-height: 0; }
             
             .hp-mobile-banner { display: none; }
             .hp-mobile-agenda-pop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 20000; align-items: center; justify-content: center; padding: 15px; }
@@ -1218,7 +1221,7 @@ export async function renderHomepageAlt(container) {
                      <h1 id="page-title" style="display: none;"></h1>
                      <h2 id="hp-date-description" style="font-size: 0.85rem; font-weight: 500; color: #64748b; margin: 0; margin-bottom: 1.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></h2>
 
-                     <div class="hp-nav-controls" style="display: flex; flex-direction: row; gap: 8px; align-items: stretch; height: 670px; height: 38px;">
+                     <div class="hp-nav-controls" style="display: flex; flex-direction: row; gap: 8px; align-items: stretch; height: 38px;">
                          <div class="hp-pill-group" style="display: flex; flex: 1; border-radius: 12px; padding: 3px; background: #f8fafc; border: 1px solid #f1f5f9;">
                              <button onclick="setHomepageMode('today')" id="btn-mode-today" class="nav-pill active-pill" style="flex: 1; border-radius: 9px; font-size: 0.72rem; border: none;">Oggi</button>
                              <button onclick="setHomepageMode('tomorrow')" id="btn-mode-tomorrow" class="nav-pill" style="flex: 1; border-radius: 9px; font-size: 0.72rem; border: none;">Domani</button>
@@ -1282,7 +1285,7 @@ export async function renderHomepageAlt(container) {
                      .hp-dash-collab-main {
                          display: flex;
                          gap: 2.5rem;
-                         align-items: flex-start;
+                         align-items: stretch;
                          width: 100%;
                      }
                      .hp-dash-collab-left {
@@ -1297,33 +1300,36 @@ export async function renderHomepageAlt(container) {
                          min-width: 260px;
                          display: flex;
                          flex-direction: column;
+                         overflow: hidden;
                      }
                      .hp-dash-collab-top {
                          display: grid;
                          grid-template-columns: 0.9fr 1.15fr;
+                         grid-template-rows: 1fr;
                          gap: 2.5rem;
-                         align-items: stretch; height: 670px;
+                         align-items: stretch; height: 440px;
                          width: 100%;
                      }
                      .hp-dash-collab-fin {
                          display: grid;
                          grid-template-columns: 1fr 1fr;
+                         grid-template-rows: 1fr;
                          gap: 2.5rem;
-                         align-items: stretch; height: 670px;
+                         align-items: stretch; height: 440px;
                          width: 100%;
+                         margin-bottom: 2.5rem;
                      }
                      .hp-dash-partner-main {
                          display: grid;
                          grid-template-columns: 1.15fr 1fr 0.85fr;
                          gap: 2.5rem;
-                         align-items: stretch;
-                         height: 600px;
+                         align-items: flex-start;
 
                          width: 100%;
                          min-height: 0;
                      }
                      
-                      .hp-dash-collab-top > div, .hp-dash-partner-main > div {
+                      .hp-dash-collab-top > div, .hp-dash-collab-fin > div, .hp-dash-partner-main > div {
                           display: flex;
                           flex-direction: column;
                           overflow: hidden;
@@ -1332,15 +1338,39 @@ export async function renderHomepageAlt(container) {
                       }
 
                      @media (max-width: 1100px) {
+                         .hp-alt-sidebar-left { display: none !important; }
+                         .hp-main-content-area { padding: 1rem !important; height: auto !important; overflow-y: visible !important; }
+                         .hp-main-columns-container { flex-direction: column !important; height: auto !important; gap: 1.5rem; }
                          .hp-dash-collab-main, .hp-dash-collab-top, .hp-dash-collab-fin, .hp-dash-partner-main {
-                             display: flex;
-                             flex-direction: column;
-                             grid-template-columns: none;
+                             display: flex !important;
+                             flex-direction: column !important;
+                             grid-template-columns: none !important;
+                             height: auto !important;
+                             gap: 1.5rem !important;
                          }
                          .hp-dash-collab-top > div, .hp-dash-partner-main > div {
-                             max-height: 600px;
-                             width: 100%;
-                             flex: none;
+                             max-height: none !important;
+                             height: auto !important;
+                             width: 100% !important;
+                             flex: none !important;
+                         }
+                         .hp-mobile-banner { display: flex !important; position: sticky; top: 0; z-index: 100; margin-bottom: 20px; }
+                     }
+                     
+                     @media (min-width: 1101px) {
+                         .hp-main-columns-container {
+                             min-height: 900px;
+                         }
+                         .hp-dash-collab-top, .hp-dash-collab-fin {
+                             height: 440px !important;
+                         }
+                         #hp-pm-spaces-main-block, #hp-internal-dashboard-block {
+                             height: 440px !important;
+                             max-height: 440px;
+                         }
+                         .hp-dash-collab-top > div {
+                             height: 100%;
+                             max-height: 440px;
                          }
                      }
                  </style>
@@ -1389,7 +1419,7 @@ export async function renderHomepageAlt(container) {
                                              </h3>
                                          </div>
                                     </div>
-                                    <div class="hp-projects-stats-bar-placeholder" style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; flex-shrink: 0;"></div>
+                                    <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; flex-shrink: 0;"></div>
                                     <div id="hp-pm-spaces-main-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; padding: 0 8px 30px 0; min-height: 0;"></div>
                                  </div>
 
@@ -1410,25 +1440,19 @@ export async function renderHomepageAlt(container) {
 
                              <!-- ROW 2: FINANCIAL BLOCKS (Collab) -->
                              <div class="hp-dash-collab-fin">
-                                 <div id="hp-collaborator-payments-box" class="hp-widget-panel" style="display: flex; flex-direction: column; padding: 1.5rem; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 28px; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);">
-                                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
-                                          <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
-                                              <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.6); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">payment</span></div>
-                                              Stato Pagamenti
-                                          </h3>
-                                          <a href="#tasks-summary" style="font-size: 0.75rem; font-weight: 700; color: #8b5cf6; text-decoration: none;">VEDI STORICO</a>
+                                 <div id="hp-collaborator-payments-box" class="hp-widget-panel" style="box-sizing: border-box; padding: 1.25rem 1.5rem; background: white; border: 1px solid rgba(0,0,0,0.04); border-radius: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
+                                      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 0.85rem;">
+                                          <span class="material-icons-round" style="color: #94a3b8; font-size: 16px;">payment</span>
+                                          <h3 style="font-family: 'Outfit', sans-serif; font-size: 0.85rem; font-weight: 700; color: #64748b; margin: 0; letter-spacing: 0.04em; text-transform: uppercase;">Pagamenti</h3>
                                       </div>
-                                      <div id="hp-collab-payments-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; padding-right: 8px;"><div style="padding: 2rem; text-align: center; color: #94a3b8;"><span class="loader small"></span></div></div>
+                                      <div id="hp-collab-payments-list" class="custom-scrollbar" style="height: 354px; overflow-y: auto; padding-right: 4px;"><div style="padding: 1.5rem 0; text-align: center; color: #94a3b8;"><span class="loader small"></span></div></div>
                                  </div>
-                                 <div id="hp-collaborator-invoices-box" class="hp-widget-panel" style="display: flex; flex-direction: column; padding: 1.5rem; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 28px; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);">
-                                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
-                                          <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
-                                              <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.6); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">receipt_long</span></div>
-                                              Stato Fatture
-                                          </h3>
-                                          <a href="#tasks-summary" style="font-size: 0.75rem; font-weight: 700; color: #8b5cf6; text-decoration: none;">VEDI PASSIVE</a>
+                                 <div id="hp-collaborator-invoices-box" class="hp-widget-panel" style="box-sizing: border-box; padding: 1.25rem 1.5rem; background: white; border: 1px solid rgba(0,0,0,0.04); border-radius: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
+                                      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 0.85rem;">
+                                          <span class="material-icons-round" style="color: #94a3b8; font-size: 16px;">receipt_long</span>
+                                          <h3 style="font-family: 'Outfit', sans-serif; font-size: 0.85rem; font-weight: 700; color: #64748b; margin: 0; letter-spacing: 0.04em; text-transform: uppercase;">Fatture</h3>
                                       </div>
-                                      <div id="hp-collab-invoices-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; padding-right: 8px;"><div style="padding: 2rem; text-align: center; color: #94a3b8;"><span class="loader small"></span></div></div>
+                                      <div id="hp-collab-invoices-list" class="custom-scrollbar" style="height: 354px; overflow-y: auto; padding-right: 4px;"><div style="padding: 1.5rem 0; text-align: center; color: #94a3b8;"><span class="loader small"></span></div></div>
                                  </div>
                              </div>
                          </div>
@@ -1436,7 +1460,7 @@ export async function renderHomepageAlt(container) {
                          <!-- RIGHT SIDE: FEED -->
                          <div class="hp-dash-collab-right">
                               <!-- FEED BLOCK -->
-                              <div id="hp-activity-feed-block" style="flex: 1; display: flex; flex-direction: column; max-height: 520px; border-radius: 28px; padding: 1.5rem; min-height: 0; background: white; border: 1px solid rgba(0,0,0,0.03);">
+                              <div id="hp-activity-feed-block" style="flex: 1; display: flex; flex-direction: column; height: 100%; border-radius: 28px; padding: 1.5rem; min-height: 0; overflow: hidden; background: white; border: 1px solid rgba(0,0,0,0.03);">
                                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-shrink: 0;">
                                       <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.02em;">
                                           <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">rss_feed</span></div>Feed
@@ -1461,14 +1485,16 @@ export async function renderHomepageAlt(container) {
                                           <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.6); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">dashboard</span></div>
                                           Le mie Commesse
                                       </h3>
+                                      ${showAccountPmToggle ? `
                                       <div style="display: flex; gap: 6px; background: rgba(0,0,0,0.03); padding: 4px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.02); margin-right: 8px;">
                                         <button id="hp-filter-account" class="hp-filter-pill active" onclick="togglePmFilter('account')" style="font-family: 'Outfit', sans-serif; padding: 4px 10px; border-radius: 7px; border: none; font-size: 0.65rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;">ACCOUNT</button>
                                         <button id="hp-filter-pm" class="hp-filter-pill active" onclick="togglePmFilter('pm')" style="font-family: 'Outfit', sans-serif; padding: 4px 10px; border-radius: 7px; border: none; font-size: 0.65rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;">PM</button>
                                       </div>
+                                      ` : ''}
                                   </div>
                                   <!-- STATS BAR RESTORED -->
-                                  <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 0.85rem; margin-bottom: 1.25rem; flex-shrink: 0; background: rgba(255,255,255,0.4); border-radius: 18px; border: 1px solid rgba(255,255,255,0.5);">
-                                       <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: flex-start;">
+                                  <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.45rem 0.65rem; margin-bottom: 0.75rem; flex-shrink: 0; background: rgba(255,255,255,0.4); border-radius: 14px; border: 1px solid rgba(255,255,255,0.5);">
+                                       <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
                                            <span style="font-size: 0.55rem; font-weight: 700; color: #3b82f6; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">COMMESSE</span>
                                            <span id="stat-count-projects" style="font-size: 1.25rem; font-weight: 800; color: #3b82f6; line-height: 1;">0</span>
                                        </div>
@@ -1483,7 +1509,7 @@ export async function renderHomepageAlt(container) {
                                            <span id="stat-count-tasks" style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
                                        </div>
                                        <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06); margin: 0 8px;"></div>
-                                       <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: flex-end;">
+                                       <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
                                            <span style="font-size: 0.55rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">APPUNTAMENTI</span>
                                            <span id="stat-count-events" style="font-size: 1.25rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
                                        </div>
@@ -1500,12 +1526,14 @@ export async function renderHomepageAlt(container) {
                                       Attività interne
                                   </h3>
                                </div>
-                               <div id="hp-internal-hubs-buttons" style="display: flex; gap: 12px; overflow-x: auto; padding-bottom: 24px; scrollbar-width: none; -ms-overflow-style: none; padding-top: 4px; flex-shrink: 0;"></div>
-                               <div id="hp-internal-clusters-grid" class="custom-scrollbar" style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-content: start; overflow-y: auto; padding-bottom: 2rem; min-height: 0;"></div>
+                               <div style="flex-shrink: 0;">
+                                   <div id="hp-internal-hubs-buttons" style="display: flex; gap: 12px; overflow-x: auto; padding-bottom: 24px; scrollbar-width: none; -ms-overflow-style: none; padding-top: 4px; flex-shrink: 0;"></div>
+                               </div>
+                               <div id="hp-internal-clusters-grid" class="custom-scrollbar" style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-content: start; overflow-y: auto; padding-bottom: 2rem; min-height: 0;"></div>
                           </div>
 
                           <!-- Col 3: FEED & ALERTS -->
-                          <div style="display: flex; flex-direction: column; gap: 2rem; height: 100%; min-height: 0;">
+                          <div style="display: flex; flex-direction: column; gap: 1rem; height: 820px; min-height: 0;">
                               <!-- ALERT BLOCK -->
                               <div id="hp-accounting-alerts-block" style="display: none; flex-direction: column; background: white; border-radius: 28px; padding: 1.5rem; border: 1px solid rgba(0,0,0,0.03); flex-shrink: 0;">
                                   <div class="flex-start" style="gap: 12px; align-items: center; margin-bottom: 1rem;">
@@ -1531,29 +1559,30 @@ export async function renderHomepageAlt(container) {
                  </div> <!-- End hp-main-columns-container -->
                  
             </div> <!-- End main-content-area -->
-<!-- 3. MOBILE OVERLAY POPUP (Replica of Desktop Sidebar) -->
-             <div id="hp-mobile-agenda-popup" class="hp-mobile-agenda-pop" onclick="window.closeMobileAgenda()">
-                <div onclick="event.stopPropagation()" style="background: white; width: 100%; max-width: 450px; border-radius: 30px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: hpPopSlide 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
-                    <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+              <!-- 3. MOBILE OVERLAY POPUP (Journal's View) -->
+              <div id="hp-mobile-agenda-popup" class="hp-mobile-agenda-pop" onclick="window.closeMobileAgenda()">
+                <div onclick="event.stopPropagation()" style="background: white; width: 95%; max-width: 450px; border-radius: 30px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: hpPopSlide 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); max-height: 85vh;">
+                    <!-- Popup Header -->
+                    <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
                         <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.05em;">Journal's View</h3>
                         <button onclick="window.closeMobileAgenda()" style="background: #f1f5f9; border: none; width: 40px; height: 40px; border-radius: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
                             <span class="material-icons-round" style="font-size: 24px; color: #64748b;">close</span>
                         </button>
                     </div>
-                    <div id="hp-mobile-agenda-list" style="padding: 20px; max-height: 70vh; overflow-y: auto;">
-                        <!-- Mobile content replica injected here -->
+                    <!-- Popup Body (Dynamically populated) -->
+                    <div id="hp-mobile-agenda-list" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;">
+                        <!-- Top Controls, Scrollable List, and Fixed Footer injected by syncHomepageActivities -->
                     </div>
                 </div>
-             </div>
+              </div>
 
-             <style>
+              <style>
                 @keyframes hpPopSlide {
                     from { opacity: 0; transform: translateY(40px) scale(0.95); }
                     to { opacity: 1; transform: translateY(0) scale(1); }
                 }
-             </style>
+              </style>
     `;
-
     // --- Interaction Logic ---
     // Store current date for timeline navigation
     window.homepageCurrentDate = new Date();
@@ -1565,12 +1594,16 @@ export async function renderHomepageAlt(container) {
         const pop = document.getElementById('hp-mobile-agenda-popup');
         if (pop) {
             pop.style.display = 'flex';
+            document.body.style.overflow = 'hidden'; 
             window.syncHomepageActivities();
         }
     };
     window.closeMobileAgenda = () => {
         const pop = document.getElementById('hp-mobile-agenda-popup');
-        if (pop) pop.style.display = 'none';
+        if (pop) {
+            pop.style.display = 'none';
+            document.body.style.overflow = ''; 
+        }
     };
 
     window.toggleOverdueFilter = () => {
@@ -1594,7 +1627,11 @@ export async function renderHomepageAlt(container) {
             end = new Date(start);
             end.setDate(start.getDate() + 6); end.setHours(23, 59, 59, 999);
         } else if (window.hpView === 'tomorrow') {
-            start.setDate(start.getDate() + 1); start.setHours(0, 0, 0, 0);
+            // Se siamo in hpView 'tomorrow', forziamo la data di domani rispetto a OGGI, 
+            // a meno che non siamo già spostati su un'altra data specifica col picker.
+            const today = new Date();
+            start = new Date(today);
+            start.setDate(today.getDate() + 1); start.setHours(0, 0, 0, 0);
             end = new Date(start); end.setHours(23, 59, 59, 999);
         } else {
             start.setHours(0, 0, 0, 0);
@@ -1648,7 +1685,12 @@ export async function renderHomepageAlt(container) {
         });
 
         // Davide wants ONLY tasks, no activities in the main list.
-        const combinedTasks = filteredRealTasks; 
+        // Sort tasks by due date (chronological)
+        const combinedTasks = filteredRealTasks.sort((a, b) => {
+            const dateA = a.due_date ? new Date(a.due_date) : new Date(0);
+            const dateB = b.due_date ? new Date(b.due_date) : new Date(0);
+            return dateA - dateB;
+        });
         window.hpData.filteredTasks = combinedTasks;
 
         const actContainer = document.getElementById('hp-activities-list');
@@ -1656,19 +1698,21 @@ export async function renderHomepageAlt(container) {
             renderMyActivities(actContainer, window.hpData.timers, combinedTasks, window.hpData.events, window.hpActivityFilter);
         }
 
-        // Update Overdue UI
-        const overdueToggle = document.getElementById('hp-overdue-toggle');
         const overdueBadge = document.getElementById('hp-overdue-badge');
         const nowAtStartOfDay = new Date(); nowAtStartOfDay.setHours(0,0,0,0);
         const overdueCount = allTasks.filter(t => t.due_date && new Date(t.due_date) < nowAtStartOfDay && t.status !== 'done').length;
 
-        // Update Switcher Badges
         const taskBadge = document.getElementById('hp-badge-task');
         const eventBadge = document.getElementById('hp-badge-event');
-        // Count ONLY REAL TASKS (no activities) for the actual view to be 100% accurate
         const realTasksCount = filteredRealTasks.length; 
-        const activitiesOnlyCount = pmActivities.length;
-        const countEvent = (window.hpData?.events || []).length;
+
+        // Calculate counts for the Current View Range (to prevent flickering)
+        const filteredEventsList = (window.hpData?.events || []).filter(e => {
+            if (!e.start) return false;
+            const d = new Date(e.start);
+            return d >= start && d <= end;
+        });
+        const countEvent = filteredEventsList.length;
 
         if (taskBadge) { 
             taskBadge.textContent = realTasksCount; 
@@ -1677,29 +1721,26 @@ export async function renderHomepageAlt(container) {
         if (eventBadge) { 
             eventBadge.textContent = countEvent; 
             eventBadge.style.display = countEvent > 0 ? 'flex' : 'none'; 
-            // Use purple for events as it's less critical than tasks
             eventBadge.style.background = '#8b5cf6';
         }
 
+        // Update Overdue UI (Desktop)
+        if (overdueBadge) {
+            overdueBadge.textContent = overdueCount;
+            overdueBadge.style.display = overdueCount > 0 ? 'flex' : 'none';
+        }
+
         // --- MOBILE COUNTS FIX ---
+        // These badges should reflect the SELECTED period (start to end), not always today.
         const bTasks = document.getElementById('hp-banner-count-tasks');
         const bEvents = document.getElementById('hp-banner-count-events');
-        const tStart = new Date(); tStart.setHours(0,0,0,0);
-        const tEnd = new Date(); tEnd.setHours(23,59,59,999);
+        
+        // Count tasks and events for the current range (start/end)
+        const rangeTasksCount = combinedTasks.length;
+        const rangeEventsCount = countEvent;
 
-        const mTodayT = allTasks.filter(t => {
-            if (!t.due_date) return false;
-            const d = parseLocal(t.due_date);
-            return d >= tStart && d <= tEnd;
-        });
-        const mTodayE = (window.hpData?.events || []).filter(e => {
-            if (!e.start) return false;
-            const d = new Date(e.start);
-            return d >= tStart && d <= tEnd;
-        });
-
-        if (bTasks) bTasks.textContent = mTodayT.length;
-        if (bEvents) bEvents.textContent = mTodayE.length;
+        if (bTasks) bTasks.textContent = rangeTasksCount;
+        if (bEvents) bEvents.textContent = rangeEventsCount;
 
         // --- NEW POPUP STATS ---
         const popT = document.getElementById('hp-mobile-stat-tasks');
@@ -1707,8 +1748,8 @@ export async function renderHomepageAlt(container) {
         const popO = document.getElementById('hp-mobile-stat-overdue');
         const popOBox = document.getElementById('hp-mobile-stat-overdue-box');
         
-        if (popT) popT.textContent = mTodayT.length;
-        if (popE) popE.textContent = mTodayE.length;
+        if (popT) popT.textContent = rangeTasksCount;
+        if (popE) popE.textContent = rangeEventsCount;
         if (popO) {
             popO.textContent = overdueCount;
             if (popOBox) popOBox.style.display = overdueCount > 0 ? 'flex' : 'none';
@@ -1722,46 +1763,51 @@ export async function renderHomepageAlt(container) {
             const dayDesc = window.hpView === 'weekly' ? 'Prossimi Giorni' : (window.hpView === 'tomorrow' ? 'Domani' : 'Oggi');
 
             pContent.innerHTML = `
-                <!-- Mobile Popup Menu (Desktop Replica) -->
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
-                    <div style="flex: 1; background: #f8fafc; padding: 4px; border-radius: 12px; display: flex; gap: 4px; border: 1px solid #f1f5f9;">
-                        <button onclick="window.setTimelineMode('today', true)" style="flex: 1; padding: 9px 4px; font-size: 0.7rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: ${window.hpView === 'daily' ? 'white' : 'transparent'}; color: ${window.hpView === 'daily' ? '#1e293b' : '#64748b'}; box-shadow: ${window.hpView === 'daily' ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'}; border: ${window.hpView === 'daily' ? '1px solid #e2e8f0' : '1px solid transparent'};">OGGI</button>
-                        <button onclick="window.setTimelineMode('tomorrow', true)" style="flex: 1; padding: 9px 4px; font-size: 0.7rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: ${window.hpView === 'tomorrow' ? 'white' : 'transparent'}; color: ${window.hpView === 'tomorrow' ? '#1e293b' : '#64748b'}; box-shadow: ${window.hpView === 'tomorrow' ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'}; border: ${window.hpView === 'tomorrow' ? '1px solid #e2e8f0' : '1px solid transparent'};">DOMANI</button>
-                        <button onclick="window.setTimelineMode('week', true)" style="flex: 1; padding: 9px 4px; font-size: 0.7rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: ${window.hpView === 'weekly' ? 'white' : 'transparent'}; color: ${window.hpView === 'weekly' ? '#1e293b' : '#64748b'}; box-shadow: ${window.hpView === 'weekly' ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'}; border: ${window.hpView === 'weekly' ? '1px solid #e2e8f0' : '1px solid transparent'};">SETTIMANA</button>
-                    </div>
-                    <div style="position: relative; width: 42px; height: 42px; background: #f1f5f9; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #e2e8f0;" onclick="event.stopPropagation()">
-                         <span class="material-icons-round" style="color: #64748b; font-size: 20px;">event</span>
-                         <input type="date" onchange="window.setHpAlternativeDate(this.value)" onclick="event.stopPropagation()" style="position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer;">
-                    </div>
-                </div>
-
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 0 4px;">
-                    <div style="display: flex; background: #f8fafc; padding: 4px; border-radius: 12px; gap: 4px; border: 1px solid #f1f5f9;">
-                         <button onclick="window.setHpAltFilter('task')" style="position: relative; background: ${isTaskMode ? 'white' : 'transparent'}; color: ${isTaskMode ? '#3b82f6' : '#94a3b8'}; border: none; padding: 7px 10px; border-radius: 10px; display: flex; align-items: center; cursor: pointer; border: 1px solid ${isTaskMode ? '#e2e8f0' : 'transparent'}; box-shadow: ${isTaskMode ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'};">
-                             <span class="material-icons-round" style="font-size: 20px;">check_circle</span>
-                             <span id="hp-mobile-pop-stat-tasks" style="position: absolute; top: -4px; right: -4px; background: #3b82f6; color: white; font-size: 0.6rem; font-weight: 800; padding: 1px 5px; border-radius: 10px; border: 2px solid white;">${mTodayT.length}</span>
-                         </button>
-                         <button onclick="window.setHpAltFilter('event')" style="position: relative; background: ${!isTaskMode ? 'white' : 'transparent'}; color: ${!isTaskMode ? '#8b5cf6' : '#94a3b8'}; border: none; padding: 7px 10px; border-radius: 10px; display: flex; align-items: center; cursor: pointer; border: 1px solid ${!isTaskMode ? '#e2e8f0' : 'transparent'}; box-shadow: ${!isTaskMode ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'};">
-                             <span class="material-icons-round" style="font-size: 20px;">calendar_today</span>
-                             <span id="hp-mobile-pop-stat-events" style="position: absolute; top: -4px; right: -4px; background: #8b5cf6; color: white; font-size: 0.6rem; font-weight: 800; padding: 1px 5px; border-radius: 10px; border: 2px solid white;">${mTodayE.length}</span>
-                         </button>
-                    </div>
-                    <div style="display: flex; gap: 16px; align-items: center;">
-                        <div style="position: relative; cursor: pointer;" onclick="window.toggleOverdueFilter()">
-                            <span id="hp-mobile-overdue-filter" class="material-icons-round" style="font-size: 24px; color: ${window.hpShowOverdue ? '#ef4444' : '#94a3b8'};">history</span>
-                            <span id="hp-mobile-pop-stat-overdue" style="display: ${overdueCount > 0 ? 'block' : 'none'}; position: absolute; top: -4px; right: -6px; background: #ef4444; color: white; font-size: 0.6rem; font-weight: 800; padding: 1px 5px; border-radius: 10px; border: 2px solid white;">${overdueCount}</span>
+                <!-- 1. TOP CONTROLS (Sticky) -->
+                <div style="padding: 20px 20px 10px 20px; flex-shrink: 0; border-bottom: 1px solid rgba(0,0,0,0.02);">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                        <div style="flex: 1; background: #f8fafc; padding: 4px; border-radius: 12px; display: flex; gap: 4px; border: 1px solid #f1f5f9;">
+                            <button onclick="window.setTimelineMode('today', true)" style="flex: 1; padding: 9px 4px; font-size: 0.7rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: ${window.hpView === 'daily' ? 'white' : 'transparent'}; color: ${window.hpView === 'daily' ? '#1e293b' : '#64748b'}; box-shadow: ${window.hpView === 'daily' ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'}; border: ${window.hpView === 'daily' ? '1px solid #e2e8f0' : '1px solid transparent'};">OGGI</button>
+                            <button onclick="window.setTimelineMode('tomorrow', true)" style="flex: 1; padding: 9px 4px; font-size: 0.7rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: ${window.hpView === 'tomorrow' ? 'white' : 'transparent'}; color: ${window.hpView === 'tomorrow' ? '#1e293b' : '#64748b'}; box-shadow: ${window.hpView === 'tomorrow' ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'}; border: ${window.hpView === 'tomorrow' ? '1px solid #e2e8f0' : '1px solid transparent'};">DOMANI</button>
+                            <button onclick="window.setTimelineMode('week', true)" style="flex: 1; padding: 9px 4px; font-size: 0.7rem; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; transition: all 0.2s; background: ${window.hpView === 'weekly' ? 'white' : 'transparent'}; color: ${window.hpView === 'weekly' ? '#1e293b' : '#64748b'}; box-shadow: ${window.hpView === 'weekly' ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'}; border: ${window.hpView === 'weekly' ? '1px solid #e2e8f0' : '1px solid transparent'};">SETTIMANA</button>
                         </div>
-                        <span class="material-icons-round" onclick="window.openPmItemDetails('NEW')" style="font-size: 26px; color: #3b82f6; cursor: pointer;">add_circle</span>
+                        <div style="position: relative; width: 42px; height: 42px; background: #f1f5f9; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #e2e8f0;" onclick="event.stopPropagation()">
+                             <span class="material-icons-round" style="color: #64748b; font-size: 20px;">event</span>
+                             <input type="date" onchange="window.setHpAlternativeDate(this.value)" onclick="event.stopPropagation()" style="position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer;">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <div style="display: flex; background: #f8fafc; padding: 4px; border-radius: 12px; gap: 4px; border: 1px solid #f1f5f9;">
+                             <button onclick="window.setHpAltFilter('task')" style="position: relative; background: ${isTaskMode ? 'white' : 'transparent'}; color: ${isTaskMode ? '#3b82f6' : '#94a3b8'}; border: none; padding: 7px 10px; border-radius: 10px; display: flex; align-items: center; cursor: pointer; border: 1px solid ${isTaskMode ? '#e2e8f0' : 'transparent'}; box-shadow: ${isTaskMode ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'};">
+                                 <span class="material-icons-round" style="font-size: 20px;">check_circle</span>
+                                 <span id="hp-mobile-pop-stat-tasks" style="position: absolute; top: -4px; right: -4px; background: #3b82f6; color: white; font-size: 0.6rem; font-weight: 800; padding: 1px 5px; border-radius: 10px; border: 2px solid white;">${rangeTasksCount}</span>
+                             </button>
+                             <button onclick="window.setHpAltFilter('event')" style="position: relative; background: ${!isTaskMode ? 'white' : 'transparent'}; color: ${!isTaskMode ? '#8b5cf6' : '#94a3b8'}; border: none; padding: 7px 10px; border-radius: 10px; display: flex; align-items: center; cursor: pointer; border: 1px solid ${!isTaskMode ? '#e2e8f0' : 'transparent'}; box-shadow: ${!isTaskMode ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'};">
+                                 <span class="material-icons-round" style="font-size: 20px;">calendar_today</span>
+                                 <span id="hp-mobile-pop-stat-events" style="position: absolute; top: -4px; right: -4px; background: #8b5cf6; color: white; font-size: 0.6rem; font-weight: 800; padding: 1px 5px; border-radius: 10px; border: 2px solid white;">${rangeEventsCount}</span>
+                             </button>
+                        </div>
+                        <div style="display: flex; gap: 16px; align-items: center;">
+                            <div style="position: relative; cursor: pointer;" onclick="window.toggleOverdueFilter()">
+                                <span id="hp-mobile-overdue-filter" class="material-icons-round" style="font-size: 24px; color: ${window.hpShowOverdue ? '#ef4444' : '#94a3b8'};">history</span>
+                                <span id="hp-mobile-pop-stat-overdue" style="display: ${overdueCount > 0 ? 'block' : 'none'}; position: absolute; top: -4px; right: -6px; background: #ef4444; color: white; font-size: 0.6rem; font-weight: 800; padding: 1px 5px; border-radius: 10px; border: 2px solid white;">${overdueCount}</span>
+                            </div>
+                            <span class="material-icons-round" onclick="window.openPmItemDetails('NEW')" style="font-size: 26px; color: #3b82f6; cursor: pointer;">add_circle</span>
+                        </div>
                     </div>
                 </div>
 
-                <div style="padding: 0 4px; font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.05em;">
-                    ${dayDesc}
+                <!-- 2. SCROLLABLE CONTENT AREA -->
+                <div style="flex: 1; overflow-y: auto; overflow-x: hidden; padding: 20px; min-height: 0;">
+                    <div style="font-size: 0.72rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.08em;">
+                        ${dayDesc}
+                    </div>
+                    <div id="hp-mobile-rows-container"></div>
                 </div>
 
-                <div id="hp-mobile-rows-container" style="max-height: 400px; overflow-y: auto; padding-right: 4px;"></div>
-
-                <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 8px;">
+                <!-- 3. FIXED FOOTER (Sticky) -->
+                <div style="padding: 16px 20px 24px 20px; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; background: white;">
                     <a href="#tasks-summary" onclick="window.closeMobileAgenda()" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #f8fafc; border-radius: 12px; text-decoration: none; color: #1e293b; font-size: 0.85rem; font-weight: 700; border: 1px solid #f1f5f9;">
                          <div style="display: flex; align-items: center; gap: 10px;">
                              <span class="material-icons-round" style="color: #3b82f6; font-size: 18px;">assignment</span>
@@ -1780,17 +1826,32 @@ export async function renderHomepageAlt(container) {
             `;
             
             const rowsContainer = document.getElementById('hp-mobile-rows-container');
+            if (rowsContainer) rowsContainer.style.overflowX = 'hidden'; 
+
             if (isTaskMode) {
-                if (combinedTasks.length === 0) rowsContainer.innerHTML = '<div style="padding: 3rem 1rem; text-align: center; color: #94a3b8; font-size: 0.85rem; font-weight: 500;">Ottimo! Nessun task per questo periodo.</div>';
-                else combinedTasks.forEach(t => renderActivityRow(rowsContainer, t));
+                if (combinedTasks.length === 0) {
+                    rowsContainer.innerHTML = `<div style="padding: 3rem 1rem; text-align: center; color: #94a3b8; font-size: 0.85rem; font-weight: 500;">
+                        Nessuna task ${window.hpView === 'weekly' ? 'per questa settimana' : (window.hpView === 'tomorrow' ? 'per domani' : 'per oggi')}.
+                    </div>`;
+                } else {
+                    rowsContainer.innerHTML = '';
+                    combinedTasks.forEach(t => renderActivityRow(rowsContainer, t));
+                }
             } else {
                 const dayEvents = (window.hpData?.events || []).filter(e => {
                     if (!e.start) return false;
                     const d = new Date(e.start);
                     return d >= start && d <= end;
-                });
-                if (dayEvents.length === 0) rowsContainer.innerHTML = '<div style="padding: 3rem 1rem; text-align: center; color: #94a3b8; font-size: 0.85rem; font-weight: 500;">Agenda libera per oggi.</div>';
-                else dayEvents.forEach(e => renderActivityRow(rowsContainer, { ...e, isEvent: true, type: 'event' }));
+                }).sort((a, b) => new Date(a.start) - new Date(b.start));
+
+                if (dayEvents.length === 0) {
+                    rowsContainer.innerHTML = `<div style="padding: 3rem 1rem; text-align: center; color: #94a3b8; font-size: 0.85rem; font-weight: 500;">
+                        Nessun appuntamento ${window.hpView === 'weekly' ? 'per questa settimana' : (window.hpView === 'tomorrow' ? 'domani' : 'oggi')}.
+                    </div>`;
+                } else {
+                    rowsContainer.innerHTML = '';
+                    dayEvents.forEach(e => renderActivityRow(rowsContainer, { ...e, isEvent: true, type: 'event' }));
+                }
             }
         }
     };
@@ -1800,14 +1861,27 @@ export async function renderHomepageAlt(container) {
         const d = new Date(val);
         window.homepageCurrentDate = d;
         window.hpView = 'daily';
-        window.syncHomepageActivities();
+        
+        // Use updateHomepageTimeline to refetch events for the specific date
+        window.updateHomepageTimeline(window.homepageCurrentDate);
     };
 
     window.setTimelineMode = (mode, isMobile = false) => {
-        if (mode === 'today') window.hpView = 'daily';
-        else if (mode === 'tomorrow') window.hpView = 'tomorrow';
-        else if (mode === 'week') window.hpView = 'weekly';
-        window.syncHomepageActivities();
+        if (mode === 'today') {
+            window.hpView = 'daily';
+            window.homepageCurrentDate = new Date();
+        } else if (mode === 'tomorrow') {
+            window.hpView = 'tomorrow';
+            const d = new Date();
+            d.setDate(d.getDate() + 1);
+            window.homepageCurrentDate = d;
+        } else if (mode === 'week') {
+            window.hpView = 'weekly';
+            // Current date remains as is, the view logic handles week range
+        }
+        
+        // Refresh everything
+        window.updateHomepageTimeline(window.homepageCurrentDate);
     };
 
     window.setHpAltFilter = (filter) => {
@@ -1966,18 +2040,16 @@ export async function renderHomepageAlt(container) {
         if (mode === 'today') {
             window.hpView = 'daily';
             window.homepageCurrentDate = new Date();
-            window.updateHomepageTimeline(window.homepageCurrentDate);
         } else if (mode === 'tomorrow') {
-            window.hpView = 'daily';
+            window.hpView = 'tomorrow';
             const d = new Date();
             d.setDate(d.getDate() + 1);
             window.homepageCurrentDate = d;
-            window.updateHomepageTimeline(window.homepageCurrentDate);
         } else if (mode === 'week') {
             window.hpView = 'weekly';
-            // Keep current date reference for week calculation
-            window.updateHomepageTimeline(window.homepageCurrentDate);
         }
+        
+        window.updateHomepageTimeline(window.homepageCurrentDate);
     };
 
     window.toggleHpOverdue = () => {
@@ -2194,9 +2266,20 @@ export async function renderHomepageAlt(container) {
 
     // --- Background Data Fetch & Initial Load ---
     (async () => {
+        console.log('[Homepage] htmlRole:', htmlRole, '| isCollaborator:', isCollaborator, '| tags:', normalizedTagsForHtml, '| impersonating:', !!state.impersonatedCollaboratorId);
+
+        // Se collaboratorId non è disponibile, aspetta data:loaded e riprova
+        const targetUserId = myCollab.user_id || state.session?.user?.id;
+        const collaboratorId = myCollab.id;
+
+        if (!collaboratorId && !targetUserId) {
+            console.warn("[Homepage] No collaborator/user ID available yet. Waiting for data:loaded...");
+            window.addEventListener('data:loaded', () => renderHomepageAlt(container), { once: true });
+            return;
+        }
+
         try {
             // Re-fetch data in background to populate and sync
-            const targetUserId = myCollab.user_id || state.session?.user?.id;
             const { data: pmTasks, error: pmError } = await supabase
                 .from('pm_items')
                 .select(`
@@ -2231,7 +2314,6 @@ export async function renderHomepageAlt(container) {
                     else { clientCode = clients.client_code || ''; }
                 }
                 let ord = space?.orders?.order_number || '';
-                if (clientCode && ord) ord = `${clientCode}-${ord}`;
                 
                 let breadcrumb = '';
                 if (space) {
@@ -2246,7 +2328,7 @@ export async function renderHomepageAlt(container) {
                 const rawType = (t.item_type || 'task').toLowerCase();
                 return {
                     id: t.id, title: t.title, status: t.status, due_date: t.due_date,
-                    parent_id: t.parent_ref, orders: ord, breadcrumb: breadcrumb,
+                    parent_id: t.parent_ref, orders: space?.orders, breadcrumb: breadcrumb,
                     area: space?.area || '', space_type: (space?.type || '').toLowerCase(),
                     raw_type: rawType, type: 'pm_task', role: myRole, all_assignees: t.all_assignees || []
                 };
@@ -2323,7 +2405,7 @@ export async function renderHomepageAlt(container) {
 }
 
 // --- INTERNAL HUB/CLUSTER ENGINES ---
-async function fetchInternalHubsAndClusters(collaboratorId, userId, isPrivileged = false) {
+async function fetchInternalHubsAndClusters(collaboratorId, userId, isPrivileged = false, isPartnerStrict = false) {
     try {
         const { fetchInternalSpaces } = await import('../modules/pm_api.js');
         const COMPANY_AREAS = [
@@ -2347,101 +2429,73 @@ async function fetchInternalHubsAndClusters(collaboratorId, userId, isPrivileged
             areaManagers[areaId] = String(row.value);
         });
 
+        // 3. Determine Hubs (Areas)
+        // Hubs are always visible for Privileged roles (Account/PM/Partner) to browse,
+        // but only marked as "mine" if responsible.
         const hubs = COMPANY_AREAS.map(a => {
              const mng = areaManagers[a.id];
              const isResp = mng && (String(mng) === String(collaboratorId) || String(mng) === String(userId));
              return { ...a, isResponsible: isResp };
         });
 
-        const visibleHubs = hubs.filter(h => h.isResponsible);
+
+        // 4. Hub visibility for Collaborators
+        // We filter these AFTER processing clusters to include hubs that contain assigned clusters
         
-        // 4. Cluster Logic: Filter + Apply Custom Sort Order + Enhanced Mapping
+        // 5. Cluster Logic: Filter + Apply Custom Sort Order + Enhanced Mapping
         const iconMap = {
-            'legale': 'gavel',
-            'social': 'public',
-            'marketing': 'campaign',
-            'commercialista': 'calculate',
-            'contabil': 'account_balance_wallet',
-            'erp': 'terminal',
-            'sviluppo': 'code',
-            'amministrazione': 'account_balance',
-            'vendite': 'trending_up',
-            'commerciale': 'shopping_cart',
-            'ricerca': 'biotech',
-            'risorse': 'diversity_3',
-            'produzione': 'factory',
-            'servizi': 'cleaning_services',
-            'formazione': 'school',
-            'sicurezza': 'security',
-            'logistica': 'local_shipping',
-            'business': 'insights',
-            'progetto': 'folder',
-            'archivio': 'inventory_2',
-            'ufficio': 'apartment',
-            'tecnico': 'engineering',
-            'partner': 'handshake',
-            'web': 'language',
-            'design': 'palette',
-            'creativ': 'token',
-            'media': 'movie',
-            'evento': 'celebration',
-            'task': 'task_alt',
-            'agenda': 'event',
-            'clienti': 'assignment_ind',
-            'finance': 'payments',
-            'brand': 'star',
-            'auto': 'directions_car',
-            'form': 'description',
-            'help': 'help_center',
-            'cloud': 'cloud_queue',
-            'hardware': 'computer',
-            'infra': 'settings_suggest'
+            'legale': 'gavel', 'social': 'public', 'marketing': 'campaign', 'commercialista': 'calculate',
+            'contabil': 'account_balance_wallet', 'erp': 'terminal', 'sviluppo': 'code', 'amministrazione': 'account_balance',
+            'vendite': 'trending_up', 'commerciale': 'shopping_cart', 'ricerca': 'biotech', 'risorse': 'diversity_3',
+            'produzione': 'factory', 'servizi': 'cleaning_services', 'formazione': 'school', 'sicurezza': 'security',
+            'logistica': 'local_shipping', 'business': 'insights', 'progetto': 'folder', 'archivio': 'inventory_2',
+            'ufficio': 'apartment', 'tecnico': 'engineering', 'partner': 'handshake', 'web': 'language',
+            'design': 'palette', 'creativ': 'token', 'media': 'movie', 'evento': 'celebration', 'task': 'task_alt',
+            'agenda': 'event', 'clienti': 'assignment_ind', 'finance': 'payments', 'brand': 'star',
+            'auto': 'directions_car', 'form': 'description', 'help': 'help_center', 'cloud': 'cloud_queue',
+            'hardware': 'computer', 'infra': 'settings_suggest'
         };
 
-        // 4. Cluster Logic: Filter + Apply Custom Sort Order + Enhanced Mapping
-        
-        // Find spaces where user is directly assigned or PM
-        const visibleSpaces = (rawData || []).filter(s => {
-            const assignees = s.pm_space_assignees || [];
-            const isDirectAssignee = assignees.some(a => 
-                (a.user_ref && String(a.user_ref) === String(userId)) || 
-                (a.collaborator_ref && String(a.collaborator_ref) === String(collaboratorId))
-            );
-            const isPM = s.default_pm_user_ref && String(s.default_pm_user_ref) === String(userId);
-            return isDirectAssignee || isPM;
-        });
+        // Determine final clusters/projects to show in grid
+        console.log(`[HP-DEBUG] Filtering clusters. User: ${userId}, Collab: ${collaboratorId}`);
 
-        // Determine grid items with absolute strictness
         let clusters = (rawData || []).filter(s => {
-            // Check if user is explicitly part of the team (assignee)
             const assignees = s.pm_space_assignees || [];
             const isDirectTeamMember = assignees.some(a => 
                 (a.user_ref && String(a.user_ref) === String(userId)) || 
                 (a.collaborator_ref && String(a.collaborator_ref) === String(collaboratorId))
             );
 
+            const isNamedManager = String(s.default_pm_user_ref || '') === String(userId);
+            const isInvolved = isDirectTeamMember || isNamedManager;
+
             if (s.is_cluster) {
-                // CLUSTERS: STRICT Operational Visibility
-                // Davide only wants to see clusters where he is IN THE TEAM.
-                // Admin roles or Default PM roles are ignored here to keep the grid clean.
-                return isDirectTeamMember;
+                // CLUSTERS: Solo se assegnatario o manager nominale.
+                if (!isInvolved) {
+                    // console.log(`[HP-DEBUG] Skipping cluster: ${s.name} (Not involved)`);
+                    return false;
+                }
+                console.log(`[HP-DEBUG] KEEPING CLUSTER: ${s.name} (isInvolved: ${isInvolved}, isDirect: ${isDirectTeamMember}, isPM: ${isNamedManager})`);
+                return true;
             } else {
-                // PROJECTS (Surfacing):
-                // Show project if:
-                // 1. User is a direct team member
-                // 2. AND the parent cluster is NOT already shown in the grid
-                if (!isDirectTeamMember) return false;
+                // PROJECTS (Surfacing): Solo se assegnato direttamente E il genitore non è già in griglia.
+                if (!isInvolved) return false;
 
                 let parentInGrid = false;
                 if (s.parent_ref) {
                     const parent = (rawData || []).find(p => p.id === s.parent_ref);
                     const parentAssignees = parent?.pm_space_assignees || [];
-                    parentInGrid = parentAssignees.some(a => 
+                    const isParentInGrid = parentAssignees.some(a => 
                         (a.user_ref && String(a.user_ref) === String(userId)) || 
                         (a.collaborator_ref && String(a.collaborator_ref) === String(collaboratorId))
-                    );
+                    ) || (String(parent?.default_pm_user_ref || '') === String(userId));
+                    
+                    parentInGrid = isParentInGrid;
                 }
-                return !parentInGrid;
+                if (!parentInGrid) {
+                    console.log(`[HP-DEBUG] SURFACING PROJECT: ${s.name} (Parent not in grid)`);
+                }
+                return !parentInGrid; 
             }
         }).map(c => {
             const area = COMPANY_AREAS.find(a => 
@@ -2449,8 +2503,7 @@ async function fetchInternalHubsAndClusters(collaboratorId, userId, isPrivileged
                 (a.id.toLowerCase() === (c.area || '').toLowerCase())
             );
             
-            // Detect dynamic icon based on name
-            let clusterIcon = 'workspaces'; // Fallback
+            let clusterIcon = 'workspaces'; 
             const nameLower = c.name.toLowerCase();
             for (const [key, icon] of Object.entries(iconMap)) {
                 if (nameLower.includes(key)) {
@@ -2458,11 +2511,10 @@ async function fetchInternalHubsAndClusters(collaboratorId, userId, isPrivileged
                     break;
                 }
             }
-
             return { ...c, areaInfo: area, clusterIcon };
         });
 
-        // Apply saved order if exists
+        // Apply saved order
         const savedOrder = localStorage.getItem(`hp_cluster_order_${userId || collaboratorId}`);
         if (savedOrder) {
             const orderArr = JSON.parse(savedOrder);
@@ -2476,7 +2528,19 @@ async function fetchInternalHubsAndClusters(collaboratorId, userId, isPrivileged
             });
         }
 
-        return { hubs: visibleHubs, clusters };
+        // 5. Finalize Hubs (Filter based on visibility + containing clusters)
+        const finalClusters = clusters || [];
+        const visibleHubsData = hubs.filter(h => 
+            isPrivileged || 
+            isPartnerStrict || 
+            h.isResponsible || 
+            finalClusters.some(c => {
+                const areaId = (c.area || '').toLowerCase();
+                return areaId === h.id.toLowerCase() || (c.areaInfo && c.areaInfo.id === h.id);
+            })
+        );
+
+        return { hubs: visibleHubsData, clusters: finalClusters };
     } catch (e) {
         console.error("Error fetching internal hubs/clusters:", e);
         return { hubs: [], clusters: [] };
@@ -2506,16 +2570,16 @@ function renderInternalDashboard(hubs, clusters) {
                     onclick="window.location.hash='#pm/space/${c.id}'" 
                     class="hp-cluster-card"
                     style="
-                        display: flex; flex-direction: column; align-items: center; gap: 10px; 
-                        cursor: grab; transition: all 0.2s; padding: 10px; border-radius: 20px;
+                        display: flex; flex-direction: column; align-items: center; gap: 6px; 
+                        cursor: grab; transition: all 0.2s; padding: 8px; border-radius: 16px;
                     " onmouseover="this.querySelector('.cluster-icon-box').style.transform='scale(1.1)';" onmouseout="this.querySelector('.cluster-icon-box').style.transform='none';">
                     <div class="cluster-icon-box" style="
-                        width: 58px; height: 58px; border-radius: 18px; background: white; 
+                        width: 48px; height: 48px; border-radius: 14px; background: white; 
                         display: flex; align-items: center; justify-content: center; 
-                        box-shadow: 0 6px 16px ${color}15; border: 1px solid rgba(0,0,0,0.03);
+                        box-shadow: 0 4px 12px ${color}12; border: 1px solid rgba(0,0,0,0.03);
                         transition: all 0.2s; pointer-events: none; position: relative;
                     ">
-                        <span class="material-icons-round" style="font-size: 28px; color: ${color};">${c.clusterIcon}</span>
+                        <span class="material-icons-round" style="font-size: 24px; color: ${color};">${c.clusterIcon}</span>
                         <!-- Area Badge Inside Icon Box -->
                         ${c.areaInfo ? `
                             <div style="
@@ -2548,7 +2612,8 @@ function renderInternalDashboard(hubs, clusters) {
         hubContainer.innerHTML = '';
     } else {
         hubContainer.parentElement.style.display = 'block';
-        hubContainer.innerHTML = respHubs.map(h => `
+        const areaLabel = `<span style="font-family: 'Outfit', sans-serif; font-size: 0.65rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 8px; display: flex; align-items: center; white-space: nowrap;">AREE:</span>`;
+        hubContainer.innerHTML = areaLabel + respHubs.map(h => `
             <button onclick="window.location.hash='#pm/interni?area=${h.id}'" 
                 class="hp-hub-pill"
                 style="
@@ -2556,10 +2621,10 @@ function renderInternalDashboard(hubs, clusters) {
                     background: transparent; color: #1e293b; font-size: 0.72rem; font-weight: 600;
                     font-family: 'Outfit', sans-serif; text-transform: uppercase; letter-spacing: 0.05em;
                     display: flex; align-items: center; gap: 0; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                    flex-shrink: 0; overflow: hidden; max-width: 36px; min-width: 36px; height: 36px;
+                    flex-shrink: 0; overflow: hidden; max-width: 32px; min-width: 32px; height: 32px;
                     justify-content: flex-start;
-                " onmouseover="this.style.maxWidth='220px'; this.style.gap='10px'; this.style.padding='4px 16px 4px 4px'; this.style.background='${h.color}10'; this.style.transform='translateY(-1px)';" onmouseout="this.style.maxWidth='36px'; this.style.gap='0'; this.style.padding='4px'; this.style.background='transparent'; this.style.transform='none';">
-                <div style="width: 28px; height: 28px; border-radius: 50%; background: ${h.color}15; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                " onmouseover="this.style.maxWidth='220px'; this.style.gap='10px'; this.style.padding='4px 14px 4px 4px'; this.style.background='${h.color}10'; this.style.transform='translateY(-1px)';" onmouseout="this.style.maxWidth='32px'; this.style.gap='0'; this.style.padding='4px'; this.style.background='transparent'; this.style.transform='none';">
+                <div style="width: 24px; height: 24px; border-radius: 50%; background: ${h.color}15; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                     <span class="material-icons-round" style="font-size: 15px; color: ${h.color};">${h.icon || 'hub'}</span>
                 </div>
                 <span class="hp-hub-label" style="opacity: 0; transition: opacity 0.2s 0.1s; display: inline-block;">${h.label}</span>
@@ -2693,18 +2758,31 @@ async function renderMainContent_Partner(container, data) {
     const targetUserId = data.targetUserId;
     const myActualCollabId = data.myId;
 
-    // Fetch Admin Stats (if privileged)
-    const isAdmin = normalizedTags.includes('amministrazione') || state.profile?.role === 'admin';
+    // Un utente con partner/amministrazione è sempre admin, anche se ha anche account/pm.
+    // Vedi directives/role_hierarchy.md
+    const isAdmin = normalizedTags.includes('partner') ||
+        normalizedTags.includes('amministrazione') ||
+        normalizedTags.includes('socio') ||
+        state.profile?.role === 'admin';
+    
+    // Hide block by default for non-admins (e.g. Accounts/PMs)
     if (isAdmin) {
         const alerts = await fetchAdminOperationalAlerts();
         renderAdminAlerts(alerts);
+        const alertBlock = document.getElementById('hp-accounting-alerts-block');
+        if (alertBlock) alertBlock.style.display = 'flex';
+    } else {
+        const alertBlock = document.getElementById('hp-accounting-alerts-block');
+        if (alertBlock) alertBlock.style.display = 'none';
     }
 
     const projects = await fetchRecentProjects(myActualCollabId, targetUserId);
-    const internalProjects = await fetchInternalProjects(myActualCollabId, targetUserId);
+    const internalProjects = await fetchInternalProjects(myActualCollabId, targetUserId, isAdmin);
     
     // Fetch Hubs/Clusters
-    const { hubs, clusters } = await fetchInternalHubsAndClusters(myActualCollabId, targetUserId);
+    // isPrivileged: True for Partner/Admin/Account/PM (for Hub visibility)
+    // isAdmin (isPartnerStrict): ONLY for real Admins/Partners (for full Cluster visibility)
+    const { hubs, clusters } = await fetchInternalHubsAndClusters(myActualCollabId, targetUserId, isPrivileged, isAdmin);
     renderInternalDashboard(hubs, clusters);
 
     // Tab switching logic
@@ -2835,10 +2913,14 @@ async function renderMainContent_Partner(container, data) {
 
 // --- STUB VIEWS (Enhanced with correct IDs and initialization) ---
 async function renderMainContent_Amministrazione(container, data) {
-    const isAdmin = data.normalizedTags.includes('amministrazione') || state.profile?.role === 'admin';
+    const isAdmin = data.normalizedTags.includes('amministrazione') || state.profile?.role === 'admin' || data.normalizedTags.includes('socio') || data.normalizedTags.includes('partner');
+    const alertBlock = document.getElementById('hp-accounting-alerts-block');
     if (isAdmin) {
         const alerts = await fetchAdminOperationalAlerts();
         renderAdminAlerts(alerts);
+        if (alertBlock) alertBlock.style.display = 'flex';
+    } else {
+        if (alertBlock) alertBlock.style.display = 'none';
     }
     const content = document.getElementById('hp-pm-spaces-main-list');
     if (!content) return;
@@ -2853,32 +2935,38 @@ async function renderMainContent_Amministrazione(container, data) {
     renderProjects(content, projects);
 }
 async function renderMainContent_Account(container, data) {
+    const alertBlock = document.getElementById('hp-accounting-alerts-block');
+    if (alertBlock) alertBlock.style.display = 'none';
     const content = document.getElementById('hp-pm-spaces-main-list');
     if (!content) return;
     const targetUserId = data.targetUserId;
     const myActualCollabId = data.myId;
     const projects = await fetchRecentProjects(myActualCollabId, targetUserId);
     
-    // Fetch Hubs/Clusters (Pass true for account level)
-    const { hubs, clusters } = await fetchInternalHubsAndClusters(myActualCollabId, targetUserId, true);
+    // Account Level: Privileged for Hubs, but NOT PartnerStrict for Clusters
+    const { hubs, clusters } = await fetchInternalHubsAndClusters(myActualCollabId, targetUserId, true, false);
     renderInternalDashboard(hubs, clusters);
     
     renderProjects(content, projects);
 }
 async function renderMainContent_PM(container, data) {
+    const alertBlock = document.getElementById('hp-accounting-alerts-block');
+    if (alertBlock) alertBlock.style.display = 'none';
     const content = document.getElementById('hp-pm-spaces-main-list');
     if (!content) return;
     const targetUserId = data.targetUserId;
     const myActualCollabId = data.myId;
     const projects = await fetchRecentProjects(myActualCollabId, targetUserId);
     
-    // Fetch Hubs/Clusters (Pass true for PM level)
-    const { hubs, clusters } = await fetchInternalHubsAndClusters(myActualCollabId, targetUserId, true);
+    // PM Level: Privileged for Hubs, but NOT PartnerStrict for Clusters
+    const { hubs, clusters } = await fetchInternalHubsAndClusters(myActualCollabId, targetUserId, true, false);
     renderInternalDashboard(hubs, clusters);
     
     renderProjects(content, projects);
 }
 async function renderMainContent_Collaboratore(container, data) {
+    const alertBlock = document.getElementById('hp-accounting-alerts-block');
+    if (alertBlock) alertBlock.style.display = 'none';
     const content = document.getElementById('hp-pm-spaces-main-list');
     if (!content) return;
     const myActualCollabId = data.myId;
@@ -2891,8 +2979,8 @@ async function renderMainContent_Collaboratore(container, data) {
     const { hubs, clusters } = await fetchInternalHubsAndClusters(myActualCollabId, targetUserId, false);
     renderInternalDashboard(hubs, clusters);
     
-    // Fetch Appointments for Collaborator
-    const { fetchCollaboratorAppointments } = await import('/js/modules/pm_api.js?v=' + Date.now());
+    // Fetch Appointments for Collaborator (Using relative path)
+    const { fetchCollaboratorAppointments } = await import('../modules/pm_api.js?v=' + Date.now());
     const events = await fetchCollaboratorAppointments(myActualCollabId) || [];
     
     if (assignments && assignments.length > 0) {
@@ -2914,7 +3002,7 @@ function renderAssignments(pmList, assignments, clusters = [], events = []) {
         const uniqueOrders = new Set(assignments.map(a => a.order_number).filter(Boolean));
         
         statsBar.innerHTML = `
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: flex-start; padding-left: 8px;">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
                 <span style="font-size: 0.58rem; font-weight: 700; color: #3b82f6; letter-spacing: 0.05em; opacity: 0.8;">COMMESSE</span>
                 <span style="font-size: 1.25rem; font-weight: 800; color: #3b82f6; line-height: 1;">${uniqueOrders.size}</span>
             </div>
@@ -2929,7 +3017,7 @@ function renderAssignments(pmList, assignments, clusters = [], events = []) {
                 <span style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">${assignments.length}</span>
             </div>
             <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: flex-end; padding-right: 8px;">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
                 <span style="font-size: 0.58rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em; opacity: 0.8;">APPUNTAMENTI</span>
                 <div style="display: flex; align-items: center; gap: 4px;">
                     <span style="font-size: 1.25rem; font-weight: 800; color: #10b981; line-height: 1;">${events.length}</span>
@@ -2986,24 +3074,24 @@ function renderProjects(pmList, pmProjects) {
         const statsBar = document.getElementById('hp-projects-stats-bar');
         if (statsBar && !statsBar.querySelector('#stat-count-projects')) {
             statsBar.innerHTML = `
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding-left: 8px;">
-                    <span style="font-size: 0.6rem; font-weight: 700; color: #3b82f6; letter-spacing: 0.05em; opacity: 0.8;">COMMESSE</span>
-                    <span id="stat-count-projects" style="font-size: 1.5rem; font-weight: 800; color: #3b82f6; line-height: 1;">0</span>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
+                    <span style="font-size: 0.55rem; font-weight: 700; color: #3b82f6; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">COMMESSE</span>
+                    <span id="stat-count-projects" style="font-size: 1.25rem; font-weight: 800; color: #3b82f6; line-height: 1;">0</span>
                 </div>
-                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
-                    <span style="font-size: 0.6rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">ATTIVITÀ</span>
-                    <span id="stat-count-activities" style="font-size: 1.5rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
+                    <span style="font-size: 0.55rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">ATTIVITÀ</span>
+                    <span id="stat-count-activities" style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
                 </div>
-                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
-                    <span style="font-size: 0.6rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">TASK</span>
-                    <span id="stat-count-tasks" style="font-size: 1.5rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
+                    <span style="font-size: 0.55rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">TASK</span>
+                    <span id="stat-count-tasks" style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
                 </div>
-                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; padding-right: 8px;">
-                    <span style="font-size: 0.6rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em; opacity: 0.8;">APPUNTAMENTI</span>
-                    <span id="stat-count-events" style="font-size: 1.5rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
+                <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
+                    <span style="font-size: 0.55rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">APPUNTAMENTI</span>
+                    <span id="stat-count-events" style="font-size: 1.25rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
                 </div>
             `;
         }
@@ -3047,32 +3135,32 @@ function renderProjects(pmList, pmProjects) {
                     backdrop-filter: blur(28px) saturate(190%); 
                     -webkit-backdrop-filter: blur(28px) saturate(190%);
                     border: 1px solid rgba(255, 255, 255, 0.8); 
-                    padding: 16px 20px; 
-                    border-radius: 20px; 
+                    padding: 8px 12px; 
+                    border-radius: 14px; 
                     cursor: pointer; 
                     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
                     position: relative;
-                    margin-bottom: 4px;
-                " onmouseover="this.style.background='#ffffff'; this.style.transform='translateY(-4px)'; this.style.boxShadow='0 12px 30px rgba(0,0,0,0.08)'; this.style.borderColor='#ffffff'" onmouseout="this.style.background='rgba(255, 255, 255, 0.92)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 10px rgba(0,0,0,0.02)'; this.style.borderColor='rgba(255, 255, 255, 0.8)'">
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                    margin-bottom: 2px;
+                " onmouseover="this.style.background='#ffffff'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 24px rgba(0,0,0,0.06)'; this.style.borderColor='#ffffff'" onmouseout="this.style.background='rgba(255, 255, 255, 0.92)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 10px rgba(0,0,0,0.02)'; this.style.borderColor='rgba(255, 255, 255, 0.8)'">
+                    <div style="display: flex; flex-direction: column; gap: 1px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                            <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
-                                <span style="font-size: 0.62rem; color: #94a3b8; font-weight: 300; letter-spacing: -0.01em; flex-shrink: 0;">#${p.order_number || '---'}</span>
-                                <div style="height: 10px; width: 1px; background: rgba(0,0,0,0.06); flex-shrink: 0;"></div>
-                                <span style="font-size: 0.65rem; color: #64748b; font-weight: 300; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; letter-spacing: -0.01em;">${p.client || 'Gleeye'}</span>
+                            <div style="display: flex; align-items: center; gap: 4px; min-width: 0;">
+                                <span style="font-size: 0.62rem; color: #94a3b8; font-weight: 400; letter-spacing: -0.01em; flex-shrink: 0;">#${p.order_number || '---'}</span>
+                                <div style="height: 8px; width: 1px; background: rgba(0,0,0,0.06); flex-shrink: 0;"></div>
+                                <span style="font-size: 0.68rem; color: #64748b; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; letter-spacing: -0.01em;">${p.client || 'Gleeye'}</span>
                             </div>
-                            <div style="display: flex; gap: 5px; flex-shrink: 0; margin-left: 8px; align-items: center;">
-                                ${isMaintenance ? `<span class="material-icons-round" style="font-size: 0.8rem; color: #94a3b8;" title="Manutenzione">settings</span>` : 
-                                  (isPaused ? `<span class="material-icons-round" style="font-size: 0.8rem; color: #94a3b8;" title="In Pausa">pause_circle</span>` : 
-                                   `<span class="material-icons-round" style="font-size: 0.8rem; color: #94a3b8;" title="In Svolgimento">play_circle</span>`)}
+                            <div style="display: flex; gap: 4px; flex-shrink: 0; margin-left: 8px; align-items: center;">
+                                ${isMaintenance ? `<span class="material-icons-round" style="font-size: 0.7rem; color: #94a3b8;" title="Manutenzione">settings</span>` : 
+                                  (isPaused ? `<span class="material-icons-round" style="font-size: 0.7rem; color: #94a3b8;" title="In Pausa">pause_circle</span>` : 
+                                   `<span class="material-icons-round" style="font-size: 0.7rem; color: #94a3b8;" title="In Svolgimento">play_circle</span>`)}
                                 
-                                <div style="width: 4px;"></div>
+                                <div style="width: 2px;"></div>
                                 
-                                ${p.isAccount ? `<div title="Account" style="width: 14px; height: 14px; background: transparent; color: #3b82f6; border: 1.25px solid #3b82f630; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.52rem; font-weight: 900;">A</div>` : ''}
-                                ${p.isPM ? `<div title="Project Manager" style="width: 14px; height: 14px; background: transparent; color: #8b5cf6; border: 1.25px solid #8b5cf630; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.52rem; font-weight: 900;">P</div>` : ''}
+                                ${p.isAccount ? `<div title="Account" style="width: 13px; height: 13px; background: transparent; color: #3b82f6; border: 1.25px solid #3b82f630; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.5rem; font-weight: 900;">A</div>` : ''}
+                                ${p.isPM ? `<div title="Project Manager" style="width: 13px; height: 13px; background: transparent; color: #8b5cf6; border: 1.25px solid #8b5cf630; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.5rem; font-weight: 900;">P</div>` : ''}
                             </div>
                         </div>
-                        <div style="font-weight: 500; font-size: 0.88rem; color: #1e293b; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; letter-spacing: -0.01em;">${p.title}</div>
+                        <div style="font-weight: 600; font-size: 0.78rem; color: #1e293b; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; letter-spacing: -0.01em; margin-bottom: 1px;">${p.title}</div>
                     </div>
                 </div>
             `;
@@ -3973,15 +4061,27 @@ function renderActivityRow(container, t) {
     let spaceId = null;
     
     // Extract info from mapped object
-    if (t.orders && t.orders.order_number) {
-        const ordNum = t.orders.order_number;
-        const clientShort = t.orders.clients?.client_code || '';
-        contextHeader = `#${ordNum}${clientShort ? ` • ${clientShort}` : ''}`;
-        spaceId = t.orders?.pm_spaces?.[0]?.id || null;
-    } else if (t.isEvent) {
-        contextHeader = `APPUNTAMENTO${t.location ? ` • ${t.location}` : ''}`;
+    const tags = window.normalizedTagsForHtml || [];
+    const isPrivileged = tags.includes('partner') || tags.includes('socio') || 
+                        tags.includes('amministrazione') || tags.includes('account') || 
+                        tags.includes('project manager') || tags.includes('pm') || tags.includes('backoffice');
+
+    const ord = t.orders || {};
+    const ordNum = ord.order_number || '';
+    const clientCode = ord.clients?.client_code || '';
+    const itemId = t.id ? t.id.split('-')[0].toUpperCase() : '';
+
+    if (t.isEvent) {
+        // Appointments Logic: "APPUNT. ClientCode"
+        contextHeader = `APPUNT.${clientCode ? ` • ${clientCode}` : ''}`;
+        if (!clientCode && t.location) contextHeader += ` • ${t.location}`;
     } else {
-        contextHeader = t.breadcrumb || 'PROGETTO INTERNO';
+        // Tasks Logic: Role-Based Display
+        if (isPrivileged) {
+            contextHeader = ordNum ? `#${ordNum}${clientCode ? ` • ${clientCode}` : ''}` : (t.breadcrumb || 'PROGETTO INTERNO');
+        } else {
+            contextHeader = `#${itemId}${clientCode ? ` • ${clientCode}` : ''}`;
+        }
     }
 
     const row = document.createElement('div');

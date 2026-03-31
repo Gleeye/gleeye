@@ -549,13 +549,13 @@ export function updateSidebarVisibility() {
         }
     }
 
-    // Collaborator Incarichi Section (Visible for normal collaborators)
-    const navAssignmentsCollab = currentPrimary.querySelector('#nav-assignments-collab');
-    if (navAssignmentsCollab) {
+    // Collaborator Incarichi Link (Visible for normal collaborators)
+    const navMyAssignments = currentPrimary.querySelector('#nav-my-assignments');
+    if (navMyAssignments) {
         if (activeRole === 'collaborator' && !isPrivilegedCollaborator) {
-            navAssignmentsCollab.classList.remove('hidden');
+            navMyAssignments.classList.remove('hidden');
         } else {
-            navAssignmentsCollab.classList.add('hidden');
+            navMyAssignments.classList.add('hidden');
         }
     }
 

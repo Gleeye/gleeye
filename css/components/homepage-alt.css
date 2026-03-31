@@ -705,7 +705,10 @@
 }
 
 .project-card:hover {
-    background: var(--bg-tertiary-alpha);
+    background: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+    border-color: #ffffff;
 }
 
 .project-card:last-child {
@@ -771,7 +774,7 @@
 }
 
 .activity-row:hover {
-    background: var(--bg-tertiary-alpha);
+    background: rgba(var(--brand-blue-rgb), 0.04);
 }
 
 .activity-row.is-parent {
