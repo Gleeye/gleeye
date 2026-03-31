@@ -743,7 +743,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
                     if (row.dataset.type === 'attivita' && relY >= rect.height * 0.25 && relY <= rect.height * 0.75) {
                         // Into folder
                         parentId = row.dataset.id;
-                        const childrenOfTarget = allItems.filter(i => i.parent_ref === parentId);
+                        const childrenOfTarget = items.filter(i => i.parent_ref === parentId);
                         targetPosition = childrenOfTarget.length > 0 ? Math.max(...childrenOfTarget.map(i => i.position || 0)) + 1000 : 1000;
                     } else {
                         // Before or After
@@ -753,8 +753,8 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
                         const prevNode = itemsAtSameLevel[targetIndex - 1];
                         const nextNode = itemsAtSameLevel[targetIndex];
                         
-                        const prevPos = prevNode ? (allItems.find(i => i.id === prevNode.dataset.id)?.position || 0) : null;
-                        const nextPos = nextNode ? (allItems.find(i => i.id === nextNode.dataset.id)?.position || 0) : null;
+                        const prevPos = prevNode ? (items.find(i => i.id === prevNode.dataset.id)?.position || 0) : null;
+                        const nextPos = nextNode ? (items.find(i => i.id === nextNode.dataset.id)?.position || 0) : null;
                         
                         if (prevPos === null) targetPosition = (nextPos || 1000) / 2;
                         else if (nextPos === null) targetPosition = prevPos + 1000;
