@@ -1159,7 +1159,7 @@ export async function renderHomepageAlt(container) {
                 max-width: 100vw !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
+                background: linear-gradient(135deg, #fdfdfd 0%, #f1f5f9 100%) !important;
             }
 
             .hp-alt-wrapper { display: flex; width: 100%; height: 100%; background: transparent; font-family: 'Outfit'; position: relative; overflow: hidden; flex: 1; }
@@ -1314,7 +1314,7 @@ export async function renderHomepageAlt(container) {
                      }
                      .hp-dash-partner-main {
                          display: grid;
-                         grid-template-columns: 1.3fr 1.05fr 0.65fr;
+                         grid-template-columns: 1.15fr 1fr 0.85fr;
                          gap: 2.5rem;
                          align-items: start;
                          width: 100%;
@@ -1326,7 +1326,7 @@ export async function renderHomepageAlt(container) {
                           flex-direction: column;
                           overflow: hidden;
                           min-height: 0;
-                          max-height: calc(100vh - 160px);
+                          max-height: calc(100vh - 220px);
                       }
 
                      @media (max-width: 1100px) {
@@ -1387,7 +1387,7 @@ export async function renderHomepageAlt(container) {
                                              </h3>
                                          </div>
                                     </div>
-                                    <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; flex-shrink: 0;"></div>
+                                    <div class="hp-projects-stats-bar-placeholder" style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; flex-shrink: 0;"></div>
                                     <div id="hp-pm-spaces-main-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; padding: 0 8px 30px 0; min-height: 0;"></div>
                                  </div>
 
@@ -1452,7 +1452,7 @@ export async function renderHomepageAlt(container) {
                       <div class="hp-dash-partner-main" style="padding-bottom: 3rem;">
                           
                           <!-- Col 1: Commesse -->
-                          <div id="hp-pm-spaces-main-block" style="display: flex; flex-direction: column;">
+                          <div id="hp-pm-spaces-main-block" style="display: flex; flex-direction: column; max-height: calc(100vh - 160px); min-height: 0;">
                              <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.25rem; flex-shrink: 0;">
                                   <div style="display: flex; justify-content: space-between; align-items: center; padding-left: 8px;">
                                       <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
@@ -1469,13 +1469,19 @@ export async function renderHomepageAlt(container) {
                           </div>
 
                           <!-- Col 2: Attività Interne -->
-                          <div id="hp-internal-dashboard-block">
-                               <div id="hp-internal-hubs-buttons" style="display: flex; gap: 12px; overflow-x: auto; padding-bottom: 24px; scrollbar-width: none; -ms-overflow-style: none; padding-top: 10px;"></div>
-                               <div id="hp-internal-clusters-grid" class="custom-scrollbar" style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-content: start; overflow-y: auto; padding-bottom: 2rem; min-height: 0;"></div>
+                          <div id="hp-internal-dashboard-block" style="display: flex; flex-direction: column; max-height: calc(100vh - 160px); min-height: 0;">
+                               <div style="display: flex; justify-content: space-between; align-items: center; padding-left: 8px; margin-bottom: 1.25rem; flex-shrink: 0;">
+                                  <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em;">
+                                      <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.6); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">business_center</span></div>
+                                      Attività interne
+                                  </h3>
+                               </div>
+                               <div id="hp-internal-hubs-buttons" style="display: flex; gap: 12px; overflow-x: auto; padding-bottom: 24px; scrollbar-width: none; -ms-overflow-style: none; padding-top: 4px; flex-shrink: 0;"></div>
+                               <div id="hp-internal-clusters-grid" class="custom-scrollbar" style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-content: start; overflow-y: auto; padding-bottom: 2rem; min-height: 0;"></div>
                           </div>
 
                           <!-- Col 3: FEED & ALERTS -->
-                          <div style="display: flex; flex-direction: column; gap: 2rem;">
+                          <div style="display: flex; flex-direction: column; gap: 2rem; height: calc(100vh - 160px); min-height: 0;">
                               <!-- ALERT BLOCK -->
                               <div id="hp-accounting-alerts-block" style="display: none; flex-direction: column; background: white; border-radius: 28px; padding: 1.5rem; border: 1px solid rgba(0,0,0,0.03); flex-shrink: 0;">
                                   <div class="flex-start" style="gap: 12px; align-items: center; margin-bottom: 1rem;">
@@ -1486,7 +1492,7 @@ export async function renderHomepageAlt(container) {
                               </div>
 
                               <!-- FEED BLOCK -->
-                              <div id="hp-activity-feed-block" style="flex: 1; display: flex; flex-direction: column; max-height: 520px; border-radius: 28px; padding: 1.5rem; min-height: 0; background: white; border: 1px solid rgba(0,0,0,0.03);">
+                              <div id="hp-activity-feed-block" style="flex: 1; display: flex; flex-direction: column; border-radius: 28px; padding: 1.5rem; min-height: 0; background: white; border: 1px solid rgba(0,0,0,0.03);">
                                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-shrink: 0;">
                                       <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.02em;">
                                           <div style="width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.5);"><span class="material-icons-round" style="color: #64748b; font-size: 18px;">rss_feed</span></div>Feed
@@ -2947,31 +2953,6 @@ function renderProjects(pmList, pmProjects) {
     // Ensure the block is visible
     const pmBlock = document.getElementById('hp-pm-spaces-main-block');
     if (pmBlock) pmBlock.style.display = 'flex';
-    if (!document.getElementById('hp-projects-stats-bar')) {
-        pmList.insertAdjacentHTML('beforebegin', `
-            <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0.5rem; margin-bottom: 1.5rem; flex-shrink: 0;">
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding-left: 8px;">
-                    <span style="font-size: 0.6rem; font-weight: 700; color: #3b82f6; letter-spacing: 0.05em; opacity: 0.8;">COMMESSE</span>
-                    <span id="stat-count-projects" style="font-size: 1.5rem; font-weight: 800; color: #3b82f6; line-height: 1;">0</span>
-                </div>
-                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
-                    <span style="font-size: 0.6rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">ATTIVITÀ</span>
-                    <span id="stat-count-activities" style="font-size: 1.5rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
-                </div>
-                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;">
-                    <span style="font-size: 0.6rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">TASK</span>
-                    <span id="stat-count-tasks" style="font-size: 1.5rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
-                </div>
-                <div style="width: 1px; height: 30px; background: rgba(0,0,0,0.06);"></div>
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; padding-right: 8px;">
-                    <span style="font-size: 0.6rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em; opacity: 0.8;">APPUNTAMENTI</span>
-                    <span id="stat-count-events" style="font-size: 1.5rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
-                </div>
-            </div>
-        `);
-    }
 
     const _internalRender = () => {
         const showAccount = window.hpActiveFilters?.account !== false;
