@@ -1165,7 +1165,7 @@ export async function renderHomepageAlt(container) {
             .hp-alt-wrapper { display: flex; width: 100%; height: 100%; background: transparent; font-family: 'Outfit'; position: relative; overflow: hidden; flex: 1; }
             .hp-alt-sidebar-left { width: 320px; flex-shrink: 0; height: 100%; background: white; border-right: 1px solid #eef2f6; display: flex; flex-direction: column; position: relative; box-shadow: 10px 0 30px rgba(0,0,0,0.01); z-index: 10; overflow: hidden; }
             .hp-main-content-area { flex: 1; display: flex; flex-direction: column; gap: 2rem; padding: 1.5rem 2rem; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; position: relative; width: 100%; box-sizing: border-box; background: transparent; }
-            .hp-main-columns-container { display: flex; flex-direction: row; gap: 2rem; width: 100%; align-items: stretch; }
+            .hp-main-columns-container { display: flex; flex-direction: row; gap: 2rem; width: 100%; align-items: stretch; height: 670px; }
             
             .hp-mobile-banner { display: none; }
             .hp-mobile-agenda-pop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 20000; align-items: center; justify-content: center; padding: 15px; }
@@ -1218,7 +1218,7 @@ export async function renderHomepageAlt(container) {
                      <h1 id="page-title" style="display: none;"></h1>
                      <h2 id="hp-date-description" style="font-size: 0.85rem; font-weight: 500; color: #64748b; margin: 0; margin-bottom: 1.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></h2>
 
-                     <div class="hp-nav-controls" style="display: flex; flex-direction: row; gap: 8px; align-items: stretch; height: 38px;">
+                     <div class="hp-nav-controls" style="display: flex; flex-direction: row; gap: 8px; align-items: stretch; height: 670px; height: 38px;">
                          <div class="hp-pill-group" style="display: flex; flex: 1; border-radius: 12px; padding: 3px; background: #f8fafc; border: 1px solid #f1f5f9;">
                              <button onclick="setHomepageMode('today')" id="btn-mode-today" class="nav-pill active-pill" style="flex: 1; border-radius: 9px; font-size: 0.72rem; border: none;">Oggi</button>
                              <button onclick="setHomepageMode('tomorrow')" id="btn-mode-tomorrow" class="nav-pill" style="flex: 1; border-radius: 9px; font-size: 0.72rem; border: none;">Domani</button>
@@ -1302,14 +1302,14 @@ export async function renderHomepageAlt(container) {
                          display: grid;
                          grid-template-columns: 0.9fr 1.15fr;
                          gap: 2.5rem;
-                         align-items: stretch;
+                         align-items: stretch; height: 670px;
                          width: 100%;
                      }
                      .hp-dash-collab-fin {
                          display: grid;
                          grid-template-columns: 1fr 1fr;
                          gap: 2.5rem;
-                         align-items: stretch;
+                         align-items: stretch; height: 670px;
                          width: 100%;
                      }
                      .hp-dash-partner-main {
@@ -1317,6 +1317,8 @@ export async function renderHomepageAlt(container) {
                          grid-template-columns: 1.15fr 1fr 0.85fr;
                          gap: 2.5rem;
                          align-items: stretch;
+                         height: 670px;
+
                          width: 100%;
                          min-height: 0;
                      }
@@ -3029,7 +3031,7 @@ function renderProjects(pmList, pmProjects) {
                     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
                     position: relative;
                     margin-bottom: 4px;
-                " onmouseover="this.style.background='rgba(255, 255, 255, 1)'; this.style.transform='translateX(8px)'; this.style.borderColor='rgba(255, 255, 255, 1)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.92)'; this.style.transform='translateX(0)'; this.style.borderColor='rgba(255, 255, 255, 0.8)'">
+                " onmouseover="this.style.background='#ffffff'; this.style.transform='translateY(-4px)'; this.style.boxShadow='0 12px 30px rgba(0,0,0,0.08)'; this.style.borderColor='#ffffff'" onmouseout="this.style.background='rgba(255, 255, 255, 0.92)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 10px rgba(0,0,0,0.02)'; this.style.borderColor='rgba(255, 255, 255, 0.8)'">
                     <div style="display: flex; flex-direction: column; gap: 4px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                             <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
@@ -3976,8 +3978,8 @@ function renderActivityRow(container, t) {
         transition: all 0.2s;
         background: transparent;
     `;
-    row.onmouseover = () => { row.style.opacity = '0.7'; };
-    row.onmouseout = () => { row.style.opacity = '1'; };
+    row.onmouseover = () => { row.style.background = 'rgba(255,255,255,0.08)'; };
+    row.onmouseout = () => { row.style.background = 'transparent'; };
     
     let dateStr = '';
     if (t.due_date) {
@@ -4004,7 +4006,7 @@ function renderActivityRow(container, t) {
             </div>
             
             <!-- ROW 2: Title -->
-            <div style="font-weight: 600; font-size: 0.9rem; color: #1e293b; line-height: 1.25; margin-bottom: 2px;">
+            <div style="font-weight: 600; font-size: 0.9rem; color: inherit; line-height: 1.25; margin-bottom: 2px;">
                 ${t.title}
             </div>
             
@@ -4411,7 +4413,7 @@ function renderActivityFeed(container, activities) {
                             ${renderAvatar(log.actor || { full_name: human.actorName }, { size: 28, borderRadius: '8px' })}
                         </div>
                         <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
-                            <div style="font-size: 0.82rem; color: #334155; line-height: 1.4; font-weight: 400;">
+                            <div style="font-size: 0.82rem; color: inherit; line-height: 1.4; font-weight: 400;">
                                 <span style="font-weight: 700; color: #0f172a;">${human.actorName}</span> 
                                 <span style="color: #64748b;">${human.formattedDesc}</span>
                             </div>
