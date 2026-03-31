@@ -415,7 +415,8 @@ function renderBoardView(container, tree, allItems, spaceId, sort, view, expande
 
     const filteredTree = filterNodes(tree);
     const isFlatSort = sort.column !== 'type';
-    const shouldFlatten = view === 'kanban' || view === 'gantt' || isFlatSort || showOnlyTasks;
+    // User wants to keep the tree even when sorting by columns (isFlatSort), so we only flatten for Kanban/Gantt or "Only Tasks" mode
+    const shouldFlatten = view === 'kanban' || view === 'gantt' || showOnlyTasks;
 
     if (shouldFlatten) {
         const flatList = [];
@@ -474,7 +475,7 @@ function renderBoardView(container, tree, allItems, spaceId, sort, view, expande
     } else {
         const sortRecursive = (nodes) => {
             return [...nodes].sort((a, b) => {
-                const valA = getSortValue(a, 'type'); const valB = getSortValue(b, 'type');
+                const valA = getSortValue(a, sort.column); const valB = getSortValue(b, sort.column);
                 let res = valA < valB ? -1 : (valA > valB ? 1 : 0);
                 if (res === 0) res = (a.position || 0) - (b.position || 0);
                 if (res === 0) res = new Date(a.created_at) - new Date(b.created_at);
@@ -482,7 +483,7 @@ function renderBoardView(container, tree, allItems, spaceId, sort, view, expande
                 return sort.direction === 'asc' ? res : -res;
             }).map(node => { if (node.children) node.children = sortRecursive(node.children); return node; });
         };
-        const sortedTree = sortRecursive(filteredTree).filter(n => n._visible);
+        const sortedTree = sortRecursive(filteredTree).filter(n => n?._visible);
         if (sortedTree.length === 0) return `<div style="text-align: center; padding: 3rem; color: var(--text-tertiary);">Nessun risultato trovato.</div>`;
         return `
             <div id="tree-content-scroll" style="overflow-x: auto; flex: 1;">
