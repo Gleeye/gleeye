@@ -1317,7 +1317,7 @@ export async function renderHomepageAlt(container) {
                          grid-template-columns: 1.15fr 1fr 0.85fr;
                          gap: 2.5rem;
                          align-items: stretch;
-                         height: 530px;
+                         height: 600px;
 
                          width: 100%;
                          min-height: 0;
@@ -1465,6 +1465,28 @@ export async function renderHomepageAlt(container) {
                                         <button id="hp-filter-account" class="hp-filter-pill active" onclick="togglePmFilter('account')" style="font-family: 'Outfit', sans-serif; padding: 4px 10px; border-radius: 7px; border: none; font-size: 0.65rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;">ACCOUNT</button>
                                         <button id="hp-filter-pm" class="hp-filter-pill active" onclick="togglePmFilter('pm')" style="font-family: 'Outfit', sans-serif; padding: 4px 10px; border-radius: 7px; border: none; font-size: 0.65rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;">PM</button>
                                       </div>
+                                  </div>
+                                  <!-- STATS BAR RESTORED -->
+                                  <div id="hp-projects-stats-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 0.85rem; margin-bottom: 1.25rem; flex-shrink: 0; background: rgba(255,255,255,0.4); border-radius: 18px; border: 1px solid rgba(255,255,255,0.5);">
+                                       <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: flex-start;">
+                                           <span style="font-size: 0.55rem; font-weight: 700; color: #3b82f6; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">COMMESSE</span>
+                                           <span id="stat-count-projects" style="font-size: 1.25rem; font-weight: 800; color: #3b82f6; line-height: 1;">0</span>
+                                       </div>
+                                       <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06); margin: 0 8px;"></div>
+                                       <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
+                                           <span style="font-size: 0.55rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">ATTIVITÀ</span>
+                                           <span id="stat-count-activities" style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                                       </div>
+                                       <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06); margin: 0 8px;"></div>
+                                       <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
+                                           <span style="font-size: 0.55rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">TASK</span>
+                                           <span id="stat-count-tasks" style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                                       </div>
+                                       <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06); margin: 0 8px;"></div>
+                                       <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: flex-end;">
+                                           <span style="font-size: 0.55rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">APPUNTAMENTI</span>
+                                           <span id="stat-count-events" style="font-size: 1.25rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
+                                       </div>
                                   </div>
                              </div>
                              <div id="hp-pm-spaces-main-list" class="custom-scrollbar" style="flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; padding: 4px 8px 60px 8px; min-height: 0;"></div>
