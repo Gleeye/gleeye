@@ -181,9 +181,14 @@ export function renderHubTree(container, items, space, spaceId) {
             
             .tree-children { margin-left: 15px; border-left: 1px solid var(--surface-2); }
             .tree-root-container { min-height: 200px; padding-bottom: 100px; }
-            .tree-root-container.root-drag-over { background: rgba(37, 99, 235, 0.05); }
-            
             .status-pill { padding: 4px 10px; border-radius: 6px; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; background: var(--surface-1); color: var(--text-secondary); border: 1px solid var(--surface-2); }
+            
+            /* Drag & Drop Visuals */
+            .tree-row.drag-over-top { border-top: 2px solid var(--brand-blue); background: var(--surface-1); }
+            .tree-row.drag-over-bottom { border-bottom: 2px solid var(--brand-blue); background: var(--surface-1); }
+            .tree-row.drag-over-center { background: rgba(37, 99, 235, 0.08); border-left: 3px solid var(--brand-blue); }
+            
+            .add-child-btn { opacity: 0; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); transition: all 0.2s; border: 1.5px solid var(--surface-2); }
             
             .add-child-btn { opacity: 0; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); transition: all 0.2s; border: 1.5px solid var(--surface-2); }
             .tree-row:hover .add-child-btn { opacity: 1; }
@@ -450,6 +455,8 @@ function renderBoardView(container, tree, allItems, spaceId, sort, view, expande
         flatList.sort((a, b) => {
             const valA = getSortValue(a, sort.column); const valB = getSortValue(b, sort.column);
             let res = valA < valB ? -1 : (valA > valB ? 1 : 0);
+            if (res === 0) res = (a.position || 0) - (b.position || 0);
+            if (res === 0) res = new Date(a.created_at) - new Date(b.created_at);
             if (res === 0) res = a.title.localeCompare(b.title);
             return sort.direction === 'asc' ? res : -res;
         });
@@ -469,6 +476,8 @@ function renderBoardView(container, tree, allItems, spaceId, sort, view, expande
             return [...nodes].sort((a, b) => {
                 const valA = getSortValue(a, 'type'); const valB = getSortValue(b, 'type');
                 let res = valA < valB ? -1 : (valA > valB ? 1 : 0);
+                if (res === 0) res = (a.position || 0) - (b.position || 0);
+                if (res === 0) res = new Date(a.created_at) - new Date(b.created_at);
                 if (res === 0) res = a.title.localeCompare(b.title);
                 return sort.direction === 'asc' ? res : -res;
             }).map(node => { if (node.children) node.children = sortRecursive(node.children); return node; });
@@ -536,7 +545,10 @@ function getSortValue(item, col) {
     if (col === 'priority') { const weight = { 'urgent': 0, 'high': 1, 'medium': 2, 'low': 3 }; return weight[item.priority] ?? 99; }
     if (col === 'due_date') return item.due_date ? new Date(item.due_date).getTime() : 9999999999999;
     if (col === 'status') { const weight = { 'blocked': 0, 'review': 1, 'in_progress': 2, 'todo': 3, 'done': 4 }; return weight[item.status] ?? 99; }
-    if (col === 'type') return item.item_type === 'attivita' ? 0 : 1;
+    if (col === 'type') {
+        // When sorting by type/element, we want Activities first, then by position
+        return item.item_type === 'attivita' ? -1000000000 : 0;
+    }
     return 0;
 }
 
@@ -688,24 +700,75 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
                 row.ondragover = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    const dragging = container.querySelector('.tree-node.dragging');
-                    if (dragging && dragging.dataset.id !== row.dataset.id && !dragging.contains(row) && row.dataset.type === 'attivita') {
-                        row.classList.add('drag-over');
+                    const draggingNode = container.querySelector('.tree-node.dragging');
+                    if (!draggingNode || draggingNode.dataset.id === row.dataset.id || draggingNode.contains(row)) return;
+
+                    const rect = row.getBoundingClientRect();
+                    const relY = e.clientY - rect.top;
+                    
+                    row.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-center');
+                    
+                    if (row.dataset.type === 'attivita') {
+                        if (relY < rect.height * 0.25) row.classList.add('drag-over-top');
+                        else if (relY > rect.height * 0.75) row.classList.add('drag-over-bottom');
+                        else row.classList.add('drag-over-center');
+                    } else {
+                        if (relY < rect.height * 0.5) row.classList.add('drag-over-top');
+                        else row.classList.add('drag-over-bottom');
                     }
                 };
-                row.ondragleave = () => row.classList.remove('drag-over');
+                row.ondragleave = () => row.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-center');
                 row.ondrop = async (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    row.classList.remove('drag-over');
+                    row.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-center');
+
                     const draggedId = e.dataTransfer.getData('text/plain');
-                    if (draggedId && draggedId !== row.dataset.id && row.dataset.type === 'attivita') {
-                        try {
-                            const { updatePMItem } = await import('../../../modules/pm_api.js?v=3000');
-                            await updatePMItem(draggedId, { parent_ref: row.dataset.id });
-                            document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId, action: 'update' } }));
-                        } catch (err) { console.error(err); }
+                    if (!draggedId || draggedId === row.dataset.id) return;
+
+                    const draggingNode = container.querySelector('.tree-node.dragging');
+                    if (!draggingNode || draggingNode.contains(row)) return;
+
+                    const rect = row.getBoundingClientRect();
+                    const relY = e.clientY - rect.top;
+                    
+                    let parentId = row.closest('.tree-node').parentElement.closest('.tree-node')?.dataset.id || null;
+                    let targetPosition = 0;
+
+                    const itemsAtSameLevel = Array.from(row.closest('.tree-node').parentElement.children)
+                                                   .filter(el => el.classList.contains('tree-node') && !el.classList.contains('dragging'));
+                    const rowNode = row.closest('.tree-node');
+                    const index = itemsAtSameLevel.indexOf(rowNode);
+
+                    if (row.dataset.type === 'attivita' && relY >= rect.height * 0.25 && relY <= rect.height * 0.75) {
+                        // Into folder
+                        parentId = row.dataset.id;
+                        const childrenOfTarget = allItems.filter(i => i.parent_ref === parentId);
+                        targetPosition = childrenOfTarget.length > 0 ? Math.max(...childrenOfTarget.map(i => i.position || 0)) + 1000 : 1000;
+                    } else {
+                        // Before or After
+                        const isBefore = relY < (row.dataset.type === 'attivita' ? rect.height * 0.25 : rect.height * 0.5);
+                        const targetIndex = isBefore ? index : index + 1;
+                        
+                        const prevNode = itemsAtSameLevel[targetIndex - 1];
+                        const nextNode = itemsAtSameLevel[targetIndex];
+                        
+                        const prevPos = prevNode ? (allItems.find(i => i.id === prevNode.dataset.id)?.position || 0) : null;
+                        const nextPos = nextNode ? (allItems.find(i => i.id === nextNode.dataset.id)?.position || 0) : null;
+                        
+                        if (prevPos === null) targetPosition = (nextPos || 1000) / 2;
+                        else if (nextPos === null) targetPosition = prevPos + 1000;
+                        else targetPosition = (prevPos + nextPos) / 2;
                     }
+
+                    try {
+                        const { updatePMItem } = await import('../../../modules/pm_api.js?v=3000');
+                        await updatePMItem(draggedId, { 
+                            parent_ref: parentId,
+                            position: targetPosition
+                        });
+                        document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId, action: 'update' } }));
+                    } catch (err) { console.error(err); }
                 };
             }
         });

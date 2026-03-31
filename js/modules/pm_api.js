@@ -337,6 +337,7 @@ export async function fetchChildItems(parentId, force = false) {
             pm_item_incarichi ( incarico_ref )
         `)
         .eq('parent_ref', parentId)
+        .order('position', { ascending: true })
         .order('created_at', { ascending: true });
 
     if (error) {
@@ -376,6 +377,7 @@ export async function fetchProjectItems(spaceId, force = false) {
             pm_item_incarichi ( incarico_ref )
         `)
         .eq('space_ref', spaceId)
+        .order('position', { ascending: true })
         .order('created_at', { ascending: true });
 
     if (error) {
@@ -435,11 +437,23 @@ export async function createPMItem(itemData) {
             occurrences = occurrences.slice(0, createInAdvance - 1);
         }
 
+        // Get max position for this level
+        const { data: maxPosItem } = await supabase
+            .from('pm_items')
+            .select('position')
+            .eq('space_ref', cleanData.space_ref)
+            .is('parent_ref', cleanData.parent_ref || null)
+            .order('position', { ascending: false })
+            .limit(1);
+        
+        let currentPos = (maxPosItem?.[0]?.position || 0) + 1000;
+
         // 1. Insert First Item
         const { data, error } = await supabase
             .from('pm_items')
             .insert({
                 ...cleanData,
+                position: currentPos,
                 recurrence_id: recurrenceId,
                 recurrence_rule: recurrenceRule,
                 created_by_user_ref: state.profile?.id
@@ -456,9 +470,11 @@ export async function createPMItem(itemData) {
                 : 0;
 
             const others = occurrences.map(occ => {
+                currentPos += 1000;
                 const item = {
                     ...cleanData,
                     title: `${cleanData.title} - ${occ.label}`,
+                    position: currentPos,
                     recurrence_id: recurrenceId,
                     created_by_user_ref: state.profile?.id
                 };
@@ -476,10 +492,22 @@ export async function createPMItem(itemData) {
             await supabase.from('pm_items').insert(others);
         }
     } else {
+        // Get max position for this level
+        const { data: maxPosItem } = await supabase
+            .from('pm_items')
+            .select('position')
+            .eq('space_ref', cleanData.space_ref)
+            .is('parent_ref', cleanData.parent_ref || null)
+            .order('position', { ascending: false })
+            .limit(1);
+        
+        const nextPosition = (maxPosItem?.[0]?.position || 0) + 1000;
+
         const { data, error } = await supabase
             .from('pm_items')
             .insert({
                 ...cleanData,
+                position: nextPosition,
                 created_by_user_ref: state.profile?.id
             })
             .select();
