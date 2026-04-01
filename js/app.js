@@ -88,13 +88,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // Render page first
         router();
         
-        // Hide Splash Screen after a tiny delay to ensure first paint
+        // Hide Splash Screen after a delay to ensure first data fetch is underway
         const splash = document.getElementById('app-splash-screen');
         if (splash) {
             setTimeout(() => {
                 splash.classList.add('app-hidden');
                 setTimeout(() => splash.remove(), 600);
-            }, 100);
+            }, 700); // Increased from 100 to 700ms for smoother transition
         }
 
         renderSidebarProfile();

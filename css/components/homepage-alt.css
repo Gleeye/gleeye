@@ -1525,3 +1525,16 @@
         border-radius: 10px;
     }
 }
+
+/* Loading animations for stats */
+.stat-loading {
+    display: inline-block;
+    animation: stat-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    opacity: 0.6;
+    letter-spacing: 2px;
+}
+
+@keyframes stat-pulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.98); }
+    50% { opacity: 0.8; transform: scale(1.02); }
+}

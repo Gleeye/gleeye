@@ -3004,23 +3004,23 @@ function renderAssignments(pmList, assignments, clusters = [], events = []) {
         statsBar.innerHTML = `
             <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
                 <span style="font-size: 0.58rem; font-weight: 700; color: #3b82f6; letter-spacing: 0.05em; opacity: 0.8;">COMMESSE</span>
-                <span style="font-size: 1.25rem; font-weight: 800; color: #3b82f6; line-height: 1;">${uniqueOrders.size}</span>
+                <span class="stat-loading" style="font-size: 1.25rem; font-weight: 800; color: #3b82f6; line-height: 1;">...</span>
             </div>
             <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
             <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
                 <span style="font-size: 0.58rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">ATTIVITÀ</span>
-                <span style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">${clusters.length}</span>
+                <span class="stat-loading" style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">...</span>
             </div>
             <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
             <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
                 <span style="font-size: 0.58rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8;">TASK</span>
-                <span style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">${assignments.length}</span>
+                <span class="stat-loading" style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">...</span>
             </div>
             <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
             <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
                 <span style="font-size: 0.58rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em; opacity: 0.8;">APPUNTAMENTI</span>
                 <div style="display: flex; align-items: center; gap: 4px;">
-                    <span style="font-size: 1.25rem; font-weight: 800; color: #10b981; line-height: 1;">${events.length}</span>
+                    <span class="stat-loading" style="font-size: 1.25rem; font-weight: 800; color: #10b981; line-height: 1;">...</span>
                 </div>
             </div>
         `;
@@ -3076,22 +3076,22 @@ function renderProjects(pmList, pmProjects) {
             statsBar.innerHTML = `
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
                     <span style="font-size: 0.55rem; font-weight: 700; color: #3b82f6; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">COMMESSE</span>
-                    <span id="stat-count-projects" style="font-size: 1.25rem; font-weight: 800; color: #3b82f6; line-height: 1;">0</span>
+                    <span id="stat-count-projects" class="stat-loading" style="font-size: 1.25rem; font-weight: 800; color: #3b82f6; line-height: 1;">...</span>
                 </div>
                 <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
                     <span style="font-size: 0.55rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">ATTIVITÀ</span>
-                    <span id="stat-count-activities" style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                    <span id="stat-count-activities" class="stat-loading" style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">...</span>
                 </div>
                 <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
                     <span style="font-size: 0.55rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">TASK</span>
-                    <span id="stat-count-tasks" style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">0</span>
+                    <span id="stat-count-tasks" class="stat-loading" style="font-size: 1.25rem; font-weight: 800; color: #1e293b; line-height: 1;">...</span>
                 </div>
                 <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.06);"></div>
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center;">
                     <span style="font-size: 0.55rem; font-weight: 700; color: #10b981; letter-spacing: 0.05em; opacity: 0.8; text-transform: uppercase;">APPUNTAMENTI</span>
-                    <span id="stat-count-events" style="font-size: 1.25rem; font-weight: 800; color: #10b981; line-height: 1;">0</span>
+                    <span id="stat-count-events" class="stat-loading" style="font-size: 1.25rem; font-weight: 800; color: #10b981; line-height: 1;">...</span>
                 </div>
             `;
         }
