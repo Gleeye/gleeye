@@ -1469,3 +1469,53 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 0, 0, 0.08);
 }
+
+/* MOBILE RESPONSIVENESS REFINEMENT (v5.1) */
+@media (max-width: 768px) {
+    .homepage-alt-container {
+        padding: 1rem !important;
+    }
+
+    .hp-bottom-grid {
+        grid-template-columns: 1fr !important;
+        gap: 2rem !important;
+        margin-top: 2rem !important;
+    }
+
+    /* Fixed height with internal scroll for mobile containers */
+    #hp-pm-spaces-main-list,
+    #hp-activities-bottom-content {
+        max-height: 480px !important;
+        min-height: 300px;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        padding-right: 6px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.3);
+        border: 1px solid rgba(0, 0, 0, 0.02);
+    }
+    
+    /* Fine-tune widgets for mobile */
+    .dashboard-widget {
+        padding: 1.25rem !important;
+    }
+
+    .hp-widget-header {
+        margin-bottom: 1.5rem !important;
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 1rem !important;
+    }
+    
+    /* Mobile scrollbar for these specific containers */
+    #hp-pm-spaces-main-list::-webkit-scrollbar,
+    #hp-activities-bottom-content::-webkit-scrollbar {
+        width: 3px;
+    }
+    
+    #hp-pm-spaces-main-list::-webkit-scrollbar-thumb,
+    #hp-activities-bottom-content::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+    }
+}

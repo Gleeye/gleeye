@@ -92,12 +92,15 @@ export async function renderMyAssignments(container) {
             .map(r => ({ ...r.pm_items, spaceName: r.pm_items.pm_spaces?.name || null }));
 
         // ── Anno di default e disponibili ─────────────────────────────────────
-        const yearsSet = new Set([new Date().getFullYear()]);
+        // Solo anni in cui esistono dati reali — nessun seed con l'anno corrente
+        const yearsSet = new Set();
         assignments.forEach(a => a.start_date && yearsSet.add(new Date(a.start_date).getFullYear()));
         payments.forEach(p => { const d = p.payment_date||p.due_date; d && yearsSet.add(new Date(d).getFullYear()); });
         const availableYears = [...yearsSet].sort((a,b) => b - a);
 
-        let selectedYear = new Date().getFullYear();
+        // Defaulta all'anno corrente se presente, altrimenti al più recente disponibile
+        const curY = new Date().getFullYear();
+        let selectedYear = availableYears.includes(curY) ? curY : (availableYears[0] ?? 'all');
         const rerender = () => _renderView(container, {
             collaborator, assignments, payments, invoices, pmItems,
             availableYears, selectedYear,
@@ -217,13 +220,6 @@ function _renderView(container, { collaborator, assignments, payments, invoices,
     </style>
     <div class="animate-fade-in" style="padding:2rem;display:flex;flex-direction:column;gap:2rem;">
 
-        <!-- ── Filtro anno — full width ──────────────────────────────────── -->
-        <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;">
-            <span style="font-size:.62rem;color:var(--text-tertiary);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-right:.2rem;">Anno</span>
-            ${availableYears.map(y => _pill(y, selectedYear===y)).join('')}
-            ${_pill('all', selectedYear==='all', 'Tutto')}
-        </div>
-
         <!-- ══ 4 COLONNE ═════════════════════════════════════════════════ -->
         <div class="ma-grid">
 
@@ -259,6 +255,14 @@ function _renderView(container, { collaborator, assignments, payments, invoices,
 
             <!-- ── COL 3: Compensi ──────────────────────────────────────── -->
             <div style="display:flex;flex-direction:column;gap:1rem;">
+
+                <!-- Filtro anno — solo sopra Compensi + Lavoro -->
+                ${availableYears.length > 1 ? `
+                <div style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap;padding:.1rem 0;">
+                    <span style="font-size:.6rem;color:var(--text-tertiary);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-right:.15rem;">Anno</span>
+                    ${availableYears.map(y => _pill(y, selectedYear===y)).join('')}
+                    ${_pill('all', selectedYear==='all', 'Tutto')}
+                </div>` : ''}
 
                 <!-- Card economics -->
                 <div style="${CSS.card}padding:1.35rem 1.4rem;">
