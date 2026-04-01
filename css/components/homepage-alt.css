@@ -1484,7 +1484,9 @@
 
     /* Fixed height with internal scroll for mobile containers */
     #hp-pm-spaces-main-list,
-    #hp-activities-bottom-content {
+    #hp-feed-content,
+    #hp-collab-invoices-list,
+    #hp-admin-alert-list {
         max-height: 480px !important;
         min-height: 300px;
         overflow-y: auto !important;
@@ -1509,12 +1511,16 @@
     
     /* Mobile scrollbar for these specific containers */
     #hp-pm-spaces-main-list::-webkit-scrollbar,
-    #hp-activities-bottom-content::-webkit-scrollbar {
+    #hp-feed-content::-webkit-scrollbar,
+    #hp-collab-invoices-list::-webkit-scrollbar,
+    #hp-admin-alert-list::-webkit-scrollbar {
         width: 3px;
     }
     
     #hp-pm-spaces-main-list::-webkit-scrollbar-thumb,
-    #hp-activities-bottom-content::-webkit-scrollbar-thumb {
+    #hp-feed-content::-webkit-scrollbar-thumb,
+    #hp-collab-invoices-list::-webkit-scrollbar-thumb,
+    #hp-admin-alert-list::-webkit-scrollbar-thumb {
         background: rgba(0, 0, 0, 0.1);
         border-radius: 10px;
     }
