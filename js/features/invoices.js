@@ -2376,30 +2376,48 @@ export async function openPassiveInvoiceForm(id = null, mode = 'collab') {
             state._pinvBolloManuallySet = true;
             document.getElementById('pinv-status').value = inv.status || 'Da Pagare';
 
-            if (mode === 'collab') {
-                document.getElementById('pinv-type').value = inv.category || 'ritenuta';
-                document.getElementById('pinv-collaborator').value = inv.collaborator_id || '';
-                if (inv.collaborator_id) {
-                    updatePassiveOrdersDropdown(inv.collaborator_id);
-                    updatePassivePaymentsForCollaborator(inv.collaborator_id);
+            if (mode === 'collab' || isPartner) {
+                const typeVal = inv.category || (isPartner ? 'fattura' : 'ritenuta');
+                document.getElementById('pinv-type').value = typeVal;
+                
+                const collabVal = inv.collaborator_id || '';
+                const collabEl = document.getElementById('pinv-collaborator');
+                collabEl.value = collabVal;
+                
+                // Trigger change to update CustomSelect UI and load orders/payments
+                collabEl.dispatchEvent(new Event('change', { bubbles: true }));
+
+                if (collabVal) {
+                    updatePassiveOrdersDropdown(collabVal);
+                    updatePassivePaymentsForCollaborator(collabVal);
                     
                     // Mark previously linked payments as checked (logic: find payments already linked to this invoice)
-                    // This assumes we have a link through payments.passive_invoice_id
                     setTimeout(() => {
-                        const { data: linkedPayments } = supabase.from('payments').select('id').eq('passive_invoice_id', inv.id);
-                        if (linkedPayments) {
+                        // Check state.payments since we already fetched them
+                        const linkedPayments = state.payments.filter(p => p.passive_invoice_id === inv.id);
+                        if (linkedPayments.length > 0) {
                             linkedPayments.forEach(p => {
                                 const cb = document.querySelector(`.pinv-payment-check[value="${p.id}"]`);
                                 if (cb) cb.checked = true;
                             });
                         }
-                    }, 500);
+                    }, 600);
                 }
-                updateCalcHint(inv.category || 'ritenuta');
+                updateCalcHint(typeVal);
             } else {
                 // Supplier mode
                 document.getElementById('pinv-supplier').value = inv.supplier_id || '';
                 document.getElementById('pinv-description').value = inv.description || inv.service_description || '';
+            }
+
+            // Attachment Preview
+            if (inv.attachment_url) {
+                const preview = document.getElementById('pinv-file-preview');
+                const nameEl = document.getElementById('pinv-file-name');
+                preview.style.display = 'flex';
+                const fileName = inv.attachment_url.split('/').pop().split('?')[0];
+                nameEl.textContent = decodeURIComponent(fileName);
+                nameEl.onclick = () => window.open(inv.attachment_url, '_blank');
             }
 
             // Payment date
