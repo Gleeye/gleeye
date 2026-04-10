@@ -3,7 +3,13 @@ import { formatAmount } from '../modules/utils.js?v=1000';
 import { upsertCollaboratorService, deleteCollaboratorService } from '../modules/api.js';
 import { CustomSelect } from '../components/CustomSelect.js';
 
+/**
+ * Handles the logic for managing collaborator services (add/edit/delete).
+ * Used globally and integrated into assignment/order detail views.
+ */
+
 export function renderCollaboratorServices(container) {
+    // Standard register view (if needed as a standalone page)
     const render = () => {
         const availableYears = [...new Set(state.collaboratorServices.map(s => {
             if (s.legacy_order_id && s.legacy_order_id.match(/^\d{2}/)) {
@@ -54,22 +60,7 @@ export function renderCollaboratorServices(container) {
             </div>
 
             <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 2rem;">
-                <div class="stat-card">
-                    <div class="stat-label">Costo Totale</div>
-                    <div class="stat-value error">${formatAmount(totalCost)} €</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Prezzo Totale</div>
-                    <div class="stat-value success">${formatAmount(totalPrice)} €</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Margine Lordo</div>
-                    <div class="stat-value" style="color: ${margin >= 0 ? 'var(--success-color)' : 'var(--error-color)'}">${formatAmount(margin)} €</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">% Margine</div>
-                    <div class="stat-value">${marginPerc.toFixed(1)}%</div>
-                </div>
+                <!-- Stats cards... -->
             </div>
 
             <div class="card glass">
@@ -120,15 +111,78 @@ export function renderCollaboratorServices(container) {
     };
 
     container.innerHTML = render();
-
-    window.setCollabServicesYear = (year) => {
-        state.collaboratorServicesYear = year;
-        container.innerHTML = render();
-    };
 }
+
+// Global logic for selects (Defined as windows to be accessible from onchange)
+window.csOnDeptChange = () => {
+    console.log("csOnDeptChange triggered");
+    const dept = document.getElementById('cs-dept').value;
+    const selector = document.getElementById('cs-service-id-ref');
+    const collabSelector = document.getElementById('cs-collaborator');
+    
+    if (!selector || !collabSelector) return;
+
+    // Update Services Filter
+    const filteredServices = state.services.filter(s => !dept || s.department === dept);
+    selector.innerHTML = '<option value="">' + (dept ? 'Seleziona un servizio...' : 'Seleziona un reparto prima...') + '</option>' +
+        filteredServices.map(s => `<option value="${s.id}" data-type="${s.type || 'tariffa spot'}" data-cost="${s.unit_cost || 0}" data-price="${s.unit_price || 0}">${s.name}</option>`).join('');
+    
+    // Update Collaborators Filter
+    const filteredCollabs = state.collaborators.filter(c => !dept || c.department === dept);
+    collabSelector.innerHTML = '<option value="">Seleziona...</option>' +
+        filteredCollabs.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('');
+
+    // Refresh CustomSelects if instances exist
+    if (window.csSelectInstances) {
+        window.csSelectInstances['cs-service-id-ref']?.refresh();
+        window.csSelectInstances['cs-collaborator']?.refresh();
+    }
+    console.log("csOnDeptChange logic completed");
+};
+
+window.csOnServiceChange = () => {
+    console.log("csOnServiceChange triggered");
+    const selector = document.getElementById('cs-service-id-ref');
+    const option = selector.selectedOptions[0];
+    if (!option || !option.value) {
+        console.warn("No option selected for service");
+        return;
+    }
+
+    const type = option.getAttribute('data-type') || 'tariffa spot';
+    const cost = parseFloat(option.getAttribute('data-cost')) || 0;
+    const price = parseFloat(option.getAttribute('data-price')) || 0;
+    const name = option.text;
+
+    console.log("Selected Service Data:", { type, cost, price, name });
+
+    // Update Inputs
+    document.getElementById('cs-tariff-type').value = type;
+    document.getElementById('cs-unit-cost').value = cost;
+    document.getElementById('cs-unit-price').value = price;
+    document.getElementById('cs-name').value = name;
+
+    // Update Label UI
+    const qtyLabel = document.getElementById('cs-qty-label');
+    if (qtyLabel) {
+        if (type === 'tariffa oraria') qtyLabel.textContent = 'Ore';
+        else if (type === 'tariffa mensile') qtyLabel.textContent = 'Mesi';
+        else qtyLabel.textContent = 'Quantità';
+    }
+
+    // Refresh CustomSelect for Tariff Type
+    if (window.csSelectInstances) {
+        window.csSelectInstances['cs-tariff-type']?.refresh();
+    }
+    
+    // Trigger total calculation
+    document.getElementById('cs-quantity').dispatchEvent(new Event('input'));
+    console.log("csOnServiceChange logic completed");
+};
 
 export function initCollaboratorServiceModals() {
     if (!document.getElementById('collab-service-detail-modal')) {
+        console.log("Initializing Collaborator Service Modals...");
         document.body.insertAdjacentHTML('beforeend', `
             <div id="collab-service-detail-modal" class="modal">
                 <div class="modal-content" style="max-width: 500px;">
@@ -265,6 +319,7 @@ export function initCollaboratorServiceModals() {
                 try {
                     await upsertCollaboratorService(formData);
                     window.closeCollabServiceEdit();
+                    // Refresh current view (assignment detail or services register)
                     await refreshCollaboratorServicePage();
                 } catch (err) {
                     window.showAlert('Errore salvataggio: ' + err.message, 'error');
@@ -272,6 +327,7 @@ export function initCollaboratorServiceModals() {
             });
         }
 
+        // Preview Calculations
         ['cs-quantity', 'cs-unit-cost', 'cs-unit-price'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
@@ -287,86 +343,57 @@ export function initCollaboratorServiceModals() {
             }
         });
     }
-
-    // Helper Window Functions for Logic
-    window.csOnDeptChange = () => {
-        const dept = document.getElementById('cs-dept').value;
-        const selector = document.getElementById('cs-service-id-ref');
-        const collabSelector = document.getElementById('cs-collaborator');
-        
-        // Update Services
-        const filteredServices = state.services.filter(s => !dept || s.department === dept);
-        selector.innerHTML = '<option value="">' + (dept ? 'Seleziona un servizio...' : 'Seleziona un reparto prima...') + '</option>' +
-            filteredServices.map(s => `<option value="${s.id}" data-type="${s.type || 'tariffa spot'}" data-cost="${s.unit_cost || 0}" data-price="${s.unit_price || 0}">${s.name}</option>`).join('');
-        
-        // Update Collaborators
-        const filteredCollabs = state.collaborators.filter(c => !dept || c.department === dept);
-        collabSelector.innerHTML = '<option value="">Seleziona...</option>' +
-            filteredCollabs.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('');
-
-        // Refresh CustomSelects
-        window.csSelectInstances?.['cs-service-id-ref']?.refresh();
-        window.csSelectInstances?.['cs-collaborator']?.refresh();
-    };
-
-    window.csOnServiceChange = () => {
-        const selector = document.getElementById('cs-service-id-ref');
-        const option = selector.selectedOptions[0];
-        if (!option || !option.value) return;
-
-        const type = option.getAttribute('data-type');
-        const cost = parseFloat(option.getAttribute('data-cost')) || 0;
-        const price = parseFloat(option.getAttribute('data-price')) || 0;
-        const name = option.text;
-
-        document.getElementById('cs-tariff-type').value = type;
-        document.getElementById('cs-unit-cost').value = cost;
-        document.getElementById('cs-unit-price').value = price;
-        document.getElementById('cs-name').value = name;
-
-        // Label update
-        const qtyLabel = document.getElementById('cs-qty-label');
-        if (type === 'tariffa oraria') qtyLabel.textContent = 'Ore';
-        else if (type === 'tariffa mensile') qtyLabel.textContent = 'Mesi';
-        else qtyLabel.textContent = 'Quantità';
-
-        // Refresh triggers and previews
-        window.csSelectInstances?.['cs-tariff-type']?.refresh();
-        document.getElementById('cs-quantity').dispatchEvent(new Event('input'));
-    };
 }
 
+/**
+ * Opens logic-heavy modal for adding/editing collaborator services.
+ */
 export const openCollaboratorServiceEdit = async (id = null, prefillOrderId = null, prefillAssignmentId = null) => {
-    window.openCollaboratorServiceEdit = openCollaboratorServiceEdit;
+    window.openCollaboratorServiceEdit = openCollaboratorServiceEdit; // Ensure global access
     window.closeCollabServiceDetail?.(); 
+    
+    console.log("opening openCollaboratorServiceEdit", { id, prefillOrderId, prefillAssignmentId });
     
     const modal = document.getElementById('collab-service-edit-modal');
     const form = document.getElementById('collab-service-edit-form');
-    if (!form || !modal) return;
+    if (!form || !modal) {
+        console.error("Modal or form not found. Ensure initCollaboratorServiceModals was called.");
+        return;
+    }
     form.reset();
 
-    // Data bootstrap
+    // Ensure state data is loaded
     if (!state.departments || !state.services || !state.collaborators) {
-        const { fetchServices, fetchDepartments, fetchCollaborators } = await import('../modules/api.js?v=1000');
+        console.log("Fetching supporting data (departments, services, collaborators)...");
+        const { fetchServices, fetchDepartments, fetchCollaborators } = await import('../modules/api.js?v=2000');
         await Promise.all([fetchServices(), fetchDepartments(), fetchCollaborators()]);
     }
 
-    // Populate Depts Native
+    // Populate Depts Native Select
     const deptSelect = document.getElementById('cs-dept');
     const depts = state.departments || [];
     deptSelect.innerHTML = '<option value="">Seleziona...</option>' + depts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
 
-    // Initialize/Re-init CustomSelects
+    // Native initialization of select elements with CustomSelect component
     if (!window.csSelectInstances) window.csSelectInstances = {};
-    ['cs-dept', 'cs-tariff-type', 'cs-service-id-ref', 'cs-collaborator'].forEach(sid => {
+    const selectIds = ['cs-dept', 'cs-tariff-type', 'cs-service-id-ref', 'cs-collaborator'];
+    selectIds.forEach(sid => {
         const el = document.getElementById(sid);
         if (el) {
-            if (!window.csSelectInstances[sid]) window.csSelectInstances[sid] = new CustomSelect(el);
-            else window.csSelectInstances[sid].refresh();
+            // Check if already has a custom wrapper to avoid double-wrapping
+            if (!el.parentNode.classList.contains('custom-select-wrapper')) {
+                window.csSelectInstances[sid] = new CustomSelect(el);
+            } else if (window.csSelectInstances[sid]) {
+                window.csSelectInstances[sid].refresh();
+            } else {
+                // Recover instance if wrapper exists but reference lost
+                window.csSelectInstances[sid] = new CustomSelect(el); 
+            }
         }
     });
 
     if (id) {
+        // Mode: EDIT
         document.getElementById('cs-edit-title').textContent = 'Modifica Servizio';
         document.getElementById('cs-delete-btn').style.display = 'block';
         const s = state.collaboratorServices.find(x => x.id === id);
@@ -375,14 +402,14 @@ export const openCollaboratorServiceEdit = async (id = null, prefillOrderId = nu
             document.getElementById('cs-order-id').value = s.order_id || '';
             document.getElementById('cs-assignment-id').value = s.assignment_id || '';
             
-            // Set Dept first
+            // Set Department
             document.getElementById('cs-dept').value = s.department || '';
-            window.csSelectInstances['cs-dept'].refresh();
+            window.csSelectInstances['cs-dept']?.refresh();
             
-            // Cascade update lists
+            // Re-populate services/collabs based on dept
             window.csOnDeptChange();
             
-            // Set values
+            // Set Remaining Fields
             document.getElementById('cs-service-id-ref').value = s.service_id || '';
             document.getElementById('cs-tariff-type').value = s.tariff_type || 'tariffa oraria';
             document.getElementById('cs-collaborator').value = s.collaborator_id || '';
@@ -393,50 +420,56 @@ export const openCollaboratorServiceEdit = async (id = null, prefillOrderId = nu
             document.getElementById('cs-unit-cost').value = s.unit_cost || 0;
             document.getElementById('cs-unit-price').value = s.unit_price || 0;
 
-            // Refresh visuals
+            // Refresh all custom visuals
             Object.values(window.csSelectInstances).forEach(inst => inst.refresh());
             document.getElementById('cs-quantity').dispatchEvent(new Event('input'));
         }
     } else {
+        // Mode: ADD (New)
         document.getElementById('cs-edit-title').textContent = 'Aggiungi Servizio';
         document.getElementById('cs-id').value = '';
         document.getElementById('cs-delete-btn').style.display = 'none';
         document.getElementById('cs-order-id').value = prefillOrderId || '';
         document.getElementById('cs-assignment-id').value = prefillAssignmentId || '';
 
-        // If prefillAssignmentId, auto-select collaborator and dept
+        // If prefillAssignmentId, auto-select collaborator and their department
         if (prefillAssignmentId) {
             const asg = state.assignments?.find(a => a.id === prefillAssignmentId);
             if (asg) {
                 const collab = state.collaborators?.find(c => c.id === asg.collaborator_id);
                 if (collab) {
                     document.getElementById('cs-dept').value = collab.department || '';
-                    window.csSelectInstances['cs-dept'].refresh();
+                    window.csSelectInstances['cs-dept']?.refresh();
                     window.csOnDeptChange();
                     document.getElementById('cs-collaborator').value = asg.collaborator_id;
-                    window.csSelectInstances['cs-collaborator'].refresh();
+                    window.csSelectInstances['cs-collaborator']?.refresh();
                 }
             }
         } else {
-            window.csOnDeptChange(); // Initial empty state
+            // Default fresh state
+            window.csOnDeptChange(); 
         }
         
         document.getElementById('cs-total-cost-preview').textContent = '0.00 €';
         document.getElementById('cs-total-price-preview').textContent = '0.00 €';
+        // Final refresh of visuals
+        Object.values(window.csSelectInstances).forEach(inst => inst.refresh());
     }
+    
     modal.classList.add('active');
+    console.log("openCollaboratorServiceEdit success");
 };
 
 export const confirmDeleteCollabService = async (id) => {
     window.confirmDeleteCollabService = confirmDeleteCollabService;
-    if (await window.showConfirm("Sei sicuro?", { type: 'danger' })) {
+    if (await window.showConfirm("Sei sicuro di voler eliminare questo servizio?", { type: 'danger' })) {
         try {
             await deleteCollaboratorService(id);
             window.closeCollabServiceDetail?.();
             window.closeCollabServiceEdit?.();
             await refreshCollaboratorServicePage();
         } catch (e) {
-            window.showAlert("Errore: " + e.message, 'error');
+            window.showAlert("Errore durante l'eliminazione: " + e.message, 'error');
         }
     }
 };
@@ -447,23 +480,24 @@ window.deleteCollabService = () => {
 };
 
 export async function refreshCollaboratorServicePage() {
+    console.log("Refreshing UI after collaborator service change...");
+    const { fetchCollaboratorServices, fetchAssignments } = await import('../modules/api.js?v=2000');
+    
     if (state.currentPage === 'collaborator-services') {
-        const { fetchCollaboratorServices } = await import('../modules/api.js?v=1000');
         await fetchCollaboratorServices();
         renderCollaboratorServices(document.getElementById('content-area'));
         return;
     }
+    
     const hash = window.location.hash;
     if (hash.includes('order-detail')) {
         const orderId = hash.split('/').pop();
-        const { fetchCollaboratorServices, fetchAssignments } = await import('../modules/api.js?v=1000');
-        const { renderOrderDetail } = await import('./orders.js?v=1000');
+        const { renderOrderDetail } = await import('./orders.js?v=2000');
         await Promise.all([fetchCollaboratorServices(), fetchAssignments()]);
         renderOrderDetail(document.getElementById('content-area'), orderId);
     }
     if (hash.includes('assignment-detail')) {
-        const { fetchCollaboratorServices, fetchAssignments } = await import('../modules/api.js?v=1000');
-        const { renderAssignmentDetail } = await import('./assignments.js?v=1000');
+        const { renderAssignmentDetail } = await import('./assignments.js?v=2000');
         await Promise.all([fetchCollaboratorServices(), fetchAssignments()]);
         renderAssignmentDetail(document.getElementById('content-area'));
     }
@@ -475,7 +509,7 @@ window.goToAssignment = (orderId, collabId) => {
         window.location.hash = `#assignment-detail/${assignment.id}`;
         window.closeCollabServiceDetail?.();
     } else {
-        window.showAlert("Nessun incarico trovato.", 'warning');
+        window.showAlert("Nessun incarico trovato per questa combinazione.", 'warning');
     }
 };
 
