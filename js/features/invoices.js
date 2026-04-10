@@ -2479,13 +2479,14 @@ function renderPassiveInvoicesGeneric(container, title, type) {
     const totalCosti = filtered.reduce((sum, i) => sum + (parseFloat(i.amount_tax_excluded) || 0), 0);
 
     // Status normalization helper
-    const isPaid = (status) => {
-        const s = (status || '').toLowerCase();
-        return s === 'pagato' || s === 'pagata' || s === 'saldato' || s === 'saldata';
+    const isPaid = (inv) => {
+        const s = (inv.status || '').toLowerCase();
+        const hasTransaction = state.bankTransactions?.some(t => t.passive_invoice_id === inv.id || t.linked_invoices?.includes(inv.id));
+        return s === 'pagato' || s === 'pagata' || s === 'saldato' || s === 'saldata' || hasTransaction;
     };
 
-    const nonPagate = filtered.filter(i => !isPaid(i.status));
-    const pagate = filtered.filter(i => isPaid(i.status));
+    const nonPagate = filtered.filter(i => !isPaid(i));
+    const pagate = filtered.filter(i => isPaid(i));
 
     const daPagare = nonPagate.reduce((sum, i) => sum + (parseFloat(i.amount_tax_excluded) || 0), 0);
     const pagato = pagate.reduce((sum, i) => sum + (parseFloat(i.amount_tax_excluded) || 0), 0);
@@ -2497,9 +2498,10 @@ function renderPassiveInvoicesGeneric(container, title, type) {
         filtered = pagate;
     }
 
-    const getStatusStyle = (status) => {
-        const s = (status || '').toLowerCase();
-        if (s === 'pagato' || s === 'pagata' || s === 'saldata' || s === 'saldato') return 'background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2);';
+    const getStatusStyle = (inv) => {
+        const s = (inv.status || '').toLowerCase();
+        const paid = isPaid(inv);
+        if (paid) return 'background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2);';
         if (s === 'ricevuta' || s === 'inviata') return 'background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2);';
         return 'background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2);';
     };
@@ -2574,7 +2576,7 @@ function renderPassiveInvoicesGeneric(container, title, type) {
                 </div>
                 <div class="card-right">
                     <div class="status-wrapper">
-                        <span class="status-badge" style="${getStatusStyle(inv.status)}">${inv.status || 'Bozza'}</span>
+                        <span class="status-badge" style="${getStatusStyle(inv)}">${isPaid(inv) ? 'Pagata' : (inv.status || 'Bozza')}</span>
                         <span class="settlement-date">${settlementDate || ''}</span>
                     </div>
                     <div class="amount-wrapper">
@@ -2599,7 +2601,7 @@ function renderPassiveInvoicesGeneric(container, title, type) {
                     <div class="mob-client-info">
                         <div class="mob-client-name">${name}</div>
                         <div class="mob-status-row">
-                            <span class="status-badge" style="${getStatusStyle(inv.status)}">${inv.status || 'Bozza'}</span>
+                            <span class="status-badge" style="${getStatusStyle(inv)}">${isPaid(inv) ? 'Pagata' : (inv.status || 'Bozza')}</span>
                             <span class="mob-settlement">${settlementDate || ''}</span>
                         </div>
                     </div>
