@@ -1245,8 +1245,8 @@ function updateNettoCalculation() {
         }
 
         // Show/hide cassa container regardless of checkbox (user wants to see the field if it *could* have cassa)
-        // Actually, let's keep it visible if rate > 0 or if it's forfettario/ritenuta/parcella
-        if (tipo !== 'occasionale' && tipo !== 'estero') {
+        // For Partners, we ALWASY hide it because they don't have Cassa
+        if (!isPartner && tipo !== 'occasionale' && tipo !== 'estero') {
             if (cassaContainer) cassaContainer.style.display = 'block';
         } else {
             if (cassaContainer) cassaContainer.style.display = 'none';
@@ -1333,7 +1333,17 @@ function updateCalcHint(tipo) {
         vatCheckbox.checked = ['ritenuta', 'fattura', 'parcella', 'nota_debito', 'nota_credito'].includes(tipo);
     }
     if (rivalsaCheckbox && !state._pinvRivalsaManuallySet) {
-        rivalsaCheckbox.checked = ['ritenuta', 'fattura', 'parcella', 'forfettario'].includes(tipo);
+        // If it's a partner (company), we should hide the Rivalsa option entirely
+        const modal = document.getElementById('passive-invoice-modal');
+        const isPartner = modal?.dataset.mode === 'partner-wl';
+        
+        if (isPartner) {
+            rivalsaCheckbox.checked = false;
+            rivalsaCheckbox.closest('label').style.display = 'none';
+        } else {
+            rivalsaCheckbox.checked = ['ritenuta', 'fattura', 'parcella', 'forfettario'].includes(tipo);
+            rivalsaCheckbox.closest('label').style.display = 'flex';
+        }
     }
     if (bolloCheckbox && !state._pinvBolloManuallySet) {
         bolloCheckbox.checked = (tipo === 'forfettario' || tipo === 'occasionale' || tipo === 'estero' || tipo === 'reverse_charge') && amount > 77.47;
@@ -2294,13 +2304,15 @@ export async function openPassiveInvoiceForm(id = null, mode = 'collab') {
         const iconSpan = iconContainer?.querySelector('.material-icons-round');
 
         if (isPartner) {
-            if (iconSpan) iconSpan.textContent = 'account_balance_wallet';
-            if (iconContainer) iconContainer.style.background = 'linear-gradient(135deg, #0ea5e9, #0284c7)';
-            if (modalHeader) modalHeader.style.background = 'linear-gradient(135deg, rgba(14, 165, 233, 0.08), transparent)';
+            if (iconSpan) iconSpan.style.display = 'none';
+            if (iconContainer) iconContainer.style.display = 'none';
+            if (modalHeader) modalHeader.style.background = 'transparent';
+            if (modalHeader) modalHeader.style.padding = '1.25rem 2rem 0.75rem';
         } else {
-            if (iconSpan) iconSpan.textContent = 'person';
-            if (iconContainer) iconContainer.style.background = 'linear-gradient(135deg, #8b5cf6, #7c3aed)';
+            if (iconSpan) { iconSpan.style.display = 'flex'; iconSpan.textContent = 'person'; }
+            if (iconContainer) { iconContainer.style.display = 'flex'; iconContainer.style.background = 'linear-gradient(135deg, #8b5cf6, #7c3aed)'; }
             if (modalHeader) modalHeader.style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.08), transparent)';
+            if (modalHeader) modalHeader.style.padding = '1.5rem 2rem';
         }
 
         document.getElementById('passive-invoice-modal-title').textContent = id ? `Modifica Fattura ${entityLabel}` : `Nuova Fattura ${entityLabel}`;
