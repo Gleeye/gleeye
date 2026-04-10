@@ -867,7 +867,6 @@ export function initCollaboratorServiceModals() {
             });
         }
     }
-}
 
 export async function refreshCollaboratorServicePage() {
     // If in main registry
