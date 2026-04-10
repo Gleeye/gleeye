@@ -1,37 +1,41 @@
 import { state } from '/js/modules/state.js';
-import { formatAmount } from '../modules/utils.js?v=1000';
+import { formatAmount } from '../modules/utils.js?v=1003';
 import { upsertCollaboratorService, deleteCollaboratorService } from '../modules/api.js';
 import { CustomSelect } from '../components/CustomSelect.js';
 
 /**
  * Collaborator Services Feature
- * Final Polish: Calculations and UI consistency.
+ * ULTRA-ROBUST VERSION: Handling all edge cases for filtering and math.
  */
 
 export function renderCollaboratorServices(container) {
-    // Standalone register page...
+    // Standard register page logic
 }
 
 /**
- * CALCULATE Totals Helper
+ * Robust Math Engine
  */
-window.calculateCsTotals = () => {
-    const qEl = document.getElementById('cs-quantity');
-    const cEl = document.getElementById('cs-unit_cost');
-    const pEl = document.getElementById('cs-unit_price');
-    const totalCostEl = document.getElementById('cs-total-cost-display');
-    const totalPriceEl = document.getElementById('cs-total-price-display');
+const updateTotals = () => {
+    const q = parseFloat(document.getElementById('cs-quantity')?.value) || 0;
+    const c = parseFloat(document.getElementById('cs-unit_cost')?.value) || 0;
+    const p = parseFloat(document.getElementById('cs-unit_price')?.value) || 0;
 
-    if (!qEl || !cEl || !pEl || !totalCostEl || !totalPriceEl) return;
+    const totalCost = q * c;
+    const totalPrice = q * p;
 
-    const q = parseFloat(qEl.value) || 0;
-    const c = parseFloat(cEl.value) || 0;
-    const p = parseFloat(pEl.value) || 0;
+    const costDisplay = document.getElementById('cs-total-cost-display');
+    const priceDisplay = document.getElementById('cs-total-price-display');
 
-    totalCostEl.textContent = '€ ' + formatAmount(q * c);
-    totalPriceEl.textContent = '€ ' + formatAmount(q * p);
+    if (costDisplay) costDisplay.textContent = '€ ' + formatAmount(totalCost);
+    if (priceDisplay) priceDisplay.textContent = '€ ' + formatAmount(totalPrice);
+    
+    console.log(`[CS Math] Q:${q} * C:${c} = ${totalCost} | Q:${q} * P:${p} = ${totalPrice}`);
 };
+window.calculateCsTotals = updateTotals;
 
+/**
+ * Robust Filtering Engine
+ */
 window.csOnDeptChange = () => {
     const dept = document.getElementById('cs-dept').value;
     const selector = document.getElementById('cs-service-id-ref');
@@ -39,38 +43,50 @@ window.csOnDeptChange = () => {
     
     if (!selector || !collabSelector) return;
 
+    // 1. Services Filtering
     const allServices = state.services || [];
     const filteredServices = allServices.filter(s => {
         if (!dept) return true;
         const tags = Array.isArray(s.tags) ? s.tags : (typeof s.tags === 'string' ? s.tags.split(',') : []);
         return tags.some(t => t.trim().toLowerCase() === dept.toLowerCase());
-    });
+    }).sort((a,b) => a.name.localeCompare(b.name));
     
-    selector.innerHTML = '<option value="">' + (dept ? 'Seleziona un servizio...' : 'Seleziona un reparto prima...') + '</option>' +
+    selector.innerHTML = '<option value="">' + (dept ? 'Seleziona un servizio...' : 'Seleziona un reparto...') + '</option>' +
         filteredServices.map(s => `<option value="${s.id}" data-type="${s.type || 'tariffa spot'}" data-cost="${s.unit_cost || 0}" data-price="${s.unit_price || 0}">${s.name}</option>`).join('');
     
+    // 2. Collaborators Filtering
     const allCollabs = state.collaborators || [];
+    const currentAssignmentId = document.getElementById('cs-assignment-id').value;
+    const currentAsg = state.assignments?.find(a => a.id === currentAssignmentId);
+    const existingCollabId = currentAsg?.collaborator_id || document.getElementById('cs-collaborator').value;
+
     const filteredCollabs = allCollabs.filter(c => {
+        // ALWAYS keep the collaborator of the current assignment in the list
+        if (existingCollabId && c.id === existingCollabId) return true;
         if (!dept) return true;
         let tags = c.tags || [];
-        if (typeof tags === 'string') {
-            tags = tags.split(',').map(t => t.trim());
-        }
+        if (typeof tags === 'string') tags = tags.split(',').map(t => t.trim());
         return tags.some(t => t.toLowerCase() === dept.toLowerCase());
-    });
+    }).sort((a,b) => a.full_name.localeCompare(b.full_name));
     
     collabSelector.innerHTML = '<option value="">Seleziona...</option>' +
         filteredCollabs.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('');
 
+    // Select the existing collaborator if present
+    if (existingCollabId) collabSelector.value = existingCollabId;
+
+    // 3. UI Refresh
     if (window.csSelectInstances) {
         window.csSelectInstances['cs-service-id-ref']?.refresh();
         window.csSelectInstances['cs-collaborator']?.refresh();
     }
+    
+    window.calculateCsTotals();
 };
 
 window.csOnServiceChange = () => {
     const selector = document.getElementById('cs-service-id-ref');
-    const option = selector.selectedOptions[0];
+    const option = selector?.selectedOptions[0];
     if (!option || !option.value) {
         document.getElementById('cs-tariff-type').value = '';
         document.getElementById('cs-tariff-display').textContent = '-';
@@ -95,7 +111,6 @@ window.csOnServiceChange = () => {
         else qtyLabel.textContent = 'Quantità';
     }
 
-    // Recalculate Totals
     window.calculateCsTotals();
 };
 
@@ -111,14 +126,14 @@ export function initCollaboratorServiceModals() {
 
             <div id="collab-service-edit-modal" class="modal">
                 <div class="modal-content" style="max-width: 550px; padding: 0; background: var(--card-bg); border-radius: 16px; overflow: hidden; border: 1px solid var(--glass-border); box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
-                    <div class="modal-header" style="padding: 1rem 1.5rem; background: var(--bg-color); border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; margin-bottom: 0;">
+                    <div class="modal-header" style="padding: 1rem 1.5rem; background: var(--bg-color); border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
                             <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--brand-gradient); display: flex; align-items: center; justify-content: center;">
                                 <span class="material-icons-round" style="color: white; font-size: 1.25rem;">playlist_add</span>
                             </div>
-                            <h2 id="cs-edit-title" style="margin: 0; font-family: var(--font-titles); font-weight: 700; font-size: 1.15rem;">Configuratore Servizio</h2>
+                            <h2 id="cs-edit-title" style="margin: 0; font-family: var(--font-titles); font-weight: 700; font-size: 1.15rem;">Inserimento Servizio</h2>
                         </div>
-                        <button class="close-modal material-icons-round" onclick="closeCollabServiceEdit()" style="position: static; color: var(--text-tertiary);">close</button>
+                        <button class="close-modal material-icons-round" onclick="closeCollabServiceEdit()" style="position: static; cursor: pointer; background: none; border: none; color: var(--text-tertiary);">close</button>
                     </div>
                     
                     <form id="collab-service-edit-form" style="padding: 1.5rem;">
@@ -137,14 +152,14 @@ export function initCollaboratorServiceModals() {
                             </div>
                             <div class="form-group">
                                 <label class="text-caption">Tipo Tariffa</label>
-                                <div id="cs-tariff-display" class="modal-input" style="background: var(--bg-secondary); border: 1px solid var(--glass-border); font-weight: 600; font-size: 0.9rem; color: var(--brand-blue);">-</div>
+                                <div id="cs-tariff-display" class="modal-input" style="background: var(--bg-secondary); font-weight: 600; color: var(--brand-blue); border: 1px solid var(--glass-border); display: flex; align-items: center; padding: 0 0.75rem;">-</div>
                             </div>
                         </div>
 
                         <div class="form-group" style="margin-bottom: 1.25rem;">
                             <label class="text-caption">Servizio a Catalogo (Tariffario)</label>
                             <select id="cs-service-id-ref" class="modal-input" style="width: 100%;" onchange="window.csOnServiceChange()">
-                                <option value="">Seleziona un reparto prima...</option>
+                                <option value="">Seleziona un reparto...</option>
                             </select>
                         </div>
 
@@ -158,35 +173,36 @@ export function initCollaboratorServiceModals() {
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
                             <div class="form-group">
                                 <label id="cs-qty-label" class="text-caption">Quantità</label>
-                                <input type="number" id="cs-quantity" class="modal-input" value="1" step="0.5" min="0" oninput="window.calculateCsTotals()">
+                                <input type="number" id="cs-quantity" class="modal-input" value="1" step="0.5" min="0" 
+                                       oninput="window.calculateCsTotals()" onchange="window.calculateCsTotals()">
                             </div>
                             <div class="form-group">
                                 <label class="text-caption">Costo Unit.</label>
-                                <input type="number" id="cs-unit_cost" class="modal-input" value="0" readonly style="background: var(--bg-secondary); border: 1px solid var(--glass-border); color: var(--text-tertiary);">
+                                <input type="number" id="cs-unit_cost" class="modal-input" value="0" readonly style="background: var(--bg-secondary); color: var(--text-tertiary); cursor: not-allowed; border: 1px solid var(--glass-border);">
                             </div>
                             <div class="form-group">
                                 <label class="text-caption">Prezzo Unit.</label>
-                                <input type="number" id="cs-unit_price" class="modal-input" value="0" readonly style="background: var(--bg-secondary); border: 1px solid var(--glass-border); color: var(--text-tertiary);">
+                                <input type="number" id="cs-unit_price" class="modal-input" value="0" readonly style="background: var(--bg-secondary); color: var(--text-tertiary); cursor: not-allowed; border: 1px solid var(--glass-border);">
                             </div>
                         </div>
 
-                        <div id="cs-totals-area" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; padding: 1.25rem; background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--glass-border); box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                        <div id="cs-totals-preview" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; padding: 1.25rem; background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--glass-border);">
                             <div>
                                 <div class="text-caption" style="margin-bottom: 0.25rem;">Costo Totale Incarico</div>
-                                <div id="cs-total-cost-display" style="font-weight: 800; color: #ef4444; font-size: 1.4rem; font-family: var(--font-titles);">€ 0,00</div>
+                                <div id="cs-total-cost-display" style="font-weight: 800; color: #ef4444; font-size: 1.5rem; font-family: var(--font-titles);">€ 0,00</div>
                             </div>
                             <div style="text-align: right;">
                                 <div class="text-caption" style="margin-bottom: 0.25rem;">Prezzo Totale Ordine</div>
-                                <div id="cs-total-price-display" style="font-weight: 800; color: #22c55e; font-size: 1.4rem; font-family: var(--font-titles);">€ 0,00</div>
+                                <div id="cs-total-price-display" style="font-weight: 800; color: #22c55e; font-size: 1.5rem; font-family: var(--font-titles);">€ 0,00</div>
                             </div>
                         </div>
 
                         <div style="display: flex; gap: 0.75rem;">
-                            <button type="button" id="cs-delete-btn" class="primary-btn secondary danger" onclick="window.deleteCollabService()" style="display: none;">
+                            <button type="button" id="cs-delete-btn" class="primary-btn secondary danger" onclick="window.deleteCollabService()" style="display: none; padding: 0.75rem;">
                                 <span class="material-icons-round">delete</span>
                             </button>
-                            <button type="button" class="primary-btn secondary" onclick="closeCollabServiceEdit()" style="flex: 1;">Annulla</button>
-                            <button type="submit" class="primary-btn" style="flex: 2; font-weight: 700; height: 48px;">Salva Servizio</button>
+                            <button type="button" class="primary-btn secondary" onclick="closeCollabServiceEdit()" style="flex: 1; padding: 0.75rem;">Annulla</button>
+                            <button type="submit" class="primary-btn" style="flex: 2; font-weight: 800; height: 48px;">Salva Servizio</button>
                         </div>
                     </form>
                 </div>
@@ -205,15 +221,15 @@ export const openCollaboratorServiceEdit = async (id = null, prefillOrderId = nu
     form.reset();
 
     // Data bootstrap
-    const { fetchServices, fetchDepartments, fetchCollaborators } = await import('../modules/api.js?v=2012');
+    const { fetchServices, fetchDepartments, fetchCollaborators } = await import('../modules/api.js?v=2013');
     await Promise.all([fetchServices(), fetchDepartments(), fetchCollaborators()]);
 
-    // Initial Setup
+    // Initial List Setup
     const deptSelect = document.getElementById('cs-dept');
     const depts = state.departments || [];
     deptSelect.innerHTML = '<option value="">Seleziona...</option>' + depts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
 
-    // CustomSelect Init
+    // CustomSelect Initialization
     if (!window.csSelectInstances) window.csSelectInstances = {};
     ['cs-dept', 'cs-service-id-ref', 'cs-collaborator'].forEach(sid => {
         const el = document.getElementById(sid);
@@ -224,6 +240,10 @@ export const openCollaboratorServiceEdit = async (id = null, prefillOrderId = nu
         }
     });
 
+    // Populate Context
+    document.getElementById('cs-assignment-id').value = prefillAssignmentId || '';
+    document.getElementById('cs-order-id').value = prefillOrderId || '';
+
     if (id) {
         // --- EDIT MODE ---
         document.getElementById('cs-edit-title').textContent = 'Modifica Servizio';
@@ -233,13 +253,13 @@ export const openCollaboratorServiceEdit = async (id = null, prefillOrderId = nu
             document.getElementById('cs-id').value = s.id;
             document.getElementById('cs-order-id').value = s.order_id || '';
             document.getElementById('cs-assignment-id').value = s.assignment_id || '';
-            
             document.getElementById('cs-dept').value = s.department || '';
+            
             window.csOnDeptChange(); 
 
             document.getElementById('cs-service-id-ref').value = s.service_id || '';
             document.getElementById('cs-collaborator').value = s.collaborator_id || '';
-            document.getElementById('cs-tariff-type').value = s.tariff_type || 'tariffa oraria';
+            document.getElementById('cs-tariff-type').value = s.tariff_type || 'tariffa spot';
             document.getElementById('cs-tariff-display').textContent = (s.tariff_type || 'Hr').replace('tariffa ', '').toUpperCase();
             
             const qty = s.hours || s.months || s.spot_quantity || s.quantity || 0;
@@ -256,28 +276,27 @@ export const openCollaboratorServiceEdit = async (id = null, prefillOrderId = nu
         document.getElementById('cs-edit-title').textContent = 'Inserimento Servizio';
         document.getElementById('cs-id').value = '';
         document.getElementById('cs-delete-btn').style.display = 'none';
-        document.getElementById('cs-order-id').value = prefillOrderId || '';
-        document.getElementById('cs-assignment-id').value = prefillAssignmentId || '';
 
         if (prefillAssignmentId) {
             const asg = state.assignments?.find(a => a.id === prefillAssignmentId);
             const collab = state.collaborators?.find(c => c.id === asg?.collaborator_id);
             if (collab) {
+                // Determine department with fuzzy match on tags
                 const collabTags = (Array.isArray(collab.tags) ? collab.tags : (typeof collab.tags === 'string' ? collab.tags.split(',') : [])).map(t => t.trim().toLowerCase());
                 const matchingDept = state.departments?.find(d => collabTags.includes(d.name.toLowerCase()));
                 if (matchingDept) {
                     document.getElementById('cs-dept').value = matchingDept.name;
-                    window.csOnDeptChange();
-                    document.getElementById('cs-collaborator').value = collab.id;
                 }
+                // ALWAYS call dept change to populate lists but ensure Picone is there
+                window.csOnDeptChange();
+                document.getElementById('cs-collaborator').value = collab.id;
             }
         } else {
             window.csOnDeptChange(); 
         }
         
         Object.values(window.csSelectInstances).forEach(inst => inst.refresh());
-        document.getElementById('cs-total-cost-display').textContent = '€ 0,00';
-        document.getElementById('cs-total-price-display').textContent = '€ 0,00';
+        window.calculateCsTotals();
     }
 
     form.onsubmit = async (e) => {
@@ -310,6 +329,7 @@ export const openCollaboratorServiceEdit = async (id = null, prefillOrderId = nu
             await upsertCollaboratorService(formData);
             window.closeCollabServiceEdit();
             await refreshCollaboratorServicePage();
+            window.showAlert('Servizio salvato con successo', 'success');
         } catch (err) {
             window.showAlert('Errore: ' + err.message, 'error');
         }
@@ -338,13 +358,13 @@ window.deleteCollabService = () => {
 };
 
 export async function refreshCollaboratorServicePage() {
-    const { fetchCollaboratorServices, fetchAssignments } = await import('../modules/api.js?v=2012');
+    const { fetchCollaboratorServices, fetchAssignments } = await import('../modules/api.js?v=2013');
     await Promise.all([fetchCollaboratorServices(), fetchAssignments()]);
     
     if (state.currentPage === 'collaborator-services') {
         renderCollaboratorServices(document.getElementById('content-area'));
     } else if (window.location.hash.includes('assignment-detail')) {
-        const { renderAssignmentDetail } = await import('./assignments.js?v=2012');
+        const { renderAssignmentDetail } = await import('./assignments.js?v=2013');
         renderAssignmentDetail(document.getElementById('content-area'));
     }
 }
