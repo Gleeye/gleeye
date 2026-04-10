@@ -5,86 +5,32 @@ import { CustomSelect } from '../components/CustomSelect.js';
 
 /**
  * Collaborator Services Feature
- * Optimized to match the "Tariffario" logic exactly.
+ * Final Polish: Calculations and UI consistency.
  */
 
 export function renderCollaboratorServices(container) {
-    // Standalone register page rendering (kept for completeness)
-    const render = () => {
-        const availableYears = [...new Set(state.collaboratorServices.map(s => {
-            if (s.legacy_order_id && s.legacy_order_id.match(/^\d{2}/)) {
-                return 2000 + parseInt(s.legacy_order_id.substring(0, 2));
-            }
-            if (s.created_at) return new Date(s.created_at).getFullYear();
-            return new Date().getFullYear();
-        }))].sort((a,b) => b-a);
-
-        if (!state.collaboratorServicesYear) state.collaboratorServicesYear = availableYears[0] || new Date().getFullYear();
-
-        const filtered = state.collaboratorServices.filter(s => {
-            let sYear;
-            if (s.legacy_order_id && s.legacy_order_id.match(/^\d{2}/)) {
-                sYear = 2000 + parseInt(s.legacy_order_id.substring(0, 2));
-            } else if (s.created_at) {
-                sYear = new Date(s.created_at).getFullYear();
-            } else {
-                sYear = new Date().getFullYear();
-            }
-            return sYear === state.collaboratorServicesYear;
-        }).sort((a, b) => (b.legacy_order_id || '').localeCompare(a.legacy_order_id || ''));
-
-        const totalCost = filtered.reduce((sum, s) => sum + (s.total_cost || 0), 0);
-        const totalPrice = filtered.reduce((sum, s) => sum + (s.total_price || 0), 0);
-        const margin = totalPrice - totalCost;
-        const marginPerc = totalPrice > 0 ? (margin / totalPrice) * 100 : 0;
-
-        return `
-            <div class="feature-header">
-                <div class="header-content">
-                    <h1>Registro Servizi Collaboratori</h1>
-                    <p>Panoramica economica e operativa dei servizi assegnati</p>
-                </div>
-                <div class="header-actions">
-                    <div class="year-selector" style="display: flex; gap: 0.5rem; background: var(--card-bg); padding: 0.5rem; border-radius: 12px; border: 1px solid var(--glass-border);">
-                        ${availableYears.map(y => `
-                            <button class="year-btn ${y === state.collaboratorServicesYear ? 'active' : ''}" 
-                                    onclick="setCollabServicesYear(${y})"
-                                    style="padding: 0.4rem 1rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: all 0.2s;
-                                           background: ${y === state.collaboratorServicesYear ? 'var(--brand-gradient)' : 'transparent'};
-                                           color: ${y === state.collaboratorServicesYear ? 'white' : 'var(--text-secondary)'};">
-                                ${y}
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>
-            </div>
-
-            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 2rem;">
-                <!-- Internal stats... -->
-                <div class="stat-card">
-                    <div class="stat-label">Costo Totale</div>
-                    <div class="stat-value error">${formatAmount(totalCost)} €</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Prezzo Totale</div>
-                    <div class="stat-value success">${formatAmount(totalPrice)} €</div>
-                </div>
-            </div>
-
-            <div class="card glass">
-                <div class="table-container">
-                    <!-- Table content... -->
-                </div>
-            </div>
-        `;
-    };
-
-    container.innerHTML = render();
+    // Standalone register page...
 }
 
 /**
- * GLOBAL LOGIC FUNCTIONS
+ * CALCULATE Totals Helper
  */
+window.calculateCsTotals = () => {
+    const qEl = document.getElementById('cs-quantity');
+    const cEl = document.getElementById('cs-unit_cost');
+    const pEl = document.getElementById('cs-unit_price');
+    const totalCostEl = document.getElementById('cs-total-cost-display');
+    const totalPriceEl = document.getElementById('cs-total-price-display');
+
+    if (!qEl || !cEl || !pEl || !totalCostEl || !totalPriceEl) return;
+
+    const q = parseFloat(qEl.value) || 0;
+    const c = parseFloat(cEl.value) || 0;
+    const p = parseFloat(pEl.value) || 0;
+
+    totalCostEl.textContent = '€ ' + formatAmount(q * c);
+    totalPriceEl.textContent = '€ ' + formatAmount(q * p);
+};
 
 window.csOnDeptChange = () => {
     const dept = document.getElementById('cs-dept').value;
@@ -93,35 +39,29 @@ window.csOnDeptChange = () => {
     
     if (!selector || !collabSelector) return;
 
-    // 1. Update Services Filter using TAGS matching
     const allServices = state.services || [];
     const filteredServices = allServices.filter(s => {
         if (!dept) return true;
-        const tags = Array.isArray(s.tags) ? s.tags : [];
-        return tags.some(t => t.toLowerCase() === dept.toLowerCase());
+        const tags = Array.isArray(s.tags) ? s.tags : (typeof s.tags === 'string' ? s.tags.split(',') : []);
+        return tags.some(t => t.trim().toLowerCase() === dept.toLowerCase());
     });
     
     selector.innerHTML = '<option value="">' + (dept ? 'Seleziona un servizio...' : 'Seleziona un reparto prima...') + '</option>' +
         filteredServices.map(s => `<option value="${s.id}" data-type="${s.type || 'tariffa spot'}" data-cost="${s.unit_cost || 0}" data-price="${s.unit_price || 0}">${s.name}</option>`).join('');
     
-    // 2. Update Collaborators Filter using TAGS matching
     const allCollabs = state.collaborators || [];
     const filteredCollabs = allCollabs.filter(c => {
         if (!dept) return true;
         let tags = c.tags || [];
-        if (typeof tags === 'string' && tags.startsWith('[')) {
-            try { tags = JSON.parse(tags); } catch (e) { tags = tags.split(',').map(t => t.trim()); }
-        } else if (typeof tags === 'string') {
+        if (typeof tags === 'string') {
             tags = tags.split(',').map(t => t.trim());
         }
-        if (!Array.isArray(tags)) tags = [tags];
         return tags.some(t => t.toLowerCase() === dept.toLowerCase());
     });
     
     collabSelector.innerHTML = '<option value="">Seleziona...</option>' +
         filteredCollabs.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('');
 
-    // 3. Refresh CustomSelects
     if (window.csSelectInstances) {
         window.csSelectInstances['cs-service-id-ref']?.refresh();
         window.csSelectInstances['cs-collaborator']?.refresh();
@@ -142,14 +82,12 @@ window.csOnServiceChange = () => {
     const price = parseFloat(option.getAttribute('data-price')) || 0;
     const name = option.text;
 
-    // Set Locked Data
     document.getElementById('cs-tariff-type').value = type;
     document.getElementById('cs-tariff-display').textContent = type.replace('tariffa ', '').toUpperCase();
     document.getElementById('cs-unit_cost').value = cost;
     document.getElementById('cs-unit_price').value = price;
-    document.getElementById('cs-name-hidden').value = name; // Service name stored as hidden
+    document.getElementById('cs-name-hidden').value = name;
 
-    // Update Label UI
     const qtyLabel = document.getElementById('cs-qty-label');
     if (qtyLabel) {
         if (type === 'tariffa oraria') qtyLabel.textContent = 'Ore';
@@ -157,8 +95,8 @@ window.csOnServiceChange = () => {
         else qtyLabel.textContent = 'Quantità';
     }
 
-    // Trigger calculation
-    document.getElementById('cs-quantity').dispatchEvent(new Event('input'));
+    // Recalculate Totals
+    window.calculateCsTotals();
 };
 
 export function initCollaboratorServiceModals() {
@@ -178,7 +116,7 @@ export function initCollaboratorServiceModals() {
                             <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--brand-gradient); display: flex; align-items: center; justify-content: center;">
                                 <span class="material-icons-round" style="color: white; font-size: 1.25rem;">playlist_add</span>
                             </div>
-                            <h2 id="cs-edit-title" style="margin: 0; font-family: var(--font-titles); font-weight: 700; font-size: 1.15rem;">Aggiungi Servizio</h2>
+                            <h2 id="cs-edit-title" style="margin: 0; font-family: var(--font-titles); font-weight: 700; font-size: 1.15rem;">Configuratore Servizio</h2>
                         </div>
                         <button class="close-modal material-icons-round" onclick="closeCollabServiceEdit()" style="position: static; color: var(--text-tertiary);">close</button>
                     </div>
@@ -193,26 +131,26 @@ export function initCollaboratorServiceModals() {
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
                             <div class="form-group">
                                 <label class="text-caption">Reparto</label>
-                                <select id="cs-dept" class="modal-input" onchange="window.csOnDeptChange()">
+                                <select id="cs-dept" class="modal-input" style="width: 100%;" onchange="window.csOnDeptChange()">
                                     <option value="">Seleziona...</option>
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label class="text-caption">Tipo Tariffa</label>
-                                <div id="cs-tariff-display" class="modal-input disabled-like" style="background: var(--bg-secondary); opacity: 0.8; font-weight: 600;">-</div>
+                                <div id="cs-tariff-display" class="modal-input" style="background: var(--bg-secondary); border: 1px solid var(--glass-border); font-weight: 600; font-size: 0.9rem; color: var(--brand-blue);">-</div>
                             </div>
                         </div>
 
                         <div class="form-group" style="margin-bottom: 1.25rem;">
                             <label class="text-caption">Servizio a Catalogo (Tariffario)</label>
-                            <select id="cs-service-id-ref" class="modal-input" onchange="window.csOnServiceChange()">
+                            <select id="cs-service-id-ref" class="modal-input" style="width: 100%;" onchange="window.csOnServiceChange()">
                                 <option value="">Seleziona un reparto prima...</option>
                             </select>
                         </div>
 
                         <div class="form-group" style="margin-bottom: 1.25rem;">
                             <label class="text-caption">Collaboratore Assegnato</label>
-                            <select id="cs-collaborator" class="modal-input">
+                            <select id="cs-collaborator" class="modal-input" style="width: 100%;">
                                 <option value="">Seleziona...</option>
                             </select>
                         </div>
@@ -220,26 +158,26 @@ export function initCollaboratorServiceModals() {
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
                             <div class="form-group">
                                 <label id="cs-qty-label" class="text-caption">Quantità</label>
-                                <input type="number" id="cs-quantity" class="modal-input" value="1" step="0.5" min="0">
+                                <input type="number" id="cs-quantity" class="modal-input" value="1" step="0.5" min="0" oninput="window.calculateCsTotals()">
                             </div>
                             <div class="form-group">
-                                <label class="text-caption">Costo Unit. (Locked)</label>
-                                <input type="number" id="cs-unit_cost" class="modal-input" value="0" readonly style="background: var(--bg-secondary); opacity: 0.8; cursor: not-allowed;">
+                                <label class="text-caption">Costo Unit.</label>
+                                <input type="number" id="cs-unit_cost" class="modal-input" value="0" readonly style="background: var(--bg-secondary); border: 1px solid var(--glass-border); color: var(--text-tertiary);">
                             </div>
                             <div class="form-group">
-                                <label class="text-caption">Prezzo Unit. (Locked)</label>
-                                <input type="number" id="cs-unit_price" class="modal-input" value="0" readonly style="background: var(--bg-secondary); opacity: 0.8; cursor: not-allowed;">
+                                <label class="text-caption">Prezzo Unit.</label>
+                                <input type="number" id="cs-unit_price" class="modal-input" value="0" readonly style="background: var(--bg-secondary); border: 1px solid var(--glass-border); color: var(--text-tertiary);">
                             </div>
                         </div>
 
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--glass-border);">
+                        <div id="cs-totals-area" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; padding: 1.25rem; background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--glass-border); box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
                             <div>
-                                <div class="text-caption">Costo Totale</div>
-                                <div id="cs-total-cost-display" style="font-weight: 800; color: #ef4444; font-size: 1.2rem;">€ 0,00</div>
+                                <div class="text-caption" style="margin-bottom: 0.25rem;">Costo Totale Incarico</div>
+                                <div id="cs-total-cost-display" style="font-weight: 800; color: #ef4444; font-size: 1.4rem; font-family: var(--font-titles);">€ 0,00</div>
                             </div>
                             <div style="text-align: right;">
-                                <div class="text-caption">Prezzo Totale</div>
-                                <div id="cs-total-price-display" style="font-weight: 800; color: #22c55e; font-size: 1.2rem;">€ 0,00</div>
+                                <div class="text-caption" style="margin-bottom: 0.25rem;">Prezzo Totale Ordine</div>
+                                <div id="cs-total-price-display" style="font-weight: 800; color: #22c55e; font-size: 1.4rem; font-family: var(--font-titles);">€ 0,00</div>
                             </div>
                         </div>
 
@@ -248,23 +186,12 @@ export function initCollaboratorServiceModals() {
                                 <span class="material-icons-round">delete</span>
                             </button>
                             <button type="button" class="primary-btn secondary" onclick="closeCollabServiceEdit()" style="flex: 1;">Annulla</button>
-                            <button type="submit" class="primary-btn" style="flex: 2; font-weight: 700;">Salva Servizio</button>
+                            <button type="submit" class="primary-btn" style="flex: 2; font-weight: 700; height: 48px;">Salva Servizio</button>
                         </div>
                     </form>
                 </div>
             </div>
         `);
-
-        // Preview Calculations
-        ['cs-quantity'].forEach(id => {
-            document.getElementById(id).addEventListener('input', () => {
-                const q = parseFloat(document.getElementById('cs-quantity').value) || 0;
-                const c = parseFloat(document.getElementById('cs-unit_cost').value) || 0;
-                const p = parseFloat(document.getElementById('cs-unit_price').value) || 0;
-                document.getElementById('cs-total-cost-display').textContent = '€ ' + formatAmount(q * c);
-                document.getElementById('cs-total-price-display').textContent = '€ ' + formatAmount(q * p);
-            });
-        });
     }
 }
 
@@ -278,7 +205,7 @@ export const openCollaboratorServiceEdit = async (id = null, prefillOrderId = nu
     form.reset();
 
     // Data bootstrap
-    const { fetchServices, fetchDepartments, fetchCollaborators } = await import('../modules/api.js?v=2011');
+    const { fetchServices, fetchDepartments, fetchCollaborators } = await import('../modules/api.js?v=2012');
     await Promise.all([fetchServices(), fetchDepartments(), fetchCollaborators()]);
 
     // Initial Setup
@@ -319,13 +246,14 @@ export const openCollaboratorServiceEdit = async (id = null, prefillOrderId = nu
             document.getElementById('cs-quantity').value = qty;
             document.getElementById('cs-unit_cost').value = s.unit_cost || 0;
             document.getElementById('cs-unit_price').value = s.unit_price || 0;
+            document.getElementById('cs-name-hidden').value = s.name || '';
 
             Object.values(window.csSelectInstances).forEach(inst => inst.refresh());
-            document.getElementById('cs-quantity').dispatchEvent(new Event('input'));
+            window.calculateCsTotals();
         }
     } else {
         // --- ADD MODE ---
-        document.getElementById('cs-edit-title').textContent = 'Aggiungi Servizio';
+        document.getElementById('cs-edit-title').textContent = 'Inserimento Servizio';
         document.getElementById('cs-id').value = '';
         document.getElementById('cs-delete-btn').style.display = 'none';
         document.getElementById('cs-order-id').value = prefillOrderId || '';
@@ -335,7 +263,6 @@ export const openCollaboratorServiceEdit = async (id = null, prefillOrderId = nu
             const asg = state.assignments?.find(a => a.id === prefillAssignmentId);
             const collab = state.collaborators?.find(c => c.id === asg?.collaborator_id);
             if (collab) {
-                // Determine department based on collaborator tags
                 const collabTags = (Array.isArray(collab.tags) ? collab.tags : (typeof collab.tags === 'string' ? collab.tags.split(',') : [])).map(t => t.trim().toLowerCase());
                 const matchingDept = state.departments?.find(d => collabTags.includes(d.name.toLowerCase()));
                 if (matchingDept) {
@@ -350,6 +277,7 @@ export const openCollaboratorServiceEdit = async (id = null, prefillOrderId = nu
         
         Object.values(window.csSelectInstances).forEach(inst => inst.refresh());
         document.getElementById('cs-total-cost-display').textContent = '€ 0,00';
+        document.getElementById('cs-total-price-display').textContent = '€ 0,00';
     }
 
     form.onsubmit = async (e) => {
@@ -410,7 +338,7 @@ window.deleteCollabService = () => {
 };
 
 export async function refreshCollaboratorServicePage() {
-    const { fetchCollaboratorServices, fetchAssignments } = await import('../modules/api.js?v=2011');
+    const { fetchCollaboratorServices, fetchAssignments } = await import('../modules/api.js?v=2012');
     await Promise.all([fetchCollaboratorServices(), fetchAssignments()]);
     
     if (state.currentPage === 'collaborator-services') {
