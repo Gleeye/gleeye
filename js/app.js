@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     import('./features/settings.js?v=3003').then(m => m.initSettingsModals());
     import('./features/invoices.js?v=3003').then(m => m.InvoiceLogic.initInvoiceModals());
     import('./features/collaborators.js?v=3003').then(m => m.initCollaboratorModals());
-    import('./features/collaborator_services.js?v=3014').then(m => m.initCollaboratorServiceModals());
+    import('./features/collaborator_services.js?v=3015').then(m => m.initCollaboratorServiceModals());
     import('./features/bank_transactions.js?v=3003').then(m => m.initBankTransactionModals());
     import('./features/payments.js?v=3005').then(m => m.initPaymentModals());
     import('./features/services.js?v=3003').then(m => m.initServiceModals());

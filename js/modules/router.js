@@ -255,15 +255,15 @@ function render() {
                 break;
             case 'collaborator-services':
                 if (pageTitle) pageTitle.textContent = 'Servizi Collaboratori';
-                import('../features/collaborator_services.js?v=2014').then(m => m.renderCollaboratorServices(contentArea));
+                import('../features/collaborator_services.js?v=2015').then(m => m.renderCollaboratorServices(contentArea));
                 break;
             case 'assignment-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Incarico';
-                import('../features/assignments.js?v=2014').then(m => m.renderAssignmentDetail(contentArea));
+                import('../features/assignments.js?v=2015').then(m => m.renderAssignmentDetail(contentArea));
                 break;
             case 'assignments':
                 if (pageTitle) pageTitle.textContent = 'Incarichi';
-                import('../features/assignments.js?v=2014').then(m => m.renderAssignmentsDashboard(contentArea));
+                import('../features/assignments.js?v=2015').then(m => m.renderAssignmentsDashboard(contentArea));
                 break;
             case 'my-assignments':
                 if (pageTitle) pageTitle.textContent = 'I miei incarichi';
