@@ -1480,7 +1480,14 @@ async function handleSavePassiveInvoice(e) {
             netto = compenso - ritenuta + bollo;
         } else if (tipo === 'ritenuta' || tipo === 'fattura' || tipo === 'parcella') {
             if (hasVat) iva = imponibile * 0.22;
-            ritenuta = imponibile * ((parseFloat(settings.withholdingRate) || 20) / 100);
+            
+            // Partner Companies don't have withholding tax, even if it's a "fattura"
+            if (mode === 'partner-wl') {
+                ritenuta = 0;
+            } else {
+                ritenuta = imponibile * ((parseFloat(settings.withholdingRate) || 20) / 100);
+            }
+            
             netto = imponibile + iva - ritenuta + bollo;
         } else if (tipo === 'estero') {
             iva = 0;
