@@ -1378,6 +1378,7 @@ function updatePassivePaymentsForCollaborator(collaboratorId, optionalOrderId = 
         p.collaborator_id === collaboratorId &&
         p.payment_type === 'Collaboratore' &&
         (p.status === 'Invito Inviato' || p.passive_invoice_id === state.currentPassiveInvoiceId) &&
+        (!p.passive_invoice_id || p.passive_invoice_id === state.currentPassiveInvoiceId) &&
         (!optionalOrderId || p.order_id === optionalOrderId)
     );
 
@@ -1391,10 +1392,11 @@ function updatePassivePaymentsForCollaborator(collaboratorId, optionalOrderId = 
     list.innerHTML = payments.map(p => {
         const order = state.orders?.find(o => o.id === p.order_id);
         const orderInfo = order ? `${order.order_number} - ${order.short_name || order.title || 'Senza titolo'}` : 'Nessun ordine';
+        const isChecked = (state.currentPassiveInvoiceId && p.passive_invoice_id === state.currentPassiveInvoiceId) ? 'checked' : '';
         
         return `
             <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.6rem; background: white; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer; transition: all 0.2s;">
-                <input type="checkbox" class="pinv-payment-check" value="${p.id}" data-order-id="${p.order_id}" style="width: 16px; height: 16px; margin-top: 2px;">
+                <input type="checkbox" class="pinv-payment-check" value="${p.id}" data-order-id="${p.order_id}" ${isChecked} style="width: 16px; height: 16px; margin-top: 2px;">
                 <div style="flex: 1; min-width: 0;">
                     <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary);" class="text-truncate">${p.title || 'Pagamento'}</div>
                     <div style="font-size: 0.65rem; color: var(--text-tertiary); font-weight: 500;" class="text-truncate">${orderInfo}</div>
