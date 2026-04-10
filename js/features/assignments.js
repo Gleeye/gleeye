@@ -200,21 +200,38 @@ export async function renderAssignmentDetail(container) {
 
                     <!-- Column 2: Services & Description -->
                     <div class="glass-card" style="padding: 1.5rem;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem;">
-                            <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0;">Servizi & Attività</h3>
-                            <span class="badge" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6; font-weight: 600;">${linkedServices.length}</span>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0;">Servizi & Attività</h3>
+                                <span class="badge" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6; font-weight: 600;">${linkedServices.length}</span>
+                            </div>
+                            <button class="icon-btn" onclick="window.addServiceToAssignment('${assignment.id}', '${assignment.order_id}')" style="background: rgba(16, 185, 129, 0.1); color: #10b981; width: 32px; height: 32px;">
+                                <span class="material-icons-round" style="font-size: 1.2rem;">add</span>
+                            </button>
                         </div>
                         
                         ${linkedServices.length > 0 ? `
                             <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem;">
                                 ${linkedServices.map(s => `
-                                    <div style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--glass-border);">
-                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                                            <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">${s.services?.name || s.legacy_service_name || s.name || 'Servizio'}</span>
-                                            <span style="font-size: 0.85rem; font-weight: 700; color: #ef4444;">${formatAmount(s.total_cost)}€</span>
-                                        </div>
-                                        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-tertiary);">
-                                            <span>${s.quantity || s.hours || '-'} unità × ${formatAmount(s.unit_cost)}€</span>
+                                    <div class="service-item-row" style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--glass-border); position: relative; transition: all 0.2s;">
+                                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.25rem;">
+                                            <div style="flex: 1;">
+                                                <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 2px;">${s.services?.name || s.legacy_service_name || s.name || 'Servizio'}</div>
+                                                <div style="font-size: 0.7rem; color: var(--text-tertiary);">
+                                                    <span>${s.quantity || s.hours || '-'} unità × ${formatAmount(s.unit_cost)}€</span>
+                                                </div>
+                                            </div>
+                                            <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                                                <span style="font-size: 0.85rem; font-weight: 700; color: #ef4444;">${formatAmount(s.total_cost)}€</span>
+                                                <div class="service-actions" style="display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s;">
+                                                    <button class="icon-btn small" onclick="window.editAssignmentService('${s.id}')" style="width: 24px; height: 24px; font-size: 0.8rem; background: rgba(99, 102, 241, 0.1); color: #6366f1;">
+                                                        <span class="material-icons-round" style="font-size: 1rem;">edit</span>
+                                                    </button>
+                                                    <button class="icon-btn small" onclick="window.deleteAssignmentService('${s.id}')" style="width: 24px; height: 24px; font-size: 0.8rem; background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                                                        <span class="material-icons-round" style="font-size: 1rem;">delete</span>
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 `).join('')}
@@ -351,11 +368,36 @@ export async function renderAssignmentDetail(container) {
         const statusSelect = container.querySelector('#assignment-status-select');
         if (statusSelect) new CustomSelect(statusSelect);
 
+        // Add hover effect for service actions
+        const serviceRows = container.querySelectorAll('.service-item-row');
+        serviceRows.forEach(row => {
+            row.addEventListener('mouseenter', () => row.querySelector('.service-actions').style.opacity = '1');
+            row.addEventListener('mouseleave', () => row.querySelector('.service-actions').style.opacity = '0');
+        });
+
     } catch (error) {
         console.error(error);
         container.innerHTML = '<div class="alert error">Errore nel caricamento dell\'incarico</div>';
     }
 }
+
+// Service Management Functions
+window.addServiceToAssignment = async (assignmentId, orderId) => {
+    const { initCollaboratorServiceModals, openCollaboratorServiceEdit } = await import('./collaborator_services.js?v=1000');
+    initCollaboratorServiceModals();
+    openCollaboratorServiceEdit(null, orderId, assignmentId);
+};
+
+window.editAssignmentService = async (serviceId) => {
+    const { initCollaboratorServiceModals, openCollaboratorServiceEdit } = await import('./collaborator_services.js?v=1000');
+    initCollaboratorServiceModals();
+    openCollaboratorServiceEdit(serviceId);
+};
+
+window.deleteAssignmentService = async (serviceId) => {
+    const { confirmDeleteCollabService } = await import('./collaborator_services.js?v=1000');
+    confirmDeleteCollabService(serviceId);
+};
 
 function renderAssignmentInfo(assignment) {
     return `

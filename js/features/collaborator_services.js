@@ -303,6 +303,7 @@ export function initCollaboratorServiceModals() {
                         <div class="modal-scroll-area" style="padding: 1.25rem; overflow-y: auto; flex: 1;">
                             <input type="hidden" id="cs-id">
                             <input type="hidden" id="cs-order-id">
+                            <input type="hidden" id="cs-assignment-id">
                             <input type="hidden" id="cs-name"> 
                             <input type="hidden" id="cs-service-id-ref">
 
@@ -669,7 +670,7 @@ export function initCollaboratorServiceModals() {
         document.getElementById('collab-service-detail-modal').classList.add('active');
     };
 
-    window.openCollaboratorServiceEdit = async (id = null, prefillOrderId = null) => {
+    window.openCollaboratorServiceEdit = async (id = null, prefillOrderId = null, prefillAssignmentId = null) => {
         window.closeCollabServiceDetail(); // Close detail if open
         const modal = document.getElementById('collab-service-edit-modal');
         const form = document.getElementById('collab-service-edit-form');
@@ -704,6 +705,7 @@ export function initCollaboratorServiceModals() {
             if (s) {
                 document.getElementById('cs-id').value = s.id;
                 document.getElementById('cs-order-id').value = s.order_id || '';
+                document.getElementById('cs-assignment-id').value = s.assignment_id || '';
 
                 // Set Department UI manually to avoid resets in selectCsOption
                 const dept = s.department || '';
@@ -780,6 +782,7 @@ export function initCollaboratorServiceModals() {
             document.getElementById('cs-tariff-display').textContent = '-';
 
             if (prefillOrderId) document.getElementById('cs-order-id').value = prefillOrderId;
+            if (prefillAssignmentId) document.getElementById('cs-assignment-id').value = prefillAssignmentId;
         }
 
         modal.classList.add('active');
@@ -791,7 +794,7 @@ export function initCollaboratorServiceModals() {
                 await deleteCollaboratorService(id);
                 window.closeCollabServiceDetail();
                 window.closeCollabServiceEdit();
-                refreshPage();
+                await refreshCollaboratorServicePage();
             } catch (e) {
                 window.showAlert("Errore eliminazione: " + e.message, 'error');
             }
@@ -818,81 +821,99 @@ export function initCollaboratorServiceModals() {
         });
     });
 
-    // Submit Logic
-    document.getElementById('collab-service-edit-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const tariffType = document.getElementById('cs-tariff-type').value;
-        const q = parseFloat(document.getElementById('cs-quantity').value) || 0;
-        const cost = parseFloat(document.getElementById('cs-unit-cost').value) || 0;
-        const price = parseFloat(document.getElementById('cs-unit-price').value) || 0;
+        // Submit Logic
+        const form = document.getElementById('collab-service-edit-form');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const tariffType = document.getElementById('cs-tariff-type').value;
+                const q = parseFloat(document.getElementById('cs-quantity').value) || 0;
+                const cost = parseFloat(document.getElementById('cs-unit-cost').value) || 0;
+                const price = parseFloat(document.getElementById('cs-unit-price').value) || 0;
 
-        // Determine quantity field based on type
-        const qtyFields = {
-            quantity: q,
-            hours: (tariffType === 'tariffa oraria') ? q : null,
-            months: (tariffType === 'tariffa mensile' || tariffType === 'tariffa annuale') ? q : null,
-            spot_quantity: (tariffType === 'tariffa spot') ? q : null,
-        };
+                // Determine quantity field based on type
+                const qtyFields = {
+                    quantity: q,
+                    hours: (tariffType === 'tariffa oraria') ? q : null,
+                    months: (tariffType === 'tariffa mensile' || tariffType === 'tariffa annuale') ? q : null,
+                    spot_quantity: (tariffType === 'tariffa spot') ? q : null,
+                };
 
-        const formData = {
-            id: document.getElementById('cs-id').value || undefined,
-            order_id: document.getElementById('cs-order-id').value || null,
-            legacy_service_name: document.getElementById('cs-name').value,
-            name: document.getElementById('cs-name').value,
-            service_id: document.getElementById('cs-service-id-ref').value || null, // Capture catalog ID
-            department: document.getElementById('cs-dept').value,
-            tariff_type: tariffType,
-            collaborator_id: document.getElementById('cs-collaborator').value || null, // Grab from hidden input
+                const formData = {
+                    id: document.getElementById('cs-id').value || undefined,
+                    order_id: document.getElementById('cs-order-id').value || null,
+                    assignment_id: document.getElementById('cs-assignment-id').value || null,
+                    legacy_service_name: document.getElementById('cs-name').value,
+                    name: document.getElementById('cs-name').value,
+                    service_id: document.getElementById('cs-service-id-ref').value || null, // Capture catalog ID
+                    department: document.getElementById('cs-dept').value,
+                    tariff_type: tariffType,
+                    collaborator_id: document.getElementById('cs-collaborator').value || null, // Grab from hidden input
 
-            ...qtyFields,
-            unit_cost: cost,
-            unit_price: price,
-            total_cost: q * cost,
-            total_price: q * price
-        };
+                    ...qtyFields,
+                    unit_cost: cost,
+                    unit_price: price,
+                    total_cost: q * cost,
+                    total_price: q * price
+                };
 
-        try {
-            await upsertCollaboratorService(formData);
-            window.closeCollabServiceEdit();
-            refreshPage();
-        } catch (err) {
-            window.showAlert('Errore salvataggio: ' + err.message, 'error');
+                try {
+                    await upsertCollaboratorService(formData);
+                    window.closeCollabServiceEdit();
+                    await refreshCollaboratorServicePage();
+                } catch (err) {
+                    window.showAlert('Errore salvataggio: ' + err.message, 'error');
+                }
+            });
         }
-    });
+    }
+}
 
-    async function refreshPage() {
-        // If in main registry
-        if (state.currentPage === 'collaborator-services') {
-            const { fetchCollaboratorServices } = await import('../modules/api.js?v=1000');
+export async function refreshCollaboratorServicePage() {
+    // If in main registry
+    if (state.currentPage === 'collaborator-services') {
+        const { fetchCollaboratorServices } = await import('../modules/api.js?v=1000');
+        await fetchCollaboratorServices();
+        renderCollaboratorServices(document.getElementById('content-area'));
+        return;
+    }
+
+    // If in order detail (check hash or state)
+    const hash = window.location.hash;
+    if (hash.includes('order-detail')) {
+        const parts = hash.split('/');
+        const orderId = parts[parts.length - 1] || state.currentOrderId;
+
+        if (orderId) {
+            const { fetchCollaboratorServices, fetchAssignments } = await import('../modules/api.js?v=1000');
+            const { renderOrderDetail } = await import('./orders.js?v=1000');
+
             await fetchCollaboratorServices();
-            renderCollaboratorServices(document.getElementById('content-area'));
-            return;
-        }
-
-        // If in order detail (check hash or state)
-        const hash = window.location.hash;
-        if (hash.includes('order-detail')) {
-            const parts = hash.split('/');
-            const orderId = parts[parts.length - 1] || state.currentOrderId;
-
-            if (orderId) {
-                const { fetchCollaboratorServices, fetchAssignments } = await import('../modules/api.js?v=1000');
-                const { renderOrderDetail } = await import('./orders.js?v=1000');
-
-                await fetchCollaboratorServices();
-                await fetchAssignments();
-                renderOrderDetail(document.getElementById('content-area'), orderId);
-            }
+            await fetchAssignments();
+            renderOrderDetail(document.getElementById('content-area'), orderId);
         }
     }
 
-    window.goToAssignment = (orderId, collabId) => {
-        const assignment = state.assignments.find(a => a.order_id === orderId && a.collaborator_id === collabId);
-        if (assignment) {
-            window.location.hash = `#assignment-detail/${assignment.id}`;
-            window.closeCollabServiceDetail();
-        } else {
-            window.showAlert("Nessun incarico formale trovato per questa coppia ordine/collaboratore.", 'warning');
+    if (hash.includes('assignment-detail')) {
+        const parts = hash.split('/');
+        const assignmentId = parts[parts.length - 1];
+
+        if (assignmentId) {
+            const { fetchCollaboratorServices } = await import('../modules/api.js?v=1000');
+            const { renderAssignmentDetail } = await import('./assignments.js?v=1000');
+
+            await fetchCollaboratorServices();
+            renderAssignmentDetail(document.getElementById('content-area'));
         }
-    };
+    }
 }
+
+window.goToAssignment = (orderId, collabId) => {
+    const assignment = state.assignments.find(a => a.order_id === orderId && a.collaborator_id === collabId);
+    if (assignment) {
+        window.location.hash = `#assignment-detail/${assignment.id}`;
+        window.closeCollabServiceDetail();
+    } else {
+        window.showAlert("Nessun incarico formale trovato per questa coppia ordine/collaboratore.", 'warning');
+    }
+};
