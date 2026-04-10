@@ -907,7 +907,7 @@ function updatePaymentsForOrders(orderIds) {
     }
 
     list.innerHTML = payments.map(p => {
-        const isChecked = p.invoice_id === state.currentInvoiceId ? 'checked' : '';
+        const isChecked = (state.currentInvoiceId && p.invoice_id === state.currentInvoiceId) ? 'checked' : '';
         const order = state.orders.find(o => o.id === p.order_id);
         return `
             <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: white; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer;">
@@ -1211,7 +1211,11 @@ function updateNettoCalculation() {
         const colSelect = document.getElementById('pinv-collaborator');
         const colOpt = colSelect?.selectedOptions[0];
         // Use settings from dataset or fall back to defaults
-        const settings = colOpt?.dataset.settings ? JSON.parse(colOpt.dataset.settings) : { cassaRate: 4, withholdingRate: 20 };
+        // For Partners, default withholding rate should be 0 unless specified
+        const settings = colOpt?.dataset.settings ? JSON.parse(colOpt.dataset.settings) : { 
+            cassaRate: isPartner ? 0 : 4, 
+            withholdingRate: isPartner ? 0 : 20 
+        };
 
         let cassa = 0;
         let imponibile = importo;
@@ -1261,16 +1265,16 @@ function updateNettoCalculation() {
             ritenuta = importo * 0.20;
             netto = importo - ritenuta + bollo;
             desc = `(Importo - 20% Ritenuta${bollo ? ' + Bollo' : ''})`;
-        } else if (tipo === 'fattura' || tipo === 'ritenuta' || tipo === 'parcella') {
+        } else if (tipo === 'fattura' || tipo === 'ritenuta' || tipo === 'parcella' || tipo === 'nota_debito') {
             if (hasVat) iva = imponibile * 0.22;
-            ritenuta = imponibile * ((parseFloat(settings.withholdingRate) || 20) / 100);
+            ritenuta = imponibile * ((parseFloat(settings.withholdingRate) || (isPartner ? 0 : 20)) / 100);
             netto = imponibile + iva - ritenuta + bollo;
-            desc = `(Imp. + Cassa + IVA - Ret. ${bollo ? '+ Bollo' : ''})`;
-        } else if (tipo === 'estero') {
+            desc = isPartner ? `(Imp. + IVA)` : `(Imp. + Cassa + IVA - Ret. ${bollo ? '+ Bollo' : ''})`;
+        } else if (tipo === 'estero' || tipo === 'reverse_charge') {
             iva = 0;
             ritenuta = 0;
             netto = imponibile + bollo;
-            desc = `(Imponibile - Estero/Rev.Charge ${bollo ? '+ Bollo' : ''})`;
+            desc = `(Imponibile ${bollo ? '+ Bollo' : ''})`;
         } else if (tipo === 'nota_credito') {
             if (hasVat) iva = imponibile * 0.22;
             netto = imponibile + iva;
@@ -1326,13 +1330,13 @@ function updateCalcHint(tipo) {
     const amount = parseFloat(document.getElementById('pinv-amount')?.value) || 0;
 
     if (vatCheckbox && !state._pinvVatManuallySet) {
-        vatCheckbox.checked = ['ritenuta', 'fattura', 'parcella'].includes(tipo);
+        vatCheckbox.checked = ['ritenuta', 'fattura', 'parcella', 'nota_debito', 'nota_credito'].includes(tipo);
     }
     if (rivalsaCheckbox && !state._pinvRivalsaManuallySet) {
         rivalsaCheckbox.checked = ['ritenuta', 'fattura', 'parcella', 'forfettario'].includes(tipo);
     }
     if (bolloCheckbox && !state._pinvBolloManuallySet) {
-        bolloCheckbox.checked = (tipo === 'forfettario' || tipo === 'occasionale' || tipo === 'estero') && amount > 77.47;
+        bolloCheckbox.checked = (tipo === 'forfettario' || tipo === 'occasionale' || tipo === 'estero' || tipo === 'reverse_charge') && amount > 77.47;
     }
 
     // Recalculate
@@ -2312,12 +2316,12 @@ export async function openPassiveInvoiceForm(id = null, mode = 'collab') {
     const typeSelect = document.getElementById('pinv-type');
     if (isPartner) {
         typeSelect.innerHTML = `
-            <option value="ritenuta">Regime Ordinario (IVA 22% + Ritenuta)</option>
-            <option value="forfettario">Regime Forfettario (No IVA, No Ritenuta)</option>
-            <option value="occasionale">Prestazione Occasionale (Ritenuta 20%)</option>
-            <option value="estero">Fattura Estero / Rev. Charge (No IVA)</option>
-            <option value="parcella">Parcella/Notula (IVA + Ritenuta)</option>
+            <option value="fattura">Fattura Ordinaria (IVA 22%)</option>
+            <option value="reverse_charge">Fattura con Reverse Charge (No IVA)</option>
+            <option value="estero">Fattura Estera / Intra-UE (No IVA)</option>
             <option value="nota_credito">Nota di Credito</option>
+            <option value="nota_debito">Nota di Debito</option>
+            <option value="forfettario">Regime Forfettario (No IVA, No Ritenuta)</option>
         `;
     } else {
         typeSelect.innerHTML = `
