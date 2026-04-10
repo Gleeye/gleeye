@@ -1339,10 +1339,10 @@ function updateCalcHint(tipo) {
         
         if (isPartner) {
             rivalsaCheckbox.checked = false;
-            rivalsaCheckbox.closest('label').style.display = 'none';
+            if (rivalsaCheckbox.parentElement) rivalsaCheckbox.parentElement.style.display = 'none';
         } else {
             rivalsaCheckbox.checked = ['ritenuta', 'fattura', 'parcella', 'forfettario'].includes(tipo);
-            rivalsaCheckbox.closest('label').style.display = 'flex';
+            if (rivalsaCheckbox.parentElement) rivalsaCheckbox.parentElement.style.display = 'flex';
         }
     }
     if (bolloCheckbox && !state._pinvBolloManuallySet) {
