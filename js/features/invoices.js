@@ -2193,7 +2193,10 @@ export async function openInvoiceDetail(id, type) {
         } else {
             // Passive
             if (typeof window.openPassiveInvoiceForm === 'function') {
-                window.openPassiveInvoiceForm(id, type === 'passive-collab' ? 'collab' : 'supplier');
+                let mode = 'collab';
+                if (type === 'passive-supplier') mode = 'supplier';
+                if (type === 'passive-partner-wl') mode = 'partner-wl';
+                window.openPassiveInvoiceForm(id, mode);
             }
         }
     };
@@ -2769,7 +2772,12 @@ function renderPassiveInvoicesGeneric(container, title, type) {
 
     // Event listeners
     container.querySelectorAll('.clickable-card').forEach(card => {
-        card.addEventListener('click', () => window.openInvoiceDetail(card.dataset.id, type === 'suppliers' ? 'passive-supplier' : 'passive-collab'));
+        card.addEventListener('click', () => {
+            let detailType = 'passive-collab';
+            if (type === 'suppliers') detailType = 'passive-supplier';
+            if (type === 'partners') detailType = 'passive-partner-wl';
+            window.openInvoiceDetail(card.dataset.id, detailType);
+        });
     });
     container.querySelector('#btn-new-passive')?.addEventListener('click', () => {
         let mode = 'collab';
