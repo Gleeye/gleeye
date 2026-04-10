@@ -1,6 +1,7 @@
 import { fetchAppointments, fetchPMActivityLogs, fetchSpaceComments } from '../../../modules/pm_api.js?v=1000';
 import { supabase } from '../../../modules/config.js';
 import { renderAvatar } from '../../../modules/utils.js?v=1000';
+import { humanizeActivity } from '../../../modules/pm_activity_helper.js?v=7002';
 
 export async function renderAreaOverview(container, spaceIds, spaceNamesMap, cloudLinks = []) {
     container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:300px;"><span class="loader"></span></div>';
@@ -218,33 +219,13 @@ export async function renderAreaOverview(container, spaceIds, spaceNamesMap, clo
                     </div>
                     <div style="display:flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem;" class="custom-scrollbar">
                         ${recentLogs.length === 0 ? `<div class="dash-empty">Nessuna attività registrata</div>` : recentLogs.map(l => {
-                            const authorName = l.actor?.full_name || 'Sistema';
-                            const actionType = (l.action_type || '').toLowerCase();
-                            const itemName = l.item?.title || l.space?.name || 'una risorsa';
-                            
-                            const vocabulary = {
-                                'todo': 'Da Fare', 'in_progress': 'In Corso', 'blocked': 'Bloccato', 
-                                'review': 'In Revisione', 'done': 'Completata', 'attivita': 'Attività'
-                            };
-                            const t = (val) => vocabulary[val?.toLowerCase()] || val;
-
-                            let displayAction = 'ha modificato';
-                            if (actionType.includes('created')) displayAction = 'ha creato';
-                            else if (actionType.includes('status')) {
-                                const newVal = t(l.details?.new || l.details?.new_value);
-                                displayAction = newVal ? `ha cambiato lo stato in <span style="font-weight:800; color:var(--text-primary); text-transform:uppercase; font-size:0.65rem;">${newVal}</span>` : 'ha cambiato lo stato';
-                            }
-                            else if (actionType.includes('comment')) displayAction = 'ha aggiunto un commento a';
-                            else if (actionType.includes('user_ref')) displayAction = 'ha assegnato';
-                            else if (actionType.includes('cloud_links')) displayAction = 'ha aggiunto un documento a';
-
+                            const human = humanizeActivity(l);
                             return `
                             <div class="feed-item" style="cursor:pointer;" onclick="import('./hub_drawer.js?v=1000').then(m => m.openHubDrawer('${l.item_ref}', '${l.space_ref}'))">
                                 ${renderAvatar(l.actor || { full_name: 'S' }, { size: 32, borderRadius: '50%' })}
                                 <div style="flex: 1; min-width: 0;">
                                     <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.3;">
-                                        <strong style="color:var(--text-primary);">${authorName}</strong> ${displayAction} 
-                                        <strong style="color:var(--text-primary);">${itemName}</strong>
+                                        <strong style="color:var(--text-primary);">${human.actorName}</strong> ${human.formattedDesc}
                                     </div>
                                     <div style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 4px;">${new Date(l.created_at).toLocaleString('it-IT', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}</div>
                                 </div>

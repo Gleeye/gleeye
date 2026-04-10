@@ -4,6 +4,7 @@ import { openProjectModal } from './components/project_modal.js?v=1241';
 import { supabase } from '../../modules/config.js';
 import { state } from '../../modules/state.js';
 import { renderAvatar } from '../../modules/utils.js?v=1241';
+import { humanizeActivity } from '../../modules/pm_activity_helper.js?v=7002';
 
 const COMPANY_AREAS = [
     { id: 'amministrazione', label: 'Amministrazione', color: 'var(--brand-viola)', bg: 'rgba(97, 74, 162, 0.05)', icon: 'account_balance' },
@@ -412,29 +413,19 @@ export async function renderInternalProjects(container, initialFilter) {
                 
                 content.innerHTML = `
                     <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;"><span class="material-icons-round" style="font-size: 1rem; color: var(--brand-blue);">history</span> FEED ATTIVITÀ CLUSTER</div>
-                    ${filteredLogs.length === 0 ? `<div style="padding: 3rem; text-align: center; color: var(--text-tertiary); font-style: italic;">Nessuna attività recente registrata per questo cluster.</div>` : filteredLogs.slice(0, 30).map(l => `
+                    ${filteredLogs.length === 0 ? `<div style="padding: 3rem; text-align: center; color: var(--text-tertiary); font-style: italic;">Nessuna attività recente registrata per questo cluster.</div>` : filteredLogs.slice(0, 30).map(l => {
+                        const human = humanizeActivity(l);
+                        return `
                         <div style="display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--bg-primary); animation: fadeIn 0.3s ease; cursor:pointer;" onclick="import('./components/hub_drawer.js?v=1000').then(m => m.openHubDrawer('${l.item_ref}', '${l.space_ref}'))">
                             ${renderAvatar(l.actor || { full_name: 'S' }, { size: 32, borderRadius: '50%' })}
                             <div style="flex: 1; min-width: 0;">
-                                <div style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.4;">
-                                    <strong>${l.authorName}</strong> 
-                                    ${(() => {
-                                        const at = (l.action_type || '').toLowerCase();
-                                        const vocabulary = { 'todo': 'Da Fare', 'in_progress': 'In Corso', 'blocked': 'Bloccato', 'review': 'In Revisione', 'done': 'Completata' };
-                                        const t = (v) => vocabulary[v?.toLowerCase()] || v;
-                                        if (at.includes('status')) return `ha cambiato lo stato in <strong style="text-transform:uppercase; font-size:0.75rem;">${t(l.details?.new || l.details?.new_value)}</strong> di`;
-                                        if (at.includes('created')) return 'ha creato';
-                                        if (at.includes('comment')) return 'ha commentato';
-                                        if (at.includes('user_ref')) return 'ha assegnato';
-                                        if (at.includes('cloud_links')) return 'ha aggiunto un link a';
-                                        return 'ha modificato';
-                                    })()}
-                                    <span style="color: var(--text-primary); font-weight: 700;">${l.item?.title || l.space?.name || ''}</span>
+                                <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+                                    <strong style="color:var(--text-primary);">${human.actorName}</strong> ${human.formattedDesc}
                                 </div>
                                 <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 4px;">${new Date(l.created_at).toLocaleString('it-IT')}</div>
                             </div>
                         </div>
-                    `).join('')}
+                    `}).join('')}
                 `;
 
 

@@ -1438,94 +1438,83 @@ export async function fetchSmartPersonalFeed(limit = 50, overrideUserId = null, 
     const collaboratorId = overrideCollabId || state.profile?.collaborator_id;
     if (!userId) return [];
 
+    const LOG_SELECT = `
+        id, action_type, details, created_at, item_ref, space_ref, order_ref, actor_user_ref,
+        actor:actor_user_ref ( full_name, avatar_url, email ),
+        item:item_ref ( title, item_type ),
+        order:order_ref ( title ),
+        space:space_ref ( name )
+    `;
+
     try {
-        // 0. Get user's departments (tags)
-        const myTags = (state.profile?.tags || []);
-        
-        // 1. Get Orders where user is PM or Account (pm_space_assignees)
-        const { data: spaceManaged } = await supabase
-            .from('pm_space_assignees')
-            .select(`pm_spaces!inner ( ref_ordine )`)
-            .or(`user_ref.eq.${userId},collaborator_ref.eq.${collaboratorId}`);
-        
-        const managedOrderIds = (spaceManaged || [])
-            .map(sa => sa.pm_spaces?.ref_ordine)
-            .filter(Boolean);
+        // ─── Step 1: Resolve all entities that concern the user (in parallel) ───
+        const collabFilter = collaboratorId
+            ? `user_ref.eq.${userId},collaborator_ref.eq.${collaboratorId}`
+            : `user_ref.eq.${userId}`;
 
-        // 2. Get Orders where user is currently assigned to items
-        const { data: itemAssigned } = await supabase
-            .from('pm_item_assignees')
-            .select(`pm_items!inner ( space_ref!inner ( ref_ordine ) )`)
-            .or(`user_ref.eq.${userId},collaborator_ref.eq.${collaboratorId}`);
+        const [spaceAssignRes, itemAssignRes, appointParticRes] = await Promise.all([
+            // Spaces where I'm PM / assignee
+            supabase.from('pm_space_assignees')
+                .select('pm_spaces!inner ( id, ref_ordine )')
+                .or(collabFilter),
 
-        const assignedOrderIds = (itemAssigned || [])
-            .map(ia => ia.pm_items?.space_ref?.ref_ordine)
-            .filter(Boolean);
+            // Items where I'm assigned
+            supabase.from('pm_item_assignees')
+                .select('pm_items!inner ( id, space_ref )')
+                .or(collabFilter),
 
-        // 3. Get Items belonging to the user's department
-        let departmentItemIds = [];
-        if (myTags.length > 0) {
-            const { data: deptItems } = await supabase
-                .from('pm_items')
-                .select('id')
-                .in('department', myTags)
-                .limit(200);
-            departmentItemIds = (deptItems || []).map(i => i.id);
-        }
-
-        // 4. Combined related lists
-        const relatedOrderIds = [...new Set([...managedOrderIds, ...assignedOrderIds])];
-
-        // 5. Fetch Logs Sets
-        const [myLogsResp, relatedLogsResp, deptLogsResp] = await Promise.all([
-            // My direct actions
-            supabase.from('pm_activity_logs').select(`
-                id, action_type, details, created_at, item_ref, space_ref, order_ref, actor_user_ref,
-                actor:actor_user_ref ( full_name, avatar_url, email ),
-                item:item_ref ( title, item_type ),
-                order:order_ref ( title ),
-                space:space_ref ( name )
-            `).eq('actor_user_ref', userId).order('created_at', { ascending: false }).limit(limit),
-
-            // Actions on related orders
-            relatedOrderIds.length > 0 
-              ? supabase.from('pm_activity_logs').select(`
-                    id, action_type, details, created_at, item_ref, space_ref, order_ref, actor_user_ref,
-                    actor:actor_user_ref ( full_name, avatar_url, email ),
-                    item:item_ref ( title, item_type ),
-                    order:order_ref ( title ),
-                    space:space_ref ( name )
-                `).in('order_ref', relatedOrderIds).order('created_at', { ascending: false }).limit(limit)
-              : Promise.resolve({ data: [] }),
-
-            // Actions in my department
-            departmentItemIds.length > 0
-              ? supabase.from('pm_activity_logs').select(`
-                    id, action_type, details, created_at, item_ref, space_ref, order_ref, actor_user_ref,
-                    actor:actor_user_ref ( full_name, avatar_url, email ),
-                    item:item_ref ( title, item_type ),
-                    order:order_ref ( title ),
-                    space:space_ref ( name )
-                `).in('item_ref', departmentItemIds).order('created_at', { ascending: false }).limit(limit)
-              : Promise.resolve({ data: [] })
+            // Appointments where I'm a participant
+            collaboratorId
+                ? supabase.from('appointment_internal_participants')
+                    .select('appointment_id, appointments!inner ( pm_space_id, order_id )')
+                    .eq('collaborator_id', collaboratorId)
+                : Promise.resolve({ data: [] })
         ]);
 
-        const combined = [
-            ...(myLogsResp.data || []), 
-            ...(relatedLogsResp.data || []),
-            ...(deptLogsResp.data || [])
-        ];
-        
-        // De-duplicate by ID and sort
-        const map = new Map();
-        combined.forEach(l => map.set(l.id, l));
-        
-        const sorted = Array.from(map.values())
-            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-            .slice(0, limit);
+        // ─── Step 2: Collect unique IDs across all dimensions ───
+        const mySpaceIds = new Set();
+        const myOrderIds = new Set();
+        const myItemIds = new Set();
 
-        // Map authors for UI
-        return sorted.map(log => {
+        (spaceAssignRes.data || []).forEach(sa => {
+            if (sa.pm_spaces?.id) mySpaceIds.add(sa.pm_spaces.id);
+            if (sa.pm_spaces?.ref_ordine) myOrderIds.add(sa.pm_spaces.ref_ordine);
+        });
+
+        (itemAssignRes.data || []).forEach(ia => {
+            if (ia.pm_items?.id) myItemIds.add(ia.pm_items.id);
+            if (ia.pm_items?.space_ref) mySpaceIds.add(ia.pm_items.space_ref);
+        });
+
+        (appointParticRes.data || []).forEach(ap => {
+            if (ap.appointments?.pm_space_id) mySpaceIds.add(ap.appointments.pm_space_id);
+            if (ap.appointments?.order_id) myOrderIds.add(ap.appointments.order_id);
+        });
+
+        // Also resolve orders from spaces (so space-level logs also match)
+        const spaceArr = [...mySpaceIds].filter(Boolean);
+        const orderArr = [...myOrderIds].filter(Boolean);
+        const itemArr = [...myItemIds].filter(Boolean);
+
+        // ─── Step 3: Build OR filter and fetch logs in a single query ───
+        const orParts = [];
+        if (orderArr.length > 0) orParts.push(`order_ref.in.(${orderArr.join(',')})`);
+        if (spaceArr.length > 0) orParts.push(`space_ref.in.(${spaceArr.join(',')})`);
+        if (itemArr.length > 0) orParts.push(`item_ref.in.(${itemArr.join(',')})`);
+        // Always include my own actions as fallback
+        orParts.push(`actor_user_ref.eq.${userId}`);
+
+        const { data: logs, error } = await supabase
+            .from('pm_activity_logs')
+            .select(LOG_SELECT)
+            .or(orParts.join(','))
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error) throw error;
+
+        // ─── Step 4: Map authors for UI ───
+        return (logs || []).map(log => {
             let authorName = 'Sistema';
             let avatarUrl = 'https://ui-avatars.com/api/?name=Sistema&background=random';
             if (log.actor) {
@@ -1536,7 +1525,7 @@ export async function fetchSmartPersonalFeed(limit = 50, overrideUserId = null, 
         });
 
     } catch (error) {
-        console.error("Error fetching smart activity feed:", error);
+        console.error("[SmartFeed] Error fetching personal activity feed:", error);
         return [];
     }
 }

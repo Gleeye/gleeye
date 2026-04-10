@@ -3,8 +3,8 @@ import { supabase } from '../modules/config.js';
 import { formatAmount, renderAvatar } from '../modules/utils.js?v=2000';
 
 import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment, fetchGoogleCalendarBusy } from '../modules/api.js';
-import { fetchAppointment, updatePMItem, fetchSmartPersonalFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=6000';
-import { humanizeActivity } from '../modules/pm_activity_helper.js?v=6000';
+import { fetchAppointment, updatePMItem, fetchSmartPersonalFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=7002';
+import { humanizeActivity } from '../modules/pm_activity_helper.js?v=7002';
 import { openHubDrawer } from './pm/components/hub_drawer.js?v=6000';
 import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=6000';
 
@@ -4536,8 +4536,8 @@ function renderActivityFeed(container, activities) {
                         </div>
                         <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
                             <div style="font-size: 0.82rem; color: inherit; line-height: 1.4; font-weight: 400;">
-                                <span style="font-weight: 700; color: #0f172a;">${human.actorName}</span> 
-                                <span style="color: #64748b;">${human.formattedDesc}</span>
+                                <span style="font-weight: 700; color: var(--text-primary, #0f172a);">${human.actorName}</span>
+                                <span style="color: var(--text-secondary, #64748b);">${human.formattedDesc}</span>
                             </div>
                             <div style="font-size: 0.65rem; color: #94a3b8; margin-top: 4px; display: flex; align-items: center; gap: 5px; font-weight: 500;">
                                 <span class="material-icons-round" style="font-size: 0.8rem; color: #cbd5e1;">schedule</span>

@@ -3,8 +3,8 @@ import { supabase } from '../modules/config.js';
 import { formatAmount, renderAvatar } from '../modules/utils.js?v=2000';
 
 import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment, fetchGoogleCalendarBusy } from '../modules/api.js';
-import { fetchAppointment, updatePMItem, fetchMyActivityFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=6000';
-import { humanizeActivity } from '../modules/pm_activity_helper.js?v=6000';
+import { fetchAppointment, updatePMItem, fetchMyActivityFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=7002';
+import { humanizeActivity } from '../modules/pm_activity_helper.js?v=7002';
 import { openHubDrawer } from './pm/components/hub_drawer.js?v=6000';
 import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=6000';
 

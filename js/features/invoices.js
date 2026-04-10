@@ -470,13 +470,19 @@ export function initInvoiceModals() {
                             </div>
                         </div>
 
-                        <!-- Row 5: Ordini (filtrati per cliente) -->
+                        <!-- Row 5: Ordini (multi-selezione tramite aggiunta) -->
                         <div>
                             <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Ordini Collegati</label>
-                            <select id="inv-order" class="modal-input" style="width: 100%;">
-                                <option value="">Seleziona prima un cliente</option>
-                            </select>
-                            <p style="margin: 0.4rem 0 0; font-size: 0.65rem; color: var(--text-tertiary);">Filtrato per cliente selezionato</p>
+                            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+                                <select id="inv-order" class="modal-input" style="flex: 1;">
+                                    <option value="">Seleziona ordine da aggiungere...</option>
+                                </select>
+                                <button type="button" id="btn-add-order" class="primary-btn small" style="padding: 0 0.75rem;">Aggiungi</button>
+                            </div>
+                            <div id="inv-selected-orders-list" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <!-- Badges here -->
+                            </div>
+                            <p style="margin: 0.4rem 0 0; font-size: 0.65rem; color: var(--text-tertiary);">Puoi associare più ordini alla stessa fattura</p>
                         </div>
 
                         <!-- Row 6: Stato + Data Saldo -->
@@ -727,8 +733,14 @@ export function initInvoiceModals() {
         });
 
         // Cascading: Ordine → Pagamenti
-        document.getElementById('inv-order')?.addEventListener('change', (e) => {
-            updatePaymentsForOrder(e.target.value);
+        document.getElementById('btn-add-order')?.addEventListener('click', () => {
+            const select = document.getElementById('inv-order');
+            const orderId = select.value;
+            if (orderId && !state.selectedOrderIds.includes(orderId)) {
+                state.selectedOrderIds.push(orderId);
+                renderSelectedOrders();
+                select.value = '';
+            }
         });
 
         // ========== PASSIVE INVOICE MODAL LISTENERS ==========
@@ -842,34 +854,67 @@ function updateOrdersDropdown(clientId) {
     if (paymentsContainer) paymentsContainer.style.display = orders.length > 0 ? 'block' : 'none';
 }
 
-function updatePaymentsForOrder(orderId) {
-    const list = document.getElementById('inv-payments-list');
+function renderSelectedOrders() {
+    const list = document.getElementById('inv-selected-orders-list');
     if (!list) return;
 
-    if (!orderId) {
-        list.innerHTML = '<p style="color: var(--text-tertiary); font-size: 0.8rem; text-align: center;">Seleziona un ordine per vedere i pagamenti</p>';
+    if (!state.selectedOrderIds || state.selectedOrderIds.length === 0) {
+        list.innerHTML = '<span style="font-size: 0.75rem; color: var(--text-tertiary); font-style: italic;">Nessun ordine selezionato</span>';
+        updatePaymentsForOrders([]);
         return;
     }
 
+    list.innerHTML = state.selectedOrderIds.map(id => {
+        const order = state.orders.find(o => o.id === id);
+        return `
+            <div class="status-badge" style="background: rgba(59, 130, 246, 0.1); color: var(--brand-blue); border: 1px solid rgba(59, 130, 246, 0.2); display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.6rem;">
+                <span style="font-size: 0.75rem; font-weight: 600;">${order?.order_number || order?.title || 'Ordine'}</span>
+                <span class="material-icons-round" onclick="removeSelectedOrder('${id}')" style="font-size: 1rem; cursor: pointer; opacity: 0.6;">close</span>
+            </div>
+        `;
+    }).join('');
+
+    updatePaymentsForOrders(state.selectedOrderIds);
+
+    // Global helper for the close button
+    window.removeSelectedOrder = (id) => {
+        state.selectedOrderIds = state.selectedOrderIds.filter(oid => oid !== id);
+        renderSelectedOrders();
+    };
+}
+
+function updatePaymentsForOrders(orderIds) {
+    const list = document.getElementById('inv-payments-list');
+    if (!list) return;
+
+    if (!orderIds || orderIds.length === 0) {
+        list.innerHTML = '<p style="color: var(--text-tertiary); font-size: 0.8rem; text-align: center;">Seleziona almeno un ordine per vedere i pagamenti</p>';
+        document.getElementById('inv-payments-container').style.display = 'none';
+        return;
+    }
+
+    document.getElementById('inv-payments-container').style.display = 'block';
+
     const payments = (state.payments || []).filter(p =>
-        p.order_id === orderId &&
+        orderIds.includes(p.order_id) &&
         p.payment_type === 'Cliente' &&
         (!p.invoice_id || p.invoice_id === state.currentInvoiceId)
     );
 
     if (payments.length === 0) {
-        list.innerHTML = '<p style="color: var(--text-tertiary); font-size: 0.8rem; text-align: center;">Nessun pagamento da associare</p>';
+        list.innerHTML = '<p style="color: var(--text-tertiary); font-size: 0.8rem; text-align: center;">Nessun pagamento da associare per gli ordini selezionati</p>';
         return;
     }
 
     list.innerHTML = payments.map(p => {
         const isChecked = p.invoice_id === state.currentInvoiceId ? 'checked' : '';
+        const order = state.orders.find(o => o.id === p.order_id);
         return `
             <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: white; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer;">
                 <input type="checkbox" class="inv-payment-check" value="${p.id}" ${isChecked} style="width: 16px; height: 16px;">
                 <div style="flex: 1;">
                     <div style="font-size: 0.85rem; font-weight: 600;">${p.title || 'Pagamento'}</div>
-                    <div style="font-size: 0.7rem; color: var(--text-tertiary);">${p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT') : 'Senza scadenza'}</div>
+                    <div style="font-size: 0.65rem; color: var(--text-tertiary);">${order?.order_number || ''} • ${p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT') : 'Senza scadenza'}</div>
                 </div>
                 <div style="font-weight: 700; color: var(--brand-blue);">€ ${formatAmount(p.amount)}</div>
             </label>
@@ -893,6 +938,8 @@ export function openInvoiceForm(id = null) {
     document.getElementById('inv-payments-container').style.display = 'none';
     document.getElementById('inv-order').innerHTML = '<option value="">Seleziona prima un cliente</option>';
     document.getElementById('inv-payments-list').innerHTML = '<p style="color: var(--text-tertiary); font-size: 0.8rem; text-align: center;">Seleziona un ordine per vedere i pagamenti</p>';
+    state.selectedOrderIds = [];
+    renderSelectedOrders();
 
     if (id) {
         document.getElementById('invoice-modal-title').textContent = 'Modifica Fattura';
@@ -908,10 +955,15 @@ export function openInvoiceForm(id = null) {
             // Trigger cascading
             if (inv.client_id) {
                 updateOrdersDropdown(inv.client_id);
-                if (inv.order_id) {
-                    document.getElementById('inv-order').value = inv.order_id;
-                    updatePaymentsForOrder(inv.order_id);
+                
+                // Initialize selectedOrderIds
+                state.selectedOrderIds = [];
+                if (inv.linked_orders && Array.isArray(inv.linked_orders)) {
+                    state.selectedOrderIds = [...inv.linked_orders];
+                } else if (inv.order_id) {
+                    state.selectedOrderIds = [inv.order_id];
                 }
+                renderSelectedOrders();
             }
 
             // Spese anticipate
@@ -973,7 +1025,8 @@ export async function handleSaveInvoice(e) {
         status: status,
         payment_date: status === 'Saldata' ? document.getElementById('inv-payment-date').value : null,
         client_id: clientId || null,
-        order_id: orderId || null,
+        order_id: state.selectedOrderIds.length > 0 ? state.selectedOrderIds[0] : null,
+        linked_orders: state.selectedOrderIds
     };
 
     try {

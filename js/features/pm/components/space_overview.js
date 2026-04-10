@@ -1,6 +1,7 @@
 import { fetchAppointments, fetchPMActivityLogs, fetchSpaceComments } from '../../../modules/pm_api.js?v=1000';
 import { state } from '../../../modules/state.js';
 import { renderAvatar } from '../../../modules/utils.js?v=1000';
+import { humanizeActivity } from '../../../modules/pm_activity_helper.js?v=7002';
 
 export async function renderSpaceOverview(container, spaceId, items, space) {
     container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:300px;"><span class="loader"></span></div>';
@@ -180,18 +181,19 @@ export async function renderSpaceOverview(container, spaceId, items, space) {
                         <span class="material-icons-round" style="cursor:pointer;" onclick="document.querySelector('.tab-btn[data-view=activity_log]').click()">arrow_forward</span>
                     </div>
                     <div style="display:flex; flex-direction: column; gap: 1rem;">
-                        ${logs.length === 0 ? `<div class="dash-empty">Nessuna attività registrata</div>` : logs.slice(0, 5).map(l => `
+                        ${logs.length === 0 ? `<div class="dash-empty">Nessuna attività registrata</div>` : logs.slice(0, 5).map(l => {
+                            const human = humanizeActivity(l);
+                            return `
                             <div class="feed-item">
                                 ${renderAvatar(l.actor || { full_name: 'S' }, { size: 32, borderRadius: '50%' })}
                                 <div style="flex: 1; min-width: 0;">
-                                    <div style="font-size: 0.8rem; color: var(--text-primary); line-height: 1.3;">
-                                        <strong>${l.authorName}</strong> ${l.action_type.replace(/_/g, ' ')} 
-                                        <strong>${l.item?.title || l.space?.name || ''}</strong>
+                                    <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.3;">
+                                        <strong style="color:var(--text-primary);">${human.actorName}</strong> ${human.formattedDesc}
                                     </div>
                                     <div style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 4px;">${new Date(l.created_at).toLocaleString('it-IT')}</div>
                                 </div>
                             </div>
-                        `).join('')}
+                        `}).join('')}
                     </div>
                 </div>
 
