@@ -1877,6 +1877,12 @@ export async function openInvoiceDetail(id, type) {
         entityName = invoice.collaborators?.full_name || 'Collaboratore Sconosciuto';
         entityIcon.textContent = 'person';
         entityIcon.style.color = '#8b5cf6';
+    } else if (type === 'passive-partner-wl') {
+        badge.textContent = "FATTURA PARTNER WL";
+        badge.className = "badge badge-neutral";
+        entityName = invoice.collaborators?.full_name || 'Partner Sconosciuto';
+        entityIcon.textContent = 'person';
+        entityIcon.style.color = 'var(--brand-blue)';
     } else { // supplier
         badge.textContent = "FATTURA FORNITORE";
         badge.className = "badge badge-warning";
