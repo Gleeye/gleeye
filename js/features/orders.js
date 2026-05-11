@@ -18,6 +18,13 @@ import {
     renderOrderPaymentConfigEdit,
 } from './orders/payment_config.js?v=8000';
 
+// Order modals (extracted). Importing installs window.editOrder/editOrderEconomics handlers.
+import { initOrderEconomicsModal } from './orders/economics_modal.js?v=8000';
+import { initOrderModal } from './orders/order_modal.js?v=8000';
+
+// Quick status actions: window.deleteOrder, updateOrderOfferStatusQuick, updateOrderStatusQuick.
+import './orders/status_actions.js?v=8000';
+
 
 function getStatusColor(status) {
     const s = status?.toLowerCase() || '';
@@ -1183,68 +1190,7 @@ export function renderManualPaymentModal() {
     });
 }
 
-window.editOrderEconomics = function (orderId) {
-    const order = state.orders.find(o => o.id === orderId);
-    if (!order) return;
-    state.currentOrderId = orderId;
-    const modal = document.getElementById('economics-modal');
-    document.getElementById('eco-price').value = order.price_final || 0;
-    document.getElementById('eco-cost').value = order.cost_final || 0;
-    modal.classList.add('active');
-};
-
-export function initOrderEconomicsModal() {
-    const existing = document.getElementById('economics-modal');
-    if (existing) return;
-    document.body.insertAdjacentHTML('beforeend', `
-        <div id="economics-modal" class="modal">
-            <div class="modal-content" style="max-width: 450px; padding: 2rem;">
-                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem;">
-                    <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(16, 185, 129, 0.1); display: flex; align-items: center; justify-content: center;">
-                        <span class="material-icons-round" style="color: #10b981;">account_balance_wallet</span>
-                    </div>
-                    <h2 style="margin: 0; font-family: var(--font-titles); font-weight: 700;">Dati Economici</h2>
-                </div>
-
-                <div style="display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2rem;">
-                    <div>
-                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">Prezzo Finale (€)</label>
-                        <div style="position: relative;">
-                            <span class="material-icons-round" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); font-size: 1.2rem; color: #10b981;">trending_up</span>
-                            <input type="number" id="eco-price" class="modal-input" style="width: 100%; padding-left: 3rem;" placeholder="0.00">
-                        </div>
-                        <p style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 0.4rem;">Il prezzo definitivo concordato con il cliente.</p>
-                    </div>
-
-                    <div>
-                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">Costo Finale (€)</label>
-                        <div style="position: relative;">
-                            <span class="material-icons-round" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); font-size: 1.2rem; color: #ef4444;">trending_down</span>
-                            <input type="number" id="eco-cost" class="modal-input" style="width: 100%; padding-left: 3rem;" placeholder="0.00">
-                        </div>
-                        <p style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 0.4rem;">Il costo totale effettivo sostenuto per la commessa.</p>
-                    </div>
-                </div>
-
-                <div class="flex-end" style="gap: 1rem;">
-                    <button class="primary-btn secondary" onclick="document.getElementById('economics-modal').classList.remove('active')">Annulla</button>
-                    <button class="primary-btn" id="btn-save-economics">Salva Modifiche</button>
-                </div>
-            </div>
-        </div>
-    `);
-
-    document.getElementById('btn-save-economics').addEventListener('click', async () => {
-        const orderId = state.currentOrderId;
-        try {
-            await updateOrderEconomics(orderId, { price_final: parseFloat(document.getElementById('eco-price').value), cost_final: parseFloat(document.getElementById('eco-cost').value) });
-            showGlobalAlert('Aggiornato');
-            document.getElementById('economics-modal').classList.remove('active');
-            renderOrderDetail(document.getElementById('content-area'), orderId);
-            await fetchOrders();
-        } catch (e) { showGlobalAlert('Errore', 'error'); }
-    });
-}
+// editOrderEconomics + initOrderEconomicsModal extracted to ./orders/economics_modal.js
 
 export function initOrderPeopleModals() {
     if (!document.getElementById('add-account-modal')) {
@@ -1456,105 +1402,7 @@ window.removeOrderContact = async (oid, cid) => {
 
 
 
-window.editOrder = (orderId) => {
-    const order = state.orders.find(o => o.id === orderId);
-    if (!order) return;
-    state.currentOrderId = orderId;
-    const modal = document.getElementById('order-modal');
-    if (!modal) return;
-
-    document.getElementById('ord-title').value = order.title || '';
-    document.getElementById('ord-number').value = order.order_number || '';
-    document.getElementById('ord-date').value = order.order_date ? new Date(order.order_date).toISOString().split('T')[0] : '';
-    document.getElementById('ord-status').value = order.status_works || 'in_svolgimento';
-    document.getElementById('ord-offer-status').value = order.offer_status || 'in_lavorazione';
-
-    modal.classList.add('active');
-};
-
-export function initOrderModal() {
-    const existing = document.getElementById('order-modal');
-    if (existing) return;
-
-    document.body.insertAdjacentHTML('beforeend', `
-        <div id="order-modal" class="modal">
-            <div class="modal-content" style="max-width: 550px; padding: 2rem;">
-                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem;">
-                    <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(59, 130, 246, 0.1); display: flex; align-items: center; justify-content: center;">
-                        <span class="material-icons-round" style="color: var(--brand-blue);">edit_note</span>
-                    </div>
-                    <h2 style="margin: 0; font-family: var(--font-titles); font-weight: 700;">Modifica Ordine</h2>
-                </div>
-
-                <div style="display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 2rem;">
-                    <div>
-                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase;">Titolo Commessa</label>
-                        <input type="text" id="ord-title" class="modal-input" style="width: 100%;" placeholder="Es: Logo Design Rebranding">
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <div>
-                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase;">N. Ordine</label>
-                            <input type="text" id="ord-number" class="modal-input" style="width: 100%;">
-                        </div>
-                        <div>
-                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase;">Data Ordine</label>
-                            <input type="date" id="ord-date" class="modal-input" style="width: 100%;">
-                        </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <div>
-                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase;">Stato Offerta</label>
-                            <select id="ord-offer-status" class="modal-input" style="width: 100%;">
-                                <option value="in_lavorazione">In Lavorazione</option>
-                                <option value="invio_programmato">Invio Programmato</option>
-                                <option value="inviata">Inviata</option>
-                                <option value="accettata">Offerta Accettata</option>
-                                <option value="rifiutata">Offerta Rifiutata</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase;">Stato Lavori</label>
-                            <select id="ord-status" class="modal-input" style="width: 100%;">
-                                <option value="in_svolgimento">In Svolgimento</option>
-                                <option value="da_iniziare">In Attesa</option>
-                                <option value="completato">Completato</option>
-                                <option value="annullato">Annullato</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex-end" style="gap: 1rem;">
-                    <button class="primary-btn secondary" onclick="document.getElementById('order-modal').classList.remove('active')">Annulla</button>
-                    <button class="primary-btn" id="btn-save-order">Aggiorna Ordine</button>
-                </div>
-            </div>
-        </div>
-    `);
-
-    document.getElementById('btn-save-order').addEventListener('click', async () => {
-        const orderId = state.currentOrderId;
-        const updates = {
-            title: document.getElementById('ord-title').value,
-            order_number: document.getElementById('ord-number').value,
-            order_date: document.getElementById('ord-date').value,
-            offer_status: document.getElementById('ord-offer-status').value,
-            status_works: document.getElementById('ord-status').value
-        };
-
-        try {
-            await updateOrder(orderId, updates);
-            showGlobalAlert('Ordine aggiornato con successo');
-            document.getElementById('order-modal').classList.remove('active');
-            await fetchOrders();
-            renderOrderDetail(document.getElementById('content-area'), orderId);
-        } catch (e) {
-            showGlobalAlert('Errore durante l\'aggiornamento', 'error');
-        }
-    });
-}
+// editOrder + initOrderModal extracted to ./orders/order_modal.js
 
 export function initOrderAssignmentModal() {
     // Force remove existing modal to ensure latest HTML/JS functionality is applied
@@ -2277,40 +2125,7 @@ window.saveAssignmentMultiStep = async () => {
 
 window.saveAssignment = window.saveAssignmentMultiStep;
 
-window.deleteOrder = async (id) => {
-    const confirm = await showConfirm("Sei sicuro di voler eliminare questo ordine? L'operazione non può essere annullata.", "Elimina Ordine");
-    if (!confirm) return;
-
-    try {
-        await deleteOrder(id);
-        showGlobalAlert("Ordine eliminato con successo");
-        window.location.hash = "orders";
-    } catch (e) {
-        showGlobalAlert("Errore durante l'eliminazione: " + e.message, "error");
-    }
-};
-
-window.updateOrderOfferStatusQuick = async (id, newStatus) => {
-    try {
-        await updateOrder(id, { offer_status: newStatus });
-        showGlobalAlert("Stato offerta aggiornato");
-        renderOrderDetail(document.getElementById('content-area'), id);
-    } catch (e) {
-        showGlobalAlert("Errore aggiornamento: " + e.message, "error");
-    }
-};
-
-window.updateOrderStatusQuick = async (id, newStatus) => {
-    try {
-        await updateOrder(id, { status_works: newStatus });
-        showGlobalAlert("Stato aggiornato");
-        // Re-render to update UI (specifically the badge color/text if needed, 
-        // though the select itself stays in place)
-        renderOrderDetail(document.getElementById('content-area'), id);
-    } catch (e) {
-        showGlobalAlert("Errore aggiornamento stato: " + e.message, "error");
-    }
-};
+// deleteOrder + updateOrderOfferStatusQuick + updateOrderStatusQuick extracted to ./orders/status_actions.js
 
 // ────────────────────────────────────────────────────────
 // New Order Modal
