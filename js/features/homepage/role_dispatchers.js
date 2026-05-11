@@ -521,7 +521,7 @@ export async function renderMainContent_Collaboratore(container, data) {
     renderInternalDashboard(hubs, clusters);
     
     // Fetch Appointments for Collaborator (Using relative path)
-    const { fetchCollaboratorAppointments } = await import('../modules/pm_api.js?v=8000');
+    const { fetchCollaboratorAppointments } = await import('../../modules/pm_api.js?v=8000');
     const events = await fetchCollaboratorAppointments(myActualCollabId) || [];
     
     if (assignments && assignments.length > 0) {

@@ -753,7 +753,7 @@ export async function fetchCollaboratorPayments(collaboratorId) {
 
 export async function fetchInternalHubsAndClusters(collaboratorId, userId, isPrivileged = false, isPartnerStrict = false) {
     try {
-        const { fetchInternalSpaces } = await import('../modules/pm_api.js?v=8000');
+        const { fetchInternalSpaces } = await import('../../modules/pm_api.js?v=8000');
         const COMPANY_AREAS = [
             { id: 'amministrazione', label: 'Amministrazione', color: '#6366f1', icon: 'account_balance' },
             { id: 'marketing', label: 'Marketing', color: '#f59e0b', icon: 'campaign' },
