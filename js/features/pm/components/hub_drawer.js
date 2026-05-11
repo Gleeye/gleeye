@@ -23,21 +23,7 @@ import { CloudLinksManager } from '../../components/CloudLinksManager.js?v=8000'
 import { state } from '../../../modules/state.js?v=8000';
 import { renderUserPicker } from './picker_utils.js?v=8000';
 import { renderAvatar, renderModal, closeModal } from '../../../modules/utils.js?v=8000';
-
-const ITEM_STATUS = {
-    'todo': { label: 'Da Fare', color: '#94a3b8', bg: '#f1f5f9' },
-    'in_progress': { label: 'In Corso', color: '#3b82f6', bg: '#eff6ff' },
-    'blocked': { label: 'Bloccato', color: '#ef4444', bg: '#fef2f2' },
-    'review': { label: 'Revisione', color: '#f59e0b', bg: '#fffbeb' },
-    'done': { label: 'Completata', color: '#10b981', bg: '#ecfdf5' }
-};
-
-const ITEM_PRIORITY = {
-    'low': { label: 'Bassa', color: '#64748b' },
-    'medium': { label: 'Media', color: '#3b82f6' },
-    'high': { label: 'Alta', color: '#f59e0b' },
-    'urgent': { label: 'Urgente', color: '#ef4444' }
-};
+import { ITEM_STATUS, ITEM_PRIORITY } from './hub/constants.js?v=8000';
 
 export async function openHubDrawer(itemId, spaceId, parentId = null, itemType = 'task', options = {}) {
     let overlay = document.getElementById('hub-drawer-overlay');
