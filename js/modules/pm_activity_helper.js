@@ -73,60 +73,35 @@ export const activityTranslate = (val) => {
 };
 
 /**
- * Normalizes action_type from old/new formats to canonical form.
- * Covers: old uppercase (INSERT/UPDATE/DELETE), old generic lowercase (created/updated/deleted),
- * and legacy format variations.
+ * Normalizes action_type to canonical form.
+ *
+ * Lo storico dei log è stato consolidato con la migration
+ * `normalize_activity_log_action_types` (12 maggio 2026): tutti gli action_type
+ * legacy in DB sono già stati riscritti ai canonici. Questa mappa serve solo
+ * come safety-net se il trigger SQL produce ancora formati grezzi (es. dopo
+ * un import/script di backfill).
+ *
+ * Se vedi un action_type non riconosciuto qui, è normale: il fallback nel
+ * `humanizeActivity()` produce comunque una frase sensata leggendo
+ * `metadata.col`. Aggiungere un alias qui solo se la frase fallback è povera.
  */
 const ACTION_TYPE_ALIASES = {
-    // Old uppercase from legacy triggers
+    // Trigger grezzi (mai dovrebbero arrivare in feed, ma copertura difensiva)
     'INSERT': 'new_item',
     'UPDATE': 'item_updated',
     'DELETE': 'item_deleted',
-    // Old lowercase generic (from COALESCE fallback in trigger)
     'created': 'new_item',
     'updated': 'item_updated',
     'deleted': 'item_deleted',
-    // Legacy format variations
-    'status_changed': 'task_updated:status',
-    'pm_items:update:status': 'task_updated:status',
-    'pm_items:created': 'new_task',
-    'pm_item_assignees:created': 'new_assignment',
-    'pm_item_assignees:deleted': 'assignment_removed',
-    'doc_pages:created': 'new_document',
-    // Very old legacy formats (pre-registry)
-    'status_changed': 'task_updated:status',
-    'updated_status': 'item_updated:status',
-    'assignee_added': 'new_assignment',
-    'comment_added': 'commento',
-    'item_created': 'new_task',
-    'workspace_created': 'new_space',
-    // Old formatted types from intermediate triggers
-    'assignments:created': 'new_incarico',
-    'assignments:updated:status': 'incarico_updated:status',
-    'appointments:created': 'appointment_created',
-    'orders:update:offer_status': 'order_updated:offer_status',
-    'orders:update:status_works': 'order_updated:status_works',
-    // Already canonical — no-ops
-    'new_task': 'new_task',
-    'new_assignment': 'new_assignment',
-    'commento': 'commento',
-    'new_payment': 'new_payment',
-    'new_bank_transaction': 'new_bank_transaction',
-    'new_client': 'new_client',
-    'new_collaborator': 'new_collaborator',
-    'new_invoice': 'new_invoice',
-    'new_passive_invoice': 'new_passive_invoice',
-    'document_created': 'document_created',
-    'appointment_created': 'appointment_created',
-    'appointment_participant_added': 'appointment_participant_added',
-    'new_space': 'new_space',
-    'new_incarico': 'new_incarico',
-    'new_resource': 'new_resource',
-    'resource_removed': 'resource_removed',
-    'assignment_removed': 'assignment_removed',
 };
 
 const normalizeActionType = (type) => ACTION_TYPE_ALIASES[type] || type;
+
+// Log "orfani" del passato (action_type='legacy_orphan' dopo la migration di
+// pulizia): non hanno contesto recuperabile (no item_ref/space_ref/order_ref,
+// no metadata). Li mostriamo con una stringa neutra invece di nasconderli del
+// tutto, così l'audit storico resta consultabile.
+const LEGACY_ORPHAN = 'legacy_orphan';
 
 /**
  * Column-name to human-readable label map for update descriptions.
@@ -184,8 +159,23 @@ function resolveEntityName(log, details) {
  */
 export function humanizeActivity(log, context = {}) {
     const details = log.details || log.metadata || {};
-    const rawAction = (log.action_type || '').toLowerCase();
-    const actionType = normalizeActionType(rawAction);
+    const rawAction = log.action_type || '';
+    const actionType = normalizeActionType(rawAction.toLowerCase());
+
+    // Legacy orphan: log storici senza contesto recuperabile (no ref, no metadata).
+    // Restituiamo una frase neutra senza tentare di costruire una narrazione.
+    if (rawAction === LEGACY_ORPHAN) {
+        const actorName = log.actor?.full_name || (log.actor_user_ref ? 'Utente' : 'Sistema');
+        return {
+            actorName,
+            formattedDesc: 'ha registrato un\'attività di sistema',
+            description: 'ha registrato un\'attività di sistema',
+            containerName: null,
+            entityName: null,
+            timeStr: log.created_at,
+            isLegacyOrphan: true
+        };
+    }
 
     // 1. Translate values (support old + new detail key formats)
     const oldValRaw = details.old || details.old_value || details.old_status;
