@@ -262,7 +262,7 @@ window.toggleOrderConfigEdit = (orderId, isEdit) => {
             setTimeout(() => {
                 // Initialize Custom Selects
                 const selects = container.querySelectorAll('select');
-                import('../components/CustomSelect.js?v=8000').then(({ CustomSelect }) => {
+                import('../../components/CustomSelect.js?v=8000').then(({ CustomSelect }) => {
                     selects.forEach(s => new CustomSelect(s));
                 });
 
