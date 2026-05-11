@@ -1,6 +1,6 @@
-import { state } from '../../../modules/state.js';
-import { fetchChildProjects, createProjectInCluster } from '../../../modules/pm_api.js';
-import { renderAvatar, showGlobalAlert } from '../../../modules/utils.js?v=1000';
+import { state } from '../../../modules/state.js?v=8000';
+import { fetchChildProjects, createProjectInCluster } from '../../../modules/pm_api.js?v=8000';
+import { renderAvatar, showGlobalAlert } from '../../../modules/utils.js?v=8000';
 
 export async function renderClusterProjects(container, clusterId) {
     container.innerHTML = `
@@ -73,8 +73,8 @@ export async function renderClusterProjects(container, clusterId) {
     };
 
     addBtn.addEventListener('click', async () => {
-        const { openProjectModal } = await import('./project_modal.js?v=2000');
-        const { fetchSpace } = await import('../../../modules/pm_api.js');
+        const { openProjectModal } = await import('./project_modal.js?v=8000');
+        const { fetchSpace } = await import('../../../modules/pm_api.js?v=8000');
         const cluster = await fetchSpace(clusterId);
 
         openProjectModal({
@@ -90,8 +90,8 @@ export async function renderClusterProjects(container, clusterId) {
 // Keep the export but maybe we can delete the implementation of openNewProjectModal if not needed.
 // Or just point it to the right one for backward compatibility if any.
 export async function openNewProjectModal(clusterId, onSuccess) {
-    const { openProjectModal } = await import('./project_modal.js?v=2000');
-    const { fetchSpace } = await import('../../../modules/pm_api.js');
+    const { openProjectModal } = await import('./project_modal.js?v=8000');
+    const { fetchSpace } = await import('../../../modules/pm_api.js?v=8000');
     const cluster = await fetchSpace(clusterId);
     openProjectModal({
         prefilledParentId: clusterId,

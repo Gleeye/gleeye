@@ -1,4 +1,4 @@
-import { CustomSelect } from '/js/components/CustomSelect.js?v=3000';
+import { CustomSelect } from '/js/components/CustomSelect.js?v=8000';
 
 // Global state to persist view/sort across refreshes
 const hubTreePersistentState = new Map();
@@ -446,7 +446,7 @@ function renderBoardView(container, tree, allItems, spaceId, sort, view, expande
             setTimeout(async () => {
                 const ganttArea = container.querySelector('#gantt-render-area');
                 if (ganttArea) {
-                    const { renderHubGantt } = await import('./hub_gantt.js?v=3000');
+                    const { renderHubGantt } = await import('./hub_gantt.js?v=8000');
                     renderHubGantt(ganttArea, flatList, spaceId);
                 }
             }, 0);
@@ -608,7 +608,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
         cards.forEach(card => {
             card.onclick = (e) => {
                 // If it was a real click, not a drag-end
-                import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => mod.openHubDrawer(card.dataset.id, spaceId));
+                import('/js/features/pm/components/hub_drawer.js?v=8000').then(mod => mod.openHubDrawer(card.dataset.id, spaceId));
             };
 
             card.onmousedown = () => card.style.cursor = 'grabbing';
@@ -646,7 +646,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
                         const item = items.find(i => i.id === id);
                         if (item && item.status === newStatus) return;
 
-                        const { updatePMItem } = await import('../../../modules/pm_api.js?v=1000');
+                        const { updatePMItem } = await import('../../../modules/pm_api.js?v=8000');
                         await updatePMItem(id, { status: newStatus });
                         document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId, action: 'update' } }));
                     } catch (err) {
@@ -666,7 +666,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
                 const draggedId = e.dataTransfer.getData('text/plain');
                 if (draggedId) {
                     try {
-                        const { updatePMItem } = await import('../../../modules/pm_api.js?v=2000');
+                        const { updatePMItem } = await import('../../../modules/pm_api.js?v=8000');
                         await updatePMItem(draggedId, { parent_ref: null });
                         document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId, action: 'update' } }));
                     } catch (err) { console.error(err); }
@@ -682,7 +682,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
                 if (Date.now() - lastDragTime < 150) return;
                 
                 if (!e.target.closest('.tree-toggle') && !e.target.closest('.add-child-btn')) {
-                    import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => mod.openHubDrawer(row.dataset.id, spaceId));
+                    import('/js/features/pm/components/hub_drawer.js?v=8000').then(mod => mod.openHubDrawer(row.dataset.id, spaceId));
                 }
             };
 
@@ -763,7 +763,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
                     }
 
                     try {
-                        const { updatePMItem } = await import('../../../modules/pm_api.js?v=3000');
+                        const { updatePMItem } = await import('../../../modules/pm_api.js?v=8000');
                         await updatePMItem(draggedId, { 
                             parent_ref: parentId,
                             position: targetPosition
@@ -798,7 +798,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
             it.onclick = async () => {
                 const type = it.dataset.type;
                 if (type === 'project') {
-                    const { openProjectModal } = await import('./project_modal.js?v=2000');
+                    const { openProjectModal } = await import('./project_modal.js?v=8000');
                     openProjectModal({
                         prefilledParentId: spaceId,
                         prefilledArea: space?.area,
@@ -807,7 +807,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
                         }
                     });
                 } else {
-                    import('./hub_drawer.js?v=3000').then(mod => mod.openHubDrawer(null, spaceId, btn.dataset.parent, type));
+                    import('./hub_drawer.js?v=8000').then(mod => mod.openHubDrawer(null, spaceId, btn.dataset.parent, type));
                 }
                 menu.remove();
             };

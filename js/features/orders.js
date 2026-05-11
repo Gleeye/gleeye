@@ -1,12 +1,12 @@
-import { state } from '/js/modules/state.js';
-import { supabase } from '../modules/config.js';
-import { formatAmount, showGlobalAlert, showConfirm, getInitials, getAvatarColor, renderAvatar } from '../modules/utils.js?v=1000';
-import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, fetchOrderAccounts, addOrderContact, removeOrderContact, fetchOrderContacts, updateOrderCloudLinks, generateNextOrderNumber } from '../modules/api.js';
-import { CloudLinksManager } from './components/CloudLinksManager.js?v=1000';
-import { CustomSelect } from '../components/CustomSelect.js';
-import { openPaymentModal } from './payments.js?v=1000';
-import { fetchProjectSpaceForOrder, fetchProjectItems, fetchAppointments } from '../modules/pm_api.js?v=1000';
-import { activityTranslate } from '../modules/pm_activity_helper.js';
+import { state } from '/js/modules/state.js?v=8000';
+import { supabase } from '../modules/config.js?v=8000';
+import { formatAmount, showGlobalAlert, showConfirm, getInitials, getAvatarColor, renderAvatar } from '../modules/utils.js?v=8000';
+import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, fetchOrderAccounts, addOrderContact, removeOrderContact, fetchOrderContacts, updateOrderCloudLinks, generateNextOrderNumber } from '../modules/api.js?v=8000';
+import { CloudLinksManager } from './components/CloudLinksManager.js?v=8000';
+import { CustomSelect } from '../components/CustomSelect.js?v=8000';
+import { openPaymentModal } from './payments.js?v=8000';
+import { fetchProjectSpaceForOrder, fetchProjectItems, fetchAppointments } from '../modules/pm_api.js?v=8000';
+import { activityTranslate } from '../modules/pm_activity_helper.js?v=8000';
 
 
 function getStatusColor(status) {
@@ -36,7 +36,7 @@ export async function renderOrderDetail(container, orderId) {
     if (!state.assignments) await fetchAssignments();
     if (!state.services) await fetchServices();
     if (!state.collaboratorServices || state.collaboratorServices.length === 0) {
-        const { fetchCollaboratorServices } = await import('../modules/api.js?v=1000');
+        const { fetchCollaboratorServices } = await import('../modules/api.js?v=8000');
         await fetchCollaboratorServices();
     }
 
@@ -738,7 +738,7 @@ export async function renderOrderDetail(container, orderId) {
     // Render Activity Log
     const logContainer = container.querySelector(`#order-activity-log-container-${order.id}`);
     if (logContainer) {
-        import('./pm/components/activity_log.js?v=' + Date.now()).then(mod => {
+        import('./pm/components/activity_log.js?v=8000').then(mod => {
             mod.renderActivityLog(logContainer, { orderId: order.id });
         }).catch(err => console.error("Error loading activity log module:", err));
     }
@@ -937,7 +937,7 @@ window.openOrderDocsModal = async (spaceId) => {
 
     try {
         const docsContainer = modal.querySelector('#modal-docs-container');
-        const { renderDocsView } = await import('./docs/DocsView.js?v=1000');
+        const { renderDocsView } = await import('./docs/DocsView.js?v=8000');
         await renderDocsView(docsContainer, spaceId);
     } catch (err) {
         console.error("Error loading Docs Modal:", err);
@@ -952,7 +952,7 @@ window.openAccountActivitiesModal = async (orderId, spaceId) => {
         return;
     }
 
-    const { openAccountActivitiesModal } = await import('/js/features/pm/components/AccountActivitiesModal.js?v=1000');
+    const { openAccountActivitiesModal } = await import('/js/features/pm/components/AccountActivitiesModal.js?v=8000');
     await openAccountActivitiesModal(orderId, spaceId);
 };
 
@@ -1234,7 +1234,7 @@ window.toggleOrderConfigEdit = (orderId, isEdit) => {
             setTimeout(() => {
                 // Initialize Custom Selects
                 const selects = container.querySelectorAll('select');
-                import('../components/CustomSelect.js').then(({ CustomSelect }) => {
+                import('../components/CustomSelect.js?v=8000').then(({ CustomSelect }) => {
                     selects.forEach(s => new CustomSelect(s));
                 });
 
@@ -2187,7 +2187,7 @@ window.filterAssignmentCollaborators = () => {
 
     if (!state.collaborators) {
         console.warn("Collaborators state empty, refetching...");
-        import('../modules/api.js?v=1000').then(({ fetchCollaborators }) => fetchCollaborators());
+        import('../modules/api.js?v=8000').then(({ fetchCollaborators }) => fetchCollaborators());
         // Show temp message
         list.innerHTML = '<div style="padding: 1rem; color: var(--text-tertiary);">Caricamento...</div>';
         list.style.display = 'block';
@@ -2260,7 +2260,7 @@ window.loadCollaboratorServicesForAssignment = async () => {
         document.getElementById('asg-services-list').innerHTML = '<div style="text-align: center; color: var(--text-tertiary); padding: 1rem; font-size: 0.85rem;">Nessun servizio selezionato</div>';
 
         // 1. Fetch data FIRST to ensure we have collaborator details (role/tags) for filtering
-        const { fetchServices, fetchCollaborators } = await import('../modules/api.js?v=1007');
+        const { fetchServices, fetchCollaborators } = await import('../modules/api.js?v=8000');
         if (!state.services || state.services.length === 0) await fetchServices();
         if (!state.collaborators || state.collaborators.length === 0) await fetchCollaborators();
 
@@ -2509,8 +2509,8 @@ window.saveAssignmentMultiStep = async () => {
         const order = state.orders.find(o => o.id === orderId);
 
         // Dynamic import including calculateProposedAssignmentPayments
-        const { upsertAssignment, upsertCollaboratorService, fetchCollaboratorServices, fetchAssignments, upsertPayment, fetchPayments } = await import('../modules/api.js?v=1000' + Date.now());
-        const { calculateProposedAssignmentPayments } = await import('./assignments.js?v=1000');
+        const { upsertAssignment, upsertCollaboratorService, fetchCollaboratorServices, fetchAssignments, upsertPayment, fetchPayments } = await import('../modules/api.js?v=8000');
+        const { calculateProposedAssignmentPayments } = await import('./assignments.js?v=8000');
 
         console.log("Upserting Assignment...");
         const newAssignment = await upsertAssignment({

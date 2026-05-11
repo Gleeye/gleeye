@@ -1,7 +1,7 @@
-import { fetchAppointments, fetchPMActivityLogs, fetchSpaceComments } from '../../../modules/pm_api.js?v=1000';
-import { state } from '../../../modules/state.js';
-import { renderAvatar } from '../../../modules/utils.js?v=1000';
-import { humanizeActivity } from '../../../modules/pm_activity_helper.js?v=7002';
+import { fetchAppointments, fetchPMActivityLogs, fetchSpaceComments } from '../../../modules/pm_api.js?v=8000';
+import { state } from '../../../modules/state.js?v=8000';
+import { renderAvatar } from '../../../modules/utils.js?v=8000';
+import { humanizeActivity } from '../../../modules/pm_activity_helper.js?v=8000';
 
 export async function renderSpaceOverview(container, spaceId, items, space) {
     container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:300px;"><span class="loader"></span></div>';
@@ -93,7 +93,7 @@ export async function renderSpaceOverview(container, spaceId, items, space) {
                     
                     <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                         ${urgencies.length === 0 ? `<div class="dash-empty">Nessuna scadenza imminente</div>` : urgencies.slice(0,5).map(u => `
-                            <div class="urg-item cursor-pointer" onclick="import('./hub_drawer.js?v=1000').then(m => m.openHubDrawer('${u.id}', '${spaceId}'))">
+                            <div class="urg-item cursor-pointer" onclick="import('./hub_drawer.js?v=8000').then(m => m.openHubDrawer('${u.id}', '${spaceId}'))">
                                 <div class="icon"><span class="material-icons-round">folder</span></div>
                                 <div style="flex:1; min-width:0;">
                                     <div style="font-size: 0.55rem; color: var(--text-tertiary); font-weight: 800; text-transform: uppercase;">${u.item_type || 'Task'}</div>

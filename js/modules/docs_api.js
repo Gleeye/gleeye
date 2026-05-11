@@ -1,5 +1,5 @@
-import { supabase } from './config.js';
-import { state } from '/js/modules/state.js';
+import { supabase } from './config.js?v=8000';
+import { state } from '/js/modules/state.js?v=8000';
 
 /* ==========================================================================
    DOCS API - Workspace Management

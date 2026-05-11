@@ -1,10 +1,10 @@
-import { fetchInternalSpaces, createInternalSpace, createCluster, createProjectInCluster, fetchPMActivityLogs, updateSpaceCloudLinks } from '../../modules/pm_api.js?v=1241';
-import { CloudLinksManager } from '../components/CloudLinksManager.js?v=1241';
-import { openProjectModal } from './components/project_modal.js?v=1241';
-import { supabase } from '../../modules/config.js';
-import { state } from '../../modules/state.js';
-import { renderAvatar } from '../../modules/utils.js?v=1241';
-import { humanizeActivity } from '../../modules/pm_activity_helper.js?v=7002';
+import { fetchInternalSpaces, createInternalSpace, createCluster, createProjectInCluster, fetchPMActivityLogs, updateSpaceCloudLinks } from '../../modules/pm_api.js?v=8000';
+import { CloudLinksManager } from '../components/CloudLinksManager.js?v=8000';
+import { openProjectModal } from './components/project_modal.js?v=8000';
+import { supabase } from '../../modules/config.js?v=8000';
+import { state } from '../../modules/state.js?v=8000';
+import { renderAvatar } from '../../modules/utils.js?v=8000';
+import { humanizeActivity } from '../../modules/pm_activity_helper.js?v=8000';
 
 const COMPANY_AREAS = [
     { id: 'amministrazione', label: 'Amministrazione', color: 'var(--brand-viola)', bg: 'rgba(97, 74, 162, 0.05)', icon: 'account_balance' },
@@ -349,7 +349,7 @@ export async function renderInternalProjects(container, initialFilter) {
                     }
                 });
 
-                import('./components/area_overview.js?v=' + Date.now()).then(mod => {
+                import('./components/area_overview.js?v=8000').then(mod => {
                     mod.renderAreaOverview(content, targetSpaceIds, spaceNamesMap, cloudLinks);
                 });
 
@@ -367,14 +367,14 @@ export async function renderInternalProjects(container, initialFilter) {
 
                 const dummySpace = { id: currentClusterId || 'area', name: activeArea.label, is_cluster: true, area: activeArea.id };
                 
-                import('./components/hub_tree.js?v=' + Date.now()).then(mod => {
+                import('./components/hub_tree.js?v=8000').then(mod => {
                     mod.renderHubTree(content, boardItems || [], dummySpace, currentClusterId || currentAreaId);
                 });
 
             } else if (currentTab === 'appointments') {
                 content.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:200px;"><span class="loader"></span></div>`;
                 
-                const { fetchAppointments, fetchAppointmentTypes } = await import('../../modules/pm_api.js?v=1000');
+                const { fetchAppointments, fetchAppointmentTypes } = await import('../../modules/pm_api.js?v=8000');
                 
                 // Fetch appointments for all spaces in the target list
                 const { data: appts, error: aErr } = await supabase
@@ -398,7 +398,7 @@ export async function renderInternalProjects(container, initialFilter) {
                     }
                 }));
 
-                import('./components/hub_appointments.js?v=' + Date.now()).then(mod => {
+                import('./components/hub_appointments.js?v=8000').then(mod => {
                     mod.renderHubAppointments(content, mappedAppts, types, currentClusterId || currentAreaId, 'space');
                 });
 
@@ -416,7 +416,7 @@ export async function renderInternalProjects(container, initialFilter) {
                     ${filteredLogs.length === 0 ? `<div style="padding: 3rem; text-align: center; color: var(--text-tertiary); font-style: italic;">Nessuna attività recente registrata per questo cluster.</div>` : filteredLogs.slice(0, 30).map(l => {
                         const human = humanizeActivity(l);
                         return `
-                        <div style="display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--bg-primary); animation: fadeIn 0.3s ease; cursor:pointer;" onclick="import('./components/hub_drawer.js?v=1000').then(m => m.openHubDrawer('${l.item_ref}', '${l.space_ref}'))">
+                        <div style="display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--bg-primary); animation: fadeIn 0.3s ease; cursor:pointer;" onclick="import('./components/hub_drawer.js?v=8000').then(m => m.openHubDrawer('${l.item_ref}', '${l.space_ref}'))">
                             ${renderAvatar(l.actor || { full_name: 'S' }, { size: 32, borderRadius: '50%' })}
                             <div style="flex: 1; min-width: 0;">
                                 <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
@@ -433,7 +433,7 @@ export async function renderInternalProjects(container, initialFilter) {
                 if (currentClusterId !== 'all') {
                     // Show directly for the selected cluster
                     content.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:300px;"><span class="loader"></span></div>`;
-                    const { renderDocsView } = await import('../docs/DocsView.js');
+                    const { renderDocsView } = await import('../docs/DocsView.js?v=8000');
                     await renderDocsView(content, currentClusterId);
                 } else {
                     // Area level: Show list of cluster documentations
@@ -468,7 +468,7 @@ export async function renderInternalProjects(container, initialFilter) {
                             card.onclick = async () => {
                                 const cid = card.dataset.id;
                                 content.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:300px;"><span class="loader"></span></div>`;
-                                const { renderDocsView } = await import('../docs/DocsView.js');
+                                const { renderDocsView } = await import('../docs/DocsView.js?v=8000');
                                 await renderDocsView(content, cid);
                             };
                         });

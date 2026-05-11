@@ -1,5 +1,5 @@
-import { fetchMyWorkItems } from '../../modules/pm_api.js';
-import { state } from '../../modules/state.js';
+import { fetchMyWorkItems } from '../../modules/pm_api.js?v=8000';
+import { state } from '../../modules/state.js?v=8000';
 
 export async function renderMyWork(container) {
     container.innerHTML = '<div class="loading-state"><span class="loader"></span></div>';

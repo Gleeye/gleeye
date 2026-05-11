@@ -1,4 +1,4 @@
-import { fetchActivityRegistry, toggleActivityRegistryStatus, updateActivityRegistry } from '../../modules/pm_api.js';
+import { fetchActivityRegistry, toggleActivityRegistryStatus, updateActivityRegistry } from '../../modules/pm_api.js?v=8000';
 
 export async function renderActivityRegistry(container) {
     if (!container) return;

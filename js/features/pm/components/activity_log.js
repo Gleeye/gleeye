@@ -1,8 +1,8 @@
-import { renderAvatar } from '../../../modules/utils.js?v=1241';
-import { supabase } from '../../../modules/config.js';
-import { state } from '../../../modules/state.js';
-import { fetchPMActivityLogs } from '../../../modules/pm_api.js?v=6000';
-import { humanizeActivity } from '../../../modules/pm_activity_helper.js?v=7002';
+import { renderAvatar } from '../../../modules/utils.js?v=8000';
+import { supabase } from '../../../modules/config.js?v=8000';
+import { state } from '../../../modules/state.js?v=8000';
+import { fetchPMActivityLogs } from '../../../modules/pm_api.js?v=8000';
+import { humanizeActivity } from '../../../modules/pm_activity_helper.js?v=8000';
 
 const activitySubscriptions = new Map();
 

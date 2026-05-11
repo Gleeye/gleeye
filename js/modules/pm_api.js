@@ -1,7 +1,7 @@
-import { supabase } from '../modules/config.js';
-import { state } from '../modules/state.js';
-import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=1241';
-import { generateRecurrences, joinNames } from './utils.js?v=1241';
+import { supabase } from '../modules/config.js?v=8000';
+import { state } from '../modules/state.js?v=8000';
+import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=8000';
+import { generateRecurrences, joinNames } from './utils.js?v=8000';
 
 const CACHE_STALE_TIME = 2 * 60 * 1000; // 2 minutes
 

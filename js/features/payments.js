@@ -1,6 +1,6 @@
-import { state } from '/js/modules/state.js';
-import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=1000';
-import { upsertPayment, deletePayment, upsertBankTransaction, fetchPayments } from '../modules/api.js';
+import { state } from '/js/modules/state.js?v=8000';
+import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=8000';
+import { upsertPayment, deletePayment, upsertBankTransaction, fetchPayments } from '../modules/api.js?v=8000';
 
 let cashFlowChartInstance = null;
 
@@ -1155,7 +1155,7 @@ export function openPaymentModal(id) {
                 document.getElementById('btn-resend-invite')?.addEventListener('click', (e) => handleSendInvite(p, e.currentTarget));
                 document.getElementById('btn-reset-invite')?.addEventListener('click', async () => {
                     if (confirm('Annullare lo stato di invito e tornare a "Da Fare"?')) {
-                        const { supabase } = await import('../modules/config.js?v=1000');
+                        const { supabase } = await import('../modules/config.js?v=8000');
                         await supabase.from('payments').update({ status: 'Da Fare' }).eq('id', p.id);
                         await fetchPayments(); openPaymentModal(p.id); showGlobalAlert('Ripristinato');
                     }
@@ -1191,7 +1191,7 @@ async function handleBulkInvite() {
 
     try {
         const webhookUrl = 'https://sacred-roughy-renewing.ngrok-free.app/webhook/ba8b70d5-643e-41fa-839a-096697554d19';
-        const { supabase } = await import('../modules/config.js?v=1003');
+        const { supabase } = await import('../modules/config.js?v=8000');
         const getBestAsgId = (payment) => {
             if (payment.assignment_id) return payment.assignment_id;
             if (payment.assignments?.id) return payment.assignments.id;
@@ -1246,7 +1246,7 @@ async function handleSendInvite(p, btn) {
     try {
         const webhookUrl = 'https://sacred-roughy-renewing.ngrok-free.app/webhook/ba8b70d5-643e-41fa-839a-096697554d19';
         btn.disabled = true; btn.innerHTML = `Invio...`;
-        const { supabase } = await import('../modules/config.js?v=1005');
+        const { supabase } = await import('../modules/config.js?v=8000');
         const getBestAsgId = (payment) => {
             if (payment.assignment_id) return payment.assignment_id;
             if (payment.assignments?.id) return payment.assignments.id;

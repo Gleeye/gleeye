@@ -1,7 +1,7 @@
-import { createInternalSpace, createCluster, createProjectInCluster, fetchInternalSpaces, assignUserToSpace } from '../../../modules/pm_api.js';
-import { state } from '../../../modules/state.js';
-import { supabase } from '../../../modules/config.js';
-import { renderUserPicker } from './picker_utils.js';
+import { createInternalSpace, createCluster, createProjectInCluster, fetchInternalSpaces, assignUserToSpace } from '../../../modules/pm_api.js?v=8000';
+import { state } from '../../../modules/state.js?v=8000';
+import { supabase } from '../../../modules/config.js?v=8000';
+import { renderUserPicker } from './picker_utils.js?v=8000';
 
 const COMPANY_AREAS = [
     { id: 'amministrazione', label: 'Amministrazione', color: '#3b82f6', bg: '#eff6ff', icon: 'account_balance' },

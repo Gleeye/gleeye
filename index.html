@@ -31,11 +31,11 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round&display=swap" rel="stylesheet">
 
     <!-- STYLES -->
-    <link rel="stylesheet" href="css/main.css?v=6006">
-    <link rel="stylesheet" href="css/design-system.css?v=6006">
-    <link rel="stylesheet" href="css/components/notifications.css?v=6006">
-    <link rel="stylesheet" href="css/components/agenda.css?v=6006">
-    <link rel="stylesheet" href="css/components/homepage.css?v=6006">
+    <link rel="stylesheet" href="css/main.css?v=8000">
+    <link rel="stylesheet" href="css/design-system.css?v=8000">
+    <link rel="stylesheet" href="css/components/notifications.css?v=8000">
+    <link rel="stylesheet" href="css/components/agenda.css?v=8000">
+    <link rel="stylesheet" href="css/components/homepage.css?v=8000">
     <!-- Inline styles to override cache issues -->
     <style>
         .system-modal-message {
@@ -43,7 +43,7 @@
             /* Fix newlines in popups */
         }
     </style>
-    <link rel="stylesheet" href="css/components/custom-select.css?v=6006">
+    <link rel="stylesheet" href="css/components/custom-select.css?v=8000">
     
     <!-- MOBILE HEADER FIX - BYPASS CACHE -->
     <style>
@@ -104,7 +104,7 @@
             }
         }
     </style>
-    <!-- <link rel="stylesheet" href="css/components/chat.css?v=3000"> -->
+    <!-- <link rel="stylesheet" href="css/components/chat.css?v=8000"> -->
 
     <style>
         /* CRITICAL: Fix Material Icons Flash of Unstyled Text (FOUT) */
@@ -326,7 +326,7 @@
     </style>
 
     <!-- Supabase Library (Local with CDN Fallback) -->
-    <script src="js/libs/supabase.js"></script>
+    <script src="js/libs/supabase.js?v=8000"></script>
     <script>
         if (!window.supabase) {
             console.warn("Local Supabase missing or failed, trying CDN...");
@@ -335,8 +335,8 @@
             document.head.appendChild(s);
         }
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js?v=8000" crossorigin="anonymous"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js?v=8000" crossorigin="anonymous"></script>
     <script>
         window.addEventListener('error', function (event) {
             // Ignore benign ResizeObserver error
@@ -754,8 +754,8 @@
     </div>
 
     <!-- Main JS Module -->
-    <script type="module" src="js/features/layout.js?v=6006"></script>
-    <script type="module" src="js/app.js?v=6006"></script>
+    <script type="module" src="js/features/layout.js?v=8000"></script>
+    <script type="module" src="js/app.js?v=8000"></script>
 
     <!-- PWA Service Worker Registration -->
     <script>

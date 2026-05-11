@@ -1,9 +1,9 @@
 
 // js/features/admin/admin-dashboard.js
-import { state } from '/js/modules/state.js';
-import { renderAdminNotifications } from '../notifications.js?v=1000';
-import { renderNotificationLogs } from './notification_logs.js?v=1000';
-import { renderSystemLogs, getUnresolvedErrorCount } from './admin_system_logs.js?v=1000';
+import { state } from '/js/modules/state.js?v=8000';
+import { renderAdminNotifications } from '../notifications.js?v=8000';
+import { renderNotificationLogs } from './notification_logs.js?v=8000';
+import { renderSystemLogs, getUnresolvedErrorCount } from './admin_system_logs.js?v=8000';
 
 export function renderAdminDashboard(container) {
     // SIMPLIFIED ACCESS CHECK
@@ -328,7 +328,7 @@ export function renderAdminDashboard(container) {
             // Render registry if registry tab is active
             if (tab.dataset.tab === 'registry') {
                 const registryContainer = container.querySelector('#admin-registry-container');
-                import('./admin_registry.js?v=' + Date.now()).then(mod => {
+                import('./admin_registry.js?v=8000').then(mod => {
                     mod.renderActivityRegistry(registryContainer);
                 }).catch(err => console.error("Error loading registry module:", err));
             }
@@ -363,8 +363,8 @@ async function loadAdminConfigs() {
     if (!googleForm || !emailTabsContainer) return;
 
     try {
-        const { supabase } = await import('../../modules/config.js?v=1000');
-        const { fetchAllSystemConfig, upsertSystemConfig } = await import('../../modules/api.js?v=1000');
+        const { supabase } = await import('../../modules/config.js?v=8000');
+        const { fetchAllSystemConfig, upsertSystemConfig } = await import('../../modules/api.js?v=8000');
         
         const configs = await fetchAllSystemConfig();
 

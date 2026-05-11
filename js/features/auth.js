@@ -1,8 +1,8 @@
-import { supabase } from '../modules/config.js';
-import { state } from '/js/modules/state.js';
-import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js';
-import { showGlobalAlert } from '../modules/utils.js?v=1000';
-import { updateSidebarVisibility } from './layout.js?v=1000';
+import { supabase } from '../modules/config.js?v=8000';
+import { state } from '/js/modules/state.js?v=8000';
+import { fetchProfile, fetchClients, fetchOrders, fetchCollaborators, fetchAllProfiles, fetchInvoices, fetchPassiveInvoices, fetchSuppliers, fetchDepartments, fetchContacts, fetchBankTransactions, fetchTransactionCategories, fetchServices, fetchCollaboratorServices, fetchAssignments, fetchPayments } from '../modules/api.js?v=8000';
+import { showGlobalAlert } from '../modules/utils.js?v=8000';
+import { updateSidebarVisibility } from './layout.js?v=8000';
 
 
 // We need a way to call router() from here. 
@@ -125,7 +125,7 @@ async function handleSession(session) {
                 window.dispatchEvent(new Event('app:ready')); // Reveal screen (hide splash)
             } else if (profile) {
                 // 1. Fetch CRITICAL COLLABORATOR DATA early (especially for impersonation)
-            const { fetchAllCollaborators } = await import('../modules/pm_api.js?v=2001');
+            const { fetchAllCollaborators } = await import('../modules/pm_api.js?v=8000');
             await fetchAllCollaborators().catch(e => console.warn("fetchAllCollaborators failed:", e));
 
             // CRITICAL: Update sidebar visibility BEFORE showing app
@@ -196,7 +196,7 @@ async function handleSession(session) {
             try {
                 // 1. Critical Data for Dashboard (Orders, Assignments, PM Spaces)
                 // We await these before showing the app to the user
-                const { fetchInternalSpaces } = await import('../modules/pm_api.js?v=2000');
+                const { fetchInternalSpaces } = await import('../modules/pm_api.js?v=8000');
                 const [ordersData] = await Promise.all([
                     fetchOrders(), 
                     fetchAssignments(), 
@@ -205,10 +205,10 @@ async function handleSession(session) {
                 ]);
 
                 // 2. Pre-fetch feature modules in background (No await)
-                import('./homepage.js?v=1003');
-                import('./dashboard.js?v=1000');
-                import('./pm/internal_list.js?v=1000');
-                import('./pm/components/hub_drawer.js?v=1000');
+                import('./homepage.js?v=8000');
+                import('./dashboard.js?v=8000');
+                import('./pm/internal_list.js?v=8000');
+                import('./pm/components/hub_drawer.js?v=8000');
                 
                 console.log("[Auth] Critical data loaded. Revealing workspace.");
                 

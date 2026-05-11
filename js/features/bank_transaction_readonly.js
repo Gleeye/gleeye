@@ -1,5 +1,5 @@
-import { state } from '/js/modules/state.js';
-import { formatAmount } from '../modules/utils.js?v=1000';
+import { state } from '/js/modules/state.js?v=8000';
+import { formatAmount } from '../modules/utils.js?v=8000';
 
 export function renderReadOnlyView(t) {
     const container = document.getElementById('bt-read-only-view');

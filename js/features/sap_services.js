@@ -1,5 +1,5 @@
-import { state } from '../modules/state.js';
-import { supabase } from '../modules/config.js';
+import { state } from '../modules/state.js?v=8000';
+import { supabase } from '../modules/config.js?v=8000';
 import {
     fetchSapServices,
     upsertSapService,
@@ -10,7 +10,7 @@ import {
     fetchDepartments,
     deleteSapService,
     fetchServices
-} from '../modules/api.js';
+} from '../modules/api.js?v=8000';
 import {
     fetchProjectSpaceForSapService,
     fetchAllProjectSpacesForSapService,
@@ -18,9 +18,9 @@ import {
     createPMItem,
     updatePMItem,
     deletePMItem
-} from '../modules/pm_api.js';
-import { formatAmount } from '../modules/utils.js?v=1000';
-import { CloudLinksManager } from '../features/components/CloudLinksManager.js';
+} from '../modules/pm_api.js?v=8000';
+import { formatAmount } from '../modules/utils.js?v=8000';
+import { CloudLinksManager } from '../features/components/CloudLinksManager.js?v=8000';
 
 // --- HANDLERS ---
 
@@ -588,7 +588,7 @@ window.openSapServiceDocsModal = async (spaceId) => {
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
     try {
         const docsContainer = modal.querySelector('#modal-docs-container');
-        const { renderDocsView } = await import('./docs/DocsView.js?v=1000');
+        const { renderDocsView } = await import('./docs/DocsView.js?v=8000');
         await renderDocsView(docsContainer, spaceId);
     } catch (err) {
         console.error("Error loading Docs Modal:", err);
@@ -601,7 +601,7 @@ window.openSapServiceActivitiesModal = async (spaceId) => {
         alert('Spazio PM non trovato.');
         return;
     }
-    const { openAccountActivitiesModal } = await import('/js/features/pm/components/AccountActivitiesModal.js?v=1000');
+    const { openAccountActivitiesModal } = await import('/js/features/pm/components/AccountActivitiesModal.js?v=8000');
     await openAccountActivitiesModal(null, spaceId);
 };
 
@@ -1291,7 +1291,7 @@ export function initSapServiceModals() {
 }
 
 window.editSapEconomics = async function (spaceId) {
-    const { fetchSpace, fetchProjectItems } = await import('../modules/pm_api.js');
+    const { fetchSpace, fetchProjectItems } = await import('../modules/pm_api.js?v=8000');
     const space = await fetchSpace(spaceId);
     if (!space) return;
 
@@ -1361,7 +1361,7 @@ function initSapEconomicsModal() {
         const cost = parseFloat(document.getElementById('sap-eco-cost').value);
 
         try {
-            const { updateSpace } = await import('../modules/pm_api.js');
+            const { updateSpace } = await import('../modules/pm_api.js?v=8000');
             await updateSpace(spaceId, {
                 price_final: isNaN(price) ? null : price,
                 cost_final: isNaN(cost) ? null : cost

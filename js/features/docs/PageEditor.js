@@ -1,6 +1,6 @@
-import { fetchPageBlocks, createBlock, updateBlock, deleteBlock, updateDocPage, upsertBlocks, uploadImage } from '../../modules/docs_api.js';
-import { createBlockElement } from './BlockComponent.js';
-import { SlashMenu, BlockActionMenu } from './Menus.js';
+import { fetchPageBlocks, createBlock, updateBlock, deleteBlock, updateDocPage, upsertBlocks, uploadImage } from '../../modules/docs_api.js?v=8000';
+import { createBlockElement } from './BlockComponent.js?v=8000';
+import { SlashMenu, BlockActionMenu } from './Menus.js?v=8000';
 
 let currentBlocks = [];
 let currentPageId = null;

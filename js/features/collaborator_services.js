@@ -1,7 +1,7 @@
-import { state } from '/js/modules/state.js';
-import { formatAmount } from '../modules/utils.js?v=1003';
-import { upsertCollaboratorService, deleteCollaboratorService } from '../modules/api.js';
-import { CustomSelect } from '../components/CustomSelect.js';
+import { state } from '/js/modules/state.js?v=8000';
+import { formatAmount } from '../modules/utils.js?v=8000';
+import { upsertCollaboratorService, deleteCollaboratorService } from '../modules/api.js?v=8000';
+import { CustomSelect } from '../components/CustomSelect.js?v=8000';
 
 /**
  * Collaborator Services Feature
@@ -222,7 +222,7 @@ export const openCollaboratorServiceEdit = async (id = null, prefillOrderId = nu
     form.reset();
 
     // Data bootstrap
-    const { fetchServices, fetchDepartments, fetchCollaborators } = await import('../modules/api.js?v=2014');
+    const { fetchServices, fetchDepartments, fetchCollaborators } = await import('../modules/api.js?v=8000');
     await Promise.all([fetchServices(), fetchDepartments(), fetchCollaborators()]);
 
     const deptSelect = document.getElementById('cs-dept');
@@ -355,13 +355,13 @@ window.deleteCollabService = () => {
 };
 
 export async function refreshCollaboratorServicePage() {
-    const { fetchCollaboratorServices, fetchAssignments } = await import('../modules/api.js?v=2014');
+    const { fetchCollaboratorServices, fetchAssignments } = await import('../modules/api.js?v=8000');
     await Promise.all([fetchCollaboratorServices(), fetchAssignments()]);
     
     if (state.currentPage === 'collaborator-services') {
         renderCollaboratorServices(document.getElementById('content-area'));
     } else if (window.location.hash.includes('assignment-detail')) {
-        const { renderAssignmentDetail } = await import('./assignments.js?v=2014');
+        const { renderAssignmentDetail } = await import('./assignments.js?v=8000');
         renderAssignmentDetail(document.getElementById('content-area'));
     }
 }

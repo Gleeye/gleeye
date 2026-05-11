@@ -1,7 +1,7 @@
-import { ensureDocSpace, fetchVisiblePages, createDocPage, fetchPageBlocks, deleteDocPage, fetchDocSubscription, toggleDocSubscription } from '../../modules/docs_api.js?v=1000';
-import { renderDocsSidebar, setupSidebarEvents } from './DocsSidebar.js';
-import { renderPageEditor } from './PageEditor.js';
-import { renderWhiteboardEditor } from './WhiteboardEditor.js';
+import { ensureDocSpace, fetchVisiblePages, createDocPage, fetchPageBlocks, deleteDocPage, fetchDocSubscription, toggleDocSubscription } from '../../modules/docs_api.js?v=8000';
+import { renderDocsSidebar, setupSidebarEvents } from './DocsSidebar.js?v=8000';
+import { renderPageEditor } from './PageEditor.js?v=8000';
+import { renderWhiteboardEditor } from './WhiteboardEditor.js?v=8000';
 
 let currentSpaceId = null;
 let currentDocSpace = null;
@@ -165,7 +165,7 @@ export async function renderDocsView(container, spaceId) {
                     return;
                 }
                 const page = currentPages.find(p => p.id === activePageId);
-                const { openPageSharingModal } = await import('./PageSharingModal.js');
+                const { openPageSharingModal } = await import('./PageSharingModal.js?v=8000');
                 openPageSharingModal(page);
             };
         }
@@ -394,7 +394,7 @@ async function openFullscreenEditor(page) {
         document.head.appendChild(style);
     }
 
-    const { renderModal } = await import('../../modules/utils.js');
+    const { renderModal } = await import('../../modules/utils.js?v=8000');
     renderModal(modalId, content);
 
     const container = document.getElementById('fullscreen-editor-container');

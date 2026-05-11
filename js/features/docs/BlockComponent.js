@@ -1,7 +1,7 @@
 /* ==========================================================================
    BLOCK COMPONENT
    ========================================================================== */
-import { uploadImage, fetchDocPages } from '../../modules/docs_api.js';
+import { uploadImage, fetchDocPages } from '../../modules/docs_api.js?v=8000';
 
 
 export function createBlockElement(block, docSpaceId) {

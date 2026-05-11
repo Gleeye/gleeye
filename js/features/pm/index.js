@@ -1,8 +1,8 @@
-import { renderCommesseList } from './commesse_list.js?v=3000';
-import { renderInternalProjects } from './internal_list.js?v=3000';
-import { renderMyWork } from './my_work.js?v=3000';
-import { renderSpaceView } from './space_view.js?v=3000';
-import { state } from '../../modules/state.js';
+import { renderCommesseList } from './commesse_list.js?v=8000';
+import { renderInternalProjects } from './internal_list.js?v=8000';
+import { renderMyWork } from './my_work.js?v=8000';
+import { renderSpaceView } from './space_view.js?v=8000';
+import { state } from '../../modules/state.js?v=8000';
 
 export function renderPM(container) {
     const subPage = state.currentSubPage;

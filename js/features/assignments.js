@@ -1,9 +1,9 @@
-import { state } from '/js/modules/state.js';
-import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=1000';
-import { supabase } from '../modules/config.js';
-import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment, deleteAssignment } from '../modules/api.js';
-import { openPaymentModal } from './payments.js?v=1000';
-import { CustomSelect } from '../components/CustomSelect.js?v=1000';
+import { state } from '/js/modules/state.js?v=8000';
+import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=8000';
+import { supabase } from '../modules/config.js?v=8000';
+import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment, deleteAssignment } from '../modules/api.js?v=8000';
+import { openPaymentModal } from './payments.js?v=8000';
+import { CustomSelect } from '../components/CustomSelect.js?v=8000';
 
 // Helper functions
 function getStatusColor(status) {
@@ -59,7 +59,7 @@ export async function renderAssignmentDetail(container) {
         // Fetch collaborator services if not loaded
         if (!state.collaboratorServices || state.collaboratorServices.length === 0) {
             console.log('DEBUG: collaboratorServices missing or empty, fetching...');
-            const { fetchCollaboratorServices } = await import('../modules/api.js?v=1000');
+            const { fetchCollaboratorServices } = await import('../modules/api.js?v=8000');
             await fetchCollaboratorServices();
         }
 
@@ -383,19 +383,19 @@ export async function renderAssignmentDetail(container) {
 
 // Service Management Functions
 window.addServiceToAssignment = async (assignmentId, orderId) => {
-    const { initCollaboratorServiceModals, openCollaboratorServiceEdit } = await import('./collaborator_services.js?v=1000');
+    const { initCollaboratorServiceModals, openCollaboratorServiceEdit } = await import('./collaborator_services.js?v=8000');
     initCollaboratorServiceModals();
     openCollaboratorServiceEdit(null, orderId, assignmentId);
 };
 
 window.editAssignmentService = async (serviceId) => {
-    const { initCollaboratorServiceModals, openCollaboratorServiceEdit } = await import('./collaborator_services.js?v=1000');
+    const { initCollaboratorServiceModals, openCollaboratorServiceEdit } = await import('./collaborator_services.js?v=8000');
     initCollaboratorServiceModals();
     openCollaboratorServiceEdit(serviceId);
 };
 
 window.deleteAssignmentService = async (serviceId) => {
-    const { confirmDeleteCollabService } = await import('./collaborator_services.js?v=1000');
+    const { confirmDeleteCollabService } = await import('./collaborator_services.js?v=8000');
     confirmDeleteCollabService(serviceId);
 };
 

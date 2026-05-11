@@ -1,6 +1,6 @@
-import { supabase } from '../../../modules/config.js';
-import { state } from '../../../modules/state.js';
-import { fetchProjectItems, fetchAppointments, fetchAppointmentTypes, createPMItem, assignUserToItem } from '../../../modules/pm_api.js';
+import { supabase } from '../../../modules/config.js?v=8000';
+import { state } from '../../../modules/state.js?v=8000';
+import { fetchProjectItems, fetchAppointments, fetchAppointmentTypes, createPMItem, assignUserToItem } from '../../../modules/pm_api.js?v=8000';
 
 export async function openAccountActivitiesModal(orderId, spaceId) {
     const modal = document.createElement('div');
@@ -172,14 +172,14 @@ export async function openAccountActivitiesModal(orderId, spaceId) {
 
     addBtn.addEventListener('click', async () => {
         if (currentTab === 'attivita' || currentTab === 'task') {
-            const { openHubDrawer } = await import('/js/features/pm/components/hub_drawer.js?v=1000');
+            const { openHubDrawer } = await import('/js/features/pm/components/hub_drawer.js?v=8000');
             openHubDrawer(null, spaceId, null, currentTab, {
                 defaultRole: 'account',
                 defaultNote: '[ACCOUNT]',
                 is_account_level: true
             });
         } else {
-            const { openAppointmentDrawer } = await import('/js/features/pm/components/hub_appointment_drawer.js?v=1000');
+            const { openAppointmentDrawer } = await import('/js/features/pm/components/hub_appointment_drawer.js?v=8000');
             openAppointmentDrawer(null, orderId || spaceId, orderId ? 'order' : 'space', {
                 defaultRole: 'account',
                 defaultNote: '[ACCOUNT]',
@@ -298,7 +298,7 @@ function renderTreeNodes(nodes, spaceId) {
 
         return `
             <div class="tree-node">
-                <div class="tree-row" onclick="import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => mod.openHubDrawer('${node.id}', '${spaceId}'))">
+                <div class="tree-row" onclick="import('/js/features/pm/components/hub_drawer.js?v=8000').then(mod => mod.openHubDrawer('${node.id}', '${spaceId}'))">
                     <div style="width: 24px; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary);">
                         <span class="material-icons-round" style="font-size: 18px;">
                             ${node.item_type === 'attivita' ? 'folder' : 'description'}
@@ -353,7 +353,7 @@ async function renderItems(container, spaceId, filterType, items = null) {
                 ${accountItems.map(item => {
             const isDone = item.status === 'done';
             return `
-                        <div class="activity-card" style="opacity: ${isDone ? '0.7' : '1'}; cursor: pointer;" onclick="import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => mod.openHubDrawer('${item.id}', '${spaceId}'))">
+                        <div class="activity-card" style="opacity: ${isDone ? '0.7' : '1'}; cursor: pointer;" onclick="import('/js/features/pm/components/hub_drawer.js?v=8000').then(mod => mod.openHubDrawer('${item.id}', '${spaceId}'))">
                             <div style="flex-shrink: 0; color: ${isDone ? '#10b981' : 'var(--brand-blue)'};">
                                 <span class="material-icons-round" style="font-size: 24px;">
                                     ${isDone ? 'check_circle' : (filterType === 'attivita' ? 'folder' : 'circle_outline')}
@@ -417,7 +417,7 @@ async function renderAppointments(container, orderId, spaceId) {
                 ${accountAppts.map(appt => {
             const start = new Date(appt.start_time);
             return `
-                                                <div class="activity-card" style="border-left: 4px solid #3b82f6; cursor: pointer;" onclick="import('/js/features/pm/components/hub_appointment_drawer.js?v=1000').then(mod => mod.openAppointmentDrawer({id: '${appt.id}'}, '${orderId}', 'order'))">
+                                                <div class="activity-card" style="border-left: 4px solid #3b82f6; cursor: pointer;" onclick="import('/js/features/pm/components/hub_appointment_drawer.js?v=8000').then(mod => mod.openAppointmentDrawer({id: '${appt.id}'}, '${orderId}', 'order'))">
                             <div style="width: 48px; border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; align-items: center; justify-content: center; margin-right: 0.5rem;">
                                 <div style="font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase;">${start.toLocaleDateString('it-IT', { weekday: 'short' })}</div>
                                 <div style="font-size: 1.25rem; font-weight: 800; color: #3b82f6; line-height: 1;">${start.getDate()}</div>
@@ -458,6 +458,6 @@ async function renderAppointments(container, orderId, spaceId) {
 
 // Global helper for toggling status (quick implementation)
 window._toggleTaskStatus = async (itemId, newStatus) => {
-    const { supabase } = await import('../../../modules/config.js');
+    const { supabase } = await import('../../../modules/config.js?v=8000');
     await supabase.from('pm_items').update({ status: newStatus }).eq('id', itemId);
 };

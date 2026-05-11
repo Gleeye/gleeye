@@ -1,4 +1,4 @@
-import { state } from '../../../modules/state.js';
+import { state } from '../../../modules/state.js?v=8000';
 
 export function renderUserPicker(spaceId, targetRole, assignedUserIds = new Set(), extraSuggestedIds = new Set(), sectionTitle = 'Tutti i collaboratori') {
     const space = state.pm_spaces?.find(s => s.id === spaceId) || {};

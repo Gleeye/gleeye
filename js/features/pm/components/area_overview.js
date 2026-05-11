@@ -1,7 +1,7 @@
-import { fetchAppointments, fetchPMActivityLogs, fetchSpaceComments } from '../../../modules/pm_api.js?v=1000';
-import { supabase } from '../../../modules/config.js';
-import { renderAvatar } from '../../../modules/utils.js?v=1000';
-import { humanizeActivity } from '../../../modules/pm_activity_helper.js?v=7002';
+import { fetchAppointments, fetchPMActivityLogs, fetchSpaceComments } from '../../../modules/pm_api.js?v=8000';
+import { supabase } from '../../../modules/config.js?v=8000';
+import { renderAvatar } from '../../../modules/utils.js?v=8000';
+import { humanizeActivity } from '../../../modules/pm_activity_helper.js?v=8000';
 
 export async function renderAreaOverview(container, spaceIds, spaceNamesMap, cloudLinks = []) {
     container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:300px;"><span class="loader"></span></div>';
@@ -130,7 +130,7 @@ export async function renderAreaOverview(container, spaceIds, spaceNamesMap, clo
                     
                     <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
                         ${urgencies.length === 0 ? `<div class="dash-empty" style="margin-top:0;">Tutto sotto controllo! Nessuna scadenza.</div>` : urgencies.map(u => `
-                            <div class="urg-item" onclick="import('./hub_drawer.js?v=1000').then(m => m.openHubDrawer('${u.id}', '${u.space_ref}'))">
+                            <div class="urg-item" onclick="import('./hub_drawer.js?v=8000').then(m => m.openHubDrawer('${u.id}', '${u.space_ref}'))">
                                 <div class="icon"><span class="material-icons-round">${u.item_type === 'attivita' ? 'folder' : 'check_circle'}</span></div>
                                 <div style="flex:1; min-width:0;">
                                     <div style="font-size: 0.55rem; color: var(--text-tertiary); font-weight: 800; text-transform: uppercase;">${spaceNamesMap[u.space_ref] || 'Progetto'}</div>
@@ -153,7 +153,7 @@ export async function renderAreaOverview(container, spaceIds, spaceNamesMap, clo
                     </div>
                     <div style="display:flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
                         ${upcomingAppts.length === 0 ? `<div class="dash-empty">Nessun impegno pianificato.</div>` : upcomingAppts.map(a => `
-                            <div style="display:flex; gap:12px; align-items:center; padding: 0.75rem; background: var(--surface-1); border-radius: 12px; cursor:pointer;" onclick="import('./hub_appointment_drawer.js?v=1000').then(m => m.openAppointmentDrawer({id: '${a.id}'}, null))">
+                            <div style="display:flex; gap:12px; align-items:center; padding: 0.75rem; background: var(--surface-1); border-radius: 12px; cursor:pointer;" onclick="import('./hub_appointment_drawer.js?v=8000').then(m => m.openAppointmentDrawer({id: '${a.id}'}, null))">
                                 <div style="text-align:center; padding-right:12px; border-right:2px solid var(--surface-2); min-width: 50px;">
                                     <div style="font-size:0.65rem; color:var(--brand-viola); font-weight:800; text-transform:uppercase;">${new Date(a.date_start).toLocaleDateString('it-IT', { month: 'short' })}</div>
                                     <div style="font-size:1.1rem; color:var(--text-primary); font-weight:800; line-height:1; margin-top:2px;">${new Date(a.date_start).getDate()}</div>
@@ -196,7 +196,7 @@ export async function renderAreaOverview(container, spaceIds, spaceNamesMap, clo
                     </div>
                     <div style="display:flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem;">
                         ${recentComments.length === 0 ? `<div class="dash-empty">Nessun commento recente</div>` : recentComments.map(c => `
-                            <div class="feed-item" style="padding-bottom:0.5rem; cursor:pointer;" onclick="import('./hub_drawer.js?v=1000').then(m => m.openHubDrawer('${c.pm_item_ref}', '${c.pm_items?.space_ref}'))">
+                            <div class="feed-item" style="padding-bottom:0.5rem; cursor:pointer;" onclick="import('./hub_drawer.js?v=8000').then(m => m.openHubDrawer('${c.pm_item_ref}', '${c.pm_items?.space_ref}'))">
                                 ${renderAvatar(c.profiles || { full_name: 'Utente' }, { size: 32, borderRadius: '50%' })}
                                 <div style="flex:1; min-width:0;">
                                     <div style="display:flex; justify-content:space-between; align-items:baseline;">
@@ -221,7 +221,7 @@ export async function renderAreaOverview(container, spaceIds, spaceNamesMap, clo
                         ${recentLogs.length === 0 ? `<div class="dash-empty">Nessuna attività registrata</div>` : recentLogs.map(l => {
                             const human = humanizeActivity(l);
                             return `
-                            <div class="feed-item" style="cursor:pointer;" onclick="import('./hub_drawer.js?v=1000').then(m => m.openHubDrawer('${l.item_ref}', '${l.space_ref}'))">
+                            <div class="feed-item" style="cursor:pointer;" onclick="import('./hub_drawer.js?v=8000').then(m => m.openHubDrawer('${l.item_ref}', '${l.space_ref}'))">
                                 ${renderAvatar(l.actor || { full_name: 'S' }, { size: 32, borderRadius: '50%' })}
                                 <div style="flex: 1; min-width: 0;">
                                     <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.3;">

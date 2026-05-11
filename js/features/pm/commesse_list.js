@@ -1,7 +1,7 @@
-import { fetchOrders, fetchCollaborators } from '../../modules/api.js';
-import { state } from '../../modules/state.js';
-import { fetchProjectSpaceForOrder, fetchCommesseTeamSummary } from '../../modules/pm_api.js?v=3000';
-import { formatAmount } from '../../modules/utils.js';
+import { fetchOrders, fetchCollaborators } from '../../modules/api.js?v=8000';
+import { state } from '../../modules/state.js?v=8000';
+import { fetchProjectSpaceForOrder, fetchCommesseTeamSummary } from '../../modules/pm_api.js?v=8000';
+import { formatAmount } from '../../modules/utils.js?v=8000';
 
 // Real status values for PM view
 const STATUS_CONFIG = {

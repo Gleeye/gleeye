@@ -1,11 +1,11 @@
-import { fetchSpace, fetchProjectItems, fetchChildProjects, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, deleteSpace, updateSpaceCloudLinks } from '../../modules/pm_api.js?v=1000';
-import { openProjectModal } from './components/project_modal.js?v=1000';
-import { renderHubTree } from './components/hub_tree.js?v=1000';
-import { renderHubAppointments } from './components/hub_appointments.js?v=1000';
-import { CloudLinksManager } from '../components/CloudLinksManager.js?v=1000';
-import { state } from '../../modules/state.js';
-import { supabase } from '../../modules/config.js';
-import { renderAvatar, joinNames } from '../../modules/utils.js?v=1000';
+import { fetchSpace, fetchProjectItems, fetchChildProjects, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, deleteSpace, updateSpaceCloudLinks } from '../../modules/pm_api.js?v=8000';
+import { openProjectModal } from './components/project_modal.js?v=8000';
+import { renderHubTree } from './components/hub_tree.js?v=8000';
+import { renderHubAppointments } from './components/hub_appointments.js?v=8000';
+import { CloudLinksManager } from '../components/CloudLinksManager.js?v=8000';
+import { state } from '../../modules/state.js?v=8000';
+import { supabase } from '../../modules/config.js?v=8000';
+import { renderAvatar, joinNames } from '../../modules/utils.js?v=8000';
 
 console.log("[SpaceView] Module v376 loaded");
 
@@ -407,7 +407,7 @@ export async function renderSpaceView(container, spaceId) {
                 const view = tab.dataset.view;
 
                 if (view === 'overview') {
-                    import('./components/space_overview.js?v=' + Date.now()).then(mod => mod.renderSpaceOverview(viewContent, spaceId, items, space));
+                    import('./components/space_overview.js?v=8000').then(mod => mod.renderSpaceOverview(viewContent, spaceId, items, space));
                 } else if (view === 'tree') {
                     renderHubTree(viewContent, items, space, spaceId);
                 } else if (view === 'projects' && space.is_cluster) {
@@ -419,9 +419,9 @@ export async function renderSpaceView(container, spaceId) {
                 } else if (view === 'list') {
                     viewContent.innerHTML = '<div style="text-align:center; padding: 2rem; color: #94a3b8;">Vista lista in arrivo...</div>';
                 } else if (view === 'docs') {
-                    import('../docs/DocsView.js').then(mod => mod.renderDocsView(viewContent, spaceId));
+                    import('../docs/DocsView.js?v=8000').then(mod => mod.renderDocsView(viewContent, spaceId));
                 } else if (view === 'activity_log') {
-                    import('./components/activity_log.js?v=' + Date.now()).then(mod => mod.renderActivityLog(viewContent, { spaceId, isAccountLevel: false }));
+                    import('./components/activity_log.js?v=8000').then(mod => mod.renderActivityLog(viewContent, { spaceId, isAccountLevel: false }));
                 }
             });
         });
@@ -530,12 +530,12 @@ export async function renderSpaceView(container, spaceId) {
 
         container.querySelector('#add-activity-btn')?.addEventListener('click', () => {
             container.querySelector('#add-hub-dropdown').classList.add('hidden');
-            import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => mod.openHubDrawer(null, spaceId, null, 'attivita'));
+            import('/js/features/pm/components/hub_drawer.js?v=8000').then(mod => mod.openHubDrawer(null, spaceId, null, 'attivita'));
         });
 
         container.querySelector('#add-task-btn')?.addEventListener('click', () => {
             container.querySelector('#add-hub-dropdown').classList.add('hidden');
-            import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => mod.openHubDrawer(null, spaceId, null, 'task'));
+            import('/js/features/pm/components/hub_drawer.js?v=8000').then(mod => mod.openHubDrawer(null, spaceId, null, 'task'));
         });
 
         // Unified Assignee Picker Logic
@@ -654,7 +654,7 @@ export async function renderSpaceView(container, spaceId) {
 
         // Initial Content Render
         if (activeView === 'overview') {
-            import('./components/space_overview.js?v=' + Date.now()).then(mod => mod.renderSpaceOverview(viewContent, spaceId, items, space));
+            import('./components/space_overview.js?v=8000').then(mod => mod.renderSpaceOverview(viewContent, spaceId, items, space));
         } else if (activeView === 'people') {
             renderTeamTab(viewContent, spaceAssignees, latestCollabs, spaceId);
         } else if (activeView === 'projects' && space.is_cluster) {
@@ -664,9 +664,9 @@ export async function renderSpaceView(container, spaceId) {
         } else if (activeView === 'appointments') {
             renderHubAppointments(viewContent, appointments, appointmentTypes, spaceId, 'space');
         } else if (activeView === 'docs') {
-            import('../docs/DocsView.js').then(mod => mod.renderDocsView(viewContent, spaceId));
+            import('../docs/DocsView.js?v=8000').then(mod => mod.renderDocsView(viewContent, spaceId));
         } else if (activeView === 'activity_log') {
-            import('./components/activity_log.js?v=' + Date.now()).then(mod => mod.renderActivityLog(viewContent, { spaceId, isAccountLevel: false }));
+            import('./components/activity_log.js?v=8000').then(mod => mod.renderActivityLog(viewContent, { spaceId, isAccountLevel: false }));
         } else {
             renderHubTree(viewContent, items, space, spaceId);
         }

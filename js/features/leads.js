@@ -1,8 +1,8 @@
-import { state } from '../modules/state.js';
-import { fetchLeads, fetchLeadDetail, upsertLead, deleteLead } from '../modules/api.js';
-import { supabase } from '../modules/config.js';
-import { fetchSapServices } from '../modules/api.js';
-import { renderModal, closeModal, showGlobalAlert, showConfirm, formatAmount } from '../modules/utils.js';
+import { state } from '../modules/state.js?v=8000';
+import { fetchLeads, fetchLeadDetail, upsertLead, deleteLead } from '../modules/api.js?v=8000';
+import { supabase } from '../modules/config.js?v=8000';
+import { fetchSapServices } from '../modules/api.js?v=8000';
+import { renderModal, closeModal, showGlobalAlert, showConfirm, formatAmount } from '../modules/utils.js?v=8000';
 
 function getLeadStatusColor(status) {
     const s = status?.toLowerCase() || '';
@@ -450,7 +450,7 @@ function initLeadModal() {
 
         // Ensure orders modal logic is available.
         if (typeof window.openNewOrderModal !== 'function') {
-            await import('./orders.js').then(m => m.initNewOrderModal());
+            await import('./orders.js?v=8000').then(m => m.initNewOrderModal());
         }
 
         window.openNewOrderModal();

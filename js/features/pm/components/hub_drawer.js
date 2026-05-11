@@ -17,12 +17,12 @@ import {
     subscribeToPMItem,
     unsubscribeFromPMItem,
     duplicatePMItem
-} from '../../../modules/pm_api.js?v=1000';
-import { supabase } from '../../../modules/config.js';
-import { CloudLinksManager } from '../../components/CloudLinksManager.js?v=1000';
-import { state } from '../../../modules/state.js';
-import { renderUserPicker } from './picker_utils.js?v=1000';
-import { renderAvatar, renderModal, closeModal } from '../../../modules/utils.js?v=1001';
+} from '../../../modules/pm_api.js?v=8000';
+import { supabase } from '../../../modules/config.js?v=8000';
+import { CloudLinksManager } from '../../components/CloudLinksManager.js?v=8000';
+import { state } from '../../../modules/state.js?v=8000';
+import { renderUserPicker } from './picker_utils.js?v=8000';
+import { renderAvatar, renderModal, closeModal } from '../../../modules/utils.js?v=8000';
 
 const ITEM_STATUS = {
     'todo': { label: 'Da Fare', color: '#94a3b8', bg: '#f1f5f9' },
@@ -120,7 +120,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
     try {
         await Promise.race([
             (async () => {
-                const { fetchSpaceAssignees } = await import('../../../modules/pm_api.js?v=1000');
+                const { fetchSpaceAssignees } = await import('../../../modules/pm_api.js?v=8000');
 
                 if (isEdit) {
                     console.log("[HubDrawer] Loading data for item:", itemId);
@@ -221,8 +221,8 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                 // --- REPORT LOGIC ---
                 const fetchReports = async () => {
-                    const docSpace = await import('../../../modules/docs_api.js?v=1000').then(m => m.ensureDocSpace(currentSpaceId));
-                    const pages = await import('../../../modules/docs_api.js?v=1000').then(m => m.fetchDocPages(docSpace.id));
+                    const docSpace = await import('../../../modules/docs_api.js?v=8000').then(m => m.ensureDocSpace(currentSpaceId));
+                    const pages = await import('../../../modules/docs_api.js?v=8000').then(m => m.fetchDocPages(docSpace.id));
                     // Filter for reports (using metadata or title prefix)
                     return pages.filter(p => p.title.startsWith('Report:') || p.metadata?.type === 'ai_report');
                 };
@@ -1148,7 +1148,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
             // Init Activity Log
             if (state.profile?.role === 'admin') {
-                import('./activity_log.js?v=' + Date.now()).then(mod => {
+                import('./activity_log.js?v=8000').then(mod => {
                     const logContainer = drawer.querySelector('#drawer-activity-log-container');
 
                     let targetItemIds = [itemId];

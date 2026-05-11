@@ -1,14 +1,14 @@
-import { state } from '/js/modules/state.js';
-import { formatAmount } from '../modules/utils.js?v=1000';
+import { state } from '/js/modules/state.js?v=8000';
+import { formatAmount } from '../modules/utils.js?v=8000';
 // Import dependencies similar to collaborators.js
 // We assume fetch functions are available in api.js if needed, but we rely on state mostly
-import { fetchOrders, fetchInvoices, fetchPayments, upsertClient, fetchClients } from '../modules/api.js';
-import { showGlobalAlert } from '../modules/utils.js?v=1000';
-import { activityTranslate } from '../modules/pm_activity_helper.js';
+import { fetchOrders, fetchInvoices, fetchPayments, upsertClient, fetchClients } from '../modules/api.js?v=8000';
+import { showGlobalAlert } from '../modules/utils.js?v=8000';
+import { activityTranslate } from '../modules/pm_activity_helper.js?v=8000';
 
 export async function renderClients(container) {
     // Ensure we have orders for analytics
-    const { fetchOrders } = await import('../modules/api.js');
+    const { fetchOrders } = await import('../modules/api.js?v=8000');
     if (!state.orders || state.orders.length === 0) {
         await fetchOrders();
     }

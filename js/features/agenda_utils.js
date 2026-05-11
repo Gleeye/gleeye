@@ -1,7 +1,7 @@
-import { state } from '../modules/state.js';
-import { fetchAppointment } from '../modules/pm_api.js';
-import { fetchCollaborators } from '../modules/api.js';
-import { showGlobalAlert, showConfirm } from '../modules/utils.js?v=1001';
+import { state } from '../modules/state.js?v=8000';
+import { fetchAppointment } from '../modules/pm_api.js?v=8000';
+import { fetchCollaborators } from '../modules/api.js?v=8000';
+import { showGlobalAlert, showConfirm } from '../modules/utils.js?v=8000';
 
 // Shared Event Detail Modal Logic
 export async function openEventDetails(event) {
@@ -342,8 +342,8 @@ export function closeEventModal() {
 
 export async function editAppointment(id) {
     closeEventModal();
-    const { fetchAppointment } = await import('../modules/pm_api.js?v=1000');
-    const { openAppointmentDrawer } = await import('./pm/components/hub_appointment_drawer.js?v=1000');
+    const { fetchAppointment } = await import('../modules/pm_api.js?v=8000');
+    const { openAppointmentDrawer } = await import('./pm/components/hub_appointment_drawer.js?v=8000');
 
     const appt = await fetchAppointment(id);
     if (appt) {
@@ -356,7 +356,7 @@ export async function deleteAppointment(id) {
     if (!confirmed) return;
 
     try {
-        const { deleteAppointment: apiDelete } = await import('../modules/pm_api.js?v=1000');
+        const { deleteAppointment: apiDelete } = await import('../modules/pm_api.js?v=8000');
         await apiDelete(id);
         closeEventModal();
         // Trigger generic refresh

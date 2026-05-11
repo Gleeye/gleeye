@@ -1,6 +1,6 @@
-import { state } from '../modules/state.js';
-import { supabase } from '../modules/config.js';
-import { formatAmount, showGlobalAlert, formatDate } from '../modules/utils.js?v=1000';
+import { state } from '../modules/state.js?v=8000';
+import { supabase } from '../modules/config.js?v=8000';
+import { formatAmount, showGlobalAlert, formatDate } from '../modules/utils.js?v=8000';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STATI PAGAMENTI COLLABORATORI

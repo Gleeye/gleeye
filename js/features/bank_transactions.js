@@ -1,5 +1,5 @@
-import { state } from '/js/modules/state.js';
-import { formatAmount } from '/js/modules/utils.js?v=1000';
+import { state } from '/js/modules/state.js?v=8000';
+import { formatAmount } from '/js/modules/utils.js?v=8000';
 import {
     upsertBankTransaction,
     fetchBankTransactions,
@@ -12,8 +12,8 @@ import {
     fetchInvoices,
     fetchPassiveInvoices,
     fetchTransactionCategories
-} from '/js/modules/api.js';
-import { renderReadOnlyView, switchToEditMode } from './bank_transaction_readonly.js?v=1000';
+} from '/js/modules/api.js?v=8000';
+import { renderReadOnlyView, switchToEditMode } from './bank_transaction_readonly.js?v=8000';
 
 // Render ID for atomic updates
 let currentRenderId = 0;
@@ -1119,7 +1119,7 @@ export function initCategoryManagerModal() {
         e.preventDefault();
         const n = document.getElementById('new-cat-name'), p = document.getElementById('new-cat-parent');
         try {
-            const { upsertTransactionCategory } = await import('../modules/api.js?v=1000');
+            const { upsertTransactionCategory } = await import('../modules/api.js?v=8000');
             await upsertTransactionCategory({ name: n.value, type: 'uscita', parent_id: p.value || null });
             n.value = ''; reloadCatList();
         } catch (err) { window.showAlert(err.message, 'error'); }
@@ -1153,7 +1153,7 @@ async function reloadCatList() {
     }).join('');
 }
 
-window.deleteCategory = async (id) => { if (await window.showConfirm("Sei sicuro di voler eliminare questa categoria?", { type: 'danger' })) { try { const { deleteTransactionCategory } = await import('../modules/api.js?v=1000'); await deleteTransactionCategory(id); reloadCatList(); } catch (e) { window.showAlert(e.message, 'error'); } } };
+window.deleteCategory = async (id) => { if (await window.showConfirm("Sei sicuro di voler eliminare questa categoria?", { type: 'danger' })) { try { const { deleteTransactionCategory } = await import('../modules/api.js?v=8000'); await deleteTransactionCategory(id); reloadCatList(); } catch (e) { window.showAlert(e.message, 'error'); } } };
 
 /**
  * --- MODAL IMPORTAZIONE ---

@@ -1,4 +1,4 @@
-import { supabase } from '../../modules/config.js';
+import { supabase } from '../../modules/config.js?v=8000';
 
 /**
  * Chat System - Realtime Subscriptions

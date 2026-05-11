@@ -14,10 +14,10 @@ import {
     upsertGoogleAuth,
     deleteGoogleAuth,
     fetchSystemConfig
-} from '../modules/api.js';
-import { state } from '../modules/state.js';
-import { supabase } from '../modules/config.js';
-import { showGlobalAlert, showConfirm } from '../modules/utils.js?v=1001';
+} from '../modules/api.js?v=8000';
+import { state } from '../modules/state.js?v=8000';
+import { supabase } from '../modules/config.js?v=8000';
+import { showGlobalAlert, showConfirm } from '../modules/utils.js?v=8000';
 
 
 // Reusable function to open availability in a system modal

@@ -1,12 +1,12 @@
-import { initAuth } from './features/auth.js?v=3003';
-import { router } from './modules/router.js?v=3003';
-import { state } from '/js/modules/state.js';
-import { initLayout, renderSidebarProfile } from './features/layout.js?v=3003';
-import { initNotifications } from './features/notifications.js?v=3003';
+import { initAuth } from './features/auth.js?v=8000';
+import { router } from './modules/router.js?v=8000';
+import { state } from '/js/modules/state.js?v=8000';
+import { initLayout, renderSidebarProfile } from './features/layout.js?v=8000';
+import { initNotifications } from './features/notifications.js?v=8000';
 // Chat UI is loaded lazily when user navigates to #chat
-import { runOneTimeFix } from './fix_phantom_data.js?v=3003';
+import { runOneTimeFix } from './fix_phantom_data.js?v=8000';
 // Utilities imported at top
-import { debounce } from './modules/utils.js';
+import { debounce } from './modules/utils.js?v=8000';
 import './utils/modal-utils.js';
 
 // Suppress benign ResizeObserver error
@@ -51,15 +51,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Init Feature Modals
     // Init Feature Modals Lazily
-    import('./features/settings.js?v=3003').then(m => m.initSettingsModals());
-    import('./features/invoices.js?v=3003').then(m => m.InvoiceLogic.initInvoiceModals());
-    import('./features/collaborators.js?v=3003').then(m => m.initCollaboratorModals());
-    import('./features/collaborator_services.js?v=3015').then(m => m.initCollaboratorServiceModals());
-    import('./features/bank_transactions.js?v=3003').then(m => m.initBankTransactionModals());
-    import('./features/payments.js?v=3005').then(m => m.initPaymentModals());
-    import('./features/services.js?v=3003').then(m => m.initServiceModals());
-    import('./features/white_label_partners.js?v=3003').then(m => m.initWhiteLabelPartnerModals());
-    import('./features/sap_services.js?v=3003').then(m => m.initSapServiceModals());
+    import('./features/settings.js?v=8000').then(m => m.initSettingsModals());
+    import('./features/invoices.js?v=8000').then(m => m.InvoiceLogic.initInvoiceModals());
+    import('./features/collaborators.js?v=8000').then(m => m.initCollaboratorModals());
+    import('./features/collaborator_services.js?v=8000').then(m => m.initCollaboratorServiceModals());
+    import('./features/bank_transactions.js?v=8000').then(m => m.initBankTransactionModals());
+    import('./features/payments.js?v=8000').then(m => m.initPaymentModals());
+    import('./features/services.js?v=8000').then(m => m.initServiceModals());
+    import('./features/white_label_partners.js?v=8000').then(m => m.initWhiteLabelPartnerModals());
+    import('./features/sap_services.js?v=8000').then(m => m.initSapServiceModals());
 
     // Init Layout (Sidebar toggles) - run immediately since UI is visible
     initLayout();
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Global HubDrawer Opener Helper
 window.openPmItemDetails = function (itemId, spaceId) {
-    import('./features/pm/components/hub_drawer.js?v=5005').then(mod => {
+    import('./features/pm/components/hub_drawer.js?v=8000').then(mod => {
         mod.openHubDrawer(itemId, spaceId);
     });
 };

@@ -1,4 +1,4 @@
-import { supabase } from './modules/config.js';
+import { supabase } from './modules/config.js?v=8000';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);

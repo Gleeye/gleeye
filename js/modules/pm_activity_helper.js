@@ -2,7 +2,7 @@
  * Helper module to humanize PM Activity Logs consistently across the app.
  * Single source of truth — all views should use humanizeActivity().
  */
-import { renderAvatar } from './utils.js';
+import { renderAvatar } from './utils.js?v=8000';
 
 export const activityVocabulary = {
     // Tasks & Commesse

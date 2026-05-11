@@ -1,4 +1,4 @@
-import { state } from '/js/modules/state.js';
+import { state } from '/js/modules/state.js?v=8000';
 
 export function renderBooking(container) {
     const pageTitle = document.getElementById('page-title');

@@ -1,12 +1,12 @@
-import { state } from '/js/modules/state.js';
-import { supabase } from '../modules/config.js';
-import { formatAmount, renderAvatar } from '../modules/utils.js?v=2000';
+import { state } from '/js/modules/state.js?v=8000';
+import { supabase } from '../modules/config.js?v=8000';
+import { formatAmount, renderAvatar } from '../modules/utils.js?v=8000';
 
-import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment, fetchGoogleCalendarBusy } from '../modules/api.js';
-import { fetchAppointment, updatePMItem, fetchSmartPersonalFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=7002';
-import { humanizeActivity } from '../modules/pm_activity_helper.js?v=7002';
-import { openHubDrawer } from './pm/components/hub_drawer.js?v=6000';
-import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=6000';
+import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment, fetchGoogleCalendarBusy } from '../modules/api.js?v=8000';
+import { fetchAppointment, updatePMItem, fetchSmartPersonalFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=8000';
+import { humanizeActivity } from '../modules/pm_activity_helper.js?v=8000';
+import { openHubDrawer } from './pm/components/hub_drawer.js?v=8000';
+import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=8000';
 
 // --- VERTICAL TIMELINE HELPERS ---
 
@@ -1047,7 +1047,7 @@ export async function renderHomepageAlt(container) {
         const link = document.createElement('link');
         link.id = 'homepage-alt-style';
         link.rel = 'stylesheet';
-        link.href = 'css/components/homepage-alt.css?v=' + new Date().getTime();
+        link.href = 'css/components/homepage-alt.css?v=8000';
         document.head.appendChild(link);
     }
 
@@ -2407,7 +2407,7 @@ export async function renderHomepageAlt(container) {
 // --- INTERNAL HUB/CLUSTER ENGINES ---
 async function fetchInternalHubsAndClusters(collaboratorId, userId, isPrivileged = false, isPartnerStrict = false) {
     try {
-        const { fetchInternalSpaces } = await import('../modules/pm_api.js');
+        const { fetchInternalSpaces } = await import('../modules/pm_api.js?v=8000');
         const COMPANY_AREAS = [
             { id: 'amministrazione', label: 'Amministrazione', color: '#6366f1', icon: 'account_balance' },
             { id: 'marketing', label: 'Marketing', color: '#f59e0b', icon: 'campaign' },
@@ -2980,7 +2980,7 @@ async function renderMainContent_Collaboratore(container, data) {
     renderInternalDashboard(hubs, clusters);
     
     // Fetch Appointments for Collaborator (Using relative path)
-    const { fetchCollaboratorAppointments } = await import('../modules/pm_api.js?v=' + Date.now());
+    const { fetchCollaboratorAppointments } = await import('../modules/pm_api.js?v=8000');
     const events = await fetchCollaboratorAppointments(myActualCollabId) || [];
     
     if (assignments && assignments.length > 0) {
@@ -3969,7 +3969,7 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
 }
 
 // --- EVENT DETAIL MODAL (Now unified via agenda_utils.js) ---
-import { openEventDetails } from './agenda_utils.js?v=1000';
+import { openEventDetails } from './agenda_utils.js?v=8000';
 
 window.openHomepageEventDetails = openEventDetails; // Compatibility Alias
 

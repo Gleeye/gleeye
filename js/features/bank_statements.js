@@ -1,5 +1,5 @@
-import { supabase } from '../modules/config.js';
-import { renderModal, closeModal, showConfirm, formatAmount } from '../modules/utils.js?v=1001';
+import { supabase } from '../modules/config.js?v=8000';
+import { renderModal, closeModal, showConfirm, formatAmount } from '../modules/utils.js?v=8000';
 
 let chartInstance = null;
 let statementsData = [];

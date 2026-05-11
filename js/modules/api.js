@@ -1,5 +1,5 @@
-import { supabase } from '../modules/config.js';
-import { state } from '/js/modules/state.js';
+import { supabase } from '../modules/config.js?v=8000';
+import { state } from '/js/modules/state.js?v=8000';
 
 const CACHE_STALE_TIME = 2 * 60 * 1000; // 2 minutes for most data
 
@@ -326,7 +326,7 @@ export async function updateOrder(id, updates) {
             // We use dynamic import to avoid circular dependency with pm_api.js
             setTimeout(async () => {
                 try {
-                    const { fetchProjectSpaceForOrder } = await import('./pm_api.js?v=1000');
+                    const { fetchProjectSpaceForOrder } = await import('./pm_api.js?v=8000');
                     await fetchProjectSpaceForOrder(id);
                     console.log("PM Space auto-initialized for order:", id);
                 } catch (e) {
@@ -1309,22 +1309,22 @@ async function refreshCurrentPage() {
     if (!container) return;
 
     if (hash.includes('order-detail/')) {
-        const { renderOrderDetail } = await import('../features/orders.js?v=1000');
+        const { renderOrderDetail } = await import('../features/orders.js?v=8000');
         renderOrderDetail(container);
     } else if (hash.includes('payments')) {
-        const { renderPaymentsDashboard } = await import('../features/payments.js?v=2005');
+        const { renderPaymentsDashboard } = await import('../features/payments.js?v=8000');
         renderPaymentsDashboard(container);
     } else if (hash.includes('bank-transactions')) {
-        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=1000');
+        const { renderBankTransactions } = await import('../features/bank_transactions.js?v=8000');
         renderBankTransactions(container);
     } else if (hash.includes('collaborator-services')) {
-        const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=1000');
+        const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=8000');
         renderCollaboratorServices(container);
     } else if (hash.includes('assignment-detail/')) {
-        const { renderAssignmentDetail } = await import('../features/assignments.js?v=1000');
+        const { renderAssignmentDetail } = await import('../features/assignments.js?v=8000');
         renderAssignmentDetail(container);
     } else if (hash.includes('collaborator-detail/')) {
-        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=1000');
+        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=8000');
         renderCollaboratorDetail(container);
     } else if (hash.includes('client-detail/')) {
     }

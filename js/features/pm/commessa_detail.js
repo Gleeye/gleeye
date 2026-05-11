@@ -1,10 +1,10 @@
-import { state } from '../../modules/state.js';
-import { fetchOrders } from '../../modules/api.js';
-import { showGlobalAlert } from '../../modules/utils.js?v=1241';
-import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, updateSpaceCloudLinks } from '../../modules/pm_api.js?v=1241';
-import { CloudLinksManager } from '../components/CloudLinksManager.js?v=1241';
-import { renderAvatar, joinNames } from '../../modules/utils.js?v=1241';
-import { supabase } from '../../modules/config.js';
+import { state } from '../../modules/state.js?v=8000';
+import { fetchOrders } from '../../modules/api.js?v=8000';
+import { showGlobalAlert } from '../../modules/utils.js?v=8000';
+import { fetchProjectSpaceForOrder, fetchProjectItems, fetchSpaceAssignees, assignUserToSpace, removeUserFromSpace, fetchAppointments, fetchAppointmentTypes, updateSpaceCloudLinks } from '../../modules/pm_api.js?v=8000';
+import { CloudLinksManager } from '../components/CloudLinksManager.js?v=8000';
+import { renderAvatar, joinNames } from '../../modules/utils.js?v=8000';
+import { supabase } from '../../modules/config.js?v=8000';
 
 // Status colors for "Stato Lavori"
 console.log('--- COMMESSA DETAIL LOADED v1000 ---');
@@ -71,7 +71,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         // Only fetch orders if we are in commessa mode
         if (!isInternal && (!state.orders || state.orders.length === 0)) promises.push(fetchOrders());
 
-        const { fetchAssignments, fetchCollaborators } = await import('../../modules/api.js?v=2010');
+        const { fetchAssignments, fetchCollaborators } = await import('../../modules/api.js?v=8000');
         if (!state.assignments || state.assignments.length === 0) promises.push(fetchAssignments());
         if (!state.collaborators || state.collaborators.length === 0) promises.push(fetchCollaborators());
 
@@ -84,7 +84,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
         if (isInternal) {
             // EntityId is SpaceID
-            const { fetchSpace } = await import('../../modules/pm_api.js?v=1000');
+            const { fetchSpace } = await import('../../modules/pm_api.js?v=8000');
             space = await fetchSpace(entityId);
             if (!space) throw new Error("Spazio non trovato");
         } else {
@@ -165,7 +165,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         // --- FETCH CHILD PROJECTS & AGGREGATE ITEMS IF CLUSTER ---
         let childProjects = [];
         if (space?.is_cluster) {
-            const { fetchInternalSpaces } = await import('../../modules/pm_api.js?v=1241');
+            const { fetchInternalSpaces } = await import('../../modules/pm_api.js?v=8000');
             const allSpaces = await fetchInternalSpaces();
             childProjects = allSpaces.filter(s => s.parent_ref === space.id);
 
@@ -997,19 +997,19 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
             switch (tabName) {
                 case 'overview':
-                    const { renderHubOverview } = await import('./components/hub_overview.js?v=1211');
+                    const { renderHubOverview } = await import('./components/hub_overview.js?v=8000');
                     renderHubOverview(tabContent, items, kpis, spaceId);
                     break;
                 case 'feed':
-                    const { renderActivityLog } = await import('./components/activity_log.js?v=1021');
+                    const { renderActivityLog } = await import('./components/activity_log.js?v=8000');
                     renderActivityLog(tabContent, { spaceId });
                     break;
                 case 'board':
-                    const { renderHubTree } = await import('./components/hub_tree.js?v=3000');
+                    const { renderHubTree } = await import('./components/hub_tree.js?v=8000');
                     renderHubTree(tabContent, items, space, spaceId);
                     break;
                 case 'list':
-                    const { renderHubList } = await import('./components/hub_list.js?v=1021');
+                    const { renderHubList } = await import('./components/hub_list.js?v=8000');
                     renderHubList(tabContent, items, space, spaceId);
                     break;
                 case 'incarichi':
@@ -1017,7 +1017,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     else tabContent.innerHTML = '<p style="padding:2rem;">Non disponibile per progetti interni.</p>';
                     break;
                 case 'appointments':
-                    const { renderHubAppointments } = await import('./components/hub_appointments.js?v=1021');
+                    const { renderHubAppointments } = await import('./components/hub_appointments.js?v=8000');
                     const refId = isInternal ? spaceId : orderId;
                     const refType = isInternal ? 'space' : 'order';
 
@@ -1071,12 +1071,12 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     break;
                 case 'docs':
                     tabContent.style.padding = '0';
-                    const { renderDocsView } = await import('../docs/DocsView.js');
+                    const { renderDocsView } = await import('../docs/DocsView.js?v=8000');
                     renderDocsView(tabContent, spaceId);
                     break;
                 case 'projects':
                     if (space?.is_cluster) {
-                        const { renderClusterProjects } = await import('./components/cluster_projects.js');
+                        const { renderClusterProjects } = await import('./components/cluster_projects.js?v=8000');
                         renderClusterProjects(tabContent, spaceId);
                     } else {
                         tabContent.innerHTML = '<p style="padding:2rem;">Non disponibile per questo spazio.</p>';
@@ -1202,7 +1202,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
             // Action listeners for desktop
             addHubDropdown.querySelector('#add-project-btn')?.addEventListener('click', async () => {
                 addHubDropdown.classList.add('hidden');
-                const { openProjectModal } = await import('./components/project_modal.js?v=2001');
+                const { openProjectModal } = await import('./components/project_modal.js?v=8000');
                 openProjectModal({
                     prefilledParentId: spaceId,
                     prefilledArea: space?.area,
@@ -1225,7 +1225,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
             addHubDropdown.querySelector('#add-appointment-btn')?.addEventListener('click', () => {
                 addHubDropdown.classList.add('hidden');
-                import('./components/hub_appointment_drawer.js').then(mod => {
+                import('./components/hub_appointment_drawer.js?v=8000').then(mod => {
                     mod.openAppointmentDrawer(null, isInternal ? spaceId : orderId, isInternal ? 'space' : 'order');
                 });
             });
@@ -1251,7 +1251,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     mobileAddDropdown.classList.add('hidden');
 
                     if (action === 'project') {
-                        const { openProjectModal } = await import('./components/project_modal.js?v=2000');
+                        const { openProjectModal } = await import('./components/project_modal.js?v=8000');
                         openProjectModal({
                             prefilledParentId: spaceId,
                             prefilledArea: space?.area,
@@ -1271,7 +1271,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
         // 9. Central Refresh Logic
         const refreshHub = async () => {
-            const { fetchProjectItems, fetchSpace, fetchSpaceAssignees } = await import('../../modules/pm_api.js?v=3000');
+            const { fetchProjectItems, fetchSpace, fetchSpaceAssignees } = await import('../../modules/pm_api.js?v=8000');
             try {
                 console.log('[ProjectHub] Syncing fresh data...');
                 const [newSpace, newItems, newAssignees] = await Promise.all([
@@ -1289,7 +1289,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
                 // If Cluster, re-aggregate items and update sidebar projects
                 if (space?.is_cluster) {
-                    const { fetchInternalSpaces } = await import('../../modules/pm_api.js?v=2041');
+                    const { fetchInternalSpaces } = await import('../../modules/pm_api.js?v=8000');
                     const allSpaces = await fetchInternalSpaces();
                     const updatedChildProjects = allSpaces.filter(s => s.parent_ref === space.id);
                     
@@ -1420,7 +1420,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
             // Check if it matches current space OR is a child of this cluster
             let isRelevant = String(eventSpaceId) === String(spaceId);
             if (!isRelevant && space?.is_cluster) {
-                const { fetchInternalSpaces } = await import('../../modules/pm_api.js?v=2000');
+                const { fetchInternalSpaces } = await import('../../modules/pm_api.js?v=8000');
                 const allSpaces = await fetchInternalSpaces();
                 const childIds = allSpaces.filter(s => s.parent_ref === space.id).map(cp => cp.id);
                 isRelevant = childIds.includes(eventSpaceId);
@@ -1491,7 +1491,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
         // Sidebar Actions
         container.querySelector('#sidebar-add-project-btn')?.addEventListener('click', async () => {
-            const { openProjectModal } = await import('./components/project_modal.js?v=2000');
+            const { openProjectModal } = await import('./components/project_modal.js?v=8000');
             openProjectModal({
                 prefilledParentId: spaceId,
                 prefilledArea: space?.area,
@@ -1716,11 +1716,11 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                         statusTrigger.style.pointerEvents = 'none';
 
                         if (isInternal) {
-                            const { updateSpace } = await import('../../modules/pm_api.js?v=1000');
+                            const { updateSpace } = await import('../../modules/pm_api.js?v=8000');
                             await updateSpace(spaceId, { status: newStatusKey });
                             if (space) space.status = newStatusKey;
                         } else {
-                            const { updateOrder } = await import('../../modules/api.js?v=1000');
+                            const { updateOrder } = await import('../../modules/api.js?v=8000');
                             await updateOrder(orderId, { status_works: newStatusKey });
                             if (order) order.status_works = newStatusKey;
                         }
@@ -1779,7 +1779,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
 // Drawer function (exported for use by child components)
 export function openItemDrawer(itemId, spaceId, parentId = null, itemType = 'task') {
-    import('./components/hub_drawer.js?v=3000').then(mod => {
+    import('./components/hub_drawer.js?v=8000').then(mod => {
         mod.openHubDrawer(itemId, spaceId, parentId, itemType);
     });
 }

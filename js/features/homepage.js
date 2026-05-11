@@ -1,12 +1,12 @@
-import { state } from '/js/modules/state.js';
-import { supabase } from '../modules/config.js';
-import { formatAmount, renderAvatar } from '../modules/utils.js?v=2000';
+import { state } from '/js/modules/state.js?v=8000';
+import { supabase } from '../modules/config.js?v=8000';
+import { formatAmount, renderAvatar } from '../modules/utils.js?v=8000';
 
-import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment, fetchGoogleCalendarBusy } from '../modules/api.js';
-import { fetchAppointment, updatePMItem, fetchMyActivityFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=7002';
-import { humanizeActivity } from '../modules/pm_activity_helper.js?v=7002';
-import { openHubDrawer } from './pm/components/hub_drawer.js?v=6000';
-import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=6000';
+import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment, fetchGoogleCalendarBusy } from '../modules/api.js?v=8000';
+import { fetchAppointment, updatePMItem, fetchMyActivityFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=8000';
+import { humanizeActivity } from '../modules/pm_activity_helper.js?v=8000';
+import { openHubDrawer } from './pm/components/hub_drawer.js?v=8000';
+import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=8000';
 
 // We reuse fetchMyBookings but we might need a tighter scoped fetch for "Today"
 // Actually fetchMyBookings stores in `eventsCache` (not exported) or `window`?
@@ -2309,7 +2309,7 @@ function renderTimeline(container, events, date = new Date(), availabilityRules 
 }
 
 // --- EVENT DETAIL MODAL (Now unified via agenda_utils.js) ---
-import { openEventDetails } from './agenda_utils.js?v=1000';
+import { openEventDetails } from './agenda_utils.js?v=8000';
 
 window.openHomepageEventDetails = openEventDetails; // Compatibility Alias
 

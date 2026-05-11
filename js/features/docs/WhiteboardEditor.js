@@ -1,4 +1,4 @@
-import { updateDocMetadata, updateDocPage } from '../../modules/docs_api.js';
+import { updateDocMetadata, updateDocPage } from '../../modules/docs_api.js?v=8000';
 
 let excalidrawScriptLoaded = false;
 let saveTimeout = null;

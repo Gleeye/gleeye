@@ -1,9 +1,9 @@
-import { saveAppointment, deleteAppointment, fetchAppointmentTypes } from '../../../modules/pm_api.js';
-import { fetchContacts } from '../../../modules/api.js';
-import { state } from '../../../modules/state.js';
-import { renderUserPicker } from './picker_utils.js?v=1000';
-import { supabase } from '../../../modules/config.js';
-import { renderAvatar, joinNames } from '../../../modules/utils.js?v=1000';
+import { saveAppointment, deleteAppointment, fetchAppointmentTypes } from '../../../modules/pm_api.js?v=8000';
+import { fetchContacts } from '../../../modules/api.js?v=8000';
+import { state } from '../../../modules/state.js?v=8000';
+import { renderUserPicker } from './picker_utils.js?v=8000';
+import { supabase } from '../../../modules/config.js?v=8000';
+import { renderAvatar, joinNames } from '../../../modules/utils.js?v=8000';
 
 export async function openAppointmentDrawer(inputAppointment, contextId = null, contextType = 'order', options = {}) {
     let overlay = document.getElementById('hub-drawer-overlay');

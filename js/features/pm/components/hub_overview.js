@@ -1,5 +1,5 @@
 // Hub Overview Tab - Progress, Urgenze, Appuntamenti, Azioni Rapide
-import { humanizeActivity } from '../../../modules/pm_activity_helper.js?v=7002';
+import { humanizeActivity } from '../../../modules/pm_activity_helper.js?v=8000';
 
 const ITEM_STATUS = {
     'todo': { label: 'Da Fare', color: '#64748b', bg: '#f1f5f9' },
@@ -47,7 +47,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
         const api_v = Date.now();
         const { fetchAppointments, fetchPMActivityLogs } = await import('/js/modules/pm_api.js?v=' + api_v);
         const { ensureDocSpace, fetchVisiblePages } = await import('/js/modules/docs_api.js?v=' + api_v);
-        const { supabase } = await import('/js/modules/config.js');
+        const { supabase } = await import('/js/modules/config.js?v=8000');
 
         const refId = orderId || spaceId;
         const refType = orderId ? 'order' : 'space';
@@ -493,7 +493,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
     container.querySelectorAll('.urgent-item').forEach(el => {
         el.addEventListener('click', () => {
             const itemId = el.dataset.id;
-            import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => {
+            import('/js/features/pm/components/hub_drawer.js?v=8000').then(mod => {
                 mod.openHubDrawer(itemId, spaceId);
             });
         });
@@ -502,7 +502,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
     container.querySelectorAll('.appointment-item').forEach(el => {
         el.addEventListener('click', () => {
             const apptId = el.dataset.id;
-            import('/js/features/pm/components/hub_appointment_drawer.js?v=1000').then(mod => {
+            import('/js/features/pm/components/hub_appointment_drawer.js?v=8000').then(mod => {
                 mod.openAppointmentDrawer({ id: apptId }, orderId);
             });
         });
@@ -511,7 +511,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
     container.querySelectorAll('.comment-preview-item').forEach(el => {
         el.addEventListener('click', () => {
             const itemId = el.dataset.item;
-            import('/js/features/pm/components/hub_drawer.js?v=1000').then(mod => {
+            import('/js/features/pm/components/hub_drawer.js?v=8000').then(mod => {
                 mod.openHubDrawer(itemId, spaceId);
             });
         });

@@ -1,12 +1,12 @@
-import { supabase } from '../../modules/config.js';
+import { supabase } from '../../modules/config.js?v=8000';
 import {
     listChannels, listConversations, getUnreadCounts,
     joinChannel, createChannel, createDirectMessage,
     listMessages, sendMessage, sendAttachmentMessage, markAsRead,
     toggleReaction, deleteMessage, editMessage, getReplies, searchMessages
-} from './chat-api.js';
-import { subscribeToMessages, sendTyping, subscribeToTyping, trackPresence } from './chat-rt.js';
-import { chatStore } from './chat-store.js';
+} from './chat-api.js?v=8000';
+import { subscribeToMessages, sendTyping, subscribeToTyping, trackPresence } from './chat-rt.js?v=8000';
+import { chatStore } from './chat-store.js?v=8000';
 
 // State tracks current active chat
 let currentState = {

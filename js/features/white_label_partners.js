@@ -1,6 +1,6 @@
-import { state } from '/js/modules/state.js';
-import { formatAmount } from '../modules/utils.js?v=1000';
-import { fetchCollaborators, upsertCollaborator, deleteCollaborator } from '../modules/api.js';
+import { state } from '/js/modules/state.js?v=8000';
+import { formatAmount } from '../modules/utils.js?v=8000';
+import { fetchCollaborators, upsertCollaborator, deleteCollaborator } from '../modules/api.js?v=8000';
 
 export async function renderWhiteLabelPartners(container) {
     if (!state.collaborators || state.collaborators.length === 0) {
