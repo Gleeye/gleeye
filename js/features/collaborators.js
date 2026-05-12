@@ -4,6 +4,7 @@ import { openDepartmentManager } from './settings.js?v=8000';
 import { upsertCollaborator, fetchPayments, fetchAssignments, fetchPassiveInvoices, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js?v=8000';
 import { loadAvailabilityIntoContainer } from './availability_manager.js?v=8000';
 import { supabase } from '../modules/config.js?v=8000';
+import { glossaryTip } from '../modules/help_tooltip.js?v=8001';
 
 // Global signed URL opener for secure documents (if not already defined elsewhere)
 if (!window.openSignedUrl) {
@@ -313,7 +314,7 @@ export function initCollaboratorModals() {
                                     <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
                                         <div class="form-group"><label>Email</label><input type="email" id="collab-email"></div>
                                         <div class="form-group"><label>Telefono</label><input type="text" id="collab-phone"></div>
-                                        <div class="form-group full-width"><label>PEC</label><input type="text" id="collab-pec"></div>
+                                        <div class="form-group full-width"><label>PEC ${glossaryTip('pec')}</label><input type="text" id="collab-pec" placeholder="nome@pec.esempio.it"></div>
                                     </div>
                                 </div>
                                 <!-- Residenza -->
@@ -358,10 +359,10 @@ export function initCollaboratorModals() {
                                     <!-- Partner Only Fiscal Fields Removed -->
 
                                     <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
-                                        <div class="form-group"><label>Cod. Fiscale</label><input type="text" id="collab-fiscal-code" style="text-transform: uppercase;"></div>
-                                        <div class="form-group"><label>P.IVA</label><input type="text" id="collab-vat-number"></div>
-                                        <div class="form-group"><label>Banca</label><input type="text" id="collab-bank-name"></div>
-                                        <div class="form-group full-width"><label>IBAN</label><input type="text" id="collab-iban" style="font-family: monospace; letter-spacing: 0.05em;"></div>
+                                        <div class="form-group"><label>Codice Fiscale ${glossaryTip('cf')}</label><input type="text" id="collab-fiscal-code" placeholder="16 caratteri" style="text-transform: uppercase;"></div>
+                                        <div class="form-group"><label>Partita IVA ${glossaryTip('piva')}</label><input type="text" id="collab-vat-number" placeholder="11 cifre"></div>
+                                        <div class="form-group"><label>Banca</label><input type="text" id="collab-bank-name" placeholder="Nome istituto"></div>
+                                        <div class="form-group full-width"><label>IBAN ${glossaryTip('iban')}</label><input type="text" id="collab-iban" placeholder="IT00 X000 0000 0000 0000 0000 000" style="font-family: monospace; letter-spacing: 0.05em;"></div>
                                     </div>
                                 </div>
                                 <!-- Stato -->
@@ -1058,7 +1059,7 @@ export function renderCollaboratorDetail(container) {
                                                     ${p.title || 'Pagamento'}
                                                     <div style="font-size: 0.75rem; color: var(--text-tertiary);">Ord. ${p.orders?.order_number || '-'}</div>
                                                 </td>
-                                                <td style="padding: 1rem; color: var(--text-secondary);">${p.due_date ? new Date(p.due_date).toLocaleDateString() : '-'}</td>
+                                                <td style="padding: 1rem; color: var(--text-secondary);">${p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT') : '-'}</td>
                                                 <td style="padding: 1rem; font-weight: 600;">${formatAmount(p.amount)}€</td>
                                                 <td style="padding: 1rem;">
                                                     <span class="status-badge" style="background: ${p.status === 'Saldato' || p.status === 'Pagato' ? '#10b98115' : '#f59e0b15'}; color: ${p.status === 'Saldato' || p.status === 'Pagato' ? '#10b981' : '#f59e0b'}; border: 1px solid ${p.status === 'Saldato' || p.status === 'Pagato' ? '#10b98130' : '#f59e0b30'}; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">${p.status}</span>
@@ -1092,10 +1093,10 @@ export function renderCollaboratorDetail(container) {
                                                     ${inv.invoice_number || '-'}
                                                 </td>
                                                 <td style="padding: 1rem; color: var(--text-secondary);">
-                                                    ${inv.issue_date ? new Date(inv.issue_date).toLocaleDateString() : '-'}
+                                                    ${inv.issue_date ? new Date(inv.issue_date).toLocaleDateString('it-IT') : '-'}
                                                 </td>
                                                 <td style="padding: 1rem; color: var(--text-secondary);">
-                                                    ${inv.payment_date ? new Date(inv.payment_date).toLocaleDateString() : '-'}
+                                                    ${inv.payment_date ? new Date(inv.payment_date).toLocaleDateString('it-IT') : '-'}
                                                 </td>
                                                 <td style="padding: 1rem; font-weight: 600;">€ ${formatAmount(inv.amount_tax_excluded || inv.amount)}</td>
                                                 <td style="padding: 1rem;">

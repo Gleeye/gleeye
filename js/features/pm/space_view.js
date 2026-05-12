@@ -948,7 +948,7 @@ function renderChildProjects(container, projects) {
                         <h3 style="font-size: 1.15rem; font-weight: 700; color: #1e293b; margin: 0 0 1rem; line-height: 1.3;">${space.name}</h3>
 
                         <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 0.75rem; color: #94a3b8;">${new Date(space.updated_at || space.created_at).toLocaleDateString()}</span>
+                            <span style="font-size: 0.75rem; color: #94a3b8;">${new Date(space.updated_at || space.created_at).toLocaleDateString('it-IT')}</span>
                             <div style="display: flex; align-items: center; gap: 4px; color: var(--brand-blue); font-weight: 600; font-size: 0.85rem;">
                                 Apri <span class="material-icons-round" style="font-size: 1rem;">arrow_forward</span>
                             </div>

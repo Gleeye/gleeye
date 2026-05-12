@@ -475,7 +475,7 @@ function updateUI(container, chartOnly) {
         const tbodyOut = container.querySelector('#outstanding-table tbody');
         tbodyOut.innerHTML = dashboardState.data.outstandingList.map(i => `
             <tr>
-                <td>${new Date(i.invoice_date).toLocaleDateString()}</td>
+                <td>${new Date(i.invoice_date).toLocaleDateString('it-IT')}</td>
                 <td>${i.client_name}</td>
                 <td style="font-weight:600;">€ ${formatAmount(i.amount_tax_excluded)}</td>
                 <td><span class="badge ${i.days_open > 60 ? 'badge-red' : (i.days_open > 30 ? 'badge-yellow' : 'badge-gray')}">${i.days_open} gg</span></td>

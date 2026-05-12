@@ -5,6 +5,7 @@ import { formatAmount } from '../modules/utils.js?v=8000';
 import { fetchOrders, fetchInvoices, fetchPayments, upsertClient, fetchClients } from '../modules/api.js?v=8000';
 import { showGlobalAlert } from '../modules/utils.js?v=8000';
 import { activityTranslate } from '../modules/pm_activity_helper.js?v=8000';
+import { glossaryTip } from '../modules/help_tooltip.js?v=8001';
 
 export async function renderClients(container) {
     // Ensure we have orders for analytics
@@ -626,7 +627,7 @@ export function renderClientDetail(container) {
                             ${clientOrders.length ? clientOrders.map(o => `
                                  <tr onclick="window.location.hash='order-detail/${o.id}'" style="cursor:pointer; transition: background 0.15s;" class="hover-row">
                                      <td>${o.order_number}</td>
-                                     <td>${new Date(o.order_date).toLocaleDateString()}</td>
+                                     <td>${new Date(o.order_date).toLocaleDateString('it-IT')}</td>
                                      <td>${o.title}</td>
                                      <td><span class="status-badge">${activityTranslate(o.status_works) || 'In Corso'}</span></td>
                                  </tr>
@@ -645,7 +646,7 @@ export function renderClientDetail(container) {
                             ${clientInvoices.length ? clientInvoices.map(i => `
                                  <tr style="cursor: default;">
                                      <td>${i.invoice_number}</td>
-                                     <td>${new Date(i.issue_date).toLocaleDateString()}</td>
+                                     <td>${new Date(i.issue_date).toLocaleDateString('it-IT')}</td>
                                      <td>€ ${formatAmount(i.amount_tax_excluded)}</td>
                                      <td><span class="status-badge ${i.status === 'Pagato' ? 'status-active' : 'status-pending'}">${i.status}</span></td>
                                  </tr>
@@ -671,7 +672,7 @@ export function renderClientDetail(container) {
                          <tbody>
                             ${clientPayments.length ? clientPayments.map(p => `
                                 <tr onclick="openPaymentModal('${p.id}')" style="cursor: pointer; transition: background 0.2s;">
-                                    <td style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">${new Date(p.due_date).toLocaleDateString()}</td>
+                                    <td style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">${new Date(p.due_date).toLocaleDateString('it-IT')}</td>
                                     <td><span style="font-size: 0.9rem; color: var(--text-primary);">${p.title || '-'}</span></td>
                                     <td>
                                         ${p.orders?.order_number ?
@@ -795,20 +796,20 @@ export function initNewClientModal() {
                                 <input type="text" id="new-cli-address" class="modal-input" placeholder="Indirizzo e n. civico" style="width: 100%; border-radius: 12px; padding: 0.75rem 1rem;">
                                 <div class="mobile-inline-grid">
                                     <input type="text" id="new-cli-city" class="modal-input" placeholder="Città" style="width: 100%; border-radius: 12px;">
-                                    <input type="text" id="new-cli-prov" class="modal-input" placeholder="PR" maxlength="2" style="width: 100%; border-radius: 12px; text-align: center; padding-left: 0.25rem; padding-right: 0.25rem;">
-                                    <input type="text" id="new-cli-cap" class="modal-input" placeholder="CAP" maxlength="5" style="width: 100%; border-radius: 12px; text-align: center; padding-left: 0.25rem; padding-right: 0.25rem;">
+                                    <input type="text" id="new-cli-prov" class="modal-input" placeholder="Provincia" maxlength="2" title="Sigla provincia, 2 lettere (es. GE)" style="width: 100%; border-radius: 12px; text-align: center; padding-left: 0.25rem; padding-right: 0.25rem;">
+                                    <input type="text" id="new-cli-cap" class="modal-input" placeholder="CAP (5 cifre)" maxlength="5" title="Codice di Avviamento Postale" style="width: 100%; border-radius: 12px; text-align: center; padding-left: 0.25rem; padding-right: 0.25rem;">
                                 </div>
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; letter-spacing: 0.5px; text-transform: uppercase;">Dati Fiscali</label>
+                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; letter-spacing: 0.5px; text-transform: uppercase;">Dati Fiscali ${glossaryTip('piva')}${glossaryTip('cf')}${glossaryTip('sdi')}</label>
                             <div style="display: flex; flex-direction: column; gap: 1rem;">
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                                     <input type="text" id="new-cli-vat" class="modal-input" placeholder="Partita IVA" style="width: 100%; border-radius: 12px;">
                                     <input type="text" id="new-cli-fiscal" class="modal-input" placeholder="Codice Fiscale" style="width: 100%; border-radius: 12px;">
                                 </div>
-                                <input type="text" id="new-cli-sdi" class="modal-input" placeholder="Codice SDI (7 caratteri)" maxlength="7" style="width: 100%; border-radius: 12px; padding: 0.75rem 1rem;">
+                                <input type="text" id="new-cli-sdi" class="modal-input" placeholder="Codice SDI (7 caratteri, oppure PEC)" maxlength="7" style="width: 100%; border-radius: 12px; padding: 0.75rem 1rem;">
                             </div>
                         </div>
                     </div>

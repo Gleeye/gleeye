@@ -59,7 +59,7 @@ export async function renderClusterProjects(container, clusterId) {
                     </div>
                     
                     <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 1rem; border-top: 1px solid var(--surface-2);">
-                        <div style="font-size: 0.7rem; color: var(--text-tertiary);">Creato il ${new Date(p.created_at).toLocaleDateString()}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-tertiary);">Creato il ${new Date(p.created_at).toLocaleDateString('it-IT')}</div>
                         <div style="padding: 4px 10px; border-radius: 6px; background: var(--surface-1); color: var(--text-secondary); font-size: 0.65rem; font-weight: 700;">
                             Vedi Dettaglio
                         </div>

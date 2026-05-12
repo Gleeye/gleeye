@@ -365,7 +365,7 @@ async function renderItems(container, spaceId, filterType, items = null) {
                                     ${item.due_date ? `
                                         <div style="font-size: 0.75rem; color: ${new Date(item.due_date) < new Date() && !isDone ? '#ef4444' : 'var(--text-tertiary)'}; display: flex; align-items: center; gap: 4px;">
                                             <span class="material-icons-round" style="font-size: 14px;">event</span>
-                                            ${new Date(item.due_date).toLocaleDateString()}
+                                            ${new Date(item.due_date).toLocaleDateString('it-IT')}
                                         </div>
                                     ` : ''}
                                     <div style="font-size: 0.75rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 4px;">

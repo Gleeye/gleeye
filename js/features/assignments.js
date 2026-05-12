@@ -534,7 +534,7 @@ function renderAssignmentPaymentPlan(assignment) {
                         </div>
                         ${linkedPayments.map(p => `
                             <div class="transaction-row" onclick="window.openPaymentModal('${p.id}')" style="cursor: pointer; grid-template-columns: 1.5fr 3fr 1.5fr 1fr; padding: 1rem 1.5rem; border-bottom: 1px solid var(--glass-border);">
-                                 <div style="color: var(--text-secondary);">${p.due_date ? new Date(p.due_date).toLocaleDateString() : '-'}</div>
+                                 <div style="color: var(--text-secondary);">${p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT') : '-'}</div>
                                  <div style="font-weight: 500; color: var(--text-primary);">${p.title || 'Pagamento'}</div>
                                  <div style="font-weight: 600; font-family: 'Outfit',sans-serif;">€ ${formatAmount(p.amount)}</div>
                                  <div style="text-align: right;"><span class="status-badge" style="font-size: 0.75rem;">${p.status}</span></div>

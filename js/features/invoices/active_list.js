@@ -32,7 +32,7 @@ export function renderInvoices(container) {
         <tr class="clickable-row" onclick="openInvoiceForm('${inv.id}')">
             <td>${inv.invoice_number}</td>
             <td>${inv.clients?.business_name || '-'}</td>
-            <td>${new Date(inv.invoice_date).toLocaleDateString()}</td>
+            <td>${new Date(inv.invoice_date).toLocaleDateString('it-IT')}</td>
             <td>€ ${formatAmount(inv.amount_tax_excluded)}</td>
             <td>
                 <span class="status-badge ${isPaid ? 'status-active' : 'status-pending'}">

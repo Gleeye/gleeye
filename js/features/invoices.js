@@ -8,6 +8,7 @@ import { fetchInvoices, fetchPassiveInvoices, fetchPayments, fetchBankTransactio
 import { renderPassiveInvoicesPartners, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from './invoices/passive_list.js?v=8000';
 import { initInvoiceDetailModals, openInvoiceDetail } from './invoices/detail_modal.js?v=8000';
 import { renderInvoices, renderActiveInvoicesSafe } from './invoices/active_list.js?v=8000';
+import { glossaryTip } from '../modules/help_tooltip.js?v=8001';
 
 // Re-export the active listing views so the router + dashboard dynamic imports
 // (`features/invoices.js` → renderActiveInvoicesSafe etc.) keep working unchanged.
@@ -74,7 +75,7 @@ export function initInvoiceModals() {
                                 </div>
                             </div>
                             <div>
-                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Esigibilità IVA *</label>
+                                <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Esigibilità IVA * ${glossaryTip('esigibilita_iva')}</label>
                                 <select id="inv-vat-eligibility" class="modal-input" required style="width: 100%;">
                                     <option value="Immediata">Immediata (I)</option>
                                     <option value="Differita">Differita (D)</option>
@@ -178,13 +179,13 @@ export function initInvoiceModals() {
                             <!-- Mode: Collaborator Fields -->
                             <div id="pinv-collab-fields" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                 <div>
-                                    <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Tipo Documento *</label>
+                                    <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Regime fiscale del fornitore * ${glossaryTip('regime_ordinario')}${glossaryTip('regime_forfettario')}${glossaryTip('regime_occasionale')}${glossaryTip('reverse_charge')}</label>
                                     <select id="pinv-type" class="modal-input" style="width: 100%;">
                                         <option value="ritenuta">Regime Ordinario (IVA 22% + Ritenuta)</option>
-                                        <option value="forfettario">Regime Forfettario (No IVA, No Ritenuta)</option>
+                                        <option value="forfettario">Regime Forfettario (no IVA, no Ritenuta)</option>
                                         <option value="occasionale">Prestazione Occasionale (Ritenuta 20%)</option>
-                                        <option value="estero">Fattura Estero / Rev. Charge (No IVA)</option>
-                                        <option value="parcella">Parcella/Notula (IVA + Ritenuta)</option>
+                                        <option value="estero">Estero / Reverse Charge (no IVA)</option>
+                                        <option value="parcella">Parcella / Notula (IVA + Ritenuta)</option>
                                     </select>
                                 </div>
                                 <div>
@@ -231,7 +232,7 @@ export function initInvoiceModals() {
                                     </div>
                                 </div>
                                 <div id="pinv-cassa-container" style="display: none;">
-                                    <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Cassa Prev. (4%)</label>
+                                    <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Cassa Previdenza (4%) ${glossaryTip('cassa_previdenza')}</label>
                                     <div style="position: relative;">
                                         <span style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); font-size: 0.9rem; color: var(--text-tertiary);">€</span>
                                         <input type="number" id="pinv-cassa" class="modal-input" step="0.01" placeholder="0.00" style="width: 100%; padding-left: 2rem;">
@@ -256,7 +257,7 @@ export function initInvoiceModals() {
                                     <div style="display: flex; align-items: center; gap: 0.75rem;">
                                         <div style="display: flex; align-items: center; gap: 0.25rem;">
                                             <input type="checkbox" id="pinv-has-rivalsa" style="width: 16px; height: 16px; cursor: pointer;">
-                                            <label for="pinv-has-rivalsa" style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary); cursor: pointer;">+ Rivalsa 4%</label>
+                                            <label for="pinv-has-rivalsa" style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary); cursor: pointer;">+ Rivalsa INPS 4%</label>${glossaryTip('rivalsa_inps')}
                                         </div>
                                         <div style="display: flex; align-items: center; gap: 0.25rem;">
                                             <input type="checkbox" id="pinv-has-vat" style="width: 16px; height: 16px; cursor: pointer;">
@@ -264,7 +265,7 @@ export function initInvoiceModals() {
                                         </div>
                                         <div style="display: flex; align-items: center; gap: 0.25rem;">
                                             <input type="checkbox" id="pinv-has-bollo" style="width: 16px; height: 16px; cursor: pointer;">
-                                            <label for="pinv-has-bollo" style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary); cursor: pointer;">+ Bollo €2</label>
+                                            <label for="pinv-has-bollo" style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary); cursor: pointer;">+ Bollo €2</label>${glossaryTip('bollo_virtuale')}
                                         </div>
                                     </div>
                                 </div>

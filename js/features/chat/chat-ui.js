@@ -388,7 +388,7 @@ function renderSearchResults(results) {
         return `
         <div class="search-result-item" onclick="window.chatActions.jumpToMessage('${msg.id}', '${contextId}', '${contextType}')">
             <strong>${msg.author?.email || 'User'}</strong>: ${msg.body.substring(0, 50)}...
-            <div class="text-sm text-secondary">${new Date(msg.created_at).toLocaleDateString()}</div>
+            <div class="text-sm text-secondary">${new Date(msg.created_at).toLocaleDateString('it-IT')}</div>
         </div>
     `;
     }).join('');

@@ -97,7 +97,7 @@ function renderTreeNodes(nodes, level = 0) {
                         <div class="text-xs text-secondary" style="display:flex; gap:0.5rem; align-items:center;">
                              <span class="status-dot" style="background:${statusColor}; width:8px; height:8px; border-radius:50%; display:inline-block;"></span>
                              ${node.status}
-                             ${node.due_date ? `• Scadenza: ${new Date(node.due_date).toLocaleDateString()}` : ''}
+                             ${node.due_date ? `• Scadenza: ${new Date(node.due_date).toLocaleDateString('it-IT')}` : ''}
                         </div>
                     </div>
                     

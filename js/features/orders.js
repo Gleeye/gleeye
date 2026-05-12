@@ -260,7 +260,7 @@ export async function renderOrderDetail(container, orderId) {
                              <h1 style="font-size: 1.75rem; font-weight: 700; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.02em; line-height: 1.2;">${order.title || 'Senza Titolo'}</h1>
                         </div>
                         <div style="display: flex; align-items: center; gap: 1rem; color: var(--text-tertiary); font-size: 0.85rem;">
-                            <span style="display: flex; align-items: center; gap: 0.4rem;"><span class="material-icons-round" style="font-size: 1rem;">calendar_today</span> ${new Date(order.created_at).toLocaleDateString()}</span>
+                            <span style="display: flex; align-items: center; gap: 0.4rem;"><span class="material-icons-round" style="font-size: 1rem;">calendar_today</span> ${new Date(order.created_at).toLocaleDateString('it-IT')}</span>
                             <span style="display: flex; align-items: center; gap: 0.4rem;"><span class="material-icons-round" style="font-size: 1rem;">business</span> ${order.clients?.client_code || 'N/A'}</span>
                         </div>
                     </div>
@@ -723,7 +723,7 @@ export async function renderOrderDetail(container, orderId) {
                                                     <span style="font-size: 0.8rem; font-weight: 700; color: var(--brand-blue);">${formatAmount(p.amount)}€</span>
                                                 </div>
                                                 <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-tertiary);">
-                                                    <span>${p.due_date ? new Date(p.due_date).toLocaleDateString() : '-'}</span>
+                                                    <span>${p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT') : '-'}</span>
                                                     <span class="status-badge" style="padding: 2px 6px; font-size: 0.6rem; border-radius: 4px; background: ${isSaldato(p.status) ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)'}; color: ${isSaldato(p.status) ? 'var(--success-soft)' : 'var(--warning-soft)'}; border: none;">${p.status}</span>
                                                 </div>
                                             </div>
@@ -741,7 +741,7 @@ export async function renderOrderDetail(container, orderId) {
                                                             <span style="font-size: 0.8rem; font-weight: 700; color: #ef4444;">${formatAmount(p.amount)}€</span>
                                                         </div>
                                                         <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-tertiary);">
-                                                            <span>${p.due_date ? new Date(p.due_date).toLocaleDateString() : '-'}</span>
+                                                            <span>${p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT') : '-'}</span>
                                                             <span class="status-badge" style="padding: 2px 6px; font-size: 0.6rem; border-radius: 4px; background: ${isSaldato(p.status) ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)'}; color: ${isSaldato(p.status) ? 'var(--success-soft)' : 'var(--warning-soft)'}; border: none;">${p.status}</span>
                                                         </div>
                                                     </div>

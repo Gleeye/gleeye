@@ -439,7 +439,7 @@ export async function openInvoiceDetail(id, type) {
                             <span class="text-caption">${p.title}</span>
                         </div>
                     </div>
-                    <span class="text-caption">${p.due_date ? new Date(p.due_date).toLocaleDateString() : '-'}</span>
+                    <span class="text-caption">${p.due_date ? new Date(p.due_date).toLocaleDateString('it-IT') : '-'}</span>
                 </div>`;
         });
     } else {
@@ -484,7 +484,7 @@ export async function openInvoiceDetail(id, type) {
                            <span class="text-caption">${t.description}</span>
                        </div>
                    </div>
-                   <span class="text-caption">${new Date(t.date).toLocaleDateString()}</span>
+                   <span class="text-caption">${new Date(t.date).toLocaleDateString('it-IT')}</span>
                </div>`;
         });
     } else {

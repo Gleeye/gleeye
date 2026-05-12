@@ -255,7 +255,7 @@ export async function renderSapServiceDetail(container, serviceId) {
                     <div>
                         <div style="font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-tertiary);">${typeName}</div>
                         <h1 style="font-size: 1.75rem; font-weight: 700; margin: 0;">${service.name} ${selectedVariant ? ` - <span style="color: var(--brand-blue);">${selectedVariant}</span>` : ''}</h1>
-                        <div style="color: var(--text-tertiary); font-size: 0.85rem;">Creato il ${new Date(service.created_at || Date.now()).toLocaleDateString()}</div>
+                        <div style="color: var(--text-tertiary); font-size: 0.85rem;">Creato il ${new Date(service.created_at || Date.now()).toLocaleDateString('it-IT')}</div>
                     </div>
                 </div>
 

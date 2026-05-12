@@ -113,7 +113,7 @@ window.generateQuote = async (orderId, btnElement) => {
                 const currentLinks = orderData.cloud_links || [];
                 // Remove old auto-generated quotes to keep it clean? Or keep history. Let's keep history but mark new one.
                 const newLink = {
-                    label: `Preventivo ${new Date().toLocaleDateString()}`,
+                    label: `Preventivo ${new Date().toLocaleDateString('it-IT')}`,
                     url: docUrl,
                     type: 'quote',
                     generated_at: new Date().toISOString()
