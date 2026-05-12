@@ -746,29 +746,60 @@ export function renderNotificationCenter(container) {
 }
 
 /**
- * Update the push button text and class based on current subscription
+ * Update the push button text and class based on current subscription.
+ * Se il browser non supporta push (es. iPhone Safari < 16.4 o tab non-PWA),
+ * NON nascondiamo il bottone: lo lasciamo visibile in stato disabilitato con
+ * un messaggio diagnostico. Così l'utente capisce DOVE attivare le push e
+ * perché eventualmente non può.
  */
 async function updatePushBtnStatus(btn) {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        btn.style.display = 'none';
+    const hasSW = 'serviceWorker' in navigator;
+    const hasPush = 'PushManager' in window;
+
+    if (!hasSW || !hasPush) {
+        btn.disabled = true;
+        btn.classList.remove('secondary-btn', 'success-btn', 'active');
+        btn.classList.add('secondary-btn');
+        btn.style.opacity = '0.55';
+        btn.style.cursor = 'not-allowed';
+        const labelEl = btn.querySelector('span:last-child');
+        const iconEl = btn.querySelector('.material-icons-round');
+        if (iconEl) iconEl.textContent = 'notifications_off';
+        if (labelEl) {
+            // Diagnostica chiara: iPhone su Safari standard NON ha PushManager.
+            // Su iOS è necessario iOS 16.4+ e aprire l'app dalla schermata Home (PWA).
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            if (isIOS) {
+                labelEl.textContent = 'Su iPhone: serve iOS 16.4+ e app aperta dalla home';
+            } else if (!hasSW) {
+                labelEl.textContent = 'Service Worker non disponibile';
+            } else {
+                labelEl.textContent = 'Push non supportate in questo browser';
+            }
+        }
+        btn.title = `Push non disponibili (serviceWorker=${hasSW}, PushManager=${hasPush})`;
         return;
     }
 
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
 
-    if (subscription) {
-        btn.classList.add('active');
-        btn.classList.add('success-btn');
-        btn.classList.remove('secondary-btn');
-        btn.querySelector('span:last-child').textContent = 'Notifiche Mobile Attive';
-        btn.querySelector('.material-icons-round').textContent = 'notifications_active';
-    } else {
-        btn.classList.remove('active');
-        btn.classList.remove('success-btn');
-        btn.classList.add('secondary-btn');
-        btn.querySelector('span:last-child').textContent = 'Attiva Notifiche Mobile';
-        btn.querySelector('.material-icons-round').textContent = 'notifications_none';
+        if (subscription) {
+            btn.classList.add('active', 'success-btn');
+            btn.classList.remove('secondary-btn');
+            btn.querySelector('span:last-child').textContent = 'Notifiche Mobile Attive';
+            btn.querySelector('.material-icons-round').textContent = 'notifications_active';
+        } else {
+            btn.classList.remove('active', 'success-btn');
+            btn.classList.add('secondary-btn');
+            btn.querySelector('span:last-child').textContent = 'Attiva Notifiche Mobile';
+            btn.querySelector('.material-icons-round').textContent = 'notifications_none';
+        }
+    } catch (err) {
+        console.error('[Push] Failed to check subscription status:', err);
+        btn.disabled = true;
+        btn.querySelector('span:last-child').textContent = 'Errore controllo push';
     }
 }
 
