@@ -1163,14 +1163,16 @@ export function renderAssignmentsDashboard(container) {
 
     updateUI();
 
-    // Auto-run migration silently
-    if (window.migrateLegacyAssignments) {
-        setTimeout(() => window.migrateLegacyAssignments(true), 1500);
-    }
+    // Migration auto-run rimossa il 12 maggio 2026: la funzione `migrateLegacyAssignments`
+    // matcha legacy_id contro un masterMap di codici CSV (es. "24-0011-zqExI"), ma in DB
+    // i `legacy_id` attuali sono UUID — quindi la funzione gira a vuoto da tempo. Resta
+    // disponibile da console come tool di recovery se Davide vorrà rimappare manualmente
+    // i payment_config originali dal CSV (vedi memoria: anomalia #11 e KB cumulativa).
 }
 
-// MIGRATION TOOL: Fix for "Legacy Data Hole"
-// User can run window.migrateLegacyAssignments() from console to fix missing configs.
+// MIGRATION TOOL: legacy recovery (manuale, da console).
+// Da quando i legacy_id sono diventati UUID, questo masterMap non trova più match.
+// Lasciato disponibile per eventuale ricostruzione manuale dei payment_config originali.
 window.migrateLegacyAssignments = async (auto = false) => {
     if (!state.assignments) {
         showGlobalAlert('Nessun incarico caricato. Attendi il caricamento...', 'warning');
