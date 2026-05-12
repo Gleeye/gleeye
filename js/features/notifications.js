@@ -298,6 +298,9 @@ async function handleNotificationClick(id) {
     } else if (notification.type === 'payment_received') {
         // Porta il collab alla vista personale incarichi dove vede il pagamento ricevuto.
         window.location.hash = '#my-assignments';
+    } else if (notification.type === 'offer_accepted' && notification.data?.order_id) {
+        // Porta direttamente al dettaglio della commessa appena accettata.
+        window.location.hash = `#order-detail/${notification.data.order_id}`;
     }
 
     closeDropdown();
@@ -438,6 +441,7 @@ function getIcon(type) {
         'booking_cancel': 'event_busy',
         'payment_due': 'payments',
         'payment_received': 'paid',
+        'offer_accepted': 'celebration',
 
         // PM Module
         'pm_space_created': 'folder_special',
@@ -478,6 +482,7 @@ function getIconClass(type) {
         'booking_cancel': 'type-cancel',
         'payment_due': 'type-payment',
         'payment_received': 'type-success',
+        'offer_accepted': 'type-success',
 
         // PM Module
         'pm_space_created': 'type-info',
