@@ -426,6 +426,26 @@ async function handleNotificationClick(id) {
     } else if (notification.type === 'order_status_works_changed' && notification.data?.order_id) {
         window.location.hash = `#order-detail/${notification.data.order_id}`;
     }
+    // Wave 4
+    else if (notification.type === 'payment_invitation_sent') {
+        // Per il collab: porta a my-assignments per gestire la fattura da emettere.
+        window.location.hash = '#my-assignments';
+    } else if (notification.type === 'appointment_time_changed' || notification.type === 'appointment_cancelled') {
+        // Cambio o cancellazione: porta in agenda
+        window.location.hash = '#agenda';
+    } else if (notification.type === 'order_deleted') {
+        // Commessa eliminata: porta alla lista commesse (la singola non c'è più)
+        window.location.hash = '#dashboard';
+    } else if (notification.type === 'assignment_deleted') {
+        // Incarico eliminato: porta alla lista
+        window.location.hash = '#assignments';
+    } else if (notification.type === 'invoice_deleted') {
+        window.location.hash = notification.data?.kind === 'invoices' ? '#invoices' : '#passive-invoices-collab';
+    } else if (notification.type === 'order_price_changed' && notification.data?.order_id) {
+        window.location.hash = `#order-detail/${notification.data.order_id}`;
+    } else if (notification.type === 'task_priority_increased' && notification.data?.item_id) {
+        window.location.hash = `#pm/task/${notification.data.item_id}`;
+    }
 
     closeDropdown();
 }
@@ -661,6 +681,15 @@ function getIcon(type) {
         'pm_item_due_date_changed': 'event',
         'task_assignee_removed': 'person_remove',
         'order_status_works_changed': 'autorenew',
+        // Wave 4
+        'payment_invitation_sent': 'description',
+        'appointment_time_changed': 'schedule',
+        'appointment_cancelled': 'event_busy',
+        'order_deleted': 'delete_forever',
+        'assignment_deleted': 'delete_outline',
+        'invoice_deleted': 'delete_outline',
+        'order_price_changed': 'price_change',
+        'task_priority_increased': 'priority_high',
 
         // PM Module
         'pm_space_created': 'folder_special',
@@ -730,6 +759,15 @@ function getIconClass(type) {
         'pm_item_due_date_changed': 'type-payment',
         'task_assignee_removed': 'type-cancel',
         'order_status_works_changed': 'type-primary',
+        // Wave 4
+        'payment_invitation_sent': 'type-payment',
+        'appointment_time_changed': 'type-payment',
+        'appointment_cancelled': 'type-cancel',
+        'order_deleted': 'type-cancel',
+        'assignment_deleted': 'type-cancel',
+        'invoice_deleted': 'type-cancel',
+        'order_price_changed': 'type-payment',
+        'task_priority_increased': 'type-cancel',
 
         // PM Module
         'pm_space_created': 'type-info',
