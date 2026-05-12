@@ -19,10 +19,9 @@ export function renderPaymentsDashboard(container) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const allPending = state.payments.filter(p => 
-            p.status !== 'Completato' && 
-            p.status !== 'Done' && 
-            !p.passive_invoice_id && 
+        const allPending = state.payments.filter(p =>
+            p.status !== 'Completato' &&
+            !p.passive_invoice_id &&
             !p.invoice_id
         );
 
@@ -1052,7 +1051,7 @@ export function initPaymentModals() {
         document.getElementById('pme-title').value = p.title || '';
         document.getElementById('pme-amount').value = p.amount || 0;
         document.getElementById('pme-mode').value = p.payment_mode || 'Rata';
-        document.getElementById('pme-status').value = p.status || 'To Do';
+        document.getElementById('pme-status').value = p.status || 'Da Fare';
         editModal.classList.add('active');
     });
 
@@ -1137,7 +1136,7 @@ export function openPaymentModal(id) {
     } else {
         if (p.passive_invoices?.id || p.passive_invoice_id || p.invoice_id) {
             actionDiv.innerHTML = `<button class="badge badge-warning" style="cursor: pointer; border: 1px solid rgba(245, 158, 11, 0.2);"><span class="material-icons-round text-small">receipt_long</span> Fattura ${p.passive_invoices?.invoice_number || ''}</button>`;
-        } else if (p.status === 'Da Fare' || p.status === 'To Do' || !p.status) {
+        } else if (p.status === 'Da Fare' || !p.status) {
             actionDiv.innerHTML = `<button class="primary-btn" id="btn-send-invite" style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 8px; background: #f59e0b;"><span class="material-icons-round" style="font-size: 1rem;">send</span> Invia Invito</button>`;
             setTimeout(() => {
                 const b = document.getElementById('btn-send-invite');
@@ -1171,7 +1170,7 @@ export function openPaymentModal(id) {
     document.getElementById('info-mode').textContent = p.payment_mode || 'Rata';
     document.getElementById('info-type').textContent = p.payment_type || '-';
 
-    const statusMap = { 'Da Fare': '#6b7280', 'Invito Inviato': '#f59e0b', 'In Attesa': '#3b82f6', 'Completato': '#22c55e', 'Done': '#22c55e', 'To Do': '#6b7280' };
+    const statusMap = { 'Da Fare': '#6b7280', 'Invito Inviato': '#f59e0b', 'Fattura Ricevuta': '#3b82f6', 'In Attesa': '#3b82f6', 'Completato': '#22c55e' };
     const color = statusMap[p.status] || '#6b7280';
     document.getElementById('info-status').innerHTML = `<span style="display: inline-flex; align-items: center; gap: 0.4rem;"><span style="width: 8px; height: 8px; border-radius: 50%; background: ${color};"></span>${p.status || 'N/A'}</span>`;
 

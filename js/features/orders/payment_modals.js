@@ -180,7 +180,7 @@ export function renderManualPaymentModal() {
     window.openManualPaymentModal = (oid, cid) => { currentOrder = oid; currentClient = cid; document.getElementById('payment-manual-modal').classList.add('active'); };
     document.getElementById('pm-btn-save').addEventListener('click', async () => {
         try {
-            await upsertPayment({ title: document.getElementById('pm-desc').value, amount: parseFloat(document.getElementById('pm-amount').value), due_date: document.getElementById('pm-date').value, status: 'To Do', payment_type: 'Cliente', order_id: currentOrder, client_id: currentClient });
+            await upsertPayment({ title: document.getElementById('pm-desc').value, amount: parseFloat(document.getElementById('pm-amount').value), due_date: document.getElementById('pm-date').value, status: 'Da Fare', payment_type: 'Cliente', order_id: currentOrder, client_id: currentClient });
             document.getElementById('payment-manual-modal').classList.remove('active');
             // Re-render via hash to avoid cyclic import with orders.js
             window.location.hash = '#order-detail/' + currentOrder;

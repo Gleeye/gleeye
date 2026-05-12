@@ -125,7 +125,7 @@ export function initOrderAssignmentModal() {
                             <div>
                                 <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem;">STATO</label>
                                 <select id="asg-status" class="modal-input" style="width: 100%;">
-                                    <option value="To Do">To Do</option>
+                                    <option value="Da Fare">Da Fare</option>
                                     <option value="In Corso">In Corso</option>
                                     <option value="Completato">Completato</option>
                                     <option value="Terminato">Terminato</option>
@@ -251,7 +251,7 @@ window.openAddAssignmentModal = (orderId) => {
     if (document.getElementById('asg-step1-error')) document.getElementById('asg-step1-error').style.display = 'none';
 
     document.getElementById('asg-duration').value = '12';
-    document.getElementById('asg-status').value = 'To Do';
+    document.getElementById('asg-status').value = 'Da Fare';
     document.getElementById('asg-amount').value = '';
 
     window.updateAsgStepUI();

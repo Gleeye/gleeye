@@ -62,7 +62,7 @@ export function calculateProposedOrderPayments(order, config) {
             title: 'Saldo Complessivo',
             amount: total,
             due_date: getDueDate(0),
-            status: 'To Do',
+            status: 'Da Fare',
             payment_type: 'Cliente',
             order_id: order.id,
             client_id: order.client_id
@@ -74,7 +74,7 @@ export function calculateProposedOrderPayments(order, config) {
             title: `Anticipo(${pct} %)`,
             amount: deposit,
             due_date: getDueDate(0),
-            status: 'To Do',
+            status: 'Da Fare',
             payment_type: 'Cliente',
             order_id: order.id,
             client_id: order.client_id
@@ -83,7 +83,7 @@ export function calculateProposedOrderPayments(order, config) {
             title: 'Saldo Finale',
             amount: total - deposit,
             due_date: getDueDate(1),
-            status: 'To Do',
+            status: 'Da Fare',
             payment_type: 'Cliente',
             order_id: order.id,
             client_id: order.client_id
@@ -96,7 +96,7 @@ export function calculateProposedOrderPayments(order, config) {
                 title: `Rata ${i + 1}/${n}`,
                 amount: val,
                 due_date: getDueDate(i, config.installment_type || order.installment_type),
-                status: 'To Do',
+                status: 'Da Fare',
                 payment_type: 'Cliente',
                 order_id: order.id,
                 client_id: order.client_id
@@ -113,7 +113,7 @@ export function calculateProposedOrderPayments(order, config) {
             title: `Anticipo (${pct}%)`,
             amount: deposit,
             due_date: getDueDate(0),
-            status: 'To Do',
+            status: 'Da Fare',
             payment_type: 'Cliente',
             order_id: order.id,
             client_id: order.client_id
@@ -124,7 +124,7 @@ export function calculateProposedOrderPayments(order, config) {
                 title: `Rata ${i + 1}/${n}`,
                 amount: val,
                 due_date: getDueDate(i + 1, config.installment_type || order.installment_type),
-                status: 'To Do',
+                status: 'Da Fare',
                 payment_type: 'Cliente',
                 order_id: order.id,
                 client_id: order.client_id
@@ -143,7 +143,7 @@ export function calculateProposedOrderPayments(order, config) {
             title: `Anticipo (${pct}%)`,
             amount: deposit,
             due_date: getDueDate(0),
-            status: 'To Do',
+            status: 'Da Fare',
             payment_type: 'Cliente',
             order_id: order.id,
             client_id: order.client_id
@@ -154,7 +154,7 @@ export function calculateProposedOrderPayments(order, config) {
                 title: `Rata ${i + 1}/${n}`,
                 amount: val,
                 due_date: getDueDate(i + 1, config.installment_type || order.installment_type),
-                status: 'To Do',
+                status: 'Da Fare',
                 payment_type: 'Cliente',
                 order_id: order.id,
                 client_id: order.client_id
@@ -165,7 +165,7 @@ export function calculateProposedOrderPayments(order, config) {
             title: `Saldo Finale (${balPct}%)`,
             amount: balance,
             due_date: getDueDate(n + 1),
-            status: 'To Do',
+            status: 'Da Fare',
             payment_type: 'Cliente',
             order_id: order.id,
             client_id: order.client_id
