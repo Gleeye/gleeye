@@ -313,6 +313,12 @@ async function handleNotificationClick(id) {
     } else if (notification.type === 'order_completed' && notification.data?.order_id) {
         // Commessa chiusa: porta alla scheda per innescare la fatturazione finale.
         window.location.hash = `#order-detail/${notification.data.order_id}`;
+    } else if (notification.type === 'invoice_paid') {
+        // Fattura attiva saldata: porta alla lista fatture attive (filtro saldate).
+        window.location.hash = '#invoices';
+    } else if (notification.type === 'pm_comment_added' && notification.data?.item_id) {
+        // Nuovo commento su task: apri il drawer del task per leggerlo.
+        window.location.hash = `#pm/task/${notification.data.item_id}`;
     }
 
     closeDropdown();
@@ -458,6 +464,8 @@ function getIcon(type) {
         'pm_item_blocked': 'block',
         'client_payment_received': 'savings',
         'order_completed': 'task_alt',
+        'invoice_paid': 'request_quote',
+        'pm_comment_added': 'forum',
 
         // PM Module
         'pm_space_created': 'folder_special',
@@ -503,6 +511,8 @@ function getIconClass(type) {
         'pm_item_blocked': 'type-cancel',
         'client_payment_received': 'type-success',
         'order_completed': 'type-success',
+        'invoice_paid': 'type-success',
+        'pm_comment_added': 'type-primary',
 
         // PM Module
         'pm_space_created': 'type-info',
