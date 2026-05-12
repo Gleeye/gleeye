@@ -231,9 +231,18 @@ export function renderActiveInvoicesSafe(container) {
                 <div class="header-actions-row">
                     <div class="year-select-wrapper">
                         <select id="inv-year-filter" class="clean-select">
-                             <option value="2026" ${currentYear === 2026 ? 'selected' : ''}>2026</option>
-                             <option value="2025" ${currentYear === 2025 ? 'selected' : ''}>2025</option>
-                             <option value="2024" ${currentYear === 2024 ? 'selected' : ''}>2024</option>
+                             ${(() => {
+                                 // Anni dinamici: dai dati esistenti + l'anno corrente, ordinati discendenti.
+                                 // Previene la rottura del dropdown nel 2027+ (vecchio formato hardcoded 2024/25/26).
+                                 const years = new Set(state.invoices
+                                     .map(inv => new Date(inv.invoice_date).getFullYear())
+                                     .filter(y => Number.isFinite(y)));
+                                 years.add(new Date().getFullYear());
+                                 if (currentYear) years.add(parseInt(currentYear));
+                                 return [...years].sort((a, b) => b - a)
+                                     .map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`)
+                                     .join('');
+                             })()}
                         </select>
                         <span class="material-icons-round select-icon">expand_more</span>
                     </div>
