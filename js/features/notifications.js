@@ -295,6 +295,9 @@ async function handleNotificationClick(id) {
     // Navigate based on type
     if (notification.type === 'booking_new' && notification.data?.booking_id) {
         window.location.hash = '#booking';
+    } else if (notification.type === 'payment_received') {
+        // Porta il collab alla vista personale incarichi dove vede il pagamento ricevuto.
+        window.location.hash = '#my-assignments';
     }
 
     closeDropdown();
