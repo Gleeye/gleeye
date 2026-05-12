@@ -301,6 +301,9 @@ async function handleNotificationClick(id) {
     } else if (notification.type === 'offer_accepted' && notification.data?.order_id) {
         // Porta direttamente al dettaglio della commessa appena accettata.
         window.location.hash = `#order-detail/${notification.data.order_id}`;
+    } else if (notification.type === 'assignment_assigned' && notification.data?.assignment_id) {
+        // Porta al dettaglio dell'incarico appena assegnato.
+        window.location.hash = `#assignment-detail/${notification.data.assignment_id}`;
     }
 
     closeDropdown();
@@ -442,6 +445,7 @@ function getIcon(type) {
         'payment_due': 'payments',
         'payment_received': 'paid',
         'offer_accepted': 'celebration',
+        'assignment_assigned': 'assignment_ind',
 
         // PM Module
         'pm_space_created': 'folder_special',
@@ -483,6 +487,7 @@ function getIconClass(type) {
         'payment_due': 'type-payment',
         'payment_received': 'type-success',
         'offer_accepted': 'type-success',
+        'assignment_assigned': 'type-primary',
 
         // PM Module
         'pm_space_created': 'type-info',
