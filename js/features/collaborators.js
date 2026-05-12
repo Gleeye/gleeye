@@ -623,6 +623,27 @@ window.impersonateCollaborator = async (collaboratorId) => {
     if (!c) return;
 
     if (await window.showConfirm(`Vuoi impersonare ${c.full_name}? Vedrai l'interfaccia come se fossi questo collaboratore.`)) {
+        // Security audit log — l'impersonation è un'azione di elevazione che deve essere tracciata.
+        // Visibile solo a partner/admin via RLS di pm_activity_logs (no space/order/item ref).
+        try {
+            const actorId = state.session?.user?.id;
+            if (actorId) {
+                await supabase.from('pm_activity_logs').insert({
+                    actor_user_ref: actorId,
+                    action_type: 'security_impersonate',
+                    description: `ha impersonato ${c.full_name}`,
+                    metadata: {
+                        impersonated_collaborator_id: c.id,
+                        impersonated_full_name: c.full_name,
+                        impersonated_email: c.email || null
+                    }
+                });
+            }
+        } catch (logErr) {
+            // Il fallimento del log NON deve bloccare l'azione (è audit, non funzionale).
+            console.warn('[Security] Failed to log impersonation:', logErr);
+        }
+
         state.impersonatedRole = 'collaborator';
         state.impersonatedCollaboratorId = c.id;
         sessionStorage.setItem('gleeye_impersonatedRole', 'collaborator');
@@ -657,6 +678,25 @@ window.sendMagicLink = async (email) => {
                 }
             });
             if (error) throw error;
+
+            // Security audit log — l'invio di magic link è elevazione di accesso (login senza password).
+            // Visibile solo a partner/admin via RLS di pm_activity_logs.
+            try {
+                const actorId = state.session?.user?.id;
+                if (actorId) {
+                    await supabase.from('pm_activity_logs').insert({
+                        actor_user_ref: actorId,
+                        action_type: 'security_magic_link_sent',
+                        description: `ha inviato un magic link a ${email}`,
+                        metadata: {
+                            target_email: email
+                        }
+                    });
+                }
+            } catch (logErr) {
+                console.warn('[Security] Failed to log magic link send:', logErr);
+            }
+
             window.showAlert('Magic Link inviato con successo!', 'success');
         } catch (err) {
             console.error('Error sending magic link:', err);

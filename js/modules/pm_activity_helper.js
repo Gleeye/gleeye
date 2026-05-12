@@ -177,6 +177,31 @@ export function humanizeActivity(log, context = {}) {
         };
     }
 
+    // Security audit events — visibili solo a partner/admin via RLS, gli altri non li
+    // ricevono nemmeno dal DB. Frase dedicata con flag isSecurityAudit per eventuale UI badge.
+    if (rawAction === 'security_impersonate' || rawAction === 'security_magic_link_sent') {
+        const actorName = log.actor?.full_name || (log.actor_user_ref ? 'Utente' : 'Sistema');
+        const meta = log.details || log.metadata || {};
+        let desc;
+        if (rawAction === 'security_impersonate') {
+            const target = meta.impersonated_full_name || 'un collaboratore';
+            desc = `🔐 ha impersonato **${target}**`;
+        } else {
+            const email = meta.target_email || 'un indirizzo email';
+            desc = `🔐 ha inviato un magic link a **${email}**`;
+        }
+        const formattedDesc = desc.replace(/\*\*(.*?)\*\*/g, '<span style="font-weight: 600; color: var(--text-primary, inherit);">$1</span>');
+        return {
+            actorName,
+            formattedDesc,
+            description: desc,
+            containerName: null,
+            entityName: null,
+            timeStr: log.created_at,
+            isSecurityAudit: true
+        };
+    }
+
     // 1. Translate values (support old + new detail key formats)
     const oldValRaw = details.old || details.old_value || details.old_status;
     const newValRaw = details.new || details.new_value || details.new_status;
