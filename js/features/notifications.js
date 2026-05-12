@@ -320,6 +320,44 @@ async function handleNotificationClick(id) {
         // Nuovo commento su task: apri il drawer del task per leggerlo.
         window.location.hash = `#pm/task/${notification.data.item_id}`;
     }
+    // Wave 2 navigation
+    else if (notification.type === 'new_client' && notification.data?.client_id) {
+        window.location.hash = `#client-detail/${notification.data.client_id}`;
+    } else if (notification.type === 'new_collaborator' && notification.data?.collaborator_id) {
+        window.location.hash = `#collaborator-detail/${notification.data.collaborator_id}`;
+    } else if (notification.type === 'collaborator_deactivated' && notification.data?.collaborator_id) {
+        window.location.hash = `#collaborator-detail/${notification.data.collaborator_id}`;
+    } else if (notification.type === 'new_white_label_partner' && notification.data?.collaborator_id) {
+        window.location.hash = `#white-label-partner-detail/${notification.data.collaborator_id}`;
+    } else if (notification.type === 'iban_changed' && notification.data?.collaborator_id) {
+        // IBAN cambiato: porta direttamente alla scheda per verificare anti-frode.
+        window.location.hash = `#collaborator-detail/${notification.data.collaborator_id}`;
+    } else if (notification.type === 'new_lead' && notification.data?.lead_id) {
+        window.location.hash = `#lead-detail/${notification.data.lead_id}`;
+    } else if (notification.type === 'lead_won' && notification.data?.lead_id) {
+        window.location.hash = `#lead-detail/${notification.data.lead_id}`;
+    } else if (notification.type === 'lead_lost' && notification.data?.lead_id) {
+        window.location.hash = `#lead-detail/${notification.data.lead_id}`;
+    } else if (notification.type === 'new_order' && notification.data?.order_id) {
+        window.location.hash = `#order-detail/${notification.data.order_id}`;
+    } else if (notification.type === 'contact_form_submission') {
+        // Submission dal form pubblico: porta al gestionale form per vedere risposte.
+        window.location.hash = '#contact-forms';
+    } else if (notification.type === 'invoice_emitted') {
+        window.location.hash = '#invoices';
+    } else if (notification.type === 'passive_invoice_recorded' && notification.data?.collaborator_id) {
+        // Per il collab: porta a my-assignments dove vedrà la fattura registrata.
+        // Per i partner: porta alla lista fatture collab.
+        window.location.hash = '#my-assignments';
+    } else if (notification.type === 'assignment_completed' && notification.data?.assignment_id) {
+        window.location.hash = `#assignment-detail/${notification.data.assignment_id}`;
+    } else if (notification.type === 'task_assignee_added' && notification.data?.item_id) {
+        window.location.hash = `#pm/task/${notification.data.item_id}`;
+    } else if (notification.type === 'task_review_requested' && notification.data?.item_id) {
+        window.location.hash = `#pm/task/${notification.data.item_id}`;
+    } else if (notification.type === 'new_booking') {
+        window.location.hash = '#booking';
+    }
 
     closeDropdown();
 }
@@ -466,6 +504,23 @@ function getIcon(type) {
         'order_completed': 'task_alt',
         'invoice_paid': 'request_quote',
         'pm_comment_added': 'forum',
+        // Wave 2 (12/5/26)
+        'new_client': 'business',
+        'new_collaborator': 'group_add',
+        'collaborator_deactivated': 'person_off',
+        'new_white_label_partner': 'corporate_fare',
+        'iban_changed': 'security',
+        'new_lead': 'eco',
+        'lead_won': 'emoji_events',
+        'lead_lost': 'trending_down',
+        'new_order': 'shopping_cart_checkout',
+        'contact_form_submission': 'mark_email_unread',
+        'invoice_emitted': 'receipt_long',
+        'passive_invoice_recorded': 'inbox',
+        'assignment_completed': 'task_alt',
+        'task_assignee_added': 'group',
+        'task_review_requested': 'preview',
+        'new_booking': 'event_available',
 
         // PM Module
         'pm_space_created': 'folder_special',
@@ -513,6 +568,23 @@ function getIconClass(type) {
         'order_completed': 'type-success',
         'invoice_paid': 'type-success',
         'pm_comment_added': 'type-primary',
+        // Wave 2
+        'new_client': 'type-success',
+        'new_collaborator': 'type-success',
+        'collaborator_deactivated': 'type-cancel',
+        'new_white_label_partner': 'type-success',
+        'iban_changed': 'type-cancel',
+        'new_lead': 'type-primary',
+        'lead_won': 'type-success',
+        'lead_lost': 'type-cancel',
+        'new_order': 'type-success',
+        'contact_form_submission': 'type-primary',
+        'invoice_emitted': 'type-success',
+        'passive_invoice_recorded': 'type-primary',
+        'assignment_completed': 'type-success',
+        'task_assignee_added': 'type-primary',
+        'task_review_requested': 'type-payment',
+        'new_booking': 'type-booking',
 
         // PM Module
         'pm_space_created': 'type-info',
