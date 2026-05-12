@@ -13,6 +13,11 @@ let subscription = null;
 let isDropdownOpen = false;
 const VAPID_PUBLIC_KEY = 'BNEWfpEPRK2FKhpvKk--ZUzvbDZt9tLVwpq4bAuK0FjAnW-NXh3fZcTDYDYcLwLOaxrj00EZwhdhpiQVS18w1d8';
 
+// User notification preferences caricate al login.
+// Mappa: { [type_key]: { web_enabled, email_enabled, source: 'pref'|'default' } }
+// 'source' = 'pref' se l'utente ha sovrascritto, 'default' se viene dal catalogo notification_types.
+let userPrefs = {};
+
 /**
  * Initialize the notification system
  */
@@ -28,6 +33,7 @@ export async function initNotifications() {
 
     console.log(`Notifications: User ${state.session.user.id} verified. Fetching history...`);
     await fetchNotifications();
+    await fetchUserNotificationPreferences();
     subscribeToRealtime();
     renderNotificationBell();
 
@@ -87,6 +93,91 @@ async function tryAutoSubscribePush() {
             console.log('[Push] Auto-subscribe completed for this device.');
         }
     }
+}
+
+/**
+ * Carica al login le preferenze utente per type, unite ai default del catalogo
+ * `notification_types`. Usate per filtrare lato client toast / suono / Notification API.
+ * Il filtro lato server (push web + email) è già applicato dall'edge function.
+ */
+async function fetchUserNotificationPreferences() {
+    try {
+        userPrefs = {};
+        // 1. Tutti i types attivi nel catalogo con i loro default
+        const { data: types } = await supabase
+            .from('notification_types')
+            .select('id, key, default_web, default_email, is_active')
+            .eq('is_active', true);
+        if (!types) return;
+
+        for (const t of types) {
+            userPrefs[t.key] = {
+                type_id: t.id,
+                web_enabled: t.default_web !== false,
+                email_enabled: t.default_email === true,
+                source: 'default'
+            };
+        }
+
+        // 2. Override con le preferenze esplicite dell'utente
+        const { data: prefs } = await supabase
+            .from('user_notification_preferences')
+            .select('notification_type_id, web_enabled, email_enabled')
+            .eq('user_id', state.session.user.id);
+
+        if (prefs) {
+            for (const p of prefs) {
+                const type = types.find(t => t.id === p.notification_type_id);
+                if (type && userPrefs[type.key]) {
+                    if (p.web_enabled !== null && p.web_enabled !== undefined) userPrefs[type.key].web_enabled = p.web_enabled;
+                    if (p.email_enabled !== null && p.email_enabled !== undefined) userPrefs[type.key].email_enabled = p.email_enabled;
+                    userPrefs[type.key].source = 'pref';
+                }
+            }
+        }
+
+        console.log(`Notifications: Loaded preferences for ${Object.keys(userPrefs).length} types.`);
+    } catch (err) {
+        console.error('Notifications: Failed to load preferences:', err);
+    }
+}
+
+/**
+ * Verifica se l'utente vuole vedere notifiche web per questo type.
+ * Default: sì. Override solo se ha esplicitamente disabilitato.
+ */
+function shouldShowWebFor(type) {
+    if (!type) return true;
+    const pref = userPrefs[type];
+    if (!pref) return true;  // type sconosciuto → mostralo sempre
+    return pref.web_enabled !== false;
+}
+
+/**
+ * Espone la API per la UI di gestione preferenze (lo userà il pannello in profilo).
+ */
+export function getUserNotificationPrefs() { return { ...userPrefs }; }
+
+export async function saveUserNotificationPref(typeKey, channel, enabled) {
+    const pref = userPrefs[typeKey];
+    if (!pref?.type_id) return { error: 'Type not found' };
+    const updatePayload = {};
+    updatePayload[channel === 'email' ? 'email_enabled' : 'web_enabled'] = enabled;
+
+    // Upsert riga in user_notification_preferences
+    const { error } = await supabase.from('user_notification_preferences').upsert({
+        user_id: state.session.user.id,
+        notification_type_id: pref.type_id,
+        ...updatePayload,
+        updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id,notification_type_id' });
+
+    if (error) return { error: error.message };
+
+    // Aggiorna cache locale
+    userPrefs[typeKey][channel === 'email' ? 'email_enabled' : 'web_enabled'] = enabled;
+    userPrefs[typeKey].source = 'pref';
+    return { success: true };
 }
 
 /**
@@ -532,8 +623,17 @@ function updateBadge() {
 /**
  * Show toast notification + (se disponibili) notifica nativa OS + ping sonoro.
  * Tutti i canali sono "best effort": se uno fallisce, gli altri continuano.
+ *
+ * Rispetta le preferenze utente: se l'utente ha silenziato web per questo type,
+ * NIENTE toast/suono/Notification API. Il record in DB resta (per la storia +
+ * campanella) — è solo l'"intrusività" del canale web che viene mutata.
  */
 function showToast(notification) {
+    if (!shouldShowWebFor(notification.type)) {
+        console.log(`Notifications: Toast/suono soppresso per type=${notification.type} (preferenza utente).`);
+        return;
+    }
+
     // 1) Toast in-app (sempre)
     const toast = document.createElement('div');
     toast.className = 'notification-toast notification-toast-clickable';
@@ -841,6 +941,7 @@ export function renderNotificationCenter(container) {
                     <div class="filter-tabs">
                         <button class="filter-tab active" data-filter="all">Tutte</button>
                         <button class="filter-tab" data-filter="unread">Da leggere</button>
+                        <button class="filter-tab" data-filter="settings">⚙️ Preferenze</button>
                     </div>
                     <div style="display: flex; gap: 0.8rem;">
                         <button id="enable-push-btn" class="secondary-btn small" title="Ricevi notifiche push (cellulare e desktop)">
@@ -922,6 +1023,12 @@ export function renderNotificationCenter(container) {
 
     // Render function for the list
     const renderList = () => {
+        // Tab "Preferenze": pannello dedicato invece della lista notifiche
+        if (filter === 'settings') {
+            renderPreferencesPanel(listContainer);
+            return;
+        }
+
         let items = notifications;
         if (filter === 'unread') {
             items = notifications.filter(n => !n.is_read);
@@ -1110,6 +1217,128 @@ export function cleanupNotifications() {
 
     const toastContainer = document.getElementById('toast-container');
     if (toastContainer) toastContainer.remove();
+}
+
+/**
+ * Render preferences panel inside notification center (tab "⚙️ Preferenze").
+ * Mostra TUTTI i type registrati nel catalogo, raggruppati per categoria, con
+ * due toggle per type: 🌐 web e ✉️ email. Click → upsert in user_notification_preferences.
+ */
+function renderPreferencesPanel(container) {
+    const prefs = userPrefs;
+    const keys = Object.keys(prefs);
+
+    if (keys.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <span class="material-icons-round">settings</span>
+                <h3>Caricamento preferenze...</h3>
+                <p>Se il problema persiste, ricarica la pagina.</p>
+            </div>`;
+        return;
+    }
+
+    // Etichette categorie
+    const categoryLabels = {
+        security: '🔐 Sicurezza',
+        payment: '💰 Pagamenti',
+        order: '📦 Commesse',
+        invoice: '🧾 Fatture',
+        assignment: '📋 Incarichi',
+        pm: '✅ Project Management',
+        appointment: '📅 Appuntamenti',
+        lead: '🌱 Vendite e lead',
+        booking: '📆 Prenotazioni',
+        client: '👥 Clienti',
+        team: '👋 Team',
+        general: '🔔 Altro'
+    };
+
+    // Raggruppa per categoria (recupero category via fetch one-shot... oppure
+    // potrei averlo già in userPrefs se l'avessimo memorizzato; lo recupero al volo)
+    container.innerHTML = `
+        <div class="prefs-panel" style="padding: 1rem 0;">
+            <div style="padding: 0 1rem 1rem; color: var(--text-tertiary); font-size: 0.85rem;">
+                Scegli quali notifiche ricevere e su quali canali. <b>Web</b> = campanella + toast + push browser. <b>Email</b> = invio email (richiede SMTP configurato).
+            </div>
+            <div id="prefs-loading" style="text-align: center; padding: 2rem; color: var(--text-tertiary);">
+                <span class="loader"></span> Caricamento categorie...
+            </div>
+            <div id="prefs-list" style="display: none;"></div>
+        </div>
+    `;
+
+    // Carica categorie + label IT dai notification_types
+    supabase
+        .from('notification_types')
+        .select('key, label_it, category, description')
+        .eq('is_active', true)
+        .order('category')
+        .then(({ data: types }) => {
+            const loadingEl = container.querySelector('#prefs-loading');
+            const listEl = container.querySelector('#prefs-list');
+            if (loadingEl) loadingEl.style.display = 'none';
+            if (!listEl) return;
+
+            const byCategory = {};
+            (types || []).forEach(t => {
+                const cat = t.category || 'general';
+                if (!byCategory[cat]) byCategory[cat] = [];
+                byCategory[cat].push(t);
+            });
+
+            let html = '';
+            for (const cat of Object.keys(byCategory).sort()) {
+                html += `
+                    <div class="prefs-section" style="margin-bottom: 1.5rem;">
+                        <h3 style="padding: 0.5rem 1rem; margin: 0 0 0.5rem; font-size: 0.95rem; font-weight: 600; color: var(--text-primary); background: var(--bg-secondary); border-radius: 8px;">
+                            ${escapeHtml(categoryLabels[cat] || cat)}
+                        </h3>
+                        ${byCategory[cat].map(t => {
+                            const pref = prefs[t.key] || { web_enabled: true, email_enabled: false };
+                            return `
+                                <div class="prefs-row" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--glass-border);">
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 500; color: var(--text-primary); font-size: 0.9rem;">${escapeHtml(t.label_it || t.key)}</div>
+                                        ${t.description ? `<div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 2px;">${escapeHtml(t.description)}</div>` : ''}
+                                    </div>
+                                    <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.8rem; color: var(--text-secondary);">
+                                        <input type="checkbox" data-pref-key="${escapeHtml(t.key)}" data-pref-channel="web" ${pref.web_enabled ? 'checked' : ''} style="cursor: pointer;">
+                                        🌐 Web
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.8rem; color: var(--text-secondary);">
+                                        <input type="checkbox" data-pref-key="${escapeHtml(t.key)}" data-pref-channel="email" ${pref.email_enabled ? 'checked' : ''} style="cursor: pointer;">
+                                        ✉️ Email
+                                    </label>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
+
+            listEl.innerHTML = html;
+            listEl.style.display = 'block';
+
+            // Toggle handlers
+            listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', async () => {
+                    const key = cb.dataset.prefKey;
+                    const channel = cb.dataset.prefChannel;
+                    const enabled = cb.checked;
+                    cb.disabled = true;
+                    const result = await saveUserNotificationPref(key, channel, enabled);
+                    cb.disabled = false;
+                    if (result.error) {
+                        cb.checked = !enabled;  // rollback UI
+                        console.error('Save pref failed:', result.error);
+                    }
+                });
+            });
+        })
+        .catch(err => {
+            console.error('Failed to load pref categories:', err);
+        });
 }
 
 /**
