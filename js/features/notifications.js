@@ -442,12 +442,14 @@ function updateBadge() {
 }
 
 /**
- * Show toast notification
+ * Show toast notification + (se disponibili) notifica nativa OS + ping sonoro.
+ * Tutti i canali sono "best effort": se uno fallisce, gli altri continuano.
  */
 function showToast(notification) {
-    // Create toast element
+    // 1) Toast in-app (sempre)
     const toast = document.createElement('div');
-    toast.className = 'notification-toast';
+    toast.className = 'notification-toast notification-toast-clickable';
+    toast.style.cursor = 'pointer';
     toast.innerHTML = `
         <div class="toast-icon ${getIconClass(notification.type)}">
             <span class="material-icons-round">${getIcon(notification.type)}</span>
@@ -456,12 +458,11 @@ function showToast(notification) {
             <div class="toast-title">${escapeHtml(notification.title)}</div>
             <div class="toast-message">${escapeHtml(notification.message || '')}</div>
         </div>
-        <button class="toast-close">
+        <button class="toast-close" title="Chiudi">
             <span class="material-icons-round">close</span>
         </button>
     `;
 
-    // Add to DOM
     let container = document.getElementById('toast-container');
     if (!container) {
         container = document.createElement('div');
@@ -471,14 +472,80 @@ function showToast(notification) {
     }
     container.appendChild(toast);
 
-    // Animation in
     requestAnimationFrame(() => toast.classList.add('show'));
 
-    // Close button
-    toast.querySelector('.toast-close').addEventListener('click', () => removeToast(toast));
+    // Close button (non propagare il click al toast)
+    toast.querySelector('.toast-close').addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeToast(toast);
+    });
 
-    // Auto remove after 5s
-    setTimeout(() => removeToast(toast), 5000);
+    // Click sul toast → naviga (riusa la stessa logica del click in dropdown)
+    toast.addEventListener('click', () => {
+        handleNotificationClick(notification.id);
+        removeToast(toast);
+    });
+
+    // Auto remove dopo 6s
+    setTimeout(() => removeToast(toast), 6000);
+
+    // 2) Ping sonoro (best effort — alcuni browser bloccano audio senza interazione utente)
+    try {
+        playNotificationPing();
+    } catch (err) {
+        // Audio bloccato dal browser, ok.
+    }
+
+    // 3) Notifica nativa OS via Notification API (funziona su desktop quando app aperta).
+    // Diversa dalla push web del Service Worker: questa scatta SOLO se l'app è viva nel
+    // browser. È utile sul desktop perché alza visibilità rispetto al solo toast in-app.
+    try {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            const n = new Notification(notification.title || 'Gleeye', {
+                body: notification.message || '',
+                icon: '/logo_gleeye_new.png',
+                tag: `gleeye-${notification.id}`,  // evita duplicati se realtime ripete
+                requireInteraction: false
+            });
+            n.onclick = () => {
+                window.focus();
+                handleNotificationClick(notification.id);
+                n.close();
+            };
+        } else if ('Notification' in window && Notification.permission === 'default') {
+            // Richiedi permesso silenziosamente UNA volta. Se l'utente nega, non insistiamo.
+            Notification.requestPermission().catch(() => {});
+        }
+    } catch (err) {
+        console.warn('[Notifications] Native OS notification failed:', err);
+    }
+}
+
+/**
+ * Breve ping sonoro non invasivo all'arrivo di una nuova notifica.
+ * Usiamo Web Audio API per generare un tono breve, così evitiamo di dover
+ * servire un file audio statico. Volume basso.
+ */
+let _audioCtx = null;
+function playNotificationPing() {
+    if (!_audioCtx && (window.AudioContext || window.webkitAudioContext)) {
+        _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (!_audioCtx) return;
+    const now = _audioCtx.currentTime;
+    const osc = _audioCtx.createOscillator();
+    const gain = _audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(_audioCtx.destination);
+    osc.type = 'sine';
+    // Due toni brevi a salire (ping classico)
+    osc.frequency.setValueAtTime(660, now);
+    osc.frequency.setValueAtTime(880, now + 0.08);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    osc.start(now);
+    osc.stop(now + 0.2);
 }
 
 /**
@@ -660,7 +727,7 @@ export function renderNotificationCenter(container) {
                         <button class="filter-tab" data-filter="unread">Da leggere</button>
                     </div>
                     <div style="display: flex; gap: 0.8rem;">
-                        <button id="enable-push-btn" class="secondary-btn small" title="Ricevi notifiche sul cellulare">
+                        <button id="enable-push-btn" class="secondary-btn small" title="Ricevi notifiche push (cellulare e desktop)">
                             <span class="material-icons-round">notifications_active</span>
                             <span>Caricamento...</span>
                         </button>
@@ -877,9 +944,9 @@ async function updatePushBtnStatus(btn) {
             // Su iOS è necessario iOS 16.4+ e aprire l'app dalla schermata Home (PWA).
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
             if (isIOS) {
-                labelEl.textContent = 'Su iPhone: serve iOS 16.4+ e app aperta dalla home';
+                labelEl.textContent = 'iPhone: iOS 16.4+ e app aperta dalla home';
             } else if (!hasSW) {
-                labelEl.textContent = 'Service Worker non disponibile';
+                labelEl.textContent = 'Push non disponibili (Service Worker mancante)';
             } else {
                 labelEl.textContent = 'Push non supportate in questo browser';
             }
@@ -895,12 +962,12 @@ async function updatePushBtnStatus(btn) {
         if (subscription) {
             btn.classList.add('active', 'success-btn');
             btn.classList.remove('secondary-btn');
-            btn.querySelector('span:last-child').textContent = 'Notifiche Mobile Attive';
+            btn.querySelector('span:last-child').textContent = 'Notifiche Push Attive';
             btn.querySelector('.material-icons-round').textContent = 'notifications_active';
         } else {
             btn.classList.remove('active', 'success-btn');
             btn.classList.add('secondary-btn');
-            btn.querySelector('span:last-child').textContent = 'Attiva Notifiche Mobile';
+            btn.querySelector('span:last-child').textContent = 'Attiva Notifiche Push';
             btn.querySelector('.material-icons-round').textContent = 'notifications_none';
         }
     } catch (err) {
