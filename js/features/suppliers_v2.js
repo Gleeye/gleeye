@@ -1,6 +1,7 @@
 import { supabase } from '../modules/config.js?v=8000';
 import { state } from '/js/modules/state.js?v=8000';
 import { formatAmount } from '../modules/utils.js?v=8000';
+import { glossaryTip } from '../modules/help_tooltip.js?v=8001';
 
 export async function renderSuppliers(container) {
     // Fetch data
@@ -179,12 +180,12 @@ export function initSupplierModals() {
                         
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                             <div class="form-group">
-                                <label>Partita IVA</label>
-                                <input type="text" id="supplier-vat" class="modal-input">
+                                <label>Partita IVA ${glossaryTip('piva')}</label>
+                                <input type="text" id="supplier-vat" class="modal-input" placeholder="11 cifre">
                             </div>
                             <div class="form-group">
-                                <label>Codice Fiscale</label>
-                                <input type="text" id="supplier-tax-code" class="modal-input">
+                                <label>Codice Fiscale ${glossaryTip('cf')}</label>
+                                <input type="text" id="supplier-tax-code" class="modal-input" placeholder="11 cifre o 16 caratteri">
                             </div>
                         </div>
 
@@ -195,7 +196,7 @@ export function initSupplierModals() {
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                             <div class="form-group">
-                                <label>Regime Fiscale</label>
+                                <label>Regime Fiscale ${glossaryTip('regime_ordinario')}${glossaryTip('regime_forfettario')}</label>
                                 <select id="supplier-regime" class="modal-input">
                                     <option value="ordinario">Ordinario</option>
                                     <option value="forfettario">Forfettario</option>
@@ -214,15 +215,15 @@ export function initSupplierModals() {
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
                             <div class="form-group">
-                                <label>IVA Default %</label>
+                                <label>IVA di Default %</label>
                                 <input type="number" id="supplier-vat-rate" value="22" class="modal-input">
                             </div>
                             <div class="form-group">
-                                <label>Cassa Prev. %</label>
+                                <label>Cassa Previdenza % ${glossaryTip('cassa_previdenza')}</label>
                                 <input type="number" id="supplier-cassa-rate" value="0" step="0.01" class="modal-input">
                             </div>
                             <div class="form-group">
-                                <label>Ritenuta %</label>
+                                <label>Ritenuta d'Acconto % ${glossaryTip('ritenuta_acconto')}</label>
                                 <input type="number" id="supplier-withholding-rate" value="0" step="0.01" class="modal-input">
                             </div>
                         </div>
@@ -243,8 +244,8 @@ export function initSupplierModals() {
                                 <input type="text" id="supplier-city" class="modal-input">
                             </div>
                              <div class="form-group">
-                                <label>CAP</label>
-                                <input type="text" id="supplier-zip" class="modal-input">
+                                <label>CAP ${glossaryTip('cap')}</label>
+                                <input type="text" id="supplier-zip" class="modal-input" placeholder="5 cifre" maxlength="5">
                             </div>
                             <!-- Province could be added -->
                         </div>
@@ -260,8 +261,8 @@ export function initSupplierModals() {
                             </div>
                         </div>
                          <div class="form-group">
-                            <label>IBAN</label>
-                            <input type="text" id="supplier-iban" class="modal-input">
+                            <label>IBAN ${glossaryTip('iban')}</label>
+                            <input type="text" id="supplier-iban" class="modal-input" placeholder="IT00 X000 0000 0000 0000 0000 000" style="font-family: monospace; letter-spacing: 0.05em;">
                         </div>
 
                         <div class="form-group">

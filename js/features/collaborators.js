@@ -5,6 +5,7 @@ import { upsertCollaborator, fetchPayments, fetchAssignments, fetchPassiveInvoic
 import { loadAvailabilityIntoContainer } from './availability_manager.js?v=8000';
 import { supabase } from '../modules/config.js?v=8000';
 import { glossaryTip } from '../modules/help_tooltip.js?v=8001';
+import { tAssignment } from '../modules/i18n_labels.js?v=8001';
 
 // Global signed URL opener for secure documents (if not already defined elsewhere)
 if (!window.openSignedUrl) {
@@ -1028,7 +1029,7 @@ export function renderCollaboratorDetail(container) {
                                                 <td style="padding: 1rem; color: var(--text-secondary);">${a.role || 'Collaboratore'}</td>
                                                 <td style="padding: 1rem; font-weight: 600;">${formatAmount(a.total_amount)}€</td>
                                                 <td style="padding: 1rem;">
-                                                    <span class="status-badge" style="background: ${a.status === 'Completed' ? '#10b98115' : '#3b82f615'}; color: ${a.status === 'Completed' ? '#10b981' : '#3b82f6'}; border: 1px solid ${a.status === 'Completed' ? '#10b98130' : '#3b82f630'}; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">${a.status || 'Active'}</span>
+                                                    <span class="status-badge" style="background: ${a.status === 'Completed' ? '#10b98115' : '#3b82f615'}; color: ${a.status === 'Completed' ? '#10b981' : '#3b82f6'}; border: 1px solid ${a.status === 'Completed' ? '#10b98130' : '#3b82f630'}; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">${tAssignment(a.status || 'active')}</span>
                                                 </td>
                                                  <td style="padding: 1rem; text-align: right;"><span class="material-icons-round" style="font-size: 1.1rem; color: var(--text-tertiary);">chevron_right</span></td>
                                             </tr>

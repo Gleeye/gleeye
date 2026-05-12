@@ -7,6 +7,7 @@ import { CustomSelect } from '../components/CustomSelect.js?v=8000';
 import { openPaymentModal } from './payments.js?v=8000';
 import { fetchProjectSpaceForOrder, fetchProjectItems, fetchAppointments } from '../modules/pm_api.js?v=8000';
 import { activityTranslate } from '../modules/pm_activity_helper.js?v=8000';
+import { tAssignment } from '../modules/i18n_labels.js?v=8001';
 
 // Payment config helpers + window handlers (extracted).
 // Importing also installs window.orderConfigEditState + window.toggleOrderConfig*/saveOrderConfig.
@@ -414,7 +415,7 @@ export async function renderOrderDetail(container, orderId) {
                                                     <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">${a.collaborators?.full_name || 'Collaboratore'}</div>
                                                     <div style="font-size: 0.75rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.4rem;">
                                                         <span class="status-dot ${a.status === 'Completed' ? 'status-dot-success' : (a.status === 'In Progress' ? 'status-dot-warning' : 'status-dot-info')}"></span>
-                                                        ${a.status || 'Attivo'}
+                                                        ${tAssignment(a.status) || 'Attivo'}
                                                     </div>
                                                 </div>
                                                 <div style="text-align: right;">
