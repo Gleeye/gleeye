@@ -30,6 +30,63 @@ export async function initNotifications() {
     await fetchNotifications();
     subscribeToRealtime();
     renderNotificationBell();
+
+    // Auto-subscribe push al login se permission già concessa (utenti che hanno
+    // attivato in passato e/o usano un device dove il permesso è "granted" by default).
+    // Non chiediamo permesso esplicito qui — chi non ha ancora dato OK lo farà via UI
+    // dal Notification Center. Questo elimina solo il caso "ho attivato in passato
+    // ma la subscription è stata pulita e ora non ricevo più push silentemente".
+    tryAutoSubscribePush().catch(err => {
+        console.warn('[Push] Auto-subscribe skipped:', err.message);
+    });
+}
+
+/**
+ * Se Notification.permission è già 'granted' e non esiste una subscription
+ * push registrata nel DB per questo device, ricrea silenziosamente la
+ * subscription. Caso d'uso tipico: l'edge function ha cancellato la
+ * subscription scaduta (410/404), ma il browser ha ancora il permesso.
+ * Senza questa funzione, l'utente DEVE manualmente riattivare dal pannello —
+ * con questa, la subscription si rigenera al primo login.
+ */
+async function tryAutoSubscribePush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+
+    if (!subscription) {
+        console.log('[Push] Permission granted but no local subscription, recreating...');
+        subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+    }
+
+    // Verifica che la sub sia anche in DB (potrebbe essere stata pulita da 410/404)
+    const subJSON = subscription.toJSON();
+    const endpoint = subscription.endpoint;
+    const { data: existing } = await supabase
+        .from('push_subscriptions')
+        .select('id')
+        .eq('user_id', state.session.user.id)
+        .eq('endpoint', endpoint)
+        .maybeSingle();
+
+    if (!existing) {
+        const { error } = await supabase.from('push_subscriptions').insert({
+            user_id: state.session.user.id,
+            endpoint: endpoint,
+            p256dh: subJSON.keys.p256dh,
+            auth: subJSON.keys.auth
+        });
+        if (error) {
+            console.warn('[Push] Auto-subscribe DB insert failed:', error.message);
+        } else {
+            console.log('[Push] Auto-subscribe completed for this device.');
+        }
+    }
 }
 
 /**
@@ -358,6 +415,17 @@ async function handleNotificationClick(id) {
     } else if (notification.type === 'new_booking') {
         window.location.hash = '#booking';
     }
+    // Wave 3
+    else if (notification.type === 'pm_item_status_changed' && notification.data?.item_id) {
+        window.location.hash = `#pm/task/${notification.data.item_id}`;
+    } else if (notification.type === 'pm_item_due_date_changed' && notification.data?.item_id) {
+        window.location.hash = `#pm/task/${notification.data.item_id}`;
+    } else if (notification.type === 'task_assignee_removed' && notification.data?.item_id) {
+        // L'utente è stato rimosso: lo porto alle sue task (vede che non c'è più).
+        window.location.hash = '#tasks-summary';
+    } else if (notification.type === 'order_status_works_changed' && notification.data?.order_id) {
+        window.location.hash = `#order-detail/${notification.data.order_id}`;
+    }
 
     closeDropdown();
 }
@@ -588,6 +656,11 @@ function getIcon(type) {
         'task_assignee_added': 'group',
         'task_review_requested': 'preview',
         'new_booking': 'event_available',
+        // Wave 3
+        'pm_item_status_changed': 'sync',
+        'pm_item_due_date_changed': 'event',
+        'task_assignee_removed': 'person_remove',
+        'order_status_works_changed': 'autorenew',
 
         // PM Module
         'pm_space_created': 'folder_special',
@@ -652,6 +725,11 @@ function getIconClass(type) {
         'task_assignee_added': 'type-primary',
         'task_review_requested': 'type-payment',
         'new_booking': 'type-booking',
+        // Wave 3
+        'pm_item_status_changed': 'type-primary',
+        'pm_item_due_date_changed': 'type-payment',
+        'task_assignee_removed': 'type-cancel',
+        'order_status_works_changed': 'type-primary',
 
         // PM Module
         'pm_space_created': 'type-info',
