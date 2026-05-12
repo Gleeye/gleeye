@@ -304,6 +304,15 @@ async function handleNotificationClick(id) {
     } else if (notification.type === 'assignment_assigned' && notification.data?.assignment_id) {
         // Porta al dettaglio dell'incarico appena assegnato.
         window.location.hash = `#assignment-detail/${notification.data.assignment_id}`;
+    } else if (notification.type === 'pm_item_blocked' && notification.data?.item_id) {
+        // Apri il PM hub drawer sul task bloccato (route #pm/task/{id} apre il drawer sopra il PM dashboard).
+        window.location.hash = `#pm/task/${notification.data.item_id}`;
+    } else if (notification.type === 'client_payment_received' && notification.data?.order_id) {
+        // Cassa in entrata: porta alla commessa per vedere lo stato pagamenti.
+        window.location.hash = `#order-detail/${notification.data.order_id}`;
+    } else if (notification.type === 'order_completed' && notification.data?.order_id) {
+        // Commessa chiusa: porta alla scheda per innescare la fatturazione finale.
+        window.location.hash = `#order-detail/${notification.data.order_id}`;
     }
 
     closeDropdown();
@@ -446,6 +455,9 @@ function getIcon(type) {
         'payment_received': 'paid',
         'offer_accepted': 'celebration',
         'assignment_assigned': 'assignment_ind',
+        'pm_item_blocked': 'block',
+        'client_payment_received': 'savings',
+        'order_completed': 'task_alt',
 
         // PM Module
         'pm_space_created': 'folder_special',
@@ -488,6 +500,9 @@ function getIconClass(type) {
         'payment_received': 'type-success',
         'offer_accepted': 'type-success',
         'assignment_assigned': 'type-primary',
+        'pm_item_blocked': 'type-cancel',
+        'client_payment_received': 'type-success',
+        'order_completed': 'type-success',
 
         // PM Module
         'pm_space_created': 'type-info',
