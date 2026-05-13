@@ -220,6 +220,18 @@ function _renderView(container, { collaborator, assignments, payments, invoices,
     </style>
     <div class="animate-fade-in" style="padding:2rem;display:flex;flex-direction:column;gap:2rem;">
 
+        <!-- ══ HERO PERSONALE (Anomalia 3 — gamification gateway) ════════ -->
+        ${_renderHeroPersonal({
+            collaborator,
+            inCorsoCount: inCorso.length,
+            taskAperte,
+            taskChiuseRecent: taskChiuse,
+            paymentsDaIncassare: daFatturare.length + fatturaRicevuta.length + programmati.length,
+            paymentsDaIncassareImporto: [...daFatturare, ...fatturaRicevuta, ...programmati].reduce((s,p) => s + (parseFloat(p.amount)||0), 0),
+            incassatoAnno,
+            yearLabel,
+        })}
+
         <!-- ══ 4 COLONNE ═════════════════════════════════════════════════ -->
         <div class="ma-grid">
 
@@ -883,4 +895,105 @@ function _tabInvoices(list) {
                 <td style="padding:.875rem 1.25rem;"><span style="background:${sc}18;color:${sc};border-radius:6px;padding:2px 8px;font-size:.68rem;font-weight:700;">${inv.status||'N/D'}</span></td>
             </tr>`;
         }).join('')}</tbody></table></div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HERO PERSONALE — Anomalia 3 (gamification gateway)
+// "Il collab entra, vede l'incarico, va dentro, trova tutto per operare."
+// L'hero in cima dà subito l'idea di "cosa devo fare oggi" + 3 KPI di azione.
+// ─────────────────────────────────────────────────────────────────────────────
+function _renderHeroPersonal({ collaborator, inCorsoCount, taskAperte, taskChiuseRecent,
+    paymentsDaIncassare, paymentsDaIncassareImporto, incassatoAnno, yearLabel }) {
+
+    const h = new Date().getHours();
+    const greeting = h < 12 ? 'Buongiorno' : h < 18 ? 'Buon pomeriggio' : 'Buonasera';
+    const firstName = (collaborator?.full_name || '').split(' ')[0] || '';
+    const dateLabel = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' });
+
+    // Streak gamification semplice: % task chiuse vs aperte nell'anno
+    const totalSeen = (taskAperte || 0) + (taskChiuseRecent || 0);
+    const completionRate = totalSeen > 0 ? Math.round((taskChiuseRecent / totalSeen) * 100) : null;
+
+    return `
+    <div style="
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.05) 50%, rgba(236, 72, 153, 0.03) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.18);
+        border-radius: 18px;
+        padding: 1.5rem 1.75rem;
+        display: grid;
+        grid-template-columns: 1.6fr repeat(3, 1fr);
+        gap: 1.25rem;
+        align-items: center;
+    ">
+        <!-- Greeting + data -->
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem;">
+                <span class="material-icons-round" style="color: #6366f1; font-size: 1.3rem;">waving_hand</span>
+                <h2 style="margin: 0; font-family: var(--font-titles); font-size: 1.35rem; font-weight: 700; color: var(--text-primary); line-height: 1.1;">
+                    ${greeting}${firstName ? ', ' + firstName : ''}
+                </h2>
+            </div>
+            <div style="font-size: 0.78rem; color: var(--text-secondary); text-transform: capitalize; margin-bottom: 0.65rem;">${dateLabel}</div>
+            <div style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.45;">
+                ${inCorsoCount === 0 && taskAperte === 0
+                    ? 'Niente di pendente. Goditi un caffè ☕'
+                    : `Hai <strong>${inCorsoCount} incarich${inCorsoCount === 1 ? 'o attivo' : 'i attivi'}</strong>${taskAperte > 0 ? `, <strong>${taskAperte} task aperte</strong>` : ''}${paymentsDaIncassare > 0 ? `, e <strong>${paymentsDaIncassare} pagament${paymentsDaIncassare === 1 ? 'o' : 'i'} in arrivo</strong>` : ''}.`
+                }
+            </div>
+            ${completionRate !== null && totalSeen >= 3 ? `
+                <div style="margin-top: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <div style="flex: 1; max-width: 180px; height: 6px; background: rgba(99,102,241,0.1); border-radius: 4px; overflow: hidden;">
+                        <div style="width: ${completionRate}%; height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 4px;"></div>
+                    </div>
+                    <span style="font-size: 0.7rem; font-weight: 700; color: #6366f1;">${completionRate}% completate</span>
+                </div>
+            ` : ''}
+        </div>
+
+        <!-- KPI 1: Task aperte -->
+        <div onclick="window.location.hash='tasks-summary'" style="
+            background: white; border-radius: 12px; padding: 0.85rem 1rem; cursor: pointer;
+            border: 1px solid rgba(0,0,0,0.04); transition: all .2s;
+        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 18px rgba(99,102,241,0.15)'"
+           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+                <span class="material-icons-round" style="color: #3b82f6; font-size: 1rem;">checklist</span>
+                <span style="font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Task da fare</span>
+            </div>
+            <div style="font-family: var(--font-titles); font-size: 1.5rem; font-weight: 800; color: var(--text-primary); line-height: 1;">
+                ${taskAperte || 0}
+            </div>
+            <div style="font-size: 0.68rem; color: var(--text-tertiary); margin-top: 0.25rem;">Apri "Le mie task" →</div>
+        </div>
+
+        <!-- KPI 2: Pagamenti in arrivo -->
+        <div style="
+            background: white; border-radius: 12px; padding: 0.85rem 1rem; cursor: default;
+            border: 1px solid rgba(0,0,0,0.04);
+        ">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+                <span class="material-icons-round" style="color: #8b5cf6; font-size: 1rem;">payments</span>
+                <span style="font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">In arrivo</span>
+            </div>
+            <div style="font-family: var(--font-titles); font-size: 1.5rem; font-weight: 800; color: #8b5cf6; line-height: 1;">
+                € ${formatAmount(paymentsDaIncassareImporto || 0)}
+            </div>
+            <div style="font-size: 0.68rem; color: var(--text-tertiary); margin-top: 0.25rem;">${paymentsDaIncassare} pagament${paymentsDaIncassare === 1 ? 'o' : 'i'} attesi</div>
+        </div>
+
+        <!-- KPI 3: Incassato anno -->
+        <div style="
+            background: white; border-radius: 12px; padding: 0.85rem 1rem; cursor: default;
+            border: 1px solid rgba(0,0,0,0.04);
+        ">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+                <span class="material-icons-round" style="color: #10b981; font-size: 1rem;">savings</span>
+                <span style="font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Incassato ${yearLabel}</span>
+            </div>
+            <div style="font-family: var(--font-titles); font-size: 1.5rem; font-weight: 800; color: #10b981; line-height: 1;">
+                € ${formatAmount(incassatoAnno || 0)}
+            </div>
+            <div style="font-size: 0.68rem; color: var(--text-tertiary); margin-top: 0.25rem;">${taskChiuseRecent || 0} task completate</div>
+        </div>
+    </div>`;
 }
