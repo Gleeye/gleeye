@@ -116,7 +116,7 @@ export const SlashMenu = {
     renderItems(items) {
         this.element.innerHTML = '';
         if (items.length === 0) {
-            this.element.innerHTML = '<div style="padding:12px; color:#94a3b8; font-size:13px;">No matches</div>';
+            this.element.innerHTML = '<div style="padding:12px; color:#94a3b8; font-size:13px;">Nessuna corrispondenza</div>';
             return;
         }
 

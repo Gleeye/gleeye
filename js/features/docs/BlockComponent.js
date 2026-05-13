@@ -595,7 +595,7 @@ export function createBlockElement(block, docSpaceId) {
 
                         resultsDiv.innerHTML = '';
                         if (filtered.length === 0) {
-                            resultsDiv.innerHTML = '<div style="padding:8px; color:#94a3b8;">No pages found</div>';
+                            resultsDiv.innerHTML = '<div style="padding:8px; color:#94a3b8;">Nessuna pagina trovata</div>';
                         }
 
                         filtered.forEach(p => {

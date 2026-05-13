@@ -136,6 +136,23 @@ const TOOLS = [
     {
         type: 'function',
         function: {
+            name: 'create_task',
+            description: "Crea una task PM nuova. Usa quando l'utente dice 'crea task X', 'aggiungi task per Y', 'devo ricordarmi di X'. Estrai titolo, scadenza (se menzionata), priorità, e space/commessa se nominata.",
+            parameters: {
+                type: 'object',
+                properties: {
+                    title: { type: 'string', description: 'Titolo conciso della task (es. "Chiamare Mario Rossi").' },
+                    due_date: { type: 'string', description: "Data scadenza in formato YYYY-MM-DD. Se l'utente dice 'domani' calcola la data effettiva. Lascia vuoto se non specificata." },
+                    priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'], description: 'Priorità inferita dal tono. Default: medium.' },
+                    space_hint: { type: 'string', description: "Nome commessa/cliente/area se menzionata (es. 'commessa Acme', 'cluster comunicazione'). Lascia vuoto se non specificato." },
+                },
+                required: ['title'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
             name: 'answer_question',
             description: "Rispondi direttamente all'utente con una spiegazione testuale. Usa SOLO quando le altre tool non sono applicabili (es. l'utente fa una domanda generica, chiede aiuto, vuole una spiegazione su come funziona l'app).",
             parameters: {
@@ -164,6 +181,10 @@ REGOLE:
 - Se chiede "cosa devo fare", "urgenze", "situazione di oggi", "recap" → recap_today.
 - Se chiede "cosa è scaduto", "arretrati", "fatture/pagamenti scaduti tutti" → overdue_overview.
 - Se chiede "come sta cliente X", "riepilogo X", "situazione X" → client_summary.
+- Se dice "crea task", "aggiungi task", "ricordami di", "devo fare X domani" → create_task.
+  Per "domani" calcola la data: oggi è ${new Date().toISOString().slice(0,10)} quindi domani è ${new Date(Date.now()+86400000).toISOString().slice(0,10)}.
+  Per "prossima settimana" usa lunedì prossimo.
+  Per "venerdì" usa il prossimo venerdì.
 - Per domande generiche su come funziona l'app → answer_question.
 
 Lingua: italiano. Conciso. Esegui, non ti dilungare.`;
@@ -496,6 +517,12 @@ async function executeAction(name, args) {
         case 'client_summary': {
             const html = await renderClientSummary(args.name);
             showFeedback(html);
+            setLoading(false);
+            return;
+        }
+        case 'create_task': {
+            const result = await createTaskFromCmdK(args);
+            showFeedback(result.html);
             setLoading(false);
             return;
         }
@@ -1000,4 +1027,99 @@ function escapeHtml(s) {
     return String(s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ─── Create task action ─────────────────────────────────────────────
+
+async function createTaskFromCmdK(args) {
+    const { title, due_date, priority, space_hint } = args;
+    if (!title || !title.trim()) {
+        return { html: `<span class="material-icons-round icon">error</span>Mi serve almeno un titolo per la task.` };
+    }
+
+    // Match space (commessa/cluster/area) se hint fornito
+    let spaceId = null;
+    let spaceName = null;
+    if (space_hint && space_hint.trim()) {
+        const q = space_hint.trim();
+        // 1) Cerca per ordine (commessa) via order_number o titolo
+        const { data: orders } = await supabase.from('orders')
+            .select('id, order_number, title, short_name')
+            .or(`order_number.ilike.%${q}%,title.ilike.%${q}%,short_name.ilike.%${q}%`)
+            .limit(1);
+        if (orders?.[0]) {
+            const order = orders[0];
+            const { data: sp } = await supabase.from('pm_spaces').select('id, name').eq('ref_ordine', order.id).limit(1).maybeSingle();
+            if (sp) { spaceId = sp.id; spaceName = sp.name || order.short_name || order.title; }
+        }
+        // 2) Cerca per nome space direttamente (cluster / interno / area)
+        if (!spaceId) {
+            const { data: sp } = await supabase.from('pm_spaces')
+                .select('id, name')
+                .ilike('name', `%${q}%`)
+                .limit(1)
+                .maybeSingle();
+            if (sp) { spaceId = sp.id; spaceName = sp.name; }
+        }
+    }
+
+    // Recupero user corrente per pm_user_ref / created_by
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id;
+
+    // Insert task
+    const payload = {
+        title: title.trim(),
+        status: 'todo',
+        item_type: 'task',
+        priority: (priority || 'medium').toLowerCase(),
+        due_date: due_date || null,
+        space_id: spaceId,
+        pm_user_ref: userId,
+        created_by_user_ref: userId,
+    };
+
+    const { data: created, error } = await supabase
+        .from('pm_items')
+        .insert(payload)
+        .select('id, title, due_date, priority')
+        .single();
+
+    if (error) {
+        console.error('[cmd-k create_task]', error);
+        return { html: `<span class="material-icons-round icon">error</span>Errore creazione task: ${escapeHtml(error.message)}` };
+    }
+
+    // Auto-assign me come assignee
+    try {
+        await supabase.from('pm_item_assignees').insert({
+            pm_item_id: created.id,
+            user_ref: userId,
+            role: 'assignee',
+        });
+    } catch (e) {
+        console.warn('[cmd-k assign self]', e);
+    }
+
+    const dueLabel = created.due_date
+        ? new Date(created.due_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : 'senza data';
+    const prioLabel = { low: 'bassa', medium: 'media', high: 'alta', urgent: 'urgente' }[created.priority] || created.priority;
+    const spaceLabel = spaceName ? ` · ${escapeHtml(spaceName)}` : space_hint ? ` · <span style="color:#f59e0b;">commessa "${escapeHtml(space_hint)}" non trovata</span>` : '';
+
+    return {
+        html: `
+            <div style="padding: 4px 0;">
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.4rem;">
+                    <span class="material-icons-round" style="color:#10b981;">check_circle</span>
+                    <strong style="color:#10b981;">Task creata</strong>
+                </div>
+                <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 0.3rem;">${escapeHtml(created.title)}</div>
+                <div style="font-size: 0.78rem; color: var(--text-secondary);">
+                    Scadenza: ${dueLabel} · Priorità: ${prioLabel}${spaceLabel}
+                </div>
+                <button onclick="window.location.hash='pm/task/${created.id}'; document.getElementById('cmdk-overlay')?.remove();" style="margin-top: 0.6rem; padding: 4px 10px; border-radius: 6px; background: #3b82f6; color: white; border: none; font-size: 0.75rem; font-weight: 600; cursor: pointer;">apri</button>
+            </div>
+        `
+    };
 }
