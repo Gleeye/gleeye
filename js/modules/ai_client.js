@@ -13,15 +13,15 @@ import { supabase } from './config.js?v=8000';
 // Modelli scelti per ogni feature (centralized config)
 // Quando vuoi cambiare modello per una feature, cambi solo qui.
 export const AI_MODELS = {
-    default:       'google/gemini-2.5-flash',
-    cmd_k:         'google/gemini-2.5-flash',
-    help_inline:   'google/gemini-2.5-flash',
-    doc_generator: 'google/gemini-2.5-flash',
-    pricing_ai:    'google/gemini-2.5-flash',
-    sales_drafter: 'google/gemini-2.5-flash',
+    default:       'google/gemini-2.5-flash-lite',
+    cmd_k:         'google/gemini-2.5-flash-lite',
+    help_inline:   'google/gemini-2.5-flash-lite',
+    doc_generator: 'google/gemini-2.5-flash-lite',
+    pricing_ai:    'google/gemini-2.5-flash-lite',
+    sales_drafter: 'google/gemini-2.5-flash-lite',
 
     // Brief operativo collab: medio-economico
-    brief_drafter: 'google/gemini-2.5-flash',
+    brief_drafter: 'google/gemini-2.5-flash-lite',
 };
 
 /**
