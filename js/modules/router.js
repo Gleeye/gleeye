@@ -151,11 +151,11 @@ function render() {
                 break;
             case 'sales': // Clients list
                 if (pageTitle) pageTitle.textContent = 'Anagrafica Clienti';
-                import('../features/clients.js?v=8003').then(m => m.renderClients(contentArea));
+                import('../features/clients.js?v=8000').then(m => m.renderClients(contentArea));
                 break;
             case 'client-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Cliente';
-                import('../features/clients.js?v=8003').then(m => m.renderClientDetail(contentArea));
+                import('../features/clients.js?v=8000').then(m => m.renderClientDetail(contentArea));
                 break;
             case 'employees':
                 if (pageTitle) pageTitle.textContent = 'Collaboratori';
@@ -430,6 +430,14 @@ function render() {
             case 'sales-niches':
                 if (pageTitle) pageTitle.textContent = 'Niche Research';
                 import('../features/sales/index.js?v=8000').then(m => m.renderSalesNiches(contentArea));
+                break;
+            case 'sales-niche':
+                if (pageTitle) pageTitle.textContent = 'Dettaglio nicchia';
+                if (state.currentId) {
+                    import('../features/sales/index.js?v=8000').then(m => m.renderNicheDetail(contentArea, state.currentId));
+                } else {
+                    location.hash = 'sales-niches';
+                }
                 break;
             // ... Add other routes as needed
             default:

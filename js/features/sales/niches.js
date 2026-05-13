@@ -172,8 +172,7 @@ function bindEvents(container, niches) {
         });
         card.addEventListener('click', () => {
             const id = card.dataset.id;
-            const niche = niches.find(n => n.id === id);
-            if (niche) openNicheDetailModal(niche, () => renderSalesNiches(container));
+            if (id) window.location.hash = 'sales-niche/' + id;
         });
     });
 }
@@ -380,72 +379,149 @@ function buildSapCandidatesList(sapCandidates) {
     );
 }
 
-// ─── MODAL: NICHE DETAIL ─────────────────────────────────────────────────────
+// ─── PAGE: NICHE DETAIL (full-page, non più modal) ───────────────────────────
 
-async function openNicheDetailModal(niche, onSave) {
-    const overlay = buildOverlay('modal-niche-detail');
-    overlay.innerHTML = buildModalShell(
-        escHtml(niche.name),
-        '<button id="btn-delete-niche" style="background:#ef444415;color:#ef4444;border:none;border-radius:10px;padding:0.4rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;margin-right:0.5rem;">Elimina</button>',
-        '<div id="niche-detail-body">' + buildLoadingHTML() + '</div>',
-        '<button id="btn-cancel-detail" style="padding:0.6rem 1.2rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-secondary);font-size:0.85rem;font-weight:600;cursor:pointer;">Chiudi</button>' +
-        '<button id="btn-reanalyze-detail" style="padding:0.6rem 1.1rem;border-radius:12px;border:1px solid #8b5cf640;background:#8b5cf608;color:#8b5cf6;font-size:0.82rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;">' +
-            '<span class="material-icons-round" style="font-size:1rem;">auto_awesome</span>' + (niche.analyzed_at ? 'Rianalizza' : 'Analizza con AI') +
-        '</button>' +
-        '<button id="btn-source-prospects" class="primary-btn" style="padding:0.6rem 1.2rem;border-radius:12px;font-size:0.85rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;">' +
-            '<span class="material-icons-round" style="font-size:1rem;">travel_explore</span>Cerca prospect' +
-        '</button>'
-    );
+export async function renderNicheDetail(container, nicheId) {
+    container.innerHTML = buildLoadingHTML();
 
-    document.body.appendChild(overlay);
-
-    const close = () => overlay.remove();
-    overlay.querySelector('#btn-cancel-detail').addEventListener('click', close);
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-
-    let relevance = [];
-    let prospects = [];
     try {
-        [relevance, prospects] = await Promise.all([
-            fetchNicheSapRelevance(niche.id),
-            fetchProspectsByNiche(niche.id),
-        ]);
-    } catch (err) {
-        console.warn('[NicheDetail] load error', err);
-    }
+        const niches = await fetchNiches();
+        const niche = niches.find(n => n.id === nicheId);
+        if (!niche) {
+            container.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-tertiary);">Nicchia non trovata. <a href="#sales-niches" style="color:var(--brand-blue);">Torna alla lista</a></div>';
+            return;
+        }
 
-    overlay.querySelector('#niche-detail-body').innerHTML = buildDetailBody(niche, relevance, prospects);
-    bindDetailEvents(overlay, niche, onSave, close, prospects);
+        let relevance = [];
+        let prospects = [];
+        try {
+            [relevance, prospects] = await Promise.all([
+                fetchNicheSapRelevance(niche.id),
+                fetchProspectsByNiche(niche.id),
+            ]);
+        } catch (err) {
+            console.warn('[NicheDetail] load error', err);
+        }
+
+        const statusConf = STATUS_CONFIG[niche.status] || STATUS_CONFIG.researching;
+        const onReload = () => renderNicheDetail(container, nicheId);
+
+        container.innerHTML =
+            '<div class="animate-fade-in" style="max-width:1200px;margin:0 auto;padding:1.5rem;">' +
+                // Breadcrumb + Header
+                '<div style="margin-bottom:1.5rem;">' +
+                    '<a href="#sales-niches" style="display:inline-flex;align-items:center;gap:4px;font-size:0.78rem;color:var(--text-secondary);text-decoration:none;margin-bottom:0.5rem;font-weight:600;">' +
+                        '<span class="material-icons-round" style="font-size:1rem;">arrow_back</span>Niche Research' +
+                    '</a>' +
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">' +
+                        '<div>' +
+                            '<div style="display:flex;align-items:center;gap:0.6rem;">' +
+                                '<h1 style="font-size:1.75rem;font-weight:800;font-family:var(--font-titles);color:var(--text-primary);margin:0;letter-spacing:-0.02em;">' + escHtml(niche.name) + '</h1>' +
+                                '<span style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.75rem;padding:4px 10px;border-radius:8px;background:' + statusConf.color + '15;color:' + statusConf.color + ';font-weight:700;">' +
+                                    '<span class="material-icons-round" style="font-size:0.85rem;">' + statusConf.icon + '</span>' + statusConf.label +
+                                '</span>' +
+                            '</div>' +
+                            (niche.analyzed_at
+                                ? '<div style="font-size:0.75rem;color:#8b5cf6;margin-top:4px;display:inline-flex;align-items:center;gap:3px;"><span class="material-icons-round" style="font-size:0.85rem;">auto_awesome</span>Analizzata AI · ' + new Date(niche.analyzed_at).toLocaleString('it-IT') + '</div>'
+                                : '<div style="font-size:0.75rem;color:#f59e0b;margin-top:4px;">⚠ Non ancora analizzata</div>'
+                            ) +
+                        '</div>' +
+                        '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">' +
+                            '<button id="btn-reanalyze-detail" style="padding:0.55rem 1rem;border-radius:10px;border:1px solid #8b5cf640;background:#8b5cf608;color:#8b5cf6;font-size:0.8rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;">' +
+                                '<span class="material-icons-round" style="font-size:1rem;">auto_awesome</span>' + (niche.analyzed_at ? 'Rianalizza' : 'Analizza con AI') +
+                            '</button>' +
+                            '<button id="btn-source-prospects" class="primary-btn" style="padding:0.55rem 1rem;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;">' +
+                                '<span class="material-icons-round" style="font-size:1rem;">travel_explore</span>Cerca prospect' +
+                            '</button>' +
+                            '<button id="btn-delete-niche" style="padding:0.55rem 0.9rem;border-radius:10px;background:#ef444415;color:#ef4444;border:none;font-size:0.78rem;font-weight:700;cursor:pointer;">Elimina</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                // Status + note quick edit
+                '<div style="display:grid;grid-template-columns:1fr 2fr auto;gap:0.6rem;margin-bottom:1.5rem;align-items:flex-end;">' +
+                    '<div>' +
+                        '<label style="font-size:0.7rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:3px;">Status</label>' +
+                        '<select id="detail-status" style="width:100%;padding:0.5rem 0.7rem;border-radius:10px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.85rem;">' +
+                            Object.entries(STATUS_CONFIG).map(([k, v]) =>
+                                '<option value="' + k + '"' + (niche.status === k ? ' selected' : '') + '>' + v.label + '</option>'
+                            ).join('') +
+                        '</select>' +
+                    '</div>' +
+                    '<div>' +
+                        '<label style="font-size:0.7rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:3px;">Note operative</label>' +
+                        '<input id="detail-notes" type="text" value="' + escHtml(niche.notes || '') + '" placeholder="—" style="width:100%;padding:0.5rem 0.7rem;border-radius:10px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.85rem;box-sizing:border-box;">' +
+                    '</div>' +
+                    '<button id="btn-save-meta" style="font-size:0.78rem;padding:0.5rem 0.9rem;border-radius:10px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-secondary);cursor:pointer;font-weight:600;height:fit-content;">Salva</button>' +
+                '</div>' +
+                // Body: analisi AI + prospect
+                '<div id="niche-detail-body">' +
+                    (niche.analyzed_at
+                        ? buildAnalysisPreviewFromNiche(niche, relevance)
+                        : '<div style="text-align:center;padding:2rem;border:2px dashed var(--glass-border);border-radius:14px;color:var(--text-tertiary);margin-bottom:1.5rem;">' +
+                            '<span class="material-icons-round" style="font-size:2.5rem;opacity:0.4;display:block;margin-bottom:0.5rem;">psychology</span>' +
+                            '<div style="font-size:0.88rem;font-weight:600;color:var(--text-primary);margin-bottom:0.3rem;">Nicchia non ancora analizzata</div>' +
+                            '<div style="font-size:0.78rem;">Clicca "Analizza con AI" in alto per popolare descrizione, criteri, pain, comuni, SAP candidati.</div>' +
+                          '</div>'
+                    ) +
+                    buildProspectsSection(prospects) +
+                '</div>' +
+            '</div>';
+
+        bindDetailPageEvents(container, niche, prospects, onReload);
+
+    } catch (err) {
+        console.error('[NicheDetail] render error', err);
+        container.innerHTML = '<div style="padding:2rem;color:red;">Errore: ' + escHtml(err.message) + '</div>';
+    }
 }
 
-function buildDetailBody(niche, relevance, prospects) {
-    return (
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.75rem;">' +
-            '<div>' +
-                '<label style="font-size:0.7rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:3px;">Status</label>' +
-                '<select id="detail-status" style="width:100%;padding:0.5rem 0.7rem;border-radius:10px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.85rem;">' +
-                    Object.entries(STATUS_CONFIG).map(([k, v]) =>
-                        '<option value="' + k + '"' + (niche.status === k ? ' selected' : '') + '>' + v.label + '</option>'
-                    ).join('') +
-                '</select>' +
-            '</div>' +
-            '<div>' +
-                '<label style="font-size:0.7rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:3px;">Note operative</label>' +
-                '<input id="detail-notes" type="text" value="' + escHtml(niche.notes || '') + '" placeholder="—" style="width:100%;padding:0.5rem 0.7rem;border-radius:10px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.85rem;box-sizing:border-box;">' +
-            '</div>' +
-        '</div>' +
-        '<button id="btn-save-meta" style="font-size:0.74rem;padding:5px 12px;border-radius:8px;border:none;background:var(--bg-tertiary);color:var(--text-secondary);cursor:pointer;font-weight:600;margin-bottom:1.5rem;">Salva status/note</button>' +
-        (niche.analyzed_at
-            ? buildAnalysisPreviewFromNiche(niche, relevance)
-            : '<div style="text-align:center;padding:2rem;border:2px dashed var(--glass-border);border-radius:14px;color:var(--text-tertiary);">' +
-                '<span class="material-icons-round" style="font-size:2.5rem;opacity:0.4;display:block;margin-bottom:0.5rem;">psychology</span>' +
-                '<div style="font-size:0.88rem;font-weight:600;color:var(--text-primary);margin-bottom:0.3rem;">Nicchia non ancora analizzata</div>' +
-                '<div style="font-size:0.78rem;">Clicca "Analizza con AI" qui sotto per popolare descrizione, criteri, pain, comuni, SAP candidati.</div>' +
-              '</div>'
-        ) +
-        // Sezione PROSPECT DELLA NICCHIA
-        buildProspectsSection(prospects)
-    );
+function bindDetailPageEvents(container, niche, prospects, onReload) {
+    bindProspectsSectionEvents(container, niche, onReload, prospects || []);
+
+    container.querySelector('#btn-delete-niche')?.addEventListener('click', async () => {
+        const ok = await showConfirm('Eliminare la nicchia "' + niche.name + '"? L\'azione cancella anche analisi AI, SAP relevance e prospect collegati.', 'Elimina', 'Annulla');
+        if (!ok) return;
+        try {
+            await deleteNiche(niche.id);
+            showGlobalAlert('Nicchia eliminata', 'success');
+            window.location.hash = 'sales-niches';
+        } catch (err) {
+            showGlobalAlert('Errore: ' + err.message, 'error');
+        }
+    });
+
+    container.querySelector('#btn-save-meta')?.addEventListener('click', async () => {
+        const status = container.querySelector('#detail-status').value;
+        const notes  = container.querySelector('#detail-notes').value.trim() || null;
+        try {
+            await upsertNiche({ id: niche.id, status, notes });
+            showGlobalAlert('Salvato', 'success');
+            onReload();
+        } catch (err) {
+            showGlobalAlert('Errore: ' + err.message, 'error');
+        }
+    });
+
+    container.querySelector('#btn-source-prospects')?.addEventListener('click', () => {
+        openSourcingModal(niche, () => onReload());
+    });
+
+    container.querySelector('#btn-reanalyze-detail')?.addEventListener('click', async () => {
+        const btn = container.querySelector('#btn-reanalyze-detail');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-icons-round" style="font-size:1rem;animation:spin 1s linear infinite;">refresh</span>Analizzo…';
+        try {
+            const analysis = await analyzeNiche(niche.name);
+            await saveNicheAnalysis(niche.id, analysis);
+            showGlobalAlert('Nicchia rianalizzata', 'success');
+            onReload();
+        } catch (err) {
+            console.error('[NicheReanalyze] error', err);
+            showGlobalAlert('Errore AI: ' + err.message, 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-icons-round" style="font-size:1rem;">auto_awesome</span>Riprova';
+        }
+    });
 }
 
 function buildProspectsSection(prospects) {
@@ -571,60 +647,6 @@ function buildAnalysisPreviewFromNiche(n, relevance) {
     });
 }
 
-function bindDetailEvents(overlay, niche, onSave, close, prospects) {
-    bindProspectsSectionEvents(overlay, niche, onSave, prospects || []);
-
-    overlay.querySelector('#btn-delete-niche').addEventListener('click', async () => {
-        const ok = await showConfirm('Eliminare la nicchia "' + niche.name + '"? L\'azione cancella anche analisi AI e SAP relevance collegati.', 'Elimina', 'Annulla');
-        if (!ok) return;
-        try {
-            await deleteNiche(niche.id);
-            showGlobalAlert('Nicchia eliminata', 'success');
-            close();
-            onSave && onSave();
-        } catch (err) {
-            showGlobalAlert('Errore: ' + err.message, 'error');
-        }
-    });
-
-    overlay.querySelector('#btn-save-meta').addEventListener('click', async () => {
-        const status = overlay.querySelector('#detail-status').value;
-        const notes  = overlay.querySelector('#detail-notes').value.trim() || null;
-        try {
-            await upsertNiche({ id: niche.id, status, notes });
-            showGlobalAlert('Salvato', 'success');
-            onSave && onSave();
-        } catch (err) {
-            showGlobalAlert('Errore: ' + err.message, 'error');
-        }
-    });
-
-    overlay.querySelector('#btn-source-prospects')?.addEventListener('click', () => {
-        openSourcingModal(niche, () => {
-            // Dopo import, ricarica lista nicchie (prospects_count si aggiorna via trigger DB)
-            onSave && onSave();
-        });
-    });
-
-    overlay.querySelector('#btn-reanalyze-detail').addEventListener('click', async () => {
-        const btn = overlay.querySelector('#btn-reanalyze-detail');
-        btn.disabled = true;
-        btn.innerHTML = '<span class="material-icons-round" style="font-size:1rem;animation:spin 1s linear infinite;">refresh</span>Analizzo…';
-        try {
-            const analysis = await analyzeNiche(niche.name);
-            await saveNicheAnalysis(niche.id, analysis);
-            showGlobalAlert('Nicchia rianalizzata', 'success');
-            close();
-            onSave && onSave();
-        } catch (err) {
-            console.error('[NicheReanalyze] error', err);
-            showGlobalAlert('Errore AI: ' + err.message, 'error');
-            btn.disabled = false;
-            btn.innerHTML = '<span class="material-icons-round" style="font-size:1rem;">auto_awesome</span>Riprova';
-        }
-    });
-}
-
 // ─── PROSPECTS SECTION EVENTS ────────────────────────────────────────────────
 
 function bindProspectsSectionEvents(overlay, niche, onSave, prospects) {
@@ -694,11 +716,6 @@ function bindProspectsSectionEvents(overlay, niche, onSave, prospects) {
             await promoteProspectsToPipeline(ids);
             showGlobalAlert(ids.length + ' prospect promossi in pipeline', 'success');
             onSave && onSave();
-            // Re-render: chiudi e riapri il modal
-            overlay.remove();
-            const freshNiches = await fetchNiches();
-            const fresh = freshNiches.find(n => n.id === niche.id);
-            if (fresh) openNicheDetailModal(fresh, onSave);
         } catch (err) {
             showGlobalAlert('Errore: ' + err.message, 'error');
         }
@@ -713,10 +730,6 @@ function bindProspectsSectionEvents(overlay, niche, onSave, prospects) {
             await bulkDeleteProspects(ids);
             showGlobalAlert(ids.length + ' prospect eliminati', 'success');
             onSave && onSave();
-            overlay.remove();
-            const freshNiches = await fetchNiches();
-            const fresh = freshNiches.find(n => n.id === niche.id);
-            if (fresh) openNicheDetailModal(fresh, onSave);
         } catch (err) {
             showGlobalAlert('Errore: ' + err.message, 'error');
         }
@@ -823,12 +836,8 @@ async function runBulkAnalyze(overlay, niche, ids, prospects, onSave) {
     progressDiv.innerHTML = '✓ Completati: ' + done + '/' + total + (failed > 0 ? ' · Falliti: ' + failed : '') + (l2Triggered > 0 ? ' · Layer 2 auto: ' + l2Triggered : '');
     showGlobalAlert('Bulk analisi: ' + done + ' OK, ' + failed + ' falliti, ' + l2Triggered + ' Layer 2 auto', 'success');
 
-    setTimeout(async () => {
+    setTimeout(() => {
         onSave && onSave();
-        overlay.remove();
-        const freshNiches = await fetchNiches();
-        const fresh = freshNiches.find(n => n.id === niche.id);
-        if (fresh) openNicheDetailModal(fresh, onSave);
     }, 1500);
 }
 
