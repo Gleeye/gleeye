@@ -1500,3 +1500,158 @@ async function createAppointmentFromCmdK(args) {
         `
     };
 }
+
+// ─── Create invoice (apre modal precompilato) ───────────────────────
+
+async function createInvoiceFromCmdK(args) {
+    const { client_name, amount, description, date } = args;
+    if (!client_name || !amount) {
+        return { html: `<span class="material-icons-round icon">error</span>Mi serve nome cliente e importo.` };
+    }
+
+    // Match cliente
+    const { data: clients } = await supabase.from('clients')
+        .select('id, business_name, client_code')
+        .ilike('business_name', `%${client_name}%`)
+        .limit(1)
+        .maybeSingle();
+
+    if (!clients) {
+        return { html: `<span class="material-icons-round icon">search_off</span>Cliente "${escapeHtml(client_name)}" non trovato in anagrafica. Creane uno o riprova.` };
+    }
+
+    close();
+
+    // Apre il modal della fattura attiva
+    if (typeof window.openInvoiceForm === 'function') {
+        window.openInvoiceForm();
+    } else {
+        // Fallback: naviga alla lista fatture
+        window.location.hash = 'invoices';
+        await new Promise(r => setTimeout(r, 400));
+        if (typeof window.openInvoiceForm === 'function') window.openInvoiceForm();
+    }
+
+    await new Promise(r => setTimeout(r, 400));
+
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el && val != null) {
+            el.value = val;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    };
+
+    const today = date || new Date().toISOString().slice(0, 10);
+    setVal('inv-amount', Number(amount).toFixed(2));
+    setVal('inv-issue-date', today);
+    if (description) setVal('inv-description', description);
+
+    // Seleziona cliente (aspetta che le opzioni caricino)
+    const clientSel = document.getElementById('inv-client');
+    if (clientSel) {
+        let attempts = 0;
+        while (attempts < 10 && !Array.from(clientSel.options).some(o => o.value === clients.id)) {
+            await new Promise(r => setTimeout(r, 100));
+            attempts++;
+        }
+        const opt = Array.from(clientSel.options).find(o => o.value === clients.id);
+        if (opt) {
+            clientSel.value = clients.id;
+            clientSel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+
+    setTimeout(() => {
+        if (window.showGlobalAlert) {
+            window.showGlobalAlert(`✨ Modal Nuova Fattura aperto, € ${Number(amount).toFixed(2)} precompilato. ${clients.business_name} riconosciuto. Verifica e salva.`, 'success');
+        }
+    }, 400);
+
+    return { html: '' };
+}
+
+// ─── Update order status ─────────────────────────────────────────────
+
+async function updateOrderStatusFromCmdK(args) {
+    const { order_hint, new_status, status_field } = args;
+    if (!order_hint || !new_status || !status_field) {
+        return { html: `<span class="material-icons-round icon">error</span>Mi serve nome/codice commessa + nuovo stato.` };
+    }
+
+    // Match commessa
+    const q = order_hint.trim();
+    const { data: orders } = await supabase.from('orders')
+        .select('id, order_number, title, short_name, offer_status, status_works')
+        .or(`order_number.ilike.%${q}%,title.ilike.%${q}%,short_name.ilike.%${q}%`)
+        .limit(3);
+
+    if (!orders || orders.length === 0) {
+        return { html: `<span class="material-icons-round icon">search_off</span>Commessa "${escapeHtml(order_hint)}" non trovata.` };
+    }
+
+    // Se più di una match, mostra scelta
+    if (orders.length > 1) {
+        const html = `
+            <div style="padding: 4px 0;">
+                <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Trovate ${orders.length} commesse, scegli quale:</div>
+                ${orders.map(o => `
+                    <div onclick="window.cmdK._applyStatus('${o.id}', '${status_field}', '${new_status}')" style="padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: center;">
+                        <span class="material-icons-round" style="font-size: 18px; color: #3b82f6;">work</span>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600;">${escapeHtml(o.order_number)}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">${escapeHtml(o.short_name || o.title || '')}</div>
+                        </div>
+                        <span class="material-icons-round" style="font-size: 16px; color: #94a3b8;">chevron_right</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        return { html };
+    }
+
+    const order = orders[0];
+    const oldVal = order[status_field];
+    return await _applyOrderStatusChange(order.id, order.order_number, order.short_name || order.title, status_field, new_status, oldVal);
+}
+
+async function _applyOrderStatusChange(orderId, orderNumber, orderName, statusField, newStatus, oldStatus) {
+    const updatePayload = { [statusField]: newStatus };
+    const { error } = await supabase.from('orders').update(updatePayload).eq('id', orderId);
+
+    if (error) {
+        return { html: `<span class="material-icons-round icon">error</span>Errore aggiornamento: ${escapeHtml(error.message)}` };
+    }
+
+    const fieldLabel = statusField === 'offer_status' ? 'Offerta' : 'Lavori';
+    return {
+        html: `
+            <div style="padding: 4px 0;">
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.4rem;">
+                    <span class="material-icons-round" style="color:#10b981;">check_circle</span>
+                    <strong style="color:#10b981;">Stato aggiornato</strong>
+                </div>
+                <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 0.3rem;">${escapeHtml(orderNumber)} · ${escapeHtml(orderName || '')}</div>
+                <div style="font-size: 0.78rem; color: var(--text-secondary);">
+                    ${fieldLabel}: <span style="text-decoration: line-through; color: var(--text-tertiary);">${escapeHtml(oldStatus || '-')}</span> → <strong style="color: #10b981;">${escapeHtml(newStatus)}</strong>
+                </div>
+                <button onclick="window.location.hash='order-detail/${orderId}'; document.getElementById('cmdk-overlay')?.remove();" style="margin-top: 0.6rem; padding: 4px 10px; border-radius: 6px; background: #3b82f6; color: white; border: none; font-size: 0.75rem; font-weight: 600; cursor: pointer;">apri commessa</button>
+            </div>
+        `
+    };
+}
+
+// Helper esposto per la scelta drill-down quando ci sono più match
+if (typeof window !== 'undefined') {
+    window.cmdK = window.cmdK || {};
+    window.cmdK._applyStatus = async (orderId, statusField, newStatus) => {
+        setLoading(true);
+        const { data: order } = await supabase.from('orders').select('id, order_number, short_name, title, offer_status, status_works').eq('id', orderId).maybeSingle();
+        if (!order) { showFeedback('Commessa non trovata'); setLoading(false); return; }
+        const oldVal = order[statusField];
+        const result = await _applyOrderStatusChange(orderId, order.order_number, order.short_name || order.title, statusField, newStatus, oldVal);
+        showFeedback(result.html);
+        setLoading(false);
+    };
+}
