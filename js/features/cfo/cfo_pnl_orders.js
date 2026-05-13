@@ -159,7 +159,7 @@ Formato risposta (JSON):
     try {
         const resp = await chat({
             feature: 'cfo_insights',
-            model: 'anthropic/claude-sonnet-4-6',
+            model: AI_MODELS.default,
             messages: [{ role: 'user', content: prompt }],
             response_format: { type: 'json_object' },
             max_tokens: 512,
