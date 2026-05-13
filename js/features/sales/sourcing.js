@@ -16,6 +16,8 @@ import { completeJSON, AI_MODELS } from '../../modules/ai_client.js?v=8000';
 import { supabase } from '../../modules/config.js?v=8000';
 import { upsertNiche } from './api.js?v=8000';
 import { showGlobalAlert } from '../../modules/utils.js?v=8000';
+import { scrapeProspectSite } from './enrichment.js?v=8001';
+import { buildLeanUpdatePayload } from './completeness.js?v=8001';
 
 const MODEL = AI_MODELS.sales_drafter;
 const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
@@ -74,6 +76,7 @@ export async function openSourcingModal(niche, onImported) {
     );
 
     document.body.appendChild(overlay);
+    overlay.dataset.nicheId = niche.id;
 
     const close = () => overlay.remove();
     overlay.querySelector('.modal-close-x-explicit').addEventListener('click', close);
@@ -301,7 +304,7 @@ async function importSelected(overlay, niche) {
             industry:           niche.name || null,
             niche_id:           niche.id,
             funnel_segment:     'cold',
-            pipeline_stage:     'sourced', // pre-pipeline, vive nella nicchia finché non viene promosso
+            pipeline_stage:     'sourced',
             acquisition_source: 'outreach',
             stage_history:      [{ stage: 'sourced', entered_at: new Date().toISOString() }],
             notes:              r.address ? 'Indirizzo: ' + r.address + ' · Fonte: OSM' : 'Fonte: OSM',
@@ -313,17 +316,113 @@ async function importSelected(overlay, niche) {
             },
         }));
 
-        // Batch insert (Supabase upsert con onConflict per evitare duplicati su business_name+niche_id)
-        const { data, error } = await supabase.from('prospects').insert(rows).select('id');
+        // Step 1: insert dei prospect con dati base OSM
+        const { data: inserted, error } = await supabase.from('prospects').insert(rows).select('id, website, contact_email, contact_phone, linkedin_url, social_links, ai_enrichment_data');
         if (error) throw error;
 
-        showGlobalAlert(rows.length + ' prospect importati in "' + niche.name + '"', 'success');
-        overlay.remove();
+        showGlobalAlert(rows.length + ' prospect importati. Avvio scraping aggressivo in background…', 'success');
+
+        // Step 2: scraping aggressivo dei siti web (background, in batch concorrenti)
+        // Estrae email/social/phones dal sito, calcola completeness_score, aggiorna prospect.
+        // NIENTE testo grezzo salvato nel DB (regola DB lean).
+        await runAggressiveScraping(overlay, inserted || []);
+
     } catch (err) {
         console.error('[Import] error', err);
         showGlobalAlert('Errore import: ' + err.message, 'error');
         btn.disabled = false;
         btn.innerHTML = '<span class="material-icons-round" style="font-size:0.95rem;">download</span>Importa selezionati';
+    }
+}
+
+/**
+ * Sourcing aggressivo: per ogni prospect appena importato con sito web,
+ * lancia scraping → estrae email/social/phones → calcola completeness → update prospect.
+ * Concorrenza limitata per non saturare l'edge function.
+ * UI: progress bar e contatori live.
+ */
+async function runAggressiveScraping(overlay, prospects) {
+    const targets = prospects.filter(p => p.website);
+    const skipped = prospects.length - targets.length;
+
+    // Sostituisce i risultati con un pannello di progress
+    const resultsDiv = overlay.querySelector('#sourcing-results');
+    if (resultsDiv) {
+        resultsDiv.innerHTML =
+            '<div style="padding:1.25rem;background:#3b82f608;border:1px solid #3b82f622;border-radius:14px;">' +
+                '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;">' +
+                    '<span class="material-icons-round" style="font-size:1.1rem;color:#3b82f6;animation:spin 1s linear infinite;">refresh</span>' +
+                    '<span style="font-size:0.85rem;font-weight:700;color:var(--text-primary);">Scraping aggressivo — estraggo email/social/contenuto dai siti</span>' +
+                '</div>' +
+                '<div id="aggro-progress" style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.6rem;">' +
+                    '0/' + targets.length + ' completati' + (skipped > 0 ? ' · ' + skipped + ' senza sito (saltati)' : '') +
+                '</div>' +
+                '<div style="height:8px;background:var(--bg-tertiary);border-radius:4px;overflow:hidden;">' +
+                    '<div id="aggro-bar" style="height:100%;width:0%;background:#3b82f6;border-radius:4px;transition:width 0.3s;"></div>' +
+                '</div>' +
+                '<div id="aggro-stats" style="font-size:0.72rem;color:var(--text-tertiary);margin-top:0.6rem;">Email trovate: 0 · Social trovati: 0 · Completi (≥60): 0</div>' +
+            '</div>';
+    }
+
+    // Concorrenza limitata (max 3 fetch in parallelo)
+    const CONCURRENCY = 3;
+    let done = 0;
+    let foundEmails = 0;
+    let foundSocials = 0;
+    let highCompleteness = 0;
+
+    const updateUi = (currentTarget) => {
+        if (!resultsDiv) return;
+        const progress = overlay.querySelector('#aggro-progress');
+        const bar = overlay.querySelector('#aggro-bar');
+        const stats = overlay.querySelector('#aggro-stats');
+        const pct = targets.length === 0 ? 100 : Math.round((done / targets.length) * 100);
+        if (progress) progress.textContent = done + '/' + targets.length + ' completati' + (currentTarget ? ' · in corso: ' + currentTarget.substr(0, 50) : '');
+        if (bar) bar.style.width = pct + '%';
+        if (stats) stats.textContent = 'Email trovate: ' + foundEmails + ' · Social trovati: ' + foundSocials + ' · Completi (≥60): ' + highCompleteness;
+    };
+
+    // Worker pool
+    const queue = [...targets];
+    const workers = Array.from({ length: CONCURRENCY }, async () => {
+        while (queue.length > 0) {
+            const p = queue.shift();
+            if (!p) break;
+            updateUi(p.website);
+            try {
+                const scrape = await scrapeProspectSite(p.website);
+                const update = buildLeanUpdatePayload(p, scrape);
+                if (update.contact_email) foundEmails++;
+                if (update.social_links && Object.keys(update.social_links).length > 0) foundSocials++;
+                if (update.completeness_score >= 60) highCompleteness++;
+                update.id = p.id;
+                await supabase.from('prospects').update(update).eq('id', p.id);
+            } catch (err) {
+                console.warn('[AggroScrape] fail', p.website, err);
+            }
+            done++;
+            updateUi();
+        }
+    });
+    await Promise.all(workers);
+
+    // Done
+    if (resultsDiv) {
+        resultsDiv.innerHTML =
+            '<div style="padding:1.25rem;background:#10b98108;border:1px solid #10b98133;border-radius:14px;">' +
+                '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">' +
+                    '<span class="material-icons-round" style="font-size:1.2rem;color:#10b981;">check_circle</span>' +
+                    '<span style="font-size:0.95rem;font-weight:800;color:var(--text-primary);">Scraping completato</span>' +
+                '</div>' +
+                '<div style="font-size:0.85rem;color:var(--text-secondary);line-height:1.6;">' +
+                    targets.length + ' siti analizzati. ' +
+                    foundEmails + ' email estratte. ' +
+                    foundSocials + ' set di social trovati. ' +
+                    highCompleteness + ' prospect promettenti (completeness ≥ 60).' +
+                    (skipped > 0 ? '<br>' + skipped + ' prospect senza sito (skip).' : '') +
+                '</div>' +
+                '<button class="primary-btn" onclick="window.location.hash=\'sales-niche/' + (overlay.dataset.nicheId || '') + '\'" style="margin-top:0.8rem;font-size:0.82rem;padding:0.55rem 1.1rem;border-radius:10px;font-weight:700;">Vai alla nicchia</button>' +
+            '</div>';
     }
 }
 

@@ -13,9 +13,10 @@ import { fetchNiches, upsertNiche, deleteNiche, fetchProspectsByNiche, promotePr
 import { showGlobalAlert, showConfirm } from '../../modules/utils.js?v=8000';
 import { analyzeNiche, saveNicheAnalysis, fetchNicheSapRelevance, PAROZZI_CRITERIA } from './niche_analyzer.js?v=8000';
 import { openSourcingModal } from './sourcing.js?v=8000';
-import { runLayer1AI, runLayer2AI, scrapeProspectSite } from './enrichment.js?v=8000';
+import { runLayer1AI, runLayer2AI, scrapeProspectSite } from './enrichment.js?v=8001';
 import { openProspectModal } from './pipeline_board.js?v=8000';
 import { openOverlay, buildModalShell, closeOverlay, bindModalCloseButtons } from './_modal.js?v=8001';
+import { buildLeanUpdatePayload } from './completeness.js?v=8001';
 
 const STATUS_CONFIG = {
     researching: { label: 'In ricerca',  color: '#f59e0b', icon: 'search' },
@@ -603,11 +604,16 @@ function buildProspectRow(p) {
     const stageColor = stageColors[p.pipeline_stage] || '#94a3b8';
     const scoreColor = score == null ? '#94a3b8' : score >= 70 ? '#10b981' : score >= 40 ? '#f59e0b' : '#ef4444';
 
+    // Completeness Layer 0 (deterministico): badge separato dal promising_score (AI)
+    const completeness = p.completeness_score != null ? Number(p.completeness_score) : null;
+    const compColor = completeness == null ? '#94a3b8' : completeness >= 60 ? '#10b981' : completeness >= 30 ? '#f59e0b' : '#ef4444';
+    const compIcon = completeness == null ? 'hourglass_empty' : completeness >= 60 ? 'check_circle_outline' : completeness >= 30 ? 'pending' : 'warning';
+
     // Il <div> esterno NON ha listener click né cursor:pointer.
     // SOLO l'area centrale `.np-row-open` ha listener (apre modal prospect).
     // Il checkbox `.np-check` è isolato, click solo lì → solo seleziona.
     return (
-        '<div class="np-row" data-id="' + p.id + '" style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:0.6rem;align-items:center;padding:0.6rem 0.8rem;border-bottom:1px solid var(--glass-border);font-size:0.8rem;transition:background 0.15s;" onmouseover="this.style.background=\'var(--bg-tertiary)\'" onmouseout="this.style.background=\'\'">' +
+        '<div class="np-row" data-id="' + p.id + '" style="display:grid;grid-template-columns:auto 1fr auto auto auto auto;gap:0.6rem;align-items:center;padding:0.6rem 0.8rem;border-bottom:1px solid var(--glass-border);font-size:0.8rem;transition:background 0.15s;" onmouseover="this.style.background=\'var(--bg-tertiary)\'" onmouseout="this.style.background=\'\'">' +
             '<label style="display:flex;align-items:center;justify-content:center;width:24px;height:24px;cursor:pointer;" title="Seleziona prospect">' +
                 '<input type="checkbox" class="np-check" data-id="' + p.id + '" style="cursor:pointer;width:16px;height:16px;">' +
             '</label>' +
@@ -618,8 +624,14 @@ function buildProspectRow(p) {
                     (p.website ? escHtml(p.website.replace(/^https?:\/\//, '').slice(0, 40)) : '') +
                 '</div>' +
             '</div>' +
+            // Completeness L0 (deterministico)
+            '<span style="display:inline-flex;align-items:center;gap:2px;font-size:0.7rem;font-weight:800;padding:2px 7px;border-radius:6px;background:' + compColor + '15;color:' + compColor + ';white-space:nowrap;" title="Completezza dati (Layer 0)">' +
+                '<span class="material-icons-round" style="font-size:0.8rem;">' + compIcon + '</span>' +
+                (completeness != null ? completeness : '—') +
+            '</span>' +
+            // Promising L1 (AI)
             (score != null
-                ? '<span style="font-size:0.7rem;font-weight:800;padding:2px 7px;border-radius:6px;background:' + scoreColor + '20;color:' + scoreColor + ';white-space:nowrap;">' + score + '/100</span>'
+                ? '<span style="font-size:0.7rem;font-weight:800;padding:2px 7px;border-radius:6px;background:' + scoreColor + '20;color:' + scoreColor + ';white-space:nowrap;" title="Promising score AI">' + score + '/100</span>'
                 : '<span style="font-size:0.68rem;color:var(--text-tertiary);">—</span>') +
             '<span style="font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:6px;background:' + stageColor + '15;color:' + stageColor + ';text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">' + (p.pipeline_stage || 'sourced') + '</span>' +
             (inPipeline
@@ -761,7 +773,7 @@ async function runBulkAnalyze(overlay, niche, ids, prospects, onSave) {
                 scrapeData = await scrapeProspectSite(p.website);
             }
 
-            // Step 2: Layer 1
+            // Step 2: Layer 1 AI
             const r1 = await runLayer1AI(p, scrapeData);
             let enrichment = {
                 ...(p.ai_enrichment_data || {}),
@@ -776,23 +788,13 @@ async function runBulkAnalyze(overlay, niche, ids, prospects, onSave) {
                 revenue_estimate:       r1.revenue_estimate || null,
                 promising_score:        r1.promising_score != null ? Number(r1.promising_score) : null,
                 promising_rationale:    r1.promising_rationale || null,
-                last_scrape:            scrapeData,
                 layer1_at:              new Date().toISOString(),
             };
+            // DB lean: il testo raw dello scraping non viene salvato. last_scrape rimosso.
+            delete enrichment.last_scrape;
 
-            // Auto-update contatti se trovati nel sito e mancanti
-            const contactUpdates = {};
-            if (scrapeData && scrapeData.success) {
-                if (!p.contact_email && scrapeData.emails && scrapeData.emails.length > 0) {
-                    contactUpdates.contact_email = scrapeData.emails[0];
-                }
-                if (!p.contact_phone && scrapeData.phones && scrapeData.phones.length > 0) {
-                    contactUpdates.contact_phone = scrapeData.phones[0];
-                }
-                if (!p.linkedin_url && scrapeData.socials && scrapeData.socials.linkedin) {
-                    contactUpdates.linkedin_url = scrapeData.socials.linkedin;
-                }
-            }
+            // Lean update fields (email, phone, social_links, completeness_score) derivati dal scrape in memoria
+            const leanFields = buildLeanUpdatePayload(p, scrapeData);
 
             // Step 3: Layer 2 se promettente
             if (enrichment.promising_score >= 70) {
@@ -823,7 +825,7 @@ async function runBulkAnalyze(overlay, niche, ids, prospects, onSave) {
                 id: p.id,
                 ai_enrichment_data: enrichment,
                 industry: p.industry || r1.industry || null,
-                ...contactUpdates,
+                ...leanFields,
             });
             done++;
         } catch (err) {
