@@ -62,8 +62,7 @@ export async function fetchSapServicesForSales() {
     if (state.sapServices && state.sapServices.length > 0) return state.sapServices;
     const { data, error } = await supabase
         .from('core_services')
-        .select('id, name, category')
-        .eq('is_active', true)
+        .select('id, name')
         .order('name');
     if (error) throw error;
     state.sapServices = data || [];
