@@ -16,16 +16,11 @@ import { supabase } from '../../modules/config.js?v=8000';
 const MODEL = AI_MODELS.sales_drafter;
 const AUTO_DEEP_DIVE_THRESHOLD = 70;
 
-// ─── SITE SCRAPER ────────────────────────────────────────────────────────────
-// Chiama edge function scrape-prospect-site per fetchare HTML + estrarre testo/email/social
-// dal sito del prospect. Senza questo, l'AI lavora solo sul nome → output mediocre.
-
+// ─── SITE SCRAPER (edge function scrape-prospect-site) ────────────────────────
 export async function scrapeProspectSite(url) {
     if (!url) return null;
     try {
-        const { data, error } = await supabase.functions.invoke('scrape-prospect-site', {
-            body: { url },
-        });
+        const { data, error } = await supabase.functions.invoke('scrape-prospect-site', { body: { url } });
         if (error) {
             console.warn('[scrape] invoke error', error);
             return { success: false, error: String(error?.message || error), url };
@@ -231,25 +226,14 @@ async function runLayer1(container, prospect, onEnriched) {
     btn.disabled = true;
     btn.innerHTML = '<span class="material-icons-round" style="font-size:0.95rem;animation:spin 1s linear infinite;">refresh</span> Layer 1…';
 
-    // Step 1: scraping del sito (se URL presente)
-    let scrapeData = null;
-    if (prospect.website) {
-        resultDiv.innerHTML =
-            '<div style="display:flex;align-items:center;justify-content:center;padding:2rem;gap:0.75rem;color:var(--text-secondary);">' +
-                '<span class="material-icons-round" style="animation:spin 1s linear infinite;">language</span>' +
-                'Scraping sito ' + escHtml(prospect.website) + '…' +
-            '</div>';
-        scrapeData = await scrapeProspectSite(prospect.website);
-    }
-
     resultDiv.innerHTML =
         '<div style="display:flex;align-items:center;justify-content:center;padding:2rem;gap:0.75rem;color:var(--text-secondary);">' +
             '<span class="material-icons-round" style="animation:spin 1s linear infinite;">auto_awesome</span>' +
-            'AI analizza ' + escHtml(prospect.business_name) + (scrapeData && scrapeData.success ? ' (con contenuto sito ' + scrapeData.scrape_quality?.label + ')' : ' (Layer 1)') + '…' +
+            'AI analizza ' + escHtml(prospect.business_name) + ' (Layer 1)…' +
         '</div>';
 
     try {
-        const result = await runLayer1AI(prospect, scrapeData);
+        const result = await runLayer1AI(prospect);
 
         const enrichmentData = {
             ...(prospect.ai_enrichment_data || {}),
@@ -266,32 +250,14 @@ async function runLayer1(container, prospect, onEnriched) {
             revenue_estimate:       result.revenue_estimate || null,
             promising_score:        result.promising_score != null ? Number(result.promising_score) : null,
             promising_rationale:    result.promising_rationale || null,
-            // Scrape data caching (riusato da Layer 2)
-            last_scrape:            scrapeData,
             // Timestamp
             layer1_at:              new Date().toISOString(),
             layer1_model:           MODEL,
         };
 
-        // Auto-update contatti del prospect se mancanti e trovati dal sito
-        const contactUpdates = {};
-        if (scrapeData && scrapeData.success) {
-            if (!prospect.contact_email && scrapeData.emails && scrapeData.emails.length > 0) {
-                contactUpdates.contact_email = scrapeData.emails[0];
-            }
-            if (!prospect.contact_phone && scrapeData.phones && scrapeData.phones.length > 0) {
-                contactUpdates.contact_phone = scrapeData.phones[0];
-            }
-            if (!prospect.linkedin_url && scrapeData.socials && scrapeData.socials.linkedin) {
-                contactUpdates.linkedin_url = scrapeData.socials.linkedin;
-            }
-        }
-        Object.assign(prospect, contactUpdates);
-
         const updatePayload = { id: prospect.id, ai_enrichment_data: enrichmentData };
         if (!prospect.industry && result.industry) updatePayload.industry = result.industry;
         if (!prospect.company_size && result.company_size) updatePayload.company_size = result.company_size;
-        Object.assign(updatePayload, contactUpdates);
 
         await upsertProspect(updatePayload);
         prospect.ai_enrichment_data = enrichmentData;
@@ -361,30 +327,20 @@ function buildLayer1Prompt(prospect, scrapeData) {
     if (prospect.linkedin_url) lines.push('- LinkedIn: ' + prospect.linkedin_url);
     if (prospect.notes) lines.push('- Note: ' + prospect.notes);
 
-    // Inietta il contenuto scrapato dal sito (cruccio: la differenza tra AI cieca e AI informata)
     if (scrapeData && scrapeData.success) {
         lines.push('');
         lines.push('## CONTENUTO DEL SITO (scraping reale)');
-        if (scrapeData.title) lines.push('- Titolo pagina: ' + scrapeData.title);
+        if (scrapeData.title) lines.push('- Titolo: ' + scrapeData.title);
         if (scrapeData.meta_description) lines.push('- Meta description: ' + scrapeData.meta_description);
-        if (scrapeData.emails && scrapeData.emails.length) lines.push('- Email trovate: ' + scrapeData.emails.join(', '));
+        if (scrapeData.emails?.length) lines.push('- Email: ' + scrapeData.emails.join(', '));
         if (scrapeData.socials && Object.keys(scrapeData.socials).length) {
             lines.push('- Social: ' + Object.entries(scrapeData.socials).map(([k, v]) => k + '=' + v).join(' · '));
         }
-        if (scrapeData.phones && scrapeData.phones.length) lines.push('- Telefoni: ' + scrapeData.phones.join(', '));
         if (scrapeData.text) {
             lines.push('');
-            lines.push('### Testo del sito (estratto, max 6K char):');
+            lines.push('### Testo del sito (max 6K char):');
             lines.push(scrapeData.text.slice(0, 6000));
         }
-        if (scrapeData.scrape_quality) {
-            lines.push('');
-            lines.push('Qualità scraping: ' + scrapeData.scrape_quality.label + ' (score ' + scrapeData.scrape_quality.score + '/100)');
-        }
-    } else if (scrapeData && !scrapeData.success) {
-        lines.push('');
-        lines.push('## CONTENUTO DEL SITO');
-        lines.push('Scraping fallito: ' + (scrapeData.error || 'unknown') + '. Lavora solo sui dati anagrafici sopra.');
     }
 
     lines.push('');
@@ -392,8 +348,8 @@ function buildLayer1Prompt(prospect, scrapeData) {
     lines.push('Gleeye è un\'agenzia di comunicazione/marketing a Genova. Vuole valutare se proporsi a questa azienda.');
     lines.push('');
     lines.push('## OUTPUT');
-    lines.push('Compila TUTTI i campi richiesti basandoti soprattutto sul CONTENUTO DEL SITO se presente. Se non hai info, lascia null/ometti.');
-    lines.push('Particolare attenzione al `promising_score` 0-100: quanto vale la pena per Gleeye approfondire questo prospect.');
+    lines.push('Compila TUTTI i campi richiesti. Sii concreto. Se non hai info, lascia null/ometti.');
+    lines.push('Particolare attenzione al `promising_score` 0-100: quanto vale la pena per Gleeye approfondire questo prospect (vedi sistema).');
 
     return lines.join('\n');
 }
@@ -421,12 +377,7 @@ async function runLayer2(container, prospect, onEnriched, isManualTrigger) {
     }
 
     try {
-        // Riusa il last_scrape salvato dal Layer 1; se manca e c'è website, fa scraping ora
-        let scrapeData = prospect.ai_enrichment_data?.last_scrape;
-        if (!scrapeData && prospect.website) {
-            scrapeData = await scrapeProspectSite(prospect.website);
-        }
-        const result = await runLayer2AI(prospect, scrapeData);
+        const result = await runLayer2AI(prospect);
 
         const enrichmentData = {
             ...(prospect.ai_enrichment_data || {}),
@@ -507,22 +458,20 @@ function buildLayer2Prompt(prospect, scrapeData) {
     if (e.punto_distintivo) lines.push('- USP: ' + e.punto_distintivo);
     if (e.promising_score != null) lines.push('- Promising score Layer 1: ' + e.promising_score);
 
-    // Riutilizza il contenuto scrapato (cache da Layer 1 oppure passato esplicitamente)
-    const scrape = scrapeData || e.last_scrape;
-    if (scrape && scrape.success && scrape.text) {
+    if (scrapeData && scrapeData.success && scrapeData.text) {
         lines.push('');
         lines.push('## CONTENUTO DEL SITO (scraping reale)');
-        if (scrape.title) lines.push('- Titolo: ' + scrape.title);
-        if (scrape.meta_description) lines.push('- Meta: ' + scrape.meta_description);
+        if (scrapeData.title) lines.push('- Titolo: ' + scrapeData.title);
+        if (scrapeData.meta_description) lines.push('- Meta: ' + scrapeData.meta_description);
         lines.push('');
-        lines.push('### Testo (estratto, max 8K char):');
-        lines.push(scrape.text.slice(0, 8000));
+        lines.push('### Testo (max 8K char):');
+        lines.push(scrapeData.text.slice(0, 8000));
     }
 
     lines.push('');
     lines.push('## OBIETTIVO');
     lines.push('Deep dive strategico per decidere se/come Gleeye dovrebbe attaccare questo prospect.');
-    lines.push('Compila TUTTI i campi richiesti dal sistema. Per testimonianze/news, basati ESCLUSIVAMENTE sul testo del sito sopra — se non sono presenti, usa null. NON inventare.');
+    lines.push('Per news/testimonianze, basati ESCLUSIVAMENTE sul testo del sito sopra. Non inventare — usa null.');
 
     return lines.join('\n');
 }

@@ -439,6 +439,18 @@ function render() {
                     location.hash = 'sales-niches';
                 }
                 break;
+            case 'sales-sequences':
+                if (pageTitle) pageTitle.textContent = 'Sequenze Outreach';
+                import('../features/sales/index.js?v=8000').then(m => m.renderSalesSequences(contentArea));
+                break;
+            case 'sales-sequence':
+                if (pageTitle) pageTitle.textContent = 'Sequenza';
+                if (state.currentId) {
+                    import('../features/sales/index.js?v=8000').then(m => m.renderSequenceDetail(contentArea, state.currentId));
+                } else {
+                    location.hash = 'sales-sequences';
+                }
+                break;
             // ... Add other routes as needed
             default:
                 console.log(`[Router] Hit default case for page: "${state.currentPage}"`);
