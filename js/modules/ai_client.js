@@ -25,8 +25,8 @@ export const AI_MODELS = {
     // Document generator (SAP): output strutturato lungo → modello migliore
     doc_generator: 'anthropic/claude-sonnet-4.5',
 
-    // Pricing Intelligence: ragionamento + analisi → modello migliore
-    pricing_ai: 'anthropic/claude-sonnet-4.5',
+    // Pricing Intelligence: analisi dati interni → Gemini Flash 2.5 Lite economico
+    pricing_ai: 'google/gemini-2.5-flash-lite',
 
     // Sales drafter (email outreach): qualità testo → modello migliore
     sales_drafter: 'anthropic/claude-sonnet-4.5',
