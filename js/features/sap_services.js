@@ -600,7 +600,7 @@ export async function renderSapServiceDetail(container, serviceId) {
                         </div>
                         <div>
                             <label class="ai-field-label">Tier di prezzo</label>
-                            <textarea id="sap-ai-pricing" class="ai-field-input" rows="3" placeholder="Es. Base 800€ / Premium 1500€ / Enterprise custom">${(service.pricing_tiers || []).map(t => typeof t === 'string' ? t : \`\${t.name || ''} \${t.price ? t.price + '€' : ''}\${t.description ? ' — ' + t.description : ''}\`).join('\n')}</textarea>
+                            <textarea id="sap-ai-pricing" class="ai-field-input" rows="3" placeholder="Es. Base 800€ / Premium 1500€ / Enterprise custom">${(service.pricing_tiers || []).map(t => typeof t === 'string' ? t : ((t.name || '') + (t.price ? ' ' + t.price + '€' : '') + (t.description ? ' — ' + t.description : ''))).join('\n')}</textarea>
                             <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 0.25rem;">Una riga per tier</div>
                         </div>
                     </div>
