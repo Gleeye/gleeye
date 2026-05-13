@@ -6,6 +6,7 @@ import { loadAvailabilityIntoContainer } from './availability_manager.js?v=8000'
 import { supabase } from '../modules/config.js?v=8000';
 import { glossaryTip } from '../modules/help_tooltip.js?v=8002';
 import { tAssignment } from '../modules/i18n_labels.js?v=8002';
+import { inlineHelpButton, attachInlineHelp } from '../modules/help_inline_ai.js?v=8001';
 
 // Global signed URL opener for secure documents (if not already defined elsewhere)
 if (!window.openSignedUrl) {
@@ -787,11 +788,12 @@ export function renderCollaboratorDetail(container) {
                                 ${statusText}
                              </span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 1rem; color: var(--text-tertiary); font-size: 0.9rem;">
+                        <div style="display: flex; align-items: center; gap: 1rem; color: var(--text-tertiary); font-size: 0.9rem; flex-wrap: wrap;">
                             <span style="display: flex; align-items: center; gap: 0.4rem; font-weight: 500;">
                                 ${c.role || 'Ruolo non definito'}
                             </span>
                             ${c.name ? `<span style="display: flex; align-items: center; gap: 0.4rem; padding: 2px 8px; background: rgba(0,0,0,0.05); border-radius: 6px; font-family: monospace; font-size: 0.8rem;">${c.name}</span>` : ''}
+                            ${inlineHelpButton({ id: c.id, contextType: 'collaborator', label: 'Spiegami', icon: 'auto_awesome' })}
                         </div>
                     </div>
                 </div>
@@ -1152,6 +1154,57 @@ export function renderCollaboratorDetail(container) {
             }
         });
     });
+
+    // Help inline AI: "Spiegami questo collaboratore"
+    attachInlineHelp(container, _buildCollabHelpContext);
+}
+
+// Help AI context loader per il collaboratore
+async function _buildCollabHelpContext(collabId, contextType) {
+    if (contextType !== 'collaborator') return null;
+    const c = state.collaborators?.find(x => x.id === collabId);
+    if (!c) return null;
+
+    const assignments = (state.assignments || []).filter(a => a.collaborator_id === c.id);
+    const activeAssignments = assignments.filter(a => /attivo|in corso|in_corso/i.test(a.status || ''));
+    const completedAssignments = assignments.filter(a => /completat/i.test(a.status || ''));
+    const payments = (state.payments || []).filter(p => p.collaborator_id === c.id);
+    const paid = payments.filter(p => /completat|saldato|pagato/i.test(p.status || '')).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    const pending = payments.filter(p => !/completat|saldato|pagato/i.test(p.status || '')).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    const services = (state.collaboratorServices || []).filter(s => s.collaborator_id === c.id);
+
+    const tagsArr = Array.isArray(c.tags) ? c.tags : (typeof c.tags === 'string' ? c.tags.split(',').map(t => t.trim()) : []);
+    const typeLabel = c.type === 'white_label' ? 'Partner White-Label' : 'Collaboratore freelance';
+
+    const text = `
+Sto guardando il collaboratore:
+
+- Nome: ${c.full_name}
+- Ruolo: ${c.role || '-'}
+- Tipo: ${typeLabel}
+- Stato: ${c.is_active ? 'Attivo' : 'Inattivo'}
+- Tag/Reparti: ${tagsArr.length ? tagsArr.join(', ') : '-'}
+- P.IVA: ${c.vat_number || 'no'}
+- Email: ${c.email || '-'}
+
+Storia con noi:
+- Incarichi totali: ${assignments.length} (${activeAssignments.length} attivi, ${completedAssignments.length} completati)
+- Pagamenti totali: € ${(paid + pending).toFixed(2)} (saldato € ${paid.toFixed(2)}, in attesa € ${pending.toFixed(2)})
+- Voci di tariffario registrate: ${services.length}
+
+Ultimi incarichi attivi:
+${activeAssignments.slice(0, 5).map(a => `  - € ${a.total_amount || 0} · ${a.status} · creato ${a.start_date || '?'}`).join('\n')}
+
+Spiegami in 4 frasi:
+1. Chi è questa persona in sintesi (cosa fa, dove la usiamo)
+2. Quanto ci costa e quanto lavora (storia)
+3. Performance attuale (è in linea? in ritardo? ferma?)
+4. Suggerimento azione se evidente
+
+Italiano colloquiale.
+`.trim();
+
+    return { text };
 }
 
 async function initAvailabilityTab(collaboratorId) {
