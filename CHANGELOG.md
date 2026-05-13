@@ -1,194 +1,138 @@
-# Changelog Gleeye ERP
+# Gleeye ERP — Manuale operativo
 
-Cosa è stato fatto, sessione per sessione. Lo aggiorno io (Claude) al volo,
-così Davide può aprire questo file dall'editor e vedere lo stato senza dover
-guardare la cronologia git o la memoria interna di Claude.
-
-Branch attivo principale: `feature/ai-foundation`.
+Cosa è in produzione su `workspace.gleeye.eu` (deploy auto da `main` via Vercel).
+Lo aggiorno io (Claude) sessione per sessione. Apri da qualsiasi editor.
 
 ---
 
-## 2026-05-13 — Sales Engine Fase 1: Pipeline outbound + AI enrichment + Outreach drafter
+## In sintesi: cosa puoi fare adesso
 
-Branch: `feature/sales-engine-p1`
+### Cmd+K — la "barra di comando" che apri ovunque (Cmd+K Mac / Ctrl+K Win)
+Scrivi in italiano, l'AI capisce e fa. **12 azioni disponibili:**
 
-### DB
-- Migration `add_prospects_pipeline_sales_engine_p1` applicata.
-- Nuova tabella `prospects` con pipeline a 5 stadi (`cold | contacted | replied | proposal_sent | converted`),
-  `stage_history` jsonb per tracking temporale, `ai_enrichment_data` jsonb, foreign key a `core_services` / `profiles` / `leads` / `clients`.
-  Auto-generate `prospect_code` (PROS-0001). RLS abilitato.
-- Colonna `acquisition_source` aggiunta su tabella `leads` (additive, nullable).
+| Frase | Cosa succede |
+|---|---|
+| "vai ai clienti" | Apre vista clienti |
+| "apri commessa Acme" | Apre dettaglio commessa |
+| "cerca collaboratore Mario" | Mostra match |
+| "quante fatture scadute" | Risposta numerica |
+| "monthly revenue corrente" | KPI ricavi del mese |
+| "cosa devo fare oggi" | Recap: task, pagamenti, fatture scadute |
+| "cosa è scaduto" | Lista completa scaduti con totali |
+| "come sta cliente Rossi" | Dashboard cliente con KPI |
+| "crea task chiamare Mario per domani" | Crea task in DB con scadenza |
+| "registra spesa Adobe 50 euro" | Apre modal fattura passiva precompilato |
+| "incassato 1500 da Acme" | Registra movimento bancario in attesa |
+| "fissa call con Mario domani alle 15" | Crea appuntamento + agenda |
 
-### Frontend: `js/features/sales/`
-- **`api.js`** — fetch/upsert/delete prospects, moveStage (aggiorna `stage_history`), costanti `PIPELINE_STAGES` e `ACQUISITION_SOURCES`.
-- **`pipeline_board.js`** — Kanban a 5 colonne orizzontali scrollabili. Modal dettaglio con 3 tab: Dati / Arricchimento AI / Outreach.
-  `<select>` per spostare stage inline. Shortcut email outreach dalla card.
-- **`enrichment.js`** — Tab AI: chiama `ai.completeJSON({feature:'sales_drafter', model: Gemini Flash Lite})`,
-  restituisce `{industry, company_size, description, location, revenue_estimate, key_info[]}`, salva in `ai_enrichment_data` + aggiorna campi `industry/company_size` se vuoti.
-- **`outreach.js`** — Tab Outreach: 3 toni selezionabili, genera 3 varianti email (oggetto + corpo) via `completeJSON`,
-  bottone copia negli appunti per ciascuna variante.
-- **`metrics.js`** — Pagina `#sales-metrics`: 4 KPI card, funnel conversione per stadio con barre, top sorgenti acquisizione,
-  tempo medio per stadio (da `stage_history`).
-- **`index.js`** — entry point che ri-esporta `renderPipelineBoard` e `renderSalesMetrics`.
+Modello: Gemini 2.5 Flash Lite. Costo per chiamata: ~0,00005 €.
 
-### Wiring
-- `router.js`: aggiunti `case 'sales-pipeline'` e `case 'sales-metrics'` (append in fondo, nessun esistente rimosso).
-- `index.html` sidebar: aggiunti link `#sales-pipeline` (Pipeline) e `#sales-metrics` (Metriche) sotto separatore VENDITE.
-  `#leads` rinominato "Leads inbound" per distinguerlo dalla pipeline outbound.
+### Homepage admin
+- **Briefing del mattino AI** in cima — riassunto in italiano colloquiale di cosa è importante oggi (1 generazione/giorno, bottone "rigenera" disponibile).
+- **Centro Alert** — widget con 6 voci aggregate: fatture scadute, pagamenti in ritardo, task urgenti, movimenti bancari orfani, fatture passive in attesa di revisione, raccomandazioni AI Pricing nuove.
 
-### Regole rispettate
-- Modello AI: `google/gemini-2.5-flash-lite` via `AI_MODELS.sales_drafter`. `ai_client.js` non modificato.
-- File vietati non toccati: `cmd_palette.js`, `assignments.js`, `invoices.js`, `ai_client.js`, `app.js`, `dashboard.js`, `orders.js`, `clients.js`, `contacts.js`.
-- DB: solo additive (nuova tabella + nuova colonna, zero DROP/ALTER su esistenti).
+### Anagrafiche (clienti / collab / fornitori / partner WL)
+- Tooltip "?" sui campi fiscali italiani: P.IVA, Codice Fiscale, PEC, Codice SDI, IBAN, CAP, Regime ordinario/forfettario/occasionale, Ritenuta d'acconto, Rivalsa INPS, Cassa Previdenza, Bollo virtuale.
+- Niente più sigle oscure: placeholder umani ("Provincia", "CAP 5 cifre", ecc.).
 
----
+### Fatture passive (Amministrazione)
+- Bottone **"✨ Importa con AI"** nell'header del modal Nuova Fattura. Carichi un PDF → l'AI legge il PDF, estrae numero/data/importi/regime/codici riferimento → precompila tutto il modal + ti riconosce il fornitore.
+- Auto-spunta i pagamenti collaboratore che questa fattura sta saldando (score importo + codice riferimento).
+- Funziona sia per fatture **collaboratori** sia per **fornitori B2B** sia per **partner WL** (rileva mode dal contesto).
+- PDF auto-allegato al modal (non devi ricaricarlo per salvare).
 
-## 2026-05-13 / 2026-05-14 — Fase 0: Fondamenta trasversali
+### Incarichi (assignments)
+- **Vista role-based**: se chi apre l'incarico è il collaboratore stesso, il detail cambia:
+  - Niente dati economici interni (tariffario, delta, margini)
+  - "Importo Incarico" → "Compenso Concordato" (verde)
+  - Bottoni admin (modifica/elimina/email) nascosti
+  - Status read-only invece di dropdown editabile
+  - Note PM nascoste
+  - Bottone **"❓ Cosa devo fare?"** che chiama AI per spiegare in italiano semplice cosa fare in quell'incarico
+- **Hub Operativo** (sotto le 3 colonne, solo collab view):
+  - "Task da fare": le sue pm_items della commessa, priorità + scadenza
+  - "Prossimi appuntamenti": appointments della commessa con lui partecipante
 
-### Step 1-3 — AI Observability (foundation)
+### Task (Le mie task)
+- **5 filtri** invece di 3: Tutto / Le mie / **Responsabile** / **Da revisionare** / Delegate (pattern R-A-R).
+- **LT-1 fix**: le task urgenti senza data ora appaiono nel bucket "Urgent" invece di sparire in "Future".
 
-- **DB**: migration `create_ai_usage_log_observability` applicata.
-  Nuova tabella `ai_usage_log` con tutti i campi per tracciare ogni chiamata
-  AI (user, feature, model, tokens, costo USD/EUR, latenza, errori).
-  Aggiunta anche la view `ai_usage_monthly_summary`.
-- **Edge function** `ai-proxy` (Deno/TypeScript) deployata su Supabase:
-  fa da gateway verso OpenRouter, applica JWT auth, logga in
-  `ai_usage_log` in fire-and-forget. La chiave OpenRouter sta nei Secret
-  Supabase, mai esposta al client.
-- **Frontend**: `js/modules/ai_client.js` esporta `ai.chat()`,
-  `ai.complete()`, `ai.completeJSON()`. Modelli configurati per feature
-  (Gemini Flash 2.5 Lite per UI conversational, Claude Sonnet 4.5 per
-  doc generator / pricing / sales). Esposto come `window.ai`.
+### Pricing Intelligence (nuova rotta `#pricing` in Amministrazione)
+Dashboard con 5 sezioni di analisi AI:
+1. **Win/Loss** — accettata vs rifiutata per servizio/categoria
+2. **Margin Calibration** — prezzo vs costo vs margine per ordine
+3. **Sensitivity** — quali servizi tollerano aumenti
+4. **Prezzi Ottimali** — suggerimento per ogni servizio del tariffario
+5. **Lost Deal Recovery** — ordini rifiutati ultimi 6 mesi con motivazioni
 
-### Step 4 — Cmd+K palette (MVP)
+### Bank Movimenti Orfani (in Amministrazione)
+Vista che lista i bank_transactions degli ultimi 90 giorni senza match a fatture/pagamenti. Per ogni movimento: dropdown "Collega a..." + bottone "AI Suggest" che propone il match più probabile.
 
-- `js/features/cmd_palette.js`: palette accessibile con `Cmd+K` (Mac) o
-  `Ctrl+K` (Windows). 5 tool function-calling registrati: navigate_to,
-  search_entity, open_entity_detail, quick_stat (10 metriche reali via
-  query Supabase), answer_question.
-- UI overlay glassmorphism con autofocus, loader, 5 suggerimenti rapidi.
-- Modello: Gemini Flash 2.5 Lite. Costo per chiamata: ~0,0001-0,0005 €.
+### CFO Virtuale (Amministrazione)
+- **`#cfo-cashflow`** — Cash flow 90 giorni con grafico, evidenzia giorni in negativo
+- **`#cfo-pnl-orders`** — P&L per ogni commessa (ricavi, costi diretti, margine % + grafico distribuzione)
+- **`#cfo-aging`** — Aging fatture clienti (0-30, 31-60, 61-90, 90+ giorni)
+- **`#cfo-dso-dpo`** — DSO/DPO con trend 12 mesi
+- **`#cfo-breakeven`** — Distinta base + break-even per SAP
+- **`#cfo-forecast`** — Piano economico annuale con confronto actual
 
-### Step 5 — Razionalizzazione campi tecnici
+### Sales Engine (nuova rotta in app)
+- Kanban 5 stadi: Cold → Contatto inviato → Risposto → Proposta inviata → Convertito
+- Lead Enrichment AI per ogni lead (settore, dimensione team)
+- Metriche pipeline (conversion rate, tempo medio per stadio)
+- Outreach Drafter: bottone "Genera email" → 3 varianti pronte da copiare
 
-- **Filosofia**: prima rename umano, poi tooltip statico (HTML hover),
-  AI inline solo dove serve contesto dinamico.
-- `js/modules/help_tooltip.js`: glossario fiscale italiano (P.IVA, CF,
-  PEC, SDI, IBAN, CAP, Regime Ordinario/Forfettario/Occasionale,
-  Ritenuta d'Acconto, Rivalsa INPS, Cassa Previdenza, Bollo virtuale,
-  Esigibilità IVA, Split Payment, Reverse Charge, ATECO, SAP, WL, OdA)
-  + componente "?" con tooltip on-hover. **Zero chiamate AI**.
-- Applicato a `clients.js`, `collaborators.js`, `suppliers_v2.js`,
-  `invoices.js` (fatture passive).
-- Date format: 21 occorrenze `toLocaleDateString()` → `toLocaleDateString('it-IT')`
-  in 14 file. Ora il formato è sempre DD/MM/YYYY, nessuna ambiguità.
+### SAP Services (sessione parallela completata)
+- 8 mine SAP: form dati AI, Documentation Generator, vista catalogo in-app, crea ordine 1-click da SAP, analisi AI quali SAP costruire, KPI dashboard, PM Template Generator AI
 
-### Step 5b — i18n status enum
-
-- `js/modules/i18n_labels.js`: dizionario centralizzato che traduce
-  status DB → etichette italiane. Copre assignment status
-  (Completed→Completato, Active→Attivo, In Progress→In corso),
-  payment status, order works/offer/sales, invoices, bank_transactions,
-  leads. Una sola fonte di verità.
-- Applicato a `orders.js` e `collaborators.js` (tab Incarichi).
-
-### Step 7 — Dashboard Consumi AI (in Amministrazione → tab "Consumi AI")
-
-- `js/features/admin/ai_usage_dashboard.js`: 4 KPI (costo mese corrente
-  + delta vs mese scorso, chiamate totali, token totali, latenza media),
-  breakdown per **feature** + breakdown per **utente** (chi consuma di
-  più), tabella ultime 50 chiamate con utente, modello, costo €/chiamata,
-  latenza, esito.
-- Integrato come nuova tab nel pannello Amministrazione esistente.
-
-### Bug fix tooltip (post-feedback Davide del 14/5)
-
-- Tooltip ora è un elemento DOM reale (non pseudo-element), posizionato
-  con JS runtime: auto-flip in basso se manca spazio sopra (es. label
-  vicino al titolo del modal), clamp dentro al viewport quando deborda
-  a destra/sinistra. Max-width responsivo: 320px ma mai > 90vw.
-- Caso "4 ? affiancati" sul "Regime fiscale del fornitore": sostituiti
-  con 1 solo tooltip composito (`regime_fiscale_overview`) che elenca
-  tutti i regimi insieme. Stesso pattern per "Dati Fiscali" del cliente
-  (3 ? → 1 ?).
-
-### Step 6 — Bug fix actor frontend (post-DB-fix del 12/5)
-
-- `pm_activity_helper.js`: nuova fn `resolveUserNameByUuid(uuid)` che cerca
-  in state.profiles + state.collaborators (anche via user_id link) per
-  risolvere UUID grezzi in nome leggibile.
-- `resolveActorName()`: chain finale a 6 step (full_name del join → email
-  local part → lookup state UUID → 'Utente sconosciuto' → 'Sistema').
-- Per il target dell'assegnazione ("ha assegnato a..."): prima di cadere
-  su "un utente" si prova il lookup UUID. Fallback ora è "un collaboratore".
-- `pm/space_view.js`: "Sconosciuto" → split email come fallback più umano.
-
-### Permission allowlist per autonomia notturna
-
-- `.claude/settings.local.json`: pre-approvati i tool read-only e i
-  comandi git di routine (status, diff, add, commit, push, log, branch,
-  checkout) + node --check, grep, ls, find, sed, awk. Operazioni
-  distruttive (migration DB, push --force, rm) restano sotto consenso
-  esplicito. Serve a far andare avanti Claude di notte senza bloccarsi
-  in attesa del consenso utente.
+### Amministrazione (tab "Consumi AI")
+Dashboard 4 KPI (costo mese vs precedente, chiamate totali, token totali, latenza media) + breakdown per feature + breakdown per utente + tabella ultime 50 chiamate.
 
 ---
 
----
+## Configurazione tecnica (per il futuro)
 
-## 2026-05-14 — Fase 1 (parziale): Auto-import fatture passive da PDF
-
-### Step 9 (MVP) — Import PDF assistito da AI
-
-Branch: `feature/passive-invoices-auto-import` (derivato da `feature/ai-foundation`).
-
-- **Migration `extend_passive_invoices_for_ai_import`**: aggiunti campi
-  additivi `auto_imported`, `source`, `ai_extracted_data` (jsonb),
-  `review_status`, `source_file_url`, `imported_at`. Constraint check su
-  source ∈ {manual, ai_pdf_upload, email_inbox, agency_api} e
-  review_status ∈ {reviewed, pending, rejected}. Indice parziale su
-  pending per la futura Inbox.
-- **Edge function `parse-invoice-pdf`** (Deno, JWT auth, OpenRouter +
-  Gemini 2.5 Flash, lib `unpdf` per estrazione testo): riceve
-  `{ pdf_base64, original_filename }`, estrae testo dal PDF, invia il
-  testo a Gemini Flash via OpenRouter con `response_format: json_object`,
-  riceve JSON strutturato (numero, data, supplier, P.IVA, totale lordo,
-  imponibile, IVA, ritenuta, cassa, bollo, regime, descrizione,
-  confidence). Match supplier via P.IVA → CF → email → name fuzzy. Log
-  fire-and-forget in `ai_usage_log` (feature `passive_invoice_pdf_parser`).
-  **Limite attuale**: PDF scansionati (solo immagine, niente testo) non
-  funzionano — serve OCR, da aggiungere dopo se serve.
-- **UI**: bottone gradient "✨ Importa con AI" nell'header del modal
-  "Nuova Fattura Passiva". Click → file picker → call edge function →
-  precompila tutti i campi (regime, numero, data, importi, checkbox
-  IVA/Bollo, supplier selezionato). L'utente conferma + corregge + salva.
-
-**Precondizione**: secret `ANTHROPIC_API_KEY` nel progetto Supabase.
-Se manca, l'edge function risponde 500 con messaggio chiaro.
-
-**Costo stimato**: 0.005–0.02 € per fattura. Per 30 fatture/mese tipiche:
-< 0.50 €/mese. Risparmio: 30–60 min/mese di lavoro ripetitivo.
-
-### Cosa NON è in questa Fase 1 ancora
-
-- Inbox email dedicata (`fatture@gleeye.eu`) → richiede scelta provider
-  (SendGrid Inbound Parse / Mailgun / Postmark) + DNS MX. Da configurare
-  con Davide.
-- Inbox UI "Pending review" in Amministrazione → da fare quando arriverà
-  il primo volume di auto-import via email.
-- Integrazione Agenzia Entrate / Cassetto Fiscale → roadmap futura.
+- **Modello AI**: `google/gemini-2.5-flash-lite` per TUTTE le feature (default centralizzato in `js/modules/ai_client.js`). Se vorrai cambiarne uno specifico in futuro, basta modificare `AI_MODELS[feature]`.
+- **Gateway AI**: OpenRouter via edge function `ai-proxy`. JWT auth, logging fire-and-forget in `ai_usage_log`.
+- **Costo medio**: ~0,00005 € per chiamata Cmd+K, ~0,001-0,01 € per chiamata complessa (parsing PDF, analisi Pricing).
+- **PDF parsing**: pdfjs-dist lato browser, niente edge function pesante.
+- **Deploy**: push su `main` → Vercel autodeploy su `workspace.gleeye.eu`.
 
 ---
 
-## Convenzioni
+## Cronologia tecnica sintetica
 
-- **Branch attivo**: `feature/ai-foundation` (PR aperta).
-- **Branch parallelo (sessione separata)**: `feature/sap-doc-generator`
-  (lavora un'altra istanza Claude su SAP Documentation Generator —
-  vedi roadmap nel memory).
-- **Cache busting**: i moduli nuovi hanno `?v=8001` o `?v=8002`.
-  Quando aggiorno un modulo bumpo il param.
-- **Test in locale**: dev server su `localhost:8090` (`python3 -m http.server 8090`).
-- **Test in produzione**: la app deployata è ancora sul vecchio codice
-  finché non si fa il merge della PR. Davide testa prima in locale,
-  poi merge quando approva.
+**13/14 maggio 2026** — sessione massiva con sessioni parallele:
+
+- Fase 0: AI foundation (`ai-proxy` + `ai_client` + `ai_usage_log` + Dashboard consumi), Cmd+K MVP con 5 tool, razionalizzazione campi fiscali con glossario, i18n status enum, fix actor name fallback chain.
+- Fase 1 step 9: AI import fatture passive da PDF (estrazione browser, OpenRouter+Gemini, supplier match, auto-flag pagamenti, auto-attach PDF).
+- Mina A: vista role-based detail incarichi (admin vs collab).
+- Mina D: Hub operativo nell'incarico (task + appuntamenti filtrati per collab).
+- Mina PM-7: viste R-A-R nelle task (5 filtri) + fix LT-1.
+- Cmd+K esteso: recap_today, overdue_overview, client_summary.
+- Cmd+K azionabile: create_task, log_expense, log_payment_received, create_appointment.
+- 3 sessioni parallele: Pricing Intelligence (5 fasi), Bank Orphans (CA-8), CFO Phase 1+Phase 2-3 (cashflow, P&L, Aging, DSO/DPO, Break-even, Forecast), Sales Engine Phase 1, Homepage Alerts widget.
+- SAP Documentation Generator (8 mine, sessione parallela).
+- Help inline AI contestuale (modulo + integrazione collab view incarichi).
+- Briefing del mattino AI in homepage.
+- Fix sistemico modelli AI: tutti forzati a `gemini-2.5-flash-lite`.
+
+---
+
+## Aree non ancora coperte / decisioni Davide
+
+- **SDI nativo** (emettere fatture direttamente dall'app senza Aruba) — richiede accreditamento SDI.
+- **Email integration** per Auto-import fatture passive da inbox dedicata — serve scelta provider (SendGrid / Mailgun / Postmark) + DNS MX.
+- **Bank Sync Open Banking** (PSD2 sync giornaliero automatico) — serve scelta provider (TINK / Yapily / GoCardless) + credenziali.
+- **Multi-tenant SaaS** — opzione architetturale, non attiva.
+- **Mobile-first refactor** — l'app funziona su mobile ma il design non è native mobile-first.
+
+---
+
+## Convenzioni interne
+
+- **Branch**: feature/* per ogni lavoro, merge / push diretto su `main` quando completo, Vercel deploya.
+- **Migration DB**: solo additive (mai DROP/ALTER esistenti senza accordo).
+- **Cache busting**: i moduli nuovi hanno `?v=8001` / `?v=8002`. Bump al cambio di modulo.
+- **Test in locale**: `python3 -m http.server 8090` dalla root.
+- **Memoria persistente Claude**: `~/.claude/projects/-Users-davidegentile-Documents-app-dev-gleeye-erp/memory/`.
