@@ -56,3 +56,6 @@ yarn-debug.log*
 yarn-error.log*
 
 
+
+# Claude worktrees (not part of the repo)
+.claude/worktrees/
