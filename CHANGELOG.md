@@ -99,6 +99,50 @@ Branch attivo principale: `feature/ai-foundation`.
 
 ---
 
+---
+
+## 2026-05-14 — Fase 1 (parziale): Auto-import fatture passive da PDF
+
+### Step 9 (MVP) — Import PDF assistito da AI
+
+Branch: `feature/passive-invoices-auto-import` (derivato da `feature/ai-foundation`).
+
+- **Migration `extend_passive_invoices_for_ai_import`**: aggiunti campi
+  additivi `auto_imported`, `source`, `ai_extracted_data` (jsonb),
+  `review_status`, `source_file_url`, `imported_at`. Constraint check su
+  source ∈ {manual, ai_pdf_upload, email_inbox, agency_api} e
+  review_status ∈ {reviewed, pending, rejected}. Indice parziale su
+  pending per la futura Inbox.
+- **Edge function `parse-invoice-pdf`** (Deno, JWT auth, Anthropic API
+  diretta perché OpenRouter potrebbe non passare PDF nativi):
+  riceve `{ pdf_base64, original_filename }`, invia il PDF a
+  Claude Sonnet 4.5 con `document` content block, riceve JSON strutturato
+  (numero, data, supplier, P.IVA, totale lordo, imponibile, IVA, ritenuta,
+  cassa, bollo, regime, descrizione, confidence). Match supplier via
+  P.IVA → CF → email → name fuzzy. Log fire-and-forget in `ai_usage_log`
+  (feature `passive_invoice_pdf_parser`).
+- **UI**: bottone gradient "✨ Importa con AI" nell'header del modal
+  "Nuova Fattura Passiva". Click → file picker → call edge function →
+  precompila tutti i campi (regime, numero, data, importi, checkbox
+  IVA/Bollo, supplier selezionato). L'utente conferma + corregge + salva.
+
+**Precondizione**: secret `ANTHROPIC_API_KEY` nel progetto Supabase.
+Se manca, l'edge function risponde 500 con messaggio chiaro.
+
+**Costo stimato**: 0.005–0.02 € per fattura. Per 30 fatture/mese tipiche:
+< 0.50 €/mese. Risparmio: 30–60 min/mese di lavoro ripetitivo.
+
+### Cosa NON è in questa Fase 1 ancora
+
+- Inbox email dedicata (`fatture@gleeye.eu`) → richiede scelta provider
+  (SendGrid Inbound Parse / Mailgun / Postmark) + DNS MX. Da configurare
+  con Davide.
+- Inbox UI "Pending review" in Amministrazione → da fare quando arriverà
+  il primo volume di auto-import via email.
+- Integrazione Agenzia Entrate / Cassetto Fiscale → roadmap futura.
+
+---
+
 ## Convenzioni
 
 - **Branch attivo**: `feature/ai-foundation` (PR aperta).
