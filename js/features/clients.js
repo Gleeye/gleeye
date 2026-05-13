@@ -8,18 +8,73 @@ import { activityTranslate } from '../modules/pm_activity_helper.js?v=8000';
 import { glossaryTip } from '../modules/help_tooltip.js?v=8002';
 import { inlineHelpButton, attachInlineHelp } from '../modules/help_inline_ai.js?v=8001';
 
+// ── Account responsabile helpers ──────────────────────────────────────────────
+function _parseTags(tags) {
+    if (!tags) return [];
+    if (Array.isArray(tags)) return tags;
+    if (typeof tags === 'string') {
+        const s = tags.trim();
+        if (!s) return [];
+        if (s.startsWith('[')) {
+            try { return JSON.parse(s); } catch { /* fall through */ }
+        }
+        return s.split(',').map(t => t.trim()).filter(Boolean);
+    }
+    return [];
+}
+
+export function getAccountCollaborators() {
+    return (state.collaborators || []).filter(c => {
+        const tags = _parseTags(c.tags).map(t => t.toLowerCase());
+        return tags.includes('account');
+    });
+}
+
+export function findAccountResponsible(client) {
+    if (!client || !client.account_responsible_id) return null;
+    return (state.collaborators || []).find(c => c.id === client.account_responsible_id) || null;
+}
+
+function _accountInitials(name) {
+    if (!name) return '?';
+    const parts = String(name).trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0][0].toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function _accountColor(id) {
+    // hash deterministico → palette tenue
+    if (!id) return '#94a3b8';
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+    const palette = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+    return palette[Math.abs(h) % palette.length];
+}
+
 export async function renderClients(container) {
     // Ensure we have orders for analytics
-    const { fetchOrders } = await import('../modules/api.js?v=8000');
+    const { fetchOrders, fetchCollaborators } = await import('../modules/api.js?v=8000');
     if (!state.orders || state.orders.length === 0) {
         await fetchOrders();
     }
+    if (!state.collaborators || state.collaborators.length === 0) {
+        await fetchCollaborators();
+    }
 
-    const filteredClients = state.clients.filter(c =>
-        (c.business_name || '').toLowerCase().includes(state.searchTerm.toLowerCase()) ||
-        (c.client_code || '').toLowerCase().includes(state.searchTerm.toLowerCase()) ||
-        (c.city || '').toLowerCase().includes(state.searchTerm.toLowerCase())
-    );
+    // Filtro per account (state.clientsAccountFilter = 'all' | '<collab_id>' | 'unassigned')
+    if (typeof state.clientsAccountFilter === 'undefined') state.clientsAccountFilter = 'all';
+
+    const filteredClients = state.clients.filter(c => {
+        const matchesSearch =
+            (c.business_name || '').toLowerCase().includes(state.searchTerm.toLowerCase()) ||
+            (c.client_code || '').toLowerCase().includes(state.searchTerm.toLowerCase()) ||
+            (c.city || '').toLowerCase().includes(state.searchTerm.toLowerCase());
+        if (!matchesSearch) return false;
+        if (state.clientsAccountFilter === 'all') return true;
+        if (state.clientsAccountFilter === 'unassigned') return !c.account_responsible_id;
+        return c.account_responsible_id === state.clientsAccountFilter;
+    });
 
     // ANALYTICS LOGIC
     const processAnalytics = () => {
@@ -112,6 +167,10 @@ export async function renderClients(container) {
     const clientsHTML = filteredClients.length > 0 ? filteredClients.map(client => {
         const isActive = getActiveStatus(client);
         const status = computeClientStatus(client);
+        const acc = findAccountResponsible(client);
+        const accBadge = acc
+            ? `<div class="v7-acc-badge" title="Account: ${acc.full_name}" style="width: 22px; height: 22px; border-radius: 50%; background: ${_accountColor(acc.id)}22; color: ${_accountColor(acc.id)}; display:flex; align-items:center; justify-content:center; font-size: 0.65rem; font-weight: 700; border: 1px solid ${_accountColor(acc.id)}55;">${_accountInitials(acc.full_name)}</div>`
+            : `<div class="v7-acc-badge v7-acc-unassigned" title="Account non assegnato" style="width: 22px; height: 22px; border-radius: 50%; background: rgba(148,163,184,0.1); color: #94a3b8; display:flex; align-items:center; justify-content:center; border: 1px dashed #cbd5e1;"><span class="material-icons-round" style="font-size: 14px;">person_off</span></div>`;
 
         return `
             <div class="v7-rubrica-item animate-fade-in" onclick="window.location.hash='client-detail/${client.id}'">
@@ -124,6 +183,7 @@ export async function renderClients(container) {
                     <div class="v7-city-mini">${client.city || '-'}</div>
                 </div>
                 <div class="v7-item-contacts">
+                    ${accBadge}
                     <a href="mailto:${client.email || '#'}" onclick="event.stopPropagation()" class="v7-contact-icon" title="${client.email || 'Nessuna mail'}">
                         <span class="material-icons-round">alternate_email</span>
                     </a>
@@ -136,6 +196,16 @@ export async function renderClients(container) {
     }).join('') : `
         <div class="v7-empty">Nessun record trovato</div>
     `;
+
+    // Conta clienti per ogni account per il dropdown filtro
+    const accountCounts = {};
+    (state.clients || []).forEach(c => {
+        const key = c.account_responsible_id || '__unassigned__';
+        accountCounts[key] = (accountCounts[key] || 0) + 1;
+    });
+    const accountFilterOptions = getAccountCollaborators()
+        .map(a => `<option value="${a.id}" ${state.clientsAccountFilter === a.id ? 'selected' : ''}>${a.full_name} (${accountCounts[a.id] || 0})</option>`)
+        .join('');
 
     // Globalize for inline event handlers
     window.renderClients = renderClients;
@@ -312,8 +382,17 @@ export async function renderClients(container) {
                     </div>
                     <div class="v7-search-box">
                         <span class="material-icons-round" style="font-size: 1.2rem; color: var(--text-tertiary);">search</span>
-                        <input type="text" placeholder="Scansione istantanea..." value="${state.searchTerm}" 
+                        <input type="text" placeholder="Scansione istantanea..." value="${state.searchTerm}"
                                oninput="state.searchTerm = this.value; renderClients(document.getElementById('content-area'))">
+                    </div>
+                    <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="material-icons-round" style="font-size: 1rem; color: var(--text-tertiary);">supervisor_account</span>
+                        <select onchange="state.clientsAccountFilter = this.value; renderClients(document.getElementById('content-area'))"
+                            style="flex: 1; padding: 0.4rem 0.6rem; border: 1px solid var(--glass-border); border-radius: 8px; background: white; font-size: 0.82rem; color: var(--text-primary);">
+                            <option value="all" ${state.clientsAccountFilter === 'all' ? 'selected' : ''}>Tutti gli account</option>
+                            <option value="unassigned" ${state.clientsAccountFilter === 'unassigned' ? 'selected' : ''}>Non assegnati (${accountCounts['__unassigned__'] || 0})</option>
+                            ${accountFilterOptions}
+                        </select>
                     </div>
                 </div>
                 <div class="crm-sidebar-list">
@@ -494,6 +573,10 @@ export function renderClientDetail(container) {
         import('../modules/api.js?v=8000').then(api => api.fetchContacts()).then(() => renderClientDetail(container));
         return;
     }
+    if (!state.collaborators || state.collaborators.length === 0) {
+        import('../modules/api.js?v=8000').then(api => api.fetchCollaborators()).then(() => renderClientDetail(container));
+        return;
+    }
 
     // Filter Data
     const clientOrders = state.orders ? state.orders.filter(o => o.client_id === client.id) : [];
@@ -591,6 +674,31 @@ export function renderClientDetail(container) {
                                     <span style="font-family: monospace; font-size: 0.9rem; color: var(--brand-blue);">${client.sdi_code || '-'}</span>
                                 </div>
                             </div>
+                        </div>
+
+                        <div>
+                            <span style="display: block; font-size: 0.75rem; font-weight: 400; color: var(--text-tertiary); margin-bottom: 0.4rem; letter-spacing: 0.5px;">ACCOUNT RESPONSABILE</span>
+                            ${(() => {
+                                const acc = findAccountResponsible(client);
+                                if (acc) {
+                                    const color = _accountColor(acc.id);
+                                    return `
+                                        <div style="display: flex; align-items: center; gap: 0.6rem;">
+                                            <div style="width: 32px; height: 32px; border-radius: 50%; background: ${color}22; color: ${color}; display:flex; align-items:center; justify-content:center; font-size: 0.78rem; font-weight: 700; border: 1px solid ${color}55;">${_accountInitials(acc.full_name)}</div>
+                                            <div style="flex: 1; min-width: 0;">
+                                                <div style="font-weight: 600; color: var(--text-primary); font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${acc.full_name}</div>
+                                                <button class="btn-link" onclick="window.openClientAccountPicker('${client.id}')" style="padding: 0; font-size: 0.72rem; color: var(--brand-blue); background: none; border: none; cursor: pointer;">Cambia</button>
+                                            </div>
+                                        </div>`;
+                                }
+                                return `
+                                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                                        <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(148, 163, 184, 0.15); color: #94a3b8; display:flex; align-items:center; justify-content:center;">
+                                            <span class="material-icons-round" style="font-size: 18px;">person_add</span>
+                                        </div>
+                                        <button class="btn-link" onclick="window.openClientAccountPicker('${client.id}')" style="padding: 0.4rem 0.6rem; font-size: 0.85rem; color: var(--brand-blue); background: rgba(59, 130, 246, 0.08); border: 1px dashed var(--brand-blue); border-radius: 8px; cursor: pointer;">Assegna account</button>
+                                    </div>`;
+                            })()}
                         </div>
                     </div>
                 </div>
@@ -910,6 +1018,12 @@ export function initNewClientModal() {
                                         <option value="120">120 giorni</option>
                                     </select>
                                 </div>
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <label style="font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; min-width: 130px;">Account responsabile</label>
+                                    <select id="new-cli-account" class="modal-input" style="width: 100%; border-radius: 12px; padding: 0.75rem 1rem;">
+                                        <option value="">Non assegnato</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -966,7 +1080,8 @@ export function initNewClientModal() {
                 sdi_code: document.getElementById('new-cli-sdi').value.trim().toUpperCase(),
                 payment_terms: document.getElementById('new-cli-payment-terms').value !== ''
                     ? parseInt(document.getElementById('new-cli-payment-terms').value, 10)
-                    : null
+                    : null,
+                account_responsible_id: document.getElementById('new-cli-account').value || null
             };
 
             // Add ID if editing
@@ -1011,6 +1126,13 @@ window.openNewClientModal = (client = null) => {
     const descEl = document.querySelector('#new-client-modal p');
     const saveBtn = document.getElementById('new-cli-btn-save');
 
+    // Popola dropdown account responsabile
+    const accSelect = document.getElementById('new-cli-account');
+    if (accSelect) {
+        accSelect.innerHTML = '<option value="">Non assegnato</option>'
+            + getAccountCollaborators().map(a => `<option value="${a.id}">${a.full_name}</option>`).join('');
+    }
+
     if (client) {
         titleEl.textContent = 'Modifica Cliente';
         descEl.textContent = 'Aggiorna i dati dell\'anagrafica';
@@ -1030,6 +1152,7 @@ window.openNewClientModal = (client = null) => {
         document.getElementById('new-cli-fiscal').value = client.fiscal_code || '';
         document.getElementById('new-cli-sdi').value = client.sdi_code || '';
         document.getElementById('new-cli-payment-terms').value = client.payment_terms != null ? String(client.payment_terms) : '';
+        document.getElementById('new-cli-account').value = client.account_responsible_id || '';
     } else {
         titleEl.textContent = 'Nuovo Cliente';
         descEl.textContent = 'Inserisci i dati dell\'anagrafica cliente';
@@ -1049,6 +1172,7 @@ window.openNewClientModal = (client = null) => {
         document.getElementById('new-cli-fiscal').value = '';
         document.getElementById('new-cli-sdi').value = '';
         document.getElementById('new-cli-payment-terms').value = '';
+        document.getElementById('new-cli-account').value = '';
     }
 
     saveBtn.disabled = false;
@@ -1224,4 +1348,92 @@ export function computeClientStatus(client) {
 
 if (typeof window !== 'undefined') {
     window.computeClientStatus = computeClientStatus;
+    window.getAccountCollaborators = getAccountCollaborators;
+    window.findAccountResponsible = findAccountResponsible;
+}
+
+// ── Inline picker per assegnare/cambiare l'account responsabile ──────────────
+async function openClientAccountPicker(clientId) {
+    const client = (state.clients || []).find(c => c.id === clientId);
+    if (!client) return;
+
+    const accounts = getAccountCollaborators();
+    if (accounts.length === 0) {
+        showGlobalAlert('Nessun collaboratore ha il tag "Account". Aggiungilo prima dal modulo Collaboratori.', 'error');
+        return;
+    }
+
+    const existing = document.getElementById('client-account-picker-modal');
+    if (existing) existing.remove();
+
+    const currentId = client.account_responsible_id || '';
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="client-account-picker-modal" class="modal active" style="z-index: 10000;">
+            <div class="modal-content glass-card" style="max-width: 480px; width: 100%; padding: 1.75rem;">
+                <div style="display:flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                    <div>
+                        <h2 style="margin: 0 0 0.25rem; font-size: 1.25rem;">Account responsabile</h2>
+                        <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">${client.business_name}</p>
+                    </div>
+                    <button class="icon-btn" onclick="document.getElementById('client-account-picker-modal').remove()">
+                        <span class="material-icons-round">close</span>
+                    </button>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 320px; overflow-y: auto; margin-bottom: 1rem;">
+                    <button class="cap-option" data-acc-id="" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid ${!currentId ? 'var(--brand-blue)' : 'var(--glass-border)'}; background: ${!currentId ? 'rgba(59,130,246,0.08)' : 'white'}; border-radius: 10px; cursor: pointer; text-align: left;">
+                        <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(148,163,184,0.15); color: #94a3b8; display:flex; align-items:center; justify-content:center;">
+                            <span class="material-icons-round">person_off</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: var(--text-primary);">Nessuno</div>
+                            <div style="font-size: 0.78rem; color: var(--text-tertiary);">Cliente non assegnato</div>
+                        </div>
+                    </button>
+                    ${accounts.map(acc => {
+                        const color = _accountColor(acc.id);
+                        const selected = acc.id === currentId;
+                        return `
+                            <button class="cap-option" data-acc-id="${acc.id}" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid ${selected ? 'var(--brand-blue)' : 'var(--glass-border)'}; background: ${selected ? 'rgba(59,130,246,0.08)' : 'white'}; border-radius: 10px; cursor: pointer; text-align: left;">
+                                <div style="width: 36px; height: 36px; border-radius: 50%; background: ${color}22; color: ${color}; display:flex; align-items:center; justify-content:center; font-weight: 700; font-size: 0.85rem; border: 1px solid ${color}55;">${_accountInitials(acc.full_name)}</div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-weight: 600; color: var(--text-primary);">${acc.full_name}</div>
+                                    <div style="font-size: 0.78rem; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${acc.email || '-'}</div>
+                                </div>
+                                ${selected ? '<span class="material-icons-round" style="color: var(--brand-blue);">check_circle</span>' : ''}
+                            </button>`;
+                    }).join('')}
+                </div>
+                <div style="display:flex; justify-content: flex-end; gap: 0.5rem;">
+                    <button class="primary-btn secondary" onclick="document.getElementById('client-account-picker-modal').remove()">Annulla</button>
+                </div>
+            </div>
+        </div>
+    `);
+
+    document.querySelectorAll('#client-account-picker-modal .cap-option').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const accId = btn.getAttribute('data-acc-id') || null;
+            btn.disabled = true;
+            try {
+                await upsertClient({ id: client.id, account_responsible_id: accId });
+                await fetchClients(true);
+                document.getElementById('client-account-picker-modal')?.remove();
+                showGlobalAlert(accId ? 'Account responsabile aggiornato' : 'Account responsabile rimosso', 'success');
+                // Re-render detail se siamo lì
+                const contentArea = document.getElementById('content-area');
+                if (contentArea && location.hash.startsWith('#client-detail/')) {
+                    const updated = (state.clients || []).find(c => c.id === client.id);
+                    if (updated) renderClientDetail(contentArea);
+                }
+            } catch (err) {
+                console.error('Account picker save failed:', err);
+                showGlobalAlert('Errore nel salvataggio', 'error');
+                btn.disabled = false;
+            }
+        });
+    });
+}
+
+if (typeof window !== 'undefined') {
+    window.openClientAccountPicker = openClientAccountPicker;
 }
