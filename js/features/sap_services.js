@@ -790,8 +790,56 @@ window.openSapServiceActivitiesModal = async (spaceId) => {
         alert('Spazio PM non trovato.');
         return;
     }
-    const { openAccountActivitiesModal } = await import('/js/features/pm/components/AccountActivitiesModal.js?v=8000');
-    await openAccountActivitiesModal(null, spaceId);
+
+    const existing = document.getElementById('sap-activities-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'sap-activities-modal';
+    modal.className = 'modal active';
+    modal.style.cssText = 'z-index:10000;';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width:900px; width:95vw; max-height:85vh; padding:0; border-radius:20px; overflow:hidden; background:var(--card-bg); border:1px solid var(--glass-border); box-shadow:var(--shadow-xl); display:flex; flex-direction:column;">
+            <div style="padding:1.25rem 1.75rem; background:var(--brand-gradient); color:white; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <span class="material-icons-round" style="font-size:1.4rem;">account_tree</span>
+                    <div>
+                        <div style="font-weight:800; font-size:1.05rem; font-family:var(--font-titles);">Template Processo Operativo</div>
+                        <div style="font-size:0.8rem; opacity:0.85;">Attività e task generati per questo SAP</div>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('sap-activities-modal').remove()" style="background:rgba(255,255,255,0.2); border:none; color:white; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                    <span class="material-icons-round" style="font-size:1.1rem;">close</span>
+                </button>
+            </div>
+            <div id="sap-activities-body" style="flex:1; overflow-y:auto; padding:1rem;">
+                <div style="display:flex; align-items:center; justify-content:center; padding:3rem;">
+                    <span class="material-icons-round" style="font-size:2rem; color:var(--brand-blue); animation:spin 1.5s linear infinite;">autorenew</span>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+    try {
+        const { fetchProjectItems } = await import('/js/modules/pm_api.js?v=8000');
+        const { renderHubTree } = await import('/js/features/pm/components/hub_tree.js?v=8000');
+        const items = await fetchProjectItems(spaceId, true);
+        const body = document.getElementById('sap-activities-body');
+        if (!body) return;
+        if (!items || items.length === 0) {
+            body.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-tertiary);">
+                <span class="material-icons-round" style="font-size:3rem; margin-bottom:1rem; display:block;">inbox</span>
+                Nessuna attività nel template.<br>Usa "Genera template PM da AI" per creare il workflow operativo.
+            </div>`;
+            return;
+        }
+        renderHubTree(body, items, { id: spaceId }, spaceId);
+    } catch (err) {
+        const body = document.getElementById('sap-activities-body');
+        if (body) body.innerHTML = `<div style="color:#ef4444; padding:1rem;">Errore: ${err.message}</div>`;
+    }
 };
 
 window.openSapServiceCloudResourcesModal = async (serviceId) => {
