@@ -421,32 +421,32 @@ function render() {
             // ── Sales Engine (Phase 1 + 2) ──────────────────────────────────
             case 'sales-pipeline':
                 if (pageTitle) pageTitle.textContent = 'Pipeline Vendite';
-                import('../features/sales/index.js?v=8000').then(m => m.renderPipelineBoard(contentArea));
+                import('../features/sales/index.js?v=8001').then(m => m.renderPipelineBoard(contentArea));
                 break;
             case 'sales-metrics':
                 if (pageTitle) pageTitle.textContent = 'Metriche Pipeline';
-                import('../features/sales/index.js?v=8000').then(m => m.renderSalesMetrics(contentArea));
+                import('../features/sales/index.js?v=8001').then(m => m.renderSalesMetrics(contentArea));
                 break;
             case 'sales-niches':
                 if (pageTitle) pageTitle.textContent = 'Niche Research';
-                import('../features/sales/index.js?v=8000').then(m => m.renderSalesNiches(contentArea));
+                import('../features/sales/index.js?v=8001').then(m => m.renderSalesNiches(contentArea));
                 break;
             case 'sales-niche':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio nicchia';
                 if (state.currentId) {
-                    import('../features/sales/index.js?v=8000').then(m => m.renderNicheDetail(contentArea, state.currentId));
+                    import('../features/sales/index.js?v=8001').then(m => m.renderNicheDetail(contentArea, state.currentId));
                 } else {
                     location.hash = 'sales-niches';
                 }
                 break;
             case 'sales-sequences':
                 if (pageTitle) pageTitle.textContent = 'Sequenze Outreach';
-                import('../features/sales/index.js?v=8000').then(m => m.renderSalesSequences(contentArea));
+                import('../features/sales/index.js?v=8001').then(m => m.renderSalesSequences(contentArea));
                 break;
             case 'sales-sequence':
                 if (pageTitle) pageTitle.textContent = 'Sequenza';
                 if (state.currentId) {
-                    import('../features/sales/index.js?v=8000').then(m => m.renderSequenceDetail(contentArea, state.currentId));
+                    import('../features/sales/index.js?v=8001').then(m => m.renderSequenceDetail(contentArea, state.currentId));
                 } else {
                     location.hash = 'sales-sequences';
                 }

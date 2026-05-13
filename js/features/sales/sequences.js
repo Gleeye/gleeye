@@ -15,9 +15,9 @@ import {
     upsertStep, deleteStep,
     fetchNiches, fetchSapServicesForSales,
     STEP_CHANNELS, STEP_TYPES, TONES,
-} from './api.js?v=8000';
+} from './api.js?v=8001';
 import { showGlobalAlert, showConfirm } from '../../modules/utils.js?v=8000';
-import { generateOutreachStepTemplate, extractTemplateFields } from './outreach_writer.js?v=8000';
+import { generateOutreachStepTemplate, extractTemplateFields } from './outreach_writer.js?v=8001';
 
 const STATUS_CONFIG = {
     draft:     { label: 'Bozza',      color: '#94a3b8', icon: 'edit' },

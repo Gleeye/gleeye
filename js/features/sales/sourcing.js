@@ -14,7 +14,7 @@
 
 import { completeJSON, AI_MODELS } from '../../modules/ai_client.js?v=8000';
 import { supabase } from '../../modules/config.js?v=8000';
-import { upsertNiche } from './api.js?v=8000';
+import { upsertNiche } from './api.js?v=8001';
 import { showGlobalAlert } from '../../modules/utils.js?v=8000';
 import { scrapeProspectSite } from './enrichment.js?v=8001';
 import { buildLeanUpdatePayload } from './completeness.js?v=8001';

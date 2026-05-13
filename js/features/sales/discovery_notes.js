@@ -4,7 +4,7 @@
  * Form strutturato sui 6 blocchi della Discovery Call (metodologia Parozzi).
  */
 
-import { fetchDiscoveryNotes, upsertDiscoveryNotes, upsertProspect } from './api.js?v=8000';
+import { fetchDiscoveryNotes, upsertDiscoveryNotes, upsertProspect } from './api.js?v=8001';
 import { showGlobalAlert } from '../../modules/utils.js?v=8000';
 
 export async function renderDiscoveryTab(container, prospect) {

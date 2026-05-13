@@ -3,12 +3,12 @@
  * Kanban a 5 colonne per la pipeline outbound: Cold → Convertito.
  */
 
-import { PIPELINE_STAGES, ACQUISITION_SOURCES, fetchProspects, fetchSapServicesForSales, upsertProspect, deleteProspect, moveProspectStage } from './api.js?v=8000';
+import { PIPELINE_STAGES, ACQUISITION_SOURCES, fetchProspects, fetchSapServicesForSales, upsertProspect, deleteProspect, moveProspectStage } from './api.js?v=8001';
 import { showGlobalAlert, showConfirm } from '../../modules/utils.js?v=8000';
-import { renderEnrichmentTab } from './enrichment.js?v=8000';
-import { renderOutreachDrafter } from './outreach.js?v=8000';
-import { renderDiscoveryTab } from './discovery_notes.js?v=8000';
-import { renderOfferBuilderTab } from './offer_builder.js?v=8000';
+import { renderEnrichmentTab } from './enrichment.js?v=8001';
+import { renderOutreachDrafter } from './outreach.js?v=8001';
+import { renderDiscoveryTab } from './discovery_notes.js?v=8001';
+import { renderOfferBuilderTab } from './offer_builder.js?v=8001';
 
 // ─── RENDER PRINCIPALE ────────────────────────────────────────────────────────
 

@@ -9,7 +9,7 @@
  */
 
 import { completeJSON, AI_MODELS } from '../../modules/ai_client.js?v=8000';
-import { upsertProspect } from './api.js?v=8000';
+import { upsertProspect } from './api.js?v=8001';
 import { showGlobalAlert } from '../../modules/utils.js?v=8000';
 import { supabase } from '../../modules/config.js?v=8000';
 

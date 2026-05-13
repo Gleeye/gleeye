@@ -3,7 +3,7 @@
  * Pagina metriche pipeline: conversion rate per stadio, tempo medio, top sorgenti.
  */
 
-import { fetchProspects, PIPELINE_STAGES, ACQUISITION_SOURCES } from './api.js?v=8000';
+import { fetchProspects, PIPELINE_STAGES, ACQUISITION_SOURCES } from './api.js?v=8001';
 
 export async function renderSalesMetrics(container) {
     container.innerHTML = buildLoadingHTML();

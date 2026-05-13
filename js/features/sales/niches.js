@@ -11,10 +11,10 @@
 
 import { fetchNiches, upsertNiche, deleteNiche, fetchProspectsByNiche, promoteProspectsToPipeline, bulkDeleteProspects, upsertProspect, fetchSapServicesForSales, fetchIndustrySectors } from './api.js?v=8001';
 import { showGlobalAlert, showConfirm } from '../../modules/utils.js?v=8000';
-import { analyzeNiche, saveNicheAnalysis, fetchNicheSapRelevance, PAROZZI_CRITERIA } from './niche_analyzer.js?v=8000';
-import { openSourcingModal } from './sourcing.js?v=8000';
+import { analyzeNiche, saveNicheAnalysis, fetchNicheSapRelevance, PAROZZI_CRITERIA } from './niche_analyzer.js?v=8001';
+import { openSourcingModal } from './sourcing.js?v=8001';
 import { runLayer1AI, runLayer2AI, scrapeProspectSite } from './enrichment.js?v=8001';
-import { openProspectModal } from './pipeline_board.js?v=8000';
+import { openProspectModal } from './pipeline_board.js?v=8001';
 import { openOverlay, buildModalShell, closeOverlay, bindModalCloseButtons } from './_modal.js?v=8001';
 import { buildLeanUpdatePayload } from './completeness.js?v=8001';
 
