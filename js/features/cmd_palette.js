@@ -171,6 +171,42 @@ const TOOLS = [
     {
         type: 'function',
         function: {
+            name: 'log_payment_received',
+            description: "Registra un incasso da cliente. Usa quando l'utente dice 'incassato X da Y', 'ho ricevuto 500 da Acme', 'pagamento cliente Rossi 1200'. Apre la vista Pagamenti/Cassa con form precompilato.",
+            parameters: {
+                type: 'object',
+                properties: {
+                    client_name: { type: 'string', description: 'Nome cliente che ha pagato.' },
+                    amount: { type: 'number', description: 'Importo incassato in euro.' },
+                    date: { type: 'string', description: 'Data incasso YYYY-MM-DD. Default: oggi.' },
+                    description: { type: 'string', description: 'Causale (es. "saldo fattura 2025/142").' },
+                },
+                required: ['client_name', 'amount'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'create_appointment',
+            description: "Crea un appuntamento. Usa quando l'utente dice 'fissa call con X domani alle 15', 'appuntamento Rossi giovedì', 'meeting team venerdì pomeriggio'.",
+            parameters: {
+                type: 'object',
+                properties: {
+                    title: { type: 'string', description: 'Titolo appuntamento.' },
+                    starts_at: { type: 'string', description: "Data+ora inizio in ISO 8601 (es. '2026-05-14T15:00:00'). Calcola da espressioni naturali (domani, venerdì, ecc.)." },
+                    duration_minutes: { type: 'number', description: 'Durata in minuti. Default 60.' },
+                    location: { type: 'string', description: 'Luogo o link meeting (es. "Google Meet", "via Roma 5").' },
+                    client_or_collab_hint: { type: 'string', description: "Persona/azienda coinvolta se citata." },
+                    note: { type: 'string', description: 'Note libere.' },
+                },
+                required: ['title', 'starts_at'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
             name: 'answer_question',
             description: "Rispondi direttamente all'utente con una spiegazione testuale. Usa SOLO quando le altre tool non sono applicabili (es. l'utente fa una domanda generica, chiede aiuto, vuole una spiegazione su come funziona l'app).",
             parameters: {
@@ -205,6 +241,9 @@ REGOLE:
   Per "venerdì" usa il prossimo venerdì.
 - Se dice "registra spesa", "ho pagato X", "fattura di Y", "spesa di N euro", "abbonamento" → log_expense.
   Inferisci expense_type da contesto: SaaS/azienda/sito web → supplier; persona/freelance/consulente → collaborator.
+- Se dice "incassato", "ho ricevuto", "pagamento cliente X" → log_payment_received.
+- Se dice "fissa appuntamento", "call con", "meeting", "riunione", "ci vediamo X giorno alle Y" → create_appointment.
+  Per "domani alle 15" calcola: oggi è ${new Date().toISOString().slice(0,10)} quindi domani 15:00 sarebbe ${new Date(Date.now()+86400000).toISOString().slice(0,10)}T15:00:00.
 - Per domande generiche su come funziona l'app → answer_question.
 
 Lingua: italiano. Conciso. Esegui, non ti dilungare.`;
@@ -548,6 +587,18 @@ async function executeAction(name, args) {
         }
         case 'log_expense': {
             const result = await logExpenseFromCmdK(args);
+            showFeedback(result.html);
+            setLoading(false);
+            return;
+        }
+        case 'log_payment_received': {
+            const result = await logPaymentReceivedFromCmdK(args);
+            showFeedback(result.html);
+            setLoading(false);
+            return;
+        }
+        case 'create_appointment': {
+            const result = await createAppointmentFromCmdK(args);
             showFeedback(result.html);
             setLoading(false);
             return;
@@ -1240,4 +1291,154 @@ async function logExpenseFromCmdK(args) {
     }, 600);
 
     return { html: '' }; // niente da mostrare, abbiamo chiuso il palette
+}
+
+// ─── Log incoming payment (from client) ─────────────────────────────
+
+async function logPaymentReceivedFromCmdK(args) {
+    const { client_name, amount, date, description } = args;
+    if (!client_name || !amount) {
+        return { html: `<span class="material-icons-round icon">error</span>Mi serve nome cliente e importo.` };
+    }
+
+    // Match cliente
+    let clientId = null;
+    let matchedName = null;
+    const { data: clients } = await supabase.from('clients')
+        .select('id, business_name')
+        .ilike('business_name', `%${client_name}%`)
+        .limit(1)
+        .maybeSingle();
+    if (clients) { clientId = clients.id; matchedName = clients.business_name; }
+
+    const txDate = date || new Date().toISOString().slice(0, 10);
+    const txAmount = Number(amount);
+    const desc = description || `Incasso da ${matchedName || client_name}`;
+
+    // Insert in bank_transactions come "pending" — l'utente conferma poi
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const { data: inserted, error } = await supabase
+        .from('bank_transactions')
+        .insert({
+            date: txDate,
+            amount: txAmount,
+            type: 'entrata',
+            status: 'pending',
+            description: desc,
+            client_id: clientId,
+            created_by: user?.id,
+        })
+        .select('id, date, amount, description, client_id')
+        .single();
+
+    if (error) {
+        console.error('[cmd-k log_payment_received]', error);
+        return { html: `<span class="material-icons-round icon">error</span>Errore: ${escapeHtml(error.message)}` };
+    }
+
+    const clientLabel = matchedName
+        ? `✨ ${matchedName} riconosciuto`
+        : `cliente "${escapeHtml(client_name)}" non in anagrafica (assegnalo poi)`;
+
+    return {
+        html: `
+            <div style="padding: 4px 0;">
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.4rem;">
+                    <span class="material-icons-round" style="color:#10b981;">check_circle</span>
+                    <strong style="color:#10b981;">Incasso registrato (da approvare)</strong>
+                </div>
+                <div style="font-size: 1.05rem; font-weight: 700; color: #10b981; margin-bottom: 0.3rem;">+ € ${txAmount.toFixed(2)}</div>
+                <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.3rem;">
+                    ${new Date(txDate).toLocaleDateString('it-IT')} · ${clientLabel}
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-tertiary); font-style: italic;">${escapeHtml(desc)}</div>
+                <button onclick="window.location.hash='bank-transactions'; document.getElementById('cmdk-overlay')?.remove();" style="margin-top: 0.6rem; padding: 4px 10px; border-radius: 6px; background: #10b981; color: white; border: none; font-size: 0.75rem; font-weight: 600; cursor: pointer;">apri movimenti</button>
+            </div>
+        `
+    };
+}
+
+// ─── Create appointment ─────────────────────────────────────────────
+
+async function createAppointmentFromCmdK(args) {
+    const { title, starts_at, duration_minutes, location, client_or_collab_hint, note } = args;
+    if (!title || !starts_at) {
+        return { html: `<span class="material-icons-round icon">error</span>Mi serve titolo e data/ora.` };
+    }
+
+    const startDate = new Date(starts_at);
+    if (isNaN(startDate.getTime())) {
+        return { html: `<span class="material-icons-round icon">error</span>Data/ora non valida.` };
+    }
+
+    const durationMin = duration_minutes || 60;
+    const endDate = new Date(startDate.getTime() + durationMin * 60_000);
+
+    // Match space se hint fornito (commessa via order_number)
+    let spaceId = null;
+    if (client_or_collab_hint) {
+        const q = client_or_collab_hint.trim();
+        const { data: orders } = await supabase.from('orders')
+            .select('id')
+            .or(`order_number.ilike.%${q}%,title.ilike.%${q}%,short_name.ilike.%${q}%`)
+            .limit(1);
+        if (orders?.[0]) {
+            const { data: sp } = await supabase.from('pm_spaces').select('id').eq('ref_ordine', orders[0].id).limit(1).maybeSingle();
+            if (sp) spaceId = sp.id;
+        }
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const payload = {
+        title: title.trim(),
+        starts_at: startDate.toISOString(),
+        ends_at: endDate.toISOString(),
+        location: location || null,
+        note: note || null,
+        space_id: spaceId,
+        owner_user_ref: user?.id,
+        created_by_user_ref: user?.id,
+    };
+
+    const { data: created, error } = await supabase
+        .from('appointments')
+        .insert(payload)
+        .select('id, title, starts_at, ends_at, location')
+        .single();
+
+    if (error) {
+        console.error('[cmd-k create_appointment]', error);
+        return { html: `<span class="material-icons-round icon">error</span>Errore: ${escapeHtml(error.message)}` };
+    }
+
+    // Auto-aggiungi me come partecipante
+    try {
+        await supabase.from('appointment_internal_participants').insert({
+            appointment_id: created.id,
+            user_id: user?.id,
+        });
+    } catch (e) { console.warn('[cmd-k apt participant]', e); }
+
+    const dt = new Date(created.starts_at);
+    const dateStr = dt.toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: '2-digit' });
+    const timeStr = dt.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+
+    return {
+        html: `
+            <div style="padding: 4px 0;">
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.4rem;">
+                    <span class="material-icons-round" style="color:#f59e0b;">event_available</span>
+                    <strong style="color:#f59e0b;">Appuntamento creato</strong>
+                </div>
+                <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 0.3rem;">${escapeHtml(created.title)}</div>
+                <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.2rem;">
+                    ${dateStr} alle ${timeStr} · ${durationMin} min
+                </div>
+                ${created.location ? `<div style="font-size: 0.72rem; color: var(--text-tertiary);">📍 ${escapeHtml(created.location)}</div>` : ''}
+                <button onclick="window.location.hash='agenda'; document.getElementById('cmdk-overlay')?.remove();" style="margin-top: 0.6rem; padding: 4px 10px; border-radius: 6px; background: #f59e0b; color: white; border: none; font-size: 0.75rem; font-weight: 600; cursor: pointer;">apri agenda</button>
+            </div>
+        `
+    };
 }
