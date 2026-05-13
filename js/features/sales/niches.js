@@ -9,7 +9,7 @@
  * - Davide rivede e salva.
  */
 
-import { fetchNiches, upsertNiche, deleteNiche, fetchProspectsByNiche, promoteProspectsToPipeline, bulkDeleteProspects, upsertProspect, fetchSapServicesForSales } from './api.js?v=8000';
+import { fetchNiches, upsertNiche, deleteNiche, fetchProspectsByNiche, promoteProspectsToPipeline, bulkDeleteProspects, upsertProspect, fetchSapServicesForSales, fetchIndustrySectors } from './api.js?v=8001';
 import { showGlobalAlert, showConfirm } from '../../modules/utils.js?v=8000';
 import { analyzeNiche, saveNicheAnalysis, fetchNicheSapRelevance, PAROZZI_CRITERIA } from './niche_analyzer.js?v=8000';
 import { openSourcingModal } from './sourcing.js?v=8000';
@@ -115,9 +115,16 @@ function buildNicheCard(n) {
             '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.75rem;gap:0.5rem;">' +
                 '<div style="flex:1;min-width:0;">' +
                     '<div style="font-size:1rem;font-weight:800;color:var(--text-primary);font-family:var(--font-titles);line-height:1.2;">' + escHtml(n.name) + '</div>' +
-                    (isAnalyzed
-                        ? '<div style="font-size:0.7rem;color:#8b5cf6;margin-top:3px;display:inline-flex;align-items:center;gap:3px;"><span class="material-icons-round" style="font-size:0.8rem;">auto_awesome</span>Analizzata AI</div>'
-                        : '<div style="font-size:0.7rem;color:#f59e0b;margin-top:3px;display:inline-flex;align-items:center;gap:3px;"><span class="material-icons-round" style="font-size:0.8rem;">pending</span>Da analizzare</div>') +
+                    '<div style="display:flex;gap:6px;align-items:center;margin-top:3px;flex-wrap:wrap;">' +
+                        (n.sector
+                            ? '<span style="display:inline-flex;align-items:center;gap:3px;font-size:0.66rem;padding:2px 7px;border-radius:6px;background:#3b82f615;color:#3b82f6;font-weight:700;">' +
+                                '<span class="material-icons-round" style="font-size:0.75rem;">' + (n.sector.icon || 'category') + '</span>' + escHtml(n.sector.name) +
+                              '</span>'
+                            : '') +
+                        (isAnalyzed
+                            ? '<span style="font-size:0.66rem;color:#8b5cf6;display:inline-flex;align-items:center;gap:3px;font-weight:600;"><span class="material-icons-round" style="font-size:0.75rem;">auto_awesome</span>Analizzata AI</span>'
+                            : '<span style="font-size:0.66rem;color:#f59e0b;display:inline-flex;align-items:center;gap:3px;font-weight:600;"><span class="material-icons-round" style="font-size:0.75rem;">pending</span>Da analizzare</span>') +
+                    '</div>' +
                 '</div>' +
                 '<span style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.7rem;padding:3px 9px;border-radius:8px;background:' + statusConf.color + '15;color:' + statusConf.color + ';font-weight:700;flex-shrink:0;">' +
                     '<span class="material-icons-round" style="font-size:0.8rem;">' + statusConf.icon + '</span>' + statusConf.label +
@@ -181,20 +188,38 @@ function bindEvents(container, niches) {
 
 // ─── MODAL: NEW NICHE (AI-first) ─────────────────────────────────────────────
 
-function openNewNicheModal(onSave) {
+async function openNewNicheModal(onSave) {
+    // Carica settori PRIMA di aprire (così il dropdown è già popolato)
+    let sectors = [];
+    try {
+        sectors = await fetchIndustrySectors();
+    } catch (err) {
+        console.warn('[NewNicheModal] sectors load failed', err);
+    }
+
     const overlay = openOverlay('modal-new-niche');
+    const sectorOptionsHTML = '<option value="">— scegli settore —</option>' +
+        sectors.map(s => '<option value="' + s.id + '">' + escHtml(s.name) + '</option>').join('');
+
     overlay.innerHTML = buildModalShell({
         title: 'Nuova nicchia',
         body:
             '<div id="new-niche-body">' +
                 '<div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.25rem;line-height:1.5;">' +
-                    'Scrivi il nome della nicchia. L\'AI analizza mercato, pain, linguaggio, comuni target e SAP candidati. ' +
-                    'Poi rivedi e salvi.' +
+                    'Scegli il <strong>settore di mercato</strong> e dai un nome alla nicchia. L\'AI userà il settore come contesto per filtrare SAP rilevanti, linguaggio, pain tipici.' +
                 '</div>' +
-                '<div>' +
-                    '<label style="font-size:0.74rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Nome nicchia *</label>' +
-                    '<input id="new-niche-name" type="text" placeholder="Es. Strutture ricettive Liguria" ' +
-                        'style="width:100%;padding:0.75rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.95rem;box-sizing:border-box;">' +
+                '<div style="display:grid;grid-template-columns:1fr 2fr;gap:0.75rem;">' +
+                    '<div>' +
+                        '<label style="font-size:0.74rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Settore *</label>' +
+                        '<select id="new-niche-sector" style="width:100%;padding:0.75rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.95rem;box-sizing:border-box;">' +
+                            sectorOptionsHTML +
+                        '</select>' +
+                    '</div>' +
+                    '<div>' +
+                        '<label style="font-size:0.74rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Nome nicchia *</label>' +
+                        '<input id="new-niche-name" type="text" placeholder="Es. Strutture ricettive Liguria" ' +
+                            'style="width:100%;padding:0.75rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.95rem;box-sizing:border-box;">' +
+                    '</div>' +
                 '</div>' +
                 '<div id="new-niche-analysis" style="margin-top:1.25rem;"></div>' +
             '</div>',
@@ -210,18 +235,22 @@ function openNewNicheModal(onSave) {
 
     overlay.querySelector('#btn-analyze-niche').addEventListener('click', async () => {
         const nameInput = overlay.querySelector('#new-niche-name');
+        const sectorSelect = overlay.querySelector('#new-niche-sector');
         const name = nameInput?.value?.trim();
+        const sectorId = sectorSelect?.value;
         if (!name) { showGlobalAlert('Scrivi il nome della nicchia', 'error'); return; }
-        await runAnalyzeAndPreview(overlay, name, onSave, close);
+        if (!sectorId) { showGlobalAlert('Scegli il settore di mercato', 'error'); return; }
+        const sector = sectors.find(s => s.id === sectorId);
+        await runAnalyzeAndPreview(overlay, name, sector, onSave, close);
     });
 
     overlay.querySelector('#new-niche-name')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') overlay.querySelector('#btn-analyze-niche').click();
     });
-    setTimeout(() => overlay.querySelector('#new-niche-name')?.focus(), 100);
+    setTimeout(() => overlay.querySelector('#new-niche-sector')?.focus(), 100);
 }
 
-async function runAnalyzeAndPreview(overlay, name, onSave, close) {
+async function runAnalyzeAndPreview(overlay, name, sector, onSave, close) {
     const btn = overlay.querySelector('#btn-analyze-niche');
     const analysisDiv = overlay.querySelector('#new-niche-analysis');
 
@@ -231,17 +260,17 @@ async function runAnalyzeAndPreview(overlay, name, onSave, close) {
     analysisDiv.innerHTML =
         '<div style="display:flex;align-items:center;justify-content:center;padding:2rem;gap:0.75rem;color:var(--text-secondary);background:var(--bg-tertiary);border-radius:14px;">' +
             '<span class="material-icons-round" style="animation:spin 1s linear infinite;">auto_awesome</span>' +
-            'AI sta analizzando "' + escHtml(name) + '"…' +
+            'AI sta analizzando "' + escHtml(name) + '" (settore: ' + escHtml(sector?.name || '—') + ')…' +
         '</div>';
 
     try {
-        const analysis = await analyzeNiche(name);
+        const analysis = await analyzeNiche(name, sector);
         analysisDiv.innerHTML = buildAnalysisPreview(analysis);
 
         btn.disabled = false;
         btn.innerHTML = '<span class="material-icons-round" style="font-size:1rem;">save</span>Salva nicchia';
         btn.onclick = async () => {
-            await saveNewNicheFromAnalysis(name, analysis, onSave, close);
+            await saveNewNicheFromAnalysis(name, sector, analysis, onSave, close);
         };
 
         if (!overlay.querySelector('#btn-reanalyze')) {
@@ -249,7 +278,7 @@ async function runAnalyzeAndPreview(overlay, name, onSave, close) {
             reBtn.id = 'btn-reanalyze';
             reBtn.style.cssText = 'padding:0.6rem 1.1rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-secondary);font-size:0.82rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;margin-right:0.5rem;';
             reBtn.innerHTML = '<span class="material-icons-round" style="font-size:1rem;">refresh</span>Rianalizza';
-            reBtn.onclick = () => runAnalyzeAndPreview(overlay, name, onSave, close);
+            reBtn.onclick = () => runAnalyzeAndPreview(overlay, name, sector, onSave, close);
             btn.parentNode.insertBefore(reBtn, btn);
         }
 
@@ -261,9 +290,9 @@ async function runAnalyzeAndPreview(overlay, name, onSave, close) {
     }
 }
 
-async function saveNewNicheFromAnalysis(name, analysis, onSave, close) {
+async function saveNewNicheFromAnalysis(name, sector, analysis, onSave, close) {
     try {
-        const created = await upsertNiche({ name, status: 'researching' });
+        const created = await upsertNiche({ name, sector_id: sector?.id || null, status: 'researching' });
         await saveNicheAnalysis(created.id, analysis);
         showGlobalAlert('Nicchia creata + analizzata', 'success');
         close();
@@ -511,7 +540,15 @@ function bindDetailPageEvents(container, niche, prospects, onReload) {
         btn.disabled = true;
         btn.innerHTML = '<span class="material-icons-round" style="font-size:1rem;animation:spin 1s linear infinite;">refresh</span>Analizzo…';
         try {
-            const analysis = await analyzeNiche(niche.name);
+            // Carica settore (se la nicchia ha sector_id) per contestualizzare l'analisi
+            let sector = null;
+            if (niche.sector_id) {
+                try {
+                    const sectors = await fetchIndustrySectors();
+                    sector = sectors.find(s => s.id === niche.sector_id) || null;
+                } catch (_) {}
+            }
+            const analysis = await analyzeNiche(niche.name, sector);
             await saveNicheAnalysis(niche.id, analysis);
             showGlobalAlert('Nicchia rianalizzata', 'success');
             onReload();

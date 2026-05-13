@@ -124,7 +124,8 @@ export async function fetchNiches() {
         .from('outreach_niches')
         .select(`
             *,
-            target_sap:core_services(id, name)
+            target_sap:core_services(id, name),
+            sector:industry_sectors(id, slug, name, icon)
         `)
         .order('created_at', { ascending: false });
     if (error) throw error;
@@ -144,6 +145,26 @@ export async function deleteNiche(id) {
     const { error } = await supabase.from('outreach_niches').delete().eq('id', id);
     if (error) throw error;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INDUSTRY SECTORS (Phase 2 consolidation)
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _sectorsCache = null;
+
+export async function fetchIndustrySectors() {
+    if (_sectorsCache) return _sectorsCache;
+    const { data, error } = await supabase
+        .from('industry_sectors')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+    if (error) throw error;
+    _sectorsCache = data || [];
+    return _sectorsCache;
+}
+
+export function invalidateSectorsCache() { _sectorsCache = null; }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SEQUENCES + STEPS (Phase 2)

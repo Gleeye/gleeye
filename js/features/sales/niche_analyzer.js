@@ -25,14 +25,15 @@ const PAROZZI_CRITERIA = [
 /**
  * Analizza una nicchia con AI.
  * @param {string} nicheName - es. "Strutture ricettive Liguria"
+ * @param {object} [sector] - opzionale: oggetto industry_sector (slug, name, description) per contestualizzare
  * @returns {Promise<object>} risultato strutturato
  */
-export async function analyzeNiche(nicheName) {
+export async function analyzeNiche(nicheName, sector) {
     if (!nicheName || !nicheName.trim()) throw new Error('Nome nicchia mancante');
 
-    const sapCatalog = await fetchSapCatalogForAnalysis();
+    const sapCatalog = await fetchSapCatalogForAnalysis(sector);
 
-    const prompt = buildPrompt(nicheName, sapCatalog);
+    const prompt = buildPrompt(nicheName, sapCatalog, sector);
     const schema = {
         description: 'string — descrizione strategica della nicchia in 2-3 frasi',
         geo_scope: ['string — lista comuni/città/aree target da attaccare uno alla volta nel sourcing'],
@@ -77,21 +78,39 @@ export async function analyzeNiche(nicheName) {
 
 /**
  * Salva il risultato dell'analisi nella nicchia + popola niche_sap_relevance.
+ *
+ * IMPORTANTE: geo_scope viene scritto SOLO se attualmente è vuoto.
+ * Una volta che Davide lo ha curato manualmente, la rianalisi non lo sovrascrive.
  */
 export async function saveNicheAnalysis(nicheId, analysis) {
+    // 0. Leggi geo_scope corrente per decidere se sovrascriverlo o no
+    const { data: currentNiche, error: curErr } = await supabase
+        .from('outreach_niches')
+        .select('geo_scope')
+        .eq('id', nicheId)
+        .single();
+    if (curErr) throw curErr;
+
+    const currentGeoScope = Array.isArray(currentNiche?.geo_scope) ? currentNiche.geo_scope : [];
+    const shouldOverwriteGeo = currentGeoScope.length === 0;
+
     // 1. Update outreach_niches
+    const updatePayload = {
+        description:          analysis.description || null,
+        market_size_estimate: analysis.market_size_estimate || null,
+        pain_points:          analysis.pain_points || [],
+        niche_language:       analysis.niche_language || {},
+        criteria_validation:  analysis.criteria_validation || {},
+        analyzed_at:          new Date().toISOString(),
+        analyzed_by_model:    MODEL,
+    };
+    if (shouldOverwriteGeo) {
+        updatePayload.geo_scope = analysis.geo_scope || [];
+    }
+
     const { error: updErr } = await supabase
         .from('outreach_niches')
-        .update({
-            description:          analysis.description || null,
-            geo_scope:            analysis.geo_scope || [],
-            market_size_estimate: analysis.market_size_estimate || null,
-            pain_points:          analysis.pain_points || [],
-            niche_language:       analysis.niche_language || {},
-            criteria_validation:  analysis.criteria_validation || {},
-            analyzed_at:          new Date().toISOString(),
-            analyzed_by_model:    MODEL,
-        })
+        .update(updatePayload)
         .eq('id', nicheId);
 
     if (updErr) throw updErr;
@@ -131,57 +150,76 @@ export async function fetchNicheSapRelevance(nicheId) {
 
 // ─── PRIVATE ──────────────────────────────────────────────────────────────────
 
-async function fetchSapCatalogForAnalysis() {
-    const { data, error } = await supabase
+async function fetchSapCatalogForAnalysis(sector) {
+    let q = supabase
         .from('core_services')
-        .select('id, name, description, value_proposition, target_customer, delivery_time_days')
+        .select('id, name, description, value_proposition, target_customer, delivery_time_days, target_sectors')
         .order('name');
+    const { data, error } = await q;
     if (error) throw error;
-    return data || [];
+    let catalog = data || [];
+
+    // Se è dato un settore, prioritizza i SAP che lo includono (o sono agnostici)
+    if (sector && sector.slug) {
+        catalog = catalog.filter(s => {
+            const ts = Array.isArray(s.target_sectors) ? s.target_sectors : [];
+            return ts.length === 0 || ts.includes(sector.slug);
+        });
+    }
+    return catalog;
 }
 
-function buildPrompt(nicheName, sapCatalog) {
+function buildPrompt(nicheName, sapCatalog, sector) {
     const lines = [
         'Analizza questa nicchia di mercato dal punto di vista di un\'agenzia di comunicazione genovese (Gleeye) che vuole acquisire clienti via outreach.',
         '',
         '## NICCHIA',
         nicheName,
         '',
-        '## OUTPUT RICHIESTO',
-        '',
-        '### 1. Descrizione (2-3 frasi)',
-        'Chi sono questi clienti, cosa li caratterizza dal punto di vista marketing/comunicazione.',
-        '',
-        '### 2. Geo scope (granulare)',
-        'Lista di comuni/città/aree dove attaccare la nicchia, UNO PER UNO. Esempio per "Strutture ricettive Liguria": ["Genova","Albisola Superiore","Albisola Marina","Varazze","Bogliasco","Santa Margherita Ligure","Portofino","Rapallo","Sestri Levante","Camogli","Sanremo","Imperia","La Spezia","Lerici","Portovenere",...]. Includi i comuni più rilevanti, non solo 3-4.',
-        '',
-        '### 3. Stima dimensione mercato',
-        'Numeri concreti su quante realtà esistono nel scope geografico indicato (anche stime approssimate dichiarate come tali).',
-        '',
-        '### 4. Pain points tipici (4-8)',
-        'Frasi concrete dalla LORO prospettiva. Es: "Pago 18% di commissione a Booking.com per ogni prenotazione". Non parolaio marketing.',
-        '',
-        '### 5. Linguaggio della nicchia',
-        'Termini specifici che la nicchia usa al posto di quelli generici. Es: per medici "pazienti" non "clienti", per ristoranti "coperti" non "clienti".',
-        '',
-        '### 6. Validazione 5 criteri Parozzi',
-        'Per ognuno: verdict (true/false) + rationale concreta (1-2 frasi, con numeri se possibile).',
-        '- growing: mercato in crescita o morente?',
-        '- size: 8K-100K realtà raggiungibili nel scope geografico?',
-        '- profitable: la nicchia ha margini sufficienti per pagare €3K-6K di servizi?',
-        '- spends_high: sono abituati a investimenti €10K+ (macchinari, software, consulenze)?',
-        '- reachable: raggiungibili via email/LinkedIn/Google Maps in modo scalabile?',
-        '',
-        '### 7. SAP candidati con angle di vendita',
-        'Dal catalogo Gleeye sotto, scegli quali SAP sono RILEVANTI per questa nicchia (relevance_score 0-100). Per ogni SAP rilevante (score ≥40):',
-        '- angle: come venderlo specificamente a QUESTA nicchia (linguaggio + esempi + leva emotiva)',
-        '- pain_addressed: quale pain risolve',
-        '- mock_oto_formula: esempio bozza "Aiuto [nicchia] a ottenere [risultato] in [tempo] attraverso [meccanismo] senza [dolore]"',
-        '',
-        'NON inventare SAP che non sono nel catalogo. Se nessun SAP è davvero pertinente, lista comunque i 2-3 più vicini con score basso e angle che spieghi i limiti.',
-        '',
-        '## CATALOGO SAP GLEEYE',
     ];
+    if (sector) {
+        lines.push('## SETTORE DI MERCATO');
+        lines.push('Slug: ' + sector.slug + ' · Nome: ' + sector.name);
+        if (sector.description) lines.push('Descrizione: ' + sector.description);
+        lines.push('');
+        lines.push('USA il settore come contesto: pain points, linguaggio, KPI tipici, capacità di spesa devono essere coerenti col settore. I SAP candidati sono già filtrati per essere rilevanti al settore.');
+        lines.push('');
+    }
+
+    lines.push('## OUTPUT RICHIESTO');
+    lines.push('');
+    lines.push('### 1. Descrizione (2-3 frasi)');
+    lines.push('Chi sono questi clienti, cosa li caratterizza dal punto di vista marketing/comunicazione.');
+    lines.push('');
+    lines.push('### 2. Geo scope (granulare)');
+    lines.push('Lista di comuni/città/aree dove attaccare la nicchia, UNO PER UNO. Esempio per "Strutture ricettive Liguria": ["Genova","Albisola Superiore","Albisola Marina","Varazze","Bogliasco","Santa Margherita Ligure","Portofino","Rapallo","Sestri Levante","Camogli","Sanremo","Imperia","La Spezia","Lerici","Portovenere",...]. Includi i comuni più rilevanti, non solo 3-4.');
+    lines.push('');
+    lines.push('### 3. Stima dimensione mercato');
+    lines.push('Numeri concreti su quante realtà esistono nel scope geografico indicato (anche stime approssimate dichiarate come tali).');
+    lines.push('');
+    lines.push('### 4. Pain points tipici (4-8)');
+    lines.push('Frasi concrete dalla LORO prospettiva. Es: "Pago 18% di commissione a Booking.com per ogni prenotazione". Non parolaio marketing.');
+    lines.push('');
+    lines.push('### 5. Linguaggio della nicchia');
+    lines.push('Termini specifici che la nicchia usa al posto di quelli generici. Es: per medici "pazienti" non "clienti", per ristoranti "coperti" non "clienti".');
+    lines.push('');
+    lines.push('### 6. Validazione 5 criteri Parozzi');
+    lines.push('Per ognuno: verdict (true/false) + rationale concreta (1-2 frasi, con numeri se possibile).');
+    lines.push('- growing: mercato in crescita o morente?');
+    lines.push('- size: 8K-100K realtà raggiungibili nel scope geografico?');
+    lines.push('- profitable: la nicchia ha margini sufficienti per pagare €3K-6K di servizi?');
+    lines.push('- spends_high: sono abituati a investimenti €10K+ (macchinari, software, consulenze)?');
+    lines.push('- reachable: raggiungibili via email/LinkedIn/Google Maps in modo scalabile?');
+    lines.push('');
+    lines.push('### 7. SAP candidati con angle di vendita');
+    lines.push('Dal catalogo Gleeye sotto, scegli quali SAP sono RILEVANTI per questa nicchia (relevance_score 0-100). Per ogni SAP rilevante (score ≥40):');
+    lines.push('- angle: come venderlo specificamente a QUESTA nicchia (linguaggio + esempi + leva emotiva)');
+    lines.push('- pain_addressed: quale pain risolve');
+    lines.push('- mock_oto_formula: esempio bozza "Aiuto [nicchia] a ottenere [risultato] in [tempo] attraverso [meccanismo] senza [dolore]"');
+    lines.push('');
+    lines.push('NON inventare SAP che non sono nel catalogo. Se nessun SAP è davvero pertinente, lista comunque i 2-3 più vicini con score basso e angle che spieghi i limiti.');
+    lines.push('');
+    lines.push('## CATALOGO SAP GLEEYE');
 
     if (sapCatalog.length === 0) {
         lines.push('Nessun SAP nel catalogo. Aggiungi warning: "Catalogo SAP vuoto, suggerimenti non possibili".');
