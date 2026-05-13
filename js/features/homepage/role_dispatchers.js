@@ -37,6 +37,7 @@ import {
 } from './activity_feed.js?v=8000';
 
 import { renderAlertsWidget } from './alerts_widget.js?v=8000';
+import { renderMorningBriefing } from './morning_briefing.js?v=8001';
 
 export function renderAdminAlerts(alerts) {
     const block = document.getElementById('hp-accounting-alerts-block');
@@ -315,6 +316,7 @@ export async function renderMainContent_Partner(container, data) {
         const alertBlock = document.getElementById('hp-accounting-alerts-block');
         if (alertBlock) alertBlock.style.display = 'flex';
         renderAlertsWidget();
+        renderMorningBriefing();
     } else {
         const alertBlock = document.getElementById('hp-accounting-alerts-block');
         if (alertBlock) alertBlock.style.display = 'none';
