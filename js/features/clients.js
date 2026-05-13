@@ -626,25 +626,21 @@ export function renderClientDetail(container) {
 
             <!-- Tab Content: Referenti -->
             <div id="tab-contacts" class="tab-content hidden">
-                <div class="table-container">
-                    <table>
-                        <thead><tr><th>Nome</th><th>Ruolo</th><th>Email</th><th>Telefono</th><th></th></tr></thead>
-                        <tbody>
-                            ${clientContacts.length ? clientContacts.map(c => `
-                                <tr style="cursor: default;">
-                                    <td style="font-weight: 600;">${(c.full_name || '-').replace(/</g, '&lt;')}</td>
-                                    <td style="color: var(--text-secondary);">${(c.role || '-').replace(/</g, '&lt;')}</td>
-                                    <td>${c.email ? `<a href="mailto:${c.email}" style="color: var(--brand-blue); text-decoration: none;">${c.email}</a>` : '-'}</td>
-                                    <td>${c.phone ? `<a href="tel:${c.phone}" style="color: var(--text-secondary); text-decoration: none;">${c.phone}</a>` : '-'}</td>
-                                    <td style="text-align: right;">
-                                        ${c.email ? `<a href="mailto:${c.email}" title="Email" style="color: var(--brand-blue); margin-right: 8px;"><span class="material-icons-round" style="font-size: 18px; vertical-align: middle;">alternate_email</span></a>` : ''}
-                                        ${c.phone ? `<a href="tel:${c.phone}" title="Chiama" style="color: var(--brand-blue);"><span class="material-icons-round" style="font-size: 18px; vertical-align: middle;">phone</span></a>` : ''}
-                                    </td>
-                                </tr>
-                            `).join('') : '<tr><td colspan="5" style="text-align:center; padding:1.5rem; opacity:0.6;">Nessun referente registrato per questo cliente. Aggiungili da <a href="#contacts" style="color: var(--brand-blue);">Anagrafiche › Referenti</a>.</td></tr>'}
-                        </tbody>
-                    </table>
-                </div>
+                ${clientContacts.length === 0 ? `
+                    <div style="text-align: center; padding: 4rem 2rem; background: var(--glass-bg); border-radius: 24px; border: 2px dashed var(--glass-border);">
+                        <div style="width: 80px; height: 80px; background: rgba(78, 146, 216, 0.05); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
+                            <span class="material-icons-round" style="font-size: 3rem; color: var(--text-tertiary);">contact_phone</span>
+                        </div>
+                        <h3 style="font-family: var(--font-titles); font-weight: 400; margin-bottom: 0.5rem;">Nessun referente</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 0; max-width: 400px; margin-inline: auto; font-size: 0.9rem;">
+                            Non ci sono ancora referenti per questo cliente. I referenti si gestiscono in DB (tabella <code>contacts</code>) o tramite l'app Booking.
+                        </p>
+                    </div>
+                ` : `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+                        ${clientContacts.map(c => _renderContactCard(c)).join('')}
+                    </div>
+                `}
             </div>
 
             <!-- Tab Content: Orders -->
@@ -996,3 +992,92 @@ window.openNewClientModal = (client = null) => {
 
     document.getElementById('new-client-modal').classList.add('active');
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab Referenti — card visiva (sostituisce la tabella, feedback Davide 14/5)
+// ─────────────────────────────────────────────────────────────────────────────
+function _renderContactCard(c) {
+    const name = (c.full_name || 'Senza nome').replace(/</g, '&lt;');
+    const role = c.role ? c.role.replace(/</g, '&lt;') : '';
+    const initials = (c.full_name || '?')
+        .split(' ')
+        .filter(Boolean)
+        .map(s => s[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase();
+
+    // Color hash from name → consistent avatar color per persona
+    let hash = 0;
+    for (let i = 0; i < (c.full_name || '').length; i++) {
+        hash = c.full_name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const palette = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#6366f1'];
+    const color = palette[Math.abs(hash) % palette.length];
+
+    const emailSafe = c.email ? c.email.replace(/"/g, '&quot;') : '';
+    const phoneSafe = c.phone ? c.phone.replace(/"/g, '&quot;') : '';
+
+    return `
+        <div style="
+            background: white;
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 1.1rem 1.15rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+            transition: all 0.2s;
+        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 22px rgba(0,0,0,0.08)'; this.style.borderColor='${color}40';"
+           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'; this.style.borderColor='var(--glass-border)';">
+            <!-- Top row: avatar + name + role -->
+            <div style="display: flex; align-items: center; gap: 0.7rem;">
+                <div style="
+                    width: 42px; height: 42px; border-radius: 50%;
+                    background: ${color}; color: white;
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 0.95rem; font-weight: 700;
+                    font-family: 'Plus Jakarta Sans', sans-serif;
+                    flex-shrink: 0;
+                ">${initials}</div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</div>
+                    ${role ? `<div style="font-size: 0.72rem; color: ${color}; font-weight: 600; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em;">${role}</div>` : '<div style="font-size: 0.72rem; color: var(--text-tertiary); font-style: italic; margin-top: 2px;">ruolo non specificato</div>'}
+                </div>
+            </div>
+
+            <!-- Contact info rows -->
+            ${c.email ? `
+                <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.55rem; background: var(--bg-secondary); border-radius: 8px; font-size: 0.78rem;">
+                    <span class="material-icons-round" style="font-size: 16px; color: ${color};">mail</span>
+                    <a href="mailto:${emailSafe}" style="color: var(--text-primary); text-decoration: none; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${c.email}</a>
+                </div>
+            ` : ''}
+            ${c.phone ? `
+                <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.55rem; background: var(--bg-secondary); border-radius: 8px; font-size: 0.78rem;">
+                    <span class="material-icons-round" style="font-size: 16px; color: ${color};">phone</span>
+                    <a href="tel:${phoneSafe}" style="color: var(--text-primary); text-decoration: none; flex: 1;">${c.phone}</a>
+                </div>
+            ` : ''}
+
+            <!-- Quick action bar -->
+            <div style="display: flex; gap: 0.4rem; margin-top: 0.2rem;">
+                ${c.email ? `
+                    <a href="mailto:${emailSafe}" title="Email" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.3rem; padding: 0.4rem; background: ${color}15; color: ${color}; border-radius: 8px; text-decoration: none; font-size: 0.7rem; font-weight: 700; transition: background 0.15s;" onmouseover="this.style.background='${color}25'" onmouseout="this.style.background='${color}15'">
+                        <span class="material-icons-round" style="font-size: 14px;">alternate_email</span> Email
+                    </a>
+                ` : ''}
+                ${c.phone ? `
+                    <a href="tel:${phoneSafe}" title="Chiama" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.3rem; padding: 0.4rem; background: ${color}15; color: ${color}; border-radius: 8px; text-decoration: none; font-size: 0.7rem; font-weight: 700;" onmouseover="this.style.background='${color}25'" onmouseout="this.style.background='${color}15'">
+                        <span class="material-icons-round" style="font-size: 14px;">phone</span> Chiama
+                    </a>
+                ` : ''}
+                ${c.phone ? `
+                    <a href="https://wa.me/${phoneSafe.replace(/[^0-9+]/g, '').replace(/^\+/, '')}" target="_blank" title="WhatsApp" style="display: flex; align-items: center; justify-content: center; padding: 0.4rem 0.7rem; background: #25D36615; color: #25D366; border-radius: 8px; text-decoration: none; font-size: 0.7rem; font-weight: 700;" onmouseover="this.style.background='#25D36625'" onmouseout="this.style.background='#25D36615'">
+                        <span class="material-icons-round" style="font-size: 14px;">chat</span>
+                    </a>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
