@@ -20,6 +20,7 @@ import { supabase } from '../../modules/config.js?v=8000';
 import { formatAmount, showGlobalAlert, showConfirm, renderAvatar } from '../../modules/utils.js?v=8000';
 import { upsertAssignment, upsertCollaboratorService, fetchCollaboratorServices, fetchAssignments, upsertPayment, deletePayment, fetchPayments, fetchOrders, fetchCollaborators, fetchServices } from '../../modules/api.js?v=8000';
 import { CustomSelect } from '../../components/CustomSelect.js?v=8000';
+import { getCollaboratorServiceRate, rateSourceLabel } from '../../modules/collab_rate.js?v=8000';
 
 export function initOrderAssignmentModal() {
     // Force remove existing modal to ensure latest HTML/JS functionality is applied
@@ -105,6 +106,7 @@ export function initOrderAssignmentModal() {
                                 </button>
                             </div>
                             <div id="asg-tariff-info" style="font-size: 0.75rem; color: var(--text-tertiary); padding: 0.5rem; background: rgba(59, 130, 246, 0.05); border-radius: 6px; display: none;"></div>
+                            <div id="asg-rate-hint" style="font-size: 0.78rem; padding: 0.6rem 0.75rem; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; margin-top: 0.5rem; display: none; align-items: center; justify-content: space-between; gap: 0.75rem;"></div>
                         </div>
 
                         <!-- Selected Services List -->
@@ -534,6 +536,16 @@ window.onAssignmentServiceSelect = () => {
     tariffInfo.textContent = infoText;
     tariffInfo.style.display = 'block';
 
+    // Reset rate hint (lookup async sotto)
+    const rateHint = document.getElementById('asg-rate-hint');
+    if (rateHint) {
+        rateHint.style.display = 'none';
+        rateHint.innerHTML = '';
+        rateHint.dataset.suggestedCost = '';
+    }
+    // Reset live override del costo per questa selezione
+    selector.dataset.effectiveCost = String(cost);
+
     // Calculate initial total (using cost)
     const total = cost * 1;
     totalDisplay.textContent = '€ ' + formatMoney(total);
@@ -541,9 +553,68 @@ window.onAssignmentServiceSelect = () => {
     // Attach listener for dynamic calc
     qtyInput.oninput = () => {
         const qty = parseFloat(qtyInput.value) || 0;
-        const subTotal = cost * qty;
+        const eff = parseFloat(selector.dataset.effectiveCost) || cost;
+        const subTotal = eff * qty;
         totalDisplay.textContent = '€ ' + formatMoney(subTotal);
     };
+
+    // Lookup tariffa storica/manuale per questo (collab, servizio)
+    const collabId = window.asgState?.collaborator?.id
+        || document.getElementById('asg-collab-id')?.value;
+    if (collabId && serviceId && rateHint) {
+        getCollaboratorServiceRate(collabId, serviceId).then(rate => {
+            if (!rate || rate.unit_cost === null) return;
+            // Skippa il template (è uguale a cost già preselezionato)
+            if (rate.source === 'service_template' || rate.source === 'unknown') return;
+            // Skippa se la tariffa storica coincide praticamente col listino
+            if (Math.abs(rate.unit_cost - cost) < 0.01) return;
+
+            // Verifica che ci siamo ancora sullo stesso servizio (race condition)
+            if (selector.value !== serviceId) return;
+
+            rateHint.dataset.suggestedCost = String(rate.unit_cost);
+            const srcLabel = rateSourceLabel(rate.source);
+            const sampleNote = rate.sample_size > 0 ? ` (${rate.sample_size} incarich${rate.sample_size === 1 ? 'o' : 'i'})` : '';
+            const icon = rate.source === 'manual_override' ? 'push_pin' : 'history';
+
+            rateHint.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 0;">
+                    <span class="material-icons-round" style="font-size: 18px; color: #d97706;">${icon}</span>
+                    <span style="color: #92400e;">
+                        ${srcLabel}: <strong>€ ${formatMoney(rate.unit_cost)}</strong>${sampleNote}.
+                        Listino: € ${formatMoney(cost)}.
+                    </span>
+                </div>
+                <button type="button" class="primary-btn small" id="asg-apply-historic-rate"
+                    style="height: 30px; font-size: 0.75rem; padding: 0 0.75rem; white-space: nowrap; background: #d97706; border-color: #d97706;">
+                    Usa € ${formatMoney(rate.unit_cost)}
+                </button>
+            `;
+            rateHint.style.display = 'flex';
+
+            const applyBtn = document.getElementById('asg-apply-historic-rate');
+            if (applyBtn) {
+                applyBtn.onclick = () => {
+                    selector.dataset.effectiveCost = String(rate.unit_cost);
+                    // Aggiorna anche data-cost dell'option corrente cosicché addService usi il nuovo valore
+                    const opt = selector.selectedOptions[0];
+                    if (opt) opt.setAttribute('data-cost', String(rate.unit_cost));
+                    // Ricalcola subtotal
+                    const qty = parseFloat(qtyInput.value) || 1;
+                    totalDisplay.textContent = '€ ' + formatMoney(rate.unit_cost * qty);
+                    // Aggiorna anche tariffInfo per coerenza visuale
+                    if (type === 'tariffa oraria') {
+                        tariffInfo.textContent = `Costo Orario: € ${formatMoney(rate.unit_cost)} / ora (storico)`;
+                    } else if (type === 'tariffa mensile') {
+                        tariffInfo.textContent = `Costo Mensile: € ${formatMoney(rate.unit_cost)} / mese (storico)`;
+                    } else {
+                        tariffInfo.textContent = `Costo Spot: € ${formatMoney(rate.unit_cost)} cadauno (storico)`;
+                    }
+                    rateHint.style.display = 'none';
+                };
+            }
+        }).catch(err => console.warn('[assignment_modal] rate lookup failed:', err));
+    }
 };
 
 window.addServiceToAssignmentList = () => {
