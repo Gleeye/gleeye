@@ -398,6 +398,22 @@ function render() {
                 if (pageTitle) pageTitle.textContent = 'P&L per Commessa';
                 import('../features/cfo/cfo_pnl_orders.js?v=8000').then(m => m.renderCFOPnlOrders(contentArea));
                 break;
+            case 'cfo-aging':
+                if (pageTitle) pageTitle.textContent = 'Aging Fatture';
+                import('../features/cfo/cfo_aging.js?v=8000').then(m => m.renderCFOAging(contentArea));
+                break;
+            case 'cfo-dso-dpo':
+                if (pageTitle) pageTitle.textContent = 'DSO / DPO';
+                import('../features/cfo/cfo_dso_dpo.js?v=8000').then(m => m.renderCFODsoDpo(contentArea));
+                break;
+            case 'cfo-breakeven':
+                if (pageTitle) pageTitle.textContent = 'Distinta Base & Break-even';
+                import('../features/cfo/cfo_breakeven.js?v=8000').then(m => m.renderCFOBreakeven(contentArea));
+                break;
+            case 'cfo-forecast':
+                if (pageTitle) pageTitle.textContent = 'Piano Economico';
+                import('../features/cfo/cfo_forecast.js?v=8000').then(m => m.renderCFOForecast(contentArea));
+                break;
             // ... Add other routes as needed
             default:
                 console.log(`[Router] Hit default case for page: "${state.currentPage}"`);
