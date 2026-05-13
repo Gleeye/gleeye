@@ -830,18 +830,43 @@
     <script type="module" src="js/features/cmd_palette.js?v=8001"></script>
 
     <!-- PWA Service Worker Registration -->
+    <!--
+        In DEV (localhost) il SW non si registra e qualunque SW già registrato viene rimosso.
+        Motivo: il SW cache aggressivamente i moduli JS facendo perdere ore a verificare modifiche.
+        In produzione (qualsiasi hostname != localhost/127.0.0.1) la PWA funziona normalmente.
+    -->
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('SW registered with scope:', registration.scope);
-                    })
-                    .catch(err => {
-                        console.error('SW registration failed:', err);
+        (function() {
+            const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.startsWith('192.168.');
+
+            if (isLocalDev) {
+                // DEV MODE: nessuna registrazione SW + cleanup di eventuali SW già registrati
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(regs => {
+                        regs.forEach(r => r.unregister().then(() => console.log('[DEV] SW unregistered:', r.scope)));
                     });
-            });
-        }
+                    // Pulisce anche le cache CacheStorage che il SW aveva creato
+                    if ('caches' in window) {
+                        caches.keys().then(names => names.forEach(n => caches.delete(n).then(() => console.log('[DEV] cache cleared:', n))));
+                    }
+                }
+                console.log('[DEV] Service Worker disabilitato su localhost — niente cache aggressiva sui moduli JS');
+                return;
+            }
+
+            // PRODUCTION
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js')
+                        .then(registration => {
+                            console.log('SW registered with scope:', registration.scope);
+                        })
+                        .catch(err => {
+                            console.error('SW registration failed:', err);
+                        });
+                });
+            }
+        })();
     </script>
 </body>
 
