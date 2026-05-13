@@ -61,6 +61,24 @@ NON toccare se non strettamente necessario:
 3. **Conflitti su `ai_client.js`**: se appare, vince SEMPRE la versione `gemini-2.5-flash-lite` (mai sovrascrivere con Sonnet).
 4. **Migration DB**: solo additive. Mai `DROP`/`ALTER` su tabelle esistenti senza accordo.
 
+### ⚠️ Tre regole per evitare collisioni tra sessioni parallele
+
+(Imparate sulla pelle il 14/5/26 — una sessione che lavorava nel repo principale ha sovrascritto cache-bust di `?v=8003` riportandolo a `?v=8000`, e ha bloccato un merge con WIP non committato.)
+
+1. **Lavora SEMPRE in un worktree dedicato**, mai nel repo principale (`/Users/davidegentile/Documents/app dev/gleeye erp/`). Il repo principale è "shared" — lo usa Davide per testare via localhost:8090 e altre sessioni potrebbero esserci dentro. Crea il tuo worktree con `git worktree add .claude/worktrees/<nome> -b feature/<feature>` e lavora SOLO lì.
+
+2. **Prima di ogni push** fai sempre `git fetch origin main && git rebase origin/main`. Se ci sono conflitti su file caldi (vedi lista sopra), **non risolverli da solo**: o aspetti che l'altra sessione finisca, o chiedi a Davide. Mai un merge ciecone con `--no-edit`.
+
+3. **Le versioni `?v=XXXX` negli import (`import('./foo.js?v=8000')`) sono cache-bust del browser**, non scegliere numeri a caso. Se devi forzare un reload, bumpa solo l'ultima cifra (`8000` → `8001` → ...). MAI abbassare. Se trovi conflitti su questi numeri durante un rebase: vince sempre il numero PIÙ ALTO.
+
+### Workflow localhost:8090 + worktree (per non far impazzire Davide)
+
+- Il `python3 -m http.server 8090` di Davide gira dalla root del repo principale. Serve il working tree di quel path.
+- Se vuoi che Davide veda le tue modifiche su localhost, dopo aver pushato a `origin/main`:
+  1. Dal repo principale: `git checkout origin/main -- <files_che_hai_modificato>` (NON `git pull`, eviti merge con WIP altrui).
+  2. Bumpa `?v=` se hai toccato file caldi, così il browser cache invalida.
+- Se trovi WIP non committato di un'altra sessione nel repo principale: NON ci toccare, stasha solo se necessario e poppa dopo.
+
 ### Testing
 
 - Test syntactic locale: `node --check <file>` dopo ogni modifica JS.
