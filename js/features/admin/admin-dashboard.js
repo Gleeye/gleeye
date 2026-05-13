@@ -1,6 +1,7 @@
 
 // js/features/admin/admin-dashboard.js
 import { state } from '/js/modules/state.js?v=8000';
+import { supabase } from '/js/modules/config.js?v=8000';
 import { renderAdminNotifications } from '../notifications.js?v=8000';
 import { renderNotificationLogs } from './notification_logs.js?v=8000';
 import { renderSystemLogs, getUnresolvedErrorCount } from './admin_system_logs.js?v=8000';
@@ -97,7 +98,10 @@ export function renderAdminDashboard(container) {
 
                 <!-- Tab Content: Settings -->
                 <div id="tab-settings" class="tab-content" style="padding: 2rem;">
-                    
+
+                    <!-- KPI Movimenti da Quadrare -->
+                    <div id="admin-bank-orphan-kpi" style="margin-bottom: 1.5rem;"></div>
+
                     <!-- Google Calendar Config Section -->
                     <div class="glass-card" style="padding: 1.5rem; margin-bottom: 2rem; border: 1px solid var(--glass-border);">
                         <h3 style="font-size: 1.1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -294,6 +298,9 @@ export function renderAdminDashboard(container) {
     const notifContainer = container.querySelector('#admin-notifications-container');
     if (notifContainer) renderAdminNotifications(notifContainer);
 
+    // KPI movimenti orfani
+    _renderBankOrphanKpi(container.querySelector('#admin-bank-orphan-kpi'));
+
     // Tab Logic
     const tabs = container.querySelectorAll('.tab-btn');
     const contents = container.querySelectorAll('.tab-content');
@@ -352,6 +359,70 @@ export function renderAdminDashboard(container) {
 
     // Load All Configs
     loadAdminConfigs();
+}
+
+async function _renderBankOrphanKpi(el) {
+    if (!el) return;
+
+    try {
+        const since = new Date();
+        since.setDate(since.getDate() - 90);
+
+        // Posted transactions without invoice links
+        const { data: txs } = await supabase
+            .from('bank_transactions')
+            .select('id, amount, linked_invoices')
+            .eq('status', 'posted')
+            .gte('date', since.toISOString().split('T')[0])
+            .is('active_invoice_id', null)
+            .is('passive_invoice_id', null);
+
+        if (!txs || txs.length === 0) {
+            el.innerHTML = '';
+            return;
+        }
+
+        // Filter out multi-linked and payment-linked
+        const ids = txs.map(t => t.id);
+        const { data: linkedPay } = await supabase
+            .from('payments')
+            .select('bank_transaction_id')
+            .in('bank_transaction_id', ids);
+
+        const linkedSet = new Set((linkedPay || []).map(p => p.bank_transaction_id));
+        const orphans = txs.filter(t =>
+            !linkedSet.has(t.id) &&
+            (!t.linked_invoices || t.linked_invoices.length === 0)
+        );
+
+        if (orphans.length === 0) {
+            el.innerHTML = '';
+            return;
+        }
+
+        const total = orphans.reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
+        const totalFmt = total.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        el.innerHTML = `
+            <a href="#bank-orphans" style="text-decoration: none; display: block;">
+                <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2); border-radius: 12px; cursor: pointer; transition: background 0.15s;"
+                    onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='rgba(239,68,68,0.06)'">
+                    <span class="material-icons-round" style="font-size: 1.4rem; color: #ef4444; flex-shrink: 0;">warning_amber</span>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 700; font-size: 0.9rem; color: #ef4444;">
+                            ${orphans.length} moviment${orphans.length === 1 ? 'o' : 'i'} da quadrare
+                        </div>
+                        <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.15rem;">
+                            Totale non riconciliato: <b>${totalFmt} €</b> (ultimi 90 giorni)
+                        </div>
+                    </div>
+                    <span class="material-icons-round" style="font-size: 1rem; color: #ef4444; opacity: 0.7;">arrow_forward</span>
+                </div>
+            </a>
+        `;
+    } catch (err) {
+        console.error('[admin-dashboard] bank orphan kpi error', err);
+    }
 }
 
 async function loadAdminConfigs() {

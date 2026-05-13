@@ -208,6 +208,10 @@ function render() {
                 if (pageTitle) pageTitle.textContent = 'Estratti Conto';
                 import('../features/bank_statements.js?v=8000').then(m => m.renderBankStatements(contentArea));
                 break;
+            case 'bank-orphans':
+                if (pageTitle) pageTitle.textContent = 'Movimenti da Quadrare';
+                import('../features/bank/orphans_view.js?v=8000').then(m => m.renderBankOrphans(contentArea));
+                break;
             case 'invoices-archive':
                 if (pageTitle) pageTitle.textContent = 'Archivio Storico';
                 renderPlaceholder(contentArea, 'Archivio Storico');
