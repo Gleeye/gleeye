@@ -369,6 +369,198 @@ function _renderView(container, { collaborator, assignments, payments, invoices,
             });
         })
     );
+
+    // Anomalia 2: bottoni "Carica fattura" sui pagamenti Invito Inviato
+    container.querySelectorAll('.ma-upload-invoice-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const paymentId = btn.dataset.paymentId;
+            const paymentAmount = parseFloat(btn.dataset.paymentAmount) || 0;
+            const collabId = btn.dataset.paymentCollabId;
+            const assignmentId = btn.dataset.paymentAssignmentId;
+            handleUploadCollabInvoice(btn, { paymentId, paymentAmount, collabId, assignmentId });
+        });
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ANOMALIA 2: Collab carica fattura passiva direttamente da #my-assignments
+// ─────────────────────────────────────────────────────────────────────────────
+
+// pdfjs-dist lazy load (riusa il pattern di cmd_palette.js / invoices.js)
+let _pdfjsModule = null;
+async function _loadPdfJs() {
+    if (_pdfjsModule) return _pdfjsModule;
+    _pdfjsModule = (async () => {
+        const mod = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.mjs');
+        mod.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs';
+        return mod;
+    })();
+    return _pdfjsModule;
+}
+
+async function _extractPdfText(file) {
+    const pdfjs = await _loadPdfJs();
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjs.getDocument({ data: buf }).promise;
+    const chunks = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const tc = await page.getTextContent();
+        chunks.push(tc.items.map(it => it.str || '').join(' '));
+    }
+    return { text: chunks.join('\n\n').trim(), pageCount: pdf.numPages };
+}
+
+const _COLLAB_INVOICE_SCHEMA = {
+    invoice_number: 'string',
+    invoice_date: 'string — YYYY-MM-DD',
+    due_date: 'string|null — YYYY-MM-DD',
+    total_gross: 'number — totale lordo a pagare',
+    taxable_amount: 'number|null',
+    vat_amount: 'number|null',
+    vat_rate: 'number|null',
+    withholding_amount: 'number|null — ritenuta d\'acconto',
+    cassa_amount: 'number|null',
+    rivalsa_inps_amount: 'number|null',
+    bollo_amount: 'number|null',
+    regime: 'string|null — ordinario|forfettario|occasionale',
+    description: 'string|null',
+    confidence: 'string — high|medium|low',
+};
+
+const _COLLAB_INVOICE_SYSTEM = `Sei un assistente che estrae dati dalla fattura PASSIVA di un collaboratore
+freelance verso un'agenzia di comunicazione italiana. Estrai i campi e
+rispondi SOLO JSON valido come da schema.
+- Date YYYY-MM-DD.
+- Importi numerici (punto decimale).
+- regime: ordinario/forfettario/occasionale.
+- Cassa professionale vs Rivalsa INPS 4%: sono diversi, non popolare entrambi.
+- Campi obbligatori: invoice_number, invoice_date, total_gross.`;
+
+async function handleUploadCollabInvoice(btn, ctx) {
+    // File picker programmatic
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/pdf';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+
+    input.onchange = async () => {
+        const file = input.files?.[0];
+        document.body.removeChild(input);
+        if (!file) return;
+        if (file.type !== 'application/pdf') {
+            showGlobalAlert('Carica un file PDF.', 'error');
+            return;
+        }
+
+        const originalLabel = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-icons-round" style="font-size:.95rem;">hourglass_top</span> Lettura PDF...`;
+
+        try {
+            const { text: pdfText, pageCount } = await _extractPdfText(file);
+            if (!pdfText) {
+                showGlobalAlert('Il PDF non contiene testo estraibile (probabile scansione). Manda la fattura via email o WhatsApp.', 'error');
+                return;
+            }
+
+            btn.innerHTML = `<span class="material-icons-round" style="font-size:.95rem;">auto_awesome</span> AI estrae i dati...`;
+
+            if (!window.ai?.completeJSON) {
+                showGlobalAlert('Modulo AI non caricato. Hard refresh.', 'error');
+                return;
+            }
+
+            const TRUNCATE = 60000;
+            const finalText = pdfText.length > TRUNCATE ? pdfText.slice(0, TRUNCATE) + '\n[…troncato…]' : pdfText;
+
+            const extracted = await window.ai.completeJSON(
+                `Pagine: ${pageCount}\n\nTESTO PDF:\n${finalText}`,
+                _COLLAB_INVOICE_SCHEMA,
+                {
+                    feature: 'passive_invoice_pdf_parser',
+                    system: _COLLAB_INVOICE_SYSTEM,
+                    temperature: 0.1,
+                }
+            );
+
+            if (!extracted || !extracted.invoice_number || !extracted.invoice_date || !extracted.total_gross) {
+                showGlobalAlert('AI non è riuscita a estrarre i campi chiave. Riprova o manda la fattura via email.', 'error');
+                return;
+            }
+
+            // Sanity check: l'importo netto della fattura dovrebbe combaciare con
+            // quello del pagamento (entro 1 € di tolleranza). Se no, warning ma
+            // procediamo comunque (sarà l'admin a controllare).
+            const delta = Math.abs(extracted.total_gross - ctx.paymentAmount);
+            const mismatched = ctx.paymentAmount > 0 && delta > 1;
+
+            // Insert in passive_invoices con review_status='pending'
+            const insertPayload = {
+                invoice_number: extracted.invoice_number,
+                invoice_date: extracted.invoice_date,
+                due_date: extracted.due_date || null,
+                amount: extracted.taxable_amount || extracted.total_gross,
+                amount_total: extracted.total_gross,
+                vat_amount: extracted.vat_amount || 0,
+                cassa_amount: extracted.cassa_amount || 0,
+                bollo_amount: extracted.bollo_amount || 0,
+                withholding_amount: extracted.withholding_amount || 0,
+                description: extracted.description || null,
+                collaborator_id: ctx.collabId || null,
+                assignment_id: ctx.assignmentId || null,
+                auto_imported: true,
+                source: 'ai_pdf_upload',
+                ai_extracted_data: extracted,
+                review_status: 'pending',
+                imported_at: new Date().toISOString(),
+            };
+
+            const { data: newInvoice, error: insErr } = await supabase
+                .from('passive_invoices')
+                .insert(insertPayload)
+                .select('id')
+                .single();
+
+            if (insErr) {
+                console.error('[collab-upload]', insErr);
+                showGlobalAlert(`Errore salvataggio: ${insErr.message}`, 'error');
+                return;
+            }
+
+            // Link al payment + status update
+            await supabase
+                .from('payments')
+                .update({
+                    passive_invoice_id: newInvoice.id,
+                    status: 'Fattura Ricevuta',
+                })
+                .eq('id', ctx.paymentId);
+
+            // Toast finale
+            const warn = mismatched
+                ? ` ⚠ importo PDF (€ ${extracted.total_gross}) diverso da pagamento (€ ${ctx.paymentAmount.toFixed(2)}). L'admin verificherà.`
+                : '';
+            showGlobalAlert(`✨ Fattura ${extracted.invoice_number} caricata e collegata al pagamento. L'amministrazione la valida e procede al pagamento.${warn}`, 'success');
+
+            // Re-render della vista
+            const container = document.getElementById('content-area');
+            if (container) {
+                setTimeout(() => renderMyAssignments(container), 600);
+            }
+        } catch (err) {
+            console.error('[collab-upload-invoice]', err);
+            showGlobalAlert(`Errore: ${err.message || err}`, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalLabel;
+        }
+    };
+
+    input.click();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -518,6 +710,17 @@ function _payItem(p, hasBorder=true) {
     const dateStr = p.due_date ? formatDate(p.due_date) : null;
     const isOverdue = p.due_date && new Date(p.due_date) < new Date();
 
+    // Anomalia 2: se il pagamento è in "Invito Inviato", il collab può caricare
+    // la sua fattura passiva direttamente da qui. AI parser + link automatico al
+    // payment.
+    const uploadBtn = isUrgent
+        ? `<button class="ma-upload-invoice-btn" data-payment-id="${p.id}" data-payment-amount="${p.amount || 0}" data-payment-collab-id="${p.collaborator_id || ''}" data-payment-assignment-id="${p.assignment_id || ''}"
+            style="margin-top:.5rem; padding:.4rem .7rem; border-radius:8px; border:none; background:linear-gradient(135deg, #8b5cf6, #6366f1); color:white; font-size:.7rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:.3rem; box-shadow: 0 2px 6px rgba(139, 92, 246, 0.25);"
+            title="Carica il PDF della fattura: l'AI estrae i dati e li collega a questo pagamento">
+            <span class="material-icons-round" style="font-size:.95rem;">cloud_upload</span> Carica fattura
+        </button>`
+        : '';
+
     return `
         <div style="padding:.9rem 0;${hasBorder?'border-bottom:1px solid rgba(0,0,0,.04);':''}display:flex;justify-content:space-between;align-items:flex-start;gap:.875rem;${isUrgent?'':''}">
             <div style="flex:1;min-width:0;">
@@ -528,6 +731,7 @@ function _payItem(p, hasBorder=true) {
                         ${isOverdue ? '⚠ scad. ' : 'entro '}${dateStr}
                     </span>` : `<span style="font-size:.68rem;color:var(--text-tertiary);font-style:italic;">senza scadenza</span>`}
                 </div>
+                ${uploadBtn}
             </div>
             <div style="text-align:right;flex-shrink:0;">
                 <div style="font-size:.95rem;font-weight:800;font-family:'Outfit',sans-serif;color:var(--text-primary);">${formatAmount(p.amount)}€</div>
