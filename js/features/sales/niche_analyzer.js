@@ -67,13 +67,74 @@ export async function analyzeNiche(nicheName, sector) {
             'Sei un consulente di marketing B2B esperto del mercato italiano, specializzato in agenzie di comunicazione. ' +
             'Analizza nicchie di mercato applicando il framework Parozzi (5 criteri di validazione). ' +
             'L\'agenzia analizzata è Gleeye (Genova, comunicazione & marketing). ' +
-            'Sii concreto, basa le stime su dati di settore noti, dichiara incertezze. ' +
+            'Sii concreto MA dichiara incertezze: per le stime numeriche (market size, n. aziende), preferisci range piuttosto che numeri puntuali. Il verdict dei criteri sii prudente — meglio false con rationale onesto che true allucinato. ' +
             'Il geo_scope deve essere granulare (singoli comuni/città) per permettere sourcing iterativo. ' +
             'I SAP candidati devono pescare SOLO dal catalogo fornito (mai inventare SAP che non ci sono). ' +
             'Rispondi SOLO in JSON valido.',
     });
 
-    return normalizeResult(result, sapCatalog);
+    const normalized = normalizeResult(result, sapCatalog);
+
+    // Verifica numerica via Perplexity (web search) sulle claim quantitative.
+    // Non rigenera l'analisi: arricchisce con dati verificati + fonti.
+    try {
+        const verification = await verifyMarketDataWithPerplexity(nicheName, sector, normalized);
+        if (verification) {
+            normalized.market_data_verified = verification;
+            // Se la verifica conferma o aggiusta il market size, lo riflettiamo nel campo principale.
+            if (verification.verified_market_size && verification.verified_market_size_text) {
+                normalized.market_size_estimate = verification.verified_market_size_text + (verification.sources?.length ? ' [fonti web verificate]' : '');
+            }
+        }
+    } catch (err) {
+        console.warn('[NicheAnalyzer] verification failed (proseguo con dati Gemini)', err);
+        normalized.warnings = [...(normalized.warnings || []), 'Verifica web (Perplexity) non disponibile: dati Gemini non confermati esternamente.'];
+    }
+
+    return normalized;
+}
+
+/**
+ * Verifica con Perplexity (web search) le claim numeriche della prima passata.
+ * NON rifa tutta l'analisi: solo controlla dimensione mercato + criterio "size" (8-100K realtà).
+ * Costo: ~0.3 centesimi a verifica.
+ */
+async function verifyMarketDataWithPerplexity(nicheName, sector, analysis) {
+    const sizeRationale = analysis.criteria_validation?.size?.rationale || '';
+    const marketEstimate = analysis.market_size_estimate || '';
+
+    const prompt =
+        'Verifica con fonti reali (ISTAT, Camere di Commercio, registri di settore, news verificabili) i dati seguenti sulla nicchia di mercato italiana "' + nicheName + '"' +
+        (sector ? ' (settore: ' + sector.name + ')' : '') + ':\n\n' +
+        '1. CLAIM DIMENSIONE MERCATO: "' + marketEstimate + '"\n' +
+        '2. CRITERIO SIZE (≥8K realtà raggiungibili): rationale="' + sizeRationale + '"\n\n' +
+        'Ricerca dati pubblici reali e rispondi in JSON:\n' +
+        '{\n' +
+        '  "verified_market_size": <numero|null>,         // n. realtà stimato verificato\n' +
+        '  "verified_market_size_text": "<testo>",         // es. "~2.300 strutture ricettive in Liguria (ISTAT 2024), 32K nazionale"\n' +
+        '  "size_criterion_met": <true|false|null>,        // verdict finale: la nicchia ha ≥8K realtà raggiungibili?\n' +
+        '  "confidence": "alta|media|bassa",\n' +
+        '  "sources": [{"title":"","url":"","note":""}],   // 2-5 fonti reali\n' +
+        '  "discrepancies": "<testo>"                       // dove le claim AI iniziali erano sbagliate (se lo erano)\n' +
+        '}\n\n' +
+        'Solo JSON. Niente testo extra.';
+
+    const schema = {
+        verified_market_size: 0,
+        verified_market_size_text: 'string',
+        size_criterion_met: true,
+        confidence: 'string',
+        sources: [{ title: 'string', url: 'string', note: 'string' }],
+        discrepancies: 'string',
+    };
+
+    const result = await completeJSON(prompt, schema, {
+        feature: 'sales_niche_verify',
+        model: 'perplexity/sonar', // web search incluso
+        system: 'Sei un analista di mercato che verifica dati con fonti pubbliche reali (ISTAT, Camera di Commercio, registri settoriali, dati istituzionali italiani). Rispondi SOLO in JSON valido. Se non trovi dati affidabili, dichiaralo con confidence=bassa e sources=[].',
+    });
+
+    return result;
 }
 
 /**
@@ -95,14 +156,21 @@ export async function saveNicheAnalysis(nicheId, analysis) {
     const shouldOverwriteGeo = currentGeoScope.length === 0;
 
     // 1. Update outreach_niches
+    // I dati verificati Perplexity vanno in niche_language come chiave speciale __verified__
+    // (è già un jsonb generico, evitiamo migration per un campo solo)
+    const enrichedLanguage = { ...(analysis.niche_language || {}) };
+    if (analysis.market_data_verified) {
+        enrichedLanguage.__verified__ = analysis.market_data_verified;
+    }
+
     const updatePayload = {
         description:          analysis.description || null,
         market_size_estimate: analysis.market_size_estimate || null,
         pain_points:          analysis.pain_points || [],
-        niche_language:       analysis.niche_language || {},
+        niche_language:       enrichedLanguage,
         criteria_validation:  analysis.criteria_validation || {},
         analyzed_at:          new Date().toISOString(),
-        analyzed_by_model:    MODEL,
+        analyzed_by_model:    MODEL + ' + perplexity-verify',
     };
     if (shouldOverwriteGeo) {
         updatePayload.geo_scope = analysis.geo_scope || [];

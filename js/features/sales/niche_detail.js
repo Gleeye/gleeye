@@ -215,6 +215,9 @@ function buildOverviewTab(ctx) {
     const validation = niche.criteria_validation || {};
     const painPoints = Array.isArray(niche.pain_points) ? niche.pain_points : [];
     const language = niche.niche_language || {};
+    const verified = language.__verified__ || null;
+    // language senza la chiave speciale (per la visualizzazione)
+    const cleanLanguage = Object.fromEntries(Object.entries(language).filter(([k]) => k !== '__verified__'));
     const geoScope = Array.isArray(niche.geo_scope) ? niche.geo_scope : [];
 
     return (
@@ -224,6 +227,8 @@ function buildOverviewTab(ctx) {
                 (niche.description ? '<div style="font-size:0.85rem;line-height:1.5;color:var(--text-primary);margin-bottom:0.75rem;">' + escHtml(niche.description) + '</div>' : '') +
                 (niche.market_size_estimate ? '<div style="font-size:0.78rem;color:var(--text-secondary);padding:0.55rem 0.7rem;background:var(--bg-tertiary);border-radius:8px;"><strong>📊 Dimensione mercato:</strong> ' + escHtml(niche.market_size_estimate) + '</div>' : '')
             ) +
+            // Card 1b: dati verificati con fonti (Perplexity web search)
+            (verified ? buildVerifiedDataCard(verified) : '') +
             // Card 2: criteri Parozzi
             overviewCard('Validazione 5 criteri', 'fact_check', buildCriteriaCompact(validation)) +
             // Card 3: pain (full width)
@@ -234,9 +239,9 @@ function buildOverviewTab(ctx) {
                     '</ul>'
                   ) + '</div>'
                 : '') +
-            // Card 4: linguaggio
-            (Object.keys(language).length > 0
-                ? overviewCard('Linguaggio nicchia', 'translate', buildLanguageCompact(language))
+            // Card 4: linguaggio (cleanLanguage = senza chiave __verified__)
+            (Object.keys(cleanLanguage).length > 0
+                ? overviewCard('Linguaggio nicchia', 'translate', buildLanguageCompact(cleanLanguage))
                 : '') +
             // Card 5: comuni
             (geoScope.length > 0
@@ -246,6 +251,7 @@ function buildOverviewTab(ctx) {
                     '</div>'
                   )
                 : '') +
+
             // Card 6: SAP candidati (full width)
             (relevance.length > 0
                 ? '<div style="grid-column:1/-1;">' + overviewCard('SAP candidati (' + relevance.length + ')', 'campaign', buildSapCandidatesCompact(relevance)) + '</div>'
@@ -282,6 +288,29 @@ function buildCriteriaCompact(validation) {
             );
         }).join('') +
     '</div>';
+}
+
+function buildVerifiedDataCard(v) {
+    const confColor = v.confidence === 'alta' ? '#10b981' : v.confidence === 'media' ? '#f59e0b' : '#94a3b8';
+    const sourcesHtml = (v.sources || []).filter(s => s.url).map(s =>
+        '<a href="' + escHtml(s.url) + '" target="_blank" rel="noopener noreferrer" style="display:block;font-size:0.74rem;color:#3b82f6;text-decoration:none;padding:4px 0;border-bottom:1px dashed var(--glass-border);">' +
+            '<span style="font-weight:600;">' + escHtml(s.title || s.url) + '</span>' +
+            (s.note ? '<span style="color:var(--text-tertiary);font-weight:400;"> — ' + escHtml(s.note) + '</span>' : '') +
+            '<span class="material-icons-round" style="font-size:0.75rem;vertical-align:-1px;margin-left:3px;opacity:0.6;">open_in_new</span>' +
+        '</a>'
+    ).join('');
+
+    return overviewCard('Verificato via Perplexity (web)', 'verified',
+        (v.verified_market_size_text ? '<div style="font-size:0.85rem;color:var(--text-primary);margin-bottom:0.6rem;">' + escHtml(v.verified_market_size_text) + '</div>' : '') +
+        '<div style="display:flex;gap:0.5rem;align-items:center;font-size:0.74rem;color:var(--text-tertiary);margin-bottom:0.6rem;">' +
+            '<span style="padding:2px 8px;border-radius:6px;background:' + confColor + '15;color:' + confColor + ';font-weight:700;">confidence ' + escHtml(v.confidence || 'n/d') + '</span>' +
+            (v.size_criterion_met != null
+                ? '<span>· criterio size: ' + (v.size_criterion_met ? '<strong style="color:#10b981;">soddisfatto</strong>' : '<strong style="color:#ef4444;">non soddisfatto</strong>') + '</span>'
+                : '') +
+        '</div>' +
+        (v.discrepancies ? '<div style="font-size:0.74rem;color:#92400e;padding:0.5rem 0.7rem;background:#f59e0b08;border:1px solid #f59e0b22;border-radius:8px;margin-bottom:0.6rem;"><strong>⚠ Discrepanze:</strong> ' + escHtml(v.discrepancies) + '</div>' : '') +
+        (sourcesHtml ? '<div style="font-size:0.72rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;margin-top:0.6rem;margin-bottom:0.3rem;">Fonti</div>' + sourcesHtml : '<div style="font-size:0.74rem;color:var(--text-tertiary);font-style:italic;">Nessuna fonte web disponibile per questa nicchia.</div>')
+    );
 }
 
 function buildLanguageCompact(lang) {
