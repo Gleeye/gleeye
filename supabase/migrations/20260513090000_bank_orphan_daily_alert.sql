@@ -9,7 +9,7 @@ INSERT INTO public.notification_types (
     category,
     default_email,
     default_web,
-    default_push,
+    default_email_guest,
     is_active
 )
 VALUES (
