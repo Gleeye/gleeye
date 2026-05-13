@@ -7,5 +7,6 @@
 
 export { renderPipelineBoard } from './pipeline_board.js?v=8001';
 export { renderSalesMetrics }  from './metrics.js?v=8001';
-export { renderSalesNiches, renderNicheDetail } from './niches.js?v=8001';
+export { renderSalesNiches } from './niches.js?v=8002';
+export { renderNicheDetail } from './niche_detail.js?v=8001';
 export { renderSalesSequences, renderSequenceDetail } from './sequences.js?v=8001';
