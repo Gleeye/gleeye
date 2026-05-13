@@ -21,6 +21,12 @@ import {
 } from '../modules/pm_api.js?v=8000';
 import { formatAmount } from '../modules/utils.js?v=8000';
 import { CloudLinksManager } from '../features/components/CloudLinksManager.js?v=8000';
+import { openDocGenerator } from './sap/doc_generator.js?v=8000';
+
+// SAP feature modules (lazy-imported on demand to keep initial bundle light)
+// openOrderFromSap, openSapAiSuggest, openPmTemplateGenerator → window.* handlers below
+
+let _sapViewMode = 'grid'; // 'grid' | 'catalog'
 
 // --- HANDLERS ---
 
@@ -63,6 +69,15 @@ export async function renderSapServices(container) {
             return matchesSearch && matchesDept;
         }).sort((a, b) => a.name.localeCompare(b.name));
 
+        // Vista catalogo: delega a catalog_view.js (render asincrono post-return)
+        if (_sapViewMode === 'catalog') {
+            import('./sap/catalog_view.js?v=8000').then(({ renderSapCatalog }) => {
+                const grid = document.getElementById('sap-services-grid');
+                if (grid) renderSapCatalog(grid, filtered, state.sapServiceTypes);
+            });
+            return '<div style="padding:1rem; color:var(--text-tertiary); font-size:0.85rem;">Caricamento vista catalogo…</div>';
+        }
+
         if (filtered.length === 0) {
             return `<div style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); padding: 3rem;">Nessun servizio SAP trovato.</div>`;
         }
@@ -98,9 +113,13 @@ export async function renderSapServices(container) {
                     <h3 style="margin: 0; font-size: 1rem; font-weight: 400; color: var(--text-primary); line-height: 1.3;">${s.name}</h3>
                     <p style="margin: 0.25rem 0 0 0; font-size: 0.8rem; color: var(--text-tertiary);">${typeName}</p>
                 </div>
-                <div style="margin-top: auto; padding-top: 0.75rem; border-top: 1px solid var(--glass-border); display: flex; flex-wrap: wrap; gap: 0.25rem;">
-                    ${areaNames.map(a => `<span style="font-size: 0.7rem; color: var(--text-tertiary); background: var(--bg-secondary); padding: 1px 6px; border-radius: 4px;">${a}</span>`).join('')}
-                    ${areaNames.length === 0 ? '<span style="font-size: 0.7rem; color: var(--text-tertiary);">Nessuna area</span>' : ''}
+                <div style="margin-top: auto; padding-top: 0.75rem; border-top: 1px solid var(--glass-border); display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; justify-content: space-between;">
+                    <div style="display:flex; flex-wrap:wrap; gap:0.25rem;">
+                        ${areaNames.map(a => `<span style="font-size: 0.7rem; color: var(--text-tertiary); background: var(--bg-secondary); padding: 1px 6px; border-radius: 4px;">${a}</span>`).join('')}
+                        ${areaNames.length === 0 ? '<span style="font-size: 0.7rem; color: var(--text-tertiary);">Nessuna area</span>' : ''}
+                    </div>
+                    ${s.ai_doc_status === 'ready' ? `<span style="font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; background: rgba(16,185,129,0.1); color: #10b981; font-weight: 700; display:flex; align-items:center; gap:3px;"><span class="material-icons-round" style="font-size:0.75rem;">auto_awesome</span>Docs AI</span>` : ''}
+                    ${s.ai_doc_status === 'generating' ? `<span style="font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; background: rgba(59,130,246,0.1); color: var(--brand-blue); font-weight: 700; display:flex; align-items:center; gap:3px;"><span class="material-icons-round" style="font-size:0.75rem;">hourglass_top</span>Generando…</span>` : ''}
                 </div>
             </div>
         `;
@@ -115,17 +134,26 @@ export async function renderSapServices(container) {
                         <span style="font-size: 1.1rem; font-weight: 400; color: var(--text-primary);">Servizi SAP</span>
                         <span id="sap-services-count-badge" style="background: var(--brand-blue); color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.9rem; font-weight: 400;">${state.sapServices.length}</span>
                     </div>
-                    <button class="primary-btn" onclick="openSapServiceModal()">
-                        <span class="material-icons-round">add</span>
-                        Nuovo Servizio SAP
-                    </button>
+                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                        <button onclick="window.openSapAiSuggest()" style="display:flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:10px; border:1px solid var(--glass-border); background:white; color:var(--text-primary); font-weight:700; font-size:0.82rem; cursor:pointer;" title="Analisi AI: quali SAP costruire">
+                            <span class="material-icons-round" style="font-size:1rem; color:var(--brand-blue);">psychology</span> Analisi AI
+                        </button>
+                        <button id="sap-view-toggle" onclick="window.toggleSapViewMode()" style="display:flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:10px; border:1px solid var(--glass-border); background:white; color:var(--text-primary); font-weight:700; font-size:0.82rem; cursor:pointer;" title="Cambia vista">
+                            <span class="material-icons-round" style="font-size:1rem; color:var(--text-secondary);">${_sapViewMode === 'catalog' ? 'view_module' : 'view_list'}</span>
+                            ${_sapViewMode === 'catalog' ? 'Vista griglia' : 'Vista catalogo'}
+                        </button>
+                        <button class="primary-btn" onclick="openSapServiceModal()">
+                            <span class="material-icons-round">add</span>
+                            Nuovo Servizio SAP
+                        </button>
+                    </div>
                 </div>
                 <div class="pills-container" id="sap-service-dept-pills">
                     <button class="pill-filter ${!state.selectedSapServiceDeptId || state.selectedSapServiceDeptId === 'all' ? 'active' : ''}" data-dept="all">Tutti</button>
                     ${state.departments.map(d => `<button class="pill-filter ${state.selectedSapServiceDeptId === d.id ? 'active' : ''}" data-dept="${d.id}">${d.name}</button>`).join('')}
                 </div>
             </div>
-            <div class="card-grid" id="sap-services-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
+            <div id="sap-services-grid" style="${_sapViewMode === 'catalog' ? '' : 'display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1.5rem;'}">
                 ${renderGrid()}
             </div>
         </div>
@@ -265,6 +293,13 @@ export async function renderSapServiceDetail(container, serviceId) {
                     </button>
                     <button onclick="window.openSapServiceActivitiesModal('${space?.id}')" class="secondary-btn" style="display:flex; align-items:center; gap:0.5rem; background:white; padding:0.6rem 1rem; border-radius:12px; border:1px solid var(--glass-border); cursor:pointer;">
                         <span class="material-icons-round" style="color:var(--brand-blue); font-size:1.2rem;">assignment</span> <b>Attività</b>
+                    </button>
+                    <button onclick="window.openOrderFromSap('${service.id}')" style="display:flex; align-items:center; gap:0.5rem; background:white; padding:0.6rem 1.1rem; border-radius:12px; border:1px solid var(--glass-border); cursor:pointer; font-weight:700; font-size:0.85rem; color:var(--text-primary);">
+                        <span class="material-icons-round" style="color:#10b981; font-size:1.2rem;">add_shopping_cart</span> <b>Crea ordine</b>
+                    </button>
+                    <button onclick="window.openSapDocGenerator('${service.id}')" style="display:flex; align-items:center; gap:0.5rem; padding:0.6rem 1.25rem; border-radius:12px; border:none; cursor:pointer; background: var(--brand-gradient); color:white; font-weight:700; font-size:0.85rem; box-shadow: 0 4px 12px rgba(99,102,241,0.3); transition: opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                        <span class="material-icons-round" style="font-size:1.2rem;">auto_awesome</span>
+                        ${service.ai_doc_status === 'ready' ? 'Rigenera Docs AI' : 'Genera documentazione AI'}
                     </button>
                 </div>
             </div>
@@ -494,11 +529,165 @@ export async function renderSapServiceDetail(container, serviceId) {
                     </div>
                 </div>
             </div>
+
+            <!-- Performance Dashboard (SAP-6) -->
+            <div style="margin-top: 1.5rem; background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden;">
+                <div onclick="const b=document.getElementById('sap-perf-body'); const wasHidden=b.classList.contains('hidden'); b.classList.toggle('hidden'); this.querySelector('.exp-icon').textContent = b.classList.contains('hidden') ? 'expand_more' : 'expand_less'; if(wasHidden) window._loadSapPerf('${service.id}');"
+                     style="display:flex; align-items:center; justify-content:space-between; padding:1.1rem 1.5rem; cursor:pointer; user-select:none;">
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <div style="width:32px; height:32px; border-radius:8px; background:rgba(16,185,129,0.1); display:flex; align-items:center; justify-content:center; color:#10b981;">
+                            <span class="material-icons-round" style="font-size:1.1rem;">bar_chart</span>
+                        </div>
+                        <span style="font-weight:700; font-size:0.95rem; color:var(--text-primary); font-family:var(--font-titles);">Performance & KPI</span>
+                    </div>
+                    <span class="material-icons-round exp-icon" style="color:var(--text-tertiary);">expand_more</span>
+                </div>
+                <div id="sap-perf-body" class="hidden" style="padding:0 1.5rem 1.5rem 1.5rem;">
+                    <style>#sap-perf-body.hidden{display:none;}</style>
+                    <div id="sap-perf-content">
+                        <div style="padding:1rem; text-align:center; color:var(--text-tertiary); font-size:0.82rem;">Apri il pannello per caricare i KPI.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Documentation Section -->
+            <div id="sap-ai-section" style="margin-top: 1.5rem; background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden;">
+                <div onclick="document.getElementById('sap-ai-section-body').classList.toggle('hidden'); this.querySelector('.expand-icon').textContent = document.getElementById('sap-ai-section-body').classList.contains('hidden') ? 'expand_more' : 'expand_less';" style="display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; cursor: pointer; user-select: none;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--brand-gradient); display: flex; align-items: center; justify-content: center; color: white;">
+                            <span class="material-icons-round" style="font-size: 1.1rem;">auto_awesome</span>
+                        </div>
+                        <div>
+                            <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); font-family: var(--font-titles);">Dati per AI Documentation Generator</span>
+                            <span style="margin-left: 0.75rem; font-size: 0.7rem; padding: 2px 8px; border-radius: 8px; font-weight: 700;
+                                ${service.ai_doc_status === 'ready' ? 'background: rgba(16,185,129,0.12); color: #10b981;' :
+                                  service.ai_doc_status === 'generating' ? 'background: rgba(59,130,246,0.12); color: var(--brand-blue);' :
+                                  service.ai_doc_status === 'error' ? 'background: rgba(239,68,68,0.12); color: #ef4444;' :
+                                  'background: var(--bg-tertiary); color: var(--text-tertiary);'}">
+                                ${ service.ai_doc_status === 'ready' ? '✓ Docs generati' :
+                                   service.ai_doc_status === 'generating' ? '⟳ Generando...' :
+                                   service.ai_doc_status === 'error' ? '✕ Errore' : 'Da compilare' }
+                            </span>
+                        </div>
+                    </div>
+                    <span class="material-icons-round expand-icon" style="color: var(--text-tertiary);">${service.value_proposition ? 'expand_less' : 'expand_more'}</span>
+                </div>
+
+                <div id="sap-ai-section-body" class="${service.value_proposition ? '' : 'hidden'}" style="padding: 0 1.5rem 1.5rem 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+                    <style>
+                        #sap-ai-section-body.hidden { display: none; }
+                        .ai-field-label { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 0.35rem; display: block; }
+                        .ai-field-input { width: 100%; padding: 0.65rem 0.85rem; border-radius: 10px; border: 1px solid var(--glass-border); background: var(--bg-color); color: var(--text-primary); font-size: 0.9rem; font-family: inherit; resize: vertical; box-sizing: border-box; }
+                        .ai-field-input:focus { outline: none; border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+                    </style>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label class="ai-field-label">Value Proposition <span style="color: var(--text-tertiary); font-weight: 400; text-transform: none;">(cosa risolve, per chi)</span></label>
+                            <textarea id="sap-ai-value-prop" class="ai-field-input" rows="3" placeholder="Es. Crea il tuo podcast professionale senza set fisico...">${service.value_proposition || ''}</textarea>
+                        </div>
+                        <div>
+                            <label class="ai-field-label">Target Customer <span style="color: var(--text-tertiary); font-weight: 400; text-transform: none;">(segmento, contesto)</span></label>
+                            <textarea id="sap-ai-target" class="ai-field-input" rows="3" placeholder="Es. Imprenditori, consulenti, esperti di settore...">${service.target_customer || ''}</textarea>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label class="ai-field-label">Cosa include il pacchetto</label>
+                            <textarea id="sap-ai-includes" class="ai-field-input" rows="3" placeholder="Es. 1× Setup remoto + 3h registrazione + Editing + Distribuzione">${(service.package_includes || []).map(i => typeof i === 'string' ? i : (i.label || '')).join('\n')}</textarea>
+                            <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 0.25rem;">Una voce per riga</div>
+                        </div>
+                        <div>
+                            <label class="ai-field-label">Tier di prezzo</label>
+                            <textarea id="sap-ai-pricing" class="ai-field-input" rows="3" placeholder="Es. Base 800€ / Premium 1500€ / Enterprise custom">${(service.pricing_tiers || []).map(t => typeof t === 'string' ? t : ((t.name || '') + (t.price ? ' ' + t.price + '€' : '') + (t.description ? ' — ' + t.description : ''))).join('\n')}</textarea>
+                            <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 0.25rem;">Una riga per tier</div>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label class="ai-field-label">Tempo di consegna (giorni)</label>
+                            <input type="number" id="sap-ai-delivery" class="ai-field-input" min="1" placeholder="Es. 14" value="${service.delivery_time_days || ''}">
+                        </div>
+                        <div>
+                            <label class="ai-field-label">Team richiesto</label>
+                            <input type="text" id="sap-ai-team" class="ai-field-input" placeholder="Es. 1 tecnico audio + 1 editor" value="${service.team_required || ''}">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--glass-border); flex-wrap:wrap;">
+                        <button onclick="window.saveAiFields('${service.id}')" style="display:flex; align-items:center; gap:0.4rem; padding:0.6rem 1.25rem; border-radius:10px; border:1px solid var(--glass-border); background:white; color:var(--text-primary); font-weight:700; font-size:0.85rem; cursor:pointer;">
+                            <span class="material-icons-round" style="font-size:1rem;">save</span> Salva dati
+                        </button>
+                        <button onclick="window.openPmTemplateGenerator('${service.id}')" style="display:flex; align-items:center; gap:0.4rem; padding:0.6rem 1.25rem; border-radius:10px; border:1px solid var(--glass-border); background:white; color:var(--text-primary); font-weight:700; font-size:0.85rem; cursor:pointer;">
+                            <span class="material-icons-round" style="font-size:1rem; color:#f59e0b;">account_tree</span> Genera template PM
+                        </button>
+                        <button onclick="window.openSapDocGenerator('${service.id}')" style="display:flex; align-items:center; gap:0.5rem; padding:0.6rem 1.25rem; border-radius:10px; border:none; cursor:pointer; background:var(--brand-gradient); color:white; font-weight:700; font-size:0.85rem;">
+                            <span class="material-icons-round" style="font-size:1rem;">auto_awesome</span> Genera documentazione AI
+                        </button>
+                    </div>
+                </div>
+            </div>
+
         </div>
     `;
 }
 
 // --- WINDOW MODALS & ACTIONS ---
+
+window.saveAiFields = async (serviceId) => {
+    const get = id => document.getElementById(id)?.value?.trim() || null;
+    const parseLines = id => (document.getElementById(id)?.value || '').split('\n').map(l => l.trim()).filter(Boolean);
+
+    const payload = {
+        value_proposition: get('sap-ai-value-prop'),
+        target_customer: get('sap-ai-target'),
+        package_includes: parseLines('sap-ai-includes'),
+        pricing_tiers: parseLines('sap-ai-pricing'),
+        delivery_time_days: parseInt(get('sap-ai-delivery')) || null,
+        team_required: get('sap-ai-team'),
+    };
+
+    const { error } = await supabase.from('core_services').update(payload).eq('id', serviceId);
+    if (error) { await window.showAlert('Errore salvataggio: ' + error.message, 'error'); return; }
+
+    const svc = state.sapServices.find(s => s.id === serviceId);
+    if (svc) Object.assign(svc, payload);
+
+    await window.showAlert('Dati salvati', 'success');
+};
+
+window.openSapDocGenerator = async (serviceId) => {
+    const { openDocGenerator } = await import('./sap/doc_generator.js?v=8000');
+    await openDocGenerator(serviceId);
+};
+
+window.openOrderFromSap = async (serviceId) => {
+    const { openOrderFromSap } = await import('./sap/order_from_sap.js?v=8000');
+    await openOrderFromSap(serviceId);
+};
+
+window.openSapAiSuggest = async () => {
+    const { openSapAiSuggest } = await import('./sap/ai_suggest.js?v=8000');
+    await openSapAiSuggest();
+};
+
+window.openPmTemplateGenerator = async (serviceId) => {
+    const { openPmTemplateGenerator } = await import('./sap/pm_template_generator.js?v=8000');
+    await openPmTemplateGenerator(serviceId);
+};
+
+window._loadSapPerf = async (serviceId) => {
+    const { renderSapPerformance } = await import('./sap/performance.js?v=8000');
+    await renderSapPerformance('sap-perf-content', serviceId);
+};
+
+window.toggleSapViewMode = () => {
+    _sapViewMode = _sapViewMode === 'grid' ? 'catalog' : 'grid';
+    const contentArea = document.getElementById('content-area');
+    if (contentArea) renderSapServices(contentArea);
+};
 
 window.switchSapVariant = (variantName) => {
     state.currentSapVariant = (variantName === 'base' || variantName === null) ? null : variantName;
