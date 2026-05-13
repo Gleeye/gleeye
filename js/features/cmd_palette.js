@@ -153,6 +153,24 @@ const TOOLS = [
     {
         type: 'function',
         function: {
+            name: 'log_expense',
+            description: "Apri il modal Nuova Fattura Passiva precompilato con i dati estratti dalla frase. Usa quando l'utente dice 'registra spesa X di 50 euro', 'ho pagato Y', 'fattura Adobe 80€', 'spesa collaboratore Mario 800'. NON salva il record: apre solo il modal con i campi pronti, l'utente confermerà e caricherà eventuale PDF.",
+            parameters: {
+                type: 'object',
+                properties: {
+                    vendor_name: { type: 'string', description: "Nome del fornitore/collaboratore citato (es. 'Adobe', 'Aruba', 'Mario Rossi')." },
+                    amount: { type: 'number', description: 'Importo in euro come numero (es. 50.00, 1200.50).' },
+                    expense_type: { type: 'string', enum: ['supplier', 'collaborator'], description: "Tipo: 'supplier' (aziende B2B come Adobe/Aruba/SaaS), 'collaborator' (freelance/persone). Inferisci dal contesto." },
+                    description: { type: 'string', description: 'Descrizione/causale (es. "abbonamento mensile", "consulenza grafica").' },
+                    date: { type: 'string', description: "Data fattura in YYYY-MM-DD. Default: oggi se non specificato." },
+                },
+                required: ['vendor_name', 'amount'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
             name: 'answer_question',
             description: "Rispondi direttamente all'utente con una spiegazione testuale. Usa SOLO quando le altre tool non sono applicabili (es. l'utente fa una domanda generica, chiede aiuto, vuole una spiegazione su come funziona l'app).",
             parameters: {
@@ -185,6 +203,8 @@ REGOLE:
   Per "domani" calcola la data: oggi è ${new Date().toISOString().slice(0,10)} quindi domani è ${new Date(Date.now()+86400000).toISOString().slice(0,10)}.
   Per "prossima settimana" usa lunedì prossimo.
   Per "venerdì" usa il prossimo venerdì.
+- Se dice "registra spesa", "ho pagato X", "fattura di Y", "spesa di N euro", "abbonamento" → log_expense.
+  Inferisci expense_type da contesto: SaaS/azienda/sito web → supplier; persona/freelance/consulente → collaborator.
 - Per domande generiche su come funziona l'app → answer_question.
 
 Lingua: italiano. Conciso. Esegui, non ti dilungare.`;
@@ -522,6 +542,12 @@ async function executeAction(name, args) {
         }
         case 'create_task': {
             const result = await createTaskFromCmdK(args);
+            showFeedback(result.html);
+            setLoading(false);
+            return;
+        }
+        case 'log_expense': {
+            const result = await logExpenseFromCmdK(args);
             showFeedback(result.html);
             setLoading(false);
             return;
@@ -1122,4 +1148,96 @@ async function createTaskFromCmdK(args) {
             </div>
         `
     };
+}
+
+// ─── Log expense action ─────────────────────────────────────────────
+
+async function logExpenseFromCmdK(args) {
+    const { vendor_name, amount, expense_type, description, date } = args;
+
+    if (!vendor_name || !amount) {
+        return { html: `<span class="material-icons-round icon">error</span>Mi serve almeno il nome del fornitore e l'importo.` };
+    }
+
+    const mode = (expense_type === 'collaborator') ? 'collab' : 'supplier';
+
+    // Match entità nel DB
+    let matchedId = null;
+    let matchedName = null;
+    if (mode === 'supplier') {
+        const { data } = await supabase.from('suppliers')
+            .select('id, name')
+            .ilike('name', `%${vendor_name}%`)
+            .limit(1)
+            .maybeSingle();
+        if (data) { matchedId = data.id; matchedName = data.name; }
+    } else {
+        const { data } = await supabase.from('collaborators')
+            .select('id, full_name')
+            .neq('type', 'white_label')
+            .ilike('full_name', `%${vendor_name}%`)
+            .limit(1)
+            .maybeSingle();
+        if (data) { matchedId = data.id; matchedName = data.full_name; }
+    }
+
+    // Chiudi il palette + apri il modal della fattura passiva
+    close();
+    if (!window.openPassiveInvoiceForm) {
+        return { html: `<span class="material-icons-round icon">error</span>Modal Fattura Passiva non disponibile. Apri Amministrazione → Fatture passive.` };
+    }
+
+    await window.openPassiveInvoiceForm(null, mode);
+
+    // Aspetta che il modal sia renderizzato + le opzioni del select popolate
+    await new Promise(r => setTimeout(r, 300));
+
+    // Precompila i campi
+    const today = date || new Date().toISOString().slice(0, 10);
+    const amountStr = Number(amount).toFixed(2);
+
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el && val != null) {
+            el.value = val;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    };
+
+    setVal('pinv-date', today);
+    setVal('pinv-amount', amountStr);
+    setVal('pinv-net', amountStr);
+    if (description) setVal('pinv-description', description);
+
+    // Entità matched: seleziona nel dropdown
+    if (matchedId) {
+        const selectId = mode === 'supplier' ? 'pinv-supplier' : 'pinv-collaborator';
+        const sel = document.getElementById(selectId);
+        if (sel) {
+            // Aspetta che le opzioni siano caricate
+            let attempts = 0;
+            while (attempts < 10 && !Array.from(sel.options).some(o => o.value === matchedId)) {
+                await new Promise(r => setTimeout(r, 100));
+                attempts += 1;
+            }
+            const opt = Array.from(sel.options).find(o => o.value === matchedId);
+            if (opt) {
+                sel.value = matchedId;
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+    }
+
+    // Toast di conferma (anche se il palette è chiuso, mostro un toast globale via window event)
+    setTimeout(() => {
+        if (window.showGlobalAlert) {
+            const entityLabel = matchedName
+                ? `✨ ${matchedName} riconosciuto`
+                : `${vendor_name} non in anagrafica (selezionalo o creane uno nuovo)`;
+            window.showGlobalAlert(`Modal aperto, € ${amountStr} precompilato. ${entityLabel}. Verifica e salva.`, 'success');
+        }
+    }, 600);
+
+    return { html: '' }; // niente da mostrare, abbiamo chiuso il palette
 }
