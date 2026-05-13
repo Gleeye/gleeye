@@ -16,11 +16,14 @@ export async function renderPipelineBoard(container) {
     container.innerHTML = buildLoadingHTML();
 
     try {
-        const [prospects, sapServices] = await Promise.all([
+        const [allProspects, sapServices] = await Promise.all([
             fetchProspects(),
             fetchSapServicesForSales(),
         ]);
-        container.innerHTML = buildBoardHTML(prospects, sapServices);
+        // Esclude prospect 'sourced' (vivono dentro la nicchia, non ancora in outreach attivo).
+        const prospects = allProspects.filter(p => p.pipeline_stage !== 'sourced');
+        const sourcedCount = allProspects.length - prospects.length;
+        container.innerHTML = buildBoardHTML(prospects, sapServices, sourcedCount);
         bindBoardEvents(container, prospects, sapServices);
     } catch (err) {
         console.error('[Pipeline] render error', err);
@@ -34,7 +37,7 @@ function buildLoadingHTML() {
     return '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--text-secondary);gap:0.75rem;"><span class="material-icons-round" style="animation:spin 1s linear infinite;">refresh</span>Caricamento pipeline…</div>';
 }
 
-function buildBoardHTML(prospects, sapServices) {
+function buildBoardHTML(prospects, sapServices, sourcedCount) {
     const stageCounts = {};
     PIPELINE_STAGES.forEach(s => { stageCounts[s.key] = 0; });
     prospects.forEach(p => { if (stageCounts[p.pipeline_stage] !== undefined) stageCounts[p.pipeline_stage]++; });
@@ -44,6 +47,10 @@ function buildBoardHTML(prospects, sapServices) {
 
     const columnsHTML = PIPELINE_STAGES.map(stage => buildColumnHTML(stage, prospects.filter(p => p.pipeline_stage === stage.key))).join('');
 
+    const sourcedNote = sourcedCount > 0
+        ? ' · <a href="#sales-niches" style="color:#8b5cf6;text-decoration:none;font-weight:600;">' + sourcedCount + ' nelle nicchie da promuovere</a>'
+        : '';
+
     return (
         '<div class="animate-fade-in" style="max-width:100%;padding:1.5rem;">' +
             // header
@@ -51,7 +58,7 @@ function buildBoardHTML(prospects, sapServices) {
                 '<div>' +
                     '<h1 style="font-size:1.75rem;font-weight:800;font-family:var(--font-titles);color:var(--text-primary);margin:0;letter-spacing:-0.02em;">Pipeline Vendite</h1>' +
                     '<div style="font-size:0.85rem;color:var(--text-tertiary);margin-top:0.25rem;">' +
-                        totalActive + ' prospect attivi · ' + totalConverted + ' convertiti' +
+                        totalActive + ' prospect attivi · ' + totalConverted + ' convertiti' + sourcedNote +
                     '</div>' +
                 '</div>' +
                 '<div style="display:flex;gap:0.75rem;">' +

@@ -9,10 +9,11 @@
  * - Davide rivede e salva.
  */
 
-import { fetchNiches, upsertNiche, deleteNiche } from './api.js?v=8000';
+import { fetchNiches, upsertNiche, deleteNiche, fetchProspectsByNiche, promoteProspectsToPipeline, bulkDeleteProspects, upsertProspect } from './api.js?v=8000';
 import { showGlobalAlert, showConfirm } from '../../modules/utils.js?v=8000';
 import { analyzeNiche, saveNicheAnalysis, fetchNicheSapRelevance, PAROZZI_CRITERIA } from './niche_analyzer.js?v=8000';
 import { openSourcingModal } from './sourcing.js?v=8000';
+import { runLayer1AI, runLayer2AI } from './enrichment.js?v=8000';
 
 const STATUS_CONFIG = {
     researching: { label: 'In ricerca',  color: '#f59e0b', icon: 'search' },
@@ -402,17 +403,21 @@ async function openNicheDetailModal(niche, onSave) {
     overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
     let relevance = [];
+    let prospects = [];
     try {
-        relevance = await fetchNicheSapRelevance(niche.id);
+        [relevance, prospects] = await Promise.all([
+            fetchNicheSapRelevance(niche.id),
+            fetchProspectsByNiche(niche.id),
+        ]);
     } catch (err) {
-        console.warn('[NicheDetail] no relevance', err);
+        console.warn('[NicheDetail] load error', err);
     }
 
-    overlay.querySelector('#niche-detail-body').innerHTML = buildDetailBody(niche, relevance);
-    bindDetailEvents(overlay, niche, onSave, close);
+    overlay.querySelector('#niche-detail-body').innerHTML = buildDetailBody(niche, relevance, prospects);
+    bindDetailEvents(overlay, niche, onSave, close, prospects);
 }
 
-function buildDetailBody(niche, relevance) {
+function buildDetailBody(niche, relevance, prospects) {
     return (
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.75rem;">' +
             '<div>' +
@@ -436,7 +441,110 @@ function buildDetailBody(niche, relevance) {
                 '<div style="font-size:0.88rem;font-weight:600;color:var(--text-primary);margin-bottom:0.3rem;">Nicchia non ancora analizzata</div>' +
                 '<div style="font-size:0.78rem;">Clicca "Analizza con AI" qui sotto per popolare descrizione, criteri, pain, comuni, SAP candidati.</div>' +
               '</div>'
-        )
+        ) +
+        // Sezione PROSPECT DELLA NICCHIA
+        buildProspectsSection(prospects)
+    );
+}
+
+function buildProspectsSection(prospects) {
+    const total = prospects.length;
+    const sourced = prospects.filter(p => p.pipeline_stage === 'sourced').length;
+    const inPipeline = prospects.filter(p => p.pipeline_stage && p.pipeline_stage !== 'sourced').length;
+    const analyzed = prospects.filter(p => p.ai_enrichment_data && p.ai_enrichment_data.layer1_at).length;
+    const promising = prospects.filter(p => {
+        const s = p.ai_enrichment_data && p.ai_enrichment_data.promising_score;
+        return s != null && s >= 70;
+    }).length;
+
+    return (
+        '<div style="margin-top:2rem;padding-top:1.5rem;border-top:2px solid var(--glass-border);">' +
+            // Header sezione
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">' +
+                '<div>' +
+                    '<div style="font-size:0.95rem;font-weight:800;color:var(--text-primary);font-family:var(--font-titles);">Prospect della nicchia</div>' +
+                    '<div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:2px;">' +
+                        total + ' totali · ' + sourced + ' sourceati · ' + analyzed + ' analizzati AI · ' + promising + ' promettenti · ' + inPipeline + ' in pipeline' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            (total === 0
+                ? '<div style="padding:1.5rem;text-align:center;border:2px dashed var(--glass-border);border-radius:12px;color:var(--text-tertiary);">' +
+                    '<div style="font-size:0.85rem;">Nessun prospect ancora. Clicca <strong>"Cerca prospect"</strong> in basso per sourceare via OSM.</div>' +
+                  '</div>'
+                : buildProspectsTable(prospects)
+            ) +
+        '</div>'
+    );
+}
+
+function buildProspectsTable(prospects) {
+    // Ordina: promettenti ≥70 prima, poi analizzati, poi resto
+    const sorted = [...prospects].sort((a, b) => {
+        const sa = (a.ai_enrichment_data && a.ai_enrichment_data.promising_score) || -1;
+        const sb = (b.ai_enrichment_data && b.ai_enrichment_data.promising_score) || -1;
+        return sb - sa;
+    });
+
+    return (
+        // Toolbar bulk actions
+        '<div id="np-toolbar" style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;margin-bottom:0.6rem;padding:0.5rem;background:var(--bg-tertiary);border-radius:10px;">' +
+            '<label style="display:inline-flex;align-items:center;gap:5px;font-size:0.78rem;color:var(--text-secondary);font-weight:600;cursor:pointer;">' +
+                '<input type="checkbox" id="np-select-all" style="cursor:pointer;">' +
+                '<span>Seleziona tutti</span>' +
+            '</label>' +
+            '<span id="np-selected-count" style="font-size:0.74rem;color:var(--text-tertiary);font-weight:600;">0 selezionati</span>' +
+            '<div style="flex:1;"></div>' +
+            '<button id="np-bulk-analyze" disabled style="font-size:0.74rem;padding:5px 10px;border-radius:8px;border:1px solid #8b5cf640;background:#8b5cf608;color:#8b5cf6;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:4px;opacity:0.5;">' +
+                '<span class="material-icons-round" style="font-size:0.85rem;">auto_awesome</span>Analizza AI' +
+            '</button>' +
+            '<button id="np-bulk-promote" disabled style="font-size:0.74rem;padding:5px 10px;border-radius:8px;border:1px solid #10b98140;background:#10b98108;color:#10b981;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:4px;opacity:0.5;">' +
+                '<span class="material-icons-round" style="font-size:0.85rem;">arrow_forward</span>Promuovi in pipeline' +
+            '</button>' +
+            '<button id="np-bulk-delete" disabled style="font-size:0.74rem;padding:5px 10px;border-radius:8px;border:1px solid #ef444440;background:#ef444408;color:#ef4444;cursor:pointer;font-weight:700;opacity:0.5;">Elimina</button>' +
+        '</div>' +
+        // Progress bar (hidden)
+        '<div id="np-progress" style="display:none;margin-bottom:0.6rem;padding:0.6rem 0.8rem;background:#8b5cf608;border:1px solid #8b5cf640;border-radius:10px;font-size:0.78rem;color:#8b5cf6;font-weight:600;"></div>' +
+        // Tabella
+        '<div style="max-height:400px;overflow-y:auto;border:1px solid var(--glass-border);border-radius:10px;">' +
+            sorted.map(p => buildProspectRow(p)).join('') +
+        '</div>'
+    );
+}
+
+function buildProspectRow(p) {
+    const e = p.ai_enrichment_data || {};
+    const score = e.promising_score;
+    const inPipeline = p.pipeline_stage && p.pipeline_stage !== 'sourced';
+    const stageColors = {
+        sourced: '#94a3b8',
+        cold: '#3b82f6',
+        contacted: '#3b82f6',
+        replied: '#f59e0b',
+        proposal_sent: '#8b5cf6',
+        converted: '#10b981',
+    };
+    const stageColor = stageColors[p.pipeline_stage] || '#94a3b8';
+    const scoreColor = score == null ? '#94a3b8' : score >= 70 ? '#10b981' : score >= 40 ? '#f59e0b' : '#ef4444';
+
+    return (
+        '<label class="np-row" data-id="' + p.id + '" style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:0.6rem;align-items:center;padding:0.6rem 0.8rem;border-bottom:1px solid var(--glass-border);font-size:0.8rem;cursor:pointer;">' +
+            '<input type="checkbox" class="np-check" data-id="' + p.id + '" style="cursor:pointer;">' +
+            '<div style="min-width:0;">' +
+                '<div style="font-weight:700;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(p.business_name) + '</div>' +
+                '<div style="font-size:0.7rem;color:var(--text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+                    (e.city_origin ? '📍 ' + escHtml(e.city_origin) + ' · ' : '') +
+                    (p.website ? escHtml(p.website.replace(/^https?:\/\//, '').slice(0, 40)) : '') +
+                '</div>' +
+            '</div>' +
+            (score != null
+                ? '<span style="font-size:0.7rem;font-weight:800;padding:2px 7px;border-radius:6px;background:' + scoreColor + '20;color:' + scoreColor + ';white-space:nowrap;">' + score + '/100</span>'
+                : '<span style="font-size:0.68rem;color:var(--text-tertiary);">—</span>') +
+            '<span style="font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:6px;background:' + stageColor + '15;color:' + stageColor + ';text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">' + (p.pipeline_stage || 'sourced') + '</span>' +
+            (inPipeline
+                ? '<span class="material-icons-round" style="font-size:1rem;color:#10b981;" title="In pipeline outreach">check_circle</span>'
+                : '<span class="material-icons-round" style="font-size:1rem;color:#cbd5e1;" title="Non in pipeline">radio_button_unchecked</span>') +
+        '</label>'
     );
 }
 
@@ -462,7 +570,9 @@ function buildAnalysisPreviewFromNiche(n, relevance) {
     });
 }
 
-function bindDetailEvents(overlay, niche, onSave, close) {
+function bindDetailEvents(overlay, niche, onSave, close, prospects) {
+    bindProspectsSectionEvents(overlay, niche, onSave, prospects || []);
+
     overlay.querySelector('#btn-delete-niche').addEventListener('click', async () => {
         const ok = await showConfirm('Eliminare la nicchia "' + niche.name + '"? L\'azione cancella anche analisi AI e SAP relevance collegati.', 'Elimina', 'Annulla');
         if (!ok) return;
@@ -512,6 +622,167 @@ function bindDetailEvents(overlay, niche, onSave, close) {
             btn.innerHTML = '<span class="material-icons-round" style="font-size:1rem;">auto_awesome</span>Riprova';
         }
     });
+}
+
+// ─── PROSPECTS SECTION EVENTS ────────────────────────────────────────────────
+
+function bindProspectsSectionEvents(overlay, niche, onSave, prospects) {
+    const checks = overlay.querySelectorAll('.np-check');
+    if (checks.length === 0) return;
+    const selectAll = overlay.querySelector('#np-select-all');
+    const countSpan = overlay.querySelector('#np-selected-count');
+    const btnAnalyze = overlay.querySelector('#np-bulk-analyze');
+    const btnPromote = overlay.querySelector('#np-bulk-promote');
+    const btnDelete = overlay.querySelector('#np-bulk-delete');
+
+    const updateCount = () => {
+        const selected = overlay.querySelectorAll('.np-check:checked');
+        const n = selected.length;
+        countSpan.textContent = n + ' selezionati';
+        [btnAnalyze, btnPromote, btnDelete].forEach(b => {
+            b.disabled = n === 0;
+            b.style.opacity = n === 0 ? '0.5' : '1';
+        });
+        // Sync select-all checkbox
+        selectAll.checked = n > 0 && n === checks.length;
+    };
+
+    checks.forEach(c => c.addEventListener('change', updateCount));
+    selectAll.addEventListener('change', () => {
+        checks.forEach(c => { c.checked = selectAll.checked; });
+        updateCount();
+    });
+
+    const getSelectedIds = () => Array.from(overlay.querySelectorAll('.np-check:checked')).map(c => c.dataset.id);
+
+    btnAnalyze.addEventListener('click', async () => {
+        const ids = getSelectedIds();
+        if (ids.length === 0) return;
+        await runBulkAnalyze(overlay, niche, ids, prospects, onSave);
+    });
+
+    btnPromote.addEventListener('click', async () => {
+        const ids = getSelectedIds();
+        if (ids.length === 0) return;
+        const ok = await showConfirm(ids.length + ' prospect spostati in pipeline outreach (stato Cold). Continuare?', 'Promuovi', 'Annulla');
+        if (!ok) return;
+        try {
+            await promoteProspectsToPipeline(ids);
+            showGlobalAlert(ids.length + ' prospect promossi in pipeline', 'success');
+            onSave && onSave();
+            // Re-render: chiudi e riapri il modal
+            overlay.remove();
+            const freshNiches = await fetchNiches();
+            const fresh = freshNiches.find(n => n.id === niche.id);
+            if (fresh) openNicheDetailModal(fresh, onSave);
+        } catch (err) {
+            showGlobalAlert('Errore: ' + err.message, 'error');
+        }
+    });
+
+    btnDelete.addEventListener('click', async () => {
+        const ids = getSelectedIds();
+        if (ids.length === 0) return;
+        const ok = await showConfirm('Eliminare ' + ids.length + ' prospect? Operazione irreversibile.', 'Elimina', 'Annulla');
+        if (!ok) return;
+        try {
+            await bulkDeleteProspects(ids);
+            showGlobalAlert(ids.length + ' prospect eliminati', 'success');
+            onSave && onSave();
+            overlay.remove();
+            const freshNiches = await fetchNiches();
+            const fresh = freshNiches.find(n => n.id === niche.id);
+            if (fresh) openNicheDetailModal(fresh, onSave);
+        } catch (err) {
+            showGlobalAlert('Errore: ' + err.message, 'error');
+        }
+    });
+
+    updateCount();
+}
+
+async function runBulkAnalyze(overlay, niche, ids, prospects, onSave) {
+    const progressDiv = overlay.querySelector('#np-progress');
+    progressDiv.style.display = 'block';
+
+    const targets = prospects.filter(p => ids.includes(p.id));
+    let done = 0;
+    let failed = 0;
+    let l2Triggered = 0;
+    const total = targets.length;
+
+    const updateProgress = (current, t, l2) => {
+        progressDiv.innerHTML = '<span class="material-icons-round" style="font-size:0.95rem;animation:spin 1s linear infinite;vertical-align:-3px;">refresh</span> Analizzo prospect ' + (current + 1) + '/' + total + (l2 > 0 ? ' · Layer 2 auto: ' + l2 : '') + ' — ' + escHtml(t.business_name);
+    };
+
+    for (let i = 0; i < targets.length; i++) {
+        const p = targets[i];
+        updateProgress(i, p, l2Triggered);
+        try {
+            // Layer 1
+            const r1 = await runLayer1AI(p);
+            let enrichment = {
+                ...(p.ai_enrichment_data || {}),
+                descrizione_lampo:      r1.descrizione_lampo || null,
+                chi_sono_cosa_fanno:    r1.chi_sono_cosa_fanno || null,
+                prodotti_servizi:       r1.prodotti_servizi || null,
+                clientela_target:       r1.clientela_target || null,
+                punto_distintivo:       r1.punto_distintivo || null,
+                industry:               r1.industry || null,
+                company_size:           r1.company_size || null,
+                location:               r1.location || null,
+                revenue_estimate:       r1.revenue_estimate || null,
+                promising_score:        r1.promising_score != null ? Number(r1.promising_score) : null,
+                promising_rationale:    r1.promising_rationale || null,
+                layer1_at:              new Date().toISOString(),
+            };
+            // Layer 2 se promettente
+            if (enrichment.promising_score >= 70) {
+                try {
+                    const tempProspect = { ...p, ai_enrichment_data: enrichment };
+                    const r2 = await runLayer2AI(tempProspect);
+                    enrichment = {
+                        ...enrichment,
+                        competitor:             r2.competitor || null,
+                        punti_forza:            r2.punti_forza || null,
+                        punti_debolezza:        r2.punti_debolezza || null,
+                        analisi_swot:           r2.analisi_swot || null,
+                        news_recenti:           r2.news_recenti || null,
+                        testimonianze:          r2.testimonianze || null,
+                        presenza_online:        r2.presenza_online || null,
+                        opportunita_marketing:  r2.opportunita_marketing || null,
+                        sap_candidati:          r2.sap_candidati || null,
+                        fattibilita_note:       r2.fattibilita_note || null,
+                        fattibilita_score:      r2.fattibilita_score != null ? Number(r2.fattibilita_score) : null,
+                        layer2_at:              new Date().toISOString(),
+                    };
+                    l2Triggered++;
+                } catch (l2Err) {
+                    console.warn('[bulk L2] error on', p.business_name, l2Err);
+                }
+            }
+            await upsertProspect({
+                id: p.id,
+                ai_enrichment_data: enrichment,
+                industry: p.industry || r1.industry || null,
+            });
+            done++;
+        } catch (err) {
+            console.error('[bulk L1] error on', p.business_name, err);
+            failed++;
+        }
+    }
+
+    progressDiv.innerHTML = '✓ Completati: ' + done + '/' + total + (failed > 0 ? ' · Falliti: ' + failed : '') + (l2Triggered > 0 ? ' · Layer 2 auto: ' + l2Triggered : '');
+    showGlobalAlert('Bulk analisi: ' + done + ' OK, ' + failed + ' falliti, ' + l2Triggered + ' Layer 2 auto', 'success');
+
+    setTimeout(async () => {
+        onSave && onSave();
+        overlay.remove();
+        const freshNiches = await fetchNiches();
+        const fresh = freshNiches.find(n => n.id === niche.id);
+        if (fresh) openNicheDetailModal(fresh, onSave);
+    }, 1500);
 }
 
 // ─── MODAL SHELL ──────────────────────────────────────────────────────────────

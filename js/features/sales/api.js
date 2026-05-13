@@ -253,6 +253,56 @@ export const PIPELINE_STAGES = [
     { key: 'converted',      label: 'Convertito',        icon: 'check_circle',     color: '#10b981' },
 ];
 
+// Stato pre-pipeline: prospect sourceato ma non ancora promosso a outreach attivo.
+// Vive nella nicchia, non appare nel kanban.
+export const PIPELINE_STAGE_SOURCED = 'sourced';
+
+export async function fetchProspectsByNiche(nicheId) {
+    const { data, error } = await supabase
+        .from('prospects')
+        .select(`
+            *,
+            target_sap:core_services(id, name),
+            niche:outreach_niches(id, name)
+        `)
+        .eq('niche_id', nicheId)
+        .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+}
+
+export async function promoteProspectsToPipeline(prospectIds, targetStage = 'cold') {
+    if (!prospectIds || prospectIds.length === 0) return [];
+    const now = new Date().toISOString();
+
+    // Fetch correnti per aggiornare stage_history senza perderlo
+    const { data: current, error: fErr } = await supabase
+        .from('prospects')
+        .select('id, stage_history')
+        .in('id', prospectIds);
+    if (fErr) throw fErr;
+
+    const updates = [];
+    for (const p of current) {
+        const history = Array.isArray(p.stage_history) ? p.stage_history : [];
+        const newHistory = [...history, { stage: targetStage, entered_at: now }];
+        const { error } = await supabase
+            .from('prospects')
+            .update({ pipeline_stage: targetStage, stage_history: newHistory })
+            .eq('id', p.id);
+        if (error) throw error;
+        updates.push(p.id);
+    }
+    return updates;
+}
+
+export async function bulkDeleteProspects(prospectIds) {
+    if (!prospectIds || prospectIds.length === 0) return 0;
+    const { error } = await supabase.from('prospects').delete().in('id', prospectIds);
+    if (error) throw error;
+    return prospectIds.length;
+}
+
 export const FUNNEL_SEGMENTS = [
     { key: 'cold',             label: 'Freddo',              color: '#94a3b8' },
     { key: 'discovery_done',   label: 'Discovery fatta',     color: '#f59e0b' },

@@ -268,7 +268,7 @@ async function runLayer1(container, prospect, onEnriched) {
     }
 }
 
-async function runLayer1AI(prospect) {
+export async function runLayer1AI(prospect) {
     const prompt = buildLayer1Prompt(prospect);
     const schema = {
         descrizione_lampo:    'string — 1 frase di max 15 parole. Es: "Studio dentistico specializzato in implantologia con 3 sedi in Liguria."',
@@ -379,7 +379,7 @@ async function runLayer2(container, prospect, onEnriched, isManualTrigger) {
     }
 }
 
-async function runLayer2AI(prospect) {
+export async function runLayer2AI(prospect) {
     const prompt = buildLayer2Prompt(prospect);
     const schema = {
         competitor:            'string — concorrenti diretti identificati (3-5 nomi se possibile, altrimenti tipologia)',

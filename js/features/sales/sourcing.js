@@ -301,9 +301,9 @@ async function importSelected(overlay, niche) {
             industry:           niche.name || null,
             niche_id:           niche.id,
             funnel_segment:     'cold',
-            pipeline_stage:     'cold',
+            pipeline_stage:     'sourced', // pre-pipeline, vive nella nicchia finché non viene promosso
             acquisition_source: 'outreach',
-            stage_history:      [{ stage: 'cold', entered_at: new Date().toISOString() }],
+            stage_history:      [{ stage: 'sourced', entered_at: new Date().toISOString() }],
             notes:              r.address ? 'Indirizzo: ' + r.address + ' · Fonte: OSM' : 'Fonte: OSM',
             ai_enrichment_data: {
                 osm_id: r.osm_id || null,
