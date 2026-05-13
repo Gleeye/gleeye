@@ -131,12 +131,12 @@ export async function renderAssignmentDetail(container) {
                                     </span>
                                     <span style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 4px 12px; border-radius: 999px; background: rgba(99, 102, 241, 0.08); color: var(--text-primary); font-size: 0.8rem; font-weight: 600;">
                                         <span style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColor};"></span>
-                                        ${assignment.status || 'Attivo'}
+                                        ${assignment.status || 'In Corso'}
                                     </span>
                                  ` : `
                                  <div class="assignment-status-wrapper" style="min-width: 150px;">
                                     <select id="assignment-status-select" onchange="window.handleAssignmentStatusChange('${assignment.id}', this.value)">
-                                        ${['Attivo', 'In Corso', 'Sospeso', 'Completato', 'Annullato'].map(s => `
+                                        ${['Da Fare', 'In Corso', 'In attesa', 'Sospeso', 'Terminato da saldare', 'Completato', 'Annullato'].map(s => `
                                             <option value="${s}" ${assignment.status === s ? 'selected' : ''}>${s}</option>
                                         `).join('')}
                                     </select>
@@ -216,7 +216,7 @@ export async function renderAssignmentDetail(container) {
                                     <span style="font-size: 0.8rem; color: var(--text-secondary);">Stato</span>
                                     <span style="display: flex; align-items: center; gap: 0.4rem;">
                                         <span style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColor};"></span>
-                                        <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">${assignment.status || 'Attivo'}</span>
+                                        <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">${assignment.status || 'In Corso'}</span>
                                     </span>
                                 </div>
                             </div>

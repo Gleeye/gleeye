@@ -1,15 +1,239 @@
 import { state } from '/js/modules/state.js?v=8000';
 import { formatAmount } from '../modules/utils.js?v=8000';
-import { upsertCollaboratorService, deleteCollaboratorService } from '../modules/api.js?v=8000';
+import { upsertCollaboratorService, deleteCollaboratorService, fetchCollaboratorServices, fetchOrders, fetchCollaborators } from '../modules/api.js?v=8000';
 import { CustomSelect } from '../components/CustomSelect.js?v=8000';
+import { supabase } from '../modules/config.js?v=8000';
 
 /**
  * Collaborator Services Feature
- * Final mapping fix: the database uses 'cost' and 'price', not 'unit_cost'/'unit_price'.
+ * Registro Servizi (Anomalia 17 del quaderno UX 12/5/26):
+ * tabella granulare delle istanze servizio collegate a incarichi/ordini.
+ * Stile "movimenti bancari" — lista filtrabile.
  */
 
-export function renderCollaboratorServices(container) {
-    // Register page logic...
+// ─────────────────────────────────────────────────────────────────────────────
+// REGISTRO SERVIZI — vista principale (#collaborator-services)
+// ─────────────────────────────────────────────────────────────────────────────
+
+let _regState = { yearFilter: 'all', orderFilter: 'all', collabFilter: 'all', search: '' };
+
+export async function renderCollaboratorServices(container) {
+    container.innerHTML = `<div style="display:flex;justify-content:center;align-items:center;height:300px;"><div class="loader"></div></div>`;
+
+    try {
+        // Carica i dati se non ancora in state
+        if (!state.collaboratorServices || state.collaboratorServices.length === 0) {
+            await fetchCollaboratorServices();
+        }
+        if (!state.orders || state.orders.length === 0) {
+            await fetchOrders();
+        }
+        if (!state.collaborators || state.collaborators.length === 0) {
+            await fetchCollaborators();
+        }
+        if (!state.services || state.services.length === 0) {
+            const { data } = await supabase.from('services').select('id, name, category').order('name');
+            state.services = data || [];
+        }
+
+        _renderRegistroServizi(container);
+    } catch (err) {
+        console.error('[CollaboratorServices]', err);
+        container.innerHTML = `<div style="padding:2rem;color:#ef4444;">Errore: ${err.message}</div>`;
+    }
+}
+
+function _renderRegistroServizi(container) {
+    const all = state.collaboratorServices || [];
+    const ordersById = Object.fromEntries((state.orders || []).map(o => [o.id, o]));
+    const collabsById = Object.fromEntries((state.collaborators || []).map(c => [c.id, c]));
+    const servicesById = Object.fromEntries((state.services || []).map(s => [s.id, s]));
+
+    // Filtri attivi
+    let rows = all.slice();
+    if (_regState.yearFilter !== 'all') {
+        rows = rows.filter(r => {
+            const d = r.created_at || r.updated_at;
+            return d && new Date(d).getFullYear() === Number(_regState.yearFilter);
+        });
+    }
+    if (_regState.orderFilter !== 'all') rows = rows.filter(r => r.order_id === _regState.orderFilter);
+    if (_regState.collabFilter !== 'all') rows = rows.filter(r => r.collaborator_id === _regState.collabFilter);
+    if (_regState.search.trim()) {
+        const q = _regState.search.toLowerCase();
+        rows = rows.filter(r => {
+            const svc = servicesById[r.service_id]?.name || r.legacy_service_name || r.name || '';
+            const ord = ordersById[r.order_id];
+            const ordLabel = ord ? `${ord.order_number} ${ord.title || ''} ${ord.short_name || ''}` : '';
+            const collab = collabsById[r.collaborator_id]?.full_name || '';
+            return (svc + ' ' + ordLabel + ' ' + collab).toLowerCase().includes(q);
+        });
+    }
+
+    rows.sort((a, b) => {
+        const da = new Date(a.created_at || a.updated_at || 0);
+        const db = new Date(b.created_at || b.updated_at || 0);
+        return db - da;
+    });
+
+    // KPI aggregati (sulle righe filtrate)
+    const totalRows = rows.length;
+    const totalCost = rows.reduce((s, r) => s + (parseFloat(r.total_cost) || 0), 0);
+    const totalPrice = rows.reduce((s, r) => s + (parseFloat(r.total_price) || 0), 0);
+    const totalMargin = totalPrice - totalCost;
+    const marginPct = totalPrice > 0 ? Math.round((totalMargin / totalPrice) * 100) : 0;
+
+    // Anni disponibili
+    const yearsSet = new Set();
+    all.forEach(r => {
+        const d = r.created_at || r.updated_at;
+        if (d) yearsSet.add(new Date(d).getFullYear());
+    });
+    const years = [...yearsSet].sort((a, b) => b - a);
+
+    container.innerHTML = `
+        <div class="animate-fade-in" style="padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem;">
+
+            <!-- HEADER -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="margin: 0; font-family: var(--font-titles); font-size: 1.6rem; font-weight: 700; color: var(--text-primary);">Registro Servizi</h2>
+                    <p style="margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--text-secondary);">
+                        Tutte le istanze atomiche di servizio collegate a incarichi e commesse.
+                    </p>
+                </div>
+                <div style="font-size: 0.78rem; color: var(--text-tertiary); text-align: right;">
+                    ${totalRows} righe · totale tariffario € ${formatAmount(totalPrice)} · costo € ${formatAmount(totalCost)} · margine ${marginPct}%
+                </div>
+            </div>
+
+            <!-- KPI cards -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+                ${_regKpi('format_list_numbered', 'Righe', totalRows.toLocaleString('it-IT'), '#3b82f6')}
+                ${_regKpi('sell', 'Totale prezzo', '€ ' + formatAmount(totalPrice), '#10b981')}
+                ${_regKpi('attach_money', 'Totale costo', '€ ' + formatAmount(totalCost), '#ef4444')}
+                ${_regKpi('trending_up', 'Margine', '€ ' + formatAmount(totalMargin) + ' (' + marginPct + '%)', totalMargin >= 0 ? '#10b981' : '#ef4444')}
+            </div>
+
+            <!-- FILTRI -->
+            <div class="glass-card" style="padding: 1rem 1.25rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                <span style="font-size: 0.7rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Filtri</span>
+
+                <input type="search" id="reg-search" placeholder="Cerca per servizio / commessa / collab..." value="${escapeAttr(_regState.search)}"
+                    style="flex: 1; min-width: 240px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--glass-border); font-size: 0.85rem;">
+
+                <select id="reg-year" style="padding: 7px 10px; border-radius: 8px; border: 1px solid var(--glass-border); font-size: 0.8rem;">
+                    <option value="all" ${_regState.yearFilter === 'all' ? 'selected' : ''}>Tutti gli anni</option>
+                    ${years.map(y => `<option value="${y}" ${_regState.yearFilter == y ? 'selected' : ''}>${y}</option>`).join('')}
+                </select>
+
+                <select id="reg-order" style="padding: 7px 10px; border-radius: 8px; border: 1px solid var(--glass-border); font-size: 0.8rem; max-width: 240px;">
+                    <option value="all">Tutte le commesse</option>
+                    ${Object.values(ordersById).map(o => `<option value="${o.id}" ${_regState.orderFilter === o.id ? 'selected' : ''}>${escapeAttr(o.order_number)} · ${escapeAttr(o.short_name || o.title || '')}</option>`).join('')}
+                </select>
+
+                <select id="reg-collab" style="padding: 7px 10px; border-radius: 8px; border: 1px solid var(--glass-border); font-size: 0.8rem; max-width: 220px;">
+                    <option value="all">Tutti i collab</option>
+                    ${Object.values(collabsById).map(c => `<option value="${c.id}" ${_regState.collabFilter === c.id ? 'selected' : ''}>${escapeAttr(c.full_name || '')}</option>`).join('')}
+                </select>
+
+                <button id="reg-reset" style="padding: 7px 12px; border-radius: 8px; border: 1px solid var(--glass-border); background: white; cursor: pointer; font-size: 0.8rem; color: var(--text-secondary);">
+                    Reset
+                </button>
+            </div>
+
+            <!-- TABELLA -->
+            <div class="glass-card" style="padding: 0; overflow: hidden; border-radius: 14px;">
+                <div style="overflow-x: auto; max-height: 65vh; overflow-y: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead style="position: sticky; top: 0; background: var(--bg-secondary); z-index: 1;">
+                            <tr style="border-bottom: 1px solid var(--glass-border); text-align: left;">
+                                <th style="padding: 0.75rem 1rem; font-weight: 700; font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Data</th>
+                                <th style="padding: 0.75rem 1rem; font-weight: 700; font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Servizio</th>
+                                <th style="padding: 0.75rem 1rem; font-weight: 700; font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Commessa</th>
+                                <th style="padding: 0.75rem 1rem; font-weight: 700; font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Collaboratore</th>
+                                <th style="padding: 0.75rem 1rem; font-weight: 700; font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; text-align: right;">Quantità</th>
+                                <th style="padding: 0.75rem 1rem; font-weight: 700; font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; text-align: right;">Costo</th>
+                                <th style="padding: 0.75rem 1rem; font-weight: 700; font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; text-align: right;">Prezzo</th>
+                                <th style="padding: 0.75rem 1rem; font-weight: 700; font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; text-align: right;">Margine</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.length === 0 ? `
+                                <tr><td colspan="8" style="padding: 3rem; text-align: center; color: var(--text-tertiary);">
+                                    Nessuna riga corrisponde ai filtri.
+                                </td></tr>
+                            ` : rows.map(r => _regRow(r, ordersById, collabsById, servicesById)).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Listeners
+    container.querySelector('#reg-search').addEventListener('input', _debounce((e) => {
+        _regState.search = e.target.value;
+        _renderRegistroServizi(container);
+    }, 250));
+    container.querySelector('#reg-year').addEventListener('change', (e) => { _regState.yearFilter = e.target.value; _renderRegistroServizi(container); });
+    container.querySelector('#reg-order').addEventListener('change', (e) => { _regState.orderFilter = e.target.value; _renderRegistroServizi(container); });
+    container.querySelector('#reg-collab').addEventListener('change', (e) => { _regState.collabFilter = e.target.value; _renderRegistroServizi(container); });
+    container.querySelector('#reg-reset').addEventListener('click', () => {
+        _regState = { yearFilter: 'all', orderFilter: 'all', collabFilter: 'all', search: '' };
+        _renderRegistroServizi(container);
+    });
+}
+
+function _regKpi(icon, label, value, color) {
+    return `
+        <div class="glass-card" style="padding: 0.9rem 1rem; display: flex; align-items: center; gap: 0.75rem;">
+            <div style="width: 36px; height: 36px; border-radius: 9px; background: ${color}14; color: ${color}; display: flex; align-items: center; justify-content: center;">
+                <span class="material-icons-round" style="font-size: 18px;">${icon}</span>
+            </div>
+            <div>
+                <div style="font-size: 0.6rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.1rem;">${label}</div>
+                <div style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary); font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1.1;">${value}</div>
+            </div>
+        </div>
+    `;
+}
+
+function _regRow(r, ordersById, collabsById, servicesById) {
+    const date = r.created_at || r.updated_at;
+    const dateStr = date ? new Date(date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
+    const svcName = servicesById[r.service_id]?.name || r.legacy_service_name || r.name || '<em>senza nome</em>';
+    const order = ordersById[r.order_id];
+    const orderLabel = order ? `<a onclick="window.location.hash='order-detail/${order.id}'" style="color: var(--brand-blue); text-decoration: none; cursor: pointer;">${escapeAttr(order.order_number)}</a> <span style="color: var(--text-tertiary);">· ${escapeAttr(order.short_name || order.title || '')}</span>` : (r.legacy_order_id ? `<span style="color: var(--text-tertiary);">${escapeAttr(r.legacy_order_id)}</span>` : '<span style="color: var(--text-tertiary);">-</span>');
+    const collab = collabsById[r.collaborator_id];
+    const collabLabel = collab ? `<a onclick="window.location.hash='collaborator-detail/${collab.id}'" style="color: var(--text-primary); text-decoration: none; cursor: pointer;">${escapeAttr(collab.full_name)}</a>` : '<span style="color: var(--text-tertiary);">-</span>';
+
+    const totalCost = parseFloat(r.total_cost) || 0;
+    const totalPrice = parseFloat(r.total_price) || 0;
+    const margin = totalPrice - totalCost;
+
+    return `
+        <tr style="border-bottom: 1px solid var(--glass-border); transition: background 0.15s;" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background=''">
+            <td style="padding: 0.7rem 1rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap;">${dateStr}</td>
+            <td style="padding: 0.7rem 1rem; font-weight: 600; color: var(--text-primary);">${svcName}</td>
+            <td style="padding: 0.7rem 1rem; font-size: 0.8rem;">${orderLabel}</td>
+            <td style="padding: 0.7rem 1rem; font-size: 0.85rem;">${collabLabel}</td>
+            <td style="padding: 0.7rem 1rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-secondary);">${r.quantity || r.hours || '-'}</td>
+            <td style="padding: 0.7rem 1rem; text-align: right; font-variant-numeric: tabular-nums; color: #ef4444; font-weight: 600;">€ ${formatAmount(totalCost)}</td>
+            <td style="padding: 0.7rem 1rem; text-align: right; font-variant-numeric: tabular-nums; color: #10b981; font-weight: 600;">€ ${formatAmount(totalPrice)}</td>
+            <td style="padding: 0.7rem 1rem; text-align: right; font-variant-numeric: tabular-nums; color: ${margin >= 0 ? '#10b981' : '#ef4444'}; font-weight: 700;">€ ${formatAmount(margin)}</td>
+        </tr>
+    `;
+}
+
+function _debounce(fn, ms) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+function escapeAttr(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 /**

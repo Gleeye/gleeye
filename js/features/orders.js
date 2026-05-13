@@ -429,7 +429,7 @@ export async function renderOrderDetail(container, orderId) {
                                                     <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">${a.collaborators?.full_name || 'Collaboratore'}</div>
                                                     <div style="font-size: 0.75rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 0.4rem;">
                                                         <span class="status-dot ${a.status === 'Completed' ? 'status-dot-success' : (a.status === 'In Progress' ? 'status-dot-warning' : 'status-dot-info')}"></span>
-                                                        ${tAssignment(a.status) || 'Attivo'}
+                                                        ${tAssignment(a.status) || 'In Corso'}
                                                     </div>
                                                 </div>
                                                 <div style="text-align: right;">
