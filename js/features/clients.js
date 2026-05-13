@@ -810,6 +810,17 @@ export function initNewClientModal() {
                                     <input type="text" id="new-cli-fiscal" class="modal-input" placeholder="Codice Fiscale" style="width: 100%; border-radius: 12px;">
                                 </div>
                                 <input type="text" id="new-cli-sdi" class="modal-input" placeholder="Codice SDI (7 caratteri, oppure PEC)" maxlength="7" style="width: 100%; border-radius: 12px; padding: 0.75rem 1rem;">
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <label style="font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; min-width: 130px;">Termini di pagamento</label>
+                                    <select id="new-cli-payment-terms" class="modal-input" style="width: 100%; border-radius: 12px; padding: 0.75rem 1rem;">
+                                        <option value="">Non definito</option>
+                                        <option value="0">Immediato</option>
+                                        <option value="30">30 giorni</option>
+                                        <option value="60">60 giorni</option>
+                                        <option value="90">90 giorni</option>
+                                        <option value="120">120 giorni</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -863,7 +874,10 @@ export function initNewClientModal() {
                 cap: document.getElementById('new-cli-cap').value.trim(),
                 vat_number: document.getElementById('new-cli-vat').value.trim(),
                 fiscal_code: document.getElementById('new-cli-fiscal').value.trim(),
-                sdi_code: document.getElementById('new-cli-sdi').value.trim().toUpperCase()
+                sdi_code: document.getElementById('new-cli-sdi').value.trim().toUpperCase(),
+                payment_terms: document.getElementById('new-cli-payment-terms').value !== ''
+                    ? parseInt(document.getElementById('new-cli-payment-terms').value, 10)
+                    : null
             };
 
             // Add ID if editing
@@ -926,6 +940,7 @@ window.openNewClientModal = (client = null) => {
         document.getElementById('new-cli-vat').value = client.vat_number || '';
         document.getElementById('new-cli-fiscal').value = client.fiscal_code || '';
         document.getElementById('new-cli-sdi').value = client.sdi_code || '';
+        document.getElementById('new-cli-payment-terms').value = client.payment_terms != null ? String(client.payment_terms) : '';
     } else {
         titleEl.textContent = 'Nuovo Cliente';
         descEl.textContent = 'Inserisci i dati dell\'anagrafica cliente';
@@ -944,6 +959,7 @@ window.openNewClientModal = (client = null) => {
         document.getElementById('new-cli-vat').value = '';
         document.getElementById('new-cli-fiscal').value = '';
         document.getElementById('new-cli-sdi').value = '';
+        document.getElementById('new-cli-payment-terms').value = '';
     }
 
     saveBtn.disabled = false;
