@@ -8,6 +8,7 @@ import { openPaymentModal } from './payments.js?v=8000';
 import { fetchProjectSpaceForOrder, fetchProjectItems, fetchAppointments } from '../modules/pm_api.js?v=8000';
 import { activityTranslate } from '../modules/pm_activity_helper.js?v=8000';
 import { tAssignment } from '../modules/i18n_labels.js?v=8002';
+import { inlineHelpButton, attachInlineHelp } from '../modules/help_inline_ai.js?v=8001';
 
 // Payment config helpers + window handlers (extracted).
 // Importing also installs window.orderConfigEditState + window.toggleOrderConfig*/saveOrderConfig.
@@ -274,9 +275,10 @@ export async function renderOrderDetail(container, orderId) {
                              <div style="font-size: 0.65rem; text-transform: uppercase; font-weight: 700; color: var(--text-tertiary); letter-spacing: 0.05em;">Ordine ${order.order_number}</div>
                              <h1 style="font-size: 1.75rem; font-weight: 700; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.02em; line-height: 1.2;">${order.title || 'Senza Titolo'}</h1>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 1rem; color: var(--text-tertiary); font-size: 0.85rem;">
+                        <div style="display: flex; align-items: center; gap: 1rem; color: var(--text-tertiary); font-size: 0.85rem; flex-wrap: wrap;">
                             <span style="display: flex; align-items: center; gap: 0.4rem;"><span class="material-icons-round" style="font-size: 1rem;">calendar_today</span> ${new Date(order.created_at).toLocaleDateString('it-IT')}</span>
                             <span style="display: flex; align-items: center; gap: 0.4rem;"><span class="material-icons-round" style="font-size: 1rem;">business</span> ${order.clients?.client_code || 'N/A'}</span>
+                            ${inlineHelpButton({ id: order.id, contextType: 'order', label: 'Spiegami', icon: 'auto_awesome' })}
                         </div>
                     </div>
                 </div>
@@ -780,6 +782,10 @@ export async function renderOrderDetail(container, orderId) {
     const s2 = container.querySelector(`#order-offer-status-select-${order.id}`);
     if (s2) new CustomSelect(s2);
 
+    // Help inline AI: bottone "Spiegami" sul titolo commessa (è nel pageTitle, fuori dal container)
+    const pageTitleEl = document.getElementById('page-title');
+    if (pageTitleEl) attachInlineHelp(pageTitleEl, _buildOrderHelpContext);
+
     // Global click listener to close the actions dropdown
     window.addEventListener('click', () => {
         const dropdowns = container.querySelectorAll('.actions-dropdown-content');
@@ -823,3 +829,55 @@ export async function renderOrderDetail(container, orderId) {
 
 
 // initNewOrderModal extracted to ./orders/new_order_modal.js
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Help inline AI: context loader per "Spiegami questa commessa"
+// ─────────────────────────────────────────────────────────────────────────────
+async function _buildOrderHelpContext(orderId, contextType) {
+    if (contextType !== 'order') return null;
+    const order = state.orders?.find(o => o.id === orderId);
+    if (!order) return null;
+
+    const client = order.clients?.business_name || (state.clients || []).find(c => c.id === order.client_id)?.business_name || 'cliente non specificato';
+    const services = (state.collaboratorServices || []).filter(s => s.order_id === orderId);
+    const assignments = (state.assignments || []).filter(a => a.order_id === orderId);
+    const payments = (state.payments || []).filter(p => p.order_id === orderId);
+    const invoices = (state.invoices || []).filter(i => i.order_id === orderId);
+
+    const paid = payments.filter(p => /completat|saldato|pagato/i.test(p.status || '')).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    const pending = payments.filter(p => !/completat|saldato|pagato/i.test(p.status || '')).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+
+    const text = `
+Sto guardando questa commessa:
+
+- Codice ordine: ${order.order_number || '?'}
+- Titolo: ${order.title || 'senza titolo'}
+- Cliente: ${client}
+- Stato offerta: ${order.offer_status || 'non specificato'}
+- Stato lavori: ${order.status_works || 'non specificato'}
+- Data creazione: ${order.created_at ? new Date(order.created_at).toLocaleDateString('it-IT') : '?'}
+- Prezzo finale al cliente: ${order.price_final ? '€ ' + Number(order.price_final).toFixed(2) : 'non valorizzato'}
+- Costo finale: ${order.cost_final ? '€ ' + Number(order.cost_final).toFixed(2) : 'non valorizzato'}
+
+Servizi del tariffario collegati: ${services.length}
+${services.slice(0, 8).map(s => `  - ${s.services?.name || s.legacy_service_name || s.name || 'servizio'} (${s.quantity || s.hours || '?'} unità)`).join('\n')}
+${services.length > 8 ? `  - …e altri ${services.length - 8}\n` : ''}
+
+Incarichi a collaboratori: ${assignments.length}
+${assignments.slice(0, 5).map(a => `  - ${a.collaborators?.full_name || '?'} (€ ${a.total_amount || 0}, stato: ${a.status || '?'})`).join('\n')}
+
+Fatturazione:
+- Fatture emesse al cliente: ${invoices.length}
+- Pagamenti pianificati: ${payments.length} (saldato € ${paid.toFixed(2)}, in attesa € ${pending.toFixed(2)})
+
+Spiegami in 4-5 frasi:
+1. Cos'è questa commessa in sintesi (per chi non l'ha mai vista)
+2. A che punto siamo (offerta? lavori in corso? consegnata?)
+3. C'è qualcosa che richiede attenzione adesso? (scadenze, ritardi, fatture aperte, costi sopra preventivo)
+4. Suggerimento di prossimo passo se evidente
+
+Italiano colloquiale, niente bullet point.
+`.trim();
+
+    return { text };
+}
