@@ -13,23 +13,12 @@ import { supabase } from './config.js?v=8000';
 // Modelli scelti per ogni feature (centralized config)
 // Quando vuoi cambiare modello per una feature, cambi solo qui.
 export const AI_MODELS = {
-    // Default: Gemini Flash 2.5 Lite — economico, veloce, ideale per UI conversational
-    default: 'google/gemini-2.5-flash-lite',
-
-    // Cmd+K palette: chiamate frequenti, basso volume → modello economico veloce
-    cmd_k: 'google/gemini-2.5-flash-lite',
-
-    // Help inline contestuale: piccole spiegazioni → modello economico
-    help_inline: 'google/gemini-2.5-flash-lite',
-
-    // Document generator (SAP): output strutturato lungo → modello migliore
-    doc_generator: 'anthropic/claude-sonnet-4.5',
-
-    // Pricing Intelligence: ragionamento + analisi → modello migliore
-    pricing_ai: 'anthropic/claude-sonnet-4.5',
-
-    // Sales drafter (email outreach): qualità testo → modello migliore
-    sales_drafter: 'anthropic/claude-sonnet-4.5',
+    default:       'google/gemini-2.5-flash',
+    cmd_k:         'google/gemini-2.5-flash',
+    help_inline:   'google/gemini-2.5-flash',
+    doc_generator: 'google/gemini-2.5-flash',
+    pricing_ai:    'google/gemini-2.5-flash',
+    sales_drafter: 'google/gemini-2.5-flash',
 
     // Brief operativo collab: medio-economico
     brief_drafter: 'google/gemini-2.5-flash',
