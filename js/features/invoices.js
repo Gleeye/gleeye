@@ -166,9 +166,16 @@ export function initInvoiceModals() {
                                     <p style="margin: 0.2rem 0 0; font-size: 0.75rem; color: var(--text-tertiary);">Registra documento fiscale ricevuto</p>
                                 </div>
                             </div>
-                            <button class="icon-btn" id="close-passive-modal" style="width: 36px; height: 36px; border-radius: 10px; background: white; border: 1px solid var(--glass-border);">
-                                <span class="material-icons-round" style="font-size: 1.25rem; color: var(--text-tertiary);">close</span>
-                            </button>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <input type="file" id="pinv-ai-pdf-input" accept="application/pdf" style="display: none;">
+                                <button id="pinv-ai-import-btn" type="button" title="Carica un PDF: l'AI legge la fattura e precompila tutti i campi" style="height: 36px; padding: 0 0.85rem; border-radius: 10px; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; border: none; cursor: pointer; font-weight: 600; font-size: 0.8rem; display: flex; align-items: center; gap: 0.4rem; box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);">
+                                    <span class="material-icons-round" style="font-size: 1rem;">auto_awesome</span>
+                                    <span id="pinv-ai-import-label">Importa con AI</span>
+                                </button>
+                                <button class="icon-btn" id="close-passive-modal" style="width: 36px; height: 36px; border-radius: 10px; background: white; border: 1px solid var(--glass-border);">
+                                    <span class="material-icons-round" style="font-size: 1.25rem; color: var(--text-tertiary);">close</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     
@@ -346,6 +353,24 @@ export function initInvoiceModals() {
         const closePassive = document.getElementById('close-passive-modal');
         if (closePassive) closePassive.addEventListener('click', closePassiveInvoiceForm);
         document.getElementById('cancel-passive-btn')?.addEventListener('click', closePassiveInvoiceForm);
+
+        // === AI: Importa fattura da PDF ===
+        const aiBtn = document.getElementById('pinv-ai-import-btn');
+        const aiInput = document.getElementById('pinv-ai-pdf-input');
+        if (aiBtn && aiInput) {
+            aiBtn.addEventListener('click', () => aiInput.click());
+            aiInput.addEventListener('change', async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.type !== 'application/pdf') {
+                    showGlobalAlert("Seleziona un file PDF", 'error');
+                    aiInput.value = '';
+                    return;
+                }
+                await handlePassiveInvoiceAIImport(file);
+                aiInput.value = '';
+            });
+        }
 
         // Conditional field logic: Spese Anticipate
         document.getElementById('inv-has-expenses')?.addEventListener('change', (e) => {
@@ -1469,4 +1494,172 @@ export function closePassiveInvoiceForm() {
 // Imported at the top of this file; re-exported here so the router + dashboard
 // dynamic-import paths (`features/invoices.js` → renderPassive*) keep working unchanged.
 export { renderPassiveInvoicesPartners, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers };
+
+// ========= AI Import PDF =========
+
+/**
+ * Carica un PDF, lo manda all'edge function `parse-invoice-pdf` (Claude legge il
+ * PDF nativamente), riceve i campi estratti + il match supplier, e precompila
+ * il modal "Nuova Fattura Passiva".
+ *
+ * NON salva niente nel DB: l'utente conferma + corregge + clicca Salva come al
+ * solito. Il logging della chiamata AI lo fa l'edge function in `ai_usage_log`.
+ */
+async function handlePassiveInvoiceAIImport(file) {
+    const label = document.getElementById('pinv-ai-import-label');
+    const btn = document.getElementById('pinv-ai-import-btn');
+    const originalLabel = label?.textContent || 'Importa con AI';
+
+    function setBusy(text, disabled = true) {
+        if (label) label.textContent = text;
+        if (btn) btn.disabled = disabled;
+    }
+
+    setBusy('Lettura PDF…');
+
+    try {
+        // 1) Read file as base64
+        const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const result = reader.result || '';
+                const idx = String(result).indexOf('base64,');
+                resolve(idx >= 0 ? String(result).slice(idx + 7) : String(result));
+            };
+            reader.onerror = () => reject(reader.error || new Error('FileReader error'));
+            reader.readAsDataURL(file);
+        });
+
+        setBusy('Estrazione AI…');
+
+        // 2) Call edge function (JWT auth automatica via supabase.functions.invoke)
+        const { data, error } = await supabase.functions.invoke('parse-invoice-pdf', {
+            body: {
+                pdf_base64: base64,
+                original_filename: file.name,
+            },
+        });
+
+        if (error) {
+            console.error('[ai-import] invoke error:', error);
+            showGlobalAlert(`Errore AI: ${error.message || 'parser non disponibile'}`, 'error');
+            return;
+        }
+        if (!data?.success || !data?.extracted) {
+            console.warn('[ai-import] estrazione fallita:', data);
+            showGlobalAlert(`AI non è riuscita a leggere il PDF. ${data?.parse_error ? '(' + data.parse_error + ')' : ''}`, 'error');
+            return;
+        }
+
+        // 3) Fill the form
+        applyExtractedInvoiceToForm(data.extracted, data.matched_supplier);
+
+        const confidence = data.extracted.confidence || 'medium';
+        const supLabel = data.matched_supplier?.name
+            ? ` · ${data.matched_supplier.name} riconosciuto`
+            : ' · fornitore non riconosciuto (seleziona manualmente)';
+        showGlobalAlert(`✨ Campi precompilati (confidenza ${confidence})${supLabel}. Controlla e salva.`, 'success');
+    } catch (e) {
+        console.error('[ai-import] errore generico:', e);
+        showGlobalAlert(`Errore: ${e.message || e}`, 'error');
+    } finally {
+        setBusy(originalLabel, false);
+    }
+}
+
+/**
+ * Mappa l'output dell'edge function sui campi del modal passive_invoice.
+ * Mappa best-effort: se un campo manca lo lascia in default.
+ */
+function applyExtractedInvoiceToForm(extracted, matchedSupplier) {
+    // Determina mode: se c'è un supplier matched → mode 'supplier', altrimenti 'collaborator' (default).
+    // Il modal cambia campi via dropdown #pinv-mode (se esiste) — non possiamo forzare,
+    // ma se il supplier è matched lo selezioniamo nel dropdown suppliers.
+
+    // Regime fiscale (collaborator mode)
+    const regime = (extracted.regime || '').toLowerCase();
+    const typeSelect = document.getElementById('pinv-type');
+    if (typeSelect) {
+        const map = {
+            ordinario: 'ritenuta',
+            forfettario: 'forfettario',
+            occasionale: 'occasionale',
+            estero: 'estero',
+            parcella: 'parcella',
+        };
+        const target = map[regime];
+        if (target) {
+            const opt = Array.from(typeSelect.options).find(o => o.value === target);
+            if (opt) {
+                typeSelect.value = target;
+                typeSelect.dispatchEvent(new Event('change'));
+            }
+        }
+    }
+
+    // Supplier match (try both selectors: supplier mode + collaborator mode)
+    if (matchedSupplier?.id) {
+        const supSelect = document.getElementById('pinv-supplier');
+        if (supSelect) {
+            const opt = Array.from(supSelect.options).find(o => o.value === matchedSupplier.id);
+            if (opt) {
+                supSelect.value = matchedSupplier.id;
+                supSelect.dispatchEvent(new Event('change'));
+            }
+        }
+    }
+
+    // Number + date
+    if (extracted.invoice_number) {
+        const el = document.getElementById('pinv-number');
+        if (el) el.value = extracted.invoice_number;
+    }
+    if (extracted.invoice_date) {
+        const el = document.getElementById('pinv-date');
+        if (el) el.value = extracted.invoice_date;
+    }
+    if (extracted.description) {
+        const el = document.getElementById('pinv-description');
+        if (el) el.value = extracted.description;
+    }
+
+    // Amounts: imponibile, cassa, netto
+    const taxable = Number(extracted.taxable_amount || 0);
+    const totalGross = Number(extracted.total_gross || 0);
+    const cassa = Number(extracted.cassa_amount || 0);
+    const bollo = Number(extracted.bollo_amount || 0);
+    const vat = Number(extracted.vat_amount || 0);
+    const ritenuta = Number(extracted.withholding_amount || 0);
+
+    // pinv-amount → "Importo / Compenso" (imponibile lordo prima di IVA/ritenuta)
+    const amountEl = document.getElementById('pinv-amount');
+    if (amountEl) {
+        const value = taxable > 0 ? taxable : Math.max(0, totalGross - vat - cassa - bollo + ritenuta);
+        if (value > 0) amountEl.value = value.toFixed(2);
+    }
+
+    // pinv-net → "Netto a Pagare"
+    const netEl = document.getElementById('pinv-net');
+    if (netEl && totalGross > 0) {
+        netEl.value = totalGross.toFixed(2);
+    }
+
+    // pinv-cassa
+    const cassaEl = document.getElementById('pinv-cassa');
+    if (cassaEl && cassa > 0) {
+        cassaEl.value = cassa.toFixed(2);
+    }
+
+    // Checkboxes
+    const vatCb = document.getElementById('pinv-has-vat');
+    if (vatCb) vatCb.checked = vat > 0;
+    const bolloCb = document.getElementById('pinv-has-bollo');
+    if (bolloCb) bolloCb.checked = bollo > 0;
+    // Rivalsa: heuristic — solo se c'è cassa SU regime ordinario non-cassa (es. INPS gestione separata)
+    // Per ora la lasciamo off di default: l'utente la attiva se sa che il fornitore la applica.
+
+    // Trigger ricalcolo breakdown (se l'app ha listener su pinv-amount change)
+    amountEl?.dispatchEvent(new Event('input'));
+    netEl?.dispatchEvent(new Event('input'));
+}
 
