@@ -400,12 +400,48 @@ export async function renderAssignmentDetail(container) {
                         </div>
                     </div>
                 </div>
+
+                ${isCollabView ? `
+                    <!-- Mina D: Hub Operativo (solo collab view) -->
+                    <div id="assignment-hub-operativo" style="margin-top: 1.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; padding: 0 0.5rem;">
+                            <span class="material-icons-round" style="color: #6366f1;">hub</span>
+                            <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0; color: var(--text-primary);">Il tuo lavoro su questo incarico</h3>
+                            <span style="font-size: 0.65rem; color: var(--text-tertiary); font-style: italic;">filtrato per te</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                            <div class="glass-card" id="hub-tasks-card" style="padding: 1.25rem; min-height: 180px;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                                    <span class="material-icons-round" style="color: #3b82f6; font-size: 1.1rem;">task_alt</span>
+                                    <span style="font-size: 0.85rem; font-weight: 700;">Task da fare</span>
+                                </div>
+                                <div id="hub-tasks-content" style="font-size: 0.85rem; color: var(--text-tertiary); text-align: center; padding: 1.5rem 0;">
+                                    <div class="loader" style="margin: 0 auto;"></div>
+                                </div>
+                            </div>
+                            <div class="glass-card" id="hub-appointments-card" style="padding: 1.25rem; min-height: 180px;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                                    <span class="material-icons-round" style="color: #f59e0b; font-size: 1.1rem;">event</span>
+                                    <span style="font-size: 0.85rem; font-weight: 700;">Prossimi appuntamenti</span>
+                                </div>
+                                <div id="hub-appointments-content" style="font-size: 0.85rem; color: var(--text-tertiary); text-align: center; padding: 1.5rem 0;">
+                                    <div class="loader" style="margin: 0 auto;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
             </div>
         `;
 
         // Initialize custom selects
         const statusSelect = container.querySelector('#assignment-status-select');
         if (statusSelect) new CustomSelect(statusSelect);
+
+        // Mina D: fetch hub operativo async (solo collab view)
+        if (isCollabView && assignment.order_id) {
+            loadAssignmentHubOperativo(assignment, myCollabId).catch(err => console.warn('[hub-operativo]', err));
+        }
 
         // Add hover effect for service actions
         const serviceRows = container.querySelectorAll('.service-item-row');
@@ -1781,3 +1817,146 @@ window.sendAssignmentEmail = async (assignmentId) => {
         showGlobalAlert("Errore durante l'inoltro: " + err.message, 'error');
     }
 };
+
+// ============================================================
+// Mina D: Hub Operativo nell'incarico (vista collab)
+// ============================================================
+// In vista collab, sotto le 3 colonne, mostra al collab:
+// - Le sue task della commessa (top 5 per scadenza)
+// - I suoi prossimi appuntamenti (top 3)
+// Carica async dopo il render iniziale per non ritardare la pagina.
+
+async function loadAssignmentHubOperativo(assignment, myCollabId) {
+    const orderId = assignment.order_id;
+    if (!orderId) return;
+
+    // 1) Recupera il pm_space della commessa
+    const { data: spaces } = await supabase
+        .from('pm_spaces')
+        .select('id')
+        .eq('order_id', orderId)
+        .limit(1);
+    const spaceId = spaces?.[0]?.id;
+    if (!spaceId) {
+        renderHubEmpty('hub-tasks-content', 'Nessuno spazio PM collegato a questa commessa.');
+        renderHubEmpty('hub-appointments-content', 'Nessuno spazio PM collegato.');
+        return;
+    }
+
+    // 2) user_id del collab loggato (per match assignees)
+    const userId = state.profile?.id;
+
+    // 3) Task: pm_items della commessa dove sono assignee
+    await loadHubTasks(spaceId, userId);
+
+    // 4) Appuntamenti: dove sono partecipante interno
+    await loadHubAppointments(spaceId, userId);
+}
+
+async function loadHubTasks(spaceId, userId) {
+    const targetEl = document.getElementById('hub-tasks-content');
+    if (!targetEl) return;
+
+    try {
+        // Recupera tutti i pm_items dello space, poi filtra client-side per assignee
+        const { data: items, error } = await supabase
+            .from('pm_items')
+            .select('id, title, status, due_date, priority, pm_item_assignees(user_id)')
+            .eq('space_id', spaceId)
+            .not('status', 'in', '("done","completed","archived")')
+            .order('due_date', { ascending: true, nullsFirst: false })
+            .limit(50);
+
+        if (error) throw error;
+
+        const mine = (items || []).filter(it =>
+            (it.pm_item_assignees || []).some(a => a.user_id === userId)
+        ).slice(0, 6);
+
+        if (mine.length === 0) {
+            renderHubEmpty('hub-tasks-content', '🎉 Nessuna task assegnata a te su questa commessa.');
+            return;
+        }
+
+        const today = new Date().toISOString().slice(0, 10);
+        targetEl.innerHTML = mine.map(t => {
+            const overdue = t.due_date && t.due_date < today;
+            const prioIcon = (t.priority === 'urgent' || t.priority === 'high') ? '🔴 ' : '';
+            const dueLabel = t.due_date
+                ? new Date(t.due_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })
+                : 'no data';
+            return `
+                <div style="padding: 0.6rem 0.75rem; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 0.5rem; border-left: 3px solid ${overdue ? '#ef4444' : '#3b82f6'}; cursor: pointer;" onclick="window.location.hash='pm/task/${t.id}'">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+                        <div style="flex: 1; min-width: 0; overflow: hidden;">
+                            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${prioIcon}${escapeHtml(t.title || 'Senza titolo')}</div>
+                            <div style="font-size: 0.7rem; color: ${overdue ? '#ef4444' : 'var(--text-tertiary)'};">${overdue ? 'scaduta · ' : ''}${dueLabel}</div>
+                        </div>
+                        <span class="material-icons-round" style="font-size: 1rem; color: var(--text-tertiary);">chevron_right</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (e) {
+        console.warn('[hub-tasks]', e);
+        renderHubEmpty('hub-tasks-content', 'Errore caricamento task.');
+    }
+}
+
+async function loadHubAppointments(spaceId, userId) {
+    const targetEl = document.getElementById('hub-appointments-content');
+    if (!targetEl) return;
+
+    try {
+        const nowIso = new Date().toISOString();
+        const { data: appts, error } = await supabase
+            .from('appointments')
+            .select('id, title, starts_at, ends_at, location, appointment_internal_participants(user_id)')
+            .eq('space_id', spaceId)
+            .gte('starts_at', nowIso)
+            .order('starts_at', { ascending: true })
+            .limit(20);
+
+        if (error) throw error;
+
+        const mine = (appts || []).filter(a =>
+            (a.appointment_internal_participants || []).some(p => p.user_id === userId)
+        ).slice(0, 4);
+
+        if (mine.length === 0) {
+            renderHubEmpty('hub-appointments-content', 'Nessun appuntamento in arrivo.');
+            return;
+        }
+
+        targetEl.innerHTML = mine.map(a => {
+            const dt = new Date(a.starts_at);
+            const date = dt.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+            const time = dt.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+            return `
+                <div style="padding: 0.6rem 0.75rem; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 0.5rem; border-left: 3px solid #f59e0b;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(a.title || 'Appuntamento')}</div>
+                            <div style="font-size: 0.7rem; color: var(--text-tertiary);">${date} alle ${time}${a.location ? ' · ' + escapeHtml(a.location) : ''}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (e) {
+        console.warn('[hub-appointments]', e);
+        renderHubEmpty('hub-appointments-content', 'Errore caricamento appuntamenti.');
+    }
+}
+
+function renderHubEmpty(id, message) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<div style="text-align: center; padding: 1.5rem 0.5rem; font-size: 0.8rem; color: var(--text-tertiary);">${message}</div>`;
+}
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
