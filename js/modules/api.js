@@ -1954,3 +1954,63 @@ export async function deleteLead(id) {
     state.leads = state.leads.filter(l => l.id !== id);
 }
 
+// =========================================================
+//  PARTNER WL — REFERENTI (contacts con relation_type)
+// =========================================================
+
+export async function fetchPartnerContacts(collaboratorId) {
+    const { data, error } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('collaborator_id', collaboratorId)
+        .eq('relation_type', 'partner_wl')
+        .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+}
+
+export async function upsertPartnerContact(contact) {
+    const { data, error } = await supabase
+        .from('contacts')
+        .upsert(contact, { onConflict: 'id' })
+        .select()
+        .single();
+    if (error) throw error;
+    return data;
+}
+
+export async function deletePartnerContact(id) {
+    const { error } = await supabase.from('contacts').delete().eq('id', id);
+    if (error) throw error;
+}
+
+// =========================================================
+//  PARTNER WL — CONTRATTI QUADRO
+// =========================================================
+
+export async function fetchPartnerContracts(partnerId) {
+    const { data, error } = await supabase
+        .from('partner_framework_contracts')
+        .select('*')
+        .eq('partner_id', partnerId)
+        .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+}
+
+export async function upsertPartnerContract(contract) {
+    const payload = { ...contract, updated_at: new Date().toISOString() };
+    const { data, error } = await supabase
+        .from('partner_framework_contracts')
+        .upsert(payload, { onConflict: 'id' })
+        .select()
+        .single();
+    if (error) throw error;
+    return data;
+}
+
+export async function deletePartnerContract(id) {
+    const { error } = await supabase.from('partner_framework_contracts').delete().eq('id', id);
+    if (error) throw error;
+}
+
