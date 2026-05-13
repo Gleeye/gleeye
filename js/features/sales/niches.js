@@ -15,6 +15,7 @@ import { analyzeNiche, saveNicheAnalysis, fetchNicheSapRelevance, PAROZZI_CRITER
 import { openSourcingModal } from './sourcing.js?v=8000';
 import { runLayer1AI, runLayer2AI, scrapeProspectSite } from './enrichment.js?v=8000';
 import { openProspectModal } from './pipeline_board.js?v=8000';
+import { openOverlay, buildModalShell, closeOverlay, bindModalCloseButtons } from './_modal.js?v=8001';
 
 const STATUS_CONFIG = {
     researching: { label: 'In ricerca',  color: '#f59e0b', icon: 'search' },
@@ -180,33 +181,31 @@ function bindEvents(container, niches) {
 // ─── MODAL: NEW NICHE (AI-first) ─────────────────────────────────────────────
 
 function openNewNicheModal(onSave) {
-    const overlay = buildOverlay('modal-new-niche');
-    overlay.innerHTML = buildModalShell(
-        'Nuova nicchia',
-        '',
-        '<div id="new-niche-body">' +
-            '<div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.25rem;line-height:1.5;">' +
-                'Scrivi il nome della nicchia. L\'AI analizza mercato, pain, linguaggio, comuni target e SAP candidati. ' +
-                'Poi rivedi e salvi.' +
-            '</div>' +
-            '<div>' +
-                '<label style="font-size:0.74rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Nome nicchia *</label>' +
-                '<input id="new-niche-name" type="text" placeholder="Es. Strutture ricettive Liguria" ' +
-                    'style="width:100%;padding:0.75rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.95rem;box-sizing:border-box;">' +
-            '</div>' +
-            '<div id="new-niche-analysis" style="margin-top:1.25rem;"></div>' +
-        '</div>',
-        '<button id="btn-cancel-new" style="padding:0.6rem 1.2rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-secondary);font-size:0.85rem;font-weight:600;cursor:pointer;">Annulla</button>' +
-        '<button id="btn-analyze-niche" class="primary-btn" style="padding:0.6rem 1.4rem;border-radius:12px;font-size:0.85rem;font-weight:700;display:inline-flex;align-items:center;gap:0.4rem;">' +
-            '<span class="material-icons-round" style="font-size:1rem;">auto_awesome</span>Analizza con AI' +
-        '</button>'
-    );
+    const overlay = openOverlay('modal-new-niche');
+    overlay.innerHTML = buildModalShell({
+        title: 'Nuova nicchia',
+        body:
+            '<div id="new-niche-body">' +
+                '<div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.25rem;line-height:1.5;">' +
+                    'Scrivi il nome della nicchia. L\'AI analizza mercato, pain, linguaggio, comuni target e SAP candidati. ' +
+                    'Poi rivedi e salvi.' +
+                '</div>' +
+                '<div>' +
+                    '<label style="font-size:0.74rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Nome nicchia *</label>' +
+                    '<input id="new-niche-name" type="text" placeholder="Es. Strutture ricettive Liguria" ' +
+                        'style="width:100%;padding:0.75rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.95rem;box-sizing:border-box;">' +
+                '</div>' +
+                '<div id="new-niche-analysis" style="margin-top:1.25rem;"></div>' +
+            '</div>',
+        footer:
+            '<button data-modal-close="1" style="padding:0.6rem 1.2rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-secondary);font-size:0.85rem;font-weight:600;cursor:pointer;">Annulla</button>' +
+            '<button id="btn-analyze-niche" class="primary-btn" style="padding:0.6rem 1.4rem;border-radius:12px;font-size:0.85rem;font-weight:700;display:inline-flex;align-items:center;gap:0.4rem;">' +
+                '<span class="material-icons-round" style="font-size:1rem;">auto_awesome</span>Analizza con AI' +
+            '</button>',
+    });
+    bindModalCloseButtons(overlay);
 
-    document.body.appendChild(overlay);
-
-    const close = () => overlay.remove();
-    overlay.querySelector('#btn-cancel-new').addEventListener('click', close);
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    const close = () => closeOverlay(overlay);
 
     overlay.querySelector('#btn-analyze-niche').addEventListener('click', async () => {
         const nameInput = overlay.querySelector('#new-niche-name');
@@ -604,11 +603,16 @@ function buildProspectRow(p) {
     const stageColor = stageColors[p.pipeline_stage] || '#94a3b8';
     const scoreColor = score == null ? '#94a3b8' : score >= 70 ? '#10b981' : score >= 40 ? '#f59e0b' : '#ef4444';
 
+    // Il <div> esterno NON ha listener click né cursor:pointer.
+    // SOLO l'area centrale `.np-row-open` ha listener (apre modal prospect).
+    // Il checkbox `.np-check` è isolato, click solo lì → solo seleziona.
     return (
-        '<div class="np-row" data-id="' + p.id + '" style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:0.6rem;align-items:center;padding:0.6rem 0.8rem;border-bottom:1px solid var(--glass-border);font-size:0.8rem;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'var(--bg-tertiary)\'" onmouseout="this.style.background=\'\'">' +
-            '<input type="checkbox" class="np-check" data-id="' + p.id + '" style="cursor:pointer;" onclick="event.stopPropagation()">' +
-            '<div style="min-width:0;">' +
-                '<div style="font-weight:700;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(p.business_name) + ' <span style="font-size:0.65rem;color:var(--text-tertiary);font-weight:500;">↗ apri dettaglio</span></div>' +
+        '<div class="np-row" data-id="' + p.id + '" style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:0.6rem;align-items:center;padding:0.6rem 0.8rem;border-bottom:1px solid var(--glass-border);font-size:0.8rem;transition:background 0.15s;" onmouseover="this.style.background=\'var(--bg-tertiary)\'" onmouseout="this.style.background=\'\'">' +
+            '<label style="display:flex;align-items:center;justify-content:center;width:24px;height:24px;cursor:pointer;" title="Seleziona prospect">' +
+                '<input type="checkbox" class="np-check" data-id="' + p.id + '" style="cursor:pointer;width:16px;height:16px;">' +
+            '</label>' +
+            '<div class="np-row-open" data-id="' + p.id + '" style="min-width:0;cursor:pointer;" title="Apri dettaglio prospect">' +
+                '<div style="font-weight:700;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(p.business_name) + ' <span style="font-size:0.65rem;color:var(--text-tertiary);font-weight:500;">↗ dettaglio</span></div>' +
                 '<div style="font-size:0.7rem;color:var(--text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
                     (e.city_origin ? '📍 ' + escHtml(e.city_origin) + ' · ' : '') +
                     (p.website ? escHtml(p.website.replace(/^https?:\/\//, '').slice(0, 40)) : '') +
@@ -650,21 +654,16 @@ function buildAnalysisPreviewFromNiche(n, relevance) {
 // ─── PROSPECTS SECTION EVENTS ────────────────────────────────────────────────
 
 function bindProspectsSectionEvents(overlay, niche, onSave, prospects) {
-    // Click sulla riga (escluso checkbox) → apre modal prospect completo
-    overlay.querySelectorAll('.np-row').forEach(row => {
-        row.addEventListener('click', async (e) => {
-            // Se ha cliccato il checkbox o la sua label, non aprire modal
-            if (e.target.classList.contains('np-check') || e.target.closest('.np-check')) return;
-            // Evita di triggerare per click su input
-            if (e.target.tagName === 'INPUT') return;
-            e.preventDefault();
-            const id = row.dataset.id;
+    // Click su .np-row-open (area centrale info nome) → apre modal prospect.
+    // Checkbox e badge sono FUORI da .np-row-open → click su di loro NON triggera il modal.
+    overlay.querySelectorAll('.np-row-open').forEach(opener => {
+        opener.addEventListener('click', async (e) => {
+            const id = opener.dataset.id;
             const prospect = prospects.find(p => p.id === id);
             if (!prospect) return;
             try {
                 const sapServices = await fetchSapServicesForSales();
                 openProspectModal(prospect, sapServices, async () => {
-                    // Dopo modifiche, ricarica la nicchia per riflettere i nuovi dati
                     onSave && onSave();
                 });
             } catch (err) {
@@ -841,35 +840,6 @@ async function runBulkAnalyze(overlay, niche, ids, prospects, onSave) {
     }, 1500);
 }
 
-// ─── MODAL SHELL ──────────────────────────────────────────────────────────────
-
-function buildOverlay(id) {
-    const existing = document.getElementById(id);
-    if (existing) existing.remove();
-    const overlay = document.createElement('div');
-    overlay.id = id;
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
-    return overlay;
-}
-
-function buildModalShell(title, headerExtra, bodyHTML, footerHTML) {
-    return (
-        '<div style="background:var(--bg-primary, #ffffff);border-radius:20px;padding:2rem;max-width:760px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 25px 80px rgba(0,0,0,0.35);border:1px solid var(--glass-border, rgba(0,0,0,0.08));">' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">' +
-                '<h2 style="font-size:1.25rem;font-weight:800;font-family:var(--font-titles);margin:0;">' + title + '</h2>' +
-                '<div style="display:flex;gap:0.4rem;align-items:center;">' +
-                    headerExtra +
-                    '<button class="modal-close-x" style="background:var(--bg-tertiary);color:var(--text-secondary);border:none;border-radius:10px;padding:0.4rem 0.75rem;font-size:0.78rem;cursor:pointer;">✕</button>' +
-                '</div>' +
-            '</div>' +
-            bodyHTML +
-            '<div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--glass-border);">' +
-                footerHTML +
-            '</div>' +
-        '</div>'
-    );
-}
-
 // ─── UTILS ────────────────────────────────────────────────────────────────────
 
 function escHtml(str) {
@@ -881,15 +851,4 @@ function truncate(str, max) {
     if (!str) return '';
     const s = String(str);
     return s.length > max ? s.slice(0, max - 1) + '…' : s;
-}
-
-// Chiusura modal via X (delegato — registrato una volta)
-if (!window.__nicheModalCloseBound) {
-    window.__nicheModalCloseBound = true;
-    document.addEventListener('click', (e) => {
-        if (e.target && e.target.classList && e.target.classList.contains('modal-close-x')) {
-            const overlay = e.target.closest('[id^="modal-"]');
-            if (overlay) overlay.remove();
-        }
-    });
 }
