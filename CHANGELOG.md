@@ -77,6 +77,17 @@ Branch attivo principale: `feature/ai-foundation`.
   tutti i regimi insieme. Stesso pattern per "Dati Fiscali" del cliente
   (3 ? → 1 ?).
 
+### Step 6 — Bug fix actor frontend (post-DB-fix del 12/5)
+
+- `pm_activity_helper.js`: nuova fn `resolveUserNameByUuid(uuid)` che cerca
+  in state.profiles + state.collaborators (anche via user_id link) per
+  risolvere UUID grezzi in nome leggibile.
+- `resolveActorName()`: chain finale a 6 step (full_name del join → email
+  local part → lookup state UUID → 'Utente sconosciuto' → 'Sistema').
+- Per il target dell'assegnazione ("ha assegnato a..."): prima di cadere
+  su "un utente" si prova il lookup UUID. Fallback ora è "un collaboratore".
+- `pm/space_view.js`: "Sconosciuto" → split email come fallback più umano.
+
 ### Permission allowlist per autonomia notturna
 
 - `.claude/settings.local.json`: pre-approvati i tool read-only e i
