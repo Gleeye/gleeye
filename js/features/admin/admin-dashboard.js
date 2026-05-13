@@ -215,17 +215,17 @@ export function renderAdminDashboard(container) {
 
                 <!-- Tab Content: Logs -->
                 <div id="tab-logs" class="tab-content hidden" style="padding: 2rem;">
-                    <div id="admin-logs-container">Loading logs...</div>
+                    <div id="admin-logs-container">Caricamento log...</div>
                 </div>
 
                 <!-- Tab Content: Registry -->
                 <div id="tab-registry" class="tab-content hidden" style="padding: 2rem; background: var(--bg-primary);">
-                    <div id="admin-registry-container">Loading registry...</div>
+                    <div id="admin-registry-container">Caricamento registro...</div>
                 </div>
 
                 <!-- Tab Content: System -->
                 <div id="tab-system" class="tab-content hidden" style="padding: 2rem;">
-                    <div id="admin-system-container">Loading system logs...</div>
+                    <div id="admin-system-container">Caricamento log di sistema...</div>
                 </div>
 
                 <!-- Tab Content: AI Usage -->

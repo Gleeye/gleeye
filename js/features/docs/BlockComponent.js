@@ -346,7 +346,7 @@ export function createBlockElement(block, docSpaceId) {
                         // Dispatch 'block-update-request' used in PageEditor?
                         // PageEditor listens to 'block-check-change'. It doesn't re-render.
                         // I'll manually replace content.
-                        content.innerHTML = `<div style="padding:12px; color:#64748b">Loading... (Refresh to see if stuck)</div>`;
+                        content.innerHTML = `<div style="padding:12px; color:#64748b">Caricamento... (Aggiorna la pagina se resta bloccato)</div>`;
                         // Actually, I can just call createBlockElement again? No circular dependency.
                         // Simple hack: reload page? No.
                         // I'll assume PageEditor handles re-render if I trigger a specific event?
@@ -587,7 +587,7 @@ export function createBlockElement(block, docSpaceId) {
                 resultsDiv.style.backgroundColor = 'white';
 
                 const showResults = async (query = '') => {
-                    resultsDiv.innerHTML = '<div style="padding:8px; color:#94a3b8;">Loading...</div>';
+                    resultsDiv.innerHTML = '<div style="padding:8px; color:#94a3b8;">Caricamento...</div>';
                     resultsDiv.style.display = 'block';
                     try {
                         const pages = await fetchDocPages(docSpaceId);

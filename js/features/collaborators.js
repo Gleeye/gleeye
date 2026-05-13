@@ -337,7 +337,7 @@ export function initCollaboratorModals() {
                                 <div class="modal-section">
                                     <div class="section-title"><span class="material-icons-round">work</span><h4>Dati Professionali</h4></div>
                                     <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
-                                        <div class="form-group"><label>Codice *</label><input type="text" id="collab-name" required placeholder="Shorthand"></div>
+                                        <div class="form-group"><label>Codice *</label><input type="text" id="collab-name" required placeholder="Es. MR (sigla breve)" title="Sigla breve identificativa, max 6 caratteri"></div>
                                         <div class="form-group"><label>Ruolo *</label><input type="text" id="collab-role" required></div>
                                         <div class="form-group full-width">
                                             <label>Reparto *</label>
