@@ -101,6 +101,18 @@ export async function renderAssignmentDetail(container) {
         const orderTitle = assignment.orders?.title || '';
         const clientName = assignment.orders?.clients?.business_name || '';
 
+        // === Role-based view (Mina A) ===
+        // Se l'utente loggato è il collaboratore dell'incarico → vista filtrata:
+        //   nasconde costi interni, tariffario, delta, note PM, bottoni admin.
+        //   Mostra: scope, descrizione, budget pattuito (= suo compenso), pagamenti,
+        //   documenti, lettera.
+        // Per admin/account o altri collab → vista completa.
+        const activeRole = state.impersonatedRole || state.profile?.role || 'admin';
+        const myCollabId = state.impersonatedCollaboratorId || state.profile?.collaborator_id;
+        const isCollabView = (activeRole === 'collaborator' || activeRole === 'collab')
+            && myCollabId
+            && myCollabId === assignment.collaborator_id;
+
         container.innerHTML = `
             <div class="animate-fade-in" style="max-width: 1400px; margin: 0 auto; padding: 1rem;">
                 <!-- Header Section -->
@@ -112,13 +124,22 @@ export async function renderAssignmentDetail(container) {
                         <div>
                             <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.4rem;">
                                  <h1 style="font-size: 1.75rem; font-weight: 700; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.02em;">Incarico ${assignment.legacy_id || id.substring(0, 8)}</h1>
+                                 ${isCollabView ? `
+                                    <span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; background: rgba(16, 185, 129, 0.1); color: #10b981; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+                                        <span class="material-icons-round" style="font-size: 0.85rem;">visibility</span> Vista collaboratore
+                                    </span>
+                                    <span style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 4px 12px; border-radius: 999px; background: rgba(99, 102, 241, 0.08); color: var(--text-primary); font-size: 0.8rem; font-weight: 600;">
+                                        <span style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColor};"></span>
+                                        ${assignment.status || 'Attivo'}
+                                    </span>
+                                 ` : `
                                  <div class="assignment-status-wrapper" style="min-width: 150px;">
                                     <select id="assignment-status-select" onchange="window.handleAssignmentStatusChange('${assignment.id}', this.value)">
                                         ${['Attivo', 'In Corso', 'Sospeso', 'Completato', 'Annullato'].map(s => `
                                             <option value="${s}" ${assignment.status === s ? 'selected' : ''}>${s}</option>
                                         `).join('')}
                                     </select>
-                                 </div>
+                                 </div>`}
                             </div>
                             <div style="display: flex; align-items: center; gap: 1rem; color: var(--text-tertiary); font-size: 0.85rem;">
                                 <span style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;" onclick="window.location.hash='collaborator-detail/${assignment.collaborator_id}'">
@@ -135,19 +156,21 @@ export async function renderAssignmentDetail(container) {
                         <button class="primary-btn secondary" onclick="window.history.back()" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
                             <span class="material-icons-round">arrow_back</span> Indietro
                         </button>
-                        <button class="primary-btn secondary" onclick="window.deleteAssignment('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px; color: #ef4444; border-color: rgba(239, 68, 68, 0.2);">
-                            <span class="material-icons-round">delete</span> Elimina
-                        </button>
-                        <button class="primary-btn secondary" onclick="window.editAssignment('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
-                            <span class="material-icons-round">edit</span> Modifica
-                        </button>
-                        ${assignment.contract_url ? `
-                        <button class="primary-btn secondary" onclick="window.sendAssignmentEmail('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px; color: #10b981; border-color: rgba(16, 185, 129, 0.2);">
-                            <span class="material-icons-round">forward_to_inbox</span> Invia Email
-                        </button>
+                        ${!isCollabView ? `
+                            <button class="primary-btn secondary" onclick="window.deleteAssignment('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px; color: #ef4444; border-color: rgba(239, 68, 68, 0.2);">
+                                <span class="material-icons-round">delete</span> Elimina
+                            </button>
+                            <button class="primary-btn secondary" onclick="window.editAssignment('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
+                                <span class="material-icons-round">edit</span> Modifica
+                            </button>
+                            ${assignment.contract_url ? `
+                            <button class="primary-btn secondary" onclick="window.sendAssignmentEmail('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px; color: #10b981; border-color: rgba(16, 185, 129, 0.2);">
+                                <span class="material-icons-round">forward_to_inbox</span> Invia Email
+                            </button>
+                            ` : ''}
                         ` : ''}
                         <button class="primary-btn" onclick="window.generateAssignmentLetter('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px; background: linear-gradient(135deg, #8b5cf6, #6366f1);">
-                            <span class="material-icons-round">file_download</span> Lettera Incarico
+                            <span class="material-icons-round">file_download</span> ${isCollabView ? 'Scarica Lettera' : 'Lettera Incarico'}
                         </button>
                     </div>
                 </div>
@@ -202,14 +225,16 @@ export async function renderAssignmentDetail(container) {
                     <div class="glass-card" style="padding: 1.5rem;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem; align-items: center;">
                             <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0;">Servizi & Attività</h3>
+                                <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0;">${isCollabView ? 'Cosa devi fare' : 'Servizi & Attività'}</h3>
                                 <span class="badge" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6; font-weight: 600;">${linkedServices.length}</span>
                             </div>
-                            <button class="icon-btn" onclick="window.addServiceToAssignment('${assignment.id}', '${assignment.order_id}')" style="background: rgba(16, 185, 129, 0.1); color: #10b981; width: 32px; height: 32px;">
-                                <span class="material-icons-round" style="font-size: 1.2rem;">add</span>
-                            </button>
+                            ${!isCollabView ? `
+                                <button class="icon-btn" onclick="window.addServiceToAssignment('${assignment.id}', '${assignment.order_id}')" style="background: rgba(16, 185, 129, 0.1); color: #10b981; width: 32px; height: 32px;">
+                                    <span class="material-icons-round" style="font-size: 1.2rem;">add</span>
+                                </button>
+                            ` : ''}
                         </div>
-                        
+
                         ${linkedServices.length > 0 ? `
                             <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem;">
                                 ${linkedServices.map(s => `
@@ -217,20 +242,28 @@ export async function renderAssignmentDetail(container) {
                                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.25rem;">
                                             <div style="flex: 1;">
                                                 <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 2px;">${s.services?.name || s.legacy_service_name || s.name || 'Servizio'}</div>
-                                                <div style="font-size: 0.7rem; color: var(--text-tertiary);">
-                                                    <span>${s.quantity || s.hours || '-'} unità × ${formatAmount(s.unit_cost)}€</span>
-                                                </div>
+                                                ${!isCollabView ? `
+                                                    <div style="font-size: 0.7rem; color: var(--text-tertiary);">
+                                                        <span>${s.quantity || s.hours || '-'} unità × ${formatAmount(s.unit_cost)}€</span>
+                                                    </div>
+                                                ` : `
+                                                    <div style="font-size: 0.7rem; color: var(--text-tertiary);">
+                                                        <span>${s.quantity || s.hours || '-'} unità</span>
+                                                    </div>
+                                                `}
                                             </div>
                                             <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                                                <span style="font-size: 0.85rem; font-weight: 700; color: #ef4444;">${formatAmount(s.total_cost)}€</span>
-                                                <div class="service-actions" style="display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s;">
-                                                    <button class="icon-btn small" onclick="window.editAssignmentService('${s.id}')" style="width: 24px; height: 24px; font-size: 0.8rem; background: rgba(99, 102, 241, 0.1); color: #6366f1;">
-                                                        <span class="material-icons-round" style="font-size: 1rem;">edit</span>
-                                                    </button>
-                                                    <button class="icon-btn small" onclick="window.deleteAssignmentService('${s.id}')" style="width: 24px; height: 24px; font-size: 0.8rem; background: rgba(239, 68, 68, 0.1); color: #ef4444;">
-                                                        <span class="material-icons-round" style="font-size: 1rem;">delete</span>
-                                                    </button>
-                                                </div>
+                                                ${!isCollabView ? `
+                                                    <span style="font-size: 0.85rem; font-weight: 700; color: #ef4444;">${formatAmount(s.total_cost)}€</span>
+                                                    <div class="service-actions" style="display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s;">
+                                                        <button class="icon-btn small" onclick="window.editAssignmentService('${s.id}')" style="width: 24px; height: 24px; font-size: 0.8rem; background: rgba(99, 102, 241, 0.1); color: #6366f1;">
+                                                            <span class="material-icons-round" style="font-size: 1rem;">edit</span>
+                                                        </button>
+                                                        <button class="icon-btn small" onclick="window.deleteAssignmentService('${s.id}')" style="width: 24px; height: 24px; font-size: 0.8rem; background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                                                            <span class="material-icons-round" style="font-size: 1rem;">delete</span>
+                                                        </button>
+                                                    </div>
+                                                ` : ''}
                                             </div>
                                         </div>
                                     </div>
@@ -239,7 +272,7 @@ export async function renderAssignmentDetail(container) {
                         ` : `
                             <div style="text-align: center; padding: 2rem; color: var(--text-tertiary); font-size: 0.85rem;">
                                 <span class="material-icons-round" style="font-size: 2rem; opacity: 0.5; display: block; margin-bottom: 0.5rem;">construction</span>
-                                Nessun servizio collegato
+                                ${isCollabView ? 'Nessun dettaglio scope' : 'Nessun servizio collegato'}
                             </div>
                         `}
 
@@ -249,10 +282,10 @@ export async function renderAssignmentDetail(container) {
                             <p style="font-size: 0.85rem; line-height: 1.6; color: var(--text-secondary); margin: 0;">${assignment.description || 'Nessuna descrizione specifica per questo incarico.'}</p>
                         </div>
 
-                        ${assignment.pm_notes ? `
+                        ${assignment.pm_notes && !isCollabView ? `
                             <div style="margin-top: 1.25rem; padding: 1rem; background: rgba(245, 158, 11, 0.05); border-radius: 10px; border: 1px dashed rgba(245, 158, 11, 0.3);">
                                 <div style="font-size: 0.7rem; font-weight: 600; color: #f59e0b; text-transform: uppercase; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.4rem;">
-                                    <span class="material-icons-round" style="font-size: 1rem;">sticky_note_2</span> Note PM
+                                    <span class="material-icons-round" style="font-size: 1rem;">sticky_note_2</span> Note PM (interne)
                                 </div>
                                 <p style="font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary); margin: 0; font-style: italic;">${assignment.pm_notes}</p>
                             </div>
@@ -263,29 +296,33 @@ export async function renderAssignmentDetail(container) {
                     <div style="display: flex; flex-direction: column; gap: 1rem;">
                         <!-- Economics Card -->
                         <div class="glass-card" style="padding: 1.5rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), transparent); border: 2px solid rgba(139, 92, 246, 0.15);">
-                            <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem;">
+                            <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: ${isCollabView ? '0' : '1.5rem'};">
                                 <div style="flex: 1;">
-                                    <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Importo Incarico (Costo)</div>
-                                    <div style="font-size: 2rem; font-weight: 800; line-height: 1; color: #ef4444; font-family: var(--font-titles);">${formatAmount(budget)}€</div>
+                                    <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">${isCollabView ? 'Compenso Concordato' : 'Importo Incarico (Costo)'}</div>
+                                    <div style="font-size: 2rem; font-weight: 800; line-height: 1; color: ${isCollabView ? '#10b981' : '#ef4444'}; font-family: var(--font-titles);">${formatAmount(budget)}€</div>
                                 </div>
-                                <button class="icon-btn" onclick="window.editAssignmentEconomics('${assignment.id}')" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
-                                    <span class="material-icons-round">edit</span>
-                                </button>
+                                ${!isCollabView ? `
+                                    <button class="icon-btn" onclick="window.editAssignmentEconomics('${assignment.id}')" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
+                                        <span class="material-icons-round">edit</span>
+                                    </button>
+                                ` : ''}
                             </div>
 
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding-top: 1rem; border-top: 1px solid rgba(139, 92, 246, 0.1);">
-                                <div>
-                                    <div style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Tariffario Suggerito</div>
-                                    <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-secondary);">${formatAmount(totalCost)}€</div>
-                                </div>
-                                <div>
-                                    <div style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Delta Tariffario</div>
-                                    <div style="font-size: 1.1rem; font-weight: 700; color: ${margin >= 0 ? '#10b981' : '#ef4444'};">
-                                        ${formatAmount(margin)}€
-                                        <span style="font-size: 0.75rem; font-weight: 500; opacity: 0.8; margin-left: 2px;">(${marginPct}%)</span>
+                            ${!isCollabView ? `
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding-top: 1rem; border-top: 1px solid rgba(139, 92, 246, 0.1);">
+                                    <div>
+                                        <div style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Tariffario Suggerito</div>
+                                        <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-secondary);">${formatAmount(totalCost)}€</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Delta Tariffario</div>
+                                        <div style="font-size: 1.1rem; font-weight: 700; color: ${margin >= 0 ? '#10b981' : '#ef4444'};">
+                                            ${formatAmount(margin)}€
+                                            <span style="font-size: 0.75rem; font-weight: 500; opacity: 0.8; margin-left: 2px;">(${marginPct}%)</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            ` : ''}
                         </div>
 
                         <!-- Payments Collapsible -->
@@ -324,14 +361,16 @@ export async function renderAssignmentDetail(container) {
                                     </div>
                                 `).join('') : '<div style="font-size: 0.7rem; color: var(--text-tertiary); text-align: center; padding: 1rem;">Nessun pagamento</div>'}
                                 
-                                <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
-                                    <button onclick="window.openManualAssignmentPaymentModal('${assignment.id}', '${assignment.collaborator_id}')" style="flex: 1; border: none; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.75rem; font-weight: 500; padding: 0.6rem; border-radius: 8px; cursor: pointer; border: 1px solid var(--glass-border);">
-                                        <span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle;">add</span> Manuale
-                                    </button>
-                                    <button onclick="window.generateAssignmentPayments('${assignment.id}')" style="flex: 1; border: none; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; font-size: 0.75rem; font-weight: 500; padding: 0.6rem; border-radius: 8px; cursor: pointer;">
-                                        <span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle;">auto_fix_high</span> Genera
-                                    </button>
-                                </div>
+                                ${!isCollabView ? `
+                                    <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+                                        <button onclick="window.openManualAssignmentPaymentModal('${assignment.id}', '${assignment.collaborator_id}')" style="flex: 1; border: none; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.75rem; font-weight: 500; padding: 0.6rem; border-radius: 8px; cursor: pointer; border: 1px solid var(--glass-border);">
+                                            <span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle;">add</span> Manuale
+                                        </button>
+                                        <button onclick="window.generateAssignmentPayments('${assignment.id}')" style="flex: 1; border: none; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; font-size: 0.75rem; font-weight: 500; padding: 0.6rem; border-radius: 8px; cursor: pointer;">
+                                            <span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle;">auto_fix_high</span> Genera
+                                        </button>
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
 
