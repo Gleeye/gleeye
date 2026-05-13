@@ -9,11 +9,12 @@
  * - Davide rivede e salva.
  */
 
-import { fetchNiches, upsertNiche, deleteNiche, fetchProspectsByNiche, promoteProspectsToPipeline, bulkDeleteProspects, upsertProspect } from './api.js?v=8000';
+import { fetchNiches, upsertNiche, deleteNiche, fetchProspectsByNiche, promoteProspectsToPipeline, bulkDeleteProspects, upsertProspect, fetchSapServicesForSales } from './api.js?v=8000';
 import { showGlobalAlert, showConfirm } from '../../modules/utils.js?v=8000';
 import { analyzeNiche, saveNicheAnalysis, fetchNicheSapRelevance, PAROZZI_CRITERIA } from './niche_analyzer.js?v=8000';
 import { openSourcingModal } from './sourcing.js?v=8000';
 import { runLayer1AI, runLayer2AI } from './enrichment.js?v=8000';
+import { openProspectModal } from './pipeline_board.js?v=8000';
 
 const STATUS_CONFIG = {
     researching: { label: 'In ricerca',  color: '#f59e0b', icon: 'search' },
@@ -528,10 +529,10 @@ function buildProspectRow(p) {
     const scoreColor = score == null ? '#94a3b8' : score >= 70 ? '#10b981' : score >= 40 ? '#f59e0b' : '#ef4444';
 
     return (
-        '<label class="np-row" data-id="' + p.id + '" style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:0.6rem;align-items:center;padding:0.6rem 0.8rem;border-bottom:1px solid var(--glass-border);font-size:0.8rem;cursor:pointer;">' +
-            '<input type="checkbox" class="np-check" data-id="' + p.id + '" style="cursor:pointer;">' +
+        '<div class="np-row" data-id="' + p.id + '" style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:0.6rem;align-items:center;padding:0.6rem 0.8rem;border-bottom:1px solid var(--glass-border);font-size:0.8rem;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'var(--bg-tertiary)\'" onmouseout="this.style.background=\'\'">' +
+            '<input type="checkbox" class="np-check" data-id="' + p.id + '" style="cursor:pointer;" onclick="event.stopPropagation()">' +
             '<div style="min-width:0;">' +
-                '<div style="font-weight:700;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(p.business_name) + '</div>' +
+                '<div style="font-weight:700;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(p.business_name) + ' <span style="font-size:0.65rem;color:var(--text-tertiary);font-weight:500;">↗ apri dettaglio</span></div>' +
                 '<div style="font-size:0.7rem;color:var(--text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
                     (e.city_origin ? '📍 ' + escHtml(e.city_origin) + ' · ' : '') +
                     (p.website ? escHtml(p.website.replace(/^https?:\/\//, '').slice(0, 40)) : '') +
@@ -544,7 +545,7 @@ function buildProspectRow(p) {
             (inPipeline
                 ? '<span class="material-icons-round" style="font-size:1rem;color:#10b981;" title="In pipeline outreach">check_circle</span>'
                 : '<span class="material-icons-round" style="font-size:1rem;color:#cbd5e1;" title="Non in pipeline">radio_button_unchecked</span>') +
-        '</label>'
+        '</div>'
     );
 }
 
@@ -627,6 +628,29 @@ function bindDetailEvents(overlay, niche, onSave, close, prospects) {
 // ─── PROSPECTS SECTION EVENTS ────────────────────────────────────────────────
 
 function bindProspectsSectionEvents(overlay, niche, onSave, prospects) {
+    // Click sulla riga (escluso checkbox) → apre modal prospect completo
+    overlay.querySelectorAll('.np-row').forEach(row => {
+        row.addEventListener('click', async (e) => {
+            // Se ha cliccato il checkbox o la sua label, non aprire modal
+            if (e.target.classList.contains('np-check') || e.target.closest('.np-check')) return;
+            // Evita di triggerare per click su input
+            if (e.target.tagName === 'INPUT') return;
+            e.preventDefault();
+            const id = row.dataset.id;
+            const prospect = prospects.find(p => p.id === id);
+            if (!prospect) return;
+            try {
+                const sapServices = await fetchSapServicesForSales();
+                openProspectModal(prospect, sapServices, async () => {
+                    // Dopo modifiche, ricarica la nicchia per riflettere i nuovi dati
+                    onSave && onSave();
+                });
+            } catch (err) {
+                showGlobalAlert('Errore apertura: ' + err.message, 'error');
+            }
+        });
+    });
+
     const checks = overlay.querySelectorAll('.np-check');
     if (checks.length === 0) return;
     const selectAll = overlay.querySelector('#np-select-all');
