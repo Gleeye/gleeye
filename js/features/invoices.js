@@ -1564,28 +1564,59 @@ REGOLE:
 - Campi obbligatori: supplier_name, invoice_number, invoice_date, total_gross.`;
 
 /**
- * Match supplier in state.suppliers via P.IVA → CF → email → name fuzzy.
+ * Detect mode attivo nel modal passive-invoice.
+ * @returns {'collab'|'supplier'|'partner-wl'}
  */
-function matchSupplierLocal(extracted) {
-    if (!Array.isArray(state.suppliers) || !extracted) return null;
-    const piva = extracted.supplier_vat?.replace(/\D/g, '');
-    if (piva) {
-        const m = state.suppliers.find(s => (s.vat_number || '').replace(/\D/g, '') === piva);
-        if (m) return m;
+function getPassiveModalMode() {
+    const modal = document.getElementById('passive-invoice-modal');
+    return modal?.dataset.mode || 'collab';
+}
+
+/**
+ * Match entità in base al mode del modal:
+ *  - 'supplier'   → state.suppliers
+ *  - 'collab'     → state.collaborators filtered type ≠ 'white_label'
+ *  - 'partner-wl' → state.collaborators filtered type = 'white_label'
+ *
+ * Confronta P.IVA → CF → email → nome (fuzzy).
+ * @returns {Object|null} L'entità matchata (con id, full_name/name, ecc.)
+ */
+function matchEntityForMode(extracted, mode) {
+    if (!extracted) return null;
+    const piva = (extracted.supplier_vat || '').replace(/\D/g, '');
+    const cf = (extracted.supplier_fiscal_code || '').toUpperCase().trim();
+    const email = (extracted.supplier_email || '').toLowerCase().trim();
+    const name = (extracted.supplier_name || '').toLowerCase().trim();
+
+    if (mode === 'supplier') {
+        const list = Array.isArray(state.suppliers) ? state.suppliers : [];
+        if (piva) { const m = list.find(s => (s.vat_number || '').replace(/\D/g, '') === piva); if (m) return m; }
+        if (cf) { const m = list.find(s => (s.tax_code || '').toUpperCase().trim() === cf); if (m) return m; }
+        if (email) { const m = list.find(s => (s.email || '').toLowerCase().trim() === email); if (m) return m; }
+        if (name && name.length > 2) {
+            const m = list.find(s => {
+                const sn = (s.name || '').toLowerCase();
+                return sn && (sn.includes(name) || name.includes(sn));
+            });
+            if (m) return m;
+        }
+        return null;
     }
-    const cf = extracted.supplier_fiscal_code?.toUpperCase().trim();
-    if (cf) {
-        const m = state.suppliers.find(s => (s.tax_code || '').toUpperCase().trim() === cf);
-        if (m) return m;
-    }
-    const email = extracted.supplier_email?.toLowerCase().trim();
-    if (email) {
-        const m = state.suppliers.find(s => (s.email || '').toLowerCase().trim() === email);
-        if (m) return m;
-    }
-    const name = extracted.supplier_name?.toLowerCase().trim();
+
+    // collab + partner-wl: cerca in collaborators, filtrato per type
+    const all = Array.isArray(state.collaborators) ? state.collaborators : [];
+    const list = mode === 'partner-wl'
+        ? all.filter(c => c.type === 'white_label')
+        : all.filter(c => c.type !== 'white_label');
+
+    if (piva) { const m = list.find(c => (c.vat_number || '').replace(/\D/g, '') === piva); if (m) return m; }
+    if (cf) { const m = list.find(c => (c.fiscal_code || '').toUpperCase().trim() === cf); if (m) return m; }
+    if (email) { const m = list.find(c => (c.email || '').toLowerCase().trim() === email); if (m) return m; }
     if (name && name.length > 2) {
-        const m = state.suppliers.find(s => (s.name || '').toLowerCase().includes(name) || name.includes((s.name || '').toLowerCase()));
+        const m = list.find(c => {
+            const cn = (c.full_name || '').toLowerCase();
+            return cn && (cn.includes(name) || name.includes(cn));
+        });
         if (m) return m;
     }
     return null;
@@ -1644,21 +1675,25 @@ async function handlePassiveInvoiceAIImport(file) {
             return;
         }
 
-        // 3) Match supplier locale
-        const matchedSupplier = matchSupplierLocal(extracted);
+        // 3) Match entità nel mode corrente del modal
+        const mode = getPassiveModalMode();
+        const matchedEntity = matchEntityForMode(extracted, mode);
+        const matchedLabel = matchedEntity?.name || matchedEntity?.full_name || null;
 
         // Debug: esponi su window per ispezione console
-        window.lastAIExtraction = { extracted, matchedSupplier, pdfTextChars: pdfText.length, pageCount };
+        window.lastAIExtraction = { extracted, matchedEntity, mode, pdfTextChars: pdfText.length, pageCount };
+        console.log('[ai-import] mode:', mode);
         console.log('[ai-import] extracted:', extracted);
-        console.log('[ai-import] matched supplier:', matchedSupplier);
+        console.log('[ai-import] matched entity:', matchedEntity);
 
-        // 4) Riempi il form
-        applyExtractedInvoiceToForm(extracted, matchedSupplier);
+        // 4) Riempi il form (mode-aware)
+        applyExtractedInvoiceToForm(extracted, matchedEntity, mode);
 
         const confidence = extracted.confidence || 'medium';
-        const supLabel = matchedSupplier?.name
-            ? ` · ${matchedSupplier.name} riconosciuto`
-            : ' · fornitore non riconosciuto (seleziona manualmente)';
+        const entityKindLabel = mode === 'supplier' ? 'fornitore' : (mode === 'partner-wl' ? 'partner WL' : 'collaboratore');
+        const supLabel = matchedLabel
+            ? ` · ${matchedLabel} riconosciuto`
+            : ` · ${entityKindLabel} non riconosciuto (seleziona manualmente)`;
         showGlobalAlert(`✨ Campi precompilati (confidenza ${confidence})${supLabel}. Controlla e salva.`, 'success');
     } catch (e) {
         console.error('[ai-import] errore:', e);
@@ -1669,43 +1704,58 @@ async function handlePassiveInvoiceAIImport(file) {
 }
 
 /**
- * Mappa l'output dell'edge function sui campi del modal passive_invoice.
- * Mappa best-effort: se un campo manca lo lascia in default.
+ * Mappa l'output AI sui campi del modal passive_invoice, mode-aware.
+ * Best-effort: se un campo manca lascia il default.
+ *
+ * @param {Object} extracted - JSON dall'AI con campi fattura
+ * @param {Object|null} matchedEntity - Match in supplier o collaborator (può essere null)
+ * @param {'collab'|'supplier'|'partner-wl'} mode
  */
-function applyExtractedInvoiceToForm(extracted, matchedSupplier) {
-    // Determina mode: se c'è un supplier matched → mode 'supplier', altrimenti 'collaborator' (default).
-    // Il modal cambia campi via dropdown #pinv-mode (se esiste) — non possiamo forzare,
-    // ma se il supplier è matched lo selezioniamo nel dropdown suppliers.
+function applyExtractedInvoiceToForm(extracted, matchedEntity, mode = 'collab') {
+    // === Mode-specific: regime + entità selezionata ===
 
-    // Regime fiscale (collaborator mode)
-    const regime = (extracted.regime || '').toLowerCase();
-    const typeSelect = document.getElementById('pinv-type');
-    if (typeSelect) {
-        const map = {
-            ordinario: 'ritenuta',
-            forfettario: 'forfettario',
-            occasionale: 'occasionale',
-            estero: 'estero',
-            parcella: 'parcella',
-        };
-        const target = map[regime];
-        if (target) {
-            const opt = Array.from(typeSelect.options).find(o => o.value === target);
-            if (opt) {
-                typeSelect.value = target;
-                typeSelect.dispatchEvent(new Event('change'));
+    if (mode === 'supplier') {
+        // Supplier mode: seleziona supplier nel dropdown #pinv-supplier
+        if (matchedEntity?.id) {
+            const sel = document.getElementById('pinv-supplier');
+            if (sel) {
+                const opt = Array.from(sel.options).find(o => o.value === matchedEntity.id);
+                if (opt) {
+                    sel.value = matchedEntity.id;
+                    sel.dispatchEvent(new Event('change'));
+                }
             }
         }
-    }
-
-    // Supplier match (try both selectors: supplier mode + collaborator mode)
-    if (matchedSupplier?.id) {
-        const supSelect = document.getElementById('pinv-supplier');
-        if (supSelect) {
-            const opt = Array.from(supSelect.options).find(o => o.value === matchedSupplier.id);
-            if (opt) {
-                supSelect.value = matchedSupplier.id;
-                supSelect.dispatchEvent(new Event('change'));
+    } else {
+        // Collab + partner-wl: seleziona nel dropdown #pinv-collaborator + regime fiscale
+        if (matchedEntity?.id) {
+            const sel = document.getElementById('pinv-collaborator');
+            if (sel) {
+                const opt = Array.from(sel.options).find(o => o.value === matchedEntity.id);
+                if (opt) {
+                    sel.value = matchedEntity.id;
+                    sel.dispatchEvent(new Event('change'));
+                }
+            }
+        }
+        // Regime fiscale (solo per collab/partner-wl)
+        const regime = (extracted.regime || '').toLowerCase();
+        const typeSelect = document.getElementById('pinv-type');
+        if (typeSelect) {
+            const map = {
+                ordinario: 'ritenuta',
+                forfettario: 'forfettario',
+                occasionale: 'occasionale',
+                estero: 'estero',
+                parcella: 'parcella',
+            };
+            const target = map[regime];
+            if (target) {
+                const opt = Array.from(typeSelect.options).find(o => o.value === target);
+                if (opt) {
+                    typeSelect.value = target;
+                    typeSelect.dispatchEvent(new Event('change'));
+                }
             }
         }
     }
