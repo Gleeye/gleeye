@@ -249,12 +249,21 @@ function buildOverviewTab(ctx) {
             (Object.keys(cleanLanguage).length > 0
                 ? overviewCard('Linguaggio nicchia', 'translate', buildLanguageCompact(cleanLanguage))
                 : '') +
-            // Card 5: comuni
+            // Card 5: località target
             (geoScope.length > 0
-                ? overviewCard('Comuni target (' + geoScope.length + ')', 'place',
+                ? overviewCard('Località target (' + geoScope.length + ')', 'place',
                     '<div style="display:flex;flex-wrap:wrap;gap:4px;">' +
                         geoScope.map(c => '<span style="font-size:0.72rem;padding:3px 8px;border-radius:6px;background:#3b82f615;color:#3b82f6;font-weight:600;">' + escHtml(c) + '</span>').join('') +
                     '</div>'
+                  )
+                : '') +
+            // Card 5b: search keywords AI-suggested
+            (Array.isArray(niche.search_keywords) && niche.search_keywords.length > 0
+                ? overviewCard('Keyword di sourcing (' + niche.search_keywords.length + ')', 'search',
+                    '<div style="display:flex;flex-wrap:wrap;gap:4px;">' +
+                        niche.search_keywords.map(k => '<span style="font-size:0.72rem;padding:3px 8px;border-radius:6px;background:#10b98115;color:#10b981;font-weight:600;">' + escHtml(k) + '</span>').join('') +
+                    '</div>' +
+                    '<div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:0.5rem;">Usate dal sourcing OSM (combo keyword × località). Aggiungi/edita lanciando "Cerca prospect".</div>'
                   )
                 : '') +
 

@@ -37,6 +37,7 @@ export async function analyzeNiche(nicheName, sector) {
     const schema = {
         description: 'string — descrizione strategica della nicchia in 2-3 frasi',
         geo_scope: ['string — lista comuni/città/aree target da attaccare uno alla volta nel sourcing'],
+        search_keywords: ['string — 3-7 keyword in italiano per cercare aziende di questa nicchia su OSM/Google. Es. per "Strutture ricettive Liguria": ["hotel","b&b","agriturismo","resort","case vacanze"]'],
         market_size_estimate: 'string — stima dimensione mercato (es. "~2.500 strutture ricettive in Liguria, 12K nazionale")',
         pain_points: ['string — pain point tipici della nicchia, frasi concrete dalla loro prospettiva'],
         niche_language: { example_term: 'spiegazione del termine specifico della nicchia' },
@@ -172,6 +173,12 @@ export async function saveNicheAnalysis(nicheId, analysis) {
         analyzed_at:          new Date().toISOString(),
         analyzed_by_model:    MODEL + ' + perplexity-verify',
     };
+
+    // search_keywords: sovrascrive solo se attualmente vuoto (rispetta personalizzazioni manuali)
+    const currentKeywords = await getCurrentKeywords(nicheId);
+    if (currentKeywords.length === 0 && Array.isArray(analysis.search_keywords)) {
+        updatePayload.search_keywords = analysis.search_keywords;
+    }
     if (shouldOverwriteGeo) {
         updatePayload.geo_scope = analysis.geo_scope || [];
     }
@@ -218,6 +225,11 @@ export async function fetchNicheSapRelevance(nicheId) {
 
 // ─── PRIVATE ──────────────────────────────────────────────────────────────────
 
+async function getCurrentKeywords(nicheId) {
+    const { data } = await supabase.from('outreach_niches').select('search_keywords').eq('id', nicheId).maybeSingle();
+    return Array.isArray(data?.search_keywords) ? data.search_keywords : [];
+}
+
 async function fetchSapCatalogForAnalysis(sector) {
     let q = supabase
         .from('core_services')
@@ -261,6 +273,12 @@ function buildPrompt(nicheName, sapCatalog, sector) {
     lines.push('');
     lines.push('### 2. Geo scope (granulare)');
     lines.push('Lista di comuni/città/aree dove attaccare la nicchia, UNO PER UNO. Esempio per "Strutture ricettive Liguria": ["Genova","Albisola Superiore","Albisola Marina","Varazze","Bogliasco","Santa Margherita Ligure","Portofino","Rapallo","Sestri Levante","Camogli","Sanremo","Imperia","La Spezia","Lerici","Portovenere",...]. Includi i comuni più rilevanti, non solo 3-4.');
+    lines.push('');
+    lines.push('### 2bis. Search keywords (per sourcing OSM/Google)');
+    lines.push('3-7 keyword italiane semplici per cercare aziende di questa nicchia. Devono essere KEYWORD CORTE E STANDARD (singolare preferito), supportate da OSM (es. "hotel" non "strutture alberghiere"). Esempi:');
+    lines.push('- "Strutture ricettive Liguria" → ["hotel","b&b","agriturismo","resort","case vacanze","ostello"]');
+    lines.push('- "Ristoranti gourmet Liguria" → ["ristorante","trattoria","osteria","ristorante stellato","wine bar"]');
+    lines.push('- "Studi dentistici Liguria" → ["studio dentistico","dentista","odontoiatra"]');
     lines.push('');
     lines.push('### 3. Stima dimensione mercato');
     lines.push('Numeri concreti su quante realtà esistono nel scope geografico indicato (anche stime approssimate dichiarate come tali).');

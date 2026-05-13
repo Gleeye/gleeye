@@ -91,51 +91,76 @@ export async function openSourcingModal(niche, onImported) {
 
 function buildBodyHTML(niche) {
     const geoScope = Array.isArray(niche.geo_scope) ? niche.geo_scope : [];
-    const hasGeo = geoScope.length > 0;
+    const aiKeywords = Array.isArray(niche.search_keywords) ? niche.search_keywords : [];
 
-    // Auto-suggest keyword dal nome nicchia (es. "Strutture ricettive Liguria" → "struttura ricettiva")
-    const suggestedKeyword = suggestKeywordFromName(niche.name);
+    // Se l'AI non ha proposto keyword (nicchia non ancora analizzata), fallback su euristica dal nome
+    const fallbackKeywords = aiKeywords.length === 0 ? [suggestKeywordFromName(niche.name)].filter(Boolean) : [];
+    const keywords = aiKeywords.length > 0 ? aiKeywords : fallbackKeywords;
+
+    const hasGeo = geoScope.length > 0;
+    const hasKeywords = keywords.length > 0;
 
     return (
         '<div>' +
             '<div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.25rem;line-height:1.5;">' +
-                'Cerco aziende reali su OpenStreetMap (gratis, illimitato) per la nicchia <strong>' + escHtml(niche.name) + '</strong>. ' +
-                'Scegli keyword + città, vedi anteprima, selezioni cosa importare.' +
+                'Sourcing prospect per <strong>' + escHtml(niche.name) + '</strong> via OpenStreetMap (gratis).' +
+                (aiKeywords.length > 0 ? ' Keyword e località sono già proposte dall\'AI in base all\'analisi della nicchia — puoi modificarle.' : '') +
             '</div>' +
 
-            // Keyword input
-            '<div style="margin-bottom:1rem;">' +
-                '<label style="font-size:0.74rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Tipo di azienda (keyword)</label>' +
-                '<input id="sourcing-keyword" type="text" value="' + escHtml(suggestedKeyword) + '" placeholder="Es. struttura ricettiva, ristorante, parrucchiere" ' +
-                    'style="width:100%;padding:0.65rem;border-radius:10px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.88rem;box-sizing:border-box;">' +
-                '<div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:4px;">Esempi supportati: hotel, ristorante, bar, pizzeria, parrucchiere, palestra, studio dentistico, avvocato, agenzia immobiliare… (se non standard, l\'AI mappa al miglior tag OSM)</div>' +
-            '</div>' +
-
-            // Geo scope (multi-select)
+            // KEYWORDS multi-select (pillole)
             '<div style="margin-bottom:1rem;">' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
-                    '<label style="font-size:0.74rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">Città / aree (' + geoScope.length + ' nel geo_scope)</label>' +
+                    '<label style="font-size:0.74rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">Keyword di ricerca' + (aiKeywords.length > 0 ? ' (AI ne ha proposte ' + aiKeywords.length + ')' : '') + '</label>' +
+                    '<button id="btn-toggle-all-keywords" style="font-size:0.7rem;padding:3px 9px;border-radius:6px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-secondary);cursor:pointer;font-weight:600;">Tutte / nessuna</button>' +
+                '</div>' +
+                (hasKeywords
+                    ? '<div id="sourcing-keywords" style="display:flex;flex-wrap:wrap;gap:4px;padding:0.5rem;background:var(--bg-tertiary);border-radius:10px;">' +
+                        keywords.map((kw, i) =>
+                            '<label class="keyword-chip" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:8px;background:var(--bg-secondary);font-size:0.8rem;cursor:pointer;border:1px solid var(--glass-border);">' +
+                                '<input type="checkbox" data-keyword="' + escHtml(kw) + '" checked style="cursor:pointer;">' +
+                                '<span>' + escHtml(kw) + '</span>' +
+                            '</label>'
+                        ).join('') +
+                    '</div>'
+                    : '<div style="padding:0.75rem;background:#f59e0b08;border:1px solid #f59e0b33;border-radius:10px;font-size:0.8rem;color:#92400e;">⚠ Nessuna keyword. Analizza prima la nicchia con AI o aggiungine una manualmente qui sotto.</div>'
+                ) +
+                // Aggiungi keyword manuale
+                '<div style="display:flex;gap:5px;margin-top:6px;">' +
+                    '<input id="new-keyword-input" type="text" placeholder="+ aggiungi keyword custom (es. wine bar)" style="flex:1;padding:0.45rem 0.65rem;border-radius:8px;border:1px solid var(--glass-border);background:var(--bg-primary);color:var(--text-primary);font-size:0.8rem;box-sizing:border-box;">' +
+                    '<button id="btn-add-keyword" style="padding:0.45rem 0.9rem;border-radius:8px;border:1px solid var(--brand-blue);background:var(--brand-blue)15;color:var(--brand-blue);font-size:0.78rem;font-weight:700;cursor:pointer;">Aggiungi</button>' +
+                '</div>' +
+            '</div>' +
+
+            // GEO scope (multi-select)
+            '<div style="margin-bottom:1rem;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+                    '<label style="font-size:0.74rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">Località / comuni (' + geoScope.length + ')</label>' +
                     (hasGeo ? '<button id="btn-toggle-all-cities" style="font-size:0.7rem;padding:3px 9px;border-radius:6px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-secondary);cursor:pointer;font-weight:600;">Tutte / nessuna</button>' : '') +
                 '</div>' +
                 (hasGeo
                     ? '<div id="sourcing-cities" style="display:flex;flex-wrap:wrap;gap:4px;max-height:180px;overflow-y:auto;padding:0.5rem;background:var(--bg-tertiary);border-radius:10px;">' +
-                        geoScope.map((c, i) =>
+                        geoScope.map((c) =>
                             '<label class="city-chip" style="display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:8px;background:var(--bg-secondary);font-size:0.78rem;cursor:pointer;border:1px solid var(--glass-border);">' +
-                                '<input type="checkbox" data-city="' + escHtml(c) + '" ' + (i < 3 ? 'checked' : '') + ' style="cursor:pointer;">' +
+                                '<input type="checkbox" data-city="' + escHtml(c) + '" checked style="cursor:pointer;">' +
                                 '<span>' + escHtml(c) + '</span>' +
                             '</label>'
                         ).join('') +
                     '</div>'
-                    : '<div style="padding:0.75rem;background:#f59e0b08;border:1px solid #f59e0b33;border-radius:10px;font-size:0.8rem;color:#92400e;">⚠ Nessuna città nel geo_scope. Analizza prima la nicchia con AI per popolare la lista comuni.</div>'
+                    : '<div style="padding:0.75rem;background:#f59e0b08;border:1px solid #f59e0b33;border-radius:10px;font-size:0.8rem;color:#92400e;">⚠ Nessuna località nel geo_scope. Analizza prima la nicchia con AI.</div>'
                 ) +
+                // Aggiungi località manuale
+                '<div style="display:flex;gap:5px;margin-top:6px;">' +
+                    '<input id="new-city-input" type="text" placeholder="+ aggiungi località custom (es. Pisa)" style="flex:1;padding:0.45rem 0.65rem;border-radius:8px;border:1px solid var(--glass-border);background:var(--bg-primary);color:var(--text-primary);font-size:0.8rem;box-sizing:border-box;">' +
+                    '<button id="btn-add-city" style="padding:0.45rem 0.9rem;border-radius:8px;border:1px solid var(--brand-blue);background:var(--brand-blue)15;color:var(--brand-blue);font-size:0.78rem;font-weight:700;cursor:pointer;">Aggiungi</button>' +
+                '</div>' +
             '</div>' +
 
             // Search button
-            (hasGeo
+            ((hasGeo && hasKeywords)
                 ? '<button id="btn-sourcing-search" class="primary-btn" style="width:100%;padding:0.7rem;border-radius:12px;font-size:0.88rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:0.5rem;">' +
-                    '<span class="material-icons-round" style="font-size:1.05rem;">travel_explore</span>Cerca aziende reali' +
+                    '<span class="material-icons-round" style="font-size:1.05rem;">travel_explore</span>Cerca aziende reali (combo keyword × località)' +
                   '</button>'
-                : '') +
+                : '<div style="padding:0.7rem;background:var(--bg-tertiary);text-align:center;font-size:0.82rem;color:var(--text-tertiary);border-radius:10px;">Aggiungi almeno 1 keyword + 1 località per partire</div>') +
 
             // Results
             '<div id="sourcing-results" style="margin-top:1rem;"></div>' +
@@ -151,19 +176,64 @@ function bindEvents(overlay, niche, onImported, close) {
         const allChecked = Array.from(boxes).every(b => b.checked);
         boxes.forEach(b => { b.checked = !allChecked; });
     });
+    overlay.querySelector('#btn-toggle-all-keywords')?.addEventListener('click', () => {
+        const boxes = overlay.querySelectorAll('#sourcing-keywords input[type=checkbox]');
+        const allChecked = Array.from(boxes).every(b => b.checked);
+        boxes.forEach(b => { b.checked = !allChecked; });
+    });
+    overlay.querySelector('#btn-add-keyword')?.addEventListener('click', () => {
+        const input = overlay.querySelector('#new-keyword-input');
+        const v = input?.value?.trim();
+        if (!v) return;
+        addChipToContainer(overlay, '#sourcing-keywords', v, 'data-keyword', 'keyword-chip');
+        input.value = '';
+    });
+    overlay.querySelector('#new-keyword-input')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); overlay.querySelector('#btn-add-keyword').click(); }
+    });
+    overlay.querySelector('#btn-add-city')?.addEventListener('click', () => {
+        const input = overlay.querySelector('#new-city-input');
+        const v = input?.value?.trim();
+        if (!v) return;
+        addChipToContainer(overlay, '#sourcing-cities', v, 'data-city', 'city-chip');
+        input.value = '';
+    });
+    overlay.querySelector('#new-city-input')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); overlay.querySelector('#btn-add-city').click(); }
+    });
 
     overlay.querySelector('#btn-sourcing-search')?.addEventListener('click', async () => {
         await runSourcing(overlay, niche);
     });
 }
 
-async function runSourcing(overlay, niche) {
-    const keyword = overlay.querySelector('#sourcing-keyword')?.value?.trim();
-    const cityBoxes = overlay.querySelectorAll('#sourcing-cities input[type=checkbox]:checked');
-    const cities = Array.from(cityBoxes).map(b => b.dataset.city);
+function addChipToContainer(overlay, containerSelector, value, dataAttr, chipClass) {
+    let container = overlay.querySelector(containerSelector);
+    if (!container) {
+        // Se non esiste (perché era empty state) lo creiamo
+        const empty = overlay.querySelector(containerSelector + ', .empty-replace');
+        // Ricostruzione semplificata: aggiungo il chip al genitore (poco elegante ma funzionale)
+        return;
+    }
+    // Skip se già presente (case-insensitive)
+    const existing = Array.from(container.querySelectorAll('input[type=checkbox]')).map(c => (c.getAttribute(dataAttr) || '').toLowerCase());
+    if (existing.includes(value.toLowerCase())) return;
 
-    if (!keyword) { showGlobalAlert('Specifica una keyword', 'error'); return; }
-    if (cities.length === 0) { showGlobalAlert('Seleziona almeno una città', 'error'); return; }
+    const label = document.createElement('label');
+    label.className = chipClass;
+    label.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:8px;background:var(--bg-secondary);font-size:' + (chipClass === 'keyword-chip' ? '0.8rem' : '0.78rem') + ';cursor:pointer;border:1px solid var(--brand-blue);';
+    label.innerHTML = '<input type="checkbox" ' + dataAttr + '="' + escHtml(value) + '" checked style="cursor:pointer;"><span>' + escHtml(value) + '</span>';
+    container.appendChild(label);
+}
+
+async function runSourcing(overlay, niche) {
+    const keywordBoxes = overlay.querySelectorAll('#sourcing-keywords input[type=checkbox]:checked');
+    const keywords = Array.from(keywordBoxes).map(b => b.dataset.keyword || b.getAttribute('data-keyword')).filter(Boolean);
+    const cityBoxes = overlay.querySelectorAll('#sourcing-cities input[type=checkbox]:checked');
+    const cities = Array.from(cityBoxes).map(b => b.dataset.city || b.getAttribute('data-city')).filter(Boolean);
+
+    if (keywords.length === 0) { showGlobalAlert('Seleziona almeno una keyword', 'error'); return; }
+    if (cities.length === 0) { showGlobalAlert('Seleziona almeno una località', 'error'); return; }
 
     const btn = overlay.querySelector('#btn-sourcing-search');
     const resultsDiv = overlay.querySelector('#sourcing-results');
@@ -171,51 +241,52 @@ async function runSourcing(overlay, niche) {
     btn.disabled = true;
     btn.innerHTML = '<span class="material-icons-round" style="font-size:1.05rem;animation:spin 1s linear infinite;">refresh</span>Cerco su OSM…';
 
-    resultsDiv.innerHTML =
-        '<div style="display:flex;align-items:center;justify-content:center;padding:2rem;gap:0.75rem;color:var(--text-secondary);background:var(--bg-tertiary);border-radius:12px;">' +
-            '<span class="material-icons-round" style="animation:spin 1s linear infinite;">travel_explore</span>' +
-            'Cerco "' + escHtml(keyword) + '" in ' + cities.length + ' città…' +
-        '</div>';
+    const totalCombos = keywords.length * cities.length;
+    let comboIndex = 0;
 
     try {
-        // 1. Risolvi keyword → tag OSM
-        const osmTags = await resolveKeywordToOsmTags(keyword);
-        if (!osmTags || osmTags.length === 0) {
-            throw new Error('Impossibile mappare la keyword a un tag OSM. Prova una keyword più standard (hotel, ristorante, parrucchiere, ecc.)');
+        // Risolvi keyword → tag OSM (una volta per keyword)
+        const keywordTagMap = new Map();
+        for (const kw of keywords) {
+            try {
+                const tags = await resolveKeywordToOsmTags(kw);
+                keywordTagMap.set(kw, tags || []);
+            } catch (_) { keywordTagMap.set(kw, []); }
         }
 
-        // 2. Query Overpass per ogni città
         const allResults = [];
-        for (let i = 0; i < cities.length; i++) {
-            const city = cities[i];
-            resultsDiv.innerHTML =
-                '<div style="display:flex;align-items:center;justify-content:center;padding:2rem;gap:0.75rem;color:var(--text-secondary);background:var(--bg-tertiary);border-radius:12px;">' +
-                    '<span class="material-icons-round" style="animation:spin 1s linear infinite;">travel_explore</span>' +
-                    '(' + (i + 1) + '/' + cities.length + ') Cerco in ' + escHtml(city) + '…' +
-                '</div>';
-            try {
-                const cityResults = await queryOverpass(osmTags, city);
-                allResults.push(...cityResults.map(r => ({ ...r, _city: city })));
-            } catch (err) {
-                console.warn('[Sourcing] city failed', city, err);
+        // Loop keyword × città
+        for (const kw of keywords) {
+            const osmTags = keywordTagMap.get(kw) || [];
+            if (osmTags.length === 0) continue;
+            for (const city of cities) {
+                comboIndex++;
+                resultsDiv.innerHTML =
+                    '<div style="display:flex;align-items:center;justify-content:center;padding:1.5rem;gap:0.75rem;color:var(--text-secondary);background:var(--bg-tertiary);border-radius:12px;">' +
+                        '<span class="material-icons-round" style="animation:spin 1s linear infinite;">travel_explore</span>' +
+                        '(' + comboIndex + '/' + totalCombos + ') ' + escHtml(kw) + ' in ' + escHtml(city) + '…' +
+                    '</div>';
+                try {
+                    const cityResults = await queryOverpass(osmTags, city);
+                    allResults.push(...cityResults.map(r => ({ ...r, _city: city, _keyword: kw })));
+                } catch (err) {
+                    console.warn('[Sourcing] failed', kw, city, err);
+                }
             }
         }
 
-        // 3. Dedup per nome (case-insensitive)
+        // Dedup per osm_id + nome
         const dedupMap = new Map();
         for (const r of allResults) {
-            const key = (r.name || '').toLowerCase().trim();
+            const key = r.osm_id || (r.name || '').toLowerCase().trim();
             if (key && !dedupMap.has(key)) dedupMap.set(key, r);
         }
         const unique = Array.from(dedupMap.values());
-
-        // Salva risultati sul nodo overlay per accesso da importSelected
         overlay._sourcingResults = unique;
 
-        // 4. Render risultati
-        resultsDiv.innerHTML = buildResultsHTML(unique, keyword, osmTags);
+        const summary = keywords.length + ' keyword × ' + cities.length + ' località → ' + unique.length + ' aziende (dedup)';
+        resultsDiv.innerHTML = buildResultsHTML(unique, summary);
 
-        // Bind import button
         overlay.querySelector('#btn-import-selected')?.addEventListener('click', async () => {
             await importSelected(overlay, niche);
         });
@@ -225,27 +296,26 @@ async function runSourcing(overlay, niche) {
         resultsDiv.innerHTML = '<div style="padding:1rem;color:#ef4444;font-size:0.85rem;background:#ef444408;border-radius:10px;">Errore: ' + escHtml(err.message) + '</div>';
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<span class="material-icons-round" style="font-size:1.05rem;">travel_explore</span>Cerca aziende reali';
+        btn.innerHTML = '<span class="material-icons-round" style="font-size:1.05rem;">travel_explore</span>Cerca aziende reali (combo keyword × località)';
     }
 }
 
-function buildResultsHTML(results, keyword, osmTags) {
+function buildResultsHTML(results, summaryText) {
     if (results.length === 0) {
         return (
             '<div style="padding:1.25rem;background:#f59e0b08;border:1px solid #f59e0b33;border-radius:12px;font-size:0.85rem;color:#92400e;">' +
                 '<strong>Nessun risultato trovato.</strong><br>' +
-                'Possibili cause: (1) keyword troppo specifica per OSM, (2) zona poco mappata, (3) tag OSM non corretto.<br>' +
-                'Tag OSM provati: <code>' + osmTags.map(t => t.key + '=' + t.value).join(', ') + '</code>' +
+                'Possibili cause: (1) keyword troppo specifiche per OSM, (2) zone poco mappate, (3) combinazione vuota.' +
             '</div>'
         );
     }
 
     return (
         '<div>' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin:1.25rem 0 0.75rem;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin:1.25rem 0 0.75rem;flex-wrap:wrap;gap:0.5rem;">' +
                 '<div>' +
                     '<div style="font-size:0.95rem;font-weight:800;color:var(--text-primary);">' + results.length + ' aziende trovate</div>' +
-                    '<div style="font-size:0.72rem;color:var(--text-tertiary);">Da OSM · tag: ' + osmTags.map(t => t.key + '=' + t.value).join(', ') + '</div>' +
+                    '<div style="font-size:0.72rem;color:var(--text-tertiary);">' + escHtml(summaryText || '') + '</div>' +
                 '</div>' +
                 '<div style="display:flex;gap:0.4rem;">' +
                     '<button id="btn-toggle-all-results" style="font-size:0.74rem;padding:5px 11px;border-radius:8px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-secondary);cursor:pointer;font-weight:600;">Seleziona tutto</button>' +
@@ -289,14 +359,41 @@ async function importSelected(overlay, niche) {
     if (checkedBoxes.length === 0) { showGlobalAlert('Seleziona almeno un\'azienda', 'error'); return; }
 
     const lastResults = overlay._sourcingResults || [];
-    const selectedResults = Array.from(checkedBoxes).map(b => lastResults[parseInt(b.dataset.index, 10)]).filter(Boolean);
+    let selectedResults = Array.from(checkedBoxes).map(b => lastResults[parseInt(b.dataset.index, 10)]).filter(Boolean);
     if (selectedResults.length === 0) { showGlobalAlert('Nessun risultato valido', 'error'); return; }
 
     const btn = overlay.querySelector('#btn-import-selected');
     btn.disabled = true;
-    btn.innerHTML = '<span class="material-icons-round" style="font-size:0.95rem;animation:spin 1s linear infinite;">refresh</span>Importo…';
+    btn.innerHTML = '<span class="material-icons-round" style="font-size:0.95rem;animation:spin 1s linear infinite;">refresh</span>Verifico duplicati…';
 
     try {
+        // DEDUP vs DB: skip prospect già presenti per questa nicchia (per osm_id o business_name normalizzato)
+        const osmIds = selectedResults.map(r => r.osm_id).filter(Boolean);
+        const names = selectedResults.map(r => (r.name || '').toLowerCase().trim()).filter(Boolean);
+        const { data: existing, error: dupErr } = await supabase
+            .from('prospects')
+            .select('id, business_name, ai_enrichment_data')
+            .eq('niche_id', niche.id);
+        if (dupErr) console.warn('[Import] dedup query fail', dupErr);
+        const existingOsmIds = new Set((existing || []).map(e => e.ai_enrichment_data?.osm_id).filter(Boolean));
+        const existingNames = new Set((existing || []).map(e => (e.business_name || '').toLowerCase().trim()));
+        const before = selectedResults.length;
+        selectedResults = selectedResults.filter(r => {
+            if (r.osm_id && existingOsmIds.has(r.osm_id)) return false;
+            const n = (r.name || '').toLowerCase().trim();
+            if (n && existingNames.has(n)) return false;
+            return true;
+        });
+        const skippedDup = before - selectedResults.length;
+
+        if (selectedResults.length === 0) {
+            showGlobalAlert('Tutti i ' + before + ' prospect sono già presenti nella nicchia. Niente da importare.', 'success');
+            overlay.remove();
+            return;
+        }
+
+        btn.innerHTML = '<span class="material-icons-round" style="font-size:0.95rem;animation:spin 1s linear infinite;">refresh</span>Importo ' + selectedResults.length + (skippedDup > 0 ? ' (' + skippedDup + ' duplicati skip)' : '') + '…';
+
         const rows = selectedResults.map(r => ({
             business_name:      r.name || '(senza nome)',
             website:            r.website || null,
@@ -324,7 +421,8 @@ async function importSelected(overlay, niche) {
         const { data: inserted, error } = await supabase.from('prospects').insert(rows).select('id, website, contact_email, contact_phone, linkedin_url, social_links, ai_enrichment_data');
         if (error) throw error;
 
-        showGlobalAlert(rows.length + ' prospect importati. Avvio scraping aggressivo in background…', 'success');
+        const msg = rows.length + ' prospect importati' + (skippedDup > 0 ? ' (' + skippedDup + ' duplicati skip)' : '') + '. Avvio scraping aggressivo in background…';
+        showGlobalAlert(msg, 'success');
 
         // Step 2: scraping aggressivo multi-pagina + JSON-LD + structured_fields per settore
         // Carica una volta lo sector schema (regex+keywords da applicare al testo).
