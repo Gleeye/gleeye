@@ -23,8 +23,9 @@ import { formatAmount } from '../modules/utils.js?v=8000';
 import { CloudLinksManager } from '../features/components/CloudLinksManager.js?v=8000';
 import { openDocGenerator } from './sap/doc_generator.js?v=8000';
 
-// SAP feature modules (lazy-imported on demand to keep initial bundle light)
-// openOrderFromSap, openSapAiSuggest, openPmTemplateGenerator → window.* handlers below
+// SAP feature modules (lazy-imported on demand):
+// openOrderFromSap, openSapAiSuggest, openPmTemplateGenerator,
+// openTranscriptImport, openProcessBlueprintEditor → window.* handlers below
 
 let _sapViewMode = 'grid'; // 'grid' | 'catalog'
 
@@ -137,6 +138,9 @@ export async function renderSapServices(container) {
                     <div style="display:flex; align-items:center; gap:0.6rem;">
                         <button onclick="window.openSapAiSuggest()" style="display:flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:10px; border:1px solid var(--glass-border); background:white; color:var(--text-primary); font-weight:700; font-size:0.82rem; cursor:pointer;" title="Analisi AI: quali SAP costruire">
                             <span class="material-icons-round" style="font-size:1rem; color:var(--brand-blue);">psychology</span> Analisi AI
+                        </button>
+                        <button onclick="window.openSapTranscriptImport()" style="display:flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:10px; border:1px solid var(--glass-border); background:white; color:var(--text-primary); font-weight:700; font-size:0.82rem; cursor:pointer;" title="Crea nuovo SAP da trascrizione riunione">
+                            <span class="material-icons-round" style="font-size:1rem; color:#10b981;">record_voice_over</span> Da trascrizione
                         </button>
                         <button id="sap-view-toggle" onclick="window.toggleSapViewMode()" style="display:flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:10px; border:1px solid var(--glass-border); background:white; color:var(--text-primary); font-weight:700; font-size:0.82rem; cursor:pointer;" title="Cambia vista">
                             <span class="material-icons-round" style="font-size:1rem; color:var(--text-secondary);">${_sapViewMode === 'catalog' ? 'view_module' : 'view_list'}</span>
@@ -551,6 +555,48 @@ export async function renderSapServiceDetail(container, serviceId) {
             </div>
 
             <!-- AI Documentation Section -->
+            <!-- ── Processo Operativo ─────────────────────────────────── -->
+            <div id="sap-blueprint-section" style="margin-top: 1.5rem; background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden;">
+                <div onclick="document.getElementById('sap-blueprint-section-body').classList.toggle('hidden'); this.querySelector('.expand-icon').textContent = document.getElementById('sap-blueprint-section-body').classList.contains('hidden') ? 'expand_more' : 'expand_less';" style="display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; cursor: pointer; user-select: none;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg,#10b981,#059669); display: flex; align-items: center; justify-content: center; color: white;">
+                            <span class="material-icons-round" style="font-size: 1.1rem;">route</span>
+                        </div>
+                        <div>
+                            <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); font-family: var(--font-titles);">Processo Operativo</span>
+                            <span style="margin-left: 0.75rem; font-size: 0.7rem; padding: 2px 8px; border-radius: 8px; font-weight: 700;
+                                ${service.process_blueprint ? 'background: rgba(16,185,129,0.12); color: #10b981;' : 'background: var(--bg-tertiary); color: var(--text-tertiary);'}">
+                                ${service.process_blueprint ? '✓ Definito' : 'Da definire'}
+                            </span>
+                        </div>
+                    </div>
+                    <span class="material-icons-round expand-icon" style="color: var(--text-tertiary);">${service.process_blueprint ? 'expand_less' : 'expand_more'}</span>
+                </div>
+                <div id="sap-blueprint-section-body" style="${service.process_blueprint ? '' : 'display:none;'} padding: 0 1.5rem 1.5rem; border-top: 1px solid var(--glass-border);">
+                    <div style="padding-top: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
+                        ${service.process_blueprint ? `
+                            <div style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.7; white-space: pre-wrap; background: white; padding: 1rem 1.25rem; border-radius: 10px; border: 1px solid var(--glass-border); max-height: 200px; overflow-y: auto;">${service.process_blueprint}</div>
+                        ` : `
+                            <div style="font-size: 0.85rem; color: var(--text-tertiary); line-height: 1.5;">
+                                Il Processo Operativo è la fonte di verità del SAP. Documenti e template PM vengono generati a partire da qui.<br>
+                                Puoi generarlo da una trascrizione o dalla AI usando i dati base già compilati.
+                            </div>
+                        `}
+                        <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+                            <button onclick="window.openSapTranscriptImport('${service.id}')" style="display:flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:10px; border:1px solid var(--glass-border); background:white; color:var(--text-primary); font-weight:700; font-size:0.82rem; cursor:pointer;">
+                                <span class="material-icons-round" style="font-size:0.95rem; color:#10b981;">record_voice_over</span>
+                                ${service.birth_transcript ? 'Ri-importa trascrizione' : 'Importa trascrizione'}
+                            </button>
+                            <button onclick="window.openProcessBlueprintEditor('${service.id}')" style="display:flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:10px; border:1px solid var(--glass-border); background:white; color:var(--text-primary); font-weight:700; font-size:0.82rem; cursor:pointer;">
+                                <span class="material-icons-round" style="font-size:0.95rem; color:var(--brand-blue);">auto_awesome</span>
+                                ${service.process_blueprint ? 'Modifica processo' : 'Genera con AI'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Dati per AI ───────────────────────────────────────── -->
             <div id="sap-ai-section" style="margin-top: 1.5rem; background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden;">
                 <div onclick="document.getElementById('sap-ai-section-body').classList.toggle('hidden'); this.querySelector('.expand-icon').textContent = document.getElementById('sap-ai-section-body').classList.contains('hidden') ? 'expand_more' : 'expand_less';" style="display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; cursor: pointer; user-select: none;">
                     <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -558,7 +604,7 @@ export async function renderSapServiceDetail(container, serviceId) {
                             <span class="material-icons-round" style="font-size: 1.1rem;">auto_awesome</span>
                         </div>
                         <div>
-                            <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); font-family: var(--font-titles);">Dati per AI Documentation Generator</span>
+                            <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); font-family: var(--font-titles);">Dati strutturati SAP</span>
                             <span style="margin-left: 0.75rem; font-size: 0.7rem; padding: 2px 8px; border-radius: 8px; font-weight: 700;
                                 ${service.ai_doc_status === 'ready' ? 'background: rgba(16,185,129,0.12); color: #10b981;' :
                                   service.ai_doc_status === 'generating' ? 'background: rgba(59,130,246,0.12); color: var(--brand-blue);' :
@@ -661,6 +707,16 @@ window.saveAiFields = async (serviceId) => {
 window.openSapDocGenerator = async (serviceId) => {
     const { openDocGenerator } = await import('./sap/doc_generator.js?v=8000');
     await openDocGenerator(serviceId);
+};
+
+window.openSapTranscriptImport = async (existingServiceId = null) => {
+    const { openTranscriptImport } = await import('./sap/transcript_import.js?v=8000');
+    await openTranscriptImport(existingServiceId || null);
+};
+
+window.openProcessBlueprintEditor = async (serviceId) => {
+    const { openProcessBlueprintEditor } = await import('./sap/process_blueprint.js?v=8000');
+    await openProcessBlueprintEditor(serviceId);
 };
 
 window.openOrderFromSap = async (serviceId) => {
@@ -790,8 +846,56 @@ window.openSapServiceActivitiesModal = async (spaceId) => {
         alert('Spazio PM non trovato.');
         return;
     }
-    const { openAccountActivitiesModal } = await import('/js/features/pm/components/AccountActivitiesModal.js?v=8000');
-    await openAccountActivitiesModal(null, spaceId);
+
+    const existing = document.getElementById('sap-activities-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'sap-activities-modal';
+    modal.className = 'modal active';
+    modal.style.cssText = 'z-index:10000;';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width:900px; width:95vw; max-height:85vh; padding:0; border-radius:20px; overflow:hidden; background:var(--card-bg); border:1px solid var(--glass-border); box-shadow:var(--shadow-xl); display:flex; flex-direction:column;">
+            <div style="padding:1.25rem 1.75rem; background:var(--brand-gradient); color:white; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <span class="material-icons-round" style="font-size:1.4rem;">account_tree</span>
+                    <div>
+                        <div style="font-weight:800; font-size:1.05rem; font-family:var(--font-titles);">Template Processo Operativo</div>
+                        <div style="font-size:0.8rem; opacity:0.85;">Attività e task generati per questo SAP</div>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('sap-activities-modal').remove()" style="background:rgba(255,255,255,0.2); border:none; color:white; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                    <span class="material-icons-round" style="font-size:1.1rem;">close</span>
+                </button>
+            </div>
+            <div id="sap-activities-body" style="flex:1; overflow-y:auto; padding:1rem;">
+                <div style="display:flex; align-items:center; justify-content:center; padding:3rem;">
+                    <span class="material-icons-round" style="font-size:2rem; color:var(--brand-blue); animation:spin 1.5s linear infinite;">autorenew</span>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+    try {
+        const { fetchProjectItems } = await import('/js/modules/pm_api.js?v=8000');
+        const { renderHubTree } = await import('/js/features/pm/components/hub_tree.js?v=8000');
+        const items = await fetchProjectItems(spaceId, true);
+        const body = document.getElementById('sap-activities-body');
+        if (!body) return;
+        if (!items || items.length === 0) {
+            body.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-tertiary);">
+                <span class="material-icons-round" style="font-size:3rem; margin-bottom:1rem; display:block;">inbox</span>
+                Nessuna attività nel template.<br>Usa "Genera template PM da AI" per creare il workflow operativo.
+            </div>`;
+            return;
+        }
+        renderHubTree(body, items, { id: spaceId }, spaceId);
+    } catch (err) {
+        const body = document.getElementById('sap-activities-body');
+        if (body) body.innerHTML = `<div style="color:#ef4444; padding:1rem;">Errore: ${err.message}</div>`;
+    }
 };
 
 window.openSapServiceCloudResourcesModal = async (serviceId) => {
