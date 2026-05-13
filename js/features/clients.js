@@ -487,11 +487,16 @@ export function renderClientDetail(container) {
         fetchPayments().then(() => renderClientDetail(container));
         return; // Rerender after fetch
     }
+    if (!state.contacts) {
+        import('../modules/api.js?v=8000').then(api => api.fetchContacts()).then(() => renderClientDetail(container));
+        return;
+    }
 
     // Filter Data
     const clientOrders = state.orders ? state.orders.filter(o => o.client_id === client.id) : [];
     const clientInvoices = state.invoices ? state.invoices.filter(i => i.client_id === client.id) : []; // Active invoices
     const clientPayments = state.payments ? state.payments.filter(p => p.payment_type === 'Cliente' && p.client_id === client.id) : [];
+    const clientContacts = state.contacts ? state.contacts.filter(c => c.client_id === client.id) : [];
 
     // Calculate KPI
     const totalInvoiced = clientInvoices.reduce((sum, i) => sum + (parseFloat(i.amount_tax_excluded) || 0), 0);
@@ -587,6 +592,7 @@ export function renderClientDetail(container) {
             <!-- Tabs Controls -->
             <div class="tabs-container" style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); display: flex; gap: 1.5rem;">
                 <button class="tab-btn active" data-tab="overview" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid var(--brand-blue); color: var(--brand-blue); font-weight: 400; cursor: pointer;">Panoramica</button>
+                <button class="tab-btn" data-tab="contacts" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">Referenti (${clientContacts.length})</button>
                 <button class="tab-btn" data-tab="orders" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">Commesse (${clientOrders.length})</button>
                 <button class="tab-btn" data-tab="invoices" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">Fatture (${clientInvoices.length})</button>
                 <button class="tab-btn" data-tab="payments" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">Pagamenti (${clientPayments.length})</button>
@@ -615,6 +621,29 @@ export function renderClientDetail(container) {
                         <div class="stats-value">${clientOrders.length}</div>
                         <div class="stats-trend">Totali</div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Tab Content: Referenti -->
+            <div id="tab-contacts" class="tab-content hidden">
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Nome</th><th>Ruolo</th><th>Email</th><th>Telefono</th><th></th></tr></thead>
+                        <tbody>
+                            ${clientContacts.length ? clientContacts.map(c => `
+                                <tr style="cursor: default;">
+                                    <td style="font-weight: 600;">${(c.full_name || '-').replace(/</g, '&lt;')}</td>
+                                    <td style="color: var(--text-secondary);">${(c.role || '-').replace(/</g, '&lt;')}</td>
+                                    <td>${c.email ? `<a href="mailto:${c.email}" style="color: var(--brand-blue); text-decoration: none;">${c.email}</a>` : '-'}</td>
+                                    <td>${c.phone ? `<a href="tel:${c.phone}" style="color: var(--text-secondary); text-decoration: none;">${c.phone}</a>` : '-'}</td>
+                                    <td style="text-align: right;">
+                                        ${c.email ? `<a href="mailto:${c.email}" title="Email" style="color: var(--brand-blue); margin-right: 8px;"><span class="material-icons-round" style="font-size: 18px; vertical-align: middle;">alternate_email</span></a>` : ''}
+                                        ${c.phone ? `<a href="tel:${c.phone}" title="Chiama" style="color: var(--brand-blue);"><span class="material-icons-round" style="font-size: 18px; vertical-align: middle;">phone</span></a>` : ''}
+                                    </td>
+                                </tr>
+                            `).join('') : '<tr><td colspan="5" style="text-align:center; padding:1.5rem; opacity:0.6;">Nessun referente registrato per questo cliente. Aggiungili da <a href="#contacts" style="color: var(--brand-blue);">Anagrafiche › Referenti</a>.</td></tr>'}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
