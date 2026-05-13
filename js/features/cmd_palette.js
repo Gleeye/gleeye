@@ -207,6 +207,47 @@ const TOOLS = [
     {
         type: 'function',
         function: {
+            name: 'create_invoice',
+            description: "Apre il modal Nuova Fattura Attiva precompilato. Usa quando l'utente dice 'fattura 1500 ad Acme', 'emetti fattura a Rossi 800€ per consulenza', 'fattura settembre cliente X'.",
+            parameters: {
+                type: 'object',
+                properties: {
+                    client_name: { type: 'string', description: 'Nome cliente.' },
+                    amount: { type: 'number', description: "Imponibile (al netto IVA) in euro." },
+                    description: { type: 'string', description: 'Descrizione/causale del servizio.' },
+                    date: { type: 'string', description: "Data emissione YYYY-MM-DD. Default oggi." },
+                },
+                required: ['client_name', 'amount'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'update_order_status',
+            description: "Cambia lo stato di una commessa per nome/codice. Usa quando l'utente dice 'commessa Acme accettata', 'Beta-25 in lavorazione', 'progetto Rossi completato', 'offerta X rifiutata'.",
+            parameters: {
+                type: 'object',
+                properties: {
+                    order_hint: { type: 'string', description: "Nome commessa, codice ordine, cliente — l'AI risolve in id." },
+                    new_status: {
+                        type: 'string',
+                        enum: ['in_lavorazione', 'invio_programmato', 'inviata', 'accettata', 'rifiutata', 'completato', 'chiuso'],
+                        description: "Nuovo stato. Offer status: in_lavorazione/invio_programmato/inviata/accettata/rifiutata. Works status: completato/chiuso.",
+                    },
+                    status_field: {
+                        type: 'string',
+                        enum: ['offer_status', 'status_works'],
+                        description: "'offer_status' per lo stato offerta (accettata/rifiutata/inviata/ecc.); 'status_works' per stato lavori (in corso/completato/chiuso).",
+                    },
+                },
+                required: ['order_hint', 'new_status', 'status_field'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
             name: 'answer_question',
             description: "Rispondi direttamente all'utente con una spiegazione testuale. Usa SOLO quando le altre tool non sono applicabili (es. l'utente fa una domanda generica, chiede aiuto, vuole una spiegazione su come funziona l'app).",
             parameters: {
@@ -244,6 +285,11 @@ REGOLE:
 - Se dice "incassato", "ho ricevuto", "pagamento cliente X" → log_payment_received.
 - Se dice "fissa appuntamento", "call con", "meeting", "riunione", "ci vediamo X giorno alle Y" → create_appointment.
   Per "domani alle 15" calcola: oggi è ${new Date().toISOString().slice(0,10)} quindi domani 15:00 sarebbe ${new Date(Date.now()+86400000).toISOString().slice(0,10)}T15:00:00.
+- Se dice "fattura ad/per cliente X", "emetti fattura", "fattura settembre cliente Y" → create_invoice.
+- Se dice "commessa X accettata/rifiutata/inviata/completata", "offerta Y accettata", "progetto Z chiuso" → update_order_status.
+  Distingui status_field:
+    'offer_status' per: accettata, rifiutata, inviata, invio_programmato, in_lavorazione
+    'status_works' per: completato, chiuso
 - Per domande generiche su come funziona l'app → answer_question.
 
 Lingua: italiano. Conciso. Esegui, non ti dilungare.`;
@@ -599,6 +645,18 @@ async function executeAction(name, args) {
         }
         case 'create_appointment': {
             const result = await createAppointmentFromCmdK(args);
+            showFeedback(result.html);
+            setLoading(false);
+            return;
+        }
+        case 'create_invoice': {
+            const result = await createInvoiceFromCmdK(args);
+            showFeedback(result.html);
+            setLoading(false);
+            return;
+        }
+        case 'update_order_status': {
+            const result = await updateOrderStatusFromCmdK(args);
             showFeedback(result.html);
             setLoading(false);
             return;

@@ -414,6 +414,10 @@ function render() {
                 if (pageTitle) pageTitle.textContent = 'Piano Economico';
                 import('../features/cfo/cfo_forecast.js?v=8000').then(m => m.renderCFOForecast(contentArea));
                 break;
+            case 'cfo-storico':
+                if (pageTitle) pageTitle.textContent = 'Popola da Storico';
+                import('../features/cfo/cfo_storico.js?v=8000').then(m => m.renderCFOStorico(contentArea));
+                break;
             // ── Sales Engine (Phase 1 + 2) ──────────────────────────────────
             case 'sales-pipeline':
                 if (pageTitle) pageTitle.textContent = 'Pipeline Vendite';
