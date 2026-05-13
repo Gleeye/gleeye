@@ -390,6 +390,14 @@ function render() {
                 if (pageTitle) pageTitle.textContent = 'Pricing Intelligence';
                 import('../features/pricing/index.js?v=8000').then(m => m.renderPricingDashboard(contentArea));
                 break;
+            case 'cfo-cashflow':
+                if (pageTitle) pageTitle.textContent = 'Cash Flow Forecast';
+                import('../features/cfo/cfo_cashflow.js?v=8000').then(m => m.renderCFOCashflow(contentArea));
+                break;
+            case 'cfo-pnl-orders':
+                if (pageTitle) pageTitle.textContent = 'P&L per Commessa';
+                import('../features/cfo/cfo_pnl_orders.js?v=8000').then(m => m.renderCFOPnlOrders(contentArea));
+                break;
             // ... Add other routes as needed
             default:
                 console.log(`[Router] Hit default case for page: "${state.currentPage}"`);
