@@ -1497,13 +1497,106 @@ export { renderPassiveInvoicesPartners, renderPassiveInvoicesCollab, renderPassi
 
 // ========= AI Import PDF =========
 
+// pdfjs-dist caricato lazy da CDN al primo uso (~400KB cached forever)
+let _pdfjsModulePromise = null;
+function loadPdfJs() {
+    if (_pdfjsModulePromise) return _pdfjsModulePromise;
+    _pdfjsModulePromise = (async () => {
+        // Import ESM build da unpkg/jsDelivr
+        const mod = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.mjs');
+        // Worker URL: necessario per pdfjs-dist (text extraction in worker thread)
+        mod.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs';
+        return mod;
+    })();
+    return _pdfjsModulePromise;
+}
+
 /**
- * Carica un PDF, lo manda all'edge function `parse-invoice-pdf` (Claude legge il
- * PDF nativamente), riceve i campi estratti + il match supplier, e precompila
- * il modal "Nuova Fattura Passiva".
+ * Estrae il testo da un File PDF lato browser (pdfjs-dist nativo, supporto canvas/worker).
+ */
+async function extractPdfTextInBrowser(file) {
+    const pdfjs = await loadPdfJs();
+    const arrayBuffer = await file.arrayBuffer();
+    const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+    const chunks = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const tc = await page.getTextContent();
+        chunks.push(tc.items.map(it => it.str || '').join(' '));
+    }
+    return { text: chunks.join('\n\n').trim(), pageCount: pdf.numPages };
+}
+
+const INVOICE_EXTRACTION_SCHEMA = {
+    supplier_name: 'string — ragione sociale del fornitore',
+    supplier_vat: 'string|null — P.IVA 11 cifre senza prefisso IT',
+    supplier_fiscal_code: 'string|null',
+    supplier_email: 'string|null',
+    invoice_number: 'string',
+    invoice_date: 'string — YYYY-MM-DD',
+    due_date: 'string|null — YYYY-MM-DD',
+    currency: 'string — es. EUR',
+    total_gross: 'number — totale lordo a pagare',
+    taxable_amount: 'number|null — imponibile',
+    vat_amount: 'number|null',
+    vat_rate: 'number|null — es. 22 per 22%',
+    withholding_amount: 'number|null — ritenuta acconto',
+    cassa_amount: 'number|null — cassa previdenza',
+    bollo_amount: 'number|null — bollo virtuale (2 € se applicato)',
+    regime: 'string|null — ordinario|forfettario|occasionale|estero|parcella',
+    description: 'string|null — causale/descrizione principale',
+    confidence: 'string — high|medium|low',
+    notes: 'string|null',
+};
+
+const INVOICE_SYSTEM_PROMPT = `Sei un assistente specializzato nell'estrarre dati strutturati da fatture italiane.
+L'utente ti manda il TESTO estratto da un PDF di una fattura passiva.
+Estrai i campi e rispondi SOLO con JSON valido come da schema.
+
+REGOLE:
+- Date in formato YYYY-MM-DD.
+- Importi come numeri (punto decimale).
+- supplier_vat: solo 11 cifre senza prefisso 'IT'.
+- regime: ordinario|forfettario|occasionale|estero|parcella.
+- Se forfettario: vat_rate=0, withholding_amount=null.
+- Se Reverse Charge / estero: regime="estero", vat_amount=0.
+- Campi obbligatori: supplier_name, invoice_number, invoice_date, total_gross.`;
+
+/**
+ * Match supplier in state.suppliers via P.IVA → CF → email → name fuzzy.
+ */
+function matchSupplierLocal(extracted) {
+    if (!Array.isArray(state.suppliers) || !extracted) return null;
+    const piva = extracted.supplier_vat?.replace(/\D/g, '');
+    if (piva) {
+        const m = state.suppliers.find(s => (s.vat_number || '').replace(/\D/g, '') === piva);
+        if (m) return m;
+    }
+    const cf = extracted.supplier_fiscal_code?.toUpperCase().trim();
+    if (cf) {
+        const m = state.suppliers.find(s => (s.tax_code || '').toUpperCase().trim() === cf);
+        if (m) return m;
+    }
+    const email = extracted.supplier_email?.toLowerCase().trim();
+    if (email) {
+        const m = state.suppliers.find(s => (s.email || '').toLowerCase().trim() === email);
+        if (m) return m;
+    }
+    const name = extracted.supplier_name?.toLowerCase().trim();
+    if (name && name.length > 2) {
+        const m = state.suppliers.find(s => (s.name || '').toLowerCase().includes(name) || name.includes((s.name || '').toLowerCase()));
+        if (m) return m;
+    }
+    return null;
+}
+
+/**
+ * Carica un PDF, estrae il testo nel browser (pdfjs-dist), lo manda a
+ * `ai.completeJSON()` (Gemini Flash via OpenRouter), riceve i campi estratti
+ * e precompila il modal. Match supplier locale via state.suppliers.
  *
- * NON salva niente nel DB: l'utente conferma + corregge + clicca Salva come al
- * solito. Il logging della chiamata AI lo fa l'edge function in `ai_usage_log`.
+ * NON salva niente: l'utente conferma + corregge + clicca Salva come al solito.
  */
 async function handlePassiveInvoiceAIImport(file) {
     const label = document.getElementById('pinv-ai-import-label');
@@ -1518,49 +1611,52 @@ async function handlePassiveInvoiceAIImport(file) {
     setBusy('Lettura PDF…');
 
     try {
-        // 1) Read file as base64
-        const base64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                const result = reader.result || '';
-                const idx = String(result).indexOf('base64,');
-                resolve(idx >= 0 ? String(result).slice(idx + 7) : String(result));
-            };
-            reader.onerror = () => reject(reader.error || new Error('FileReader error'));
-            reader.readAsDataURL(file);
-        });
+        // 1) Estrai testo PDF nel browser
+        const { text: pdfText, pageCount } = await extractPdfTextInBrowser(file);
+
+        if (!pdfText) {
+            showGlobalAlert("Il PDF non contiene testo estraibile (probabile scansione). Carica manualmente.", 'error');
+            return;
+        }
 
         setBusy('Estrazione AI…');
 
-        // 2) Call edge function (JWT auth automatica via supabase.functions.invoke)
-        const { data, error } = await supabase.functions.invoke('parse-invoice-pdf', {
-            body: {
-                pdf_base64: base64,
-                original_filename: file.name,
-            },
-        });
-
-        if (error) {
-            console.error('[ai-import] invoke error:', error);
-            showGlobalAlert(`Errore AI: ${error.message || 'parser non disponibile'}`, 'error');
+        // 2) Chiamata AI via wrapper centrale (logga auto in ai_usage_log)
+        if (!window.ai?.completeJSON) {
+            showGlobalAlert("Modulo AI non caricato. Hard refresh.", 'error');
             return;
         }
-        if (!data?.success || !data?.extracted) {
-            console.warn('[ai-import] estrazione fallita:', data);
-            showGlobalAlert(`AI non è riuscita a leggere il PDF. ${data?.parse_error ? '(' + data.parse_error + ')' : ''}`, 'error');
+        const TRUNCATE = 60000;
+        const finalText = pdfText.length > TRUNCATE ? pdfText.slice(0, TRUNCATE) + '\n[…troncato…]' : pdfText;
+
+        const extracted = await window.ai.completeJSON(
+            `Nome file: ${file.name}\nPagine: ${pageCount}\n\nTESTO PDF:\n${finalText}`,
+            INVOICE_EXTRACTION_SCHEMA,
+            {
+                feature: 'passive_invoice_pdf_parser',
+                system: INVOICE_SYSTEM_PROMPT,
+                temperature: 0.1,
+            }
+        );
+
+        if (!extracted || typeof extracted !== 'object') {
+            showGlobalAlert("AI non è riuscita a estrarre i campi. Riprova o carica manualmente.", 'error');
             return;
         }
 
-        // 3) Fill the form
-        applyExtractedInvoiceToForm(data.extracted, data.matched_supplier);
+        // 3) Match supplier locale
+        const matchedSupplier = matchSupplierLocal(extracted);
 
-        const confidence = data.extracted.confidence || 'medium';
-        const supLabel = data.matched_supplier?.name
-            ? ` · ${data.matched_supplier.name} riconosciuto`
+        // 4) Riempi il form
+        applyExtractedInvoiceToForm(extracted, matchedSupplier);
+
+        const confidence = extracted.confidence || 'medium';
+        const supLabel = matchedSupplier?.name
+            ? ` · ${matchedSupplier.name} riconosciuto`
             : ' · fornitore non riconosciuto (seleziona manualmente)';
         showGlobalAlert(`✨ Campi precompilati (confidenza ${confidence})${supLabel}. Controlla e salva.`, 'success');
     } catch (e) {
-        console.error('[ai-import] errore generico:', e);
+        console.error('[ai-import] errore:', e);
         showGlobalAlert(`Errore: ${e.message || e}`, 'error');
     } finally {
         setBusy(originalLabel, false);
