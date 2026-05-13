@@ -106,6 +106,36 @@ const TOOLS = [
     {
         type: 'function',
         function: {
+            name: 'recap_today',
+            description: "Mostra un riassunto della giornata: task urgenti/scadute/oggi, pagamenti collab in arrivo, fatture cliente scadute. Usa quando l'utente chiede 'cosa devo fare oggi', 'situazione', 'urgenze', 'recap'.",
+            parameters: { type: 'object', properties: {} },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'overdue_overview',
+            description: "Mostra tutto ciò che è scaduto in un colpo solo: fatture clienti, pagamenti collab, task. Usa quando l'utente chiede 'cosa è scaduto', 'arretrati'.",
+            parameters: { type: 'object', properties: {} },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'client_summary',
+            description: "Riepilogo finanziario+operativo di un cliente: ricavi totali, fatture aperte/scadute, commesse attive, ultime attività. Usa quando l'utente chiede 'come sta cliente X', 'riepilogo X', 'situazione X'.",
+            parameters: {
+                type: 'object',
+                properties: {
+                    name: { type: 'string', description: 'Nome o parte del nome del cliente.' },
+                },
+                required: ['name'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
             name: 'answer_question',
             description: "Rispondi direttamente all'utente con una spiegazione testuale. Usa SOLO quando le altre tool non sono applicabili (es. l'utente fa una domanda generica, chiede aiuto, vuole una spiegazione su come funziona l'app).",
             parameters: {
@@ -131,6 +161,9 @@ REGOLE:
 - Se dice "cerca X" o "trovami X" → search_entity.
 - Se dice "apri [cliente/commessa specifica]" → open_entity_detail.
 - Se chiede numeri (quanto, quanti, totale) → quick_stat.
+- Se chiede "cosa devo fare", "urgenze", "situazione di oggi", "recap" → recap_today.
+- Se chiede "cosa è scaduto", "arretrati", "fatture/pagamenti scaduti tutti" → overdue_overview.
+- Se chiede "come sta cliente X", "riepilogo X", "situazione X" → client_summary.
 - Per domande generiche su come funziona l'app → answer_question.
 
 Lingua: italiano. Conciso. Esegui, non ti dilungare.`;
@@ -448,6 +481,24 @@ async function executeAction(name, args) {
             setLoading(false);
             return;
         }
+        case 'recap_today': {
+            const html = await renderRecapToday();
+            showFeedback(html);
+            setLoading(false);
+            return;
+        }
+        case 'overdue_overview': {
+            const html = await renderOverdueOverview();
+            showFeedback(html);
+            setLoading(false);
+            return;
+        }
+        case 'client_summary': {
+            const html = await renderClientSummary(args.name);
+            showFeedback(html);
+            setLoading(false);
+            return;
+        }
         case 'answer_question': {
             showFeedback(`<span class="material-icons-round icon">auto_awesome</span>${args.answer}`);
             setLoading(false);
@@ -650,4 +701,303 @@ bindGlobalShortcut();
 // Espongo per debug + invocazione programmatica
 if (typeof window !== 'undefined') {
     window.cmdK = { open, close };
+}
+
+// ─── Rich rendering helpers (recap / overdue / client_summary) ──────
+
+function fmtEur(n) {
+    return '€ ' + (Number(n) || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtDateIT(d) {
+    if (!d) return '-';
+    return new Date(d).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+function sectionHeader(icon, title, color = '#6366f1') {
+    return `<div style="display:flex; align-items:center; gap:8px; padding:10px 16px 6px; font-size:0.7rem; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:0.06em;">
+        <span class="material-icons-round" style="font-size:14px;">${icon}</span>${title}
+    </div>`;
+}
+function row(html) {
+    return `<div style="padding:8px 16px; border-bottom:1px solid #f1f5f9; font-size:0.85rem; display:flex; justify-content:space-between; gap:12px; align-items:center;">${html}</div>`;
+}
+function emptyHint(text) {
+    return `<div style="padding:10px 16px; font-size:0.78rem; color:#94a3b8; font-style:italic;">${text}</div>`;
+}
+function wrapRich(content) {
+    return `<div style="margin:-16px -20px; max-height:380px; overflow-y:auto;">${content}</div>`;
+}
+
+async function renderRecapToday() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().slice(0, 10);
+    const in7 = new Date(today); in7.setDate(in7.getDate() + 7);
+
+    // Task scadute + oggi (top 5)
+    const { data: tasks } = await supabase
+        .from('pm_items')
+        .select('id, title, due_date, priority')
+        .lte('due_date', in7.toISOString().slice(0, 10))
+        .not('status', 'in', '("done","archived","completed")')
+        .order('due_date', { ascending: true })
+        .limit(8);
+
+    // Pagamenti collab in arrivo (settimana)
+    const { data: payments } = await supabase
+        .from('payments')
+        .select('id, title, amount, due_date, status, collaborators(full_name)')
+        .lte('due_date', in7.toISOString().slice(0, 10))
+        .gte('due_date', todayStr)
+        .in('status', ['Da Fare', 'Invito Inviato', 'Fattura Ricevuta'])
+        .order('due_date', { ascending: true })
+        .limit(8);
+
+    // Fatture clienti scadute (top 5)
+    const { data: invoices } = await supabase
+        .from('invoices')
+        .select('id, invoice_number, amount_tax_included, due_date, clients(business_name)')
+        .lt('due_date', todayStr)
+        .neq('status', 'Saldata')
+        .order('due_date', { ascending: true })
+        .limit(8);
+
+    let content = '';
+
+    content += sectionHeader('today', `Task entro 7 giorni (${tasks?.length || 0})`, '#3b82f6');
+    if (tasks?.length) {
+        content += tasks.map(t => {
+            const overdue = t.due_date < todayStr;
+            const prio = t.priority === 'urgent' || t.priority === 'high' ? '🔴' : '';
+            return row(`
+                <div style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    ${prio} <span style="color:#1e293b;">${escapeHtml(t.title || 'Senza titolo')}</span>
+                </div>
+                <div style="color:${overdue ? '#ef4444' : '#64748b'}; font-size:0.75rem; font-weight:600; flex-shrink:0;">${fmtDateIT(t.due_date)}</div>
+            `);
+        }).join('');
+    } else content += emptyHint('Nessuna task in scadenza nei prossimi 7 giorni.');
+
+    content += sectionHeader('payments', `Pagamenti settimana (${payments?.length || 0})`, '#8b5cf6');
+    if (payments?.length) {
+        content += payments.map(p => row(`
+            <div style="flex:1; min-width:0;">
+                <div style="font-weight:600; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(p.title || 'Pagamento')}</div>
+                <div style="font-size:0.7rem; color:#94a3b8;">${escapeHtml(p.collaborators?.full_name || '')} · ${fmtDateIT(p.due_date)}</div>
+            </div>
+            <div style="font-weight:700; color:#8b5cf6;">${fmtEur(p.amount)}</div>
+        `)).join('');
+    } else content += emptyHint('Nessun pagamento collaboratori in scadenza.');
+
+    content += sectionHeader('warning', `Fatture clienti scadute (${invoices?.length || 0})`, '#ef4444');
+    if (invoices?.length) {
+        const totOverdue = invoices.reduce((s, i) => s + (Number(i.amount_tax_included) || 0), 0);
+        content += invoices.map(i => row(`
+            <div style="flex:1; min-width:0;">
+                <div style="font-weight:600; color:#1e293b;">${escapeHtml(i.invoice_number || '')} · ${escapeHtml(i.clients?.business_name || '')}</div>
+                <div style="font-size:0.7rem; color:#ef4444;">scaduta il ${fmtDateIT(i.due_date)}</div>
+            </div>
+            <div style="font-weight:700; color:#ef4444;">${fmtEur(i.amount_tax_included)}</div>
+        `)).join('');
+        content += `<div style="padding:8px 16px; font-size:0.8rem; font-weight:700; color:#ef4444; background:rgba(239,68,68,0.05);">Totale scaduto: ${fmtEur(totOverdue)}</div>`;
+    } else content += emptyHint('Tutte le fatture sono in pari. 👍');
+
+    return wrapRich(content);
+}
+
+async function renderOverdueOverview() {
+    const today = new Date().toISOString().slice(0, 10);
+
+    const [invRes, payRes, taskRes] = await Promise.all([
+        supabase.from('invoices')
+            .select('id, invoice_number, amount_tax_included, due_date, clients(business_name)')
+            .lt('due_date', today).neq('status', 'Saldata')
+            .order('due_date', { ascending: true }).limit(10),
+        supabase.from('payments')
+            .select('id, title, amount, due_date, status, collaborators(full_name)')
+            .lt('due_date', today)
+            .in('status', ['Da Fare', 'Invito Inviato', 'Fattura Ricevuta'])
+            .order('due_date', { ascending: true }).limit(10),
+        supabase.from('pm_items')
+            .select('id, title, due_date, priority')
+            .lt('due_date', today)
+            .not('status', 'in', '("done","archived","completed")')
+            .order('due_date', { ascending: true }).limit(10),
+    ]);
+
+    const invoices = invRes.data || [];
+    const payments = payRes.data || [];
+    const tasks = taskRes.data || [];
+
+    let content = '';
+
+    content += sectionHeader('receipt_long', `Fatture clienti (${invoices.length})`, '#ef4444');
+    if (invoices.length) {
+        const tot = invoices.reduce((s, i) => s + (Number(i.amount_tax_included) || 0), 0);
+        content += invoices.map(i => row(`
+            <div style="flex:1; min-width:0;">
+                <div style="font-weight:600;">${escapeHtml(i.invoice_number || '')} · ${escapeHtml(i.clients?.business_name || '')}</div>
+                <div style="font-size:0.7rem; color:#ef4444;">${fmtDateIT(i.due_date)}</div>
+            </div>
+            <div style="font-weight:700; color:#ef4444;">${fmtEur(i.amount_tax_included)}</div>
+        `)).join('');
+        content += `<div style="padding:6px 16px; font-size:0.75rem; color:#ef4444; font-weight:700; background:rgba(239,68,68,0.04);">Totale: ${fmtEur(tot)}</div>`;
+    } else content += emptyHint('Niente fatture scadute.');
+
+    content += sectionHeader('payments', `Pagamenti collab in ritardo (${payments.length})`, '#f59e0b');
+    if (payments.length) {
+        const tot = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+        content += payments.map(p => row(`
+            <div style="flex:1; min-width:0;">
+                <div style="font-weight:600;">${escapeHtml(p.title || 'Pagamento')}</div>
+                <div style="font-size:0.7rem; color:#f59e0b;">${escapeHtml(p.collaborators?.full_name || '')} · ${fmtDateIT(p.due_date)}</div>
+            </div>
+            <div style="font-weight:700; color:#f59e0b;">${fmtEur(p.amount)}</div>
+        `)).join('');
+        content += `<div style="padding:6px 16px; font-size:0.75rem; color:#f59e0b; font-weight:700; background:rgba(245,158,11,0.04);">Totale: ${fmtEur(tot)}</div>`;
+    } else content += emptyHint('Nessun pagamento collab in ritardo.');
+
+    content += sectionHeader('assignment_late', `Task scadute (${tasks.length})`, '#3b82f6');
+    if (tasks.length) {
+        content += tasks.map(t => row(`
+            <div style="flex:1; min-width:0;">${escapeHtml(t.title || 'Senza titolo')}</div>
+            <div style="font-size:0.75rem; color:#3b82f6;">${fmtDateIT(t.due_date)}</div>
+        `)).join('');
+    } else content += emptyHint('Tutte le task in pari. 👍');
+
+    return wrapRich(content);
+}
+
+async function renderClientSummary(query) {
+    // Find client
+    const { data: clients } = await supabase.from('clients')
+        .select('id, business_name, client_code, city, email, phone')
+        .or(`business_name.ilike.%${query}%,client_code.ilike.%${query}%`)
+        .limit(5);
+
+    if (!clients || clients.length === 0) {
+        return `<div style="padding:16px;"><span class="material-icons-round icon">search_off</span> Nessun cliente trovato per "${escapeHtml(query)}".</div>`;
+    }
+
+    if (clients.length > 1) {
+        const html = clients.map(c => `
+            <div style="padding:10px 16px; cursor:pointer; border-bottom:1px solid #f1f5f9; display:flex; gap:10px; align-items:center;" onclick="window.cmdK?._summary?.('${c.id}')">
+                <span class="material-icons-round" style="font-size:18px; color:#3b82f6;">business</span>
+                <div style="flex:1;"><div style="font-weight:600;">${escapeHtml(c.business_name)}</div>
+                <div style="font-size:0.75rem; color:#64748b;">${escapeHtml(c.city || '')} · ${escapeHtml(c.client_code || '')}</div></div>
+            </div>
+        `).join('');
+        return wrapRich(sectionHeader('contacts', `${clients.length} clienti match`, '#3b82f6') + html);
+    }
+
+    const c = clients[0];
+    return await renderClientSummaryById(c);
+}
+
+async function renderClientSummaryById(c) {
+    const today = new Date().toISOString().slice(0, 10);
+
+    const [ordRes, invRes, payRes] = await Promise.all([
+        supabase.from('orders')
+            .select('id, order_number, short_name, total_price, offer_status, status_works, created_at')
+            .eq('client_id', c.id)
+            .order('created_at', { ascending: false }).limit(50),
+        supabase.from('invoices')
+            .select('id, invoice_number, amount_tax_included, status, issue_date, due_date')
+            .eq('client_id', c.id)
+            .order('issue_date', { ascending: false }).limit(50),
+        supabase.from('app_activity_log')
+            .select('id, action_type, created_at')
+            .or(`metadata->>client_id.eq.${c.id}`)
+            .order('created_at', { ascending: false }).limit(5),
+    ]);
+
+    const orders = ordRes.data || [];
+    const invoices = invRes.data || [];
+
+    const revenueTotal = invoices.reduce((s, i) => s + (Number(i.amount_tax_included) || 0), 0);
+    const openInvoices = invoices.filter(i => i.status !== 'Saldata');
+    const openInvoicesTotal = openInvoices.reduce((s, i) => s + (Number(i.amount_tax_included) || 0), 0);
+    const overdueInvoices = openInvoices.filter(i => i.due_date && i.due_date < today);
+    const activeOrders = orders.filter(o => {
+        const off = (o.offer_status || '').toLowerCase();
+        const works = (o.status_works || '').toLowerCase();
+        return ['in_lavorazione', 'invio_programmato', 'inviata'].includes(off)
+            || (off === 'accettata' && !['completato', 'chiuso'].includes(works));
+    });
+
+    let content = '';
+
+    content += `<div style="padding:12px 16px; background:linear-gradient(135deg, rgba(59,130,246,0.06), transparent); border-bottom:1px solid #e2e8f0;">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span class="material-icons-round" style="color:#3b82f6; font-size:22px;">business</span>
+            <div style="flex:1;">
+                <div style="font-weight:700; color:#1e293b; font-size:1rem;">${escapeHtml(c.business_name)}</div>
+                <div style="font-size:0.75rem; color:#64748b;">${escapeHtml(c.client_code || '')} · ${escapeHtml(c.city || '-')}</div>
+            </div>
+            <button onclick="window.location.hash='client-detail/${c.id}'; document.getElementById('cmdk-overlay')?.remove();" style="padding:4px 10px; border-radius:6px; background:#3b82f6; color:white; border:none; font-size:0.7rem; font-weight:600; cursor:pointer;">apri</button>
+        </div>
+    </div>`;
+
+    content += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#e2e8f0; padding:0;">
+        <div style="background:white; padding:10px 16px;">
+            <div style="font-size:0.65rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Fatturato totale</div>
+            <div style="font-weight:700; color:#10b981; font-size:1rem;">${fmtEur(revenueTotal)}</div>
+        </div>
+        <div style="background:white; padding:10px 16px;">
+            <div style="font-size:0.65rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Fatture aperte</div>
+            <div style="font-weight:700; color:${openInvoices.length ? '#f59e0b' : '#94a3b8'}; font-size:1rem;">${openInvoices.length} · ${fmtEur(openInvoicesTotal)}</div>
+        </div>
+        <div style="background:white; padding:10px 16px;">
+            <div style="font-size:0.65rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Commesse attive</div>
+            <div style="font-weight:700; color:#3b82f6; font-size:1rem;">${activeOrders.length}</div>
+        </div>
+        <div style="background:white; padding:10px 16px;">
+            <div style="font-size:0.65rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Fatture scadute</div>
+            <div style="font-weight:700; color:${overdueInvoices.length ? '#ef4444' : '#10b981'}; font-size:1rem;">${overdueInvoices.length}</div>
+        </div>
+    </div>`;
+
+    if (activeOrders.length) {
+        content += sectionHeader('work', `Commesse attive (${activeOrders.length})`, '#3b82f6');
+        content += activeOrders.slice(0, 5).map(o => row(`
+            <div style="flex:1; min-width:0; overflow:hidden;">
+                <div style="font-weight:600; color:#1e293b;">${escapeHtml(o.order_number || '')} · ${escapeHtml(o.short_name || 'Senza nome')}</div>
+                <div style="font-size:0.7rem; color:#64748b;">${escapeHtml(o.offer_status || '')} · ${escapeHtml(o.status_works || '')}</div>
+            </div>
+            <div style="font-weight:700; color:#1e293b;">${fmtEur(o.total_price)}</div>
+        `)).join('');
+    }
+
+    if (overdueInvoices.length) {
+        content += sectionHeader('warning', `Fatture scadute (${overdueInvoices.length})`, '#ef4444');
+        content += overdueInvoices.slice(0, 5).map(i => row(`
+            <div style="flex:1; min-width:0;">
+                <div style="font-weight:600;">${escapeHtml(i.invoice_number || '')}</div>
+                <div style="font-size:0.7rem; color:#ef4444;">${fmtDateIT(i.due_date)}</div>
+            </div>
+            <div style="font-weight:700; color:#ef4444;">${fmtEur(i.amount_tax_included)}</div>
+        `)).join('');
+    }
+
+    return wrapRich(content);
+}
+
+// Helper esposto per il drill-down quando ci sono più match
+if (typeof window !== 'undefined') {
+    window.cmdK = window.cmdK || {};
+    window.cmdK._summary = async (id) => {
+        const { data } = await supabase.from('clients').select('id, business_name, client_code, city, email, phone').eq('id', id).maybeSingle();
+        if (!data) return;
+        setLoading(true);
+        const html = await renderClientSummaryById(data);
+        showFeedback(html);
+        setLoading(false);
+    };
+}
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
