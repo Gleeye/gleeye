@@ -152,6 +152,33 @@ function resolveEntityName(log, details) {
 }
 
 /**
+ * Risolve il nome dell'attore di un log in modo consistente in tutta l'app.
+ *
+ * Casi:
+ *   1. log.actor.full_name presente → nome reale
+ *   2. log.authorName presente (legacy) → usa quello
+ *   3. actor_user_ref presente ma full_name mancante → "Utente sconosciuto"
+ *      (significa che era un utente reale, ma il join è fallito o l'utente è stato cancellato)
+ *   4. nessun actor_user_ref → "Sistema" (azione automatica del backend, es. trigger/cron)
+ *
+ * @param {Object} log - Log dal DB con eventuale join su profiles (alias "actor")
+ * @returns {string} Nome attore da mostrare in UI
+ */
+export function resolveActorName(log) {
+    if (!log) return 'Sistema';
+    const fullName = log.actor?.full_name || log.authorName;
+    if (fullName && String(fullName).trim()) return fullName;
+    // Fallback: nome derivato da email (parte prima della @)
+    const email = log.actor?.email;
+    if (email) {
+        const local = String(email).split('@')[0];
+        if (local) return local;
+    }
+    if (log.actor_user_ref) return 'Utente sconosciuto';
+    return 'Sistema';
+}
+
+/**
  * Turns a raw activity log into a human-readable description and HTML structure.
  * @param {Object} log - The raw log from pm_activity_logs (with joined actor, item, order, space)
  * @param {Object} context - Optional { hideContainer: true }
@@ -165,7 +192,7 @@ export function humanizeActivity(log, context = {}) {
     // Legacy orphan: log storici senza contesto recuperabile (no ref, no metadata).
     // Restituiamo una frase neutra senza tentare di costruire una narrazione.
     if (rawAction === LEGACY_ORPHAN) {
-        const actorName = log.actor?.full_name || (log.actor_user_ref ? 'Utente' : 'Sistema');
+        const actorName = resolveActorName(log);
         return {
             actorName,
             formattedDesc: 'ha registrato un\'attività di sistema',
@@ -180,7 +207,7 @@ export function humanizeActivity(log, context = {}) {
     // Security audit events — visibili solo a partner/admin via RLS, gli altri non li
     // ricevono nemmeno dal DB. Frase dedicata con flag isSecurityAudit per eventuale UI badge.
     if (rawAction === 'security_impersonate' || rawAction === 'security_magic_link_sent') {
-        const actorName = log.actor?.full_name || (log.actor_user_ref ? 'Utente' : 'Sistema');
+        const actorName = resolveActorName(log);
         const meta = log.details || log.metadata || {};
         let desc;
         if (rawAction === 'security_impersonate') {
@@ -209,7 +236,7 @@ export function humanizeActivity(log, context = {}) {
     const newValTr = activityTranslate(newValRaw);
     const col = details.col; // tracked column name (from new trigger)
 
-    const actorName = log.actor?.full_name || log.authorName || (log.actor_user_ref ? 'Utente' : 'Sistema');
+    const actorName = resolveActorName(log);
 
     // 2. Resolve Entity Name
     const { name: entityName, isFallback } = resolveEntityName(log, details);

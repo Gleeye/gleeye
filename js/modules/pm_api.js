@@ -2,6 +2,7 @@ import { supabase } from '../modules/config.js?v=8000';
 import { state } from '../modules/state.js?v=8000';
 import { triggerAppointmentNotifications } from '../features/notifications/appointment_notifications.js?v=8000';
 import { generateRecurrences, joinNames } from './utils.js?v=8000';
+import { resolveActorName } from './pm_activity_helper.js?v=8000';
 
 const CACHE_STALE_TIME = 2 * 60 * 1000; // 2 minutes
 
@@ -1515,12 +1516,9 @@ export async function fetchSmartPersonalFeed(limit = 50, overrideUserId = null, 
 
         // ─── Step 4: Map authors for UI ───
         return (logs || []).map(log => {
-            let authorName = 'Sistema';
-            let avatarUrl = 'https://ui-avatars.com/api/?name=Sistema&background=random';
-            if (log.actor) {
-                authorName = log.actor.full_name || log.actor.email?.split('@')[0] || 'Utente';
-                avatarUrl = log.actor.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random`;
-            }
+            const authorName = resolveActorName(log);
+            const avatarUrl = log.actor?.avatar_url
+                || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random`;
             return { ...log, authorName, avatarUrl };
         });
 
@@ -1573,15 +1571,9 @@ export async function fetchPMActivityLogs(arg1 = null, arg2 = null, arg3 = null,
 
     // Map authors for UI
     return data.map(log => {
-        let authorName = 'Sistema';
-        let avatarUrl = 'https://ui-avatars.com/api/?name=Sistema&background=random';
-
-        if (log.actor) {
-            authorName = log.actor.full_name || '';
-            if (!authorName) authorName = log.actor.email?.split('@')[0] || 'Utente';
-            avatarUrl = log.actor.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random`;
-        }
-
+        const authorName = resolveActorName(log);
+        const avatarUrl = log.actor?.avatar_url
+            || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=random`;
         return { ...log, authorName, avatarUrl };
     });
 }

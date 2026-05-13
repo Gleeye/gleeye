@@ -642,7 +642,8 @@ function renderCommentsPreview(comments, spaceId) {
 }
 
 function renderCommentItem(comment) {
-    const profile = comment.profiles || { full_name: 'Sistema', avatar_url: null };
+    // Commento sempre da un utente reale; fallback safe se il join profiles è vuoto.
+    const profile = comment.profiles || { full_name: 'Utente sconosciuto', avatar_url: null };
     const date = new Date(comment.created_at);
     const dateStr = date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
     const timeStr = date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
