@@ -113,14 +113,16 @@ Branch: `feature/passive-invoices-auto-import` (derivato da `feature/ai-foundati
   source ∈ {manual, ai_pdf_upload, email_inbox, agency_api} e
   review_status ∈ {reviewed, pending, rejected}. Indice parziale su
   pending per la futura Inbox.
-- **Edge function `parse-invoice-pdf`** (Deno, JWT auth, Anthropic API
-  diretta perché OpenRouter potrebbe non passare PDF nativi):
-  riceve `{ pdf_base64, original_filename }`, invia il PDF a
-  Claude Sonnet 4.5 con `document` content block, riceve JSON strutturato
-  (numero, data, supplier, P.IVA, totale lordo, imponibile, IVA, ritenuta,
-  cassa, bollo, regime, descrizione, confidence). Match supplier via
-  P.IVA → CF → email → name fuzzy. Log fire-and-forget in `ai_usage_log`
-  (feature `passive_invoice_pdf_parser`).
+- **Edge function `parse-invoice-pdf`** (Deno, JWT auth, OpenRouter +
+  Gemini 2.5 Flash, lib `unpdf` per estrazione testo): riceve
+  `{ pdf_base64, original_filename }`, estrae testo dal PDF, invia il
+  testo a Gemini Flash via OpenRouter con `response_format: json_object`,
+  riceve JSON strutturato (numero, data, supplier, P.IVA, totale lordo,
+  imponibile, IVA, ritenuta, cassa, bollo, regime, descrizione,
+  confidence). Match supplier via P.IVA → CF → email → name fuzzy. Log
+  fire-and-forget in `ai_usage_log` (feature `passive_invoice_pdf_parser`).
+  **Limite attuale**: PDF scansionati (solo immagine, niente testo) non
+  funzionano — serve OCR, da aggiungere dopo se serve.
 - **UI**: bottone gradient "✨ Importa con AI" nell'header del modal
   "Nuova Fattura Passiva". Click → file picker → call edge function →
   precompila tutti i campi (regime, numero, data, importi, checkbox
