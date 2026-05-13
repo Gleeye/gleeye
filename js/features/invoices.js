@@ -1871,40 +1871,138 @@ function attachOriginalPdfToModal(file) {
 }
 
 /**
- * Suggerisce in console quali pagamenti del collaboratore selezionato
- * potrebbero essere saldati da questa fattura (per importo + codici riferimento).
- * Non auto-flagga: l'utente sceglie. Match smart sarà la prossima iterazione.
+ * Identifica i pagamenti del collaboratore che probabilmente questa fattura
+ * sta saldando. Ritorna lista { payment, score, reasons }.
  */
-function suggestPaymentMatches(extracted, matchedEntity, mode) {
-    if (mode === 'supplier' || !matchedEntity?.id) return;
-    if (!Array.isArray(state.payments)) return;
+function findPaymentCandidates(extracted, matchedEntity) {
+    if (!matchedEntity?.id || !Array.isArray(state.payments)) return [];
 
     const totalGross = Number(extracted.total_gross || 0);
-    const codes = (extracted.reference_codes || []).map(c => String(c).toLowerCase());
+    const codes = (extracted.reference_codes || [])
+        .map(c => String(c || '').toLowerCase().trim())
+        .filter(Boolean);
 
     const candidates = state.payments.filter(p => {
         if (p.collaborator_id !== matchedEntity.id) return false;
         if (['Saldato', 'Pagato', 'Completato'].includes(p.status)) return false;
+        if (p.passive_invoice_id && p.passive_invoice_id !== state.currentPassiveInvoiceId) return false;
         return true;
     });
 
-    if (!candidates.length) return;
-
-    // Score per match importo (entro 0.5 €) + presenza codice nelle note/ordine
-    const scored = candidates.map(p => {
+    return candidates.map(p => {
+        const reasons = [];
         let score = 0;
         const amt = Number(p.amount || 0);
-        if (Math.abs(amt - totalGross) < 0.5) score += 10;
-        else if (totalGross > 0 && Math.abs(amt - totalGross) / totalGross < 0.05) score += 5;
-        const ordRef = state.orders?.find(o => o.id === p.order_id)?.order_number || '';
-        const blob = `${p.notes || ''} ${ordRef}`.toLowerCase();
-        if (codes.some(c => c && blob.includes(c))) score += 8;
-        return { payment: p, score, orderNumber: ordRef };
-    }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
 
-    if (scored.length) {
-        console.log('[ai-import] 💡 pagamenti candidati da saldare:', scored);
-        showGlobalAlert(`💡 ${scored.length} pagament${scored.length === 1 ? 'o' : 'i'} candidat${scored.length === 1 ? 'o' : 'i'} per il match (vedi console). Da selezionare manualmente nella sezione Pagamenti.`, 'info');
+        if (Math.abs(amt - totalGross) < 0.5) {
+            score += 10;
+            reasons.push('importo esatto');
+        } else if (totalGross > 0 && Math.abs(amt - totalGross) / totalGross < 0.05) {
+            score += 5;
+            reasons.push('importo ±5%');
+        }
+
+        const ord = state.orders?.find(o => o.id === p.order_id);
+        const ordRef = ord?.order_number || '';
+        const ordTitle = ord?.short_name || ord?.title || '';
+        const blob = `${p.title || ''} ${p.notes || ''} ${ordRef} ${ordTitle}`.toLowerCase();
+        const matchedCode = codes.find(c => c && blob.includes(c));
+        if (matchedCode) {
+            score += 8;
+            reasons.push(`codice "${matchedCode}"`);
+        }
+
+        return { payment: p, score, orderNumber: ordRef, reasons };
+    }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Auto-spunta i checkbox dei pagamenti candidati nella lista #pinv-payments-list
+ * e aggiunge un badge "💡 AI" accanto al label.
+ *
+ * La lista viene popolata async dopo aver selezionato il collaboratore
+ * (listener `change` su `#pinv-collaborator`). Aspettiamo l'aggiornamento DOM
+ * con un osservatore + timeout di sicurezza.
+ */
+function autoFlagPaymentCandidates(candidates) {
+    if (!candidates || candidates.length === 0) return;
+
+    const apply = () => {
+        const list = document.getElementById('pinv-payments-list');
+        if (!list) return false;
+        const checkboxes = list.querySelectorAll('input.pinv-payment-check');
+        if (checkboxes.length === 0) return false;
+
+        let flagged = 0;
+        candidates.forEach(c => {
+            const cb = list.querySelector(`input.pinv-payment-check[value="${c.payment.id}"]`);
+            if (!cb) return;
+
+            // Spunta solo i match forti (score >= 8: importo esatto, o codice trovato)
+            // I match deboli li evidenziamo soltanto.
+            const strongMatch = c.score >= 8;
+            if (strongMatch && !cb.checked) {
+                cb.checked = true;
+                cb.dispatchEvent(new Event('change', { bubbles: true }));
+                flagged += 1;
+            }
+
+            // Badge "💡 AI" sul label parent
+            const label = cb.closest('label');
+            if (label && !label.querySelector('.ai-candidate-badge')) {
+                const badge = document.createElement('div');
+                badge.className = 'ai-candidate-badge';
+                badge.style.cssText = `
+                    display: inline-flex; align-items: center; gap: 4px;
+                    font-size: 0.6rem; font-weight: 700;
+                    color: #8b5cf6; background: rgba(139, 92, 246, 0.1);
+                    padding: 2px 6px; border-radius: 4px; margin-top: 4px;
+                    border: 1px solid rgba(139, 92, 246, 0.2);
+                `;
+                badge.textContent = `💡 candidato AI · ${c.reasons.join(' + ')} · score ${c.score}`;
+                // Inserisco nel <div> centrale del label (struttura: <input><div info><div €>)
+                const middleDiv = label.querySelector('div');
+                if (middleDiv) middleDiv.appendChild(badge);
+
+                // Bordo viola al label per evidenziare
+                label.style.borderColor = '#8b5cf6';
+                label.style.borderWidth = '1.5px';
+            }
+        });
+        return flagged;
+    };
+
+    // Provo subito (potrebbe essere già popolata dal trigger change precedente)
+    if (apply()) return;
+
+    // Altrimenti aspetto via MutationObserver la prima modifica del DOM
+    const list = document.getElementById('pinv-payments-list');
+    if (!list) return;
+    const observer = new MutationObserver(() => {
+        if (apply()) observer.disconnect();
+    });
+    observer.observe(list, { childList: true, subtree: true });
+    // Safety timeout: stop osservatore dopo 3s
+    setTimeout(() => observer.disconnect(), 3000);
+}
+
+/**
+ * Pipeline completa: candidati → log + UI flag + toast riepilogo.
+ */
+function suggestPaymentMatches(extracted, matchedEntity, mode) {
+    if (mode === 'supplier' || !matchedEntity?.id) return;
+
+    const scored = findPaymentCandidates(extracted, matchedEntity);
+    if (!scored.length) return;
+
+    console.log('[ai-import] 💡 pagamenti candidati:', scored);
+    autoFlagPaymentCandidates(scored);
+
+    const strong = scored.filter(x => x.score >= 8).length;
+    if (strong > 0) {
+        showGlobalAlert(`✅ ${strong} pagament${strong === 1 ? 'o spuntato' : 'i spuntati'} automaticamente come saldat${strong === 1 ? 'o' : 'i'} da questa fattura.`, 'success');
+    } else if (scored.length > 0) {
+        showGlobalAlert(`💡 ${scored.length} pagament${scored.length === 1 ? 'o' : 'i'} simil${scored.length === 1 ? 'e' : 'i'} per importo (vedi badge AI). Spunta manualmente.`, 'info');
     }
 }
 
