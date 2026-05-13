@@ -36,6 +36,8 @@ import {
     renderBottomTasks,
 } from './activity_feed.js?v=8000';
 
+import { renderAlertsWidget } from './alerts_widget.js?v=8000';
+
 export function renderAdminAlerts(alerts) {
     const block = document.getElementById('hp-accounting-alerts-block');
     const grid = document.getElementById('hp-admin-alert-list');
@@ -312,6 +314,7 @@ export async function renderMainContent_Partner(container, data) {
         renderAdminAlerts(alerts);
         const alertBlock = document.getElementById('hp-accounting-alerts-block');
         if (alertBlock) alertBlock.style.display = 'flex';
+        renderAlertsWidget();
     } else {
         const alertBlock = document.getElementById('hp-accounting-alerts-block');
         if (alertBlock) alertBlock.style.display = 'none';
