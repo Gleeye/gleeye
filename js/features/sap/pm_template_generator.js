@@ -9,7 +9,7 @@
 
 import { supabase } from '../../modules/config.js?v=8000';
 import { state } from '../../modules/state.js?v=8000';
-import { chat } from '../../modules/ai_client.js?v=8000';
+import { chat, parseAiJson } from '../../modules/ai_client.js?v=8000';
 import { fetchProjectSpaceForSapService, createPMItem } from '../../modules/pm_api.js?v=8000';
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
@@ -176,8 +176,7 @@ Rispondi SOLO con JSON valido:
     });
 
     const raw = resp?.choices?.[0]?.message?.content;
-    if (!raw) throw new Error('Risposta AI vuota');
-    return JSON.parse(raw);
+    return parseAiJson(raw);
 }
 
 // ─── Modal HTML ───────────────────────────────────────────────────────────────

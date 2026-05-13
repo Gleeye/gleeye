@@ -152,3 +152,11 @@ export const ai = {
 if (typeof window !== 'undefined') {
     window.ai = ai;
 }
+
+// Alcuni modelli (Gemini) ignorano response_format e wrappano il JSON in ```json ... ```
+// Questa funzione pulisce il raw text prima del JSON.parse.
+export function parseAiJson(raw) {
+    if (!raw) throw new Error('Risposta AI vuota');
+    const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    return JSON.parse(cleaned);
+}

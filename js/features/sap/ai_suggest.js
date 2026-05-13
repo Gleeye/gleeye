@@ -4,7 +4,7 @@
 
 import { supabase } from '../../modules/config.js?v=8000';
 import { state } from '../../modules/state.js?v=8000';
-import { chat } from '../../modules/ai_client.js?v=8000';
+import { chat, parseAiJson } from '../../modules/ai_client.js?v=8000';
 
 export async function openSapAiSuggest() {
     const existing = document.getElementById('sap-ai-suggest-modal');
@@ -48,9 +48,7 @@ async function _runAnalysis(modal) {
         });
 
         const raw = resp?.choices?.[0]?.message?.content;
-        if (!raw) throw new Error('Risposta AI vuota');
-
-        const parsed = JSON.parse(raw);
+        const parsed = parseAiJson(raw);
         _setContent(modal, _buildResultsHTML(parsed, ordersData));
 
     } catch (err) {
