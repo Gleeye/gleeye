@@ -208,6 +208,8 @@ export function openProspectModal(prospect, sapServices, onSave) {
     const completeness = p.completeness_score;
     const promising = e.promising_score;
     const fattibilita = e.fattibilita_score;
+    const googleRating = e.google_rating;
+    const googleReviews = e.google_reviews_count;
     const compColor = completeness == null ? '#94a3b8' : completeness >= 60 ? '#10b981' : completeness >= 30 ? '#f59e0b' : '#ef4444';
     const promColor = promising == null ? '#94a3b8' : promising >= 70 ? '#10b981' : promising >= 40 ? '#f59e0b' : '#94a3b8';
 
@@ -256,6 +258,11 @@ export function openProspectModal(prospect, sapServices, onSave) {
                     (fattibilita != null
                         ? '<span title="Layer 2 — Fattibilità chiusura" style="display:inline-flex;align-items:center;gap:4px;font-size:0.7rem;padding:3px 9px;border-radius:8px;background:#8b5cf615;color:#8b5cf6;font-weight:700;">' +
                             '<span class="material-icons-round" style="font-size:0.85rem;">psychology</span>L2 ' + fattibilita + '/100' +
+                          '</span>'
+                        : '') +
+                    (googleRating
+                        ? '<span title="Rating Google (da JSON-LD aggregateRating)" style="display:inline-flex;align-items:center;gap:3px;font-size:0.72rem;padding:3px 9px;border-radius:8px;background:#fbbf2415;color:#d97706;font-weight:700;">' +
+                            '⭐ ' + Number(googleRating).toFixed(1) + (googleReviews ? ' <span style="font-weight:500;opacity:0.8;">(' + googleReviews + ')</span>' : '') +
                           '</span>'
                         : '') +
                 '</div>' +

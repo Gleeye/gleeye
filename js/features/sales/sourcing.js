@@ -16,8 +16,9 @@ import { completeJSON, AI_MODELS } from '../../modules/ai_client.js?v=8000';
 import { supabase } from '../../modules/config.js?v=8000';
 import { upsertNiche } from './api.js?v=8001';
 import { showGlobalAlert } from '../../modules/utils.js?v=8000';
-import { scrapeProspectSite } from './enrichment.js?v=8001';
-import { buildLeanUpdatePayload } from './completeness.js?v=8001';
+import { scrapeProspectSite } from './enrichment.js?v=8002';
+import { buildLeanUpdatePayload, extractEnrichmentDataFromScrape } from './completeness.js?v=8002';
+import { getSectorSchema } from './sector_schema_builder.js?v=8001';
 
 const MODEL = AI_MODELS.sales_drafter;
 const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
@@ -307,11 +308,14 @@ async function importSelected(overlay, niche) {
             pipeline_stage:     'sourced',
             acquisition_source: 'outreach',
             stage_history:      [{ stage: 'sourced', entered_at: new Date().toISOString() }],
-            notes:              r.address ? 'Indirizzo: ' + r.address + ' · Fonte: OSM' : 'Fonte: OSM',
+            // Notes resta vuoto per l'utente — i metadata "Fonte: OSM / indirizzo OSM" vivono in ai_enrichment_data
+            notes:              null,
             ai_enrichment_data: {
                 osm_id: r.osm_id || null,
                 osm_tags: r.osm_tags || {},
+                osm_address: r.address || null,
                 city_origin: r._city || null,
+                source: 'OSM',
                 sourced_at: new Date().toISOString(),
             },
         }));
@@ -322,10 +326,13 @@ async function importSelected(overlay, niche) {
 
         showGlobalAlert(rows.length + ' prospect importati. Avvio scraping aggressivo in background…', 'success');
 
-        // Step 2: scraping aggressivo dei siti web (background, in batch concorrenti)
-        // Estrae email/social/phones dal sito, calcola completeness_score, aggiorna prospect.
-        // NIENTE testo grezzo salvato nel DB (regola DB lean).
-        await runAggressiveScraping(overlay, inserted || []);
+        // Step 2: scraping aggressivo multi-pagina + JSON-LD + structured_fields per settore
+        // Carica una volta lo sector schema (regex+keywords da applicare al testo).
+        let sectorSchema = null;
+        if (niche.sector_id && niche.sector) {
+            try { sectorSchema = await getSectorSchema(niche.sector); } catch (e) { console.warn('[Sourcing] sector schema fail', e); }
+        }
+        await runAggressiveScraping(overlay, inserted || [], sectorSchema);
 
     } catch (err) {
         console.error('[Import] error', err);
@@ -341,7 +348,7 @@ async function importSelected(overlay, niche) {
  * Concorrenza limitata per non saturare l'edge function.
  * UI: progress bar e contatori live.
  */
-async function runAggressiveScraping(overlay, prospects) {
+async function runAggressiveScraping(overlay, prospects, sectorSchema) {
     const targets = prospects.filter(p => p.website);
     const skipped = prospects.length - targets.length;
 
@@ -390,12 +397,17 @@ async function runAggressiveScraping(overlay, prospects) {
             if (!p) break;
             updateUi(p.website);
             try {
-                const scrape = await scrapeProspectSite(p.website);
-                const update = buildLeanUpdatePayload(p, scrape);
+                const scrape = await scrapeProspectSite(p.website, sectorSchema);
+                const lean = buildLeanUpdatePayload(p, scrape);
+                const fromScrape = extractEnrichmentDataFromScrape(scrape);
+                const update = {
+                    ...lean,
+                    id: p.id,
+                    ai_enrichment_data: { ...(p.ai_enrichment_data || {}), ...fromScrape },
+                };
                 if (update.contact_email) foundEmails++;
                 if (update.social_links && Object.keys(update.social_links).length > 0) foundSocials++;
                 if (update.completeness_score >= 60) highCompleteness++;
-                update.id = p.id;
                 await supabase.from('prospects').update(update).eq('id', p.id);
             } catch (err) {
                 console.warn('[AggroScrape] fail', p.website, err);

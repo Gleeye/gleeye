@@ -19,9 +19,10 @@ import {
 import { showGlobalAlert, showConfirm } from '../../modules/utils.js?v=8000';
 import { analyzeNiche, saveNicheAnalysis, fetchNicheSapRelevance, PAROZZI_CRITERIA } from './niche_analyzer.js?v=8001';
 import { openSourcingModal } from './sourcing.js?v=8001';
-import { runLayer1AI, runLayer2AI, scrapeProspectSite } from './enrichment.js?v=8001';
-import { openProspectModal } from './pipeline_board.js?v=8001';
-import { buildLeanUpdatePayload } from './completeness.js?v=8001';
+import { runLayer1AI, runLayer2AI, scrapeProspectSite } from './enrichment.js?v=8002';
+import { openProspectModal } from './pipeline_board.js?v=8002';
+import { buildLeanUpdatePayload, extractEnrichmentDataFromScrape } from './completeness.js?v=8002';
+import { getSectorSchema } from './sector_schema_builder.js?v=8001';
 
 const STATUS_CONFIG = {
     researching: { label: 'In ricerca',  color: '#f59e0b', icon: 'search' },
@@ -67,6 +68,11 @@ export async function renderNicheDetail(container, nicheId) {
                 minCompleteness: 0,
                 minPromising: 0,
                 status: 'all',            // all | sourced | in_pipeline
+                // "ha-X" toggles
+                has_email: false,
+                has_phone: false,
+                has_social: false,
+                has_rating: false,
             },
         };
         _pageState.set(container, state);
@@ -395,19 +401,33 @@ function buildProspectsTab(ctx) {
                 // Reset
                 '<button id="filter-reset" style="padding:0.45rem 0.8rem;border-radius:8px;border:1px solid var(--glass-border);background:var(--bg-tertiary);color:var(--text-secondary);font-size:0.76rem;font-weight:600;cursor:pointer;height:fit-content;">Reset</button>' +
             '</div>' +
-            // Riga 2: filtri secondari (città + soglie)
-            '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.6rem;padding-top:0.6rem;border-top:1px dashed var(--glass-border);align-items:center;">' +
-                '<span style="font-size:0.7rem;color:var(--text-tertiary);font-weight:600;">Comuni:</span>' +
-                cities.slice(0, 30).map(city => {
-                    const selected = ctx.state.filters.cities.includes(city);
-                    return '<button class="city-pill" data-city="' + escHtml(city) + '" style="font-size:0.7rem;padding:3px 9px;border-radius:8px;border:1px solid ' + (selected ? '#3b82f6' : 'var(--glass-border)') + ';background:' + (selected ? '#3b82f615' : 'var(--bg-tertiary)') + ';color:' + (selected ? '#3b82f6' : 'var(--text-secondary)') + ';cursor:pointer;font-weight:600;">' + escHtml(city) + '</button>';
-                }).join('') +
-                (cities.length > 30 ? '<span style="font-size:0.7rem;color:var(--text-tertiary);">+' + (cities.length - 30) + '</span>' : '') +
-                '<span style="margin-left:0.8rem;font-size:0.7rem;color:var(--text-tertiary);font-weight:600;">Completezza min:</span>' +
+            // Riga 2: filtri "ha-X" — facoltativi multi-toggle
+            '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.6rem;padding-top:0.6rem;border-top:1px dashed var(--glass-border);align-items:center;">' +
+                '<span style="font-size:0.7rem;color:var(--text-tertiary);font-weight:700;text-transform:uppercase;letter-spacing:0.04em;">Deve avere:</span>' +
+                hasFilterPill('has_email', 'Email', '✉', ctx.state.filters) +
+                hasFilterPill('has_phone', 'Telefono', '☎', ctx.state.filters) +
+                hasFilterPill('has_social', 'Social', '🔗', ctx.state.filters) +
+                hasFilterPill('has_rating', 'Rating Google', '⭐', ctx.state.filters) +
+                '<span style="margin-left:0.6rem;font-size:0.7rem;color:var(--text-tertiary);font-weight:600;">Completezza min:</span>' +
                 '<input id="filter-completeness" type="number" min="0" max="100" step="10" value="' + ctx.state.filters.minCompleteness + '" style="width:60px;padding:3px 6px;border-radius:6px;border:1px solid var(--glass-border);background:var(--bg-primary);color:var(--text-primary);font-size:0.74rem;">' +
                 '<span style="font-size:0.7rem;color:var(--text-tertiary);font-weight:600;">Promising min:</span>' +
                 '<input id="filter-promising" type="number" min="0" max="100" step="10" value="' + ctx.state.filters.minPromising + '" style="width:60px;padding:3px 6px;border-radius:6px;border:1px solid var(--glass-border);background:var(--bg-primary);color:var(--text-primary);font-size:0.74rem;">' +
             '</div>' +
+            // Riga 3: filtro località (multi-select)
+            (cities.length > 0
+                ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:0.6rem;padding-top:0.6rem;border-top:1px dashed var(--glass-border);align-items:center;">' +
+                    '<span style="font-size:0.7rem;color:var(--text-tertiary);font-weight:700;text-transform:uppercase;letter-spacing:0.04em;margin-right:4px;">Località' + (ctx.state.filters.cities.length > 0 ? ' (' + ctx.state.filters.cities.length + ' attive)' : '') + ':</span>' +
+                    cities.slice(0, 40).map(city => {
+                        const cityClean = String(city).trim();
+                        const selected = ctx.state.filters.cities.includes(cityClean);
+                        return '<button class="city-pill" data-city="' + escHtml(cityClean) + '" style="font-size:0.7rem;padding:3px 9px;border-radius:8px;border:1px solid ' + (selected ? '#3b82f6' : 'var(--glass-border)') + ';background:' + (selected ? '#3b82f620' : 'var(--bg-tertiary)') + ';color:' + (selected ? '#3b82f6' : 'var(--text-secondary)') + ';cursor:pointer;font-weight:' + (selected ? '700' : '600') + ';">' + escHtml(cityClean) + '</button>';
+                    }).join('') +
+                    (cities.length > 40 ? '<span style="font-size:0.7rem;color:var(--text-tertiary);">+' + (cities.length - 40) + ' altre</span>' : '') +
+                    (ctx.state.filters.cities.length > 0
+                        ? '<button id="filter-cities-clear" style="margin-left:6px;font-size:0.68rem;padding:2px 8px;border-radius:6px;border:none;background:#ef444415;color:#ef4444;cursor:pointer;font-weight:700;">pulisci</button>'
+                        : '') +
+                  '</div>'
+                : '') +
         '</div>' +
         // Toolbar bulk actions
         '<div id="np-toolbar" style="display:flex;gap:0.4rem;align-items:center;margin-bottom:0.6rem;padding:0.55rem 0.85rem;background:var(--bg-tertiary);border-radius:10px;">' +
@@ -458,13 +478,28 @@ function applyFilters(prospects, f) {
     if (f.status === 'sourced') out = out.filter(p => p.pipeline_stage === 'sourced');
     else if (f.status === 'in_pipeline') out = out.filter(p => p.pipeline_stage && p.pipeline_stage !== 'sourced');
 
-    // Città
+    // Località — trim per evitare mismatch invisibili
     if (f.cities && f.cities.length > 0) {
-        const set = new Set(f.cities);
-        out = out.filter(p => set.has((p.ai_enrichment_data || {}).city_origin));
+        const set = new Set(f.cities.map(c => String(c).trim()));
+        out = out.filter(p => {
+            const c = (p.ai_enrichment_data || {}).city_origin;
+            return c && set.has(String(c).trim());
+        });
     }
 
-    // Completeness / promising thresholds
+    // "Deve avere" toggles
+    if (f.has_email) out = out.filter(p => !!p.contact_email);
+    if (f.has_phone) out = out.filter(p => !!p.contact_phone);
+    if (f.has_social) out = out.filter(p => {
+        const s = p.social_links || {};
+        return Object.keys(s).filter(k => s[k]).length > 0;
+    });
+    if (f.has_rating) out = out.filter(p => {
+        const e = p.ai_enrichment_data || {};
+        return e.google_rating != null && Number(e.google_rating) > 0;
+    });
+
+    // Soglie
     if (f.minCompleteness > 0) out = out.filter(p => (p.completeness_score || 0) >= f.minCompleteness);
     if (f.minPromising > 0) out = out.filter(p => ((p.ai_enrichment_data || {}).promising_score || 0) >= f.minPromising);
 
@@ -483,6 +518,13 @@ function applyFilters(prospects, f) {
     else if (f.sortBy === 'alpha') out.sort((a, b) => dir * (a.business_name || '').localeCompare(b.business_name || ''));
 
     return out;
+}
+
+function hasFilterPill(key, label, icon, filters) {
+    const active = !!filters[key];
+    return '<button class="has-filter-pill" data-key="' + key + '" style="font-size:0.7rem;padding:3px 9px;border-radius:8px;border:1px solid ' + (active ? '#10b981' : 'var(--glass-border)') + ';background:' + (active ? '#10b98120' : 'var(--bg-tertiary)') + ';color:' + (active ? '#10b981' : 'var(--text-secondary)') + ';cursor:pointer;font-weight:' + (active ? '700' : '600') + ';display:inline-flex;align-items:center;gap:3px;">' +
+        '<span>' + icon + '</span>' + label +
+    '</button>';
 }
 
 function buildProspectRow(p) {
@@ -774,15 +816,27 @@ function bindProspectsTabEvents(ctx) {
     });
     container.querySelectorAll('.city-pill').forEach(p => {
         p.addEventListener('click', () => {
-            const city = p.dataset.city;
+            const city = String(p.dataset.city || '').trim();
+            if (!city) return;
             const idx = state.filters.cities.indexOf(city);
             if (idx >= 0) state.filters.cities.splice(idx, 1);
             else state.filters.cities.push(city);
             reRender();
         });
     });
+    container.querySelector('#filter-cities-clear')?.addEventListener('click', () => {
+        state.filters.cities = [];
+        reRender();
+    });
+    container.querySelectorAll('.has-filter-pill').forEach(p => {
+        p.addEventListener('click', () => {
+            const key = p.dataset.key;
+            state.filters[key] = !state.filters[key];
+            reRender();
+        });
+    });
     const resetFn = () => {
-        state.filters = { search: '', sortBy: 'completeness', sortDir: 'desc', cities: [], minCompleteness: 0, minPromising: 0, status: 'all' };
+        state.filters = { search: '', sortBy: 'completeness', sortDir: 'desc', cities: [], minCompleteness: 0, minPromising: 0, status: 'all', has_email: false, has_phone: false, has_social: false, has_rating: false };
         reRender();
     };
     container.querySelector('#filter-reset')?.addEventListener('click', resetFn);
@@ -850,10 +904,20 @@ function bindProspectsTabEvents(ctx) {
 }
 
 async function runBulkAnalyze(ctx, ids) {
-    const { container, prospects } = ctx;
+    const { container, prospects, niche } = ctx;
     const targets = prospects.filter(p => ids.includes(p.id));
     const progressDiv = container.querySelector('#np-progress');
     if (progressDiv) progressDiv.style.display = 'block';
+
+    // Carica sector schema della nicchia UNA VOLTA (riusato per tutti i prospect del bulk)
+    let sectorSchema = null;
+    if (niche.sector_id && niche.sector) {
+        try {
+            sectorSchema = await getSectorSchema(niche.sector);
+        } catch (err) {
+            console.warn('[BulkAnalyze] sector schema fetch failed', err);
+        }
+    }
 
     let done = 0, failed = 0, l2 = 0;
     const total = targets.length;
@@ -865,10 +929,13 @@ async function runBulkAnalyze(ctx, ids) {
         }
         try {
             let scrape = null;
-            if (p.website) scrape = await scrapeProspectSite(p.website);
+            if (p.website) scrape = await scrapeProspectSite(p.website, sectorSchema);
             const r1 = await runLayer1AI(p, scrape);
+            // Enrichment dati estratti deterministicamente dallo scrape (structured_fields, rating, email referenti)
+            const fromScrape = extractEnrichmentDataFromScrape(scrape);
             let enrichment = {
                 ...(p.ai_enrichment_data || {}),
+                ...fromScrape,
                 descrizione_lampo:   r1.descrizione_lampo || null,
                 chi_sono_cosa_fanno: r1.chi_sono_cosa_fanno || null,
                 prodotti_servizi:    r1.prodotti_servizi || null,

@@ -16,11 +16,18 @@ import { supabase } from '../../modules/config.js?v=8000';
 const MODEL = AI_MODELS.sales_drafter;
 const AUTO_DEEP_DIVE_THRESHOLD = 70;
 
-// ─── SITE SCRAPER (edge function scrape-prospect-site) ────────────────────────
-export async function scrapeProspectSite(url) {
+// ─── SITE SCRAPER (edge function scrape-prospect-site v2) ─────────────────────
+// v2: multi-pagina (home + /contatti + /chi-siamo + /team + sitemap),
+// JSON-LD schema.org parse, sector schema runtime extraction.
+//
+// @param {string} url - URL del sito
+// @param {array}  [sectorSchema] - fields[] dal sector_extraction_schemas
+export async function scrapeProspectSite(url, sectorSchema) {
     if (!url) return null;
     try {
-        const { data, error } = await supabase.functions.invoke('scrape-prospect-site', { body: { url } });
+        const body = { url };
+        if (Array.isArray(sectorSchema) && sectorSchema.length > 0) body.sector_schema = sectorSchema;
+        const { data, error } = await supabase.functions.invoke('scrape-prospect-site', { body });
         if (error) {
             console.warn('[scrape] invoke error', error);
             return { success: false, error: String(error?.message || error), url };
