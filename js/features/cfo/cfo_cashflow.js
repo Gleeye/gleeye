@@ -188,6 +188,44 @@ function buildSvgChart(timeline, currentBalance) {
         </svg>`;
 }
 
+// ─── table row builder ───────────────────────────────────────────────────────
+
+function buildDayRows(day) {
+    const rowBg = day.isNegative ? 'background:rgba(239,68,68,0.04);' : '';
+    const balanceColor = day.isNegative ? '#dc2626' : '#16a34a';
+    const warningIcon = day.isNegative
+        ? '<span class="material-icons-round" style="font-size:0.85rem;vertical-align:middle;color:#dc2626;">warning</span>'
+        : '';
+    const n = day.entries.length;
+
+    return day.entries.map((e, i) => {
+        const arrowIcon = e.isIn ? 'arrow_downward' : 'arrow_upward';
+        const amtColor = e.isIn ? '#16a34a' : '#ef4444';
+        const sign = e.isIn ? '+' : '−';
+
+        const dateTd = i === 0
+            ? '<td rowspan="' + n + '" style="vertical-align:top;white-space:nowrap;color:var(--text-secondary);font-size:0.8rem;padding:0.5rem 0.75rem;">' + formatDateIT(day.date) + '</td>'
+            : '';
+
+        const balanceTd = i === 0
+            ? '<td rowspan="' + n + '" style="vertical-align:middle;text-align:right;padding:0.4rem 0.75rem;font-weight:600;font-size:0.9rem;color:' + balanceColor + ';white-space:nowrap;">' + formatAmount(day.balance) + ' € ' + warningIcon + '</td>'
+            : '';
+
+        return '<tr style="' + rowBg + '">'
+            + dateTd
+            + '<td style="padding:0.4rem 0.75rem;font-size:0.85rem;">'
+            + '<span style="display:inline-flex;align-items:center;gap:4px;">'
+            + '<span class="material-icons-round" style="font-size:0.85rem;color:' + amtColor + ';">' + arrowIcon + '</span>'
+            + e.label
+            + '</span></td>'
+            + '<td style="padding:0.4rem 0.75rem;text-align:right;font-size:0.85rem;color:' + amtColor + ';font-weight:500;white-space:nowrap;">'
+            + sign + ' ' + formatAmount(e.amount) + ' €'
+            + '</td>'
+            + balanceTd
+            + '</tr>';
+    }).join('');
+}
+
 // ─── render ──────────────────────────────────────────────────────────────────
 
 export async function renderCFOCashflow(container) {
@@ -239,26 +277,8 @@ export async function renderCFOCashflow(container) {
     const chartHtml = buildSvgChart(timeline, currentBalance);
 
     const tableRows = timeline.length
-        ? timeline.map(day => `
-            ${day.entries.map((e, i) => `
-                <tr style="${day.isNegative ? 'background:rgba(239,68,68,0.04);' : ''}">
-                    ${i === 0 ? `<td rowspan="${day.entries.length}" style="vertical-align:top;white-space:nowrap;color:var(--text-secondary);font-size:0.8rem;padding:0.5rem 0.75rem;">${formatDateIT(day.date)}</td>` : ''}
-                    <td style="padding:0.4rem 0.75rem;font-size:0.85rem;">
-                        <span style="display:inline-flex;align-items:center;gap:4px;">
-                            <span class="material-icons-round" style="font-size:0.85rem;color:${e.isIn ? '#16a34a' : '#ef4444'};">${e.isIn ? 'arrow_downward' : 'arrow_upward'}</span>
-                            ${e.label}
-                        </span>
-                    </td>
-                    <td style="padding:0.4rem 0.75rem;text-align:right;font-size:0.85rem;color:${e.isIn ? '#16a34a' : '#ef4444'};font-weight:500;white-space:nowrap;">
-                        ${e.isIn ? '+' : '−'} ${formatAmount(e.amount)} €
-                    </td>
-                    ${i === 0 ? `<td rowspan="${day.entries.length}" style="vertical-align:middle;text-align:right;padding:0.4rem 0.75rem;font-weight:600;font-size:0.9rem;color:${day.isNegative ? '#dc2626' : '#16a34a'};white-space:nowrap;">
-                        ${formatAmount(day.balance)} €
-                        ${day.isNegative ? '<span class="material-icons-round" style="font-size:0.85rem;vertical-align:middle;color:#dc2626;">warning</span>' : ''}
-                    </td>` : ''}
-                </tr>`).join('')
-        `).join('')
-        : `<tr><td colspan="4" style="padding:2rem;text-align:center;color:var(--text-secondary);">Nessun movimento previsto con date di scadenza nei prossimi 90 giorni.</td></tr>`;
+        ? timeline.map(day => buildDayRows(day)).join('')
+        : '<tr><td colspan="4" style="padding:2rem;text-align:center;color:var(--text-secondary);">Nessun movimento previsto con date di scadenza nei prossimi 90 giorni.</td></tr>';
 
     const body = document.getElementById('cfo-cf-body');
     if (!body || thisId !== currentRenderId) return;
