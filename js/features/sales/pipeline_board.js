@@ -273,10 +273,10 @@ export function openProspectModal(prospect, sapServices, onSave) {
 
     overlay = document.createElement('div');
     overlay.id = modalId + '-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9000;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
 
     overlay.innerHTML =
-        '<div style="background:var(--bg-primary);border-radius:20px;padding:2rem;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-xl);border:1px solid var(--glass-border);">' +
+        '<div style="background:var(--bg-primary, #ffffff);border-radius:20px;padding:2rem;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 25px 80px rgba(0,0,0,0.35);border:1px solid var(--glass-border, rgba(0,0,0,0.08));">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">' +
                 '<h2 style="font-size:1.3rem;font-weight:800;font-family:var(--font-titles);margin:0;">' +
                     (isNew ? 'Nuovo Prospect' : escHtml(p.business_name)) +
