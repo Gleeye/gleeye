@@ -37,9 +37,17 @@ window.updateOrderOfferStatusQuick = async (id, newStatus) => {
 window.updateOrderStatusQuick = async (id, newStatus) => {
     try {
         await updateOrder(id, { status_works: newStatus });
-        showGlobalAlert("Stato aggiornato");
-        // Re-render to update UI (specifically the badge color/text if needed, 
-        // though the select itself stays in place)
+
+        // Mina 6 dal giro UX: quando passa a "completato" mostra il riepilogo
+        // degli automatismi che il trigger DB ha appena eseguito (cascade).
+        if (newStatus === 'completato') {
+            showGlobalAlert(
+                '✨ Commessa completata. Automatismi: spazio PM archiviato, task "ricontatta cliente fra 3 mesi" creata. Suggerimento: genera la fattura finale.',
+                'success'
+            );
+        } else {
+            showGlobalAlert("Stato aggiornato");
+        }
         // Re-render via hash to avoid cyclic import with orders.js
         window.location.hash = '#order-detail/' + id;
     } catch (e) {
