@@ -124,25 +124,26 @@ async function _runGeneration(service, modal) {
 // ─── AI prompt ────────────────────────────────────────────────────────────────
 
 async function _generateTemplate(service) {
-    const includes = (service.package_includes || []).map(i => typeof i === 'string' ? i : (i.label || '')).join('; ');
+    const includes = (service.package_includes || []).map(i => typeof i === 'string' ? i : (i.label || '')).filter(Boolean).join('; ');
+
+    const blueprintSection = service.process_blueprint
+        ? `## Processo Operativo (fonte di verità)\n${service.process_blueprint}\n\nDeriva le macro-attività e i task DIRETTAMENTE da questo processo. Usa la stessa terminologia e segui la stessa sequenza.`
+        : `## Dati strutturati\n- Value proposition: ${service.value_proposition || 'N/D'}\n- Deliverable: ${includes || 'N/D'}\n- Team: ${service.team_required || 'N/D'}\n- Tempo consegna: ${service.delivery_time_days ? service.delivery_time_days + ' giorni' : 'N/D'}`;
 
     const prompt = `Sei un project manager esperto di agenzie di comunicazione italiane.
-Crea un **template di processo operativo** completo per questo Servizio a Pacchetto.
-Il template diventerà la struttura standard di ogni commessa venduta con questo SAP.
+Traduci il processo operativo di questo SAP in un template strutturato di attività e task.
+Ogni commessa venduta con questo SAP partirà da questo template.
 
 ## SAP: ${service.name}
-- Value proposition: ${service.value_proposition}
-- Target: ${service.target_customer || 'N/D'}
-- Deliverable inclusi: ${includes || 'N/D'}
-- Team: ${service.team_required || 'N/D'}
-- Tempo consegna: ${service.delivery_time_days} giorni
 
-## Istruzioni
-- Crea 3-5 macro-attività (Phases/Milestones del progetto)
-- Ogni macro-attività ha 3-6 task specifici
-- I task devono essere concreti e direttamente eseguibili
-- Ogni attività ha una priorità: high/medium/low
-- I nomi devono essere operativi, non marketing
+${blueprintSection}
+
+## Regole
+- 3-5 macro-attività che seguono la sequenza naturale del processo
+- Ogni macro-attività: 3-6 task concreti ed eseguibili (non generici)
+- Nomi operativi, non marketing — cosa si fa, non perché
+- Priorità: high per tutto ciò che blocca le fasi successive, medium standard, low per nice-to-have
+- I task devono essere assegnabili a una singola persona
 
 Rispondi SOLO con JSON valido:
 {
@@ -150,12 +151,12 @@ Rispondi SOLO con JSON valido:
     {
       "id": "act_1",
       "title": "Nome macro-attività",
-      "description": "Breve descrizione (opzionale)",
+      "description": "Breve descrizione operativa (opzionale)",
       "priority": "high|medium|low",
       "tasks": [
         {
-          "title": "Nome task concreto",
-          "notes": "Note o dettagli aggiuntivi (opzionale)",
+          "title": "Nome task concreto ed eseguibile",
+          "notes": "Dettagli utili per chi lo esegue (opzionale)",
           "priority": "high|medium|low"
         }
       ]
@@ -169,7 +170,6 @@ Rispondi SOLO con JSON valido:
             { role: 'system', content: 'Sei un project manager esperto. Rispondi solo con JSON valido, nessun testo prima o dopo.' },
             { role: 'user', content: prompt },
         ],
-        response_format: { type: 'json_object' },
         max_tokens: 2000,
         temperature: 0.3,
         feature_context: { entity_type: 'core_service', entity_id: service.id, doc_type: 'pm_template' },

@@ -208,6 +208,10 @@ function render() {
                 if (pageTitle) pageTitle.textContent = 'Estratti Conto';
                 import('../features/bank_statements.js?v=8000').then(m => m.renderBankStatements(contentArea));
                 break;
+            case 'bank-orphans':
+                if (pageTitle) pageTitle.textContent = 'Movimenti da Quadrare';
+                import('../features/bank/orphans_view.js?v=8000').then(m => m.renderBankOrphans(contentArea));
+                break;
             case 'invoices-archive':
                 if (pageTitle) pageTitle.textContent = 'Archivio Storico';
                 renderPlaceholder(contentArea, 'Archivio Storico');
@@ -381,6 +385,10 @@ function render() {
             case 'admin-notifications':
                 if (pageTitle) pageTitle.textContent = 'Notifiche Admin';
                 import('../features/admin_notifications.js?v=8000').then(m => m.renderAdminNotifications(contentArea));
+                break;
+            case 'pricing':
+                if (pageTitle) pageTitle.textContent = 'Pricing Intelligence';
+                import('../features/pricing/index.js?v=8000').then(m => m.renderPricingDashboard(contentArea));
                 break;
             // ... Add other routes as needed
             default:

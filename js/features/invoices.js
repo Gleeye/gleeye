@@ -166,9 +166,16 @@ export function initInvoiceModals() {
                                     <p style="margin: 0.2rem 0 0; font-size: 0.75rem; color: var(--text-tertiary);">Registra documento fiscale ricevuto</p>
                                 </div>
                             </div>
-                            <button class="icon-btn" id="close-passive-modal" style="width: 36px; height: 36px; border-radius: 10px; background: white; border: 1px solid var(--glass-border);">
-                                <span class="material-icons-round" style="font-size: 1.25rem; color: var(--text-tertiary);">close</span>
-                            </button>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <input type="file" id="pinv-ai-pdf-input" accept="application/pdf" style="display: none;">
+                                <button id="pinv-ai-import-btn" type="button" title="Carica un PDF: l'AI legge la fattura e precompila tutti i campi" style="height: 36px; padding: 0 0.85rem; border-radius: 10px; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; border: none; cursor: pointer; font-weight: 600; font-size: 0.8rem; display: flex; align-items: center; gap: 0.4rem; box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);">
+                                    <span class="material-icons-round" style="font-size: 1rem;">auto_awesome</span>
+                                    <span id="pinv-ai-import-label">Importa con AI</span>
+                                </button>
+                                <button class="icon-btn" id="close-passive-modal" style="width: 36px; height: 36px; border-radius: 10px; background: white; border: 1px solid var(--glass-border);">
+                                    <span class="material-icons-round" style="font-size: 1.25rem; color: var(--text-tertiary);">close</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     
@@ -346,6 +353,24 @@ export function initInvoiceModals() {
         const closePassive = document.getElementById('close-passive-modal');
         if (closePassive) closePassive.addEventListener('click', closePassiveInvoiceForm);
         document.getElementById('cancel-passive-btn')?.addEventListener('click', closePassiveInvoiceForm);
+
+        // === AI: Importa fattura da PDF ===
+        const aiBtn = document.getElementById('pinv-ai-import-btn');
+        const aiInput = document.getElementById('pinv-ai-pdf-input');
+        if (aiBtn && aiInput) {
+            aiBtn.addEventListener('click', () => aiInput.click());
+            aiInput.addEventListener('change', async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.type !== 'application/pdf') {
+                    showGlobalAlert("Seleziona un file PDF", 'error');
+                    aiInput.value = '';
+                    return;
+                }
+                await handlePassiveInvoiceAIImport(file);
+                aiInput.value = '';
+            });
+        }
 
         // Conditional field logic: Spese Anticipate
         document.getElementById('inv-has-expenses')?.addEventListener('change', (e) => {
@@ -1469,4 +1494,515 @@ export function closePassiveInvoiceForm() {
 // Imported at the top of this file; re-exported here so the router + dashboard
 // dynamic-import paths (`features/invoices.js` → renderPassive*) keep working unchanged.
 export { renderPassiveInvoicesPartners, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers };
+
+// ========= AI Import PDF =========
+
+// pdfjs-dist caricato lazy da CDN al primo uso (~400KB cached forever)
+let _pdfjsModulePromise = null;
+function loadPdfJs() {
+    if (_pdfjsModulePromise) return _pdfjsModulePromise;
+    _pdfjsModulePromise = (async () => {
+        // Import ESM build da unpkg/jsDelivr
+        const mod = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.mjs');
+        // Worker URL: necessario per pdfjs-dist (text extraction in worker thread)
+        mod.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs';
+        return mod;
+    })();
+    return _pdfjsModulePromise;
+}
+
+/**
+ * Estrae il testo da un File PDF lato browser (pdfjs-dist nativo, supporto canvas/worker).
+ */
+async function extractPdfTextInBrowser(file) {
+    const pdfjs = await loadPdfJs();
+    const arrayBuffer = await file.arrayBuffer();
+    const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+    const chunks = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const tc = await page.getTextContent();
+        chunks.push(tc.items.map(it => it.str || '').join(' '));
+    }
+    return { text: chunks.join('\n\n').trim(), pageCount: pdf.numPages };
+}
+
+const INVOICE_EXTRACTION_SCHEMA = {
+    supplier_name: 'string — ragione sociale del fornitore',
+    supplier_vat: 'string|null — P.IVA 11 cifre senza prefisso IT',
+    supplier_fiscal_code: 'string|null',
+    supplier_email: 'string|null',
+    invoice_number: 'string',
+    invoice_date: 'string — YYYY-MM-DD',
+    due_date: 'string|null — YYYY-MM-DD',
+    currency: 'string — es. EUR',
+    total_gross: 'number — totale lordo a pagare',
+    taxable_amount: 'number|null — imponibile (compenso prima di IVA/ritenute)',
+    vat_amount: 'number|null',
+    vat_rate: 'number|null — es. 22 per 22%',
+    withholding_amount: 'number|null — ritenuta d\'acconto (20% di imponibile)',
+    cassa_amount: 'number|null — SOLO contributo cassa professionale (INARCASSA, ENPAP, ecc.), NON la rivalsa INPS',
+    rivalsa_inps_amount: 'number|null — SOLO rivalsa INPS 4% gestione separata (professionisti senza cassa)',
+    bollo_amount: 'number|null — bollo virtuale (2 € se applicato)',
+    regime: 'string|null — ordinario|forfettario|occasionale|estero|parcella',
+    description: 'string|null — causale/descrizione del servizio',
+    reference_codes: 'array|null — eventuali codici di riferimento trovati nel PDF: incarichi (INC-XXX), ordini (OdA-XXX), preventivi, commesse, ecc.',
+    confidence: 'string — high|medium|low',
+    notes: 'string|null',
+};
+
+const INVOICE_SYSTEM_PROMPT = `Sei un assistente specializzato nell'estrarre dati strutturati da fatture italiane.
+L'utente ti manda il TESTO estratto da un PDF di una fattura passiva.
+Estrai i campi e rispondi SOLO con JSON valido come da schema.
+
+REGOLE:
+- Date in formato YYYY-MM-DD.
+- Importi come numeri (punto decimale).
+- supplier_vat: solo 11 cifre senza prefisso 'IT'.
+- regime: ordinario|forfettario|occasionale|estero|parcella.
+
+CASSA vs RIVALSA INPS (importante):
+- "Contributo cassa", "INARCASSA", "ENPAP", "CNPADC", o nomi di casse professionali → cassa_amount
+- "Rivalsa INPS", "Contributo INPS gestione separata", "Contributo 4%" senza riferimento a cassa → rivalsa_inps_amount
+- Non popolare entrambi: o l'uno o l'altro. Per default, se la dicitura è ambigua e il professionista NON ha cassa di categoria, è rivalsa_inps_amount.
+
+CASI SPECIALI:
+- Se forfettario: vat_rate=0, vat_amount=0, withholding_amount=null.
+- Se Reverse Charge / estero: regime="estero", vat_amount=0.
+
+REFERENCE CODES (importante per Davide):
+- Cerca attivamente nel testo PDF qualunque codice di riferimento: "Rif. INC-2025-001", "OdA 142/2025", "Preventivo n. PV-...", "Commessa XYZ".
+- Includi TUTTI i codici trovati in reference_codes (array di stringhe).
+- Se non ne trovi, restituisci array vuoto [].
+
+description: causale/oggetto del servizio (testo libero).
+
+Campi obbligatori (mai null): supplier_name, invoice_number, invoice_date, total_gross.`;
+
+/**
+ * Detect mode attivo nel modal passive-invoice.
+ * @returns {'collab'|'supplier'|'partner-wl'}
+ */
+function getPassiveModalMode() {
+    const modal = document.getElementById('passive-invoice-modal');
+    return modal?.dataset.mode || 'collab';
+}
+
+/**
+ * Match entità in base al mode del modal:
+ *  - 'supplier'   → state.suppliers
+ *  - 'collab'     → state.collaborators filtered type ≠ 'white_label'
+ *  - 'partner-wl' → state.collaborators filtered type = 'white_label'
+ *
+ * Confronta P.IVA → CF → email → nome (fuzzy).
+ * @returns {Object|null} L'entità matchata (con id, full_name/name, ecc.)
+ */
+function matchEntityForMode(extracted, mode) {
+    if (!extracted) return null;
+    const piva = (extracted.supplier_vat || '').replace(/\D/g, '');
+    const cf = (extracted.supplier_fiscal_code || '').toUpperCase().trim();
+    const email = (extracted.supplier_email || '').toLowerCase().trim();
+    const name = (extracted.supplier_name || '').toLowerCase().trim();
+
+    if (mode === 'supplier') {
+        const list = Array.isArray(state.suppliers) ? state.suppliers : [];
+        if (piva) { const m = list.find(s => (s.vat_number || '').replace(/\D/g, '') === piva); if (m) return m; }
+        if (cf) { const m = list.find(s => (s.tax_code || '').toUpperCase().trim() === cf); if (m) return m; }
+        if (email) { const m = list.find(s => (s.email || '').toLowerCase().trim() === email); if (m) return m; }
+        if (name && name.length > 2) {
+            const m = list.find(s => {
+                const sn = (s.name || '').toLowerCase();
+                return sn && (sn.includes(name) || name.includes(sn));
+            });
+            if (m) return m;
+        }
+        return null;
+    }
+
+    // collab + partner-wl: cerca in collaborators, filtrato per type
+    const all = Array.isArray(state.collaborators) ? state.collaborators : [];
+    const list = mode === 'partner-wl'
+        ? all.filter(c => c.type === 'white_label')
+        : all.filter(c => c.type !== 'white_label');
+
+    if (piva) { const m = list.find(c => (c.vat_number || '').replace(/\D/g, '') === piva); if (m) return m; }
+    if (cf) { const m = list.find(c => (c.fiscal_code || '').toUpperCase().trim() === cf); if (m) return m; }
+    if (email) { const m = list.find(c => (c.email || '').toLowerCase().trim() === email); if (m) return m; }
+    if (name && name.length > 2) {
+        const m = list.find(c => {
+            const cn = (c.full_name || '').toLowerCase();
+            return cn && (cn.includes(name) || name.includes(cn));
+        });
+        if (m) return m;
+    }
+    return null;
+}
+
+/**
+ * Carica un PDF, estrae il testo nel browser (pdfjs-dist), lo manda a
+ * `ai.completeJSON()` (Gemini Flash via OpenRouter), riceve i campi estratti
+ * e precompila il modal. Match supplier locale via state.suppliers.
+ *
+ * NON salva niente: l'utente conferma + corregge + clicca Salva come al solito.
+ */
+async function handlePassiveInvoiceAIImport(file) {
+    const label = document.getElementById('pinv-ai-import-label');
+    const btn = document.getElementById('pinv-ai-import-btn');
+    const originalLabel = label?.textContent || 'Importa con AI';
+
+    function setBusy(text, disabled = true) {
+        if (label) label.textContent = text;
+        if (btn) btn.disabled = disabled;
+    }
+
+    setBusy('Lettura PDF…');
+
+    try {
+        // 1) Estrai testo PDF nel browser
+        const { text: pdfText, pageCount } = await extractPdfTextInBrowser(file);
+
+        if (!pdfText) {
+            showGlobalAlert("Il PDF non contiene testo estraibile (probabile scansione). Carica manualmente.", 'error');
+            return;
+        }
+
+        setBusy('Estrazione AI…');
+
+        // 2) Chiamata AI via wrapper centrale (logga auto in ai_usage_log)
+        if (!window.ai?.completeJSON) {
+            showGlobalAlert("Modulo AI non caricato. Hard refresh.", 'error');
+            return;
+        }
+        const TRUNCATE = 60000;
+        const finalText = pdfText.length > TRUNCATE ? pdfText.slice(0, TRUNCATE) + '\n[…troncato…]' : pdfText;
+
+        const extracted = await window.ai.completeJSON(
+            `Nome file: ${file.name}\nPagine: ${pageCount}\n\nTESTO PDF:\n${finalText}`,
+            INVOICE_EXTRACTION_SCHEMA,
+            {
+                feature: 'passive_invoice_pdf_parser',
+                system: INVOICE_SYSTEM_PROMPT,
+                temperature: 0.1,
+            }
+        );
+
+        if (!extracted || typeof extracted !== 'object') {
+            showGlobalAlert("AI non è riuscita a estrarre i campi. Riprova o carica manualmente.", 'error');
+            return;
+        }
+
+        // 3) Match entità nel mode corrente del modal
+        const mode = getPassiveModalMode();
+        const matchedEntity = matchEntityForMode(extracted, mode);
+        const matchedLabel = matchedEntity?.name || matchedEntity?.full_name || null;
+
+        // Debug: esponi su window per ispezione console
+        window.lastAIExtraction = { extracted, matchedEntity, mode, pdfTextChars: pdfText.length, pageCount };
+        console.log('[ai-import] mode:', mode);
+        console.log('[ai-import] extracted:', extracted);
+        console.log('[ai-import] matched entity:', matchedEntity);
+
+        // 4) Riempi il form (mode-aware)
+        applyExtractedInvoiceToForm(extracted, matchedEntity, mode);
+
+        // 5) Attacca il PDF originale al campo upload (così è pronto al Save)
+        attachOriginalPdfToModal(file);
+
+        // 6) Suggerisci pagamenti candidati (in console + toast)
+        try { suggestPaymentMatches(extracted, matchedEntity, mode); } catch (e) { console.warn('[ai-import] payment match failed:', e); }
+
+        const confidence = extracted.confidence || 'medium';
+        const entityKindLabel = mode === 'supplier' ? 'fornitore' : (mode === 'partner-wl' ? 'partner WL' : 'collaboratore');
+        const supLabel = matchedLabel
+            ? ` · ${matchedLabel} riconosciuto`
+            : ` · ${entityKindLabel} non riconosciuto (seleziona manualmente)`;
+        showGlobalAlert(`✨ Campi precompilati (confidenza ${confidence})${supLabel}. Controlla e salva.`, 'success');
+    } catch (e) {
+        console.error('[ai-import] errore:', e);
+        showGlobalAlert(`Errore: ${e.message || e}`, 'error');
+    } finally {
+        setBusy(originalLabel, false);
+    }
+}
+
+/**
+ * Mappa l'output AI sui campi del modal passive_invoice, mode-aware.
+ * Best-effort: se un campo manca lascia il default.
+ *
+ * @param {Object} extracted - JSON dall'AI con campi fattura
+ * @param {Object|null} matchedEntity - Match in supplier o collaborator (può essere null)
+ * @param {'collab'|'supplier'|'partner-wl'} mode
+ */
+function applyExtractedInvoiceToForm(extracted, matchedEntity, mode = 'collab') {
+    // === Mode-specific: regime + entità selezionata ===
+
+    if (mode === 'supplier') {
+        // Supplier mode: seleziona supplier nel dropdown #pinv-supplier
+        if (matchedEntity?.id) {
+            const sel = document.getElementById('pinv-supplier');
+            if (sel) {
+                const opt = Array.from(sel.options).find(o => o.value === matchedEntity.id);
+                if (opt) {
+                    sel.value = matchedEntity.id;
+                    sel.dispatchEvent(new Event('change'));
+                }
+            }
+        }
+    } else {
+        // Collab + partner-wl: seleziona nel dropdown #pinv-collaborator + regime fiscale
+        if (matchedEntity?.id) {
+            const sel = document.getElementById('pinv-collaborator');
+            if (sel) {
+                const opt = Array.from(sel.options).find(o => o.value === matchedEntity.id);
+                if (opt) {
+                    sel.value = matchedEntity.id;
+                    sel.dispatchEvent(new Event('change'));
+                }
+            }
+        }
+        // Regime fiscale (solo per collab/partner-wl)
+        const regime = (extracted.regime || '').toLowerCase();
+        const typeSelect = document.getElementById('pinv-type');
+        if (typeSelect) {
+            const map = {
+                ordinario: 'ritenuta',
+                forfettario: 'forfettario',
+                occasionale: 'occasionale',
+                estero: 'estero',
+                parcella: 'parcella',
+            };
+            const target = map[regime];
+            if (target) {
+                const opt = Array.from(typeSelect.options).find(o => o.value === target);
+                if (opt) {
+                    typeSelect.value = target;
+                    typeSelect.dispatchEvent(new Event('change'));
+                }
+            }
+        }
+    }
+
+    // Number + date
+    if (extracted.invoice_number) {
+        const el = document.getElementById('pinv-number');
+        if (el) el.value = extracted.invoice_number;
+    }
+    if (extracted.invoice_date) {
+        const el = document.getElementById('pinv-date');
+        if (el) el.value = extracted.invoice_date;
+    }
+    // Description: visibile solo in supplier mode. In collab mode il campo non c'è.
+    if (extracted.description) {
+        const el = document.getElementById('pinv-description');
+        if (el) el.value = extracted.description;
+    }
+
+    // Amounts
+    const taxable = Number(extracted.taxable_amount || 0);
+    const totalGross = Number(extracted.total_gross || 0);
+    const cassa = Number(extracted.cassa_amount || 0);
+    const rivalsa = Number(extracted.rivalsa_inps_amount || 0);
+    const bollo = Number(extracted.bollo_amount || 0);
+    const vat = Number(extracted.vat_amount || 0);
+    const ritenuta = Number(extracted.withholding_amount || 0);
+
+    // Importo/Compenso = imponibile (compenso prima di IVA/ritenute/cassa)
+    const amountEl = document.getElementById('pinv-amount');
+    if (amountEl) {
+        const value = taxable > 0 ? taxable : Math.max(0, totalGross - vat - cassa - rivalsa - bollo + ritenuta);
+        if (value > 0) amountEl.value = value.toFixed(2);
+    }
+
+    // Netto a Pagare
+    const netEl = document.getElementById('pinv-net');
+    if (netEl && totalGross > 0) {
+        netEl.value = totalGross.toFixed(2);
+    }
+
+    // Cassa Previdenza: SOLO se l'AI ha indicato esplicitamente cassa (non rivalsa).
+    // Se invece c'è rivalsa, lasciamo il campo cassa vuoto.
+    const cassaEl = document.getElementById('pinv-cassa');
+    if (cassaEl) {
+        cassaEl.value = cassa > 0 ? cassa.toFixed(2) : '';
+    }
+
+    // Checkboxes — set DOPO l'aggiornamento degli importi
+    const vatCb = document.getElementById('pinv-has-vat');
+    const bolloCb = document.getElementById('pinv-has-bollo');
+    const rivalsaCb = document.getElementById('pinv-has-rivalsa');
+
+    // IVA: spunta se vat>0 OPPURE se regime ordinario/parcella (default IVA presente)
+    const regime = (extracted.regime || '').toLowerCase();
+    const regimeForcesVat = regime === 'ordinario' || regime === 'parcella';
+    if (vatCb) vatCb.checked = vat > 0 || (regimeForcesVat && vat !== 0);
+    if (bolloCb) bolloCb.checked = bollo > 0;
+    // Rivalsa: spunta solo se l'AI ha indicato esplicitamente rivalsa_inps_amount.
+    if (rivalsaCb) {
+        rivalsaCb.checked = rivalsa > 0;
+        // segnalo "manual set" per evitare che il listener auto-toggli a default
+        state._pinvRivalsaManuallySet = true;
+    }
+    if (bolloCb) state._pinvBolloManuallySet = true;
+
+    // Trigger ricalcolo breakdown
+    amountEl?.dispatchEvent(new Event('input'));
+    netEl?.dispatchEvent(new Event('input'));
+    cassaEl?.dispatchEvent(new Event('input'));
+}
+
+/**
+ * Attacca il File originale al campo upload del modal, così l'utente non
+ * deve riselezionarlo per allegarlo alla fattura quando salva.
+ */
+function attachOriginalPdfToModal(file) {
+    const fileInput = document.getElementById('pinv-file');
+    if (!fileInput) return;
+    try {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+    } catch (e) {
+        console.warn('[ai-import] impossibile assegnare file al campo upload:', e);
+        return;
+    }
+    // Trigger del listener change esistente che mostra il preview
+    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+/**
+ * Identifica i pagamenti del collaboratore che probabilmente questa fattura
+ * sta saldando. Ritorna lista { payment, score, reasons }.
+ */
+function findPaymentCandidates(extracted, matchedEntity) {
+    if (!matchedEntity?.id || !Array.isArray(state.payments)) return [];
+
+    const totalGross = Number(extracted.total_gross || 0);
+    const codes = (extracted.reference_codes || [])
+        .map(c => String(c || '').toLowerCase().trim())
+        .filter(Boolean);
+
+    const candidates = state.payments.filter(p => {
+        if (p.collaborator_id !== matchedEntity.id) return false;
+        if (['Saldato', 'Pagato', 'Completato'].includes(p.status)) return false;
+        if (p.passive_invoice_id && p.passive_invoice_id !== state.currentPassiveInvoiceId) return false;
+        return true;
+    });
+
+    return candidates.map(p => {
+        const reasons = [];
+        let score = 0;
+        const amt = Number(p.amount || 0);
+
+        if (Math.abs(amt - totalGross) < 0.5) {
+            score += 10;
+            reasons.push('importo esatto');
+        } else if (totalGross > 0 && Math.abs(amt - totalGross) / totalGross < 0.05) {
+            score += 5;
+            reasons.push('importo ±5%');
+        }
+
+        const ord = state.orders?.find(o => o.id === p.order_id);
+        const ordRef = ord?.order_number || '';
+        const ordTitle = ord?.short_name || ord?.title || '';
+        const blob = `${p.title || ''} ${p.notes || ''} ${ordRef} ${ordTitle}`.toLowerCase();
+        const matchedCode = codes.find(c => c && blob.includes(c));
+        if (matchedCode) {
+            score += 8;
+            reasons.push(`codice "${matchedCode}"`);
+        }
+
+        return { payment: p, score, orderNumber: ordRef, reasons };
+    }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Auto-spunta i checkbox dei pagamenti candidati nella lista #pinv-payments-list
+ * e aggiunge un badge "💡 AI" accanto al label.
+ *
+ * La lista viene popolata async dopo aver selezionato il collaboratore
+ * (listener `change` su `#pinv-collaborator`). Aspettiamo l'aggiornamento DOM
+ * con un osservatore + timeout di sicurezza.
+ */
+function autoFlagPaymentCandidates(candidates) {
+    if (!candidates || candidates.length === 0) return;
+
+    const apply = () => {
+        const list = document.getElementById('pinv-payments-list');
+        if (!list) return false;
+        const checkboxes = list.querySelectorAll('input.pinv-payment-check');
+        if (checkboxes.length === 0) return false;
+
+        let flagged = 0;
+        candidates.forEach(c => {
+            const cb = list.querySelector(`input.pinv-payment-check[value="${c.payment.id}"]`);
+            if (!cb) return;
+
+            // Spunta solo i match forti (score >= 8: importo esatto, o codice trovato)
+            // I match deboli li evidenziamo soltanto.
+            const strongMatch = c.score >= 8;
+            if (strongMatch && !cb.checked) {
+                cb.checked = true;
+                cb.dispatchEvent(new Event('change', { bubbles: true }));
+                flagged += 1;
+            }
+
+            // Badge "💡 AI" sul label parent
+            const label = cb.closest('label');
+            if (label && !label.querySelector('.ai-candidate-badge')) {
+                const badge = document.createElement('div');
+                badge.className = 'ai-candidate-badge';
+                badge.style.cssText = `
+                    display: inline-flex; align-items: center; gap: 4px;
+                    font-size: 0.6rem; font-weight: 700;
+                    color: #8b5cf6; background: rgba(139, 92, 246, 0.1);
+                    padding: 2px 6px; border-radius: 4px; margin-top: 4px;
+                    border: 1px solid rgba(139, 92, 246, 0.2);
+                `;
+                badge.textContent = `💡 candidato AI · ${c.reasons.join(' + ')} · score ${c.score}`;
+                // Inserisco nel <div> centrale del label (struttura: <input><div info><div €>)
+                const middleDiv = label.querySelector('div');
+                if (middleDiv) middleDiv.appendChild(badge);
+
+                // Bordo viola al label per evidenziare
+                label.style.borderColor = '#8b5cf6';
+                label.style.borderWidth = '1.5px';
+            }
+        });
+        return flagged;
+    };
+
+    // Provo subito (potrebbe essere già popolata dal trigger change precedente)
+    if (apply()) return;
+
+    // Altrimenti aspetto via MutationObserver la prima modifica del DOM
+    const list = document.getElementById('pinv-payments-list');
+    if (!list) return;
+    const observer = new MutationObserver(() => {
+        if (apply()) observer.disconnect();
+    });
+    observer.observe(list, { childList: true, subtree: true });
+    // Safety timeout: stop osservatore dopo 3s
+    setTimeout(() => observer.disconnect(), 3000);
+}
+
+/**
+ * Pipeline completa: candidati → log + UI flag + toast riepilogo.
+ */
+function suggestPaymentMatches(extracted, matchedEntity, mode) {
+    if (mode === 'supplier' || !matchedEntity?.id) return;
+
+    const scored = findPaymentCandidates(extracted, matchedEntity);
+    if (!scored.length) return;
+
+    console.log('[ai-import] 💡 pagamenti candidati:', scored);
+    autoFlagPaymentCandidates(scored);
+
+    const strong = scored.filter(x => x.score >= 8).length;
+    if (strong > 0) {
+        showGlobalAlert(`✅ ${strong} pagament${strong === 1 ? 'o spuntato' : 'i spuntati'} automaticamente come saldat${strong === 1 ? 'o' : 'i'} da questa fattura.`, 'success');
+    } else if (scored.length > 0) {
+        showGlobalAlert(`💡 ${scored.length} pagament${scored.length === 1 ? 'o' : 'i'} simil${scored.length === 1 ? 'e' : 'i'} per importo (vedi badge AI). Spunta manualmente.`, 'info');
+    }
+}
 

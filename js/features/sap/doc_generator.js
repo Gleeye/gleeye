@@ -1,19 +1,37 @@
-// SAP AI Documentation Generator
-// Genera 7 documenti di marketing/sales/operations per un Servizio a Pacchetto.
-// Usa ai_client.js (da feature/ai-foundation) + Edge Function ai-proxy → OpenRouter.
+// SAP-2 — AI Documentation Generator
+//
+// Genera 12 documenti per ogni SAP, derivati dal Processo Operativo (process_blueprint).
+// Se il blueprint non esiste, usa i campi strutturati come fallback.
+//
+// Documenti:
+//   COMMERCIALI: brochure, pitch_vendita, landing_html, email_sales
+//   OPERATIVI:   brief_operativo, briefing_collaboratore, onboarding_cliente, cronoprogramma
+//   LEGALI/AMM:  listino, clausole, scheda_economica_interna
+//   SUPPORTO:    faq
 
 import { supabase } from '../../modules/config.js?v=8000';
 import { state } from '../../modules/state.js?v=8000';
-import { chat, AI_MODELS } from '../../modules/ai_client.js?v=8000';
+import { chat, parseAiJson } from '../../modules/ai_client.js?v=8000';
 
-const DOC_TYPES = [
-    { id: 'brochure',   label: 'Brochure prodotto',        icon: 'picture_as_pdf',  color: '#8b5cf6' },
-    { id: 'landing',    label: 'Landing page (HTML)',       icon: 'web',             color: '#3b82f6' },
-    { id: 'email',      label: 'Email primo contatto',      icon: 'email',           color: '#10b981' },
-    { id: 'brief',      label: 'Brief operativo collab',    icon: 'assignment',      color: '#f59e0b' },
-    { id: 'listino',    label: 'Listino strutturato',       icon: 'price_change',    color: '#ef4444' },
-    { id: 'faq',        label: 'FAQ (5-7 domande)',         icon: 'help_outline',    color: '#06b6d4' },
-    { id: 'clausole',   label: 'Clausole contrattuali',     icon: 'gavel',           color: '#64748b' },
+// ─── Catalogo documenti ───────────────────────────────────────────────────────
+
+const DOC_CATALOG = [
+    // COMMERCIALI
+    { type: 'brochure',               label: 'Brochure commerciale',      icon: 'description',    category: 'Commerciali' },
+    { type: 'pitch_vendita',          label: 'Pitch di vendita',          icon: 'present_to_all', category: 'Commerciali' },
+    { type: 'landing_html',           label: 'Landing page HTML',         icon: 'web',            category: 'Commerciali' },
+    { type: 'email_sales',            label: 'Email di vendita',          icon: 'email',          category: 'Commerciali' },
+    // OPERATIVI
+    { type: 'brief_operativo',        label: 'Brief operativo',           icon: 'assignment',     category: 'Operativi' },
+    { type: 'briefing_collaboratore', label: 'Briefing collaboratore',    icon: 'group',          category: 'Operativi' },
+    { type: 'onboarding_cliente',     label: 'Onboarding cliente',        icon: 'how_to_reg',     category: 'Operativi' },
+    { type: 'cronoprogramma',         label: 'Cronoprogramma standard',   icon: 'calendar_month', category: 'Operativi' },
+    // LEGALI / AMM
+    { type: 'listino',                label: 'Listino prezzi',            icon: 'euro',           category: 'Legali/Amm' },
+    { type: 'clausole',               label: 'Clausole contrattuali',     icon: 'gavel',          category: 'Legali/Amm' },
+    { type: 'scheda_economica_interna', label: 'Scheda economica interna', icon: 'analytics',     category: 'Legali/Amm' },
+    // SUPPORTO
+    { type: 'faq',                    label: 'FAQ',                       icon: 'quiz',           category: 'Supporto' },
 ];
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
@@ -24,296 +42,267 @@ export async function openDocGenerator(serviceId) {
 
     const missingFields = [];
     if (!service.value_proposition) missingFields.push('Value Proposition');
-    if (!service.target_customer)   missingFields.push('Target Customer');
-    if (!(service.package_includes?.length)) missingFields.push('Cosa include il pacchetto');
-    if (!(service.pricing_tiers?.length))    missingFields.push('Tier di prezzo');
+    if (!service.package_includes?.length) missingFields.push('Cosa include il pacchetto');
 
     if (missingFields.length > 0) {
-        await window.showAlert(
-            `Prima di generare, compila questi campi nella sezione "Dati per AI":\n• ${missingFields.join('\n• ')}`,
-            'warning'
+        const ok = await window.showConfirm(
+            `Mancano alcuni dati consigliati:\n• ${missingFields.join('\n• ')}\n\nPuoi comunque generare i documenti, ma saranno meno precisi. Procedere?`,
+            { confirmText: 'Sì, genera comunque', type: 'warning' }
         );
-        const body = document.getElementById('sap-ai-section-body');
-        if (body) body.classList.remove('hidden');
-        return;
+        if (!ok) return;
     }
 
-    _openGeneratorModal(service);
-}
-
-// ─── Modal UI ─────────────────────────────────────────────────────────────────
-
-function _openGeneratorModal(service) {
-    const existing = document.getElementById('sap-doc-gen-modal');
+    const existing = document.getElementById('sap-docgen-modal');
     if (existing) existing.remove();
 
     const modal = document.createElement('div');
-    modal.id = 'sap-doc-gen-modal';
-    modal.className = 'modal';
-    modal.innerHTML = _buildModalHTML(service);
+    modal.id = 'sap-docgen-modal';
+    modal.className = 'modal active';
+    modal.innerHTML = _buildShellHTML(service);
     document.body.appendChild(modal);
-    modal.classList.add('active');
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
-    document.getElementById('sap-docgen-start-btn').addEventListener('click', () => {
-        _runGeneration(service, modal);
-    });
-}
-
-function _buildModalHTML(service) {
-    const docList = DOC_TYPES.map(d => `
-        <div id="docgen-row-${d.id}" style="display:flex; align-items:center; gap:1rem; padding:0.75rem 1rem; border-radius:12px; background:var(--bg-tertiary); border:1px solid var(--glass-border); transition: all 0.3s;">
-            <div style="width:38px; height:38px; border-radius:10px; background:${d.color}22; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                <span class="material-icons-round" style="font-size:1.2rem; color:${d.color};">${d.icon}</span>
-            </div>
-            <div style="flex:1;">
-                <div style="font-weight:700; font-size:0.9rem; color:var(--text-primary);">${d.label}</div>
-            </div>
-            <div id="docgen-status-${d.id}" style="font-size:0.75rem; color:var(--text-tertiary); font-weight:600; display:flex; align-items:center; gap:0.3rem; min-width:90px; justify-content:flex-end;">
-                <span class="material-icons-round" style="font-size:1rem;">radio_button_unchecked</span> In attesa
-            </div>
-        </div>
-    `).join('');
-
-    return `
-        <div class="modal-content" style="max-width:620px; width:95vw; padding:0; border-radius:20px; overflow:hidden; background:var(--card-bg); border:1px solid var(--glass-border); box-shadow:var(--shadow-xl);">
-            <div style="padding:1.5rem 2rem; background:var(--brand-gradient); color:white;">
-                <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.5rem;">
-                    <span class="material-icons-round" style="font-size:1.5rem;">auto_awesome</span>
-                    <h2 style="margin:0; font-size:1.25rem; font-weight:800; font-family:var(--font-titles);">AI Documentation Generator</h2>
-                </div>
-                <div style="font-size:0.85rem; opacity:0.85;">${service.name}</div>
-            </div>
-
-            <div style="padding:1.5rem 2rem;">
-                <div id="docgen-intro" style="margin-bottom:1.25rem; padding:0.9rem 1.1rem; border-radius:12px; background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.15); font-size:0.85rem; color:var(--text-secondary); line-height:1.5;">
-                    Claude genererà <strong>7 documenti</strong> per questo SAP: brochure, landing page, email sales, brief operativo, listino, FAQ e clausole contrattuali. Stima: <strong>~2-4 minuti</strong> · costo ~<strong>0.80–1.50€</strong>.
-                </div>
-
-                <div style="display:flex; flex-direction:column; gap:0.6rem;">
-                    ${docList}
-                </div>
-
-                <div id="docgen-progress-bar-wrap" style="display:none; margin-top:1.25rem;">
-                    <div style="height:6px; background:var(--bg-tertiary); border-radius:99px; overflow:hidden;">
-                        <div id="docgen-progress-bar" style="height:100%; width:0%; background:var(--brand-gradient); border-radius:99px; transition:width 0.5s ease;"></div>
-                    </div>
-                    <div id="docgen-progress-label" style="margin-top:0.4rem; font-size:0.75rem; color:var(--text-tertiary); text-align:center; font-weight:600;"></div>
-                </div>
-            </div>
-
-            <div style="padding:1rem 2rem 1.5rem 2rem; display:flex; align-items:center; justify-content:flex-end; gap:0.75rem; border-top:1px solid var(--glass-border);">
-                <button onclick="document.getElementById('sap-doc-gen-modal').remove()" style="padding:0.6rem 1.25rem; border-radius:10px; border:1px solid var(--glass-border); background:white; color:var(--text-primary); font-weight:700; font-size:0.875rem; cursor:pointer;">Annulla</button>
-                <button id="sap-docgen-start-btn" style="display:flex; align-items:center; gap:0.5rem; padding:0.6rem 1.5rem; border-radius:10px; border:none; background:var(--brand-gradient); color:white; font-weight:700; font-size:0.875rem; cursor:pointer; box-shadow:0 4px 12px rgba(99,102,241,0.3);">
-                    <span class="material-icons-round" style="font-size:1rem;">play_arrow</span> Genera tutti i documenti
-                </button>
-            </div>
-        </div>
-    `;
+    document.getElementById('sap-docgen-start-btn').addEventListener('click', () => _runGeneration(service, modal));
 }
 
 // ─── Generation engine ────────────────────────────────────────────────────────
 
 async function _runGeneration(service, modal) {
     const startBtn = document.getElementById('sap-docgen-start-btn');
-    const intro    = document.getElementById('docgen-intro');
-    const progressWrap = document.getElementById('docgen-progress-bar-wrap');
-    const progressBar  = document.getElementById('docgen-progress-bar');
-    const progressLbl  = document.getElementById('docgen-progress-label');
+    startBtn.style.display = 'none';
 
-    startBtn.disabled = true;
-    startBtn.innerHTML = '<span class="material-icons-round" style="font-size:1rem; animation:spin 1s linear infinite;">autorenew</span> Generando…';
-    intro.style.display = 'none';
-    progressWrap.style.display = 'block';
+    const progressEl = document.getElementById('sap-docgen-progress');
+    progressEl.style.display = 'flex';
 
-    // Update ai_doc_status → generating
     await supabase.from('core_services').update({ ai_doc_status: 'generating' }).eq('id', service.id);
-    const svc = state.sapServices?.find(s => s.id === service.id);
-    if (svc) svc.ai_doc_status = 'generating';
 
-    const results = {};
-    let errorOccurred = false;
+    const existingLinks = (service.cloud_links || []).filter(l => l.type !== 'ai_doc');
+    const newLinks = [...existingLinks];
+    let generated = 0;
+    let errors = 0;
 
-    for (let i = 0; i < DOC_TYPES.length; i++) {
-        const doc = DOC_TYPES[i];
-        _setDocStatus(doc.id, 'generating');
-        _updateProgress(i, DOC_TYPES.length, `Generando ${doc.label}…`, progressBar, progressLbl);
-
+    for (const doc of DOC_CATALOG) {
+        _updateProgress(progressEl, doc.label, generated, DOC_CATALOG.length);
         try {
-            const content = await _generateDocument(service, doc.id);
-            results[doc.id] = { doc_type: doc.id, label: doc.label, content, generated_at: new Date().toISOString() };
-            _setDocStatus(doc.id, 'done');
+            const content = await _generateDoc(service, doc.type);
+            newLinks.push({
+                type: 'ai_doc',
+                doc_type: doc.type,
+                label: doc.label,
+                content,
+                generated_at: new Date().toISOString(),
+            });
+            generated++;
         } catch (err) {
-            console.error(`[doc_generator] Errore su ${doc.id}:`, err);
-            results[doc.id] = { doc_type: doc.id, label: doc.label, content: null, error: err.message, generated_at: new Date().toISOString() };
-            _setDocStatus(doc.id, 'error');
-            errorOccurred = true;
+            console.error(`[doc_generator] ${doc.type}`, err);
+            errors++;
         }
     }
 
-    _updateProgress(DOC_TYPES.length, DOC_TYPES.length, 'Completato!', progressBar, progressLbl);
+    await supabase.from('core_services').update({
+        cloud_links: newLinks,
+        ai_doc_status: errors === 0 ? 'ready' : (generated > 0 ? 'partial' : 'error'),
+    }).eq('id', service.id);
 
-    // Persist results in cloud_links (append, don't overwrite existing links)
-    const existingLinks = (service.cloud_links || []).filter(l => l.type !== 'ai_doc');
-    const aiDocs = Object.values(results).map(r => ({ type: 'ai_doc', ...r }));
-    const updatedLinks = [...existingLinks, ...aiDocs];
+    service.cloud_links = newLinks;
+    service.ai_doc_status = errors === 0 ? 'ready' : 'partial';
 
-    const finalStatus = errorOccurred ? 'error' : 'ready';
-    await supabase.from('core_services')
-        .update({ cloud_links: updatedLinks, ai_doc_status: finalStatus })
-        .eq('id', service.id);
-
-    if (svc) { svc.cloud_links = updatedLinks; svc.ai_doc_status = finalStatus; }
-
-    // Switch to viewer
     modal.remove();
+
     const { openDocViewer } = await import('./doc_viewer.js?v=8000');
-    await openDocViewer(service.id, updatedLinks);
+    await openDocViewer(service.id, newLinks);
 }
 
-// ─── Single document prompts ──────────────────────────────────────────────────
+// ─── Doc prompts ──────────────────────────────────────────────────────────────
 
-async function _generateDocument(service, docType) {
-    const context = _buildServiceContext(service);
-    const prompt  = _buildPrompt(service, docType);
+async function _generateDoc(service, docType) {
+    const includes = (service.package_includes || [])
+        .map(i => typeof i === 'string' ? i : (i.label || ''))
+        .filter(Boolean).join('; ');
+
+    const baseCtx = `
+## SAP: ${service.name}
+- Value Proposition: ${service.value_proposition || 'N/D'}
+- Target: ${service.target_customer || 'N/D'}
+- Deliverable: ${includes || 'N/D'}
+- Team: ${service.team_required || 'N/D'}
+- Tempo consegna: ${service.delivery_time_days ? service.delivery_time_days + ' giorni' : 'N/D'}`;
+
+    const blueprintCtx = service.process_blueprint
+        ? `\n\n## Processo Operativo\n${service.process_blueprint}`
+        : '';
+
+    const context = baseCtx + blueprintCtx;
+
+    const prompts = {
+        brochure: `Scrivi una brochure commerciale professionale per questo SAP.
+${context}
+Struttura: headline (beneficio principale), problema che risolve, cosa include (bullet), perché sceglierci, call-to-action.
+Tono: professionale ma diretto, orientato al beneficio per il cliente. Max 400 parole.`,
+
+        pitch_vendita: `Scrivi uno script/guida per il pitch di vendita di questo SAP da usare in una riunione commerciale.
+${context}
+Includi: apertura (aggancio), domande di qualifica, presentazione del SAP, gestione delle 3 obiezioni più comuni, chiusura proposta.
+Tono: consulenziale, non aggressivo. Scrivi come se parlassi al commerciale che userà questo script.`,
+
+        landing_html: `Scrivi il codice HTML completo per una landing page di questo SAP.
+${context}
+Struttura: hero con headline e CTA, sezione problema, soluzione (il SAP), cosa include, a chi è rivolto, processo in 3 step, testimonianza placeholder, CTA finale.
+HTML semantico, CSS inline minimalista, nessun framework. Mobile-friendly.`,
+
+        email_sales: `Scrivi una email di vendita per prospect freddi/tiepidi per questo SAP.
+${context}
+Struttura: oggetto irresistibile, apertura personalizzabile, problema specifico del target, come il SAP lo risolve, prova sociale, CTA chiara.
+Max 200 parole nel corpo. Tono: umano, non da newsletter, come se scrivesse Davide in persona.`,
+
+        brief_operativo: `Scrivi il brief operativo interno per avviare una commessa di questo SAP.
+${context}
+Includi: contesto del servizio, obiettivi di progetto, ruoli e responsabilità, input necessari dal cliente, output attesi, milestone principali, rischi comuni e come gestirli.
+Tono: operativo, diretto, per uso interno del team.`,
+
+        briefing_collaboratore: `Scrivi il briefing per il collaboratore che eroga questo SAP.
+${context}
+Includi: cos'è il servizio e perché esiste, cosa deve fare in concreto (fase per fase), standard di qualità attesi, come interfacciarsi col cliente, cosa NON fare, domande frequenti dal campo.
+Tono: pratico, come una guida da leggere prima di iniziare il lavoro.`,
+
+        onboarding_cliente: `Scrivi la guida di onboarding per il cliente che acquista questo SAP.
+${context}
+Includi: benvenuto e cosa aspettarsi, cosa il cliente deve preparare/fornire prima del kick-off, come funziona la comunicazione durante il progetto, tempi di risposta attesi, come vengono gestite le revisioni, contatti di riferimento placeholder.
+Tono: rassicurante, chiaro, professionale.`,
+
+        cronoprogramma: `Scrivi un cronoprogramma standard per questo SAP dalla firma al deliverable finale.
+${context}
+Formato: tabella testuale o elenco strutturato con Giorno/Settimana, Attività, Responsabile (team/cliente), Output.
+Template tipo, non un piano specifico. Adattalo al tempo di consegna dichiarato.`,
+
+        listino: `Scrivi il listino prezzi e le condizioni commerciali per questo SAP.
+${context}
+Includi: prezzo base, eventuali varianti/fasce, cosa è incluso, cosa è escluso (e relativo costo aggiuntivo), modalità di pagamento standard, validità del preventivo, sconti applicabili e condizioni.
+Tono: formale ma leggibile.`,
+
+        clausole: `Scrivi le clausole contrattuali specifiche per questo SAP da inserire nel contratto di servizio.
+${context}
+Includi: oggetto del contratto, deliverable e specifiche, tempi e penali, revisioni incluse e iter approvazione, proprietà intellettuale, limitazione di responsabilità, recesso.
+Nota finale: da far revisionare da un legale prima dell'uso.`,
+
+        scheda_economica_interna: `Scrivi una scheda economica interna per questo SAP (solo uso interno, non per il cliente).
+${context}
+Includi: stima ore per ruolo (account, PM, esecutivi, supervisione), costo orario medio di riferimento, costo totale stimato, prezzo listino suggerito, margine target %, breakeven, note su come ottimizzare il margine.
+Tono: analitico, numeri ipotetici ma plausibili per un'agenzia italiana.`,
+
+        faq: `Scrivi le FAQ per questo SAP destinate al team commerciale.
+${context}
+Almeno 10 domande reali che fa un cliente prima di acquistare, con risposte complete.
+Organizza per categorie: sul servizio, sui tempi, sui prezzi, sul processo, sulle garanzie.`,
+    };
+
+    const prompt = prompts[docType];
+    if (!prompt) throw new Error(`Tipo documento non supportato: ${docType}`);
 
     const resp = await chat({
         feature: 'doc_generator',
         messages: [
-            { role: 'system', content: _systemPrompt() },
-            { role: 'user',   content: `${context}\n\n---\n\n${prompt}` },
+            {
+                role: 'system',
+                content: `Sei un copywriter e consulente strategico per agenzie di comunicazione italiane. Scrivi contenuti professionali, concreti e immediatamente utilizzabili. Rispondi in italiano.`
+            },
+            { role: 'user', content: prompt }
         ],
-        max_tokens: 2400,
-        temperature: 0.7,
+        max_tokens: 2000,
+        temperature: 0.4,
         feature_context: { entity_type: 'core_service', entity_id: service.id, doc_type: docType },
     });
 
-    const text = resp?.choices?.[0]?.message?.content;
-    if (!text) throw new Error('Risposta AI vuota');
-    return text;
+    const content = resp?.choices?.[0]?.message?.content?.trim();
+    if (!content) throw new Error('Risposta AI vuota');
+    return content;
 }
 
-function _systemPrompt() {
-    return `Sei il copywriter e content strategist di Gleeye, un'agenzia di comunicazione italiana con base a Genova.
-Gleeye vende servizi a pacchetto (SAP) a PMI, imprenditori e professionisti italiani.
-Scrivi sempre in italiano, con tono professionale ma diretto. Non usare gergo anglosassone inutile.
-Ogni documento deve essere concreto, pratico e pronto per l'uso — non generico.
-Fornisci output formattato in Markdown a meno che non sia specificato diversamente.`;
-}
+// ─── Progress UI ──────────────────────────────────────────────────────────────
 
-function _buildServiceContext(service) {
-    const tiers = (service.pricing_tiers || []).map(t =>
-        typeof t === 'string' ? t : `${t.name || ''} ${t.price ? '– ' + t.price + '€' : ''}${t.description ? ': ' + t.description : ''}`
-    ).join(', ');
-
-    const includes = (service.package_includes || []).map(i =>
-        typeof i === 'string' ? i : (i.label || '')
-    ).join('; ');
-
-    return `## Servizio SAP: ${service.name}
-
-**Value proposition**: ${service.value_proposition || 'N/D'}
-**Target customer**: ${service.target_customer || 'N/D'}
-**Cosa include**: ${includes || 'N/D'}
-**Pricing**: ${tiers || 'N/D'}
-**Tempo di consegna**: ${service.delivery_time_days ? service.delivery_time_days + ' giorni' : 'N/D'}
-**Team**: ${service.team_required || 'N/D'}`;
-}
-
-function _buildPrompt(service, docType) {
-    const prompts = {
-        brochure: `Scrivi la **brochure prodotto** per questo SAP.
-Struttura (in Markdown, 1-2 pagine):
-1. Headline accattivante
-2. Value proposition (2-3 righe)
-3. "Per chi è" (3-4 bullet)
-4. "Cosa ottieni" (lista deliverable)
-5. Come funziona (3 step semplici)
-6. Pricing (gamma)
-7. Call to action
-Tono: professionale, concreto, orientato al risultato.`,
-
-        landing: `Scrivi il **testo completo per una landing page** HTML di questo SAP.
-Output: HTML semantico con CSS inline (pronto da incollare).
-Struttura:
-- Hero section con headline + subheadline + CTA button
-- Sezione "Per chi è" (3 card)
-- Sezione "Cosa ottieni" (lista con icone)
-- Sezione "Come funziona" (3 step numerati)
-- Pricing tier (card/tabella)
-- FAQ (3-5 domande)
-- Form contatto (solo HTML, action="#")
-Usa colori neutri (bianco/grigio/blu #3b82f6). Responsive con max-width 960px.`,
-
-        email: `Scrivi un **template email di primo contatto** per vendere questo SAP.
-Formato:
-- **Oggetto**: [proposta oggetto]
-- **Preview text**: [testo anteprima]
-- **Corpo**: apertura personalizzabile + pitch in 3 punti + soft CTA
-Lunghezza: 150-200 parole. Tono: caldo, diretto, non spammy.
-Includi variabili segnaposto come [NOME], [AZIENDA] dove appropriato.`,
-
-        brief: `Scrivi il **brief operativo** per il collaboratore che esegue questo SAP.
-Struttura:
-1. Obiettivo del servizio (1 paragrafo)
-2. Step di esecuzione (lista numerata, con timeline relativa al kick-off)
-3. Deliverable da produrre (lista con formato richiesto)
-4. Checklist qualità (min. 6 punti)
-5. Note importanti (aspettative cliente, punti critici)
-Tono: interno, pratico, senza marketing.`,
-
-        listino: `Crea il **listino strutturato** per questo SAP.
-Formato Markdown con tabelle:
-1. **Pacchetto Base** — cosa include, prezzo
-2. **Add-on opzionali** — lista con prezzo unitario
-3. **Extra** — es. consegna rapida, revisioni aggiuntive
-Includi anche note su sconti per volume/frequenza se applicabili.`,
-
-        faq: `Genera **7 FAQ** (domande frequenti) per questo SAP.
-Per ogni FAQ:
-- **Domanda** (come la farebbe un cliente reale)
-- **Risposta** (2-4 righe, chiara e rassicurante)
-Anticipa obiezioni su: prezzo, tempi, qualità, cosa succede se non sono soddisfatto, processo di lavoro.`,
-
-        clausole: `Scrivi le **clausole contrattuali base** per questo SAP.
-Formato: lista numerata di articoli.
-Includi:
-1. Oggetto del contratto
-2. Modalità di consegna e tempi
-3. Modalità di pagamento (acconto/saldo)
-4. Revisioni incluse e gestione extra
-5. Diritti d'uso e proprietà intellettuale
-6. Responsabilità e limitazioni
-7. Riservatezza
-8. Risoluzione del contratto
-Tono: legale ma leggibile. Adatto al diritto italiano.`,
-    };
-
-    return prompts[docType] || `Scrivi un documento professionale per il SAP "${service.name}".`;
-}
-
-// ─── UI helpers ───────────────────────────────────────────────────────────────
-
-function _setDocStatus(docId, status) {
-    const el = document.getElementById(`docgen-status-${docId}`);
+function _updateProgress(el, currentDoc, done, total) {
     if (!el) return;
-    const configs = {
-        generating: { icon: 'autorenew',        color: '#3b82f6', label: 'Generando…',   anim: 'spin 1s linear infinite' },
-        done:       { icon: 'check_circle',      color: '#10b981', label: 'Completato',   anim: 'none' },
-        error:      { icon: 'error_outline',     color: '#ef4444', label: 'Errore',       anim: 'none' },
-    };
-    const c = configs[status] || { icon: 'radio_button_unchecked', color: 'var(--text-tertiary)', label: 'In attesa', anim: 'none' };
-    el.innerHTML = `<span class="material-icons-round" style="font-size:1rem; color:${c.color}; animation:${c.anim};">${c.icon}</span> <span style="color:${c.color};">${c.label}</span>`;
-
-    const row = document.getElementById(`docgen-row-${docId}`);
-    if (row && status === 'done') {
-        row.style.background = 'rgba(16,185,129,0.04)';
-        row.style.borderColor = 'rgba(16,185,129,0.2)';
-    }
+    const pct = Math.round((done / total) * 100);
+    el.innerHTML = `
+        <div style="width:100%; display:flex; flex-direction:column; gap:0.75rem;">
+            <div style="font-size:0.88rem; color:var(--text-secondary);">
+                Generando <strong>${currentDoc}</strong>… (${done + 1}/${total})
+            </div>
+            <div style="height:6px; background:var(--bg-secondary); border-radius:3px; overflow:hidden;">
+                <div style="height:100%; width:${pct}%; background:var(--brand-gradient); transition:width 0.4s ease; border-radius:3px;"></div>
+            </div>
+        </div>
+    `;
 }
 
-function _updateProgress(current, total, label, bar, lbl) {
-    const pct = Math.round((current / total) * 100);
-    if (bar)  bar.style.width = pct + '%';
-    if (lbl)  lbl.textContent = label;
+// ─── HTML ─────────────────────────────────────────────────────────────────────
+
+function _buildShellHTML(service) {
+    const hasBlueprint = !!service.process_blueprint;
+    const categories = [...new Set(DOC_CATALOG.map(d => d.category))];
+
+    const docList = categories.map(cat => {
+        const docs = DOC_CATALOG.filter(d => d.category === cat);
+        return `
+            <div>
+                <div style="font-size:0.65rem; font-weight:800; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:0.5rem;">${cat}</div>
+                <div style="display:flex; flex-direction:column; gap:0.3rem;">
+                    ${docs.map(d => `
+                        <div style="display:flex; align-items:center; gap:0.6rem; padding:0.4rem 0.6rem; background:var(--bg-secondary); border-radius:8px;">
+                            <span class="material-icons-round" style="font-size:1rem; color:var(--brand-blue);">${d.icon}</span>
+                            <span style="font-size:0.82rem; color:var(--text-primary); font-weight:500;">${d.label}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="modal-content" style="max-width:560px; width:95vw; padding:0; border-radius:20px; overflow:hidden; background:var(--card-bg); border:1px solid var(--glass-border); box-shadow:var(--shadow-xl);">
+            <div style="padding:1.25rem 1.75rem; background:var(--brand-gradient); color:white; display:flex; align-items:center; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <span class="material-icons-round" style="font-size:1.4rem;">auto_awesome</span>
+                    <div>
+                        <div style="font-weight:800; font-size:1.05rem; font-family:var(--font-titles);">Genera documentazione AI</div>
+                        <div style="font-size:0.8rem; opacity:0.85;">${service.name}</div>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('sap-docgen-modal').remove()" style="background:rgba(255,255,255,0.2); border:none; color:white; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                    <span class="material-icons-round" style="font-size:1.1rem;">close</span>
+                </button>
+            </div>
+
+            <div style="padding:1.5rem 1.75rem; display:flex; flex-direction:column; gap:1.25rem; max-height:70vh; overflow-y:auto;">
+
+                ${!hasBlueprint ? `
+                    <div style="padding:0.75rem 1rem; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.2); border-radius:10px; font-size:0.82rem; color:#b45309; display:flex; align-items:flex-start; gap:0.5rem;">
+                        <span class="material-icons-round" style="font-size:1rem; flex-shrink:0; margin-top:1px;">warning</span>
+                        Nessun Processo Operativo definito — i documenti saranno generati dai dati base e risulteranno meno precisi.
+                    </div>
+                ` : `
+                    <div style="padding:0.75rem 1rem; background:rgba(16,185,129,0.07); border:1px solid rgba(16,185,129,0.2); border-radius:10px; font-size:0.82rem; color:#065f46; display:flex; align-items:center; gap:0.5rem;">
+                        <span class="material-icons-round" style="font-size:1rem;">check_circle</span>
+                        Processo Operativo presente — tutti i documenti saranno derivati da esso.
+                    </div>
+                `}
+
+                <div>
+                    <div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:0.75rem;">${DOC_CATALOG.length} documenti che verranno generati</div>
+                    <div style="display:flex; flex-direction:column; gap:0.75rem;">${docList}</div>
+                </div>
+
+                <div id="sap-docgen-progress" style="display:none; padding:1rem; background:var(--bg-secondary); border-radius:12px;"></div>
+
+            </div>
+
+            <div style="padding:1rem 1.75rem 1.5rem; display:flex; gap:0.75rem; justify-content:flex-end; border-top:1px solid var(--glass-border);">
+                <button onclick="document.getElementById('sap-docgen-modal').remove()" style="padding:0.6rem 1.25rem; border-radius:10px; border:1px solid var(--glass-border); background:white; color:var(--text-primary); font-weight:700; font-size:0.875rem; cursor:pointer;">Annulla</button>
+                <button id="sap-docgen-start-btn" style="display:flex; align-items:center; gap:0.5rem; padding:0.6rem 1.5rem; border-radius:10px; border:none; background:var(--brand-gradient); color:white; font-weight:700; font-size:0.875rem; cursor:pointer; box-shadow:0 4px 12px rgba(99,102,241,0.3);">
+                    <span class="material-icons-round" style="font-size:1rem;">rocket_launch</span>
+                    Genera ${DOC_CATALOG.length} documenti
+                </button>
+            </div>
+        </div>
+    `;
 }
