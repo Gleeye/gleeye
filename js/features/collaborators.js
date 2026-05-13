@@ -4,8 +4,8 @@ import { openDepartmentManager } from './settings.js?v=8000';
 import { upsertCollaborator, fetchPayments, fetchAssignments, fetchPassiveInvoices, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js?v=8000';
 import { loadAvailabilityIntoContainer } from './availability_manager.js?v=8000';
 import { supabase } from '../modules/config.js?v=8000';
-import { glossaryTip } from '../modules/help_tooltip.js?v=8001';
-import { tAssignment } from '../modules/i18n_labels.js?v=8001';
+import { glossaryTip } from '../modules/help_tooltip.js?v=8002';
+import { tAssignment } from '../modules/i18n_labels.js?v=8002';
 
 // Global signed URL opener for secure documents (if not already defined elsewhere)
 if (!window.openSignedUrl) {

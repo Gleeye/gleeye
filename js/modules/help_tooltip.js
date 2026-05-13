@@ -5,14 +5,13 @@
 // Zero chiamate AI: questi termini hanno spiegazione fissa, non serve un LLM.
 //
 // Uso:
-//   import { glossaryTip, GLOSSARY } from './modules/help_tooltip.js?v=8001';
+//   import { glossaryTip, GLOSSARY } from './modules/help_tooltip.js?v=8002';
 //   `<label>Codice SDI ${glossaryTip('sdi')}</label>`
 //
-// Oppure data-attribute diretto:
-//   `<span class="gl-help" data-help="Testo libero...">?</span>`
+// Positioning: il tooltip è un elemento DOM creato al hover (NON pseudo-element),
+// quindi si auto-flip up/down e si shifta dentro al viewport.
 
 // === Glossario fiscale / amministrativo italiano ===
-// Aggiungi qui i termini quando ne servono di nuovi. Mantieni le spiegazioni brevi (1-2 frasi).
 export const GLOSSARY = {
     // Anagrafica fiscale
     piva: 'Partita IVA — codice fiscale a 11 cifre delle attività economiche. Obbligatoria per emettere fattura.',
@@ -23,10 +22,24 @@ export const GLOSSARY = {
     cap: 'CAP — Codice di Avviamento Postale (5 cifre). Identifica la zona di consegna postale.',
     ateco: 'Codice ATECO — classificazione ISTAT dell\'attività economica (es. 73.11.02 per agenzie di pubblicità).',
 
-    // Regimi fiscali
+    // Regimi fiscali singoli
     regime_ordinario: 'Regime Ordinario — IVA 22% applicata in fattura, ritenuta d\'acconto 20% trattenuta dal cliente, contributi INPS/Cassa secondo categoria.',
     regime_forfettario: 'Regime Forfettario — no IVA in fattura, no ritenuta d\'acconto. Imposta sostitutiva 15% (5% startup). Limite ricavi 85.000 €/anno.',
     regime_occasionale: 'Prestazione Occasionale — attività saltuaria senza P.IVA. Ritenuta d\'acconto 20%, limite 5.000 €/anno per committente.',
+
+    // Overview composito per il select "Regime fiscale"
+    regime_fiscale_overview: `Indica come il fornitore emette fattura:
+• Ordinario: IVA 22% + Ritenuta 20%
+• Forfettario: no IVA, no Ritenuta, bollo 2 € sopra 77,47 €
+• Occasionale: no P.IVA, Ritenuta 20%, limite 5.000 €/anno/committente
+• Estero / Reverse Charge: no IVA, IVA liquidata dal committente
+• Parcella / Notula: professionisti con cassa, IVA + Ritenuta + Cassa`,
+
+    // Overview composito per il blocco "Dati Fiscali" del cliente
+    dati_fiscali_overview: `Identificativi fiscali del cliente:
+• Partita IVA: 11 cifre, obbligatoria per emettere fattura
+• Codice Fiscale: 16 caratteri (persona fisica) o 11 cifre (azienda)
+• Codice SDI: 7 caratteri per ricevere fatture elettroniche, oppure PEC se non disponibile`,
 
     // Componenti fattura
     ritenuta_acconto: 'Ritenuta d\'Acconto — il 20% del compenso viene trattenuto dal cliente e versato all\'Erario per conto tuo. Si recupera in dichiarazione.',
@@ -82,67 +95,166 @@ function injectStyle() {
             background: #6366f1;
             color: white;
         }
-        .gl-help::after {
-            content: attr(data-help);
-            position: absolute;
-            bottom: calc(100% + 6px);
-            left: 50%;
-            transform: translateX(-50%);
+        .gl-help-popup {
+            position: fixed;
             background: #1f2937;
             color: white;
             font-size: 12px;
             font-weight: 400;
-            line-height: 1.4;
-            padding: 8px 12px;
-            border-radius: 6px;
-            width: max-content;
-            max-width: 280px;
+            line-height: 1.5;
+            padding: 10px 14px;
+            border-radius: 8px;
+            max-width: min(320px, calc(100vw - 24px));
+            white-space: pre-line;
             text-align: left;
-            white-space: normal;
-            opacity: 0;
             pointer-events: none;
-            transition: opacity 0.15s;
-            z-index: 9999;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 99999;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+            opacity: 0;
+            transform: translateY(2px);
+            transition: opacity 0.12s, transform 0.12s;
+            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
         }
-        .gl-help::before {
+        .gl-help-popup.gl-help-popup--visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .gl-help-popup::before {
             content: '';
             position: absolute;
-            bottom: 100%;
-            left: 50%;
+            border: 6px solid transparent;
+        }
+        .gl-help-popup[data-placement="top"]::before {
+            top: 100%;
+            left: var(--arrow-x, 50%);
             transform: translateX(-50%);
-            border: 5px solid transparent;
             border-top-color: #1f2937;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.15s;
-            z-index: 9999;
         }
-        .gl-help:hover::after,
-        .gl-help:hover::before {
-            opacity: 1;
-        }
-        /* Variante allineata a sinistra (per tooltip lunghi vicino al bordo destro) */
-        .gl-help.gl-help--left::after {
-            left: auto;
-            right: 0;
-            transform: none;
-        }
-        .gl-help.gl-help--left::before {
-            left: auto;
-            right: 4px;
-            transform: none;
+        .gl-help-popup[data-placement="bottom"]::before {
+            bottom: 100%;
+            left: var(--arrow-x, 50%);
+            transform: translateX(-50%);
+            border-bottom-color: #1f2937;
         }
     `;
     document.head.appendChild(style);
 }
 
-// Inietta CSS al primo import
+// === Runtime tooltip element (singleton) ===
+let popupEl = null;
+let currentTrigger = null;
+
+function ensurePopup() {
+    if (popupEl) return popupEl;
+    popupEl = document.createElement('div');
+    popupEl.className = 'gl-help-popup';
+    popupEl.setAttribute('role', 'tooltip');
+    document.body.appendChild(popupEl);
+    return popupEl;
+}
+
+function showPopup(triggerEl) {
+    const text = triggerEl.getAttribute('data-help');
+    if (!text) return;
+    ensurePopup();
+    currentTrigger = triggerEl;
+    popupEl.textContent = text;
+    popupEl.style.opacity = '0';
+    popupEl.classList.remove('gl-help-popup--visible');
+
+    // Render off-screen to measure
+    popupEl.style.left = '-9999px';
+    popupEl.style.top = '0px';
+
+    // Force layout
+    requestAnimationFrame(() => {
+        if (currentTrigger !== triggerEl) return; // Già cambiato
+        positionPopup(triggerEl);
+        popupEl.classList.add('gl-help-popup--visible');
+    });
+}
+
+function positionPopup(triggerEl) {
+    if (!popupEl) return;
+    const rect = triggerEl.getBoundingClientRect();
+    const popupRect = popupEl.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const margin = 12;
+    const gap = 8;
+
+    // Vertical: prefer top, flip to bottom if not enough space
+    let placement = 'top';
+    let top = rect.top - popupRect.height - gap;
+    if (top < margin) {
+        placement = 'bottom';
+        top = rect.bottom + gap;
+    }
+    if (top + popupRect.height > vh - margin) {
+        // Se anche sotto sfora, lo clampiamo dentro
+        top = Math.max(margin, vh - popupRect.height - margin);
+    }
+
+    // Horizontal: center on trigger, clamp to viewport
+    let triggerCenter = rect.left + rect.width / 2;
+    let left = triggerCenter - popupRect.width / 2;
+    left = Math.max(margin, Math.min(left, vw - popupRect.width - margin));
+
+    // Arrow position: relativa al popup
+    const arrowX = triggerCenter - left;
+    const arrowXClamped = Math.max(12, Math.min(arrowX, popupRect.width - 12));
+
+    popupEl.style.left = `${Math.round(left)}px`;
+    popupEl.style.top = `${Math.round(top)}px`;
+    popupEl.setAttribute('data-placement', placement);
+    popupEl.style.setProperty('--arrow-x', `${Math.round(arrowXClamped)}px`);
+}
+
+function hidePopup() {
+    if (!popupEl) return;
+    popupEl.classList.remove('gl-help-popup--visible');
+    currentTrigger = null;
+}
+
+function bindGlobalListeners() {
+    if (typeof document === 'undefined') return;
+    if (document._glHelpBound) return;
+    document._glHelpBound = true;
+
+    document.addEventListener('mouseover', (e) => {
+        const trigger = e.target.closest?.('.gl-help');
+        if (trigger) showPopup(trigger);
+    });
+    document.addEventListener('mouseout', (e) => {
+        const trigger = e.target.closest?.('.gl-help');
+        if (trigger && currentTrigger === trigger) hidePopup();
+    });
+    document.addEventListener('focusin', (e) => {
+        const trigger = e.target.closest?.('.gl-help');
+        if (trigger) showPopup(trigger);
+    });
+    document.addEventListener('focusout', (e) => {
+        const trigger = e.target.closest?.('.gl-help');
+        if (trigger && currentTrigger === trigger) hidePopup();
+    });
+    document.addEventListener('scroll', () => {
+        if (currentTrigger) positionPopup(currentTrigger);
+    }, true);
+    window.addEventListener('resize', () => {
+        if (currentTrigger) positionPopup(currentTrigger);
+    });
+}
+
+// Init
 if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', injectStyle, { once: true });
+        document.addEventListener('DOMContentLoaded', () => {
+            injectStyle();
+            bindGlobalListeners();
+        }, { once: true });
     } else {
         injectStyle();
+        bindGlobalListeners();
     }
 }
 
@@ -151,36 +263,30 @@ if (typeof document !== 'undefined') {
 /**
  * Ritorna markup HTML per un'icona "?" con tooltip da chiave glossario.
  * @param {string} termKey - Chiave in GLOSSARY (es. 'sdi', 'piva')
- * @param {Object} [opts] - { align: 'center' | 'left' }
  * @returns {string} HTML stringa da concatenare in template literal.
  */
-export function glossaryTip(termKey, opts = {}) {
+export function glossaryTip(termKey) {
     const text = GLOSSARY[termKey];
     if (!text) {
         console.warn(`[help_tooltip] Chiave glossario sconosciuta: "${termKey}"`);
         return '';
     }
-    const alignClass = opts.align === 'left' ? ' gl-help--left' : '';
-    // Escape doppi apici per uso sicuro in attributo HTML
     const safe = text.replace(/"/g, '&quot;');
-    return `<span class="gl-help${alignClass}" data-help="${safe}" aria-label="Aiuto: ${termKey}">?</span>`;
+    return `<span class="gl-help" data-help="${safe}" tabindex="0" aria-label="Aiuto: ${termKey}">?</span>`;
 }
 
 /**
  * Ritorna markup HTML per tooltip con testo libero (non da glossario).
- * Usalo per casi unici non standardizzabili.
  * @param {string} helpText - Testo del tooltip.
- * @param {Object} [opts] - { align: 'center' | 'left' }
  * @returns {string} HTML stringa.
  */
-export function customTip(helpText, opts = {}) {
+export function customTip(helpText) {
     if (!helpText) return '';
-    const alignClass = opts.align === 'left' ? ' gl-help--left' : '';
     const safe = String(helpText).replace(/"/g, '&quot;');
-    return `<span class="gl-help${alignClass}" data-help="${safe}" aria-label="Aiuto">?</span>`;
+    return `<span class="gl-help" data-help="${safe}" tabindex="0" aria-label="Aiuto">?</span>`;
 }
 
-// Espongo su window per uso da inline handler / debugging
+// Espongo su window per debugging
 if (typeof window !== 'undefined') {
     window.glHelp = { glossaryTip, customTip, GLOSSARY };
 }

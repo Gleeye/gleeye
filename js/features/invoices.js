@@ -8,7 +8,7 @@ import { fetchInvoices, fetchPassiveInvoices, fetchPayments, fetchBankTransactio
 import { renderPassiveInvoicesPartners, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from './invoices/passive_list.js?v=8000';
 import { initInvoiceDetailModals, openInvoiceDetail } from './invoices/detail_modal.js?v=8000';
 import { renderInvoices, renderActiveInvoicesSafe } from './invoices/active_list.js?v=8000';
-import { glossaryTip } from '../modules/help_tooltip.js?v=8001';
+import { glossaryTip } from '../modules/help_tooltip.js?v=8002';
 
 // Re-export the active listing views so the router + dashboard dynamic imports
 // (`features/invoices.js` → renderActiveInvoicesSafe etc.) keep working unchanged.
@@ -179,7 +179,7 @@ export function initInvoiceModals() {
                             <!-- Mode: Collaborator Fields -->
                             <div id="pinv-collab-fields" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                 <div>
-                                    <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Regime fiscale del fornitore * ${glossaryTip('regime_ordinario')}${glossaryTip('regime_forfettario')}${glossaryTip('regime_occasionale')}${glossaryTip('reverse_charge')}</label>
+                                    <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Regime fiscale del fornitore * ${glossaryTip('regime_fiscale_overview')}</label>
                                     <select id="pinv-type" class="modal-input" style="width: 100%;">
                                         <option value="ritenuta">Regime Ordinario (IVA 22% + Ritenuta)</option>
                                         <option value="forfettario">Regime Forfettario (no IVA, no Ritenuta)</option>

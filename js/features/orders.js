@@ -7,7 +7,7 @@ import { CustomSelect } from '../components/CustomSelect.js?v=8000';
 import { openPaymentModal } from './payments.js?v=8000';
 import { fetchProjectSpaceForOrder, fetchProjectItems, fetchAppointments } from '../modules/pm_api.js?v=8000';
 import { activityTranslate } from '../modules/pm_activity_helper.js?v=8000';
-import { tAssignment } from '../modules/i18n_labels.js?v=8001';
+import { tAssignment } from '../modules/i18n_labels.js?v=8002';
 
 // Payment config helpers + window handlers (extracted).
 // Importing also installs window.orderConfigEditState + window.toggleOrderConfig*/saveOrderConfig.

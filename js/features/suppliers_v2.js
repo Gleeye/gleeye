@@ -1,7 +1,7 @@
 import { supabase } from '../modules/config.js?v=8000';
 import { state } from '/js/modules/state.js?v=8000';
 import { formatAmount } from '../modules/utils.js?v=8000';
-import { glossaryTip } from '../modules/help_tooltip.js?v=8001';
+import { glossaryTip } from '../modules/help_tooltip.js?v=8002';
 
 export async function renderSuppliers(container) {
     // Fetch data

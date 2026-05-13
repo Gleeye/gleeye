@@ -59,7 +59,7 @@ async function loadAndRender(container) {
         // Aggregato mese corrente
         supabase
             .from('ai_usage_log')
-            .select('cost_eur, cost_usd, input_tokens, output_tokens, total_tokens, response_time_ms, success')
+            .select('user_id, cost_eur, cost_usd, input_tokens, output_tokens, total_tokens, response_time_ms, success')
             .gte('created_at', monthStart),
         // Aggregato mese precedente
         supabase
@@ -70,7 +70,7 @@ async function loadAndRender(container) {
         // Ultime 50 chiamate dettagliate
         supabase
             .from('ai_usage_log')
-            .select('id, created_at, feature, model, input_tokens, output_tokens, total_tokens, cost_eur, cost_usd, response_time_ms, success, error_message')
+            .select('id, created_at, user_id, feature, model, input_tokens, output_tokens, total_tokens, cost_eur, cost_usd, response_time_ms, success, error_message')
             .order('created_at', { ascending: false })
             .limit(50),
         // Aggregato per feature mese corrente
@@ -85,16 +85,41 @@ async function loadAndRender(container) {
     if (e3) console.warn('[ai_usage] recenti:', e3);
     if (e4) console.warn('[ai_usage] per feature:', e4);
 
+    // Risolvi user_id → nome (1 query per tutti gli utenti distinti)
+    const userIds = new Set();
+    (currentMonth || []).forEach(r => { if (r.user_id) userIds.add(r.user_id); });
+    (recentCalls || []).forEach(r => { if (r.user_id) userIds.add(r.user_id); });
+
+    const userMap = {};
+    if (userIds.size > 0) {
+        const { data: profiles, error: pe } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .in('id', Array.from(userIds));
+        if (pe) {
+            console.warn('[ai_usage] errore profili:', pe);
+        } else {
+            (profiles || []).forEach(p => {
+                userMap[p.id] = p.full_name || p.email || p.id.substring(0, 8);
+            });
+        }
+    }
+    const labelUser = (uid) => uid ? (userMap[uid] || uid.substring(0, 8) + '…') : 'Sistema';
+
     // Calcoli
     const totals = aggregate(currentMonth || []);
     const prevTotals = aggregate(prevMonth || []);
     const featureBreakdown = groupBy(byFeatureMonth || [], 'feature');
+    const userBreakdown = groupByUser(currentMonth || [], labelUser);
 
     // Render
     contentEl.innerHTML = `
         ${renderKPIs(totals, prevTotals)}
-        ${renderFeatureBreakdown(featureBreakdown)}
-        ${renderRecentCalls(recentCalls || [])}
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;" class="ai-usage-breakdowns">
+            ${renderFeatureBreakdown(featureBreakdown)}
+            ${renderUserBreakdown(userBreakdown)}
+        </div>
+        ${renderRecentCalls(recentCalls || [], labelUser)}
     `;
     loadingEl.style.display = 'none';
     contentEl.style.display = 'flex';
@@ -126,6 +151,20 @@ function groupBy(rows, key) {
     }
     return Object.entries(map)
         .map(([feature, stats]) => ({ feature, ...stats }))
+        .sort((a, b) => b.costEur - a.costEur);
+}
+
+function groupByUser(rows, labelFn) {
+    const map = {};
+    for (const r of rows) {
+        const k = r.user_id || '__system__';
+        if (!map[k]) map[k] = { count: 0, costEur: 0, totalTokens: 0 };
+        map[k].count += 1;
+        map[k].costEur += Number(r.cost_eur || 0);
+        map[k].totalTokens += Number(r.total_tokens || 0);
+    }
+    return Object.entries(map)
+        .map(([uid, stats]) => ({ user: uid === '__system__' ? 'Sistema' : labelFn(uid), userId: uid, ...stats }))
         .sort((a, b) => b.costEur - a.costEur);
 }
 
@@ -227,7 +266,42 @@ function renderFeatureBreakdown(rows) {
     `;
 }
 
-function renderRecentCalls(rows) {
+function renderUserBreakdown(rows) {
+    if (rows.length === 0) {
+        return `
+            <div class="glass-card" style="padding: 1.5rem; border: 1px solid var(--glass-border);">
+                <h3 style="margin: 0 0 0.5rem; font-size: 1rem;">Costo per utente</h3>
+                <p style="color: var(--text-tertiary); font-size: 0.85rem; margin: 0;">Nessuna chiamata AI registrata.</p>
+            </div>
+        `;
+    }
+    const maxCost = Math.max(...rows.map(r => r.costEur));
+    return `
+        <div class="glass-card" style="padding: 1.5rem; border: 1px solid var(--glass-border);">
+            <h3 style="margin: 0 0 1rem; font-size: 1rem; color: var(--text-primary);">Costo per utente (mese corrente)</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                ${rows.map(r => {
+                    const widthPct = maxCost > 0 ? (r.costEur / maxCost) * 100 : 0;
+                    return `
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem;">
+                                <span style="font-weight: 600; color: var(--text-primary);">${escapeHtml(r.user)}</span>
+                                <span style="color: var(--text-secondary); font-variant-numeric: tabular-nums;">
+                                    € ${r.costEur.toFixed(4)} · ${formatNum(r.totalTokens)} tok · ${r.count} chiamate
+                                </span>
+                            </div>
+                            <div style="height: 6px; background: var(--bg-secondary); border-radius: 3px; overflow: hidden;">
+                                <div style="width: ${widthPct}%; height: 100%; background: linear-gradient(90deg, #10b981, #3b82f6); border-radius: 3px;"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function renderRecentCalls(rows, labelUser = () => 'Sistema') {
     if (rows.length === 0) {
         return `
             <div class="glass-card" style="padding: 1.5rem; border: 1px solid var(--glass-border);">
@@ -247,6 +321,7 @@ function renderRecentCalls(rows) {
                     <thead>
                         <tr style="border-bottom: 1px solid var(--glass-border); text-align: left;">
                             <th style="padding: 0.5rem 0.5rem 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.65rem;">Quando</th>
+                            <th style="padding: 0.5rem 0.5rem 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.65rem;">Utente</th>
                             <th style="padding: 0.5rem 0.5rem 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.65rem;">Feature</th>
                             <th style="padding: 0.5rem 0.5rem 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.65rem;">Modello</th>
                             <th style="padding: 0.5rem 0.5rem 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.65rem; text-align: right;">Token</th>
@@ -267,6 +342,7 @@ function renderRecentCalls(rows) {
                             return `
                                 <tr style="border-bottom: 1px solid var(--glass-border); transition: background 0.1s;" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background=''">
                                     <td style="padding: 0.6rem 0.5rem; color: var(--text-tertiary); font-variant-numeric: tabular-nums;">${when}</td>
+                                    <td style="padding: 0.6rem 0.5rem; color: var(--text-secondary); white-space: nowrap;">${escapeHtml(labelUser(r.user_id))}</td>
                                     <td style="padding: 0.6rem 0.5rem; font-weight: 600; color: var(--text-primary);">${escapeHtml(r.feature)}</td>
                                     <td style="padding: 0.6rem 0.5rem; color: var(--text-secondary); font-family: ui-monospace, monospace; font-size: 0.75rem;">${escapeHtml(modelShort)}</td>
                                     <td style="padding: 0.6rem 0.5rem; text-align: right; color: var(--text-secondary); font-variant-numeric: tabular-nums;">${formatNum(totalTok)}</td>

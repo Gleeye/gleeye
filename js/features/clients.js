@@ -5,7 +5,7 @@ import { formatAmount } from '../modules/utils.js?v=8000';
 import { fetchOrders, fetchInvoices, fetchPayments, upsertClient, fetchClients } from '../modules/api.js?v=8000';
 import { showGlobalAlert } from '../modules/utils.js?v=8000';
 import { activityTranslate } from '../modules/pm_activity_helper.js?v=8000';
-import { glossaryTip } from '../modules/help_tooltip.js?v=8001';
+import { glossaryTip } from '../modules/help_tooltip.js?v=8002';
 
 export async function renderClients(container) {
     // Ensure we have orders for analytics
@@ -803,7 +803,7 @@ export function initNewClientModal() {
                         </div>
 
                         <div class="form-group">
-                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; letter-spacing: 0.5px; text-transform: uppercase;">Dati Fiscali ${glossaryTip('piva')}${glossaryTip('cf')}${glossaryTip('sdi')}</label>
+                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; letter-spacing: 0.5px; text-transform: uppercase;">Dati Fiscali ${glossaryTip('dati_fiscali_overview')}</label>
                             <div style="display: flex; flex-direction: column; gap: 1rem;">
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                                     <input type="text" id="new-cli-vat" class="modal-input" placeholder="Partita IVA" style="width: 100%; border-radius: 12px;">
