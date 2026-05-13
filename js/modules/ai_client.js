@@ -17,7 +17,7 @@ export const AI_MODELS = {
     cmd_k:         'google/gemini-2.5-flash',
     help_inline:   'google/gemini-2.5-flash',
     doc_generator: 'google/gemini-2.5-flash',
-    pricing_ai:    'google/gemini-2.5-flash',
+    pricing_ai:    'google/gemini-2.5-flash-lite',
     sales_drafter: 'google/gemini-2.5-flash',
 
     // Brief operativo collab: medio-economico
