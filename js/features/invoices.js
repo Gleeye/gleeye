@@ -1647,6 +1647,11 @@ async function handlePassiveInvoiceAIImport(file) {
         // 3) Match supplier locale
         const matchedSupplier = matchSupplierLocal(extracted);
 
+        // Debug: esponi su window per ispezione console
+        window.lastAIExtraction = { extracted, matchedSupplier, pdfTextChars: pdfText.length, pageCount };
+        console.log('[ai-import] extracted:', extracted);
+        console.log('[ai-import] matched supplier:', matchedSupplier);
+
         // 4) Riempi il form
         applyExtractedInvoiceToForm(extracted, matchedSupplier);
 
