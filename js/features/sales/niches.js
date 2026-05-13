@@ -13,7 +13,7 @@ import { fetchNiches, upsertNiche, deleteNiche, fetchProspectsByNiche, promotePr
 import { showGlobalAlert, showConfirm } from '../../modules/utils.js?v=8000';
 import { analyzeNiche, saveNicheAnalysis, fetchNicheSapRelevance, PAROZZI_CRITERIA } from './niche_analyzer.js?v=8000';
 import { openSourcingModal } from './sourcing.js?v=8000';
-import { runLayer1AI, runLayer2AI } from './enrichment.js?v=8000';
+import { runLayer1AI, runLayer2AI, scrapeProspectSite } from './enrichment.js?v=8000';
 import { openProspectModal } from './pipeline_board.js?v=8000';
 
 const STATUS_CONFIG = {
@@ -743,8 +743,14 @@ async function runBulkAnalyze(overlay, niche, ids, prospects, onSave) {
         const p = targets[i];
         updateProgress(i, p, l2Triggered);
         try {
-            // Layer 1
-            const r1 = await runLayer1AI(p);
+            // Step 1: scraping sito (se URL presente)
+            let scrapeData = null;
+            if (p.website) {
+                scrapeData = await scrapeProspectSite(p.website);
+            }
+
+            // Step 2: Layer 1
+            const r1 = await runLayer1AI(p, scrapeData);
             let enrichment = {
                 ...(p.ai_enrichment_data || {}),
                 descrizione_lampo:      r1.descrizione_lampo || null,
@@ -758,13 +764,29 @@ async function runBulkAnalyze(overlay, niche, ids, prospects, onSave) {
                 revenue_estimate:       r1.revenue_estimate || null,
                 promising_score:        r1.promising_score != null ? Number(r1.promising_score) : null,
                 promising_rationale:    r1.promising_rationale || null,
+                last_scrape:            scrapeData,
                 layer1_at:              new Date().toISOString(),
             };
-            // Layer 2 se promettente
+
+            // Auto-update contatti se trovati nel sito e mancanti
+            const contactUpdates = {};
+            if (scrapeData && scrapeData.success) {
+                if (!p.contact_email && scrapeData.emails && scrapeData.emails.length > 0) {
+                    contactUpdates.contact_email = scrapeData.emails[0];
+                }
+                if (!p.contact_phone && scrapeData.phones && scrapeData.phones.length > 0) {
+                    contactUpdates.contact_phone = scrapeData.phones[0];
+                }
+                if (!p.linkedin_url && scrapeData.socials && scrapeData.socials.linkedin) {
+                    contactUpdates.linkedin_url = scrapeData.socials.linkedin;
+                }
+            }
+
+            // Step 3: Layer 2 se promettente
             if (enrichment.promising_score >= 70) {
                 try {
                     const tempProspect = { ...p, ai_enrichment_data: enrichment };
-                    const r2 = await runLayer2AI(tempProspect);
+                    const r2 = await runLayer2AI(tempProspect, scrapeData);
                     enrichment = {
                         ...enrichment,
                         competitor:             r2.competitor || null,
@@ -789,6 +811,7 @@ async function runBulkAnalyze(overlay, niche, ids, prospects, onSave) {
                 id: p.id,
                 ai_enrichment_data: enrichment,
                 industry: p.industry || r1.industry || null,
+                ...contactUpdates,
             });
             done++;
         } catch (err) {
