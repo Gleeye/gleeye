@@ -45,12 +45,13 @@ async function generateSollecito(clientName, invoices, btnEl) {
     btnEl.disabled = true;
     btnEl.textContent = 'Generando...';
 
-    const list = invoices.map(inv =>
-        'Fattura ' + (inv.invoice_number || inv.id.slice(0, 8)) +
-        ' del ' + formatDateIT(inv.invoice_date) +
-        ', scaduta il ' + formatDateIT(inv.due_date) +
-        ', importo ' + formatAmount(parseFloat(inv.amount_tax_excluded) || 0) + ' €'
-    ).join('\n');
+    const list = invoices.map(inv => {
+        const { date: dueDate, stima } = effectiveDueDate(inv);
+        return 'Fattura ' + (inv.invoice_number || inv.id.slice(0, 8)) +
+            ' del ' + formatDateIT(inv.invoice_date) +
+            ', scaduta il ' + formatDateIT(dueDate) + (stima ? ' (stima)' : '') +
+            ', importo ' + formatAmount(parseFloat(inv.amount_tax_excluded) || 0) + ' €';
+    }).join('\n');
 
     const total = invoices.reduce((s, i) => s + (parseFloat(i.amount_tax_excluded) || 0), 0);
 
@@ -92,18 +93,29 @@ async function generateSollecito(clientName, invoices, btnEl) {
 
 // ─── render rows ─────────────────────────────────────────────────────────────
 
+// Calcola la scadenza effettiva: usa due_date se disponibile, altrimenti stima invoice_date + 30gg
+function effectiveDueDate(inv) {
+    if (inv.due_date) return { date: inv.due_date, stima: false };
+    if (!inv.invoice_date) return { date: null, stima: false };
+    const d = new Date(inv.invoice_date);
+    d.setDate(d.getDate() + 30);
+    return { date: d.toISOString().split('T')[0], stima: true };
+}
+
 function buildBucketRows(invoices) {
     if (!invoices.length) {
         return '<tr><td colspan="5" style="padding:1.5rem;text-align:center;color:var(--text-secondary);font-size:0.875rem;">Nessuna fattura scaduta in questo intervallo.</td></tr>';
     }
     return invoices.map(inv => {
-        const days = daysSince(inv.due_date);
+        const { date: dueDate, stima } = effectiveDueDate(inv);
+        const days = daysSince(dueDate);
         const amt = formatAmount(parseFloat(inv.amount_tax_excluded) || 0);
         const client = (inv.clients && inv.clients.business_name) ? inv.clients.business_name : '—';
+        const stimaBadge = stima ? '<span style="font-size:0.68rem;color:var(--text-secondary);margin-left:4px;">(stima)</span>' : '';
         return '<tr style="border-bottom:1px solid var(--glass-border);">' +
             '<td style="padding:0.5rem 0.75rem;font-size:0.8rem;color:var(--text-secondary);">' + (inv.invoice_number || '—') + '</td>' +
             '<td style="padding:0.5rem 0.75rem;font-size:0.875rem;">' + client + '</td>' +
-            '<td style="padding:0.5rem 0.75rem;font-size:0.8rem;color:var(--text-secondary);">' + formatDateIT(inv.due_date) + '</td>' +
+            '<td style="padding:0.5rem 0.75rem;font-size:0.8rem;color:var(--text-secondary);">' + formatDateIT(dueDate) + stimaBadge + '</td>' +
             '<td style="padding:0.5rem 0.75rem;text-align:right;font-size:0.875rem;font-weight:500;">' + amt + ' €</td>' +
             '<td style="padding:0.5rem 0.75rem;text-align:right;font-size:0.8rem;font-weight:600;color:' + BUCKETS[bucketOf(days)].color + ';">' + days + 'gg</td>' +
             '</tr>';
@@ -159,13 +171,12 @@ export async function renderCFOAging(container) {
         'Caricamento...' +
         '</div></div>';
 
-    // Fetch all unpaid invoices with due_date (no limit 100)
+    // Fetch tutte le fatture non pagate (status != Pagato/Pagata/Saldata)
     const { data: unpaid, error } = await supabase
         .from('invoices')
         .select('id, invoice_number, invoice_date, due_date, amount_tax_excluded, status, client_id, clients(business_name)')
-        .neq('status', 'Saldata')
-        .not('due_date', 'is', null)
-        .order('due_date', { ascending: true });
+        .not('status', 'in', '("Pagato","Pagata","Saldata")')
+        .order('invoice_date', { ascending: true });
 
     if (thisId !== currentRenderId) return;
 
@@ -177,16 +188,18 @@ export async function renderCFOAging(container) {
         return;
     }
 
-    // Only overdue invoices (due_date < today)
+    // Solo fatture scadute (scadenza effettiva < oggi). Se manca due_date stima invoice_date + 30gg.
     const overdue = (unpaid || []).filter(inv => {
-        const days = daysSince(inv.due_date);
+        const { date } = effectiveDueDate(inv);
+        const days = daysSince(date);
         return days !== null && days > 0;
     });
 
-    // Split into buckets
+    // Split into buckets usando scadenza effettiva
     const buckets = [[], [], [], []];
     overdue.forEach(inv => {
-        const days = daysSince(inv.due_date);
+        const { date } = effectiveDueDate(inv);
+        const days = daysSince(date);
         buckets[bucketOf(days)].push(inv);
     });
 
