@@ -18,7 +18,7 @@ export class TasksDashboard {
         this.state = {
             view: 'kanban',
             groupBy: 'time',
-            filterMode: 'all', // 'all' | 'my_tasks' | 'delegated'
+            filterMode: 'all', // 'all' | 'my_tasks' | 'delegated' | 'to_review' | 'as_responsible'
             spaceFilter: 'all', // 'all' | 'commessa' | 'interno'
             items: [],
             isLoading: true,
@@ -92,7 +92,7 @@ export class TasksDashboard {
                     parent:parent_ref ( id, name )
                 ),
                 parent:parent_ref ( id, title ),
-                pm_item_assignees( user_ref ),
+                pm_item_assignees( user_ref, role ),
                 pm_item_incarichi ( incarico_ref )
             `;
 
@@ -157,27 +157,52 @@ export class TasksDashboard {
             list = list.filter(item => (item.space_ref?.type || 'unknown') === this.state.spaceFilter);
         }
 
+        // Helpers per match ruoli su pm_item_assignees (R-A-R)
+        const isReviewerRole = (r) => {
+            const v = (r || '').toLowerCase();
+            return v === 'reviewer' || v === 'revisore' || v === 'review';
+        };
+        const isResponsibleRole = (r) => {
+            const v = (r || '').toLowerCase();
+            return v === 'responsible' || v === 'responsabile';
+        };
+
         if (this.state.filterMode === 'my_tasks') {
+            // Solo me: assignee unico O PM senza altri assegnatari (escludo revisori dal conteggio)
             list = list.filter(item => {
-                const assignees = item.pm_item_assignees || [];
-                const isOnlyMe = assignees.length === 1 && assignees[0].user_ref === targetUserId;
-                const isPmNoAssignees = item.pm_user_ref === targetUserId && assignees.length === 0;
-                return isOnlyMe || isPmNoAssignees;
+                const operatives = (item.pm_item_assignees || []).filter(a => !isReviewerRole(a.role));
+                const isOnlyMe = operatives.length === 1 && operatives[0].user_ref === targetUserId;
+                const isPmNoOperatives = item.pm_user_ref === targetUserId && operatives.length === 0;
+                return isOnlyMe || isPmNoOperatives;
             });
         } else if (this.state.filterMode === 'delegated') {
+            // PM/Creator + ci sono altri assegnatari operativi
             list = list.filter(item => {
                 const isOwner = item.pm_user_ref === targetUserId || item.created_by_user_ref === targetUserId;
-                const assignees = item.pm_item_assignees || [];
-                const hasOthers = assignees.some(a => a.user_ref !== targetUserId);
+                const operatives = (item.pm_item_assignees || []).filter(a => !isReviewerRole(a.role));
+                const hasOthers = operatives.some(a => a.user_ref !== targetUserId);
                 return isOwner && hasOthers;
             });
-        } else {
+        } else if (this.state.filterMode === 'to_review') {
+            // Sono revisore di queste task (devo controllare)
             list = list.filter(item => {
                 const assignees = item.pm_item_assignees || [];
-                const isAssigned = assignees.some(a => a.user_ref === targetUserId);
+                return assignees.some(a => a.user_ref === targetUserId && isReviewerRole(a.role));
+            });
+        } else if (this.state.filterMode === 'as_responsible') {
+            // Sono responsabile (con potere decisionale) di queste task
+            list = list.filter(item => {
+                const assignees = item.pm_item_assignees || [];
+                return assignees.some(a => a.user_ref === targetUserId && isResponsibleRole(a.role));
+            });
+        } else {
+            // 'all': qualunque ruolo (assignee/responsible/reviewer/account) + PM + Creator
+            list = list.filter(item => {
+                const assignees = item.pm_item_assignees || [];
+                const isAnyRole = assignees.some(a => a.user_ref === targetUserId);
                 const isPm = item.pm_user_ref === targetUserId;
                 const isCreator = item.created_by_user_ref === targetUserId;
-                return isAssigned || isPm || isCreator;
+                return isAnyRole || isPm || isCreator;
             });
         }
 
@@ -190,8 +215,16 @@ export class TasksDashboard {
         const weekEnd = new Date(now); weekEnd.setDate(weekEnd.getDate() + 7);
 
         const buckets = { urgent: [], today: [], tomorrow: [], week: [], future: [] };
+        // LT-1: urgenti senza data → promosse nel bucket "urgent" (visibile)
+        // invece che "future" (nascosto). Coerente con filosofia Davide:
+        // "task urgenti senza data = da fare prima possibile se ho tempo libero".
+        const isHighPriority = (p) => p === 'urgent' || p === 'high';
         items.forEach(i => {
-            if (!i.due_date) { buckets.future.push(i); return; }
+            if (!i.due_date) {
+                if (isHighPriority(i.priority)) buckets.urgent.push(i);
+                else buckets.future.push(i);
+                return;
+            }
             const d = new Date(i.due_date); d.setHours(0, 0, 0, 0);
             const time = d.getTime();
              if (time < now.getTime()) buckets.urgent.push(i);
@@ -387,9 +420,11 @@ export class TasksDashboard {
                                 <button class="${this.state.groupBy === 'priority' ? 'active' : ''}" onclick="window._dash.setGroupBy('priority')"><span class="material-icons-round">segment</span></button>
                             </div>
                             <div class="premium-pill-toggle">
-                                <button class="${this.state.filterMode === 'all' ? 'active' : ''}" onclick="window._dash.setMode('all')"><span class="material-icons-round">public</span></button>
-                                <button class="${this.state.filterMode === 'my_tasks' ? 'active' : ''}" onclick="window._dash.setMode('my_tasks')"><span class="material-icons-round">person</span></button>
-                                <button class="${this.state.filterMode === 'delegated' ? 'active' : ''}" onclick="window._dash.setMode('delegated')"><span class="material-icons-round">share</span></button>
+                                <button class="${this.state.filterMode === 'all' ? 'active' : ''}" onclick="window._dash.setMode('all')" title="Tutto quello che mi tocca"><span class="material-icons-round">public</span></button>
+                                <button class="${this.state.filterMode === 'my_tasks' ? 'active' : ''}" onclick="window._dash.setMode('my_tasks')" title="Le mie task individuali"><span class="material-icons-round">person</span></button>
+                                <button class="${this.state.filterMode === 'as_responsible' ? 'active' : ''}" onclick="window._dash.setMode('as_responsible')" title="Sono responsabile"><span class="material-icons-round">verified</span></button>
+                                <button class="${this.state.filterMode === 'to_review' ? 'active' : ''}" onclick="window._dash.setMode('to_review')" title="Devo revisionare"><span class="material-icons-round">rate_review</span></button>
+                                <button class="${this.state.filterMode === 'delegated' ? 'active' : ''}" onclick="window._dash.setMode('delegated')" title="Ho delegato a qualcuno"><span class="material-icons-round">share</span></button>
                             </div>
                             <div class="premium-pill-toggle">
                                 <button class="${this.state.spaceFilter === 'all' ? 'active' : ''}" onclick="window._dash.setSpaceFilter('all')"><span class="material-icons-round">layers</span></button>
@@ -431,9 +466,11 @@ export class TasksDashboard {
                                 <button class="${this.state.groupBy === 'priority' ? 'active' : ''}" onclick="window._dash.setGroupBy('priority')"><span class="material-icons-round" style="font-size:18px;">segment</span></button>
                             </div>
                             <div class="premium-pill-toggle" style="flex:1;">
-                                <button class="${this.state.filterMode === 'all' ? 'active' : ''}" onclick="window._dash.setMode('all')" style="flex:1;"><span class="material-icons-round" style="font-size:18px;">public</span></button>
-                                <button class="${this.state.filterMode === 'my_tasks' ? 'active' : ''}" onclick="window._dash.setMode('my_tasks')" style="flex:1;"><span class="material-icons-round" style="font-size:18px;">person</span></button>
-                                <button class="${this.state.filterMode === 'delegated' ? 'active' : ''}" onclick="window._dash.setMode('delegated')" style="flex:1;"><span class="material-icons-round" style="font-size:18px;">share</span></button>
+                                <button class="${this.state.filterMode === 'all' ? 'active' : ''}" onclick="window._dash.setMode('all')" style="flex:1;" title="Tutto"><span class="material-icons-round" style="font-size:18px;">public</span></button>
+                                <button class="${this.state.filterMode === 'my_tasks' ? 'active' : ''}" onclick="window._dash.setMode('my_tasks')" style="flex:1;" title="Le mie"><span class="material-icons-round" style="font-size:18px;">person</span></button>
+                                <button class="${this.state.filterMode === 'as_responsible' ? 'active' : ''}" onclick="window._dash.setMode('as_responsible')" style="flex:1;" title="Responsabile"><span class="material-icons-round" style="font-size:18px;">verified</span></button>
+                                <button class="${this.state.filterMode === 'to_review' ? 'active' : ''}" onclick="window._dash.setMode('to_review')" style="flex:1;" title="Da revisionare"><span class="material-icons-round" style="font-size:18px;">rate_review</span></button>
+                                <button class="${this.state.filterMode === 'delegated' ? 'active' : ''}" onclick="window._dash.setMode('delegated')" style="flex:1;" title="Delegate"><span class="material-icons-round" style="font-size:18px;">share</span></button>
                             </div>
                             <div class="premium-pill-toggle" style="flex:1;">
                                 <button class="${this.state.spaceFilter === 'all' ? 'active' : ''}" onclick="window._dash.setSpaceFilter('all')" style="flex:1;"><span class="material-icons-round" style="font-size:18px;">layers</span></button>
