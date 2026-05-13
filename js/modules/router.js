@@ -421,7 +421,11 @@ function render() {
             // ── Sales Engine (Phase 1 + 2) ──────────────────────────────────
             case 'sales-pipeline':
                 if (pageTitle) pageTitle.textContent = 'Pipeline Vendite';
-                import('../features/sales/index.js?v=8001').then(m => m.renderPipelineBoard(contentArea));
+                import('../features/sales/index.js?v=8002').then(m => m.renderPipelineBoard(contentArea));
+                break;
+            case 'sales-prospects':
+                if (pageTitle) pageTitle.textContent = 'Tutti i Prospect';
+                import('../features/sales/index.js?v=8002').then(m => m.renderProspectsView(contentArea));
                 break;
             case 'sales-metrics':
                 if (pageTitle) pageTitle.textContent = 'Metriche Pipeline';
