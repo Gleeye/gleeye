@@ -111,13 +111,14 @@ export async function renderClients(container) {
 
     const clientsHTML = filteredClients.length > 0 ? filteredClients.map(client => {
         const isActive = getActiveStatus(client);
+        const status = computeClientStatus(client);
 
         return `
             <div class="v7-rubrica-item animate-fade-in" onclick="window.location.hash='client-detail/${client.id}'">
                 <div class="v7-item-main">
                     <div class="v7-id-row">
                         <span class="v7-id">${client.client_code || '---'}</span>
-                        ${isActive ? '<span class="v7-active-dot"></span>' : ''}
+                        <span class="v7-status-pill" style="background:${status.color}18; color:${status.color}; border:1px solid ${status.color}30;">${status.label}</span>
                     </div>
                     <div class="v7-name">${client.business_name}</div>
                     <div class="v7-city-mini">${client.city || '-'}</div>
@@ -231,6 +232,7 @@ export async function renderClients(container) {
             .v7-id-row { display: flex; align-items: center; gap: 8px; }
             .v7-id { font-weight: 700; font-size: 1rem; color: var(--brand-blue); font-family: 'Questrial'; letter-spacing: -0.2px; }
             .v7-active-dot { width: 7px; height: 7px; background: #10b981; border-radius: 50%; box-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
+            .v7-status-pill { font-size: 0.62rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; }
             .v7-name { font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;}
             .v7-city-mini { font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; font-weight: 600; }
             
@@ -523,7 +525,10 @@ export function renderClientDetail(container) {
                 <div style="flex: 1;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div>
-                            <h1 style="margin: 0 0 0.5rem 0; font-size: 2.2rem; letter-spacing: -0.5px; color: var(--text-primary);">${client.business_name}</h1>
+                            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+                                <h1 style="margin: 0; font-size: 2.2rem; letter-spacing: -0.5px; color: var(--text-primary);">${client.business_name}</h1>
+                                ${(() => { const s = computeClientStatus(client); return `<span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 999px; background:${s.color}18; color:${s.color}; border: 1px solid ${s.color}30; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;"><span style="width: 7px; height: 7px; border-radius: 50%; background:${s.color};"></span>${s.label}</span>`; })()}
+                            </div>
                             <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem;">
                                 <span style="font-size: 1rem; color: var(--brand-blue); font-weight: 400;">Cliente</span>
                                 <div style="width: 4px; height: 4px; border-radius: 50%; background: var(--text-tertiary);"></div>
@@ -1139,4 +1144,84 @@ function _renderContactCard(c) {
             </div>
         </div>
     `;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// computeClientStatus — auto-classifica un cliente in 5 stati
+// (mina dal giro UX Clienti 12/5/26)
+// ─────────────────────────────────────────────────────────────────────────────
+// Stati:
+//   - lead:        nessun ordine mai
+//   - potenziale:  offer in lavorazione/inviata/programmata (offerta aperta)
+//   - attivo:      offerta accettata in corso O fatturato negli ultimi 12 mesi
+//   - dormante:    ha avuto ordini/fatturato in passato ma niente negli ultimi 12 mesi
+//   - perso:       tutti gli ordini sono rifiutati (e nessuno aperto/in corso)
+//
+// Logica esposta in window per debug + uso in altri file (es. Cmd+K client_summary)
+export function computeClientStatus(client) {
+    const clientOrders = (state.orders || []).filter(o => o.client_id === client.id);
+
+    // Helper: data più recente di attività
+    const now = new Date();
+    const twelveMonthsAgo = new Date(now); twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+    // Nessun ordine → Lead
+    if (clientOrders.length === 0) {
+        return { key: 'lead', label: 'Lead', color: '#3b82f6', emoji: '🔵' };
+    }
+
+    // Offer aperta (in lavorazione / inviata / programmata) → Potenziale
+    const openOffer = clientOrders.some(o => {
+        const off = (o.offer_status || '').toLowerCase();
+        return ['in_lavorazione', 'invio_programmato', 'inviata'].includes(off);
+    });
+
+    // Accettata e in corso → Attivo
+    const activeWork = clientOrders.some(o => {
+        const off = (o.offer_status || '').toLowerCase();
+        const works = (o.status_works || '').toLowerCase();
+        return off === 'accettata' && !['completato', 'chiuso'].includes(works);
+    });
+
+    if (activeWork) {
+        return { key: 'attivo', label: 'Attivo', color: '#10b981', emoji: '🟢' };
+    }
+
+    // Fatturato negli ultimi 12 mesi → Attivo (anche se non c'è work in corso)
+    const recentInvoices = (state.invoices || []).some(i => {
+        if (i.client_id !== client.id) return false;
+        if (!i.issue_date) return false;
+        return new Date(i.issue_date) >= twelveMonthsAgo;
+    });
+    if (recentInvoices) {
+        return { key: 'attivo', label: 'Attivo', color: '#10b981', emoji: '🟢' };
+    }
+
+    if (openOffer) {
+        return { key: 'potenziale', label: 'Potenziale', color: '#f59e0b', emoji: '🟡' };
+    }
+
+    // Da qui in giù: non ha offerte aperte, non ha activeWork, non ha fatturato recente
+    // Controlliamo se ha avuto qualcosa in passato (orders accepted o invoices)
+    const hasHistory = clientOrders.some(o => {
+        const off = (o.offer_status || '').toLowerCase();
+        return ['accettata', 'completato'].includes(off);
+    }) || (state.invoices || []).some(i => i.client_id === client.id);
+
+    if (hasHistory) {
+        return { key: 'dormante', label: 'Dormante', color: '#94a3b8', emoji: '⚪' };
+    }
+
+    // Tutti gli ordini rifiutati → Perso
+    const allRefused = clientOrders.every(o => (o.offer_status || '').toLowerCase() === 'rifiutata');
+    if (allRefused) {
+        return { key: 'perso', label: 'Perso', color: '#ef4444', emoji: '🔴' };
+    }
+
+    // Fallback: nessuna categoria chiara → Lead
+    return { key: 'lead', label: 'Lead', color: '#3b82f6', emoji: '🔵' };
+}
+
+if (typeof window !== 'undefined') {
+    window.computeClientStatus = computeClientStatus;
 }
