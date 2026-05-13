@@ -116,6 +116,11 @@ Dashboard 4 KPI (costo mese vs precedente, chiamate totali, token totali, latenz
 - Help inline AI contestuale (modulo + integrazione collab view incarichi).
 - Briefing del mattino AI in homepage.
 - Fix sistemico modelli AI: tutti forzati a `gemini-2.5-flash-lite`.
+- Batch "decidi tu" 4/4 (14-15 maggio):
+  1. Stato cliente auto-calcolato (Lead/Potenziale/Attivo/Dormante/Perso) — derivato live da ordini + fatture, niente più flag a mano.
+  2. Cascade automation `status_works = completato` — trigger SQL + toast frontend (archivio pm_space, task follow-up, suggerimento fattura finale).
+  3. Cleanup tag collaboratori — 3 formati storici (single, CSV, JSON array) unificati in JSON array via migration `normalize_collaborator_tags`.
+  4. **Cost dinamico per collab** — nuova tabella `collaborator_service_rates` (61 record backfillati) con trigger di mantenimento avg/min/max/last/sample_size + RPC `get_collaborator_service_rate`. In assignment modal: hint ambra "Usa € X" con la tariffa storica del collab quando differisce dal listino.
 
 ---
 
