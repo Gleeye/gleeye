@@ -6,6 +6,7 @@ import { fetchOrders, fetchInvoices, fetchPayments, upsertClient, fetchClients }
 import { showGlobalAlert } from '../modules/utils.js?v=8000';
 import { activityTranslate } from '../modules/pm_activity_helper.js?v=8000';
 import { glossaryTip } from '../modules/help_tooltip.js?v=8002';
+import { inlineHelpButton, attachInlineHelp } from '../modules/help_inline_ai.js?v=8001';
 
 export async function renderClients(container) {
     // Ensure we have orders for analytics
@@ -527,6 +528,7 @@ export function renderClientDetail(container) {
                                 <span style="font-size: 1rem; color: var(--brand-blue); font-weight: 400;">Cliente</span>
                                 <div style="width: 4px; height: 4px; border-radius: 50%; background: var(--text-tertiary);"></div>
                                 <span style="font-size: 0.85rem; color: var(--text-secondary); background: var(--bg-secondary); padding: 2px 10px; border-radius: 12px;">${client.city ? `${client.city}${client.province ? ` (${client.province})` : ''}` : 'N/A'}</span>
+                                ${inlineHelpButton({ id: client.id, contextType: 'client', label: 'Spiegami', icon: 'auto_awesome' })}
                             </div>
                         </div>
                         
@@ -740,6 +742,63 @@ export function renderClientDetail(container) {
             document.getElementById(targetId).classList.remove('hidden');
         });
     });
+
+    // Help inline AI: "Spiegami questo cliente"
+    attachInlineHelp(container, _buildClientHelpContext);
+}
+
+// Help AI context loader per il cliente
+async function _buildClientHelpContext(clientId, contextType) {
+    if (contextType !== 'client') return null;
+    const client = state.clients?.find(c => c.id == clientId);
+    if (!client) return null;
+
+    const orders = (state.orders || []).filter(o => o.client_id === client.id);
+    const invoices = (state.invoices || []).filter(i => i.client_id === client.id);
+    const payments = (state.payments || []).filter(p => p.payment_type === 'Cliente' && p.client_id === client.id);
+    const contacts = (state.contacts || []).filter(c => c.client_id === client.id);
+
+    const revenue = invoices.reduce((s, i) => s + (parseFloat(i.amount_tax_excluded) || 0), 0);
+    const open = invoices.filter(i => i.status !== 'Pagato' && i.status !== 'Saldata');
+    const today = new Date().toISOString().slice(0, 10);
+    const overdue = open.filter(i => i.due_date && i.due_date < today);
+    const overdueTotal = overdue.reduce((s, i) => s + (parseFloat(i.amount_tax_included || i.amount_tax_excluded) || 0), 0);
+    const activeOrders = orders.filter(o => {
+        const off = (o.offer_status || '').toLowerCase();
+        const works = (o.status_works || '').toLowerCase();
+        return ['in_lavorazione', 'invio_programmato', 'inviata'].includes(off)
+            || (off === 'accettata' && !['completato', 'chiuso'].includes(works));
+    });
+
+    const text = `
+Sto guardando il cliente:
+
+- Ragione sociale: ${client.business_name}
+- Codice: ${client.client_code || '-'}
+- Città: ${client.city || '-'}${client.province ? ' (' + client.province + ')' : ''}
+- Email: ${client.email || '-'}
+- P.IVA: ${client.vat_number || '-'}
+
+Storia con noi:
+- Commesse totali: ${orders.length} (${activeOrders.length} attive)
+- Fatture emesse: ${invoices.length}
+- Fatturato totale: € ${revenue.toFixed(2)}
+- Fatture aperte: ${open.length} (di cui ${overdue.length} scadute per € ${overdueTotal.toFixed(2)})
+- Referenti registrati: ${contacts.length}
+
+Ultime commesse attive:
+${activeOrders.slice(0, 5).map(o => `  - ${o.order_number} · ${o.short_name || o.title || ''} · ${o.offer_status || ''} / ${o.status_works || ''} · € ${o.total_price || 0}`).join('\n')}
+
+Spiegami in 4 frasi:
+1. Chi è questo cliente in sintesi (settore, frequenza, dimensione)
+2. Quanto vale per noi (storia fatturato)
+3. Allarmi attuali (scaduti, abbandono, ecc.)
+4. Suggerimento azione se evidente
+
+Italiano colloquiale, niente bullet point.
+`.trim();
+
+    return { text };
 }
 
 /**
