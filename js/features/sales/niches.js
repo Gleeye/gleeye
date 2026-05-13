@@ -12,6 +12,7 @@
 import { fetchNiches, upsertNiche, deleteNiche } from './api.js?v=8000';
 import { showGlobalAlert, showConfirm } from '../../modules/utils.js?v=8000';
 import { analyzeNiche, saveNicheAnalysis, fetchNicheSapRelevance, PAROZZI_CRITERIA } from './niche_analyzer.js?v=8000';
+import { openSourcingModal } from './sourcing.js?v=8000';
 
 const STATUS_CONFIG = {
     researching: { label: 'In ricerca',  color: '#f59e0b', icon: 'search' },
@@ -387,7 +388,10 @@ async function openNicheDetailModal(niche, onSave) {
         '<div id="niche-detail-body">' + buildLoadingHTML() + '</div>',
         '<button id="btn-cancel-detail" style="padding:0.6rem 1.2rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-secondary);font-size:0.85rem;font-weight:600;cursor:pointer;">Chiudi</button>' +
         '<button id="btn-reanalyze-detail" style="padding:0.6rem 1.1rem;border-radius:12px;border:1px solid #8b5cf640;background:#8b5cf608;color:#8b5cf6;font-size:0.82rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;">' +
-            '<span class="material-icons-round" style="font-size:1rem;">auto_awesome</span>' + (niche.analyzed_at ? 'Rianalizza con AI' : 'Analizza con AI') +
+            '<span class="material-icons-round" style="font-size:1rem;">auto_awesome</span>' + (niche.analyzed_at ? 'Rianalizza' : 'Analizza con AI') +
+        '</button>' +
+        '<button id="btn-source-prospects" class="primary-btn" style="padding:0.6rem 1.2rem;border-radius:12px;font-size:0.85rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;">' +
+            '<span class="material-icons-round" style="font-size:1rem;">travel_explore</span>Cerca prospect' +
         '</button>'
     );
 
@@ -482,6 +486,13 @@ function bindDetailEvents(overlay, niche, onSave, close) {
         } catch (err) {
             showGlobalAlert('Errore: ' + err.message, 'error');
         }
+    });
+
+    overlay.querySelector('#btn-source-prospects')?.addEventListener('click', () => {
+        openSourcingModal(niche, () => {
+            // Dopo import, ricarica lista nicchie (prospects_count si aggiorna via trigger DB)
+            onSave && onSave();
+        });
     });
 
     overlay.querySelector('#btn-reanalyze-detail').addEventListener('click', async () => {
