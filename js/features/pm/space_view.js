@@ -761,7 +761,7 @@ function renderTeamTab(container, assignees, collaborators, spaceId) {
                                     <div style="display: flex; align-items: center; gap: 1rem;">
                                         ${renderAvatar(profile || { full_name: 'Sconosciuto' }, { size: 32, borderRadius: '50%', fontSize: '0.85rem' })}
                                         <div style="display: flex; flex-direction: column;">
-                                            <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary);">${profile.full_name || 'Sconosciuto'}</div>
+                                            <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary);">${profile.full_name || (profile.email ? profile.email.split('@')[0] : 'Senza nome')}</div>
                                             <div style="font-size: 0.75rem; color: var(--text-tertiary);">${profile.email || ''}</div>
                                         </div>
                                     </div>

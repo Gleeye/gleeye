@@ -3,6 +3,37 @@
  * Single source of truth — all views should use humanizeActivity().
  */
 import { renderAvatar } from './utils.js?v=8000';
+import { state } from '/js/modules/state.js?v=8000';
+
+/**
+ * Risolve un UUID utente in nome leggibile cercando in tutte le cache di state.
+ * Usato come ultimo tentativo quando un log o un riferimento porta un UUID grezzo
+ * senza il `new_value_name`/`assignee_name` precalcolato.
+ *
+ * Cerca in: state.profiles, state.collaborators (anche via user_id link).
+ * Ritorna stringa vuota se non trova nulla.
+ */
+export function resolveUserNameByUuid(uuid) {
+    if (!uuid || typeof uuid !== 'string') return '';
+    // Heuristica UUID v4
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) return '';
+
+    // 1) profiles
+    if (Array.isArray(state.profiles)) {
+        const p = state.profiles.find(x => x.id === uuid);
+        if (p?.full_name) return p.full_name;
+        if (p?.email) return p.email.split('@')[0];
+    }
+    // 2) collaborators (id diretto)
+    if (Array.isArray(state.collaborators)) {
+        const c = state.collaborators.find(x => x.id === uuid);
+        if (c?.full_name) return c.full_name;
+        // 3) collaborators (linked user_id)
+        const cByUser = state.collaborators.find(x => x.user_id === uuid);
+        if (cByUser?.full_name) return cByUser.full_name;
+    }
+    return '';
+}
 
 export const activityVocabulary = {
     // Tasks & Commesse
@@ -174,7 +205,12 @@ export function resolveActorName(log) {
         const local = String(email).split('@')[0];
         if (local) return local;
     }
-    if (log.actor_user_ref) return 'Utente sconosciuto';
+    // Fallback 3: lookup UUID via state (utile se il join è fallito)
+    if (log.actor_user_ref) {
+        const fromState = resolveUserNameByUuid(log.actor_user_ref);
+        if (fromState) return fromState;
+        return 'Utente sconosciuto';
+    }
     return 'Sistema';
 }
 
@@ -273,7 +309,9 @@ export function humanizeActivity(log, context = {}) {
         } else if (col === 'notes' || col === 'description') {
             description = `ha aggiornato le note di ${eStr}`;
         } else if (col === 'pm_user_ref' || col === 'p_m' || col === 'collaborator_id') {
-            const targetUser = details.new_value_name || details.new_name || newValTr || 'un utente';
+            const targetUser = details.new_value_name || details.new_name
+                || resolveUserNameByUuid(details.new_value)
+                || newValTr || 'un collaboratore';
             description = `ha assegnato ${eStr} a **${targetUser}**`;
         } else if (col === 'cloud_links') {
             description = `ha allegato un documento a ${eStr}`;
@@ -328,7 +366,9 @@ export function humanizeActivity(log, context = {}) {
         } else if (actionType.includes('priority')) {
             description = `ha impostato la priorità di ${eStr}${containerRef} a **${newValTr}**`;
         } else if (actionType.includes('user_ref') || actionType.includes('p_m')) {
-            const targetUser = details.new_value_name || details.new_name || newValTr || 'un utente';
+            const targetUser = details.new_value_name || details.new_name
+                || resolveUserNameByUuid(details.new_value)
+                || newValTr || 'un collaboratore';
             description = `ha assegnato ${eStr}${containerRef} a **${targetUser}**`;
         } else if (actionType === 'appointment_participant_added') {
             const partName = details.participant_name || details.assignee_name || 'un partecipante';
