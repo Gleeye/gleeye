@@ -83,14 +83,24 @@ export function renderAdminDashboard(container) {
                         </span>
                     </button>
                     <button class="tab-btn" data-tab="system" style="
-                        flex: 1; padding: 1rem; border: none; background: none; 
-                        border-bottom: 2px solid transparent; color: var(--text-secondary); 
+                        flex: 1; padding: 1rem; border: none; background: none;
+                        border-bottom: 2px solid transparent; color: var(--text-secondary);
                         font-weight: 500; cursor: pointer; transition: all 0.2s; position: relative;
                     ">
                         <span style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
                             <span class="material-icons-round">bug_report</span>
                             Sistema
                             <span id="error-badge" style="display: none; position: absolute; top: 8px; right: 12px; background: var(--error); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; font-weight: 700;"></span>
+                        </span>
+                    </button>
+                    <button class="tab-btn" data-tab="ai-usage" style="
+                        flex: 1; padding: 1rem; border: none; background: none;
+                        border-bottom: 2px solid transparent; color: var(--text-secondary);
+                        font-weight: 500; cursor: pointer; transition: all 0.2s;
+                    ">
+                        <span style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <span class="material-icons-round">auto_awesome</span>
+                            Consumi AI
                         </span>
                     </button>
                 </div>
@@ -218,6 +228,11 @@ export function renderAdminDashboard(container) {
                     <div id="admin-system-container">Loading system logs...</div>
                 </div>
 
+                <!-- Tab Content: AI Usage -->
+                <div id="tab-ai-usage" class="tab-content hidden" style="padding: 2rem;">
+                    <div id="admin-ai-usage-container">Caricamento consumi AI...</div>
+                </div>
+
                 <!-- Tab Content: Labs -->
                 <div id="tab-labs" class="tab-content hidden" style="padding: 2rem;">
                     <div style="background: rgba(97, 74, 162, 0.05); border: 1px solid rgba(97, 74, 162, 0.1); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
@@ -337,6 +352,14 @@ export function renderAdminDashboard(container) {
             if (tab.dataset.tab === 'system') {
                 const systemContainer = container.querySelector('#admin-system-container');
                 renderSystemLogs(systemContainer);
+            }
+
+            // Render AI usage dashboard if ai-usage tab is active
+            if (tab.dataset.tab === 'ai-usage') {
+                const aiContainer = container.querySelector('#admin-ai-usage-container');
+                import('./ai_usage_dashboard.js?v=8001').then(mod => {
+                    mod.renderAIUsageDashboard(aiContainer);
+                }).catch(err => console.error('Error loading AI usage dashboard:', err));
             }
         });
     });
