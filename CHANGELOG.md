@@ -8,6 +8,41 @@ Branch attivo principale: `feature/ai-foundation`.
 
 ---
 
+## 2026-05-13 — Sales Engine Fase 1: Pipeline outbound + AI enrichment + Outreach drafter
+
+Branch: `feature/sales-engine-p1`
+
+### DB
+- Migration `add_prospects_pipeline_sales_engine_p1` applicata.
+- Nuova tabella `prospects` con pipeline a 5 stadi (`cold | contacted | replied | proposal_sent | converted`),
+  `stage_history` jsonb per tracking temporale, `ai_enrichment_data` jsonb, foreign key a `core_services` / `profiles` / `leads` / `clients`.
+  Auto-generate `prospect_code` (PROS-0001). RLS abilitato.
+- Colonna `acquisition_source` aggiunta su tabella `leads` (additive, nullable).
+
+### Frontend: `js/features/sales/`
+- **`api.js`** — fetch/upsert/delete prospects, moveStage (aggiorna `stage_history`), costanti `PIPELINE_STAGES` e `ACQUISITION_SOURCES`.
+- **`pipeline_board.js`** — Kanban a 5 colonne orizzontali scrollabili. Modal dettaglio con 3 tab: Dati / Arricchimento AI / Outreach.
+  `<select>` per spostare stage inline. Shortcut email outreach dalla card.
+- **`enrichment.js`** — Tab AI: chiama `ai.completeJSON({feature:'sales_drafter', model: Gemini Flash Lite})`,
+  restituisce `{industry, company_size, description, location, revenue_estimate, key_info[]}`, salva in `ai_enrichment_data` + aggiorna campi `industry/company_size` se vuoti.
+- **`outreach.js`** — Tab Outreach: 3 toni selezionabili, genera 3 varianti email (oggetto + corpo) via `completeJSON`,
+  bottone copia negli appunti per ciascuna variante.
+- **`metrics.js`** — Pagina `#sales-metrics`: 4 KPI card, funnel conversione per stadio con barre, top sorgenti acquisizione,
+  tempo medio per stadio (da `stage_history`).
+- **`index.js`** — entry point che ri-esporta `renderPipelineBoard` e `renderSalesMetrics`.
+
+### Wiring
+- `router.js`: aggiunti `case 'sales-pipeline'` e `case 'sales-metrics'` (append in fondo, nessun esistente rimosso).
+- `index.html` sidebar: aggiunti link `#sales-pipeline` (Pipeline) e `#sales-metrics` (Metriche) sotto separatore VENDITE.
+  `#leads` rinominato "Leads inbound" per distinguerlo dalla pipeline outbound.
+
+### Regole rispettate
+- Modello AI: `google/gemini-2.5-flash-lite` via `AI_MODELS.sales_drafter`. `ai_client.js` non modificato.
+- File vietati non toccati: `cmd_palette.js`, `assignments.js`, `invoices.js`, `ai_client.js`, `app.js`, `dashboard.js`, `orders.js`, `clients.js`, `contacts.js`.
+- DB: solo additive (nuova tabella + nuova colonna, zero DROP/ALTER su esistenti).
+
+---
+
 ## 2026-05-13 / 2026-05-14 — Fase 0: Fondamenta trasversali
 
 ### Step 1-3 — AI Observability (foundation)

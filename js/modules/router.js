@@ -414,6 +414,15 @@ function render() {
                 if (pageTitle) pageTitle.textContent = 'Piano Economico';
                 import('../features/cfo/cfo_forecast.js?v=8000').then(m => m.renderCFOForecast(contentArea));
                 break;
+            // ── Sales Engine (Phase 1) ──────────────────────────────────────
+            case 'sales-pipeline':
+                if (pageTitle) pageTitle.textContent = 'Pipeline Vendite';
+                import('../features/sales/index.js?v=8000').then(m => m.renderPipelineBoard(contentArea));
+                break;
+            case 'sales-metrics':
+                if (pageTitle) pageTitle.textContent = 'Metriche Pipeline';
+                import('../features/sales/index.js?v=8000').then(m => m.renderSalesMetrics(contentArea));
+                break;
             // ... Add other routes as needed
             default:
                 console.log(`[Router] Hit default case for page: "${state.currentPage}"`);
