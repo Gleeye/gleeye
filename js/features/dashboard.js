@@ -237,38 +237,10 @@ export function renderDashboard(container) {
             console.log(`[Dashboard] Non-privileged Filter applied: orders=${baseOrders.length}/${state.orders.length}`);
         }
 
-        // === Filtri R-A-R su lista ordini ===
-        // Solo per privileged/admin: filtri "come Account" / "come PM" oltre a "Tutti".
-        // I non-privileged hanno già il filtro base sopra (vedono solo loro coinvolgimenti).
-        const orderFilterMode = (() => {
-            try { return localStorage.getItem('gleeye_dashboard_order_filter') || 'all'; }
-            catch { return 'all'; }
-        })();
-
-        if ((isPrivileged || activeRole === 'admin') && myCollabId) {
-            if (orderFilterMode === 'as_account') {
-                baseOrders = baseOrders.filter(o =>
-                    o.order_collaborators?.some(oc =>
-                        (oc.collaborator_id == myCollabId || oc.collaborators?.id == myCollabId)
-                        && (oc.role_in_order === 'Account' || oc.role_in_order === 'account')
-                    )
-                );
-            } else if (orderFilterMode === 'as_pm') {
-                baseOrders = baseOrders.filter(o => {
-                    const isPmFromCollab = o.order_collaborators?.some(oc =>
-                        (oc.collaborator_id == myCollabId || oc.collaborators?.id == myCollabId)
-                        && (oc.role_in_order === 'PM' || oc.role_in_order === 'Project Manager' || oc.role_in_order === 'project_manager')
-                    );
-                    const isPmDirect = o.pm_user_ref === state.profile?.id;
-                    return isPmFromCollab || isPmDirect;
-                });
-            }
-            // Espongo cambia-mode globalmente per il bottone UI
-            window._dashboardSetOrderFilter = (mode) => {
-                try { localStorage.setItem('gleeye_dashboard_order_filter', mode); } catch {}
-                renderContent();
-            };
-        }
+        // (14/5) Rimosso il filtro "Come Account / Come PM" qui: Davide ha
+        // chiarito che la dashboard ordini è visibile solo a Account/Partner/Admin
+        // (i PM puri non la vedono). Distinguere "come Account vs come PM" era
+        // inutile — chi è qui è già Account.
 
         // Commercial Funnel - only first 3 stages
         const funnelStates = [
@@ -749,13 +721,6 @@ export function renderDashboard(container) {
                                     <span id="active-filter-badge" style="display: none; font-size: 0.7rem; background: var(--brand-viola); color: white; padding: 3px 12px; border-radius: 20px; font-weight: 700; letter-spacing: 0.05em;">FILTRO ATTIVO</span>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 10px;">
-                                    ${(isPrivileged || activeRole === 'admin') && myCollabId ? `
-                                        <div style="display: inline-flex; align-items: center; padding: 4px; background: white; border: 1px solid var(--glass-border); border-radius: 10px; gap: 2px;">
-                                            <button onclick="window._dashboardSetOrderFilter('all')" title="Tutti gli ordini" style="padding: 5px 11px; border-radius: 7px; border: none; cursor: pointer; font-size: 0.72rem; font-weight: 600; ${orderFilterMode === 'all' ? 'background: var(--brand-viola); color: white;' : 'background: transparent; color: var(--text-secondary);'}">Tutti</button>
-                                            <button onclick="window._dashboardSetOrderFilter('as_account')" title="Solo dove sono Account" style="padding: 5px 11px; border-radius: 7px; border: none; cursor: pointer; font-size: 0.72rem; font-weight: 600; ${orderFilterMode === 'as_account' ? 'background: var(--brand-viola); color: white;' : 'background: transparent; color: var(--text-secondary);'}">Come Account</button>
-                                            <button onclick="window._dashboardSetOrderFilter('as_pm')" title="Solo dove sono PM" style="padding: 5px 11px; border-radius: 7px; border: none; cursor: pointer; font-size: 0.72rem; font-weight: 600; ${orderFilterMode === 'as_pm' ? 'background: var(--brand-viola); color: white;' : 'background: transparent; color: var(--text-secondary);'}">Come PM</button>
-                                        </div>
-                                    ` : ''}
                                     <button id="reset-filter" style="display: none; border: 1px solid var(--brand-viola); background: white; color: var(--brand-viola); font-size: 0.8rem; font-weight: 700; cursor: pointer; padding: 6px 16px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='var(--brand-viola)'; this.style.color='white'">Rimuovi Filtro</button>
                                     <button id="btn-new-order-main" class="primary-btn" style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; padding: 0.6rem 1.2rem;">
                                         <span class="material-icons-round" style="font-size: 1.1rem;">add</span>

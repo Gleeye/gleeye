@@ -130,16 +130,18 @@ export async function renderOrderDetail(container, orderId) {
     const costDelta = servicesCost > 0 ? parseFloat(((costFinal - servicesCost) / servicesCost * 100).toFixed(1)) : 0;
 
     // === Role-based view (Hub commessa) ===
-    // Solo admin + privileged (partner/amministrazione) vedono dati economici interni
-    // come cost_final, margine, delta tariffario. Gli account/PM vedono price e
-    // assignments ma non i costi interni di tutti i collab.
+    // Chi vede i dati economici interni (cost_final, margine, delta tariffario,
+    // prezzo del tariffario suggerito): admin + partner + amministrazione + socio
+    // + ACCOUNT. I PM puri / collab base NON vedono questi dati.
+    // (Davide 14/5: "il tariffario lo devono vedere gli account, e come se lo devono
+    // vedere, sia account che partner".)
     const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
     const userTags = (state.profile?.tags || []).map(t => (t || '').toString().toLowerCase());
-    const isPrivileged = activeRole === 'admin'
+    const canSeeInternals = activeRole === 'admin'
         || userTags.includes('partner')
         || userTags.includes('amministrazione')
-        || userTags.includes('socio');
-    const canSeeInternals = isPrivileged; // chi vede costi/margini interni
+        || userTags.includes('socio')
+        || userTags.includes('account');
 
     const statusColor = getStatusColor(order.status_works || order.status);
 
