@@ -414,7 +414,7 @@ function render() {
                 if (pageTitle) pageTitle.textContent = 'Piano Economico';
                 import('../features/cfo/cfo_forecast.js?v=8000').then(m => m.renderCFOForecast(contentArea));
                 break;
-            // ── Sales Engine (Phase 1) ──────────────────────────────────────
+            // ── Sales Engine (Phase 1 + 2) ──────────────────────────────────
             case 'sales-pipeline':
                 if (pageTitle) pageTitle.textContent = 'Pipeline Vendite';
                 import('../features/sales/index.js?v=8000').then(m => m.renderPipelineBoard(contentArea));
@@ -422,6 +422,10 @@ function render() {
             case 'sales-metrics':
                 if (pageTitle) pageTitle.textContent = 'Metriche Pipeline';
                 import('../features/sales/index.js?v=8000').then(m => m.renderSalesMetrics(contentArea));
+                break;
+            case 'sales-niches':
+                if (pageTitle) pageTitle.textContent = 'Niche Research';
+                import('../features/sales/index.js?v=8000').then(m => m.renderSalesNiches(contentArea));
                 break;
             // ... Add other routes as needed
             default:

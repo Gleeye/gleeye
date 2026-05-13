@@ -7,6 +7,8 @@ import { PIPELINE_STAGES, ACQUISITION_SOURCES, fetchProspects, fetchSapServicesF
 import { showGlobalAlert, showConfirm } from '../../modules/utils.js?v=8000';
 import { renderEnrichmentTab } from './enrichment.js?v=8000';
 import { renderOutreachDrafter } from './outreach.js?v=8000';
+import { renderDiscoveryTab } from './discovery_notes.js?v=8000';
+import { renderOfferBuilderTab } from './offer_builder.js?v=8000';
 
 // ─── RENDER PRINCIPALE ────────────────────────────────────────────────────────
 
@@ -205,11 +207,13 @@ export function openProspectModal(prospect, sapServices, onSave) {
         '<option value="' + s.key + '"' + (p.pipeline_stage === s.key ? ' selected' : '') + '>' + s.label + '</option>'
     ).join('');
 
-    // Tab system: Dati / Arricchimento AI / Outreach
+    // Tab system: Dati / Arricchimento AI / Discovery / Offerta / Outreach
     const tabsHTML = !isNew
-        ? '<div style="display:flex;gap:0.25rem;margin-bottom:1.5rem;border-bottom:1px solid var(--glass-border);padding-bottom:0;">' +
+        ? '<div style="display:flex;gap:0.25rem;margin-bottom:1.5rem;border-bottom:1px solid var(--glass-border);padding-bottom:0;flex-wrap:wrap;">' +
             '<button class="prospect-tab active" data-tab="data" style="padding:0.5rem 1rem;border:none;background:transparent;font-size:0.82rem;font-weight:700;color:var(--brand-blue);border-bottom:2px solid var(--brand-blue);cursor:pointer;">Dati</button>' +
             '<button class="prospect-tab" data-tab="enrich" style="padding:0.5rem 1rem;border:none;background:transparent;font-size:0.82rem;font-weight:600;color:var(--text-secondary);cursor:pointer;">Arricchimento AI</button>' +
+            '<button class="prospect-tab" data-tab="discovery" style="padding:0.5rem 1rem;border:none;background:transparent;font-size:0.82rem;font-weight:600;color:var(--text-secondary);cursor:pointer;">Discovery</button>' +
+            '<button class="prospect-tab" data-tab="offer" style="padding:0.5rem 1rem;border:none;background:transparent;font-size:0.82rem;font-weight:600;color:var(--text-secondary);cursor:pointer;">Offerta</button>' +
             '<button class="prospect-tab" data-tab="outreach" style="padding:0.5rem 1rem;border:none;background:transparent;font-size:0.82rem;font-weight:600;color:var(--text-secondary);cursor:pointer;">Outreach</button>' +
           '</div>'
         : '';
@@ -252,6 +256,8 @@ export function openProspectModal(prospect, sapServices, onSave) {
             '</div>' +
         '</div>' +
         (!isNew ? '<div id="prospect-tab-enrich" style="display:none;"></div>' : '') +
+        (!isNew ? '<div id="prospect-tab-discovery" style="display:none;"></div>' : '') +
+        (!isNew ? '<div id="prospect-tab-offer" style="display:none;"></div>' : '') +
         (!isNew ? '<div id="prospect-tab-outreach" style="display:none;"></div>' : '');
 
     const modalId = 'modal-prospect';
@@ -358,14 +364,24 @@ export function openProspectModal(prospect, sapServices, onSave) {
                 const tabName = tab.dataset.tab;
                 overlay.querySelector('#prospect-tab-data').style.display = tabName === 'data' ? '' : 'none';
                 const enrichDiv = overlay.querySelector('#prospect-tab-enrich');
+                const discoveryDiv = overlay.querySelector('#prospect-tab-discovery');
+                const offerDiv = overlay.querySelector('#prospect-tab-offer');
                 const outreachDiv = overlay.querySelector('#prospect-tab-outreach');
                 if (enrichDiv) enrichDiv.style.display = tabName === 'enrich' ? '' : 'none';
+                if (discoveryDiv) discoveryDiv.style.display = tabName === 'discovery' ? '' : 'none';
+                if (offerDiv) offerDiv.style.display = tabName === 'offer' ? '' : 'none';
                 if (outreachDiv) outreachDiv.style.display = tabName === 'outreach' ? '' : 'none';
 
                 if (tabName === 'enrich' && enrichDiv && enrichDiv.innerHTML === '') {
                     await renderEnrichmentTab(enrichDiv, p, async (updatedProspect) => {
                         onSave && onSave();
                     });
+                }
+                if (tabName === 'discovery' && discoveryDiv && discoveryDiv.innerHTML === '') {
+                    await renderDiscoveryTab(discoveryDiv, p);
+                }
+                if (tabName === 'offer' && offerDiv && offerDiv.innerHTML === '') {
+                    await renderOfferBuilderTab(offerDiv, p);
                 }
                 if (tabName === 'outreach' && outreachDiv && outreachDiv.innerHTML === '') {
                     await renderOutreachDrafter(outreachDiv, p);
