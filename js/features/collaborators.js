@@ -220,9 +220,12 @@ window.openCollaboratorModal = (collaboratorId = null) => {
 
         if (collaboratorId) {
             title.textContent = 'Modifica Collaboratore';
-            // Show delete button for existing collaborators
+            // Soft-delete only: bottone Elimina nascosto per non rompere lo storico
+            // (fatture, pagamenti, incarichi, task PM associate al collaboratore).
+            // Usa invece il toggle "Attivo / Inattivo" per disattivare il collab.
+            // Anomalia 10 del quaderno UX 12/5/26.
             if (deleteBtn) {
-                deleteBtn.style.display = 'flex';
+                deleteBtn.style.display = 'none';
                 deleteBtn.dataset.collabId = collaboratorId;
             }
             // Find collaborator logic needs to handle string IDs if passed from URL or onclick

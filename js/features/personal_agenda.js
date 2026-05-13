@@ -3,6 +3,9 @@ import { state } from '/js/modules/state.js?v=8000';
 import { fetchAvailabilityRules, fetchRestDays, fetchAvailabilityOverrides } from '../modules/api.js?v=8000';
 import { fetchCollaboratorAppointments, fetchAppointment } from '../modules/pm_api.js?v=8000';
 import { openAvailabilityModal, checkAndHandleGoogleCallback } from './availability_manager.js?v=8000';
+import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=8000';
+// Espongo per onclick inline del bottone "+ Nuovo Evento"
+if (typeof window !== 'undefined') window.openAppointmentDrawer = openAppointmentDrawer;
 
 let currentDate = new Date(); // Represents the start of the week or current view date
 let eventsCache = [];
@@ -132,7 +135,7 @@ export async function renderAgenda(container) {
                 </div>
 
                 <div class="agenda-quick-add">
-                   <button class="quick-add-btn" onclick="window.showAlert('Funzione in arrivo', 'info')" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.8rem; background: var(--brand-blue); color: white; border: none; border-radius: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(var(--brand-blue-rgb, 78, 146, 216), 0.3);">
+                   <button class="quick-add-btn" onclick="window.openAppointmentDrawer()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.8rem; background: var(--brand-blue); color: white; border: none; border-radius: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(var(--brand-blue-rgb, 78, 146, 216), 0.3);">
                         <span class="material-icons-round">add</span>
                         <span>Nuovo Evento</span>
                    </button>

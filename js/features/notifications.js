@@ -1365,16 +1365,12 @@ export function renderAdminNotifications(container) {
                     </label>
                 </div>
 
-                <div class="setting-row" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px solid var(--glass-border);">
-                    <div>
-                        <div style="font-weight: 500;">Push Browser</div>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Notifiche desktop quando l'app è aperta</div>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" id="push-toggle">
-                        <span class="slider round"></span>
-                    </label>
-                </div>
+                <!-- Anomalia 13 quaderno UX 12/5/26: toggle "Push Browser" rimosso da qui
+                     perché era puramente decorativo (no handler agganciato). Il vero
+                     enable/disable push si fa dal Notification Center (#notifications)
+                     via il bottone "enable-push-btn" che gestisce subscribe/unsubscribe
+                     del Service Worker. Lasciare due punti UI separati per la stessa
+                     cosa confonde. -->
 
                 <div class="setting-row" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0;">
                     <div>
