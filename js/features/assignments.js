@@ -4,6 +4,7 @@ import { supabase } from '../modules/config.js?v=8000';
 import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment, deleteAssignment } from '../modules/api.js?v=8000';
 import { openPaymentModal } from './payments.js?v=8000';
 import { CustomSelect } from '../components/CustomSelect.js?v=8000';
+import { inlineHelpButton, attachInlineHelp } from '../modules/help_inline_ai.js?v=8001';
 
 // Helper functions
 function getStatusColor(status) {
@@ -169,6 +170,7 @@ export async function renderAssignmentDetail(container) {
                             </button>
                             ` : ''}
                         ` : ''}
+                        ${isCollabView ? inlineHelpButton({ id: assignment.id, contextType: 'assignment_collab', label: 'Cosa devo fare?', icon: 'help_outline' }) : ''}
                         <button class="primary-btn" onclick="window.generateAssignmentLetter('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px; background: linear-gradient(135deg, #8b5cf6, #6366f1);">
                             <span class="material-icons-round">file_download</span> ${isCollabView ? 'Scarica Lettera' : 'Lettera Incarico'}
                         </button>
@@ -441,6 +443,11 @@ export async function renderAssignmentDetail(container) {
         // Mina D: fetch hub operativo async (solo collab view)
         if (isCollabView && assignment.order_id) {
             loadAssignmentHubOperativo(assignment, myCollabId).catch(err => console.warn('[hub-operativo]', err));
+        }
+
+        // Help inline AI: bottone "Cosa devo fare?" (solo collab view)
+        if (isCollabView) {
+            attachInlineHelp(container, buildAssignmentCollabHelpContext);
         }
 
         // Add hover effect for service actions
@@ -1959,4 +1966,58 @@ function escapeHtml(s) {
     return String(s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ============================================================
+// Help inline AI — context builder per il collab
+// ============================================================
+async function buildAssignmentCollabHelpContext(assignmentId, contextType) {
+    if (contextType !== 'assignment_collab') return null;
+
+    // Recupera l'incarico fresh (potrebbe non essere in state)
+    const assignment = state.assignments?.find(a => a.id === assignmentId)
+        || await fetchAssignmentDetail(assignmentId);
+    if (!assignment) return null;
+
+    const collabName = assignment.collaborators?.full_name || 'tu';
+    const orderNumber = assignment.orders?.order_number || '?';
+    const orderTitle = assignment.orders?.title || '';
+    const clientName = assignment.orders?.clients?.business_name || '';
+
+    // Linked services (cosa fare di preciso)
+    const linkedServices = (state.collaboratorServices || []).filter(s => {
+        if (s.assignment_id === assignment.id) return true;
+        const matchOrder = s.order_id && s.order_id === assignment.order_id;
+        const matchLegacyOrder = s.legacy_order_id && assignment.orders && s.legacy_order_id === assignment.orders.order_number;
+        const matchCollaborator = s.collaborator_id && s.collaborator_id === assignment.collaborator_id;
+        return (matchOrder || matchLegacyOrder) && matchCollaborator;
+    });
+    const servicesText = linkedServices.length
+        ? linkedServices.map(s => `- ${s.services?.name || s.legacy_service_name || s.name || 'Servizio'} (${s.quantity || s.hours || '?'} unità)`).join('\n')
+        : '(nessuna voce dettagliata)';
+
+    const text = `
+Sono un collaboratore di nome ${collabName} e sto guardando l'incarico:
+
+- Commessa: ${orderNumber}${orderTitle ? ' - ' + orderTitle : ''}
+- Cliente: ${clientName || 'non specificato'}
+- Stato incarico: ${assignment.status || 'attivo'}
+- Inizio: ${assignment.start_date || 'non specificato'}
+- Termini pagamento: ${assignment.payment_terms || 'da concordare'}
+- Compenso concordato: ${assignment.total_amount ? '€ ' + assignment.total_amount : 'non specificato'}
+- Descrizione/scope: ${assignment.description || '(nessuna descrizione specifica)'}
+
+Voci di lavoro:
+${servicesText}
+
+Spiegami in modo chiaro:
+1. In sintesi, che cosa devo fare di preciso?
+2. C'è qualche scadenza o priorità da tenere d'occhio?
+3. A chi mi devo rivolgere se ho dubbi?
+
+NON menzionare costi interni, tariffari, margini, dati economici dell'agenzia.
+Parlami solo del mio lato (cosa fare + compenso pattuito + scadenze).
+`.trim();
+
+    return { text };
 }
