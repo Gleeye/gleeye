@@ -129,6 +129,18 @@ export async function renderOrderDetail(container, orderId) {
     const priceDelta = servicesPrice > 0 ? parseFloat(((priceFinal - servicesPrice) / servicesPrice * 100).toFixed(1)) : 0;
     const costDelta = servicesCost > 0 ? parseFloat(((costFinal - servicesCost) / servicesCost * 100).toFixed(1)) : 0;
 
+    // === Role-based view (Hub commessa) ===
+    // Solo admin + privileged (partner/amministrazione) vedono dati economici interni
+    // come cost_final, margine, delta tariffario. Gli account/PM vedono price e
+    // assignments ma non i costi interni di tutti i collab.
+    const activeRole = state.impersonatedRole || state.profile?.role || 'collaborator';
+    const userTags = (state.profile?.tags || []).map(t => (t || '').toString().toLowerCase());
+    const isPrivileged = activeRole === 'admin'
+        || userTags.includes('partner')
+        || userTags.includes('amministrazione')
+        || userTags.includes('socio');
+    const canSeeInternals = isPrivileged; // chi vede costi/margini interni
+
     const statusColor = getStatusColor(order.status_works || order.status);
 
     const linkedAssignments = state.assignments ? state.assignments.filter(a =>
@@ -540,7 +552,7 @@ export async function renderOrderDetail(container, orderId) {
                         <div style="font-size: 1.75rem; font-weight: 800; color: #10b981; font-family: var(--font-titles); line-height: 1;">
                             ${priceFinal > 0 ? formatAmount(priceFinal) + '€' : '—'}
                         </div>
-                        ${priceDelta != 0 ? `
+                        ${canSeeInternals && priceDelta != 0 ? `
                                     <div style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: ${priceDelta < 0 ? '#ef4444' : '#10b981'}; font-weight: 600; margin-top: 0.6rem;">
                                         <span class="material-icons-round" style="font-size: 1rem;">${priceDelta < 0 ? 'arrow_downward' : 'arrow_upward'}</span>
                                         <span>${priceDelta > 0 ? '+' : ''}${priceDelta}% vs tariffario</span>
@@ -548,52 +560,55 @@ export async function renderOrderDetail(container, orderId) {
                                 ` : ''}
                     </div>
 
-                    <div style="height: 1px; background: var(--glass-border); opacity: 0.6;"></div>
+                    ${canSeeInternals ? `
+                        <div style="height: 1px; background: var(--glass-border); opacity: 0.6;"></div>
 
-                    <!-- Costi section -->
-                    <div>
-                        <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700; letter-spacing: 0.05em; margin-bottom: 0.4rem;">Costi</div>
-                        <div style="font-size: 1.75rem; font-weight: 800; color: #ef4444; font-family: var(--font-titles); line-height: 1;">
-                            ${costFinal > 0 ? formatAmount(costFinal) + '€' : '—'}
-                        </div>
-                        ${costDelta != 0 ? `
-                                    <div style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: ${costDelta > 0 ? '#ef4444' : '#10b981'}; font-weight: 600; margin-top: 0.6rem;">
-                                        <span class="material-icons-round" style="font-size: 1rem;">${costDelta > 0 ? 'arrow_upward' : 'arrow_downward'}</span>
-                                        <span>${costDelta > 0 ? '+' : ''}${costDelta}% vs tariffario</span>
-                                    </div>
-                                ` : ''}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Ricavi Finali Card -->
-            <div class="glass-card" style="padding: 1.25rem; background: linear-gradient(135deg, ${revenueFinal >= 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)'}, transparent); border: 2px solid ${revenueFinal >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'};">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
-                    <div style="flex: 1;">
-                        <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Ricavi Finali (Margine)</div>
-                        <div style="font-size: 1.6rem; font-weight: 800; line-height: 1; color: ${revenueFinal >= 0 ? '#10b981' : '#ef4444'}; font-family: var(--font-titles);">
-                            ${priceFinal > 0 && costFinal > 0 ? formatAmount(revenueFinal) + '€' : '—'}
-                        </div>
-                    </div>
-                    <!-- Circular Progress -->
-                    ${priceFinal > 0 && costFinal > 0 ? `
-                                <div style="position: relative; width: 60px; height: 60px;">
-                                    <svg width="60" height="60" style="transform: rotate(-90deg);">
-                                        <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="5"></circle>
-                                        <circle cx="30" cy="30" r="26" fill="none" 
-                                            stroke="${marginFinal >= 20 ? '#10b981' : marginFinal >= 10 ? '#f59e0b' : '#ef4444'}" 
-                                            stroke-width="5" 
-                                            stroke-dasharray="${(marginFinal / 100) * 163.3} 163.3"
-                                            stroke-linecap="round">
-                                        </circle>
-                                    </svg>
-                                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
-                                        <div style="font-size: 0.85rem; font-weight: 800; color: ${marginFinal >= 20 ? '#10b981' : marginFinal >= 10 ? '#f59e0b' : '#ef4444'};">${marginFinal}%</div>
-                                    </div>
+                        <!-- Costi section (solo admin/privileged) -->
+                        <div>
+                            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700; letter-spacing: 0.05em; margin-bottom: 0.4rem;">Costi</div>
+                            <div style="font-size: 1.75rem; font-weight: 800; color: #ef4444; font-family: var(--font-titles); line-height: 1;">
+                                ${costFinal > 0 ? formatAmount(costFinal) + '€' : '—'}
+                            </div>
+                            ${costDelta != 0 ? `
+                                <div style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: ${costDelta > 0 ? '#ef4444' : '#10b981'}; font-weight: 600; margin-top: 0.6rem;">
+                                    <span class="material-icons-round" style="font-size: 1rem;">${costDelta > 0 ? 'arrow_upward' : 'arrow_downward'}</span>
+                                    <span>${costDelta > 0 ? '+' : ''}${costDelta}% vs tariffario</span>
                                 </div>
                             ` : ''}
+                        </div>
+                    ` : ''}
                 </div>
             </div>
+
+            ${canSeeInternals ? `
+                <!-- Ricavi Finali Card (solo admin/privileged) -->
+                <div class="glass-card" style="padding: 1.25rem; background: linear-gradient(135deg, ${revenueFinal >= 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)'}, transparent); border: 2px solid ${revenueFinal >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'};">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                        <div style="flex: 1;">
+                            <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Ricavi Finali (Margine)</div>
+                            <div style="font-size: 1.6rem; font-weight: 800; line-height: 1; color: ${revenueFinal >= 0 ? '#10b981' : '#ef4444'}; font-family: var(--font-titles);">
+                                ${priceFinal > 0 && costFinal > 0 ? formatAmount(revenueFinal) + '€' : '—'}
+                            </div>
+                        </div>
+                        ${priceFinal > 0 && costFinal > 0 ? `
+                            <div style="position: relative; width: 60px; height: 60px;">
+                                <svg width="60" height="60" style="transform: rotate(-90deg);">
+                                    <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="5"></circle>
+                                    <circle cx="30" cy="30" r="26" fill="none"
+                                        stroke="${marginFinal >= 20 ? '#10b981' : marginFinal >= 10 ? '#f59e0b' : '#ef4444'}"
+                                        stroke-width="5"
+                                        stroke-dasharray="${(marginFinal / 100) * 163.3} 163.3"
+                                        stroke-linecap="round">
+                                    </circle>
+                                </svg>
+                                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                                    <div style="font-size: 0.85rem; font-weight: 800; color: ${marginFinal >= 20 ? '#10b981' : marginFinal >= 10 ? '#f59e0b' : '#ef4444'};">${marginFinal}%</div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            ` : ''}
 
 
             <!-- Preventivo Automation Card -->
