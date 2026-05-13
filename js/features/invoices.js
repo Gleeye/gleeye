@@ -1538,14 +1538,16 @@ const INVOICE_EXTRACTION_SCHEMA = {
     due_date: 'string|null — YYYY-MM-DD',
     currency: 'string — es. EUR',
     total_gross: 'number — totale lordo a pagare',
-    taxable_amount: 'number|null — imponibile',
+    taxable_amount: 'number|null — imponibile (compenso prima di IVA/ritenute)',
     vat_amount: 'number|null',
     vat_rate: 'number|null — es. 22 per 22%',
-    withholding_amount: 'number|null — ritenuta acconto',
-    cassa_amount: 'number|null — cassa previdenza',
+    withholding_amount: 'number|null — ritenuta d\'acconto (20% di imponibile)',
+    cassa_amount: 'number|null — SOLO contributo cassa professionale (INARCASSA, ENPAP, ecc.), NON la rivalsa INPS',
+    rivalsa_inps_amount: 'number|null — SOLO rivalsa INPS 4% gestione separata (professionisti senza cassa)',
     bollo_amount: 'number|null — bollo virtuale (2 € se applicato)',
     regime: 'string|null — ordinario|forfettario|occasionale|estero|parcella',
-    description: 'string|null — causale/descrizione principale',
+    description: 'string|null — causale/descrizione del servizio',
+    reference_codes: 'array|null — eventuali codici di riferimento trovati nel PDF: incarichi (INC-XXX), ordini (OdA-XXX), preventivi, commesse, ecc.',
     confidence: 'string — high|medium|low',
     notes: 'string|null',
 };
@@ -1559,9 +1561,24 @@ REGOLE:
 - Importi come numeri (punto decimale).
 - supplier_vat: solo 11 cifre senza prefisso 'IT'.
 - regime: ordinario|forfettario|occasionale|estero|parcella.
-- Se forfettario: vat_rate=0, withholding_amount=null.
+
+CASSA vs RIVALSA INPS (importante):
+- "Contributo cassa", "INARCASSA", "ENPAP", "CNPADC", o nomi di casse professionali → cassa_amount
+- "Rivalsa INPS", "Contributo INPS gestione separata", "Contributo 4%" senza riferimento a cassa → rivalsa_inps_amount
+- Non popolare entrambi: o l'uno o l'altro. Per default, se la dicitura è ambigua e il professionista NON ha cassa di categoria, è rivalsa_inps_amount.
+
+CASI SPECIALI:
+- Se forfettario: vat_rate=0, vat_amount=0, withholding_amount=null.
 - Se Reverse Charge / estero: regime="estero", vat_amount=0.
-- Campi obbligatori: supplier_name, invoice_number, invoice_date, total_gross.`;
+
+REFERENCE CODES (importante per Davide):
+- Cerca attivamente nel testo PDF qualunque codice di riferimento: "Rif. INC-2025-001", "OdA 142/2025", "Preventivo n. PV-...", "Commessa XYZ".
+- Includi TUTTI i codici trovati in reference_codes (array di stringhe).
+- Se non ne trovi, restituisci array vuoto [].
+
+description: causale/oggetto del servizio (testo libero).
+
+Campi obbligatori (mai null): supplier_name, invoice_number, invoice_date, total_gross.`;
 
 /**
  * Detect mode attivo nel modal passive-invoice.
@@ -1689,6 +1706,12 @@ async function handlePassiveInvoiceAIImport(file) {
         // 4) Riempi il form (mode-aware)
         applyExtractedInvoiceToForm(extracted, matchedEntity, mode);
 
+        // 5) Attacca il PDF originale al campo upload (così è pronto al Save)
+        attachOriginalPdfToModal(file);
+
+        // 6) Suggerisci pagamenti candidati (in console + toast)
+        try { suggestPaymentMatches(extracted, matchedEntity, mode); } catch (e) { console.warn('[ai-import] payment match failed:', e); }
+
         const confidence = extracted.confidence || 'medium';
         const entityKindLabel = mode === 'supplier' ? 'fornitore' : (mode === 'partner-wl' ? 'partner WL' : 'collaboratore');
         const supLabel = matchedLabel
@@ -1769,48 +1792,119 @@ function applyExtractedInvoiceToForm(extracted, matchedEntity, mode = 'collab') 
         const el = document.getElementById('pinv-date');
         if (el) el.value = extracted.invoice_date;
     }
+    // Description: visibile solo in supplier mode. In collab mode il campo non c'è.
     if (extracted.description) {
         const el = document.getElementById('pinv-description');
         if (el) el.value = extracted.description;
     }
 
-    // Amounts: imponibile, cassa, netto
+    // Amounts
     const taxable = Number(extracted.taxable_amount || 0);
     const totalGross = Number(extracted.total_gross || 0);
     const cassa = Number(extracted.cassa_amount || 0);
+    const rivalsa = Number(extracted.rivalsa_inps_amount || 0);
     const bollo = Number(extracted.bollo_amount || 0);
     const vat = Number(extracted.vat_amount || 0);
     const ritenuta = Number(extracted.withholding_amount || 0);
 
-    // pinv-amount → "Importo / Compenso" (imponibile lordo prima di IVA/ritenuta)
+    // Importo/Compenso = imponibile (compenso prima di IVA/ritenute/cassa)
     const amountEl = document.getElementById('pinv-amount');
     if (amountEl) {
-        const value = taxable > 0 ? taxable : Math.max(0, totalGross - vat - cassa - bollo + ritenuta);
+        const value = taxable > 0 ? taxable : Math.max(0, totalGross - vat - cassa - rivalsa - bollo + ritenuta);
         if (value > 0) amountEl.value = value.toFixed(2);
     }
 
-    // pinv-net → "Netto a Pagare"
+    // Netto a Pagare
     const netEl = document.getElementById('pinv-net');
     if (netEl && totalGross > 0) {
         netEl.value = totalGross.toFixed(2);
     }
 
-    // pinv-cassa
+    // Cassa Previdenza: SOLO se l'AI ha indicato esplicitamente cassa (non rivalsa).
+    // Se invece c'è rivalsa, lasciamo il campo cassa vuoto.
     const cassaEl = document.getElementById('pinv-cassa');
-    if (cassaEl && cassa > 0) {
-        cassaEl.value = cassa.toFixed(2);
+    if (cassaEl) {
+        cassaEl.value = cassa > 0 ? cassa.toFixed(2) : '';
     }
 
-    // Checkboxes
+    // Checkboxes — set DOPO l'aggiornamento degli importi
     const vatCb = document.getElementById('pinv-has-vat');
-    if (vatCb) vatCb.checked = vat > 0;
     const bolloCb = document.getElementById('pinv-has-bollo');
-    if (bolloCb) bolloCb.checked = bollo > 0;
-    // Rivalsa: heuristic — solo se c'è cassa SU regime ordinario non-cassa (es. INPS gestione separata)
-    // Per ora la lasciamo off di default: l'utente la attiva se sa che il fornitore la applica.
+    const rivalsaCb = document.getElementById('pinv-has-rivalsa');
 
-    // Trigger ricalcolo breakdown (se l'app ha listener su pinv-amount change)
+    // IVA: spunta se vat>0 OPPURE se regime ordinario/parcella (default IVA presente)
+    const regime = (extracted.regime || '').toLowerCase();
+    const regimeForcesVat = regime === 'ordinario' || regime === 'parcella';
+    if (vatCb) vatCb.checked = vat > 0 || (regimeForcesVat && vat !== 0);
+    if (bolloCb) bolloCb.checked = bollo > 0;
+    // Rivalsa: spunta solo se l'AI ha indicato esplicitamente rivalsa_inps_amount.
+    if (rivalsaCb) {
+        rivalsaCb.checked = rivalsa > 0;
+        // segnalo "manual set" per evitare che il listener auto-toggli a default
+        state._pinvRivalsaManuallySet = true;
+    }
+    if (bolloCb) state._pinvBolloManuallySet = true;
+
+    // Trigger ricalcolo breakdown
     amountEl?.dispatchEvent(new Event('input'));
     netEl?.dispatchEvent(new Event('input'));
+    cassaEl?.dispatchEvent(new Event('input'));
+}
+
+/**
+ * Attacca il File originale al campo upload del modal, così l'utente non
+ * deve riselezionarlo per allegarlo alla fattura quando salva.
+ */
+function attachOriginalPdfToModal(file) {
+    const fileInput = document.getElementById('pinv-file');
+    if (!fileInput) return;
+    try {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+    } catch (e) {
+        console.warn('[ai-import] impossibile assegnare file al campo upload:', e);
+        return;
+    }
+    // Trigger del listener change esistente che mostra il preview
+    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+/**
+ * Suggerisce in console quali pagamenti del collaboratore selezionato
+ * potrebbero essere saldati da questa fattura (per importo + codici riferimento).
+ * Non auto-flagga: l'utente sceglie. Match smart sarà la prossima iterazione.
+ */
+function suggestPaymentMatches(extracted, matchedEntity, mode) {
+    if (mode === 'supplier' || !matchedEntity?.id) return;
+    if (!Array.isArray(state.payments)) return;
+
+    const totalGross = Number(extracted.total_gross || 0);
+    const codes = (extracted.reference_codes || []).map(c => String(c).toLowerCase());
+
+    const candidates = state.payments.filter(p => {
+        if (p.collaborator_id !== matchedEntity.id) return false;
+        if (['Saldato', 'Pagato', 'Completato'].includes(p.status)) return false;
+        return true;
+    });
+
+    if (!candidates.length) return;
+
+    // Score per match importo (entro 0.5 €) + presenza codice nelle note/ordine
+    const scored = candidates.map(p => {
+        let score = 0;
+        const amt = Number(p.amount || 0);
+        if (Math.abs(amt - totalGross) < 0.5) score += 10;
+        else if (totalGross > 0 && Math.abs(amt - totalGross) / totalGross < 0.05) score += 5;
+        const ordRef = state.orders?.find(o => o.id === p.order_id)?.order_number || '';
+        const blob = `${p.notes || ''} ${ordRef}`.toLowerCase();
+        if (codes.some(c => c && blob.includes(c))) score += 8;
+        return { payment: p, score, orderNumber: ordRef };
+    }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+
+    if (scored.length) {
+        console.log('[ai-import] 💡 pagamenti candidati da saldare:', scored);
+        showGlobalAlert(`💡 ${scored.length} pagament${scored.length === 1 ? 'o' : 'i'} candidat${scored.length === 1 ? 'o' : 'i'} per il match (vedi console). Da selezionare manualmente nella sezione Pagamenti.`, 'info');
+    }
 }
 
