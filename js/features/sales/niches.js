@@ -1,22 +1,17 @@
 /**
  * sales/niches.js
  * Niche Research Center (#sales-niches).
- * Pagina dove Davide gestisce le nicchie target del Sales Engine.
- * Ogni nicchia ha: SAP target, ikigai score, 6 criteri Parozzi, status.
+ *
+ * Modello AI-first:
+ * - Davide scrive solo il NOME della nicchia.
+ * - L'AI (niche_analyzer) genera tutto: descrizione, geo_scope granulare,
+ *   validazione 5 criteri Parozzi, pain points, linguaggio, SAP candidati con angle.
+ * - Davide rivede e salva.
  */
 
-import { fetchNiches, upsertNiche, deleteNiche, fetchSapServicesForSales } from './api.js?v=8000';
+import { fetchNiches, upsertNiche, deleteNiche } from './api.js?v=8000';
 import { showGlobalAlert, showConfirm } from '../../modules/utils.js?v=8000';
-
-// 6 criteri Parozzi per validazione nicchia
-const PAROZZI_CRITERIA = [
-    { key: 'growing',          label: 'Mercato in crescita (non morente)',                       hint: 'Verifica Google Trends, news settore' },
-    { key: 'size',             label: 'Almeno 8.000-10.000 realtà raggiungibili',                hint: 'Fascia ottimale: 10K-100K' },
-    { key: 'profitable',       label: 'Profittevole (margini, non solo fatturato)',              hint: 'Es: dentisti €500K → €200K netti' },
-    { key: 'spends_high',      label: 'Abituati a spendere cifre importanti',                    hint: 'Hanno già speso €10K+ per macchinari/SaaS' },
-    { key: 'reachable',        label: 'Raggiungibile sistematicamente via canali scalabili',     hint: 'Email, LinkedIn, Google Maps' },
-    { key: 'personal_interest', label: 'Interesse personale minimo',                              hint: 'Tieni botta nei momenti difficili' },
-];
+import { analyzeNiche, saveNicheAnalysis, fetchNicheSapRelevance, PAROZZI_CRITERIA } from './niche_analyzer.js?v=8000';
 
 const STATUS_CONFIG = {
     researching: { label: 'In ricerca',  color: '#f59e0b', icon: 'search' },
@@ -29,34 +24,32 @@ export async function renderSalesNiches(container) {
     container.innerHTML = buildLoadingHTML();
 
     try {
-        const [niches, sapServices] = await Promise.all([
-            fetchNiches(),
-            fetchSapServicesForSales(),
-        ]);
-        container.innerHTML = buildPageHTML(niches, sapServices);
-        bindEvents(container, niches, sapServices);
+        const niches = await fetchNiches();
+        container.innerHTML = buildPageHTML(niches);
+        bindEvents(container, niches);
     } catch (err) {
         container.innerHTML = '<p style="padding:2rem;color:red;">Errore: ' + escHtml(err.message) + '</p>';
     }
 }
 
-// ─── HTML ─────────────────────────────────────────────────────────────────────
+// ─── PAGE HTML ────────────────────────────────────────────────────────────────
 
 function buildLoadingHTML() {
     return '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--text-secondary);gap:0.75rem;"><span class="material-icons-round" style="animation:spin 1s linear infinite;">refresh</span>Caricamento nicchie…</div>';
 }
 
-function buildPageHTML(niches, sapServices) {
+function buildPageHTML(niches) {
     const totalNiches = niches.length;
     const activeNiches = niches.filter(n => n.status === 'active').length;
+    const analyzedNiches = niches.filter(n => n.analyzed_at).length;
     const totalProspects = niches.reduce((sum, n) => sum + (n.prospects_count || 0), 0);
 
     return (
         '<div class="animate-fade-in" style="max-width:1200px;margin:0 auto;padding:1.5rem;">' +
-            buildHeader(totalNiches, activeNiches, totalProspects) +
+            buildHeader(totalNiches, activeNiches, analyzedNiches, totalProspects) +
             (niches.length === 0
                 ? buildEmptyState()
-                : '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(360px, 1fr));gap:1rem;">' +
+                : '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(380px, 1fr));gap:1rem;">' +
                     niches.map(n => buildNicheCard(n)).join('') +
                   '</div>'
             ) +
@@ -64,13 +57,13 @@ function buildPageHTML(niches, sapServices) {
     );
 }
 
-function buildHeader(total, active, prospects) {
+function buildHeader(total, active, analyzed, prospects) {
     return (
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">' +
             '<div>' +
                 '<h1 style="font-size:1.75rem;font-weight:800;font-family:var(--font-titles);color:var(--text-primary);margin:0;letter-spacing:-0.02em;">Niche Research</h1>' +
                 '<div style="font-size:0.85rem;color:var(--text-tertiary);margin-top:0.25rem;">' +
-                    total + ' nicchie · ' + active + ' attive · ' + prospects + ' prospect collegati' +
+                    total + ' nicchie · ' + active + ' attive · ' + analyzed + ' analizzate AI · ' + prospects + ' prospect' +
                 '</div>' +
             '</div>' +
             '<div style="display:flex;gap:0.5rem;align-items:center;">' +
@@ -90,12 +83,12 @@ function buildEmptyState() {
         '<div style="text-align:center;padding:4rem 2rem;color:var(--text-tertiary);border:2px dashed var(--glass-border);border-radius:18px;">' +
             '<span class="material-icons-round" style="font-size:4rem;opacity:0.3;display:block;margin-bottom:1rem;">explore</span>' +
             '<div style="font-size:1.05rem;font-weight:700;color:var(--text-primary);margin-bottom:0.5rem;">Nessuna nicchia ancora</div>' +
-            '<div style="font-size:0.88rem;max-width:480px;margin:0 auto 1.5rem;line-height:1.5;">' +
-                'Una nicchia è un target specifico per i tuoi SAP. Esempio: "Strutture turistiche liguri" + SAP "Local SEO". ' +
-                'Inizia da una sola, valida sui 6 criteri Parozzi, poi scala.' +
+            '<div style="font-size:0.88rem;max-width:520px;margin:0 auto 1.5rem;line-height:1.5;">' +
+                'Scrivi il nome di un segmento di mercato (es. "Strutture ricettive Liguria") e l\'AI fa il resto: ' +
+                'analisi mercato, pain points, comuni da attaccare, SAP candidati con angle di vendita.' +
             '</div>' +
             '<button id="btn-new-niche-empty" class="primary-btn" style="display:inline-flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.65rem 1.3rem;border-radius:12px;font-weight:700;">' +
-                '<span class="material-icons-round" style="font-size:1rem;">add</span>Crea prima nicchia' +
+                '<span class="material-icons-round" style="font-size:1rem;">auto_awesome</span>Crea + analizza prima nicchia' +
             '</button>' +
         '</div>'
     );
@@ -103,55 +96,65 @@ function buildEmptyState() {
 
 function buildNicheCard(n) {
     const statusConf = STATUS_CONFIG[n.status] || STATUS_CONFIG.researching;
-    const criteria = n.criteria || {};
-    const criteriaMatchCount = PAROZZI_CRITERIA.filter(c => criteria[c.key]).length;
-    const ikigaiBars = Array.from({ length: 5 }, (_, i) =>
-        '<div style="height:3px;flex:1;border-radius:2px;background:' + (i < (n.ikigai_score || 0) ? '#8b5cf6' : 'var(--bg-tertiary)') + ';"></div>'
-    ).join('');
+    const validation = n.criteria_validation || {};
+    const validCount = PAROZZI_CRITERIA.filter(c => validation[c.key]?.verdict === true).length;
+    const totalCriteria = PAROZZI_CRITERIA.length;
+    const geoScope = Array.isArray(n.geo_scope) ? n.geo_scope : [];
+    const pain = Array.isArray(n.pain_points) ? n.pain_points : [];
+    const isAnalyzed = !!n.analyzed_at;
+
+    const validColor = validCount >= 4 ? '#10b981' : validCount >= 2 ? '#f59e0b' : '#ef4444';
 
     return (
         '<div class="niche-card" data-id="' + n.id + '" style="background:var(--bg-secondary);border:1px solid var(--glass-border);border-radius:16px;padding:1.25rem;cursor:pointer;transition:transform 0.2s, box-shadow 0.2s;">' +
-            // Header
             '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.75rem;gap:0.5rem;">' +
                 '<div style="flex:1;min-width:0;">' +
                     '<div style="font-size:1rem;font-weight:800;color:var(--text-primary);font-family:var(--font-titles);line-height:1.2;">' + escHtml(n.name) + '</div>' +
-                    (n.target_sap
-                        ? '<div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:3px;">→ ' + escHtml(n.target_sap.name) + '</div>'
-                        : '<div style="font-size:0.72rem;color:#f59e0b;margin-top:3px;">⚠ SAP non assegnato</div>') +
+                    (isAnalyzed
+                        ? '<div style="font-size:0.7rem;color:#8b5cf6;margin-top:3px;display:inline-flex;align-items:center;gap:3px;"><span class="material-icons-round" style="font-size:0.8rem;">auto_awesome</span>Analizzata AI</div>'
+                        : '<div style="font-size:0.7rem;color:#f59e0b;margin-top:3px;display:inline-flex;align-items:center;gap:3px;"><span class="material-icons-round" style="font-size:0.8rem;">pending</span>Da analizzare</div>') +
                 '</div>' +
                 '<span style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.7rem;padding:3px 9px;border-radius:8px;background:' + statusConf.color + '15;color:' + statusConf.color + ';font-weight:700;flex-shrink:0;">' +
                     '<span class="material-icons-round" style="font-size:0.8rem;">' + statusConf.icon + '</span>' + statusConf.label +
                 '</span>' +
             '</div>' +
-            // Description
-            (n.description ? '<div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.75rem;line-height:1.4;">' + escHtml(n.description) + '</div>' : '') +
-            // Stats row
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.75rem;padding:0.6rem;background:var(--bg-tertiary);border-radius:10px;">' +
-                '<div>' +
-                    '<div style="font-size:0.65rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;">Prospect</div>' +
-                    '<div style="font-size:1.1rem;font-weight:900;color:var(--text-primary);">' + (n.prospects_count || 0) + '</div>' +
-                '</div>' +
-                '<div>' +
-                    '<div style="font-size:0.65rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;">Criteri Parozzi</div>' +
-                    '<div style="font-size:1.1rem;font-weight:900;color:' + (criteriaMatchCount >= 5 ? '#10b981' : criteriaMatchCount >= 3 ? '#f59e0b' : '#ef4444') + ';">' + criteriaMatchCount + '/6</div>' +
-                '</div>' +
+            (n.description
+                ? '<div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.75rem;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + escHtml(n.description) + '</div>'
+                : '') +
+            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.75rem;padding:0.6rem;background:var(--bg-tertiary);border-radius:10px;">' +
+                statCell('Prospect', n.prospects_count || 0, 'var(--text-primary)') +
+                statCell('Comuni', geoScope.length, geoScope.length > 0 ? '#3b82f6' : 'var(--text-tertiary)') +
+                statCell('Criteri', validCount + '/' + totalCriteria, validColor) +
             '</div>' +
-            // Ikigai bar
-            '<div>' +
-                '<div style="display:flex;justify-content:space-between;font-size:0.66rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">' +
-                    '<span>Ikigai score</span>' +
-                    '<span>' + (n.ikigai_score || '–') + '/5</span>' +
-                '</div>' +
-                '<div style="display:flex;gap:3px;">' + ikigaiBars + '</div>' +
-            '</div>' +
+            (pain.length > 0
+                ? '<div style="margin-bottom:0.6rem;">' +
+                    '<div style="font-size:0.66rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">Pain principale</div>' +
+                    '<div style="font-size:0.78rem;color:var(--text-primary);line-height:1.4;">' + escHtml(truncate(pain[0], 110)) + '</div>' +
+                  '</div>'
+                : '') +
+            (geoScope.length > 0
+                ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:0.5rem;">' +
+                    geoScope.slice(0, 5).map(c => '<span style="font-size:0.68rem;padding:2px 7px;border-radius:6px;background:#3b82f615;color:#3b82f6;font-weight:600;">' + escHtml(c) + '</span>').join('') +
+                    (geoScope.length > 5 ? '<span style="font-size:0.68rem;color:var(--text-tertiary);padding:2px 4px;">+' + (geoScope.length - 5) + '</span>' : '') +
+                  '</div>'
+                : '') +
+        '</div>'
+    );
+}
+
+function statCell(label, value, color) {
+    return (
+        '<div>' +
+            '<div style="font-size:0.62rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;">' + label + '</div>' +
+            '<div style="font-size:1.05rem;font-weight:900;color:' + color + ';">' + value + '</div>' +
         '</div>'
     );
 }
 
 // ─── EVENTS ───────────────────────────────────────────────────────────────────
 
-function bindEvents(container, niches, sapServices) {
-    const openNew = () => openNicheModal(null, sapServices, () => renderSalesNiches(container));
+function bindEvents(container, niches) {
+    const openNew = () => openNewNicheModal(() => renderSalesNiches(container));
     container.querySelector('#btn-new-niche')?.addEventListener('click', openNew);
     container.querySelector('#btn-new-niche-empty')?.addEventListener('click', openNew);
 
@@ -167,91 +170,300 @@ function bindEvents(container, niches, sapServices) {
         card.addEventListener('click', () => {
             const id = card.dataset.id;
             const niche = niches.find(n => n.id === id);
-            if (niche) openNicheModal(niche, sapServices, () => renderSalesNiches(container));
+            if (niche) openNicheDetailModal(niche, () => renderSalesNiches(container));
         });
     });
 }
 
-function openNicheModal(niche, sapServices, onSave) {
-    const isNew = !niche;
-    const n = niche || { status: 'researching', criteria: {}, ikigai_score: 3 };
-    const criteria = n.criteria || {};
+// ─── MODAL: NEW NICHE (AI-first) ─────────────────────────────────────────────
 
-    const sapOptions = sapServices.map(s =>
-        '<option value="' + s.id + '"' + (n.target_sap_id === s.id ? ' selected' : '') + '>' + escHtml(s.name) + '</option>'
-    ).join('');
-
-    const statusOptions = Object.entries(STATUS_CONFIG).map(([k, v]) =>
-        '<option value="' + k + '"' + (n.status === k ? ' selected' : '') + '>' + v.label + '</option>'
-    ).join('');
-
-    const criteriaHTML = PAROZZI_CRITERIA.map(c =>
-        '<label style="display:flex;align-items:flex-start;gap:0.6rem;padding:0.6rem;border-radius:10px;background:' + (criteria[c.key] ? '#10b98108' : 'var(--bg-tertiary)') + ';border:1px solid ' + (criteria[c.key] ? '#10b98133' : 'var(--glass-border)') + ';cursor:pointer;transition:background 0.15s;">' +
-            '<input type="checkbox" name="criteria_' + c.key + '"' + (criteria[c.key] ? ' checked' : '') + ' style="margin-top:3px;cursor:pointer;">' +
-            '<div style="flex:1;">' +
-                '<div style="font-size:0.82rem;font-weight:600;color:var(--text-primary);">' + c.label + '</div>' +
-                '<div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:2px;">' + c.hint + '</div>' +
+function openNewNicheModal(onSave) {
+    const overlay = buildOverlay('modal-new-niche');
+    overlay.innerHTML = buildModalShell(
+        'Nuova nicchia',
+        '',
+        '<div id="new-niche-body">' +
+            '<div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.25rem;line-height:1.5;">' +
+                'Scrivi il nome della nicchia. L\'AI analizza mercato, pain, linguaggio, comuni target e SAP candidati. ' +
+                'Poi rivedi e salvi.' +
             '</div>' +
-        '</label>'
-    ).join('');
-
-    const ikigaiOptions = [1, 2, 3, 4, 5].map(v =>
-        '<option value="' + v + '"' + ((n.ikigai_score || 3) === v ? ' selected' : '') + '>' + v + ' / 5</option>'
-    ).join('');
-
-    const overlay = document.createElement('div');
-    overlay.id = 'modal-niche-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
-    overlay.innerHTML =
-        '<div style="background:var(--bg-primary, #ffffff);border-radius:20px;padding:2rem;max-width:680px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 25px 80px rgba(0,0,0,0.35);border:1px solid var(--glass-border, rgba(0,0,0,0.08));">' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">' +
-                '<h2 style="font-size:1.25rem;font-weight:800;font-family:var(--font-titles);margin:0;">' +
-                    (isNew ? 'Nuova nicchia' : escHtml(n.name)) +
-                '</h2>' +
-                '<div style="display:flex;gap:0.5rem;align-items:center;">' +
-                    (!isNew ? '<button id="btn-delete-niche" style="background:#ef444415;color:#ef4444;border:none;border-radius:10px;padding:0.4rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;">Elimina</button>' : '') +
-                    '<button id="btn-close-niche" style="background:var(--bg-tertiary);color:var(--text-secondary);border:none;border-radius:10px;padding:0.4rem 0.75rem;font-size:0.78rem;cursor:pointer;">✕</button>' +
-                '</div>' +
+            '<div>' +
+                '<label style="font-size:0.74rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Nome nicchia *</label>' +
+                '<input id="new-niche-name" type="text" placeholder="Es. Strutture ricettive Liguria" ' +
+                    'style="width:100%;padding:0.75rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.95rem;box-sizing:border-box;">' +
             '</div>' +
-            '<form id="form-niche">' +
-                // Nome + status
-                '<div style="display:grid;grid-template-columns:2fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">' +
-                    formField('name', 'Nome nicchia *', n.name, 'text', true) +
-                    formSelect('status', 'Status', statusOptions) +
-                '</div>' +
-                // Descrizione
-                formTextarea('description', 'Descrizione (chi è il target?)', n.description, 2) +
-                // SAP + Ikigai
-                '<div style="display:grid;grid-template-columns:2fr 1fr;gap:0.75rem;margin:0.75rem 0;">' +
-                    formSelect('target_sap_id', 'SAP target', '<option value="">— scegli SAP —</option>' + sapOptions) +
-                    formSelect('ikigai_score', 'Ikigai score', ikigaiOptions) +
-                '</div>' +
-                // Criteri Parozzi
-                '<div style="margin:1.25rem 0 0.75rem;">' +
-                    '<div style="font-size:0.78rem;font-weight:800;color:var(--text-primary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.6rem;">Criteri Parozzi (validano la nicchia)</div>' +
-                    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">' + criteriaHTML + '</div>' +
-                '</div>' +
-                // Note
-                formTextarea('notes', 'Note operative', n.notes, 3) +
-            '</form>' +
-            '<div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:1.5rem;">' +
-                '<button id="btn-cancel-niche" style="padding:0.6rem 1.2rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-secondary);font-size:0.85rem;font-weight:600;cursor:pointer;">Annulla</button>' +
-                '<button id="btn-save-niche" class="primary-btn" style="padding:0.6rem 1.4rem;border-radius:12px;font-size:0.85rem;font-weight:700;">Salva</button>' +
-            '</div>' +
-        '</div>';
+            '<div id="new-niche-analysis" style="margin-top:1.25rem;"></div>' +
+        '</div>',
+        '<button id="btn-cancel-new" style="padding:0.6rem 1.2rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-secondary);font-size:0.85rem;font-weight:600;cursor:pointer;">Annulla</button>' +
+        '<button id="btn-analyze-niche" class="primary-btn" style="padding:0.6rem 1.4rem;border-radius:12px;font-size:0.85rem;font-weight:700;display:inline-flex;align-items:center;gap:0.4rem;">' +
+            '<span class="material-icons-round" style="font-size:1rem;">auto_awesome</span>Analizza con AI' +
+        '</button>'
+    );
 
     document.body.appendChild(overlay);
 
     const close = () => overlay.remove();
-    overlay.querySelector('#btn-close-niche').addEventListener('click', close);
-    overlay.querySelector('#btn-cancel-niche').addEventListener('click', close);
+    overlay.querySelector('#btn-cancel-new').addEventListener('click', close);
     overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
-    overlay.querySelector('#btn-delete-niche')?.addEventListener('click', async () => {
-        const ok = await showConfirm('Eliminare la nicchia "' + n.name + '"?', 'Elimina', 'Annulla');
+    overlay.querySelector('#btn-analyze-niche').addEventListener('click', async () => {
+        const nameInput = overlay.querySelector('#new-niche-name');
+        const name = nameInput?.value?.trim();
+        if (!name) { showGlobalAlert('Scrivi il nome della nicchia', 'error'); return; }
+        await runAnalyzeAndPreview(overlay, name, onSave, close);
+    });
+
+    overlay.querySelector('#new-niche-name')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') overlay.querySelector('#btn-analyze-niche').click();
+    });
+    setTimeout(() => overlay.querySelector('#new-niche-name')?.focus(), 100);
+}
+
+async function runAnalyzeAndPreview(overlay, name, onSave, close) {
+    const btn = overlay.querySelector('#btn-analyze-niche');
+    const analysisDiv = overlay.querySelector('#new-niche-analysis');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons-round" style="font-size:1rem;animation:spin 1s linear infinite;">refresh</span>Analizzo…';
+
+    analysisDiv.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;padding:2rem;gap:0.75rem;color:var(--text-secondary);background:var(--bg-tertiary);border-radius:14px;">' +
+            '<span class="material-icons-round" style="animation:spin 1s linear infinite;">auto_awesome</span>' +
+            'AI sta analizzando "' + escHtml(name) + '"…' +
+        '</div>';
+
+    try {
+        const analysis = await analyzeNiche(name);
+        analysisDiv.innerHTML = buildAnalysisPreview(analysis);
+
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons-round" style="font-size:1rem;">save</span>Salva nicchia';
+        btn.onclick = async () => {
+            await saveNewNicheFromAnalysis(name, analysis, onSave, close);
+        };
+
+        if (!overlay.querySelector('#btn-reanalyze')) {
+            const reBtn = document.createElement('button');
+            reBtn.id = 'btn-reanalyze';
+            reBtn.style.cssText = 'padding:0.6rem 1.1rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-secondary);font-size:0.82rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;margin-right:0.5rem;';
+            reBtn.innerHTML = '<span class="material-icons-round" style="font-size:1rem;">refresh</span>Rianalizza';
+            reBtn.onclick = () => runAnalyzeAndPreview(overlay, name, onSave, close);
+            btn.parentNode.insertBefore(reBtn, btn);
+        }
+
+    } catch (err) {
+        console.error('[NicheAnalyzer] error', err);
+        analysisDiv.innerHTML = '<div style="padding:1rem;color:#ef4444;font-size:0.85rem;background:#ef444408;border-radius:10px;">Errore AI: ' + escHtml(err.message) + '</div>';
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons-round" style="font-size:1rem;">auto_awesome</span>Riprova';
+    }
+}
+
+async function saveNewNicheFromAnalysis(name, analysis, onSave, close) {
+    try {
+        const created = await upsertNiche({ name, status: 'researching' });
+        await saveNicheAnalysis(created.id, analysis);
+        showGlobalAlert('Nicchia creata + analizzata', 'success');
+        close();
+        onSave && onSave();
+    } catch (err) {
+        showGlobalAlert('Errore salvataggio: ' + err.message, 'error');
+    }
+}
+
+function buildAnalysisPreview(a) {
+    return (
+        '<div style="border:1px solid #8b5cf622;background:linear-gradient(135deg, #8b5cf606, #3b82f606);border-radius:14px;padding:1.25rem;">' +
+            '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:1rem;">' +
+                '<span class="material-icons-round" style="font-size:1rem;color:#8b5cf6;">auto_awesome</span>' +
+                '<span style="font-size:0.78rem;font-weight:800;color:#8b5cf6;text-transform:uppercase;letter-spacing:0.05em;">Anteprima analisi AI</span>' +
+            '</div>' +
+            (a.warnings && a.warnings.length > 0
+                ? '<div style="background:#f59e0b15;border:1px solid #f59e0b40;border-radius:10px;padding:0.6rem 0.8rem;margin-bottom:1rem;font-size:0.78rem;color:#92400e;">' +
+                    '⚠ ' + a.warnings.map(w => escHtml(w)).join(' · ') +
+                  '</div>'
+                : '') +
+            (a.description ? section('Descrizione', '<div style="font-size:0.85rem;line-height:1.5;color:var(--text-primary);">' + escHtml(a.description) + '</div>') : '') +
+            (a.market_size_estimate ? section('Dimensione mercato', '<div style="font-size:0.82rem;color:var(--text-primary);">' + escHtml(a.market_size_estimate) + '</div>') : '') +
+            (a.criteria_validation ? section('Validazione 5 criteri', buildCriteriaList(a.criteria_validation)) : '') +
+            (a.pain_points && a.pain_points.length > 0
+                ? section('Pain points',
+                    '<ul style="margin:0;padding-left:1.2rem;font-size:0.82rem;color:var(--text-primary);line-height:1.5;">' +
+                        a.pain_points.map(p => '<li>' + escHtml(p) + '</li>').join('') +
+                    '</ul>')
+                : '') +
+            (a.niche_language && Object.keys(a.niche_language).length > 0
+                ? section('Linguaggio della nicchia', buildLanguageList(a.niche_language))
+                : '') +
+            (a.geo_scope && a.geo_scope.length > 0
+                ? section('Comuni da attaccare (' + a.geo_scope.length + ')',
+                    '<div style="display:flex;flex-wrap:wrap;gap:4px;">' +
+                        a.geo_scope.map(c => '<span style="font-size:0.74rem;padding:3px 9px;border-radius:8px;background:#3b82f615;color:#3b82f6;font-weight:600;">' + escHtml(c) + '</span>').join('') +
+                    '</div>')
+                : '') +
+            (a.sap_candidates && a.sap_candidates.length > 0
+                ? section('SAP candidati', buildSapCandidatesList(a.sap_candidates))
+                : '<div style="font-size:0.78rem;color:var(--text-tertiary);font-style:italic;padding:0.5rem;">Nessun SAP candidato (catalogo Gleeye poco documentato).</div>') +
+        '</div>'
+    );
+}
+
+function section(title, content) {
+    return (
+        '<div style="margin-bottom:1rem;">' +
+            '<div style="font-size:0.7rem;font-weight:800;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.4rem;">' + title + '</div>' +
+            content +
+        '</div>'
+    );
+}
+
+function buildCriteriaList(validation) {
+    return (
+        '<div style="display:flex;flex-direction:column;gap:0.5rem;">' +
+            PAROZZI_CRITERIA.map(c => {
+                const v = validation[c.key] || {};
+                const passed = v.verdict === true;
+                const color = passed ? '#10b981' : '#ef4444';
+                const icon = passed ? 'check_circle' : 'cancel';
+                return (
+                    '<div style="display:grid;grid-template-columns:auto 1fr;gap:0.5rem;align-items:flex-start;padding:0.5rem 0.7rem;background:' + color + '08;border-radius:8px;border-left:3px solid ' + color + ';">' +
+                        '<span class="material-icons-round" style="font-size:1rem;color:' + color + ';margin-top:2px;">' + icon + '</span>' +
+                        '<div>' +
+                            '<div style="font-size:0.78rem;font-weight:700;color:var(--text-primary);">' + c.label + '</div>' +
+                            (v.rationale ? '<div style="font-size:0.74rem;color:var(--text-secondary);line-height:1.4;margin-top:2px;">' + escHtml(v.rationale) + '</div>' : '') +
+                        '</div>' +
+                    '</div>'
+                );
+            }).join('') +
+        '</div>'
+    );
+}
+
+function buildLanguageList(lang) {
+    const entries = Object.entries(lang);
+    if (entries.length === 0) return '<div style="font-size:0.78rem;color:var(--text-tertiary);">—</div>';
+    return (
+        '<div style="display:flex;flex-direction:column;gap:0.3rem;">' +
+            entries.map(([term, meaning]) =>
+                '<div style="display:grid;grid-template-columns:140px 1fr;gap:0.5rem;font-size:0.78rem;line-height:1.4;">' +
+                    '<span style="font-weight:700;color:#8b5cf6;">' + escHtml(term) + '</span>' +
+                    '<span style="color:var(--text-secondary);">' + escHtml(typeof meaning === 'string' ? meaning : JSON.stringify(meaning)) + '</span>' +
+                '</div>'
+            ).join('') +
+        '</div>'
+    );
+}
+
+function buildSapCandidatesList(sapCandidates) {
+    const sorted = [...sapCandidates].sort((a, b) => (b.relevance_score || 0) - (a.relevance_score || 0));
+    return (
+        '<div style="display:flex;flex-direction:column;gap:0.6rem;">' +
+            sorted.map(s => {
+                const score = s.relevance_score || 0;
+                const scoreColor = score >= 70 ? '#10b981' : score >= 40 ? '#f59e0b' : '#94a3b8';
+                return (
+                    '<div style="background:var(--bg-primary);border:1px solid var(--glass-border);border-radius:10px;padding:0.7rem 0.9rem;">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">' +
+                            '<div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);">' + escHtml(s.sap_name || '?') + '</div>' +
+                            '<span style="font-size:0.7rem;font-weight:800;padding:2px 8px;border-radius:8px;background:' + scoreColor + '20;color:' + scoreColor + ';">' + score + '/100</span>' +
+                        '</div>' +
+                        (s.angle ? '<div style="font-size:0.76rem;color:var(--text-secondary);line-height:1.45;margin-bottom:0.3rem;"><strong>Angle:</strong> ' + escHtml(s.angle) + '</div>' : '') +
+                        (s.pain_addressed ? '<div style="font-size:0.74rem;color:var(--text-secondary);line-height:1.45;"><strong>Pain:</strong> ' + escHtml(s.pain_addressed) + '</div>' : '') +
+                        (s.mock_oto_formula ? '<div style="font-size:0.74rem;color:#8b5cf6;line-height:1.45;margin-top:0.3rem;font-style:italic;">"' + escHtml(s.mock_oto_formula) + '"</div>' : '') +
+                    '</div>'
+                );
+            }).join('') +
+        '</div>'
+    );
+}
+
+// ─── MODAL: NICHE DETAIL ─────────────────────────────────────────────────────
+
+async function openNicheDetailModal(niche, onSave) {
+    const overlay = buildOverlay('modal-niche-detail');
+    overlay.innerHTML = buildModalShell(
+        escHtml(niche.name),
+        '<button id="btn-delete-niche" style="background:#ef444415;color:#ef4444;border:none;border-radius:10px;padding:0.4rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;margin-right:0.5rem;">Elimina</button>',
+        '<div id="niche-detail-body">' + buildLoadingHTML() + '</div>',
+        '<button id="btn-cancel-detail" style="padding:0.6rem 1.2rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-secondary);font-size:0.85rem;font-weight:600;cursor:pointer;">Chiudi</button>' +
+        '<button id="btn-reanalyze-detail" style="padding:0.6rem 1.1rem;border-radius:12px;border:1px solid #8b5cf640;background:#8b5cf608;color:#8b5cf6;font-size:0.82rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;">' +
+            '<span class="material-icons-round" style="font-size:1rem;">auto_awesome</span>' + (niche.analyzed_at ? 'Rianalizza con AI' : 'Analizza con AI') +
+        '</button>'
+    );
+
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    overlay.querySelector('#btn-cancel-detail').addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+    let relevance = [];
+    try {
+        relevance = await fetchNicheSapRelevance(niche.id);
+    } catch (err) {
+        console.warn('[NicheDetail] no relevance', err);
+    }
+
+    overlay.querySelector('#niche-detail-body').innerHTML = buildDetailBody(niche, relevance);
+    bindDetailEvents(overlay, niche, onSave, close);
+}
+
+function buildDetailBody(niche, relevance) {
+    return (
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.75rem;">' +
+            '<div>' +
+                '<label style="font-size:0.7rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:3px;">Status</label>' +
+                '<select id="detail-status" style="width:100%;padding:0.5rem 0.7rem;border-radius:10px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.85rem;">' +
+                    Object.entries(STATUS_CONFIG).map(([k, v]) =>
+                        '<option value="' + k + '"' + (niche.status === k ? ' selected' : '') + '>' + v.label + '</option>'
+                    ).join('') +
+                '</select>' +
+            '</div>' +
+            '<div>' +
+                '<label style="font-size:0.7rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:3px;">Note operative</label>' +
+                '<input id="detail-notes" type="text" value="' + escHtml(niche.notes || '') + '" placeholder="—" style="width:100%;padding:0.5rem 0.7rem;border-radius:10px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.85rem;box-sizing:border-box;">' +
+            '</div>' +
+        '</div>' +
+        '<button id="btn-save-meta" style="font-size:0.74rem;padding:5px 12px;border-radius:8px;border:none;background:var(--bg-tertiary);color:var(--text-secondary);cursor:pointer;font-weight:600;margin-bottom:1.5rem;">Salva status/note</button>' +
+        (niche.analyzed_at
+            ? buildAnalysisPreviewFromNiche(niche, relevance)
+            : '<div style="text-align:center;padding:2rem;border:2px dashed var(--glass-border);border-radius:14px;color:var(--text-tertiary);">' +
+                '<span class="material-icons-round" style="font-size:2.5rem;opacity:0.4;display:block;margin-bottom:0.5rem;">psychology</span>' +
+                '<div style="font-size:0.88rem;font-weight:600;color:var(--text-primary);margin-bottom:0.3rem;">Nicchia non ancora analizzata</div>' +
+                '<div style="font-size:0.78rem;">Clicca "Analizza con AI" qui sotto per popolare descrizione, criteri, pain, comuni, SAP candidati.</div>' +
+              '</div>'
+        )
+    );
+}
+
+function buildAnalysisPreviewFromNiche(n, relevance) {
+    const candidates = relevance.map(r => ({
+        sap_id: r.sap_id,
+        sap_name: r.sap?.name,
+        relevance_score: r.relevance_score,
+        angle: r.angle,
+        pain_addressed: r.pain_addressed,
+        mock_oto_formula: r.mock_oto_formula,
+    }));
+
+    return buildAnalysisPreview({
+        description:          n.description,
+        market_size_estimate: n.market_size_estimate,
+        criteria_validation:  n.criteria_validation,
+        pain_points:          n.pain_points,
+        niche_language:       n.niche_language,
+        geo_scope:            n.geo_scope,
+        sap_candidates:       candidates,
+        warnings:             [],
+    });
+}
+
+function bindDetailEvents(overlay, niche, onSave, close) {
+    overlay.querySelector('#btn-delete-niche').addEventListener('click', async () => {
+        const ok = await showConfirm('Eliminare la nicchia "' + niche.name + '"? L\'azione cancella anche analisi AI e SAP relevance collegati.', 'Elimina', 'Annulla');
         if (!ok) return;
         try {
-            await deleteNiche(n.id);
+            await deleteNiche(niche.id);
             showGlobalAlert('Nicchia eliminata', 'success');
             close();
             onSave && onSave();
@@ -260,79 +472,86 @@ function openNicheModal(niche, sapServices, onSave) {
         }
     });
 
-    overlay.querySelector('#btn-save-niche').addEventListener('click', async () => {
-        const form = overlay.querySelector('#form-niche');
-        const criteriaPayload = {};
-        PAROZZI_CRITERIA.forEach(c => {
-            criteriaPayload[c.key] = !!form.querySelector('[name="criteria_' + c.key + '"]')?.checked;
-        });
-
-        const payload = {
-            name:           form.querySelector('[name="name"]')?.value?.trim(),
-            description:    form.querySelector('[name="description"]')?.value?.trim() || null,
-            status:         form.querySelector('[name="status"]')?.value || 'researching',
-            target_sap_id:  form.querySelector('[name="target_sap_id"]')?.value || null,
-            ikigai_score:   parseInt(form.querySelector('[name="ikigai_score"]')?.value || '3', 10),
-            criteria:       criteriaPayload,
-            notes:          form.querySelector('[name="notes"]')?.value?.trim() || null,
-        };
-        if (!payload.name) { showGlobalAlert('Il nome è obbligatorio', 'error'); return; }
-        if (n.id) payload.id = n.id;
-
-        const btn = overlay.querySelector('#btn-save-niche');
-        btn.disabled = true;
-        btn.textContent = 'Salvataggio…';
-
+    overlay.querySelector('#btn-save-meta').addEventListener('click', async () => {
+        const status = overlay.querySelector('#detail-status').value;
+        const notes  = overlay.querySelector('#detail-notes').value.trim() || null;
         try {
-            await upsertNiche(payload);
-            showGlobalAlert(isNew ? 'Nicchia creata' : 'Nicchia aggiornata', 'success');
-            close();
+            await upsertNiche({ id: niche.id, status, notes });
+            showGlobalAlert('Salvato', 'success');
             onSave && onSave();
         } catch (err) {
             showGlobalAlert('Errore: ' + err.message, 'error');
+        }
+    });
+
+    overlay.querySelector('#btn-reanalyze-detail').addEventListener('click', async () => {
+        const btn = overlay.querySelector('#btn-reanalyze-detail');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-icons-round" style="font-size:1rem;animation:spin 1s linear infinite;">refresh</span>Analizzo…';
+        try {
+            const analysis = await analyzeNiche(niche.name);
+            await saveNicheAnalysis(niche.id, analysis);
+            showGlobalAlert('Nicchia rianalizzata', 'success');
+            close();
+            onSave && onSave();
+        } catch (err) {
+            console.error('[NicheReanalyze] error', err);
+            showGlobalAlert('Errore AI: ' + err.message, 'error');
             btn.disabled = false;
-            btn.textContent = 'Salva';
+            btn.innerHTML = '<span class="material-icons-round" style="font-size:1rem;">auto_awesome</span>Riprova';
         }
     });
 }
 
+// ─── MODAL SHELL ──────────────────────────────────────────────────────────────
+
+function buildOverlay(id) {
+    const existing = document.getElementById(id);
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = id;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    return overlay;
+}
+
+function buildModalShell(title, headerExtra, bodyHTML, footerHTML) {
+    return (
+        '<div style="background:var(--bg-primary, #ffffff);border-radius:20px;padding:2rem;max-width:760px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 25px 80px rgba(0,0,0,0.35);border:1px solid var(--glass-border, rgba(0,0,0,0.08));">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">' +
+                '<h2 style="font-size:1.25rem;font-weight:800;font-family:var(--font-titles);margin:0;">' + title + '</h2>' +
+                '<div style="display:flex;gap:0.4rem;align-items:center;">' +
+                    headerExtra +
+                    '<button class="modal-close-x" style="background:var(--bg-tertiary);color:var(--text-secondary);border:none;border-radius:10px;padding:0.4rem 0.75rem;font-size:0.78rem;cursor:pointer;">✕</button>' +
+                '</div>' +
+            '</div>' +
+            bodyHTML +
+            '<div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--glass-border);">' +
+                footerHTML +
+            '</div>' +
+        '</div>'
+    );
+}
+
 // ─── UTILS ────────────────────────────────────────────────────────────────────
-
-function formField(name, label, value, type, required) {
-    return (
-        '<div>' +
-            '<label style="font-size:0.74rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">' + label + '</label>' +
-            '<input name="' + name + '" type="' + (type || 'text') + '" value="' + escHtml(value || '') + '"' +
-                (required ? ' required' : '') +
-                ' style="width:100%;padding:0.6rem;border-radius:10px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.85rem;box-sizing:border-box;">' +
-        '</div>'
-    );
-}
-
-function formSelect(name, label, optionsHTML) {
-    return (
-        '<div>' +
-            '<label style="font-size:0.74rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">' + label + '</label>' +
-            '<select name="' + name + '" style="width:100%;padding:0.6rem;border-radius:10px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.85rem;">' +
-                optionsHTML +
-            '</select>' +
-        '</div>'
-    );
-}
-
-function formTextarea(name, label, value, rows) {
-    return (
-        '<div>' +
-            '<label style="font-size:0.74rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">' + label + '</label>' +
-            '<textarea name="' + name + '" rows="' + (rows || 2) + '"' +
-                ' style="width:100%;padding:0.6rem;border-radius:10px;border:1px solid var(--glass-border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.85rem;resize:vertical;box-sizing:border-box;font-family:inherit;">' +
-                escHtml(value || '') +
-            '</textarea>' +
-        '</div>'
-    );
-}
 
 function escHtml(str) {
     if (str === null || str === undefined) return '';
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function truncate(str, max) {
+    if (!str) return '';
+    const s = String(str);
+    return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+// Chiusura modal via X (delegato — registrato una volta)
+if (!window.__nicheModalCloseBound) {
+    window.__nicheModalCloseBound = true;
+    document.addEventListener('click', (e) => {
+        if (e.target && e.target.classList && e.target.classList.contains('modal-close-x')) {
+            const overlay = e.target.closest('[id^="modal-"]');
+            if (overlay) overlay.remove();
+        }
+    });
 }
