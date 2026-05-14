@@ -47,7 +47,7 @@ async function _fetchAll() {
     ago90.setDate(ago90.getDate() - 90);
     const ago90Str = ago90.toISOString().split('T')[0];
 
-    const [inv, collPay, tasks, orphans, passReview, pricing, marginRisk] = await Promise.allSettled([
+    const [inv, collPay, tasks, orphans, passReview, pricing, marginRisk, unbilled] = await Promise.allSettled([
 
         // 1. Fatture clienti scadute: inviate da più di 30gg, non ancora saldate
         supabase
@@ -139,6 +139,49 @@ async function _fetchAll() {
             }).filter(Boolean).sort((a, b) => b.erosionPct - a.erosionPct);
             return { data: eroded, error: null };
         })(),
+
+        // 8. Commesse chiuse (status_works=completato) con residuo da fatturare.
+        //    Lavoro finito ma fattura mai emessa o solo parziale.
+        (async () => {
+            const { data: orders, error: e1 } = await supabase
+                .from('orders')
+                .select('id, order_number, title, price_final')
+                .eq('status_works', 'completato')
+                .gt('price_final', 0);
+            if (e1) return { data: [], error: e1 };
+            if (!orders || orders.length === 0) return { data: [], error: null };
+            const orderIds = orders.map(o => o.id);
+            // Fatture linkate via linked_orders (jsonb array) o order_id legacy
+            const { data: invs, error: e2 } = await supabase
+                .from('invoices')
+                .select('id, order_id, linked_orders, amount_tax_excluded');
+            if (e2) return { data: [], error: e2 };
+            const billedByOrder = {};
+            (invs || []).forEach(inv => {
+                const amount = Number(inv.amount_tax_excluded || 0);
+                if (Array.isArray(inv.linked_orders)) {
+                    inv.linked_orders.forEach(oid => {
+                        if (orderIds.includes(oid)) {
+                            billedByOrder[oid] = (billedByOrder[oid] || 0) + amount;
+                        }
+                    });
+                } else if (inv.order_id && orderIds.includes(inv.order_id)) {
+                    billedByOrder[inv.order_id] = (billedByOrder[inv.order_id] || 0) + amount;
+                }
+            });
+            const unbilledOrders = orders.map(o => {
+                const billed = billedByOrder[o.id] || 0;
+                const residual = Number(o.price_final) - billed;
+                if (residual <= 0.5) return null;
+                return {
+                    id: o.id,
+                    order_number: o.order_number,
+                    title: o.title,
+                    residual,
+                };
+            }).filter(Boolean).sort((a, b) => b.residual - a.residual);
+            return { data: unbilledOrders, error: null };
+        })(),
     ]);
 
     // — voce 4: esclude i movimenti già collegati via payments o linked_invoices
@@ -165,10 +208,12 @@ async function _fetchAll() {
     const passRows  = passReview.status === 'fulfilled' && !passReview.value.error ? passReview.value.data || [] : [];
     const pricingRows = pricing.status === 'fulfilled' && !pricing.value.error ? pricing.value.data || [] : [];
     const marginRiskRows = marginRisk.status === 'fulfilled' && !marginRisk.value.error ? marginRisk.value.data || [] : [];
+    const unbilledRows = unbilled.status === 'fulfilled' && !unbilled.value.error ? unbilled.value.data || [] : [];
 
     const invTotal  = invRows.reduce((s, r) => s + Number(r.amount_tax_included || 0), 0);
     const payTotal  = payRows.reduce((s, r) => s + Number(r.amount || 0), 0);
     const marginTotal = marginRiskRows.reduce((s, r) => s + Number(r.erosionAmount || 0), 0);
+    const unbilledTotal = unbilledRows.reduce((s, r) => s + Number(r.residual || 0), 0);
 
     return {
         invoices:    { count: invRows.length,   total: invTotal },
@@ -178,6 +223,7 @@ async function _fetchAll() {
         passReview:  { count: passRows.length },
         pricing:     { count: pricingRows.length },
         marginRisk:  { count: marginRiskRows.length, total: marginTotal, top: marginRiskRows[0] || null },
+        unbilled:    { count: unbilledRows.length, total: unbilledTotal, top: unbilledRows[0] || null },
     };
 }
 
@@ -284,6 +330,17 @@ function _buildRows(data) {
             link:    data.marginRisk.top ? '#order-detail/' + data.marginRisk.top.id : '#dashboard',
             icon:    'trending_up',
             color:   '#dc2626',
+        },
+        {
+            count:   data.unbilled.count,
+            label:   data.unbilled.count === 1
+                ? 'Commessa chiusa da fatturare'
+                : 'Commesse chiuse da fatturare',
+            sub:     data.unbilled.count > 0 ? formatAmount(data.unbilled.total) + ' sul tavolo' : '',
+            // Click → apre la commessa con il residuo più alto.
+            link:    data.unbilled.top ? '#order-detail/' + data.unbilled.top.id : '#dashboard',
+            icon:    'receipt',
+            color:   '#0d9488',
         },
     ];
 }
