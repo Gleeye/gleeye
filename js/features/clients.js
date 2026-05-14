@@ -52,6 +52,67 @@ function _accountColor(id) {
     return palette[Math.abs(h) % palette.length];
 }
 
+// ── Credit risk: detection clienti che stanno per diventare un problema ──────
+// Soglie:
+//   - Sofferenza (rosso): 2+ fatture overdue, OPPURE 1 fattura overdue > 90gg
+//   - Ritardo (ambra): 1 fattura overdue 30-90gg
+//   - OK: nessuna fattura scaduta o ritardo < 30gg
+export function computeClientCreditRisk(client) {
+    if (!client || !client.id) return { level: 'ok', count: 0, totalDue: 0, maxDays: 0 };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const overdueInvoices = (state.invoices || []).filter(i => {
+        if (i.client_id !== client.id) return false;
+        if (i.status === 'Saldata' || i.status === 'Annullata') return false;
+        const dueRaw = i.due_date || i.invoice_date;
+        if (!dueRaw) return false;
+        const due = new Date(dueRaw);
+        return due < today;
+    });
+
+    if (overdueInvoices.length === 0) {
+        return { level: 'ok', count: 0, totalDue: 0, maxDays: 0 };
+    }
+
+    let totalDue = 0;
+    let maxDays = 0;
+    overdueInvoices.forEach(i => {
+        const lordo = parseFloat(i.amount_tax_included) || parseFloat(i.amount_tax_excluded) || 0;
+        const paid = parseFloat(i.amount_paid) || 0;
+        totalDue += Math.max(0, lordo - paid);
+        const dueRaw = i.due_date || i.invoice_date;
+        const days = Math.floor((today - new Date(dueRaw)) / (1000 * 60 * 60 * 24));
+        if (days > maxDays) maxDays = days;
+    });
+
+    // Sofferenza: 2+ fatture overdue OR 1 sola ma vecchia di più di 90gg
+    if (overdueInvoices.length >= 2 || maxDays > 90) {
+        return { level: 'distress', count: overdueInvoices.length, totalDue, maxDays };
+    }
+    // Ritardo: 1 fattura 30-90gg overdue
+    if (maxDays >= 30) {
+        return { level: 'late', count: overdueInvoices.length, totalDue, maxDays };
+    }
+    return { level: 'ok', count: overdueInvoices.length, totalDue, maxDays };
+}
+
+function _renderCreditRiskBadge(client, opts = {}) {
+    const r = computeClientCreditRisk(client);
+    if (r.level === 'ok') return '';
+    const compact = opts.compact === true;
+    const baseStyle = 'display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;';
+    const fontSize = compact ? 'font-size: 0.62rem;' : 'font-size: 0.7rem;';
+    if (r.level === 'distress') {
+        const title = `${r.count} fattur${r.count === 1 ? 'a' : 'e'} scadut${r.count === 1 ? 'a' : 'e'} per €${formatAmount(r.totalDue)}, max ${r.maxDays}gg di ritardo. Valuta blocco nuovi ordini finché non rientra.`;
+        return `<span class="credit-risk-badge" title="${title}" style="${baseStyle} ${fontSize} background: rgba(220, 38, 38, 0.12); color: #b91c1c; border: 1px solid rgba(220, 38, 38, 0.35);">⚠️ Sofferenza credito</span>`;
+    }
+    // late
+    const title = `${r.count} fattura scaduta da ${r.maxDays}gg per €${formatAmount(r.totalDue)}. Segnale di attenzione.`;
+    return `<span class="credit-risk-badge" title="${title}" style="${baseStyle} ${fontSize} background: rgba(245, 158, 11, 0.12); color: #b45309; border: 1px solid rgba(245, 158, 11, 0.35);">🟡 Pagamento in ritardo</span>`;
+}
+
 export async function renderClients(container) {
     // Ensure we have orders for analytics
     const { fetchOrders, fetchCollaborators } = await import('../modules/api.js?v=8000');
@@ -167,6 +228,7 @@ export async function renderClients(container) {
     const clientsHTML = filteredClients.length > 0 ? filteredClients.map(client => {
         const isActive = getActiveStatus(client);
         const status = computeClientStatus(client);
+        const creditBadge = _renderCreditRiskBadge(client, { compact: true });
         const acc = findAccountResponsible(client);
         const accBadge = acc
             ? `<div class="v7-acc-badge" title="Account: ${acc.full_name}" style="width: 22px; height: 22px; border-radius: 50%; background: ${_accountColor(acc.id)}22; color: ${_accountColor(acc.id)}; display:flex; align-items:center; justify-content:center; font-size: 0.65rem; font-weight: 700; border: 1px solid ${_accountColor(acc.id)}55;">${_accountInitials(acc.full_name)}</div>`
@@ -178,6 +240,7 @@ export async function renderClients(container) {
                     <div class="v7-id-row">
                         <span class="v7-id">${client.client_code || '---'}</span>
                         <span class="v7-status-pill" style="background:${status.color}18; color:${status.color}; border:1px solid ${status.color}30;">${status.label}</span>
+                        ${creditBadge}
                     </div>
                     <div class="v7-name">${client.business_name}</div>
                     <div class="v7-city-mini">${client.city || '-'}</div>
@@ -611,6 +674,7 @@ export function renderClientDetail(container) {
                             <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
                                 <h1 style="margin: 0; font-size: 2.2rem; letter-spacing: -0.5px; color: var(--text-primary);">${client.business_name}</h1>
                                 ${(() => { const s = computeClientStatus(client); return `<span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 999px; background:${s.color}18; color:${s.color}; border: 1px solid ${s.color}30; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;"><span style="width: 7px; height: 7px; border-radius: 50%; background:${s.color};"></span>${s.label}</span>`; })()}
+                                ${_renderCreditRiskBadge(client)}
                             </div>
                             <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem;">
                                 <span style="font-size: 1rem; color: var(--brand-blue); font-weight: 400;">Cliente</span>
@@ -1350,6 +1414,7 @@ if (typeof window !== 'undefined') {
     window.computeClientStatus = computeClientStatus;
     window.getAccountCollaborators = getAccountCollaborators;
     window.findAccountResponsible = findAccountResponsible;
+    window.computeClientCreditRisk = computeClientCreditRisk;
 }
 
 // ── Inline picker per assegnare/cambiare l'account responsabile ──────────────
