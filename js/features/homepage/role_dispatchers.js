@@ -36,7 +36,7 @@ import {
     renderBottomTasks,
 } from './activity_feed.js?v=8000';
 
-import { renderAlertsWidget } from './alerts_widget.js?v=8009';
+import { renderAlertsWidget } from './alerts_widget.js?v=8010';
 import { renderMorningBriefing } from './morning_briefing.js?v=8001';
 
 export function renderAdminAlerts(alerts) {

@@ -47,7 +47,7 @@ async function _fetchAll() {
     ago90.setDate(ago90.getDate() - 90);
     const ago90Str = ago90.toISOString().split('T')[0];
 
-    const [inv, collPay, tasks, orphans, passReview, pricing, marginRisk, unbilled, creditRisk] = await Promise.allSettled([
+    const [inv, collPay, tasks, orphans, passReview, pricing, marginRisk, unbilled, creditRisk, asgNoPay] = await Promise.allSettled([
 
         // 1. Fatture clienti scadute: inviate da più di 30gg, non ancora saldate
         supabase
@@ -225,6 +225,38 @@ async function _fetchAll() {
                 .sort((a, b) => b.totalDue - a.totalDue);
             return { data: distress, error: null };
         })(),
+
+        // 10. Incarichi attivi (Da Fare / In Corso / In attesa / Terminato da saldare)
+        //     senza nessun payment 'Collaboratore' configurato. Rischio: il collab
+        //     finisce il lavoro e ci si dimentica di programmare il pagamento.
+        (async () => {
+            const { data: asgs, error: e1 } = await supabase
+                .from('assignments')
+                .select('id, status, total_amount, order_id, collaborators ( full_name ), orders ( order_number, title )')
+                .in('status', ['Da Fare', 'In Corso', 'In attesa', 'Terminato da saldare'])
+                .gt('total_amount', 0);
+            if (e1) return { data: [], error: e1 };
+            if (!asgs || asgs.length === 0) return { data: [], error: null };
+            const ids = asgs.map(a => a.id);
+            const { data: existingPayments } = await supabase
+                .from('payments')
+                .select('assignment_id')
+                .eq('payment_type', 'Collaboratore')
+                .in('assignment_id', ids);
+            const withPayments = new Set((existingPayments || []).map(p => p.assignment_id));
+            const orphans = asgs
+                .filter(a => !withPayments.has(a.id))
+                .map(a => ({
+                    id: a.id,
+                    order_id: a.order_id,
+                    status: a.status,
+                    total_amount: Number(a.total_amount || 0),
+                    collab: a.collaborators?.full_name || '',
+                    order_number: a.orders?.order_number || '',
+                }))
+                .sort((a, b) => b.total_amount - a.total_amount);
+            return { data: orphans, error: null };
+        })(),
     ]);
 
     // — voce 4: esclude i movimenti già collegati via payments o linked_invoices
@@ -253,12 +285,14 @@ async function _fetchAll() {
     const marginRiskRows = marginRisk.status === 'fulfilled' && !marginRisk.value.error ? marginRisk.value.data || [] : [];
     const unbilledRows = unbilled.status === 'fulfilled' && !unbilled.value.error ? unbilled.value.data || [] : [];
     const creditRows = creditRisk.status === 'fulfilled' && !creditRisk.value.error ? creditRisk.value.data || [] : [];
+    const asgNoPayRows = asgNoPay.status === 'fulfilled' && !asgNoPay.value.error ? asgNoPay.value.data || [] : [];
 
     const invTotal  = invRows.reduce((s, r) => s + Number(r.amount_tax_included || 0), 0);
     const payTotal  = payRows.reduce((s, r) => s + Number(r.amount || 0), 0);
     const marginTotal = marginRiskRows.reduce((s, r) => s + Number(r.erosionAmount || 0), 0);
     const unbilledTotal = unbilledRows.reduce((s, r) => s + Number(r.residual || 0), 0);
     const creditTotal = creditRows.reduce((s, r) => s + Number(r.totalDue || 0), 0);
+    const asgNoPayTotal = asgNoPayRows.reduce((s, r) => s + Number(r.total_amount || 0), 0);
 
     return {
         invoices:    { count: invRows.length,   total: invTotal },
@@ -270,6 +304,7 @@ async function _fetchAll() {
         marginRisk:  { count: marginRiskRows.length, total: marginTotal, top: marginRiskRows[0] || null },
         unbilled:    { count: unbilledRows.length, total: unbilledTotal, top: unbilledRows[0] || null },
         creditRisk:  { count: creditRows.length, total: creditTotal, top: creditRows[0] || null },
+        asgNoPay:    { count: asgNoPayRows.length, total: asgNoPayTotal, top: asgNoPayRows[0] || null },
     };
 }
 
@@ -398,6 +433,17 @@ function _buildRows(data) {
             link:    data.creditRisk.top ? '#client-detail/' + data.creditRisk.top.client_id : '#sales',
             icon:    'warning',
             color:   '#b91c1c',
+        },
+        {
+            count:   data.asgNoPay.count,
+            label:   data.asgNoPay.count === 1
+                ? 'Incarico senza pagamenti pianificati'
+                : 'Incarichi senza pagamenti pianificati',
+            sub:     data.asgNoPay.count > 0 ? formatAmount(data.asgNoPay.total) + ' di costo' : '',
+            // Click → apre la commessa del primo incarico (dove si configurano i payments)
+            link:    data.asgNoPay.top ? '#order-detail/' + data.asgNoPay.top.order_id : '#assignments',
+            icon:    'schedule',
+            color:   '#7c3aed',
         },
     ];
 }
