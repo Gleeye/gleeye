@@ -96,13 +96,13 @@
 }
 
 .chat-nav-item.active {
-    background: var(rgba(78, 146, 216, 0.1));
+    background: rgba(var(--brand-blue-rgb), 0.1);
     color: var(--brand-blue);
     font-weight: 500;
 }
 
 .unread-badge {
-    background: var(--error-color);
+    background: var(--color-error, #ef4444);
     color: white;
     font-size: 0.65rem;
     padding: 0.1rem 0.4rem;

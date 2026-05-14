@@ -25,14 +25,10 @@
 }
 
 .icon-btn:hover {
-    background: white;
+    background: var(--bg-card, var(--card-bg));
     color: var(--brand-blue);
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-}
-
-:root[data-theme="dark"] .icon-btn:hover {
-    background: #2a2a2a;
 }
 
 .primary-btn {

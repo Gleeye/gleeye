@@ -30,9 +30,9 @@
 }
 
 .custom-select-trigger:hover {
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--bg-card, var(--card-bg));
     border-color: var(--brand-blue);
-    box-shadow: 0 0 0 2px rgba(78, 146, 216, 0.1);
+    box-shadow: 0 0 0 2px rgba(var(--brand-blue-rgb), 0.1);
 }
 
 .custom-select-wrapper.open .custom-select-trigger {
