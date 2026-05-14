@@ -1,0 +1,176 @@
+/* =====================================================
+   Gleeye ERP — Design Tokens
+   Foundation layer: imported FIRST, before all other CSS.
+   All visual decisions flow from these variables.
+   ===================================================== */
+
+:root {
+    /* ─── Spacing Scale (base: 4px) ──────────────────────── */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-12: 48px;
+
+    /* ─── Border Radius ──────────────────────────────────── */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --radius-full: 9999px;
+
+    /* ─── Typography — Font Families ─────────────────────── */
+    --font-display: 'Satoshi', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+
+    /* ─── Typography — Size Scale ────────────────────────── */
+    --text-display: 2rem;
+    --text-title: 1.35rem;
+    --text-heading: 1.1rem;
+    --text-subheading: 0.95rem;
+    --text-body: 0.875rem;
+    --text-small: 0.8rem;
+    --text-caption: 0.7rem;
+    --text-micro: 0.625rem;
+
+    /* ─── Typography — Weight ────────────────────────────── */
+    --weight-normal: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+    --weight-bold: 700;
+
+    /* ─── Brand Colors (theme-invariant) ─────────────────── */
+    --brand-blue: #4e92d8;
+    --brand-blue-rgb: 78, 146, 216;
+    --brand-viola: #614aa2;
+    --brand-viola-rgb: 97, 74, 162;
+    --brand-gradient: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-viola) 100%);
+
+    /* ─── Semantic Colors (theme-invariant base) ─────────── */
+    --color-success: #10b981;
+    --color-success-rgb: 16, 185, 129;
+    --color-success-soft: rgba(16, 185, 129, 0.08);
+    --color-success-text: #059669;
+
+    --color-error: #ef4444;
+    --color-error-rgb: 239, 68, 68;
+    --color-error-soft: rgba(239, 68, 68, 0.08);
+    --color-error-text: #dc2626;
+
+    --color-warning: #f59e0b;
+    --color-warning-rgb: 245, 158, 11;
+    --color-warning-soft: rgba(245, 158, 11, 0.08);
+    --color-warning-text: #d97706;
+
+    --color-info: var(--brand-blue);
+    --color-info-rgb: var(--brand-blue-rgb);
+    --color-info-soft: rgba(var(--brand-blue-rgb), 0.08);
+    --color-info-text: var(--brand-blue);
+
+    /* ─── Z-Index Scale ──────────────────────────────────── */
+    --z-base: 0;
+    --z-sticky: 10;
+    --z-header: 100;
+    --z-sidebar: 200;
+    --z-dropdown: 500;
+    --z-overlay: 1000;
+    --z-drawer: 1100;
+    --z-modal: 1200;
+    --z-system: 1300;
+    --z-toast: 1400;
+    --z-splash: 9999;
+
+    /* ─── Breakpoints (reference only — CSS can't use vars in @media) ── */
+    /* --bp-sm: 480px;   */
+    /* --bp-md: 768px;   */
+    /* --bp-lg: 1024px;  */
+    /* --bp-xl: 1280px;  */
+    /* --bp-2xl: 1536px; */
+}
+
+/* ─── Light Theme Tokens ─────────────────────────────────── */
+:root[data-theme='light'] {
+    --gray-50: #fafbfc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-400: #94a3b8;
+    --gray-500: #64748b;
+    --gray-600: #475569;
+    --gray-700: #334155;
+    --gray-800: #1e293b;
+    --gray-900: #0f172a;
+
+    --bg-primary: var(--gray-50);
+    --bg-secondary: var(--gray-100);
+    --bg-card: #ffffff;
+    --bg-input: rgba(255, 255, 255, 0.8);
+    --bg-overlay: rgba(0, 0, 0, 0.4);
+    --bg-hover: rgba(0, 0, 0, 0.04);
+
+    --border-default: var(--gray-200);
+    --border-hover: var(--gray-300);
+    --border-focus: var(--brand-blue);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* ─── Dark Theme Tokens ──────────────────────────────────── */
+:root[data-theme='dark'] {
+    --gray-50: #0a0a0a;
+    --gray-100: #141414;
+    --gray-200: #1e1e1e;
+    --gray-300: #2a2a2a;
+    --gray-400: #525252;
+    --gray-500: #737373;
+    --gray-600: #a3a3a3;
+    --gray-700: #d4d4d4;
+    --gray-800: #e5e5e5;
+    --gray-900: #fafafa;
+
+    --bg-primary: var(--gray-50);
+    --bg-secondary: var(--gray-100);
+    --bg-card: rgba(25, 25, 25, 0.6);
+    --bg-input: rgba(0, 0, 0, 0.4);
+    --bg-overlay: rgba(0, 0, 0, 0.6);
+    --bg-hover: rgba(255, 255, 255, 0.06);
+
+    --border-default: rgba(255, 255, 255, 0.08);
+    --border-hover: rgba(255, 255, 255, 0.15);
+    --border-focus: var(--brand-blue);
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* ─── Backward-compatible aliases ────────────────────────── */
+/* These map old variable names (used in existing CSS) to new tokens,
+   so nothing breaks during incremental migration. */
+:root[data-theme='light'] {
+    --bg-primary-rgb: 255, 255, 255;
+    --border-color: var(--border-default);
+    --border-color-rgb: 0, 0, 0;
+}
+
+:root[data-theme='dark'] {
+    --bg-primary-rgb: 25, 25, 25;
+    --border-color: var(--border-default);
+    --border-color-rgb: 255, 255, 255;
+}
+
+/* Aliases used by notifications.css (--primary, --primary-rgb, --bg-hover, --border-hover) */
+:root {
+    --primary: var(--brand-blue);
+    --primary-rgb: var(--brand-blue-rgb);
+    --border-hover: var(--gray-300, rgba(255, 255, 255, 0.15));
+    --success: var(--color-success);
+    --warning: var(--color-warning);
+}
