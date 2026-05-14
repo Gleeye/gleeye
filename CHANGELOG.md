@@ -132,6 +132,9 @@ Dashboard 4 KPI (costo mese vs precedente, chiamate totali, token totali, latenz
 - **8a voce Centro Alert "Commesse chiuse da fatturare"** — aggrega commesse `status_works=completato` con residuo > 0. Mostra somma totale ("€33.355 sul tavolo"). Click → apre la commessa con residuo più alto. Numeri reali oggi: 8 commesse per ~33k€ di lavoro chiuso non fatturato.
 - **Auto-mark invoice "Saldata" quando bank_transaction collegato** — chiude la catena bonifico→fattura che mancava. Trigger `fn_invoice_auto_mark_paid_from_bank_tx` su `bank_transactions`: quando un movimento approvato (`status='posted'`) viene collegato a una fattura attiva o passiva, e la somma dei bonifici collegati copre ≥95% dell'importo, l'app auto-marca la fattura come `Saldata` (attive) o `Pagato` (passive) con `payment_date` dal movimento. Soglia 95% per tollerare piccole differenze (commissioni bancarie, arrotondamenti). Il trigger inverso esisteva già (`auto_set_payment_done_on_invoice_paid` propaga ai `payments`). Backfill: 2 fatture passive dimenticate auto-chiuse.
 
+**15 maggio 2026** — bugfix in produzione:
+- **Bug RLS homepage mobile collab — "Incarico Senza Titolo" / "No Cliente"**. Paolo (collab base) vedeva i suoi incarichi nella homepage mobile ma senza titolo né nome cliente. Causa: le policy RLS su `orders` e `clients` erano scoped solo per admin/account/partner/socio, niente per collab base. Quando il frontend faceva `assignments.select('id, orders(title, clients(business_name))')`, il join annidato ritornava NULL per orders/clients → fallback rendering. Fix: due nuove policy READ-ONLY scoped (`Collab can read orders of own assignments`, `Collab can read clients of own assignment orders`) che permettono al collab di leggere solo i dati strettamente collegati ai suoi assignments. Niente accesso laterale. Migration `collab_read_own_assignment_orders_clients`.
+
 ---
 
 ## Aree non ancora coperte / decisioni Davide
