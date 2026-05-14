@@ -9,6 +9,37 @@ import { fetchProjectSpaceForOrder, fetchProjectItems, fetchAppointments } from 
 import { activityTranslate } from '../modules/pm_activity_helper.js?v=8000';
 import { tAssignment } from '../modules/i18n_labels.js?v=8002';
 import { inlineHelpButton, attachInlineHelp } from '../modules/help_inline_ai.js?v=8001';
+// Side-effect import: garantisce window.openReminderModal disponibile anche se
+// l'utente apre la commessa direttamente senza passare per la vista clienti.
+import './clients/reminder_compose.js?v=8008';
+
+// Riproduzione della logica computeClientCreditRisk per evitare side-effect
+// imports da clients.js (che importerebbe anche reminder_compose, AI client, ecc.)
+// Tenuta in sync manualmente — è una funzione pura su state.invoices.
+function _clientCreditRisk(client) {
+    if (!client || !client.id) return { level: 'ok', count: 0, totalDue: 0, maxDays: 0 };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const overdue = (state.invoices || []).filter(i => {
+        if (i.client_id !== client.id) return false;
+        if (i.status === 'Saldata' || i.status === 'Annullata') return false;
+        const dueRaw = i.due_date || i.invoice_date;
+        if (!dueRaw) return false;
+        return new Date(dueRaw) < today;
+    });
+    if (overdue.length === 0) return { level: 'ok', count: 0, totalDue: 0, maxDays: 0 };
+    let totalDue = 0, maxDays = 0;
+    overdue.forEach(i => {
+        const lordo = parseFloat(i.amount_tax_included) || parseFloat(i.amount_tax_excluded) || 0;
+        const paid = parseFloat(i.amount_paid) || 0;
+        totalDue += Math.max(0, lordo - paid);
+        const days = Math.floor((today - new Date(i.due_date || i.invoice_date)) / 86400000);
+        if (days > maxDays) maxDays = days;
+    });
+    if (overdue.length >= 2 || maxDays > 90) return { level: 'distress', count: overdue.length, totalDue, maxDays };
+    if (maxDays >= 30) return { level: 'late', count: overdue.length, totalDue, maxDays };
+    return { level: 'ok', count: overdue.length, totalDue, maxDays };
+}
 
 // Payment config helpers + window handlers (extracted).
 // Importing also installs window.orderConfigEditState + window.toggleOrderConfig*/saveOrderConfig.
@@ -371,10 +402,43 @@ export async function renderOrderDetail(container, orderId) {
                     <!-- Cliente -->
                     <div class="glass-card" style="padding: 1.5rem;">
                         <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.75rem; letter-spacing: 0.05em;">Soggetto Cliente</div>
-                        <div style="margin-bottom: 1.5rem;">
+                        <div style="margin-bottom: 1rem;">
                             <div style="font-size: 1.1rem; font-weight: 700; color: var(--brand-blue); margin-bottom: 0.25rem;">${order.clients?.client_code || '-'}</div>
                             <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">${order.clients?.business_name || '-'}</div>
                         </div>
+
+                        ${(() => {
+                            const clientObj = (state.clients || []).find(c => c.id === order.client_id);
+                            if (!clientObj) return '';
+                            const risk = _clientCreditRisk(clientObj);
+                            if (risk.level === 'ok') return '';
+                            const isHard = risk.level === 'distress';
+                            const bg = isHard ? 'rgba(220, 38, 38, 0.08)' : 'rgba(245, 158, 11, 0.08)';
+                            const border = isHard ? 'rgba(220, 38, 38, 0.35)' : 'rgba(245, 158, 11, 0.4)';
+                            const color = isHard ? '#b91c1c' : '#b45309';
+                            const icon = isHard ? 'warning' : 'schedule';
+                            const headline = isHard
+                                ? `${risk.count} fattur${risk.count === 1 ? 'a' : 'e'} scadut${risk.count === 1 ? 'a' : 'e'}`
+                                : `1 fattura scaduta da ${risk.maxDays}gg`;
+                            const detail = isHard
+                                ? `€${formatAmount(risk.totalDue)} non incassati · max ${risk.maxDays}gg di ritardo`
+                                : `€${formatAmount(risk.totalDue)} non incassati`;
+                            return `
+                                <div style="background: ${bg}; border: 1px solid ${border}; border-radius: 12px; padding: 0.85rem 1rem; margin-bottom: 1rem;">
+                                    <div style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                        <span class="material-icons-round" style="color: ${color}; font-size: 20px; flex-shrink: 0; margin-top: 1px;">${icon}</span>
+                                        <div style="flex: 1; min-width: 0;">
+                                            <div style="font-weight: 700; color: ${color}; font-size: 0.85rem; line-height: 1.2;">${headline}</div>
+                                            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">${detail}</div>
+                                        </div>
+                                    </div>
+                                    <button onclick="window.openReminderModal && window.openReminderModal('${order.client_id}')" style="width: 100%; background: ${color}; color: white; border: none; padding: 0.45rem; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.35rem;">
+                                        <span class="material-icons-round" style="font-size: 16px;">mail</span>
+                                        Apri sollecito al cliente
+                                    </button>
+                                </div>
+                            `;
+                        })()}
 
                         <div style="border-top: 1px solid var(--glass-border); padding-top: 1.25rem;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
