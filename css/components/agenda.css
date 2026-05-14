@@ -190,7 +190,7 @@
 }
 
 .filter-chip.active {
-    background: white;
+    background: var(--bg-card, var(--card-bg));
     border-color: currentColor;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
@@ -306,7 +306,7 @@
 }
 
 .mode-btn.active {
-    background: white;
+    background: var(--bg-card, var(--card-bg));
     color: var(--brand-blue);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     font-weight: 600;
@@ -326,7 +326,7 @@
     align-items: center;
     justify-content: center;
     border: 1px solid var(--glass-border);
-    background: white;
+    background: var(--bg-card, var(--card-bg));
     border-radius: 6px;
     color: var(--text-secondary);
     cursor: pointer;
@@ -342,7 +342,7 @@
     height: 32px;
     padding: 0 1rem;
     border: 1px solid var(--glass-border);
-    background: white;
+    background: var(--bg-card, var(--card-bg));
     border-radius: 6px;
     font-size: 0.85rem;
     font-weight: 500;
@@ -553,9 +553,7 @@
 /* Confirmed Booking: Blue/Cyan accent */
 .agenda-event.type-booking {
     border-left-color: #3b82f6;
-    /* Brighter Blue */
-    background: #f8fafc;
-    /* Slight off-white */
+    background: rgba(var(--brand-blue-rgb), 0.06);
     color: var(--text-secondary);
 }
 
@@ -698,7 +696,7 @@
 }
 
 .monthly-day-box {
-    background: white;
+    background: var(--bg-card, var(--card-bg));
     min-height: 120px;
     padding: 0.5rem;
     display: flex;
@@ -708,11 +706,11 @@
 }
 
 .monthly-day-box:hover {
-    background: #f8fafc;
+    background: var(--bg-secondary, var(--gray-100));
 }
 
 .monthly-day-box.other-month {
-    background: #f1f5f9;
+    background: var(--bg-secondary, var(--gray-100));
     color: var(--text-tertiary);
 }
 
@@ -947,4 +945,180 @@
     text-align: center;
     padding: 2rem 0;
     font-style: italic;
+}
+
+/* =====================================================
+   MOBILE RESPONSIVE — Agenda
+   ===================================================== */
+
+@media (max-width: 768px) {
+    .agenda-container {
+        grid-template-columns: 1fr;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible;
+        border-radius: var(--radius-lg, 16px);
+    }
+
+    .agenda-sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--glass-border);
+        max-height: none !important;
+        height: auto !important;
+        overflow: visible !important;
+        padding: 0.75rem;
+    }
+
+    .agenda-sidebar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .mini-cal-grid {
+        padding: 0;
+    }
+
+    .mini-cal-day {
+        height: 32px;
+        width: 32px;
+        font-size: 0.75rem;
+    }
+
+    .agenda-filters-chips {
+        padding: 0.5rem 0.25rem;
+        position: static;
+    }
+
+    .agenda-sidebar-list {
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 0 0.25rem 0.5rem;
+    }
+
+    .sidebar-event-row {
+        padding: 0.5rem 0.25rem;
+    }
+
+    .sidebar-row-title {
+        font-size: 0.8rem;
+    }
+
+    .agenda-main-header {
+        padding: 0.75rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .date-range-display {
+        font-size: 1rem;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .header-actions {
+        width: 100%;
+        justify-content: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .view-mode-toggle {
+        order: 1;
+    }
+
+    .calendar-nav-controls {
+        order: 2;
+    }
+
+    .timeline-scroll-container {
+        min-height: 400px;
+        max-height: 60vh;
+    }
+
+    .time-gutter {
+        width: 44px;
+    }
+
+    .time-gutter-header {
+        width: 44px;
+        height: 60px;
+        margin-bottom: 8px;
+    }
+
+    .time-slot-label {
+        font-size: 0.65rem;
+    }
+
+    .day-col-header {
+        min-width: 0;
+        padding: 0.75rem 0.25rem;
+    }
+
+    .day-col-header .day-num {
+        font-size: 1.25rem;
+    }
+
+    .day-col-header .day-name {
+        font-size: 0.65rem;
+    }
+
+    .agenda-event {
+        font-size: 0.7rem;
+        padding: 0.3rem;
+    }
+
+    .event-title {
+        font-size: 0.7rem;
+    }
+
+    .event-time {
+        font-size: 0.65rem;
+    }
+
+    .event-subtitle {
+        display: none;
+    }
+
+    /* Monthly view */
+    .monthly-header-day {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.6rem;
+    }
+
+    .monthly-day-box {
+        min-height: 60px;
+        padding: 0.25rem;
+    }
+
+    .monthly-day-num {
+        width: 20px;
+        height: 20px;
+        font-size: 0.7rem;
+    }
+
+    .monthly-event-dot {
+        font-size: 0.6rem;
+        padding: 1px 4px;
+    }
+}
+
+@media (max-width: 480px) {
+    .agenda-sidebar-list {
+        max-height: 150px;
+    }
+
+    .timeline-scroll-container {
+        max-height: 50vh;
+    }
+
+    .monthly-day-box {
+        min-height: 48px;
+    }
+
+    .monthly-day-events {
+        display: none;
+    }
 }
