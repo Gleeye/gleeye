@@ -394,28 +394,33 @@ async function importSelected(overlay, niche) {
 
         btn.innerHTML = '<span class="material-icons-round" style="font-size:0.95rem;animation:spin 1s linear infinite;">refresh</span>Importo ' + selectedResults.length + (skippedDup > 0 ? ' (' + skippedDup + ' duplicati skip)' : '') + '…';
 
-        const rows = selectedResults.map(r => ({
-            business_name:      r.name || '(senza nome)',
-            website:            r.website || null,
-            contact_phone:      r.phone || null,
-            contact_email:      r.email || null,
-            industry:           niche.name || null,
-            niche_id:           niche.id,
-            funnel_segment:     'cold',
-            pipeline_stage:     'sourced',
-            acquisition_source: 'outreach',
-            stage_history:      [{ stage: 'sourced', entered_at: new Date().toISOString() }],
-            // Notes resta vuoto per l'utente — i metadata "Fonte: OSM / indirizzo OSM" vivono in ai_enrichment_data
-            notes:              null,
-            ai_enrichment_data: {
-                osm_id: r.osm_id || null,
-                osm_tags: r.osm_tags || {},
-                osm_address: r.address || null,
-                city_origin: r._city || null,
-                source: 'OSM',
-                sourced_at: new Date().toISOString(),
-            },
-        }));
+        const rows = selectedResults.map(r => {
+            const linkedinFromSocial = r.social_links?.linkedin || null;
+            return {
+                business_name:      r.name || '(senza nome)',
+                website:            r.website || null,
+                contact_phone:      r.phone || null,
+                contact_email:      r.email || null,
+                linkedin_url:       linkedinFromSocial,
+                social_links:       r.social_links || {},
+                industry:           niche.name || null,
+                niche_id:           niche.id,
+                funnel_segment:     'cold',
+                pipeline_stage:     'sourced',
+                acquisition_source: 'outreach',
+                stage_history:      [{ stage: 'sourced', entered_at: new Date().toISOString() }],
+                notes:              null,
+                ai_enrichment_data: {
+                    osm_id: r.osm_id || null,
+                    osm_tags: r.osm_tags || {},
+                    osm_structured: r.osm_structured || null,
+                    osm_address: r.address || null,
+                    city_origin: r._city || null,
+                    source: 'OSM',
+                    sourced_at: new Date().toISOString(),
+                },
+            };
+        });
 
         // Step 1: insert dei prospect con dati base OSM
         const { data: inserted, error } = await supabase.from('prospects').insert(rows).select('id, website, contact_email, contact_phone, linkedin_url, social_links, ai_enrichment_data');
@@ -569,16 +574,122 @@ out tags center 150;
 
     return elements.map(el => {
         const t = el.tags || {};
+        const parsed = parseOsmTags(t);
         return {
             osm_id: el.type + '/' + el.id,
             osm_tags: t,
-            name: t.name || t['name:it'] || t.brand || null,
-            website: t.website || t['contact:website'] || null,
-            phone: t.phone || t['contact:phone'] || null,
-            email: t.email || t['contact:email'] || null,
-            address: [t['addr:street'], t['addr:housenumber'], t['addr:city']].filter(Boolean).join(' ') || null,
+            name: parsed.name,
+            website: parsed.website,
+            phone: parsed.phone,
+            email: parsed.email,
+            address: parsed.address,
+            // arricchimenti OSM esaustivi
+            social_links: parsed.social_links,
+            osm_structured: parsed.structured,
         };
     }).filter(r => r.name); // scarta quelle senza nome
+}
+
+/**
+ * Parser esaustivo dei tag OSM.
+ * Estrae TUTTO il valore informativo possibile dai tag che Overpass restituisce,
+ * non solo i 4 base. Output: campi piatti + blocco `structured` per metadati e `social_links` dict.
+ */
+function parseOsmTags(t) {
+    const pick = (...keys) => {
+        for (const k of keys) {
+            if (t[k] != null && t[k] !== '') return t[k];
+        }
+        return null;
+    };
+
+    const social_links = {};
+    const socialMap = {
+        facebook:  pick('contact:facebook',  'facebook'),
+        instagram: pick('contact:instagram', 'instagram'),
+        linkedin:  pick('contact:linkedin',  'linkedin'),
+        twitter:   pick('contact:twitter',   'twitter', 'contact:x', 'x'),
+        youtube:   pick('contact:youtube',   'youtube'),
+        tiktok:    pick('contact:tiktok',    'tiktok'),
+        pinterest: pick('contact:pinterest', 'pinterest'),
+        whatsapp:  pick('contact:whatsapp',  'whatsapp'),
+        telegram:  pick('contact:telegram',  'telegram'),
+    };
+    for (const [k, v] of Object.entries(socialMap)) {
+        if (v) social_links[k] = normalizeSocialUrl(k, v);
+    }
+
+    const structured = {};
+    const carry = (key, ...osmKeys) => {
+        const v = pick(...osmKeys);
+        if (v != null && v !== '') structured[key] = v;
+    };
+
+    carry('opening_hours',  'opening_hours');
+    carry('cuisine',        'cuisine');
+    carry('brand',          'brand');
+    carry('operator',       'operator');
+    carry('price_range',    'price_range', 'price');
+    carry('stars',          'stars');             // tourism=hotel rating stelle
+    carry('rooms',          'rooms');             // numero camere ricettività
+    carry('beds',           'beds');
+    carry('capacity',       'capacity');
+    carry('wifi',           'internet_access', 'wifi');
+    carry('outdoor_seating','outdoor_seating');
+    carry('delivery',       'delivery');
+    carry('takeaway',       'takeaway');
+    carry('reservation',    'reservation');
+    carry('wheelchair',     'wheelchair');
+    carry('air_conditioning','air_conditioning');
+    carry('smoking',        'smoking');
+    carry('diet_vegetarian','diet:vegetarian');
+    carry('diet_vegan',     'diet:vegan');
+    carry('diet_gluten_free','diet:gluten_free');
+    carry('payment_cards',  'payment:cards',     'payment:credit_cards', 'payment:visa');
+    carry('payment_cash',   'payment:cash');
+    carry('payment_contactless', 'payment:contactless');
+    carry('vat_it',         'ref:vatin:IT',      'ref:vatin');
+    carry('start_date',     'start_date');       // anno apertura (raro ma prezioso)
+    carry('description',    'description',       'description:it');
+    carry('addr_postcode',  'addr:postcode');
+    carry('addr_city',      'addr:city');
+    carry('addr_province',  'addr:province');
+
+    return {
+        name:    pick('name', 'name:it', 'brand', 'operator'),
+        website: pick('website', 'contact:website', 'url'),
+        phone:   pick('phone', 'contact:phone', 'telephone'),
+        mobile:  pick('contact:mobile', 'mobile_phone'),
+        email:   pick('email', 'contact:email'),
+        fax:     pick('fax', 'contact:fax'),
+        address: [t['addr:street'], t['addr:housenumber'], t['addr:city']].filter(Boolean).join(' ') || null,
+        social_links: Object.keys(social_links).length ? social_links : null,
+        structured: Object.keys(structured).length ? structured : null,
+    };
+}
+
+/**
+ * Normalizza un valore social da OSM in URL completo.
+ * OSM ammette sia URL completi che username puri.
+ */
+function normalizeSocialUrl(platform, val) {
+    const v = String(val).trim();
+    if (/^https?:\/\//i.test(v)) return v;
+    const handle = v.replace(/^@/, '');
+    switch (platform) {
+        case 'facebook':  return 'https://facebook.com/' + handle;
+        case 'instagram': return 'https://instagram.com/' + handle;
+        case 'linkedin':  return /^company\//i.test(handle) || /^in\//i.test(handle)
+                              ? 'https://linkedin.com/' + handle
+                              : 'https://linkedin.com/company/' + handle;
+        case 'twitter':   return 'https://twitter.com/' + handle;
+        case 'youtube':   return 'https://youtube.com/' + handle;
+        case 'tiktok':    return 'https://tiktok.com/@' + handle;
+        case 'pinterest': return 'https://pinterest.com/' + handle;
+        case 'whatsapp':  return 'https://wa.me/' + handle.replace(/[^0-9+]/g, '');
+        case 'telegram':  return 'https://t.me/' + handle;
+        default:          return v;
+    }
 }
 
 // ─── KEYWORD MAPPING ─────────────────────────────────────────────────────────
