@@ -639,7 +639,7 @@
         box-shadow: -10px 0 50px rgba(0, 0, 0, 0.3);
         border-left: 1px solid var(--glass-border);
         width: 280px !important;
-        background: white !important;
+        background: var(--bg-card, var(--card-bg)) !important;
     }
 
     .sidebar.mobile-open {

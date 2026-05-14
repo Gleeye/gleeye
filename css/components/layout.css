@@ -254,9 +254,7 @@
 .pill-filter {
     padding: 0.4rem 1rem;
     border-radius: 20px;
-    background: var(--bg-secondary);
-    /* Fallback */
-    background: rgba(255, 255, 255, 0.5);
+    background: var(--bg-secondary, rgba(255, 255, 255, 0.5));
     border: 1px solid var(--glass-border);
     color: var(--text-secondary);
     font-size: 0.85rem;
@@ -295,10 +293,8 @@
         padding-right: 1rem;
         height: calc(48px + env(safe-area-inset-top, 44px));
         /* 48px is the bar, the rest is safe area */
-        background: #ffffff;
-        /* Solid white for absolute clarity */
-        border-bottom: 2px solid #f1f1f1;
-        /* clearly visible separator */
+        background: var(--bg-card, var(--card-bg));
+        border-bottom: 2px solid var(--border-default, var(--glass-border));
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
         position: relative;
         display: flex;
@@ -359,10 +355,10 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: white;
+        background: var(--bg-card, var(--card-bg));
         border-radius: 50%;
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        border: 1px solid #f1f5f9;
+        border: 1px solid var(--border-default, var(--glass-border));
         position: relative;
     }
 
