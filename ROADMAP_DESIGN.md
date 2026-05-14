@@ -13,19 +13,22 @@
 | Top-bar mobile dark (P0 #3) | DONE | 100% | 3 hex hardcoded → var() |
 | Notifications vars (P1 #6) | DONE | 100% | Alias in tokens.css, selector :root fix, breakpoint 768px |
 
-## Step 2: CSS Component Migration (da fare)
+## Step 2: CSS Component Migration (in corso)
 
 | Area | Stato | % | Note |
 |------|-------|---|------|
-| Homepage CSS dedup (P1 #5) | TODO | 0% | Merge homepage.css + homepage-alt.css |
-| Custom select dedup (P2 #8) | TODO | 0% | Merge inputs.css + custom-select.css |
-| Chat CSS syntax fix (P2 #9) | TODO | 0% | var(rgba()) invalido |
+| Chat CSS syntax fix (P2 #9) | DONE | 100% | var(rgba()) → rgba(var()) |
+| Buttons dark mode | DONE | 100% | .icon-btn:hover white → var(--bg-card), rimosso override dark |
+| Auth responsive | DONE | 100% | @media 768px aggiunta (card, blobs, font-size) |
+| Bank transactions responsive | DONE | 100% | @media 768px + 480px (KPI grid, transaction row, form) |
+| Custom select dark mode | DONE | 100% | trigger hover white → var(--bg-card) |
+| Z-index consolidamento | DONE | 100% | modal 99999→var(--z-modal), system 1M→var(--z-system), sidebar 20k→var(--z-drawer), overlay 99998→var(--z-overlay), notif dropdown 10k→var(--z-dropdown), toast 10001→var(--z-toast) |
+| Semantic color tokens (modals/sidebar) | DONE | 100% | #ef4444 → var(--color-error) su close-modal, notification-badge, logout |
+| Payments responsive | DONE | 100% | @media 768px aggiunta (info-grid, tab-btn) |
+| Homepage CSS dedup (P1 #5) | BLOCKED | 0% | homepage-alt.css caricato dinamicamente da homepage-alt.js — richiede refactor JS |
+| Custom select dedup (P2 #8) | TODO | 0% | Merge inputs.css + custom-select.css (basso rischio) |
 | Button system unificato | TODO | 0% | .btn + varianti + sizes + states |
-| Auth responsive | TODO | 0% | @media mancanti |
-| Bank transactions responsive | TODO | 0% | @media mancanti |
-| Payments breakpoint fix (P2 #7) | TODO | 0% | 1024 → 768 |
-| Z-index consolidamento | TODO | 0% | Migrare a --z-* scale |
-| Splash screen cleanup (P3 #10) | TODO | 0% | display:none dopo fade |
+| Splash screen cleanup (P3 #10) | TODO | 0% | display:none dopo fade (richiede JS) |
 
 ## Step 3: JS Inline Styles Migration (da fare)
 
@@ -38,9 +41,9 @@
 
 ## Metriche globali
 
-| Metrica | Prima (15/5/26) | Dopo Step 1 | Target finale |
-|---------|----------------|-------------|---------------|
-| Mobile responsive | ~40% viste | ~50% viste (+agenda) | 100% |
-| Design system unificato | ~15% (token definiti, non usati) | ~20% (token + alias + 4 file migrati) | 90%+ |
-| Dark mode funzionante | ~60% viste | ~75% (+agenda, sidebar, top-bar, notifiche) | 100% |
-| Inline styles nei JS | 8.530 | 8.530 (non toccati) | <500 |
+| Metrica | Prima (15/5/26) | Dopo Step 1 | Dopo Step 2 (parziale) | Target finale |
+|---------|----------------|-------------|----------------------|---------------|
+| Mobile responsive | ~40% viste | ~50% (+agenda) | ~65% (+auth, bank, payments) | 100% |
+| Design system unificato | ~15% | ~20% | ~40% (z-index, colori, radius migrati su 10 file CSS) | 90%+ |
+| Dark mode funzionante | ~60% viste | ~75% | ~85% (+buttons, custom-select, modals) | 100% |
+| Inline styles nei JS | 8.530 | 8.530 | 8.530 (non toccati — Step 3) | <500 |
