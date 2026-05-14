@@ -7,6 +7,8 @@ import { showGlobalAlert } from '../modules/utils.js?v=8000';
 import { activityTranslate } from '../modules/pm_activity_helper.js?v=8000';
 import { glossaryTip } from '../modules/help_tooltip.js?v=8002';
 import { inlineHelpButton, attachInlineHelp } from '../modules/help_inline_ai.js?v=8001';
+// Caricato on-demand: side-effect installa window.openReminderModal
+import './clients/reminder_compose.js?v=8008';
 
 // ── Account responsabile helpers ──────────────────────────────────────────────
 function _parseTags(tags) {
@@ -684,9 +686,18 @@ export function renderClientDetail(container) {
                             </div>
                         </div>
                         
-                        <button class="icon-btn" style="background: var(--bg-secondary); width: 42px; height: 42px;" onclick='window.openNewClientModal(${JSON.stringify(client).replace(/'/g, "&apos;")})' title="Modifica">
-                            <span class="material-icons-round" style="color: var(--text-primary);">edit</span>
-                        </button>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            ${(() => {
+                                const r = computeClientCreditRisk(client);
+                                if (r.level === 'ok') return '';
+                                return `<button onclick="window.openReminderModal('${client.id}')" class="primary-btn" style="background: ${r.level === 'distress' ? '#dc2626' : '#d97706'}; color: white; padding: 0.5rem 0.85rem; border-radius: 10px; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; border: none;">
+                                    <span class="material-icons-round" style="font-size: 18px;">mail</span> Sollecita €${formatAmount(r.totalDue)}
+                                </button>`;
+                            })()}
+                            <button class="icon-btn" style="background: var(--bg-secondary); width: 42px; height: 42px;" onclick='window.openNewClientModal(${JSON.stringify(client).replace(/'/g, "&apos;")})' title="Modifica">
+                                <span class="material-icons-round" style="color: var(--text-primary);">edit</span>
+                            </button>
+                        </div>
                     </div>
                     
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--glass-border);">
