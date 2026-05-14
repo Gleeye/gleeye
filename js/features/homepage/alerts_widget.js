@@ -47,7 +47,7 @@ async function _fetchAll() {
     ago90.setDate(ago90.getDate() - 90);
     const ago90Str = ago90.toISOString().split('T')[0];
 
-    const [inv, collPay, tasks, orphans, passReview, pricing, marginRisk, unbilled] = await Promise.allSettled([
+    const [inv, collPay, tasks, orphans, passReview, pricing, marginRisk, unbilled, creditRisk] = await Promise.allSettled([
 
         // 1. Fatture clienti scadute: inviate da più di 30gg, non ancora saldate
         supabase
@@ -182,6 +182,49 @@ async function _fetchAll() {
             }).filter(Boolean).sort((a, b) => b.residual - a.residual);
             return { data: unbilledOrders, error: null };
         })(),
+
+        // 9. Clienti in sofferenza credito: 2+ fatture overdue OPPURE 1 fattura
+        //    overdue da >90gg. Mostriamo solo il livello "distress" (rosso),
+        //    non il livello "late" (ambra) per evitare rumore — quello si
+        //    vede già sul cliente specifico.
+        (async () => {
+            const { data: openInvs, error } = await supabase
+                .from('invoices')
+                .select('id, client_id, amount_tax_included, amount_paid, due_date, invoice_date, clients ( business_name )')
+                .eq('status', 'Inviata');
+            if (error) return { data: [], error };
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const byClient = {};
+            (openInvs || []).forEach(inv => {
+                if (!inv.client_id) return;
+                const dueRaw = inv.due_date || inv.invoice_date;
+                if (!dueRaw) return;
+                const due = new Date(dueRaw);
+                if (due >= today) return;
+                const days = Math.floor((today - due) / (1000 * 60 * 60 * 24));
+                const lordo = Number(inv.amount_tax_included || 0);
+                const paid = Number(inv.amount_paid || 0);
+                const residual = Math.max(0, lordo - paid);
+                if (!byClient[inv.client_id]) {
+                    byClient[inv.client_id] = {
+                        client_id: inv.client_id,
+                        business_name: inv.clients?.business_name || 'Cliente',
+                        count: 0,
+                        totalDue: 0,
+                        maxDays: 0,
+                    };
+                }
+                byClient[inv.client_id].count += 1;
+                byClient[inv.client_id].totalDue += residual;
+                if (days > byClient[inv.client_id].maxDays) byClient[inv.client_id].maxDays = days;
+            });
+            const distress = Object.values(byClient)
+                .filter(c => c.count >= 2 || c.maxDays > 90)
+                .sort((a, b) => b.totalDue - a.totalDue);
+            return { data: distress, error: null };
+        })(),
     ]);
 
     // — voce 4: esclude i movimenti già collegati via payments o linked_invoices
@@ -209,11 +252,13 @@ async function _fetchAll() {
     const pricingRows = pricing.status === 'fulfilled' && !pricing.value.error ? pricing.value.data || [] : [];
     const marginRiskRows = marginRisk.status === 'fulfilled' && !marginRisk.value.error ? marginRisk.value.data || [] : [];
     const unbilledRows = unbilled.status === 'fulfilled' && !unbilled.value.error ? unbilled.value.data || [] : [];
+    const creditRows = creditRisk.status === 'fulfilled' && !creditRisk.value.error ? creditRisk.value.data || [] : [];
 
     const invTotal  = invRows.reduce((s, r) => s + Number(r.amount_tax_included || 0), 0);
     const payTotal  = payRows.reduce((s, r) => s + Number(r.amount || 0), 0);
     const marginTotal = marginRiskRows.reduce((s, r) => s + Number(r.erosionAmount || 0), 0);
     const unbilledTotal = unbilledRows.reduce((s, r) => s + Number(r.residual || 0), 0);
+    const creditTotal = creditRows.reduce((s, r) => s + Number(r.totalDue || 0), 0);
 
     return {
         invoices:    { count: invRows.length,   total: invTotal },
@@ -224,6 +269,7 @@ async function _fetchAll() {
         pricing:     { count: pricingRows.length },
         marginRisk:  { count: marginRiskRows.length, total: marginTotal, top: marginRiskRows[0] || null },
         unbilled:    { count: unbilledRows.length, total: unbilledTotal, top: unbilledRows[0] || null },
+        creditRisk:  { count: creditRows.length, total: creditTotal, top: creditRows[0] || null },
     };
 }
 
@@ -341,6 +387,17 @@ function _buildRows(data) {
             link:    data.unbilled.top ? '#order-detail/' + data.unbilled.top.id : '#dashboard',
             icon:    'receipt',
             color:   '#0d9488',
+        },
+        {
+            count:   data.creditRisk.count,
+            label:   data.creditRisk.count === 1
+                ? 'Cliente in sofferenza credito'
+                : 'Clienti in sofferenza credito',
+            sub:     data.creditRisk.count > 0 ? formatAmount(data.creditRisk.total) + ' da incassare' : '',
+            // Click → apre il cliente con il debito più alto (dove sta il sollecito già pronto).
+            link:    data.creditRisk.top ? '#client-detail/' + data.creditRisk.top.client_id : '#sales',
+            icon:    'warning',
+            color:   '#b91c1c',
         },
     ];
 }
