@@ -152,6 +152,19 @@ export async function renderOrderDetail(container, orderId) {
         (a.legacy_order_id && a.legacy_order_id === order.order_number)
     ) : [];
 
+    // === Margine Effettivo ===
+    // Mostra quanto costa DAVVERO la commessa sommando i contratti effettivi
+    // firmati con i collab (assignment.amount), confrontato con il preventivato
+    // (cost_final) per evidenziare erosione di margine in tempo reale.
+    const actualAssignmentCost = linkedAssignments.reduce((sum, a) => {
+        return sum + (parseFloat(a.amount) || 0);
+    }, 0);
+    const hasActualCost = linkedAssignments.length > 0 && actualAssignmentCost > 0;
+    const actualMargin = priceFinal - actualAssignmentCost;
+    const actualMarginPct = priceFinal > 0 ? Math.round((actualMargin / priceFinal) * 100) : 0;
+    const costErosion = actualAssignmentCost - costFinal; // > 0 = sforato budget
+    const costErosionPct = costFinal > 0 ? Math.round((costErosion / costFinal) * 100) : 0;
+
     // --- PM Data Fetching ---
     const pmSpace = await fetchProjectSpaceForOrder(orderId);
     let pmKPIs = { total: 0, done: 0, overdue: 0, dueSoon: 0, progress: 0 };
@@ -589,7 +602,7 @@ export async function renderOrderDetail(container, orderId) {
                 <div class="glass-card" style="padding: 1.25rem; background: linear-gradient(135deg, ${revenueFinal >= 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)'}, transparent); border: 2px solid ${revenueFinal >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'};">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
                         <div style="flex: 1;">
-                            <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Ricavi Finali (Margine)</div>
+                            <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">Margine Teorico (da preventivo)</div>
                             <div style="font-size: 1.6rem; font-weight: 800; line-height: 1; color: ${revenueFinal >= 0 ? '#10b981' : '#ef4444'}; font-family: var(--font-titles);">
                                 ${priceFinal > 0 && costFinal > 0 ? formatAmount(revenueFinal) + '€' : '—'}
                             </div>
@@ -612,6 +625,48 @@ export async function renderOrderDetail(container, orderId) {
                         ` : ''}
                     </div>
                 </div>
+
+                ${hasActualCost ? `
+                <!-- Margine Effettivo Card (basato sui contratti reali con i collab) -->
+                <div class="glass-card" style="padding: 1.25rem; background: linear-gradient(135deg, ${actualMargin >= 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)'}, transparent); border: 2px solid ${actualMargin >= 0 ? 'rgba(16, 185, 129, 0.18)' : 'rgba(239, 68, 68, 0.18)'};">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); font-weight: 600; margin-bottom: 0.25rem;">
+                                Margine Effettivo
+                                <span title="Calcolato dagli ${linkedAssignments.length} incarichi reali firmati con i collab (assignment.amount), non dal preventivo iniziale." style="cursor: help; color: var(--brand-blue); font-size: 0.85rem;">ⓘ</span>
+                            </div>
+                            <div style="font-size: 1.6rem; font-weight: 800; line-height: 1; color: ${actualMargin >= 0 ? '#10b981' : '#ef4444'}; font-family: var(--font-titles);">
+                                ${priceFinal > 0 ? formatAmount(actualMargin) + '€' : '—'}
+                            </div>
+                        </div>
+                        ${priceFinal > 0 ? `
+                            <div style="position: relative; width: 60px; height: 60px;">
+                                <svg width="60" height="60" style="transform: rotate(-90deg);">
+                                    <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="5"></circle>
+                                    <circle cx="30" cy="30" r="26" fill="none"
+                                        stroke="${actualMarginPct >= 20 ? '#10b981' : actualMarginPct >= 10 ? '#f59e0b' : '#ef4444'}"
+                                        stroke-width="5"
+                                        stroke-dasharray="${(Math.max(0, Math.min(100, actualMarginPct)) / 100) * 163.3} 163.3"
+                                        stroke-linecap="round">
+                                    </circle>
+                                </svg>
+                                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                                    <div style="font-size: 0.85rem; font-weight: 800; color: ${actualMarginPct >= 20 ? '#10b981' : actualMarginPct >= 10 ? '#f59e0b' : '#ef4444'};">${actualMarginPct}%</div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <!-- Erosion vs preventivo -->
+                    <div style="font-size: 0.78rem; padding: 0.5rem 0.6rem; background: ${costErosion > 0 ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)'}; border-radius: 8px; display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+                        <span class="material-icons-round" style="font-size: 16px; color: ${costErosion > 0 ? '#ef4444' : '#10b981'};">${costErosion > 0 ? 'trending_up' : 'trending_down'}</span>
+                        <span style="color: var(--text-secondary); flex: 1; min-width: 0;">
+                            Costo reale: <strong style="color: ${costErosion > 0 ? '#ef4444' : '#10b981'};">${formatAmount(actualAssignmentCost)}€</strong>
+                            ${costFinal > 0 ? ` vs ${formatAmount(costFinal)}€ previsto` : ''}
+                            ${costFinal > 0 ? ` <strong style="color: ${costErosion > 0 ? '#ef4444' : '#10b981'};">(${costErosion > 0 ? '+' : ''}${costErosionPct}%)</strong>` : ''}
+                        </span>
+                    </div>
+                </div>
+                ` : ''}
             ` : ''}
 
 

@@ -224,7 +224,7 @@ function render() {
                 break;
             case 'order-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Ordine';
-                import('../features/orders.js?v=8000').then(m => m.renderOrderDetail(contentArea));
+                import('../features/orders.js?v=8005').then(m => m.renderOrderDetail(contentArea));
                 break;
             case 'suppliers':
                 state.currentPage = 'suppliers';
