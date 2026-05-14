@@ -209,6 +209,17 @@ export function extractEnrichmentDataFromScrape(scrape) {
     if (scrape.scrape_quality) {
         out.scrape_quality = scrape.scrape_quality;
     }
+    // Fingerprint del framework (Next/Wix/Wordpress/SPA-empty/ecc.)
+    if (scrape.fingerprint) {
+        out.site_fingerprint = scrape.fingerprint;
+    }
+    // Dati JSON-LD strutturati: P.IVA, ragione sociale, titolare, anno fondazione, dipendenti
+    if (scrape.vat_id)              out.vat_id              = scrape.vat_id;
+    if (scrape.legal_name)          out.legal_name          = scrape.legal_name;
+    if (scrape.founder)             out.founder             = scrape.founder;
+    if (scrape.founding_date)       out.founding_date       = scrape.founding_date;
+    if (scrape.number_of_employees) out.number_of_employees = scrape.number_of_employees;
+    if (scrape.employee)            out.employee            = scrape.employee;
     return out;
 }
 

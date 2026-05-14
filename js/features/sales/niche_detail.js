@@ -20,8 +20,8 @@ import { showGlobalAlert, showConfirm } from '../../modules/utils.js?v=8000';
 import { analyzeNiche, saveNicheAnalysis, fetchNicheSapRelevance, PAROZZI_CRITERIA } from './niche_analyzer.js?v=8001';
 import { openSourcingModal } from './sourcing.js?v=8002';
 import { runLayer1AI, runLayer2AI, scrapeProspectSite } from './enrichment.js?v=8002';
-import { openProspectModal } from './pipeline_board.js?v=8002';
-import { buildLeanUpdatePayload, extractEnrichmentDataFromScrape } from './completeness.js?v=8002';
+import { openProspectModal } from './pipeline_board.js?v=8003';
+import { buildLeanUpdatePayload, extractEnrichmentDataFromScrape } from './completeness.js?v=8003';
 import { getSectorSchema } from './sector_schema_builder.js?v=8001';
 
 const STATUS_CONFIG = {

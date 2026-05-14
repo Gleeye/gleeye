@@ -304,6 +304,9 @@ export function openProspectModal(prospect, sapServices, onSave) {
                 field('company_size', 'Dimensione team', p.company_size) +
             '</div>' +
 
+            // Sezione Dati aziendali (da JSON-LD / scraping del sito)
+            buildBusinessDataSection(p) +
+
             // Sezione Contatti (con campi cliccabili dove ha senso)
             sectionHeader('Contatti', 'contact_mail') +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">' +
@@ -519,6 +522,56 @@ function fieldWithAction(name, label, value, type, actionUrl, actionIcon, action
             '<div style="position:relative;">' + inputHTML + actionHTML + '</div>' +
         '</div>'
     );
+}
+
+function buildBusinessDataSection(p) {
+    const e = p.ai_enrichment_data || {};
+    const items = [
+        { key: 'legal_name',          label: 'Ragione sociale',     value: e.legal_name },
+        { key: 'vat_id',              label: 'P.IVA',               value: e.vat_id },
+        { key: 'founder',             label: 'Fondatore/titolare',  value: e.founder },
+        { key: 'founding_date',       label: 'Anno fondazione',     value: e.founding_date },
+        { key: 'number_of_employees', label: 'Dipendenti',          value: e.number_of_employees },
+    ].filter(i => i.value != null && i.value !== '');
+
+    // Fingerprint info (sempre se presente, anche se i campi sopra sono vuoti)
+    const fp = e.site_fingerprint;
+    const fpBadge = fp ? buildFingerprintBadge(fp) : '';
+
+    if (items.length === 0 && !fpBadge) return '';
+
+    const itemsHtml = items.map(i =>
+        '<div style="display:flex;flex-direction:column;gap:0.2rem;padding:0.55rem 0.75rem;background:var(--bg-secondary);border:1px solid var(--glass-border);border-radius:10px;">' +
+            '<span style="font-size:0.65rem;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">' + i.label + '</span>' +
+            '<span style="font-size:0.85rem;color:var(--text-primary);font-weight:600;">' + escapeHtml(String(i.value)) + '</span>' +
+        '</div>'
+    ).join('');
+
+    return sectionHeader('Dati aziendali (da sito/JSON-LD)', 'verified') +
+        (items.length > 0
+            ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0.5rem;margin-bottom:0.5rem;">' + itemsHtml + '</div>'
+            : '') +
+        fpBadge;
+}
+
+function buildFingerprintBadge(fp) {
+    const blocked = fp.rendering === 'csr' && (fp.body_text_length || 0) < 200;
+    const fw = fp.framework || 'unknown';
+    const fwLabel = fw === 'spa-empty' ? 'SPA vuota (CSR)' : fw;
+    const color = blocked ? '#dc2626' : (fp.rendering === 'csr' ? '#f59e0b' : '#10b981');
+    const bg = blocked ? '#dc262615' : (fp.rendering === 'csr' ? '#f59e0b15' : '#10b98115');
+    const icon = blocked ? 'warning' : 'language';
+    const msg = blocked
+        ? 'Sito JS-rendered: i contenuti caricano via JavaScript e lo scraper non li vede. Richiede ri-tentativo con render JS.'
+        : 'Framework rilevato: ' + fwLabel + ' (' + (fp.rendering || '?') + ')';
+    return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem;background:' + bg + ';border:1px solid ' + color + '33;border-radius:10px;margin-bottom:0.5rem;">' +
+        '<span class="material-icons-round" style="font-size:1rem;color:' + color + ';">' + icon + '</span>' +
+        '<span style="font-size:0.75rem;color:var(--text-secondary);">' + escapeHtml(msg) + '</span>' +
+    '</div>';
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 
 function sectionHeader(title, icon) {

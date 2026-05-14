@@ -17,7 +17,7 @@ import { supabase } from '../../modules/config.js?v=8000';
 import { upsertNiche } from './api.js?v=8001';
 import { showGlobalAlert } from '../../modules/utils.js?v=8000';
 import { scrapeProspectSite } from './enrichment.js?v=8002';
-import { buildLeanUpdatePayload, extractEnrichmentDataFromScrape } from './completeness.js?v=8002';
+import { buildLeanUpdatePayload, extractEnrichmentDataFromScrape } from './completeness.js?v=8003';
 import { getSectorSchema } from './sector_schema_builder.js?v=8001';
 
 const MODEL = AI_MODELS.sales_drafter;

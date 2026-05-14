@@ -10,7 +10,7 @@
 import { supabase } from '../../modules/config.js?v=8001';
 import { fetchSapServicesForSales, fetchIndustrySectors } from './api.js?v=8001';
 import { showGlobalAlert } from '../../modules/utils.js?v=8000';
-import { openProspectModal } from './pipeline_board.js?v=8002';
+import { openProspectModal } from './pipeline_board.js?v=8003';
 
 const STATUS_TYPES = [
     { key: 'all',         label: 'Tutti' },
