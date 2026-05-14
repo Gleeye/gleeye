@@ -19,6 +19,7 @@ import {
 import { showGlobalAlert, showConfirm } from '../../modules/utils.js?v=8000';
 import { analyzeNiche, saveNicheAnalysis, fetchNicheSapRelevance, PAROZZI_CRITERIA } from './niche_analyzer.js?v=8001';
 import { openSourcingModal } from './sourcing.js?v=8002';
+import { openDiscovererModal } from './niche_discoverer.js?v=8001';
 import { runLayer1AI, runLayer2AI, scrapeProspectSite } from './enrichment.js?v=8002';
 import { openProspectModal } from './pipeline_board.js?v=8003';
 import { buildLeanUpdatePayload, extractEnrichmentDataFromScrape } from './completeness.js?v=8003';
@@ -156,6 +157,9 @@ function buildHeader(ctx) {
                     '</button>' +
                     '<button id="btn-source-prospects" class="primary-btn" style="padding:0.5rem 0.9rem;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:0.35rem;">' +
                         '<span class="material-icons-round" style="font-size:0.95rem;">travel_explore</span>Cerca prospect' +
+                    '</button>' +
+                    '<button id="btn-niche-discover" style="padding:0.5rem 0.9rem;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:0.35rem;background:linear-gradient(135deg,#8b5cf6,#6366f1);color:white;border:none;">' +
+                        '<span class="material-icons-round" style="font-size:0.95rem;">psychology</span>Scopri sotto-nicchie' +
                     '</button>' +
                     // Menu "more" con elimina + edit status/note
                     '<div class="more-menu-wrap" style="position:relative;">' +
@@ -715,6 +719,10 @@ function bindHeader(ctx) {
 
     ctx.container.querySelector('#btn-source-prospects')?.addEventListener('click', () => {
         openSourcingModal(ctx.niche, () => ctx.onReload());
+    });
+
+    ctx.container.querySelector('#btn-niche-discover')?.addEventListener('click', () => {
+        openDiscovererModal(ctx.niche);
     });
 }
 
