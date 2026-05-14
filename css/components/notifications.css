@@ -95,7 +95,7 @@
     animation: dropdown-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-[data-theme="dark"] .notification-dropdown {
+:root[data-theme="dark"] .notification-dropdown {
     background: rgba(30, 30, 35, 0.9);
     border-color: rgba(255, 255, 255, 0.08);
 }
@@ -366,7 +366,7 @@
     transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-[data-theme="dark"] .notification-toast {
+:root[data-theme="dark"] .notification-toast {
     background: rgba(40, 40, 45, 0.95);
 }
 
@@ -729,7 +729,7 @@
 /* ========================================
    Responsive
    ======================================== */
-@media (max-width: 600px) {
+@media (max-width: 768px) {
     .notification-dropdown {
         width: calc(100vw - 32px);
         right: -80px;
