@@ -2,7 +2,7 @@
 .modal {
     display: none;
     position: fixed;
-    z-index: 99999;
+    z-index: var(--z-modal, 1200);
     left: 0;
     top: 0;
     width: 100%;
@@ -80,9 +80,9 @@
 }
 
 .close-modal:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-    border-color: rgba(239, 68, 68, 0.2);
+    background: var(--color-error-soft, rgba(239, 68, 68, 0.1));
+    color: var(--color-error, #ef4444);
+    border-color: rgba(var(--color-error-rgb, 239, 68, 68), 0.2);
     transform: rotate(90deg);
 }
 
@@ -132,7 +132,7 @@
 #system-modal-container {
     position: fixed !important;
     inset: 0 !important;
-    z-index: 1000000 !important;
+    z-index: var(--z-system, 1300) !important;
     display: none;
     justify-content: center;
     align-items: center;

@@ -87,3 +87,15 @@
     color: var(--text-primary);
     font-weight: 400;
 }
+
+@media (max-width: 768px) {
+    .info-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .tab-btn {
+        padding: 0.65rem 0.35rem;
+        font-size: 0.8rem;
+    }
+}
