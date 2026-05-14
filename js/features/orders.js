@@ -165,6 +165,18 @@ export async function renderOrderDetail(container, orderId) {
     const costErosion = actualAssignmentCost - costFinal; // > 0 = sforato budget
     const costErosionPct = costFinal > 0 ? Math.round((costErosion / costFinal) * 100) : 0;
 
+    // === Fatturato vs Da fatturare ===
+    // Per la CTA "Genera fattura saldo": calcola quanto è stato già fatturato
+    // su questa commessa e quanto resta da fatturare al cliente.
+    const linkedInvoicesForOrder = (state.invoices || []).filter(i => {
+        if (Array.isArray(i.linked_orders) && i.linked_orders.includes(order.id)) return true;
+        return i.order_id === order.id;
+    });
+    const totalInvoicedOnOrder = linkedInvoicesForOrder.reduce((s, i) => s + (parseFloat(i.amount_tax_excluded) || 0), 0);
+    const toBeInvoiced = Math.max(0, priceFinal - totalInvoicedOnOrder);
+    const isOrderClosed = (order.status_works || '').toLowerCase() === 'completato';
+    const showInvoiceCTA = canSeeInternals && priceFinal > 0 && toBeInvoiced > 0.5;
+
     // --- PM Data Fetching ---
     const pmSpace = await fetchProjectSpaceForOrder(orderId);
     let pmKPIs = { total: 0, done: 0, overdue: 0, dueSoon: 0, progress: 0 };
@@ -669,6 +681,32 @@ export async function renderOrderDetail(container, orderId) {
                 ` : ''}
             ` : ''}
 
+
+            ${showInvoiceCTA ? `
+            <!-- Smart "Da Fatturare" Card -->
+            <div class="glass-card" style="padding: 1.25rem; background: ${isOrderClosed ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.10), rgba(16, 185, 129, 0.02))' : 'var(--bg-secondary)'}; border: ${isOrderClosed ? '2px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--glass-border)'};">
+                <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.85rem;">
+                    <div style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.15);">
+                        <span class="material-icons-round" style="font-size: 1.1rem; color: #10b981;">receipt</span>
+                    </div>
+                    <span style="font-weight: 700; font-size: 1rem; color: var(--text-primary); font-family: var(--font-titles);">Da Fatturare</span>
+                    ${isOrderClosed ? '<span style="font-size: 0.65rem; padding: 2px 8px; border-radius: 999px; background: #10b981; color: white; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Lavoro chiuso</span>' : ''}
+                </div>
+                <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <span style="font-size: 1.6rem; font-weight: 800; color: #10b981; font-family: var(--font-titles); line-height: 1;">${formatAmount(toBeInvoiced)}€</span>
+                    <span style="font-size: 0.75rem; color: var(--text-tertiary);">residuo</span>
+                </div>
+                <div style="font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.85rem;">
+                    Fatturato finora: <strong>${formatAmount(totalInvoicedOnOrder)}€</strong>
+                    ${linkedInvoicesForOrder.length > 0 ? ` su ${linkedInvoicesForOrder.length} fattur${linkedInvoicesForOrder.length === 1 ? 'a' : 'e'}` : ' — nessuna fattura emessa'}
+                    · prezzo commessa <strong>${formatAmount(priceFinal)}€</strong>
+                </div>
+                <button onclick="window.prefillInvoiceFromOrder('${order.id}', ${toBeInvoiced.toFixed(2)})" class="primary-btn" style="width: 100%; justify-content: center; gap: 0.5rem; background: #10b981; color: white; border: none; padding: 0.7rem; border-radius: 10px; font-weight: 600; cursor: pointer;">
+                    <span class="material-icons-round">add_circle</span>
+                    ${linkedInvoicesForOrder.length === 0 ? 'Genera fattura' : 'Genera fattura saldo'} ${formatAmount(toBeInvoiced)}€
+                </button>
+            </div>
+            ` : ''}
 
             <!-- Preventivo Automation Card -->
             <div class="glass-card" style="padding: 1.25rem; background: var(--bg-secondary); border: 1px solid var(--glass-border);">

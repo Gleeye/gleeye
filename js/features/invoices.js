@@ -475,6 +475,7 @@ export function initInvoiceModals() {
     window.handleSaveInvoice = handleSaveInvoice;
     window.openPassiveInvoiceForm = openPassiveInvoiceForm;
     window.closePassiveInvoiceForm = closePassiveInvoiceForm;
+    window.prefillInvoiceFromOrder = prefillInvoiceFromOrder;
 
     const form = document.getElementById('invoice-form');
     if (form) form.addEventListener('submit', handleSaveInvoice);
@@ -647,6 +648,57 @@ export function closeInvoiceForm() {
     const modal = document.getElementById('invoice-modal');
     if (modal) modal.classList.remove('active');
     state.currentInvoiceId = null;
+}
+
+/**
+ * Apre il modal "Nuova Fattura" precompilato a partire da una commessa.
+ * Calcola da fatturare = price_final - somma già fatturata.
+ * Usato dal CTA "Genera fattura saldo" nell'hub commessa.
+ */
+export function prefillInvoiceFromOrder(orderId, residualAmount = null) {
+    const order = (state.orders || []).find(o => o.id === orderId);
+    if (!order) return;
+
+    // Calcola residuo se non passato
+    let residual = residualAmount;
+    if (residual === null) {
+        const priceFinal = parseFloat(order.price_final) || 0;
+        const alreadyInvoiced = (state.invoices || [])
+            .filter(i => {
+                if (Array.isArray(i.linked_orders) && i.linked_orders.includes(orderId)) return true;
+                return i.order_id === orderId;
+            })
+            .reduce((s, i) => s + (parseFloat(i.amount_tax_excluded) || 0), 0);
+        residual = Math.max(0, priceFinal - alreadyInvoiced);
+    }
+
+    // Apri il modal in modalità "nuova" (resetta tutto)
+    openInvoiceForm(null);
+
+    // Pre-popola: cliente
+    const clientSelect = document.getElementById('inv-client');
+    if (clientSelect && order.client_id) {
+        clientSelect.value = order.client_id;
+        // Trigger cascading dropdown ordini
+        updateOrdersDropdown(order.client_id);
+    }
+
+    // Pre-popola: importo
+    const amountInput = document.getElementById('inv-amount');
+    if (amountInput && residual > 0) {
+        amountInput.value = residual.toFixed(2);
+    }
+
+    // Pre-seleziona l'ordine (con piccolo delay per dare tempo al dropdown di popolarsi)
+    setTimeout(() => {
+        state.selectedOrderIds = [orderId];
+        // Sync UI del dropdown ordini se necessario
+        const orderSelect = document.getElementById('inv-order');
+        if (orderSelect) {
+            orderSelect.value = orderId;
+        }
+        renderSelectedOrders();
+    }, 80);
 }
 
 export async function handleSaveInvoice(e) {
