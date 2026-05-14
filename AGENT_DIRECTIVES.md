@@ -90,6 +90,20 @@ NON toccare se non strettamente necessario:
 
 `~/.claude/projects/-Users-davidegentile-Documents-app-dev-gleeye-erp/memory/` — leggi all'inizio di ogni sessione. Contiene il giro UX completo, le roadmap aperte, il piano operativo master, il quaderno anomalie.
 
+## Roadmap master (FONTE DI VERITÀ di "cosa manca")
+
+`ROADMAP_MASTER.md` (root del repo) — leggi all'inizio di OGNI sessione PRIMA di proporre la prossima mossa. Contiene:
+- % di completamento per area
+- Blocchi grandi non coperti (SDI, Open Banking, Reportistica, Mobile/Design, Simplicity, Email)
+- Singole mine mancanti dal giro UX
+- Pending architetturali
+
+Da aggiornare alla fine di ogni sessione: muovi le mine fatte da "mancanti" al CHANGELOG, aggiorna le %, aggiungi nuove mine emerse.
+
 ## Changelog operativo
 
 `CHANGELOG.md` (root del repo) — aperto da Davide come "manuale". Aggiornalo quando completi una feature visibile all'utente finale.
+
+## Sessione design dedicata
+
+Per il "design pass + audit UX" — vedi prompt completo conservato nella memoria di Davide. Crea un worktree dedicato `feature/design-pass-2026-05`, output solo file markdown (`DESIGN_AUDIT.md` + `DESIGN_SYSTEM_PROPOSAL.md`), nessun refactor in prima sessione.
