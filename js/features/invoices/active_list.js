@@ -123,9 +123,17 @@ export function renderActiveInvoicesSafe(container) {
     const totalFatturato = filteredInvoices.reduce((sum, i) => sum + (parseFloat(i.amount_tax_excluded) || 0), 0);
     const nonSaldate = filteredInvoices.filter(i => i.status !== 'Saldata');
     const saldate = filteredInvoices.filter(i => i.status === 'Saldata');
-    const daIncassare = nonSaldate.reduce((sum, i) => sum + (parseFloat(i.amount_tax_excluded) || 0), 0);
+    // "Da incassare" considera i pagamenti parziali: sottrae l'amount_paid già incassato.
+    // (es. fattura €1000 con €400 di acconto già arrivato → contiamo €600 da incassare, non €1000)
+    const daIncassare = nonSaldate.reduce((sum, i) => {
+        const lordo = parseFloat(i.amount_tax_included) || parseFloat(i.amount_tax_excluded) || 0;
+        const giaPagato = parseFloat(i.amount_paid) || 0;
+        return sum + Math.max(0, lordo - giaPagato);
+    }, 0);
     const incassato = saldate.reduce((sum, i) => sum + (parseFloat(i.amount_tax_excluded) || 0), 0);
-    const percIncasso = totalFatturato > 0 ? Math.round((incassato / totalFatturato) * 100) : 0;
+    // Aggiungiamo anche gli acconti parziali su fatture non ancora chiuse
+    const incassatoParziale = nonSaldate.reduce((sum, i) => sum + (parseFloat(i.amount_paid) || 0), 0);
+    const percIncasso = totalFatturato > 0 ? Math.round(((incassato + incassatoParziale) / totalFatturato) * 100) : 0;
 
     if (statusFilter === 'pending') filteredInvoices = nonSaldate;
     else if (statusFilter === 'paid') filteredInvoices = saldate;
@@ -157,6 +165,15 @@ export function renderActiveInvoicesSafe(container) {
         const nettoAPagare = isSplit ? importo : (importo + iva);
         const settlementDate = inv.payment_date ? new Date(inv.payment_date).toLocaleDateString('it-IT') : null;
 
+        // Stato pagamento parziale: bonifici incassati > 0 ma < 95% dell'importo lordo
+        const amountTaxIncluded = parseFloat(inv.amount_tax_included) || nettoAPagare;
+        const amountPaid = parseFloat(inv.amount_paid) || 0;
+        const isPartial = inv.status !== 'Saldata' && amountPaid > 0 && amountPaid < amountTaxIncluded * 0.95;
+        const partialPct = amountTaxIncluded > 0 ? Math.round((amountPaid / amountTaxIncluded) * 100) : 0;
+        const partialBadge = isPartial
+            ? `<span class="status-badge" title="Incassato €${formatAmount(amountPaid)} di €${formatAmount(amountTaxIncluded)}" style="background: rgba(245, 158, 11, 0.12); color: #b45309; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 0.68rem; margin-left: 4px;">⏳ Parziale ${partialPct}%</span>`
+            : '';
+
         return `
         <div class="glass-card clickable-card inv-mobile-card" data-id="${inv.id}">
             <!-- Desktop Layout (Standard horizontal) -->
@@ -175,6 +192,7 @@ export function renderActiveInvoicesSafe(container) {
                 <div class="card-right">
                     <div class="status-wrapper">
                         <span class="status-badge" style="${getStatusStyle(inv.status)}">${inv.status || 'Bozza'}</span>
+                        ${partialBadge}
                         <span class="settlement-date">${settlementDate || ''}</span>
                     </div>
                     <div class="amount-wrapper">

@@ -7,7 +7,7 @@ import { supabase } from '../modules/config.js?v=8000';
 import { fetchInvoices, fetchPassiveInvoices, fetchPayments, fetchBankTransactions, fetchCollaborators } from '../modules/api.js?v=8000';
 import { renderPassiveInvoicesPartners, renderPassiveInvoicesCollab, renderPassiveInvoicesSuppliers } from './invoices/passive_list.js?v=8000';
 import { initInvoiceDetailModals, openInvoiceDetail } from './invoices/detail_modal.js?v=8000';
-import { renderInvoices, renderActiveInvoicesSafe } from './invoices/active_list.js?v=8000';
+import { renderInvoices, renderActiveInvoicesSafe } from './invoices/active_list.js?v=8007';
 import { glossaryTip } from '../modules/help_tooltip.js?v=8002';
 
 // Re-export the active listing views so the router + dashboard dynamic imports
