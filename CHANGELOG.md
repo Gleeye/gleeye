@@ -127,6 +127,7 @@ Dashboard 4 KPI (costo mese vs precedente, chiamate totali, token totali, latenz
 - **Margine effettivo nell'hub commessa** — nuova card "Margine Effettivo" sotto "Margine Teorico (da preventivo)": calcola live dagli `assignments.amount` reali. Banner "Costo reale vs preventivo (±%)". Solo per ruoli privilegiati.
 - **Alert margine eroso nel Centro Alert homepage** — 7ª voce del widget: commesse accettate con erosione costo > 10% rispetto al `cost_final`. Click → apre la commessa peggiore.
 - **Mina F: auto-completamento incarico** — trigger `fn_assignment_auto_complete_on_payments`: quando tutti i payments collab di un assignment sono `Completato` E lo stato era `Terminato da saldare` → l'app chiude da sola l'incarico portandolo a `Completato`. Backfill ha chiuso 6 incarichi storici già in coda.
+- **Alert real-time budget commessa sforato** — trigger `fn_notify_order_budget_exceeded` su `assignments`. Quando crei o modifichi un incarico e la somma totale incarichi della commessa supera il `cost_final` previsto, l'app notifica subito admin + partner + amministrazione + socio + l'account responsabile dell'ordine. Anti-spam: una sola notifica per transizione "sotto budget → sopra budget". Niente più scoperte a posteriori.
 
 ---
 
