@@ -47,7 +47,7 @@ async function _fetchAll() {
     ago90.setDate(ago90.getDate() - 90);
     const ago90Str = ago90.toISOString().split('T')[0];
 
-    const [inv, collPay, tasks, orphans, passReview, pricing] = await Promise.allSettled([
+    const [inv, collPay, tasks, orphans, passReview, pricing, marginRisk] = await Promise.allSettled([
 
         // 1. Fatture clienti scadute: inviate da più di 30gg, non ancora saldate
         supabase
@@ -95,6 +95,50 @@ async function _fetchAll() {
             .select('id')
             .eq('status', 'done')
             .gte('created_at', ago7Iso),
+
+        // 7. Commesse a rischio margine: accettate, non chiuse, con incarichi
+        //    firmati che sforano cost_final di più del 10%.
+        //    Strategia: prendiamo orders attivi + tutti i loro assignments, poi
+        //    aggregiamo client-side (nessuna view dedicata per ora).
+        (async () => {
+            const { data: orders, error: e1 } = await supabase
+                .from('orders')
+                .select('id, order_number, title, cost_final, offer_status, status_works')
+                .eq('offer_status', 'accettata');
+            if (e1) return { data: [], error: e1 };
+            const activeOrders = (orders || []).filter(o => {
+                const sw = (o.status_works || '').toLowerCase();
+                return !['completato', 'chiuso'].includes(sw)
+                    && Number(o.cost_final) > 0;
+            });
+            if (activeOrders.length === 0) return { data: [], error: null };
+            const orderIds = activeOrders.map(o => o.id);
+            const { data: asgs, error: e2 } = await supabase
+                .from('assignments')
+                .select('id, order_id, amount')
+                .in('order_id', orderIds);
+            if (e2) return { data: [], error: e2 };
+            const byOrder = {};
+            (asgs || []).forEach(a => {
+                if (!a.order_id) return;
+                byOrder[a.order_id] = (byOrder[a.order_id] || 0) + Number(a.amount || 0);
+            });
+            // Solo ordini CON almeno un incarico e con erosione effettiva > 10%
+            const eroded = activeOrders.map(o => {
+                const realCost = byOrder[o.id] || 0;
+                if (realCost === 0) return null;
+                const erosionPct = ((realCost - Number(o.cost_final)) / Number(o.cost_final)) * 100;
+                if (erosionPct <= 10) return null;
+                return {
+                    id: o.id,
+                    order_number: o.order_number,
+                    title: o.title,
+                    erosionPct: Math.round(erosionPct),
+                    erosionAmount: realCost - Number(o.cost_final),
+                };
+            }).filter(Boolean).sort((a, b) => b.erosionPct - a.erosionPct);
+            return { data: eroded, error: null };
+        })(),
     ]);
 
     // — voce 4: esclude i movimenti già collegati via payments o linked_invoices
@@ -120,9 +164,11 @@ async function _fetchAll() {
     const taskRows  = tasks.status  === 'fulfilled' && !tasks.value.error  ? tasks.value.data  || [] : [];
     const passRows  = passReview.status === 'fulfilled' && !passReview.value.error ? passReview.value.data || [] : [];
     const pricingRows = pricing.status === 'fulfilled' && !pricing.value.error ? pricing.value.data || [] : [];
+    const marginRiskRows = marginRisk.status === 'fulfilled' && !marginRisk.value.error ? marginRisk.value.data || [] : [];
 
     const invTotal  = invRows.reduce((s, r) => s + Number(r.amount_tax_included || 0), 0);
     const payTotal  = payRows.reduce((s, r) => s + Number(r.amount || 0), 0);
+    const marginTotal = marginRiskRows.reduce((s, r) => s + Number(r.erosionAmount || 0), 0);
 
     return {
         invoices:    { count: invRows.length,   total: invTotal },
@@ -131,6 +177,7 @@ async function _fetchAll() {
         orphans:     { count: orphanCount },
         passReview:  { count: passRows.length },
         pricing:     { count: pricingRows.length },
+        marginRisk:  { count: marginRiskRows.length, total: marginTotal, top: marginRiskRows[0] || null },
     };
 }
 
@@ -226,6 +273,17 @@ function _buildRows(data) {
             link:    '#pricing',
             icon:    'auto_graph',
             color:   '#10b981',
+        },
+        {
+            count:   data.marginRisk.count,
+            label:   data.marginRisk.count === 1
+                ? 'Commessa con margine eroso'
+                : 'Commesse con margine eroso',
+            sub:     data.marginRisk.count > 0 ? '+' + formatAmount(data.marginRisk.total) + ' di costo' : '',
+            // Click → apre la commessa più erosa. Niente nuova view, niente filtri dashboard.
+            link:    data.marginRisk.top ? '#order-detail/' + data.marginRisk.top.id : '#dashboard',
+            icon:    'trending_up',
+            color:   '#dc2626',
         },
     ];
 }
