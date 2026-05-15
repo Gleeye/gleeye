@@ -21,7 +21,7 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const STEP1_MODEL = 'google/gemini-2.0-flash-001';     // trascrizione audio
+const STEP1_MODEL = 'google/gemini-2.5-flash';     // trascrizione audio
 const STEP2_MODEL = 'google/gemini-2.5-flash-lite';   // strutturazione testo
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const BUCKET = 'voice_memos';
