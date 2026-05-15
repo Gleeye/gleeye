@@ -190,7 +190,7 @@ function setupListEventHandlers(container, items, spaceId) {
         row.addEventListener('click', (e) => {
             if (e.target.closest('.row-menu-btn')) return;
             const itemId = row.dataset.id;
-            import('/js/features/pm/components/hub_drawer.js?v=8013').then(mod => {
+            import('/js/features/pm/components/hub_drawer.js?v=8014').then(mod => {
                 mod.openHubDrawer(itemId, spaceId);
             });
         });

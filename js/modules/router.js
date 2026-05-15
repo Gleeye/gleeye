@@ -355,7 +355,7 @@ function render() {
 
                 } else if (state.currentSubPage === 'task' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Attività';
-                    import('../features/pm/components/hub_drawer.js?v=8013').then(m => {
+                    import('../features/pm/components/hub_drawer.js?v=8014').then(m => {
                         m.openHubDrawer(state.currentId, null);
                     });
                     // Show dashboard in background

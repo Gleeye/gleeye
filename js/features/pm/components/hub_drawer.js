@@ -1347,7 +1347,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     if (error) return;
 
                     if (data.status === 'processing') {
-                        stepText.textContent = "Gemini sta analizzando l'audio...";
+                        stepText.textContent = "L'AI sta analizzando l'audio...";
                         progressBar.style.width = '50%';
                         percentage.textContent = '50%';
                     } else if (data.status === 'completed') {

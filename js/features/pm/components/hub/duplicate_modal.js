@@ -215,7 +215,7 @@ window.quickRemoveAssignee = async (itemId, assignmentId) => {
         await supabase.from('pm_item_assignees').delete().eq('id', assignmentId);
         // Refresh the drawer to show updated state
         // Re-open the drawer via dynamic import to avoid a static circular dep with hub_drawer.js
-        import('../hub_drawer.js?v=8013').then(m => m.openHubDrawer(itemId));
+        import('../hub_drawer.js?v=8014').then(m => m.openHubDrawer(itemId));
     } catch (e) {
         console.error("Error removing assignee:", e);
         alert("Errore durante la rimozione dell'assegnatario.");
