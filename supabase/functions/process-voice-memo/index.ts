@@ -114,7 +114,7 @@ Linee guida:
                     },
                 ],
                 temperature: 0.3,
-                max_tokens: 4000,
+                max_tokens: 8000,
                 response_format: { type: 'json_object' },
             }),
         });
@@ -132,21 +132,53 @@ Linee guida:
             return jsonResp({ error: 'empty AI response' }, 500);
         }
 
-        // 5. Parse JSON
-        let parsed: any;
+        // 5. Parse JSON con 3 strategie fallback + raw-text-rescue
+        const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
+        let parsed: any = null;
+
+        // Strategia 1: parse diretto
         try {
             parsed = typeof content === 'string' ? JSON.parse(content) : content;
-        } catch (e) {
-            // Fallback: estrae JSON da blocco markdown se l'AI ha avvolto
-            const match = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-            if (match) {
-                try { parsed = JSON.parse(match[1]); } catch { /* keep null */ }
+        } catch { /* try next */ }
+
+        // Strategia 2: estrae da blocco markdown ```json ... ```
+        if (!parsed) {
+            const m = contentStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (m) {
+                try { parsed = JSON.parse(m[1].trim()); } catch { /* try next */ }
             }
         }
 
+        // Strategia 3: prendi il primo { e l'ultimo } e prova
+        if (!parsed) {
+            const f = contentStr.indexOf('{');
+            const l = contentStr.lastIndexOf('}');
+            if (f !== -1 && l > f) {
+                try { parsed = JSON.parse(contentStr.slice(f, l + 1)); } catch { /* nothing */ }
+            }
+        }
+
+        // Rescue: salva testo grezzo se l'AI ha dato del testo ma non JSON.
+        // Utente vede comunque qualcosa invece di errore.
         if (!parsed || !parsed.transcription) {
-            await markFailed(admin, job_id, 'AI output non parseabile');
-            return jsonResp({ error: 'unparseable AI output', raw: content.slice(0, 500) }, 500);
+            if (contentStr && contentStr.trim().length > 20) {
+                await admin
+                    .from('pm_ai_report_jobs')
+                    .update({
+                        status: 'completed',
+                        transcription: contentStr,
+                        summary: '(AI non ha rispettato il formato JSON. Salvato testo grezzo come trascrizione.)',
+                        report_markdown: contentStr,
+                        action_items: [],
+                        completed_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        error_message: 'rescue: testo grezzo salvato (parse JSON fallito)',
+                    })
+                    .eq('id', job_id);
+                return jsonResp({ ok: true, job_id, fallback: 'raw_text', length: contentStr.length });
+            }
+            await markFailed(admin, job_id, 'AI output non parseabile. Raw (1000 chars): ' + contentStr.slice(0, 1000));
+            return jsonResp({ error: 'unparseable AI output', raw: contentStr.slice(0, 500) }, 500);
         }
 
         // 6. Calcola costo stimato (Gemini 2.5 Flash: ~$0.075/M input, $0.30/M output)
