@@ -829,6 +829,11 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             ${item.cloud_links?.length > 0 ? `<span style="font-size: 0.75rem; background: #f1f5f9; padding: 2px 6px; border-radius: 6px; margin-left: 2px;">${item.cloud_links.length}</span>` : ''}
                         </div>
 
+                        <div class="drawer-tab" data-tab="files" style="padding: 1.1rem 1rem; font-size: 0.85rem; font-weight: 600; color: #697386; border-bottom: 2.5px solid transparent; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
+                            <span class="material-icons-round" style="font-size: 1.1rem;">folder</span>
+                            File
+                        </div>
+
                         <div class="drawer-tab" data-tab="report" style="padding: 1.1rem 1rem; font-size: 0.85rem; font-weight: 600; color: #697386; border-bottom: 2.5px solid transparent; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; font-family: 'Satoshi', sans-serif; white-space: nowrap; flex-shrink: 0;">
                             <span class="material-icons-round" style="font-size: 1.1rem;">description</span>
                             Report
@@ -951,6 +956,11 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         <div class="resources-section" style="padding: 1.5rem;">
                             <div id="item-cloud-links-container" style="background: #f8fafc; border-radius: 16px; padding: 10px; border: 1.5px solid #f1f5f9;"></div>
                         </div>
+                    </div>
+
+                    <div id="tab-files" class="tab-pane hidden">
+                        <!-- contenuto popolato da files_tab.js on-demand -->
+                        <div style="padding: 2rem; text-align: center; color: #94a3b8;">Caricamento...</div>
                     </div>
 
                     <div id="tab-report" class="tab-pane hidden">
@@ -1489,6 +1499,18 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 panes.forEach(p => {
                     p.classList.toggle('hidden', p.id !== `tab-${tabName}`);
                 });
+
+                // Lazy-load tab "files" (Dropbox + link esterni unificati)
+                if (tabName === 'files' && !drawer._filesTabInited) {
+                    drawer._filesTabInited = true;
+                    import('./hub/files_tab.js?v=8014').then(mod => {
+                        mod.initFilesTab(drawer, itemId, spaceId);
+                    }).catch(err => {
+                        console.error('[hub_drawer] files_tab load failed', err);
+                        const pane = drawer.querySelector('#tab-files');
+                        if (pane) pane.innerHTML = '<div style="padding: 2rem; color: #ef4444; text-align: center;">Errore caricamento File tab: ' + err.message + '</div>';
+                    });
+                }
 
                 // Toggle Anchored Footer
                 const footer = drawer.querySelector('#drawer-footer-comments');

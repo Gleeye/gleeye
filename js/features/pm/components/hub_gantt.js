@@ -92,7 +92,7 @@ export function renderHubGantt(container, items, spaceId) {
     container.querySelectorAll('.gb-bar').forEach(el => {
         el.onclick = e => {
             e.stopPropagation();
-            import('./hub_drawer.js?v=8014').then(m => m.openHubDrawer(el.dataset.id, spaceId));
+            import('./hub_drawer.js?v=8015').then(m => m.openHubDrawer(el.dataset.id, spaceId));
         };
     });
 
