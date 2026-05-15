@@ -172,7 +172,7 @@ export async function openAccountActivitiesModal(orderId, spaceId) {
 
     addBtn.addEventListener('click', async () => {
         if (currentTab === 'attivita' || currentTab === 'task') {
-            const { openHubDrawer } = await import('/js/features/pm/components/hub_drawer.js?v=8011');
+            const { openHubDrawer } = await import('/js/features/pm/components/hub_drawer.js?v=8012');
             openHubDrawer(null, spaceId, null, currentTab, {
                 defaultRole: 'account',
                 defaultNote: '[ACCOUNT]',
@@ -298,7 +298,7 @@ function renderTreeNodes(nodes, spaceId) {
 
         return `
             <div class="tree-node">
-                <div class="tree-row" onclick="import('/js/features/pm/components/hub_drawer.js?v=8011').then(mod => mod.openHubDrawer('${node.id}', '${spaceId}'))">
+                <div class="tree-row" onclick="import('/js/features/pm/components/hub_drawer.js?v=8012').then(mod => mod.openHubDrawer('${node.id}', '${spaceId}'))">
                     <div style="width: 24px; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary);">
                         <span class="material-icons-round" style="font-size: 18px;">
                             ${node.item_type === 'attivita' ? 'folder' : 'description'}
@@ -353,7 +353,7 @@ async function renderItems(container, spaceId, filterType, items = null) {
                 ${accountItems.map(item => {
             const isDone = item.status === 'done';
             return `
-                        <div class="activity-card" style="opacity: ${isDone ? '0.7' : '1'}; cursor: pointer;" onclick="import('/js/features/pm/components/hub_drawer.js?v=8011').then(mod => mod.openHubDrawer('${item.id}', '${spaceId}'))">
+                        <div class="activity-card" style="opacity: ${isDone ? '0.7' : '1'}; cursor: pointer;" onclick="import('/js/features/pm/components/hub_drawer.js?v=8012').then(mod => mod.openHubDrawer('${item.id}', '${spaceId}'))">
                             <div style="flex-shrink: 0; color: ${isDone ? '#10b981' : 'var(--brand-blue)'};">
                                 <span class="material-icons-round" style="font-size: 24px;">
                                     ${isDone ? 'check_circle' : (filterType === 'attivita' ? 'folder' : 'circle_outline')}

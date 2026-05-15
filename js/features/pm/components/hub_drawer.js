@@ -1023,10 +1023,18 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 </div>
                                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.25rem;">
                                     <button id="report-open-doc-btn" class="primary-btn" style="flex: 1; min-width: 140px; background: var(--brand-blue); justify-content: center;">
-                                        <span class="material-icons-round" style="font-size: 1rem;">description</span> Apri report completo
+                                        <span class="material-icons-round" style="font-size: 1rem;">description</span> Mostra report integrale
                                     </button>
                                     <button id="report-new-btn" class="primary-btn secondary" style="min-width: 100px; justify-content: center;">
                                         <span class="material-icons-round" style="font-size: 1rem;">mic</span> Nuovo memo
+                                    </button>
+                                </div>
+                                <!-- Pannello report integrale (toggled) -->
+                                <div id="report-result-fullbody" class="hidden" style="margin-top: 0.5rem; background: #fafbfc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; max-height: 400px; overflow-y: auto;">
+                                    <div style="font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Report integrale</div>
+                                    <pre id="report-result-fullbody-pre" style="white-space: pre-wrap; word-wrap: break-word; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.83rem; line-height: 1.55; color: var(--text-primary); margin: 0;"></pre>
+                                    <button id="report-copy-full-btn" style="margin-top: 0.75rem; padding: 0.4rem 0.8rem; background: white; border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer; font-size: 0.78rem; color: var(--brand-blue);">
+                                        <span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle;">content_copy</span> Copia testo
                                     </button>
                                 </div>
                             </div>
@@ -1253,9 +1261,29 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                 if (openDocBtn) {
                     openDocBtn.onclick = () => {
-                        if (docPageId) {
-                            window.location.hash = '#docs/' + docPageId;
-                            if (typeof closeHubDrawer === 'function') closeHubDrawer();
+                        const fullbody = drawer.querySelector('#report-result-fullbody');
+                        const pre = drawer.querySelector('#report-result-fullbody-pre');
+                        if (!fullbody || !pre) return;
+                        const fullText = jobData.report_markdown
+                            || jobData.transcription
+                            || '(nessun contenuto disponibile)';
+                        pre.textContent = fullText;
+                        const wasHidden = fullbody.classList.contains('hidden');
+                        fullbody.classList.toggle('hidden');
+                        openDocBtn.innerHTML = wasHidden
+                            ? '<span class="material-icons-round" style="font-size: 1rem;">visibility_off</span> Nascondi report'
+                            : '<span class="material-icons-round" style="font-size: 1rem;">description</span> Mostra report integrale';
+                        // Wire copy button
+                        const copyBtn = drawer.querySelector('#report-copy-full-btn');
+                        if (copyBtn && wasHidden) {
+                            copyBtn.onclick = () => {
+                                navigator.clipboard.writeText(fullText).then(() => {
+                                    copyBtn.innerHTML = '<span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle;">check</span> Copiato!';
+                                    setTimeout(() => {
+                                        copyBtn.innerHTML = '<span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle;">content_copy</span> Copia testo';
+                                    }, 1500);
+                                });
+                            };
                         }
                     };
                 }

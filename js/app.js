@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Global HubDrawer Opener Helper
 window.openPmItemDetails = function (itemId, spaceId) {
-    import('./features/pm/components/hub_drawer.js?v=8011').then(mod => {
+    import('./features/pm/components/hub_drawer.js?v=8012').then(mod => {
         mod.openHubDrawer(itemId, spaceId);
     });
 };

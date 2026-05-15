@@ -1779,7 +1779,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
 // Drawer function (exported for use by child components)
 export function openItemDrawer(itemId, spaceId, parentId = null, itemType = 'task') {
-    import('./components/hub_drawer.js?v=8011').then(mod => {
+    import('./components/hub_drawer.js?v=8012').then(mod => {
         mod.openHubDrawer(itemId, spaceId, parentId, itemType);
     });
 }

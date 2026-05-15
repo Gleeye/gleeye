@@ -39,7 +39,7 @@ export function renderPMTree(container, items, space) {
             e.stopPropagation();
             const itemId = row.closest('.tree-node').dataset.id;
 
-            import('/js/features/pm/components/hub_drawer.js?v=8011').then(mod => {
+            import('/js/features/pm/components/hub_drawer.js?v=8012').then(mod => {
                 mod.openHubDrawer(itemId, space.id);
             });
         });
