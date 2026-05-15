@@ -20,7 +20,63 @@ export function initFilesTab(drawer, itemId, spaceId) {
     pane.innerHTML = renderShell();
     wireUpload(drawer, itemId, spaceId);
     wireAddLink(drawer, itemId, spaceId);
+    wireShareFolder(drawer, itemId, spaceId);
     refresh(drawer, itemId, spaceId);
+}
+
+function wireShareFolder(drawer, itemId, spaceId) {
+    const btn = drawer.querySelector('#files-share-folder-btn');
+    if (!btn) return;
+    btn.onclick = async () => {
+        btn.disabled = true;
+        const original = btn.innerHTML;
+        btn.innerHTML = '<span class="material-icons-round" style="font-size: 14px;">sync</span> Generando...';
+        try {
+            const result = await callDropboxProxy({
+                action: 'share-folder',
+                pm_space_ref: itemId ? null : spaceId,
+                pm_item_ref: itemId || null,
+            });
+            if (result?.url) {
+                // Mostra modal con URL + copy
+                document.getElementById('files-share-modal')?.remove();
+                document.body.insertAdjacentHTML('beforeend', `
+                    <div id="files-share-modal" class="modal active" style="z-index: 11500;">
+                        <div class="modal-content glass-card" style="max-width: 560px; padding: 1.5rem;">
+                            <h3 style="margin: 0 0 0.5rem; font-size: 1.1rem;">📤 Link cartella Dropbox</h3>
+                            <p style="font-size: 0.82rem; color: #64748b; margin: 0 0 1rem;">Chiunque ha questo link può vedere/scaricare i file della cartella. Usalo per condividere con clienti o consulenti esterni.</p>
+                            <div style="background: #f1f5f9; border-radius: 8px; padding: 0.7rem; font-family: monospace; font-size: 0.78rem; word-break: break-all; margin-bottom: 0.75rem;">${escapeHtml(result.url)}</div>
+                            <div style="font-size: 0.7rem; color: #94a3b8; margin-bottom: 1rem;">📁 ${escapeHtml(result.folder)}</div>
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <button id="share-modal-copy" class="primary-btn small">
+                                    <span class="material-icons-round" style="font-size: 14px;">content_copy</span> Copia link
+                                </button>
+                                <a href="${escapeAttr(result.url)}" target="_blank" class="primary-btn small secondary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span class="material-icons-round" style="font-size: 14px;">open_in_new</span> Apri
+                                </a>
+                                <button class="primary-btn small secondary" onclick="document.getElementById('files-share-modal').remove()">Chiudi</button>
+                            </div>
+                        </div>
+                    </div>
+                `);
+                document.getElementById('share-modal-copy').onclick = () => {
+                    navigator.clipboard.writeText(result.url).then(() => {
+                        const b = document.getElementById('share-modal-copy');
+                        if (b) {
+                            b.innerHTML = '<span class="material-icons-round" style="font-size: 14px;">check</span> Copiato';
+                            setTimeout(() => { b.innerHTML = '<span class="material-icons-round" style="font-size: 14px;">content_copy</span> Copia link'; }, 1500);
+                        }
+                    });
+                };
+            }
+        } catch (err) {
+            console.error('[files_tab] share folder failed', err);
+            alert(`Errore generazione link: ${err.message}`);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    };
 }
 
 function renderShell() {
@@ -49,9 +105,14 @@ function renderShell() {
 
             <!-- Lista file Dropbox -->
             <div>
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; gap: 0.5rem;">
                     <h4 style="font-size: 0.7rem; font-weight: 700; color: #94a3b8; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">📎 File caricati</h4>
-                    <span id="files-list-count" style="font-size: 0.7rem; color: #94a3b8;"></span>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span id="files-list-count" style="font-size: 0.7rem; color: #94a3b8;"></span>
+                        <button id="files-share-folder-btn" class="primary-btn small" title="Genera shared link della cartella Dropbox di questo livello" style="padding: 0.3rem 0.75rem; font-size: 0.7rem; background: #f1f5f9; color: #1a1f36; border: 1px solid #e2e8f0;">
+                            <span class="material-icons-round" style="font-size: 14px;">ios_share</span> Cartella Dropbox
+                        </button>
+                    </div>
                 </div>
                 <div id="files-list" style="display: flex; flex-direction: column; gap: 6px;">
                     <div style="font-size: 0.8rem; color: #94a3b8; text-align: center; padding: 1rem; background: #f8fafc; border-radius: 8px;">Caricamento...</div>
@@ -107,8 +168,14 @@ async function refreshFiles(drawer, itemId, spaceId) {
     if (countEl) countEl.textContent = data.length + ' file';
 
     // Wire bottoni
+    listEl.querySelectorAll('[data-action="preview"]').forEach(b => {
+        b.onclick = (e) => {
+            e.stopPropagation();
+            openFile(b.dataset.id, b.dataset.name, b.dataset.mime);
+        };
+    });
     listEl.querySelectorAll('[data-action="download"]').forEach(b => {
-        b.onclick = (e) => { e.stopPropagation(); downloadFile(b.dataset.id, b.dataset.name); };
+        b.onclick = (e) => { e.stopPropagation(); downloadFile(b.dataset.id); };
     });
     listEl.querySelectorAll('[data-action="delete"]').forEach(b => {
         b.onclick = async (e) => {
@@ -169,18 +236,22 @@ function renderFileRow(f) {
     const sizeStr = size < 1 ? Math.round(size * 1024) + ' KB' : size.toFixed(1) + ' MB';
     const date = f.uploaded_at ? new Date(f.uploaded_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }) : '';
     const icon = fileIcon(f.mime_type, f.file_name);
+    const previewable = isPreviewable(f.mime_type, f.file_name);
+    const clickAction = previewable ? 'preview' : 'download';
     return `
         <div style="display: flex; align-items: center; gap: 0.65rem; padding: 0.6rem 0.75rem; background: white; border: 1px solid #f1f5f9; border-radius: 10px;">
-            <span class="material-icons-round" style="color: #4e92d8; font-size: 1.3rem;">${icon}</span>
-            <div style="flex: 1; min-width: 0;">
-                <div style="font-size: 0.85rem; font-weight: 600; color: #1a1f36; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(f.file_name)}</div>
-                <div style="font-size: 0.68rem; color: #94a3b8;">${sizeStr} · ${date}</div>
+            <div data-action="${clickAction}" data-id="${f.id}" data-name="${escapeHtml(f.file_name)}" data-mime="${escapeAttr(f.mime_type || '')}" style="display: flex; align-items: center; gap: 0.65rem; flex: 1; min-width: 0; cursor: pointer;" title="${previewable ? 'Apri anteprima' : 'Scarica'}">
+                <span class="material-icons-round" style="color: #4e92d8; font-size: 1.3rem; flex-shrink: 0;">${icon}</span>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #1a1f36; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(f.file_name)}</div>
+                    <div style="font-size: 0.68rem; color: #94a3b8;">${sizeStr} · ${date}${previewable ? ' · click per anteprima' : ''}</div>
+                </div>
             </div>
             <label title="Condividi anche con i collab di task figlie" style="display: flex; align-items: center; gap: 4px; font-size: 0.65rem; color: #64748b; cursor: pointer;">
                 <input type="checkbox" data-action="toggle-share" data-id="${f.id}" ${f.share_with_children ? 'checked' : ''} style="cursor: pointer;">
                 <span>Sotto</span>
             </label>
-            <button data-action="download" data-id="${f.id}" data-name="${escapeHtml(f.file_name)}" class="icon-btn small" style="background: none; border: 1px solid #e2e8f0; padding: 0.3rem 0.5rem; border-radius: 6px; cursor: pointer;" title="Scarica">
+            <button data-action="download" data-id="${f.id}" class="icon-btn small" style="background: none; border: 1px solid #e2e8f0; padding: 0.3rem 0.5rem; border-radius: 6px; cursor: pointer;" title="Scarica diretto">
                 <span class="material-icons-round" style="font-size: 1rem; color: #4e92d8;">download</span>
             </button>
             <button data-action="delete" data-id="${f.id}" class="icon-btn small" style="background: none; border: 1px solid #fee2e2; padding: 0.3rem 0.5rem; border-radius: 6px; cursor: pointer;" title="Elimina">
@@ -188,6 +259,16 @@ function renderFileRow(f) {
             </button>
         </div>
     `;
+}
+
+function isPreviewable(mime, name) {
+    const m = (mime || '').toLowerCase();
+    if (m.startsWith('image/')) return true;
+    if (m.startsWith('video/')) return true;
+    if (m.startsWith('audio/')) return true;
+    if (m === 'application/pdf') return true;
+    if (name && name.toLowerCase().endsWith('.pdf')) return true;
+    return false;
 }
 
 function renderLinkRow(l) {
@@ -442,15 +523,89 @@ function blobToBase64(blob) {
     });
 }
 
-async function downloadFile(fileId, fileName) {
-    const { data, error } = await supabase.functions.invoke('dropbox-proxy', {
-        body: { action: 'download', file_id: fileId },
-    });
-    if (error || data?.error) {
-        alert(`Errore download: ${error?.message || data?.error}`);
+async function openFile(fileId, fileName, mimeType) {
+    // Chiama edge function per ottenere signed URL temporanea
+    let data;
+    try {
+        data = await callDropboxProxy({ action: 'download', file_id: fileId });
+    } catch (err) {
+        alert(`Errore apertura: ${err.message}`);
+        return;
+    }
+    if (!data?.url) {
+        alert('URL non disponibile');
+        return;
+    }
+    // Decide se aprire in modal preview o scaricare diretto
+    const mime = (mimeType || data.mime_type || '').toLowerCase();
+    if (mime.startsWith('image/')) {
+        openPreviewModal(data.url, fileName, 'image');
+    } else if (mime === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf')) {
+        openPreviewModal(data.url, fileName, 'pdf');
+    } else if (mime.startsWith('video/')) {
+        openPreviewModal(data.url, fileName, 'video');
+    } else if (mime.startsWith('audio/')) {
+        openPreviewModal(data.url, fileName, 'audio');
+    } else {
+        // Tipi non previewable: apri in nuova tab (Dropbox di solito scarica)
+        window.open(data.url, '_blank');
+    }
+}
+
+async function downloadFile(fileId) {
+    let data;
+    try {
+        data = await callDropboxProxy({ action: 'download', file_id: fileId });
+    } catch (err) {
+        alert(`Errore download: ${err.message}`);
         return;
     }
     if (data?.url) window.open(data.url, '_blank');
+}
+
+function openPreviewModal(url, fileName, kind) {
+    document.getElementById('files-preview-modal')?.remove();
+    let mediaHtml = '';
+    if (kind === 'image') {
+        mediaHtml = `<img src="${escapeAttr(url)}" alt="${escapeAttr(fileName)}" style="max-width: 100%; max-height: 80vh; display: block; margin: 0 auto; border-radius: 8px;">`;
+    } else if (kind === 'pdf') {
+        mediaHtml = `<iframe src="${escapeAttr(url)}" style="width: 100%; height: 80vh; border: none; background: white;"></iframe>`;
+    } else if (kind === 'video') {
+        mediaHtml = `<video src="${escapeAttr(url)}" controls autoplay style="max-width: 100%; max-height: 80vh; display: block; margin: 0 auto; border-radius: 8px; background: black;"></video>`;
+    } else if (kind === 'audio') {
+        mediaHtml = `<div style="padding: 3rem 1rem; text-align: center;"><audio src="${escapeAttr(url)}" controls autoplay style="width: 100%; max-width: 500px;"></audio></div>`;
+    }
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="files-preview-modal" class="modal active" style="z-index: 12000;">
+            <div style="background: rgba(0,0,0,0.85); position: fixed; inset: 0; display: flex; flex-direction: column; padding: 2rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; color: white;">
+                    <div style="font-size: 0.9rem; font-weight: 600; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(fileName)}</div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="${escapeAttr(url)}" target="_blank" style="background: rgba(255,255,255,0.15); color: white; padding: 0.4rem 0.8rem; border-radius: 8px; text-decoration: none; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 4px;">
+                            <span class="material-icons-round" style="font-size: 16px;">open_in_new</span> Apri esterno
+                        </a>
+                        <a href="${escapeAttr(url)}" download="${escapeAttr(fileName)}" style="background: rgba(255,255,255,0.15); color: white; padding: 0.4rem 0.8rem; border-radius: 8px; text-decoration: none; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 4px;">
+                            <span class="material-icons-round" style="font-size: 16px;">download</span> Scarica
+                        </a>
+                        <button onclick="document.getElementById('files-preview-modal').remove()" style="background: rgba(255,255,255,0.15); color: white; border: none; padding: 0.4rem 0.6rem; border-radius: 8px; cursor: pointer; font-size: 0.78rem; display: inline-flex; align-items: center;">
+                            <span class="material-icons-round" style="font-size: 18px;">close</span>
+                        </button>
+                    </div>
+                </div>
+                <div style="flex: 1; overflow: auto; background: rgba(255,255,255,0.05); border-radius: 12px; padding: 1rem;">
+                    ${mediaHtml}
+                </div>
+            </div>
+        </div>
+    `);
+    // ESC per chiudere
+    const onKey = (e) => {
+        if (e.key === 'Escape') {
+            document.getElementById('files-preview-modal')?.remove();
+            document.removeEventListener('keydown', onKey);
+        }
+    };
+    document.addEventListener('keydown', onKey);
 }
 
 async function deleteFile(fileId) {
