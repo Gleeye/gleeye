@@ -38,14 +38,17 @@
 | Button system esteso | DONE | 100% | .danger/.success variants, .btn-sm/.btn-lg sizes, :focus-visible, :disabled |
 | Splash screen cleanup (P3 #10) | TODO | 0% | display:none dopo fade (richiede JS) |
 
-## Step 3: JS Inline Styles Migration (da fare)
+## Step 3: JS Inline Styles Migration (in corso)
 
 | Area | Stato | % | Note |
 |------|-------|---|------|
-| Estrazione classi CSS da JS | TODO | 0% | 8.530 inline styles totali |
+| Batch 1: file sicuri piccoli | DONE | 100% | 8 file: personal_agenda, user_dashboard, commessa_detail, bank_statements, white_label_partners, admin_notifications, contact_forms, dashboard |
+| Batch 2: hub_drawer + timeline | DONE | 100% | .menu-action-opt/.danger estratti, timeline 9 hex → var(), hub hover → var() |
+| Classi CSS estratte | DONE | 100% | .remove-space-pm-btn, .add-member-btn-circle, .btn-remove-field, .active-order-item, .menu-action-opt(+.danger) |
+| Estrazione restante (file hot) | BLOCKED | 0% | homepage.js (161), orders.js (22), clients.js, collaborators.js, invoices.js — file hot |
+| Docs components (194+90+55) | TODO | 0% | BlockComponent, DocsSidebar, Menus — file grandi, rischio medio |
 | Breakpoints.js modulo condiviso | TODO | 0% | Eliminare 10+ numeri magici |
 | Modal size classes | TODO | 0% | .modal-sm/md/lg vs inline max-width |
-| Colori hex → var() nei JS | TODO | 0% | 30+ colori, top 9 usati 100+ volte |
 
 ## Metriche globali
 
@@ -54,4 +57,4 @@
 | Mobile responsive | ~40% viste | ~50% (+agenda) | ~70% (+auth, bank, payments, tables) | 100% |
 | Design system unificato | ~15% | ~20% | ~60% (z-index, colori, radius, utility dedup su 18 file CSS) | 90%+ |
 | Dark mode funzionante | ~60% viste | ~75% | ~95% (tutti file CSS migrati; residuo: homepage-alt BLOCKED, agenda event colors intenzionali) | 100% |
-| Inline styles nei JS | 8.530 | 8.530 | 8.530 (non toccati — Step 3) | <500 |
+| Inline styles nei JS | 8.530 | 8.530 | ~8.480 (50 migrati in 10 file, 6 classi CSS estratte) | <500 |
