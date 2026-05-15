@@ -283,8 +283,14 @@ async function handleFiles(fileList, drawer, itemId, spaceId) {
             let respJson = null;
             try { respJson = JSON.parse(respText); } catch { /* keep null */ }
             if (!resp.ok) {
-                const detail = respJson?.detail || respJson?.error || respText.slice(0, 300);
-                throw new Error(`HTTP ${resp.status}: ${detail}`);
+                console.error('[files_tab] DEBUG response JSON completo:', respJson);
+                const parts = [];
+                if (respJson?.error) parts.push(respJson.error);
+                if (respJson?.missing) parts.push('missing: ' + JSON.stringify(respJson.missing));
+                if (respJson?.env_var_found_containing_DROPBOX_or_DB) parts.push('env found: ' + JSON.stringify(respJson.env_var_found_containing_DROPBOX_or_DB));
+                if (respJson?.detail) parts.push(respJson.detail);
+                const msg = parts.join(' | ') || respText.slice(0, 300);
+                throw new Error(`HTTP ${resp.status}: ${msg}`);
             }
             if (respJson?.error) {
                 throw new Error(respJson.error + (respJson.detail ? ' — ' + respJson.detail : ''));
