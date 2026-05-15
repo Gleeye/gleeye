@@ -21,15 +21,15 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const STEP1_MODEL = 'google/gemini-flash-1.5';     // trascrizione audio
+const STEP1_MODEL = 'google/gemini-2.0-flash-001';     // trascrizione audio
 const STEP2_MODEL = 'google/gemini-2.5-flash-lite';   // strutturazione testo
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const BUCKET = 'voice_memos';
 
 // Pricing in USD per Milione di token (al 15/5/2026 via OpenRouter)
 const PRICE = {
-    step1_input: 0.0375,  // Flash 8B input (audio token uguali)
-    step1_output: 0.15,   // Flash 8B output text
+    step1_input: 0.10,  // Flash 8B input (audio token uguali)
+    step1_output: 0.40,   // Flash 8B output text
     step2_input: 0.10,    // Flash Lite input text
     step2_output: 0.40,   // Flash Lite output text
 };
