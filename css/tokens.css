@@ -166,11 +166,17 @@
     --border-color-rgb: 255, 255, 255;
 }
 
-/* Aliases used by notifications.css (--primary, --primary-rgb, --bg-hover, --border-hover) */
+/* Aliases used across the codebase for backward compatibility */
 :root {
     --primary: var(--brand-blue);
     --primary-rgb: var(--brand-blue-rgb);
     --border-hover: var(--gray-300, rgba(255, 255, 255, 0.15));
     --success: var(--color-success);
     --warning: var(--color-warning);
+    --danger-color: var(--color-error);
+    --success-color: var(--color-success);
+    --error-color: var(--color-error);
+    --warning-color: var(--color-warning);
+    --success-soft: var(--color-success-text, #16a34a);
+    --error-soft: var(--color-error, #dc2626);
 }

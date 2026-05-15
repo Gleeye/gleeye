@@ -42,7 +42,7 @@
     min-width: 18px;
     height: 18px;
     padding: 0 5px;
-    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+    background: linear-gradient(135deg, var(--color-error, #ff6b6b) 0%, var(--color-error, #ee5a5a) 100%);
     color: white !important;
     font-size: 10px;
     font-weight: 700;
@@ -246,7 +246,7 @@
 
 .notification-icon.type-cancel {
     background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05));
-    color: #ef4444;
+    color: var(--color-error, #ef4444);
 }
 
 .notification-icon.type-payment {
