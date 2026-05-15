@@ -100,7 +100,7 @@ Linee guida:
                 'Authorization': `Bearer ${openrouterKey}`,
                 'Content-Type': 'application/json',
                 'HTTP-Referer': 'https://workspace.gleeye.eu',
-                'X-Title': 'Gleeye ERP — Voice Memo Reports',
+                'X-Title': 'Gleeye ERP - Voice Memo Reports',
             },
             body: JSON.stringify({
                 model: MODEL,
