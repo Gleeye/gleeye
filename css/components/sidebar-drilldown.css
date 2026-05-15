@@ -73,8 +73,8 @@
 }
 
 .nav-back:hover {
-    background: rgba(78, 146, 216, 0.12);
-    border-color: rgba(78, 146, 216, 0.3);
+    background: rgba(var(--brand-blue-rgb, 78, 146, 216), 0.12);
+    border-color: rgba(var(--brand-blue-rgb, 78, 146, 216), 0.3);
     transform: translateX(-4px);
 }
 
@@ -106,7 +106,7 @@
     content: '';
     flex: 1;
     height: 1px;
-    background: linear-gradient(90deg, rgba(78, 146, 216, 0.2), transparent);
+    background: linear-gradient(90deg, rgba(var(--brand-blue-rgb, 78, 146, 216), 0.2), transparent);
 }
 
 /* Hide expand icon when using drill-down */

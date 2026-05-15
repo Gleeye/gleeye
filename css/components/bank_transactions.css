@@ -37,11 +37,11 @@
 }
 
 .bank-kpi-card.income::before {
-    background: #22c55e;
+    background: var(--color-success, #22c55e);
 }
 
 .bank-kpi-card.expense::before {
-    background: #ef4444;
+    background: var(--color-error, #ef4444);
 }
 
 .bank-kpi-card.balance::before {
@@ -59,13 +59,13 @@
 }
 
 .bank-kpi-card.income .icon-box {
-    background: rgba(34, 197, 94, 0.08);
-    color: #22c55e;
+    background: var(--color-success-soft, rgba(34, 197, 94, 0.08));
+    color: var(--color-success, #22c55e);
 }
 
 .bank-kpi-card.expense .icon-box {
-    background: rgba(239, 68, 68, 0.08);
-    color: #ef4444;
+    background: var(--color-error-soft, rgba(239, 68, 68, 0.08));
+    color: var(--color-error, #ef4444);
 }
 
 .bank-kpi-card.balance .icon-box {
@@ -143,15 +143,15 @@
 }
 
 .cat-badge.income {
-    background: rgba(34, 197, 94, 0.08);
-    color: #16a34a;
-    border: 1px solid rgba(34, 197, 94, 0.1);
+    background: var(--color-success-soft, rgba(34, 197, 94, 0.08));
+    color: var(--color-success-text, #16a34a);
+    border: 1px solid rgba(var(--color-success-rgb, 34, 197, 94), 0.1);
 }
 
 .cat-badge.expense {
-    background: rgba(239, 68, 68, 0.08);
-    color: #dc2626;
-    border: 1px solid rgba(239, 68, 68, 0.1);
+    background: var(--color-error-soft, rgba(239, 68, 68, 0.08));
+    color: var(--color-error, #dc2626);
+    border: 1px solid rgba(var(--color-error-rgb, 239, 68, 68), 0.1);
 }
 
 .ref-tag {
@@ -165,15 +165,15 @@
 }
 
 .ref-tag.blue {
-    color: #2563eb;
-    background: rgba(37, 99, 235, 0.05);
-    border-color: rgba(37, 99, 235, 0.1);
+    color: var(--color-info, #2563eb);
+    background: var(--color-info-soft, rgba(37, 99, 235, 0.05));
+    border-color: rgba(var(--color-info-rgb, 37, 99, 235), 0.1);
 }
 
 .ref-tag.orange {
-    color: #ea580c;
-    background: rgba(234, 88, 12, 0.05);
-    border-color: rgba(234, 88, 12, 0.1);
+    color: var(--color-warning, #ea580c);
+    background: var(--color-warning-soft, rgba(234, 88, 12, 0.05));
+    border-color: rgba(var(--color-warning-rgb, 234, 88, 12), 0.1);
 }
 
 .analytics-card {
