@@ -999,7 +999,36 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 <div style="height: 6px; background: #f1f5f9; border-radius: 3px; overflow: hidden;">
                                     <div id="processing-progress-bar" style="height: 100%; width: 45%; background: var(--brand-blue); transition: width 0.3s ease;"></div>
                                 </div>
-                                <div style="font-size: 0.75rem; color: var(--text-tertiary); text-align: center;">Tempo stimato: ~3 minuti. Puoi chiudere questa finestra.</div>
+                                <div style="font-size: 0.75rem; color: var(--text-tertiary); text-align: center;">Tempo stimato: ~1-2 minuti. Puoi chiudere questa finestra, il report sarà disponibile sotto.</div>
+                            </div>
+
+                            <!-- Report Result (visibile quando job completato in questa stessa sessione) -->
+                            <div id="report-result-pane" class="hidden" style="background: #fff; padding: 1.5rem; border: 1.5px solid rgba(16, 185, 129, 0.3); border-radius: 16px; display: flex; flex-direction: column; gap: 1rem;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(16, 185, 129, 0.12); display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-icons-round" style="color: #10b981;">check_circle</span>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 700; color: #1a1f36;">Report generato</div>
+                                        <div id="report-result-meta" style="font-size: 0.72rem; color: #697386;"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem;">Riassunto</div>
+                                    <div id="report-result-summary" style="font-size: 0.9rem; line-height: 1.5; color: var(--text-primary);"></div>
+                                </div>
+                                <div id="report-result-actions-wrap">
+                                    <div style="font-size: 0.7rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem;">Azioni proposte dall'AI</div>
+                                    <div id="report-result-actions" style="display: flex; flex-direction: column; gap: 6px;"></div>
+                                </div>
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.25rem;">
+                                    <button id="report-open-doc-btn" class="primary-btn" style="flex: 1; min-width: 140px; background: var(--brand-blue); justify-content: center;">
+                                        <span class="material-icons-round" style="font-size: 1rem;">description</span> Apri report completo
+                                    </button>
+                                    <button id="report-new-btn" class="primary-btn secondary" style="min-width: 100px; justify-content: center;">
+                                        <span class="material-icons-round" style="font-size: 1rem;">mic</span> Nuovo memo
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- Previous Reports -->
@@ -1089,6 +1118,158 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 }
             }
 
+            // Mostra il pannello risultato (summary + action items) e crea il doc_page
+            async function displayReportResult(jobData) {
+                const resultPane = drawer.querySelector('#report-result-pane');
+                const summaryEl = drawer.querySelector('#report-result-summary');
+                const actionsEl = drawer.querySelector('#report-result-actions');
+                const actionsWrap = drawer.querySelector('#report-result-actions-wrap');
+                const metaEl = drawer.querySelector('#report-result-meta');
+                const openDocBtn = drawer.querySelector('#report-open-doc-btn');
+                const newBtn = drawer.querySelector('#report-new-btn');
+                if (!resultPane) return;
+
+                // 1. Crea (o riusa) il doc_space del pm_space, poi crea un doc_page col report
+                let docPageId = jobData.doc_page_id || null;
+                if (!docPageId) {
+                    try {
+                        // Trova o crea doc_space per questo pm_space
+                        let { data: docSpaces } = await supabase
+                            .from('doc_spaces')
+                            .select('id')
+                            .eq('space_ref', spaceId)
+                            .limit(1);
+                        let docSpaceId = docSpaces?.[0]?.id;
+                        if (!docSpaceId) {
+                            const { data: newDocSpace, error: dsErr } = await supabase
+                                .from('doc_spaces')
+                                .insert({ space_ref: spaceId, name: 'Report' })
+                                .select()
+                                .single();
+                            if (dsErr) throw dsErr;
+                            docSpaceId = newDocSpace.id;
+                        }
+
+                        // Crea doc_page col report markdown
+                        const title = 'Report ' + new Date(jobData.completed_at || Date.now())
+                            .toLocaleString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                        const { data: newPage, error: pageErr } = await supabase
+                            .from('doc_pages')
+                            .insert({
+                                space_ref: docSpaceId,
+                                title,
+                                metadata: {
+                                    source: 'voice_memo',
+                                    job_id: jobData.id,
+                                    audio_url: jobData.audio_url,
+                                    summary: jobData.summary,
+                                    action_items: jobData.action_items,
+                                }
+                            })
+                            .select()
+                            .single();
+                        if (pageErr) throw pageErr;
+                        docPageId = newPage.id;
+
+                        // Crea un doc_block "text" col markdown del report
+                        await supabase
+                            .from('doc_blocks')
+                            .insert({
+                                page_ref: docPageId,
+                                block_type: 'text',
+                                content: { markdown: jobData.report_markdown || jobData.transcription || '' },
+                                position: 0,
+                            });
+
+                        // Aggiorna il job con il doc_page_id
+                        await supabase
+                            .from('pm_ai_report_jobs')
+                            .update({ doc_page_id: docPageId })
+                            .eq('id', jobData.id);
+                    } catch (err) {
+                        console.error('[displayReportResult] save doc_page failed', err);
+                    }
+                }
+
+                // 2. Popola il pannello
+                summaryEl.textContent = jobData.summary || '(nessun riassunto disponibile)';
+
+                const items = Array.isArray(jobData.action_items) ? jobData.action_items : [];
+                if (items.length === 0) {
+                    actionsWrap.style.display = 'none';
+                } else {
+                    actionsWrap.style.display = 'block';
+                    actionsEl.innerHTML = items.map((ai, idx) => {
+                        const priorityColor = ai.priority === 'alta' ? '#ef4444'
+                            : ai.priority === 'media' ? '#f59e0b' : '#64748b';
+                        const meta = [ai.assignee_hint, ai.due_hint].filter(Boolean).join(' · ');
+                        return '<div data-idx="' + idx + '" style="display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; background: #f8fafc; border-radius: 8px; border-left: 3px solid ' + priorityColor + ';">'
+                            + '<span class="material-icons-round" style="color: ' + priorityColor + '; font-size: 1rem; margin-top: 2px;">task_alt</span>'
+                            + '<div style="flex: 1; min-width: 0;">'
+                            + '<div style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.35;">' + (ai.text || '') + '</div>'
+                            + (meta ? '<div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 2px;">' + meta + '</div>' : '')
+                            + '</div>'
+                            + '<button class="action-create-task-btn" data-idx="' + idx + '" title="Crea task da questa azione" style="background: none; border: 1px solid var(--glass-border); padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; color: var(--brand-blue); white-space: nowrap;">+ task</button>'
+                            + '</div>';
+                    }).join('');
+
+                    // Wire create-task buttons
+                    actionsEl.querySelectorAll('.action-create-task-btn').forEach(btn => {
+                        btn.onclick = async (e) => {
+                            e.stopPropagation();
+                            const idx = parseInt(btn.dataset.idx, 10);
+                            const ai = items[idx];
+                            if (!ai) return;
+                            btn.disabled = true;
+                            btn.textContent = '…';
+                            try {
+                                // Crea pm_item come task figlio dell'item corrente (se isEdit), altrimenti nello space
+                                const taskData = {
+                                    space_ref: spaceId,
+                                    title: ai.text,
+                                    item_type: 'task',
+                                    status: 'todo',
+                                    priority: ai.priority === 'alta' ? 'urgent' : ai.priority === 'media' ? 'normal' : 'low',
+                                };
+                                if (isEdit && itemId) taskData.parent_ref = itemId;
+                                const { error: taskErr } = await supabase.from('pm_items').insert(taskData);
+                                if (taskErr) throw taskErr;
+                                btn.textContent = '✓ creata';
+                                btn.style.color = '#10b981';
+                                btn.style.borderColor = '#10b981';
+                                if (window.showGlobalAlert) window.showGlobalAlert('Task creata: ' + ai.text);
+                            } catch (err) {
+                                console.error('[create task from action] error', err);
+                                btn.disabled = false;
+                                btn.textContent = '+ task';
+                                if (window.showGlobalAlert) window.showGlobalAlert('Errore: ' + err.message, 'error');
+                            }
+                        };
+                    });
+                }
+
+                const costNote = jobData.cost_eur ? '€' + Number(jobData.cost_eur).toFixed(4) : '';
+                metaEl.textContent = (jobData.tokens_used ? jobData.tokens_used + ' token' : '') + (costNote ? ' · ' + costNote : '');
+
+                if (openDocBtn) {
+                    openDocBtn.onclick = () => {
+                        if (docPageId) {
+                            window.location.hash = '#docs/' + docPageId;
+                            if (typeof closeHubDrawer === 'function') closeHubDrawer();
+                        }
+                    };
+                }
+                if (newBtn) {
+                    newBtn.onclick = () => {
+                        resultPane.classList.add('hidden');
+                        const uz = drawer.querySelector('#report-upload-zone');
+                        if (uz) uz.style.display = 'block';
+                    };
+                }
+
+                resultPane.classList.remove('hidden');
+            }
+
             async function pollJobStatus(jobId) {
                 const stepText = drawer.querySelector('#processing-step-text');
                 const progressBar = drawer.querySelector('#processing-progress-bar');
@@ -1109,7 +1290,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     if (error) return;
 
                     if (data.status === 'processing') {
-                        stepText.textContent = "NotebookLM sta analizzando l'audio...";
+                        stepText.textContent = "Gemini sta analizzando l'audio...";
                         progressBar.style.width = '50%';
                         percentage.textContent = '50%';
                     } else if (data.status === 'completed') {
@@ -1118,14 +1299,14 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         progressBar.style.width = '100%';
                         percentage.textContent = '100%';
 
-                        setTimeout(() => {
+                        setTimeout(async () => {
                             statusPane.classList.add('hidden');
-                            uploadZone.style.display = 'block';
                             generateBtn.disabled = false;
                             generateBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1.1rem;">auto_awesome</span> GENERA REPORT AI`;
+                            await displayReportResult(data);
                             loadReports(); // Refresh the list
                             if (window.showGlobalAlert) window.showGlobalAlert("Report AI completato con successo!");
-                        }, 2000);
+                        }, 1500);
                     } else if (data.status === 'failed') {
                         clearInterval(interval);
                         stepText.textContent = "Errore nella generazione.";
@@ -1210,7 +1391,14 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                         if (window.showGlobalAlert) window.showGlobalAlert("Audio caricato! L'AI inizierà ora l'elaborazione.");
 
-                        // 3. Start Polling
+                        // 3. Trigger AI processing (fire-and-forget, il polling gestisce il resto)
+                        supabase.functions.invoke('process-voice-memo', { body: { job_id: jobId } })
+                            .then(({ error }) => {
+                                if (error) console.warn("[ReportAuto] Edge function invoke warning:", error);
+                            })
+                            .catch(err => console.error("[ReportAuto] Edge function invoke error:", err));
+
+                        // 4. Start Polling
                         pollJobStatus(jobId);
                     } catch (e) {
                         console.error(e);

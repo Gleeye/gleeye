@@ -54,11 +54,29 @@ Stima onesta basata sul giro UX del 12-13 maggio (15 viste, ~85 mine identificat
 **Già fatto**: bank_orphans con AI suggest singolo (CA-8). Manca il batch.
 
 ### 3. Reportistica AI
-**Cosa**: report periodici (settimanali, mensili) generati da AI: "ecco cosa è successo lunedì-venerdì in agenzia". Voice-memo input opzionale (Davide registra, AI struttura).
-**Costo stimato**: 1-2 settimane.
-**Bloccanti**: nessuno (costo AI ora ~€0.001 a report con Gemini Flash Lite).
-**Impact**: MEDIO. Strumento per "controllare senza essere sempre dentro".
-**Storico**: era stata mollata quando si pensava di usare NotebookLM (costoso). Ora riprendibile.
+
+Suddivisa in 4 sotto-filoni distinti (decisione 15/5):
+
+#### 3A. Voice memo → trascrizione + struttura → report nel task — **IN CORSO**
+**Cosa**: Davide carica audio (riunione cliente, debrief commessa, ecc.) → Gemini con audio understanding lo trasforma in trascrizione + riassunto + action items estratti. Output salvato come doc_page nel pm_space della commessa.
+**Stato**: pipeline a metà già esistente (UI upload + tabella `pm_ai_report_jobs` + 9 job storici di marzo 2026 su commessa Arboscello). Mancava il processor (era su NotebookLM costoso, abbandonato).
+**Effort residuo**: 3-5gg.
+**Costo AI**: ~€0.005 per audio di 5 min.
+
+#### 3B. Report periodici automatici (settimanali/mensili) — pending
+**Cosa**: ogni lunedì arrivi report KPI Gleeye: vinte/perse, fatturato/incassato, margini, alert clienti in sofferenza, task overdue del team.
+**Effort**: 4-6gg.
+**Costo AI**: ~€0.001 per report.
+
+#### 3C. Report on-demand per cliente o commessa — pending
+**Cosa**: bottone "📄 Report" nella vista clienti/commesse → storico relazione + KPI + sentiment + suggerimenti, esportabile PDF/markdown.
+**Effort**: 3-5gg.
+**Costo AI**: ~€0.0015 per report.
+
+#### 3D. Report per terzi (commercialista, soci, board) — pending
+**Cosa**: export strutturati per stakeholder esterni. P&L mensile, registro IVA, scadenziario.
+**Effort**: 5-7gg.
+**Costo AI**: zero.
 
 ### 4. Mobile responsive profondo
 **Cosa**: refactor di tutte le viste principali per essere mobile-first (oggi è desktop con overrides). Lo screenshot di Paolo del 15/5 è la dimostrazione: home illeggibile su iPhone.
@@ -176,3 +194,4 @@ Stima onesta basata sul giro UX del 12-13 maggio (15 viste, ~85 mine identificat
 ## 🗓 Update log
 
 - **15 maggio 2026** (sera): creato. Inventario iniziale post-sessione "CFO + risk detection". Davide ha richiamato attenzione su 3 cose dimenticate: SDI elettronica, ricongiungimenti bancari automatici, reportistica AI. Aggiunte qui come blocchi grandi.
+- **15 maggio 2026** (notte): reportistica AI spezzata in 4 sotto-filoni (A voice memo, B periodici, C on-demand, D per terzi). **Filone A in lavorazione** in questa sessione — riusa pipeline esistente abbandonata di marzo 2026. B/C/D pending da prioritizzare in futuro.
