@@ -37,7 +37,7 @@
 
 .custom-select-wrapper.open .custom-select-trigger {
     border-color: var(--brand-blue);
-    box-shadow: 0 0 0 2px rgba(78, 146, 216, 0.2);
+    box-shadow: 0 0 0 2px rgba(var(--brand-blue-rgb, 78, 146, 216), 0.2);
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
 }
@@ -67,7 +67,7 @@
     border: 1px solid var(--glass-border);
     border-radius: 12px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    z-index: 999;
+    z-index: var(--z-dropdown, 500);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -130,13 +130,12 @@
 }
 
 .custom-option:hover {
-    background: rgba(78, 146, 216, 0.05);
-    /* Brand Blue Tint */
+    background: rgba(var(--brand-blue-rgb, 78, 146, 216), 0.05);
     color: var(--brand-blue);
 }
 
 .custom-option.selected {
-    background: rgba(78, 146, 216, 0.1);
+    background: rgba(var(--brand-blue-rgb, 78, 146, 216), 0.1);
     color: var(--brand-blue);
     font-weight: 500;
 }

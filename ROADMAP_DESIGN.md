@@ -30,8 +30,8 @@
 | Inputs z-index + disabled | DONE | 100% | .select-dropdown 10000 → var(--z-dropdown), disabled generalizzato a tutti input/select/textarea |
 | Homepage dark mode | DONE | 100% | 20+ hex hardcoded (#e5e7eb, white, #111, #64748b, #1e293b, #f8fafc, #e2e8f0) → var(), KPI status → semantic |
 | Homepage CSS dedup (P1 #5) | BLOCKED | 0% | homepage-alt.css caricato dinamicamente da homepage-alt.js — richiede refactor JS |
-| Custom select dedup (P2 #8) | TODO | 0% | Merge inputs.css + custom-select.css (basso rischio) |
-| Button system unificato | TODO | 0% | .btn + varianti + sizes + states |
+| Custom select token migration | DONE | 100% | z-index 999 → var(--z-dropdown), rgba hardcoded → var(--brand-blue-rgb). Dedup wrapper richiede JS audit |
+| Button system esteso | DONE | 100% | .danger/.success variants, .btn-sm/.btn-lg sizes, :focus-visible, :disabled |
 | Splash screen cleanup (P3 #10) | TODO | 0% | display:none dopo fade (richiede JS) |
 
 ## Step 3: JS Inline Styles Migration (da fare)
