@@ -1,6 +1,6 @@
 # Roadmap Design System — Stato avanzamento
 
-**Ultimo aggiornamento**: 15 maggio 2026
+**Ultimo aggiornamento**: 15 maggio 2026 (sera)
 
 ## Step 1: Foundation + Quick Wins (completato 15/5/26)
 
@@ -29,6 +29,8 @@
 | Cards cleanup | DONE | 100% | Duplicate @media 768px merged, rgba(59,130,246) → rgba(var(--brand-blue-rgb)), fiscal-section → semantic |
 | Inputs z-index + disabled | DONE | 100% | .select-dropdown 10000 → var(--z-dropdown), disabled generalizzato a tutti input/select/textarea |
 | Homepage dark mode | DONE | 100% | 20+ hex hardcoded (#e5e7eb, white, #111, #64748b, #1e293b, #f8fafc, #e2e8f0) → var(), KPI status → semantic |
+| Bank transactions semantic | DONE | 100% | income/expense → var(--color-success/error), ref-tag → semantic tokens |
+| Sidebar drilldown tokens | DONE | 100% | rgba(78,146,216) → rgba(var(--brand-blue-rgb)) |
 | Homepage CSS dedup (P1 #5) | BLOCKED | 0% | homepage-alt.css caricato dinamicamente da homepage-alt.js — richiede refactor JS |
 | Custom select token migration | DONE | 100% | z-index 999 → var(--z-dropdown), rgba hardcoded → var(--brand-blue-rgb). Dedup wrapper richiede JS audit |
 | Button system esteso | DONE | 100% | .danger/.success variants, .btn-sm/.btn-lg sizes, :focus-visible, :disabled |
@@ -48,6 +50,6 @@
 | Metrica | Prima (15/5/26) | Dopo Step 1 | Dopo Step 2 (parziale) | Target finale |
 |---------|----------------|-------------|----------------------|---------------|
 | Mobile responsive | ~40% viste | ~50% (+agenda) | ~70% (+auth, bank, payments, tables) | 100% |
-| Design system unificato | ~15% | ~20% | ~50% (z-index, colori, radius migrati su 14 file CSS) | 90%+ |
-| Dark mode funzionante | ~60% viste | ~75% | ~90% (+buttons, custom-select, modals, homepage, cards, inputs) | 100% |
+| Design system unificato | ~15% | ~20% | ~55% (z-index, colori, radius migrati su 16 file CSS) | 90%+ |
+| Dark mode funzionante | ~60% viste | ~75% | ~92% (+buttons, custom-select, modals, homepage, cards, inputs, bank, sidebar-dd) | 100% |
 | Inline styles nei JS | 8.530 | 8.530 | 8.530 (non toccati — Step 3) | <500 |
