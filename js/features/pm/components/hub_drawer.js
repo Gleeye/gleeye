@@ -1503,7 +1503,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 // Lazy-load tab "files" (Dropbox + link esterni unificati)
                 if (tabName === 'files' && !drawer._filesTabInited) {
                     drawer._filesTabInited = true;
-                    import('./hub/files_tab.js?v=8014').then(mod => {
+                    import('./hub/files_tab.js?v=8016').then(mod => {
                         mod.initFilesTab(drawer, itemId, spaceId);
                     }).catch(err => {
                         console.error('[hub_drawer] files_tab load failed', err);

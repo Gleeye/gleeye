@@ -7,7 +7,8 @@
 import { supabase } from '/js/modules/config.js?v=8000';
 import { state } from '/js/modules/state.js?v=8000';
 
-const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5MB temporary limit
+// 3.5MB raw, perché dopo base64 (+33%) arriviamo a ~4.7MB sotto i 6MB Supabase
+const MAX_UPLOAD_BYTES = 3.5 * 1024 * 1024;
 
 export function initFilesTab(drawer, itemId, spaceId) {
     const pane = drawer.querySelector('#tab-files');
@@ -244,31 +245,53 @@ async function handleFiles(fileList, drawer, itemId, spaceId) {
     for (let i = 0; i < fileList.length; i++) {
         const file = fileList[i];
         if (file.size > MAX_UPLOAD_BYTES) {
-            alert(`"${file.name}" supera 5MB. Limite temporaneo, verrà alzato dopo.`);
+            const mb = (file.size / 1024 / 1024).toFixed(1);
+            alert(`"${file.name}" pesa ${mb}MB, oltre il limite attuale di 3.5MB.\n\nLimite temporaneo dovuto al body Supabase. Verrà alzato a 100MB+ in iterazione successiva con upload session.`);
             continue;
         }
         if (statusText) statusText.textContent = `Upload ${i + 1}/${fileList.length}: ${file.name}...`;
 
         try {
             const base64 = await fileToBase64(file);
-            const { data, error } = await supabase.functions.invoke('dropbox-proxy', {
-                body: {
-                    action: 'upload',
-                    file_base64: base64,
-                    file_name: file.name,
-                    mime_type: file.type || 'application/octet-stream',
-                    pm_space_ref: itemId ? null : spaceId,
-                    pm_item_ref: itemId || null,
-                    file_size_bytes: file.size,
-                    share_with_children: false,
-                },
-            });
-            if (error || data?.error) {
-                throw new Error(error?.message || data?.error || 'upload failed');
+            const payload = {
+                action: 'upload',
+                file_base64: base64,
+                file_name: file.name,
+                mime_type: file.type || 'application/octet-stream',
+                pm_space_ref: itemId ? null : spaceId,
+                pm_item_ref: itemId || null,
+                file_size_bytes: file.size,
+                share_with_children: false,
+            };
+            // Uso fetch raw invece di supabase.functions.invoke per avere accesso al
+            // body dell'error response (invoke nasconde il dettaglio).
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            const resp = await fetch(
+                supabase.supabaseUrl.replace(/\/$/, '') + '/functions/v1/dropbox-proxy',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json',
+                        'apikey': supabase.supabaseKey,
+                    },
+                    body: JSON.stringify(payload),
+                }
+            );
+            const respText = await resp.text();
+            let respJson = null;
+            try { respJson = JSON.parse(respText); } catch { /* keep null */ }
+            if (!resp.ok) {
+                const detail = respJson?.detail || respJson?.error || respText.slice(0, 300);
+                throw new Error(`HTTP ${resp.status}: ${detail}`);
+            }
+            if (respJson?.error) {
+                throw new Error(respJson.error + (respJson.detail ? ' — ' + respJson.detail : ''));
             }
         } catch (err) {
             console.error('[files_tab] upload failed', err);
-            alert(`Errore upload "${file.name}": ${err.message}`);
+            alert(`Errore upload "${file.name}":\n${err.message}`);
         }
     }
 
