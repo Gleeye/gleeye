@@ -46,7 +46,8 @@
 | Batch 2: hub_drawer + timeline | DONE | 100% | .menu-action-opt/.danger estratti, timeline 9 hex → var(), hub hover → var() |
 | Classi CSS estratte | DONE | 100% | .remove-space-pm-btn, .add-member-btn-circle, .btn-remove-field, .active-order-item, .menu-action-opt(+.danger) |
 | Estrazione restante (file hot) | BLOCKED | 0% | homepage.js (161), orders.js (22), clients.js, collaborators.js, invoices.js — file hot |
-| Docs components (194+90+55) | TODO | 0% | BlockComponent, DocsSidebar, Menus — file grandi, rischio medio |
+| Batch 3: docs + invoices + PM | DONE | 100% | BlockComponent (30+), DocsSidebar (4), DocsView (8), Menus (9), role_dispatchers (6), detail_modal (10), duplicate_modal (15+), hub_appointment_drawer (40+) hex → var() |
+| Estrazione restante (file hot) | BLOCKED | 0% | homepage.js (161), orders.js (22), clients.js, collaborators.js, invoices.js — file hot |
 | Breakpoints.js modulo condiviso | TODO | 0% | Eliminare 10+ numeri magici |
 | Modal size classes | TODO | 0% | .modal-sm/md/lg vs inline max-width |
 
@@ -57,4 +58,4 @@
 | Mobile responsive | ~40% viste | ~50% (+agenda) | ~70% (+auth, bank, payments, tables) | 100% |
 | Design system unificato | ~15% | ~20% | ~60% (z-index, colori, radius, utility dedup su 18 file CSS) | 90%+ |
 | Dark mode funzionante | ~60% viste | ~75% | ~95% (tutti file CSS migrati; residuo: homepage-alt BLOCKED, agenda event colors intenzionali) | 100% |
-| Inline styles nei JS | 8.530 | 8.530 | ~8.480 (50 migrati in 10 file, 6 classi CSS estratte) | <500 |
+| Inline styles nei JS | 8.530 | 8.530 | ~8.350 (~180 hex migrati in 18 file, 6 classi CSS estratte) | <500 |
