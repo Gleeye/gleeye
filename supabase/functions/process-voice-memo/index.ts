@@ -66,8 +66,8 @@ serve(async (req) => {
         }
         const audioBlob = await audioResp.arrayBuffer();
         const audioSizeMB = audioBlob.byteLength / (1024 * 1024);
-        if (audioSizeMB > 20) {
-            await markFailed(admin, job_id, `Audio troppo grande (${audioSizeMB.toFixed(1)}MB max 20MB)`);
+        if (audioSizeMB > 50) {
+            await markFailed(admin, job_id, `Audio troppo grande (${audioSizeMB.toFixed(1)}MB max 50MB)`);
             return jsonResp({ error: 'audio too large' }, 413);
         }
         const audioBase64 = arrayBufferToBase64(audioBlob);
