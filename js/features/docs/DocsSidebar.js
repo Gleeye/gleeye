@@ -229,7 +229,7 @@ function createPageItem(node, activePageId, level = 0) {
         : `<span class="material-icons-round" style="font-size: 16px; margin-right: 8px; opacity: 0.7;">description</span>`;
 
     if (!node.icon && node.page_type === 'whiteboard') {
-        iconHtml = `<span class="material-icons-round" style="font-size: 16px; margin-right: 8px; opacity: 0.7; color: #8b5cf6;">draw</span>`;
+        iconHtml = `<span class="material-icons-round" style="font-size: 16px; margin-right: 8px; opacity: 0.7; color: var(--brand-viola, #8b5cf6);">draw</span>`;
     }
 
     const visibilityIcon = node.is_public
@@ -250,7 +250,7 @@ function createPageItem(node, activePageId, level = 0) {
     addBtn.style.fontSize = '14px';
     addBtn.style.marginLeft = '8px';
     addBtn.style.opacity = '0';
-    addBtn.style.color = '#94a3b8';
+    addBtn.style.color = 'var(--text-tertiary, #94a3b8)';
     addBtn.style.transition = 'opacity 0.2s';
 
     addBtn.onclick = (e) => {
@@ -268,7 +268,7 @@ function createPageItem(node, activePageId, level = 0) {
     delBtn.style.fontSize = '14px';
     delBtn.style.marginLeft = '4px';
     delBtn.style.opacity = '0';
-    delBtn.style.color = '#ef4444'; // Red
+    delBtn.style.color = 'var(--color-error, #ef4444)';
     delBtn.style.transition = 'opacity 0.2s';
 
     delBtn.onclick = (e) => {
@@ -283,7 +283,7 @@ function createPageItem(node, activePageId, level = 0) {
 
     // Hover effect
     div.onmouseenter = () => {
-        if (node.id !== activePageId) div.style.backgroundColor = '#f8fafc';
+        if (node.id !== activePageId) div.style.backgroundColor = 'var(--bg-tertiary, #f8fafc)';
         addBtn.style.opacity = '1';
         delBtn.style.opacity = '0.6'; // Slightly visible
         delBtn.onmouseenter = () => delBtn.style.opacity = '1';

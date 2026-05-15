@@ -28,7 +28,7 @@ export async function renderDocsView(container, spaceId) {
                 <!-- Sidebar -->
                 <div id="docs-sidebar" class="docs-sidebar" style="
                     width: 260px; 
-                    background: #fdfdfd; 
+                    background: var(--bg-tertiary, #fdfdfd);
                     border-right: 1px solid rgba(0,0,0,0.06);
                     display: flex; flex-direction: column;
                     transition: width 0.3s ease;
@@ -36,7 +36,7 @@ export async function renderDocsView(container, spaceId) {
                 ">
                     <button id="sidebar-toggle" style="
                         position: absolute; right: 8px; top: 14px; z-index: 10;
-                        background: transparent; border: none; cursor: pointer; color: #64748b;
+                        background: transparent; border: none; cursor: pointer; color: var(--text-secondary, #64748b);
                         padding: 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
                     " title="Toggle Sidebar">
                         <span class="material-icons-round" style="font-size: 20px;">chevron_left</span>
@@ -79,7 +79,7 @@ export async function renderDocsView(container, spaceId) {
                          </button>
                     </div>
                     <div id="editor-container" style="flex: 1; overflow-y: auto; padding: 0 60px 40px; max-width: 900px; margin: 0 auto; width: 100%;">
-                        <div class="empty-state" style="text-align: center; margin-top: 100px; color: #94a3b8;">
+                        <div class="empty-state" style="text-align: center; margin-top: 100px; color: var(--text-tertiary, #94a3b8);">
                             <span class="material-icons-round" style="font-size: 48px; margin-bottom: 16px;">description</span>
                             <p>Seleziona una pagina o creane una nuova.</p>
                         </div>
@@ -115,7 +115,7 @@ export async function renderDocsView(container, spaceId) {
                         const editorContainer = currentContainer.querySelector('#editor-container');
                         if (editorContainer) {
                             editorContainer.innerHTML = `
-                                <div class="empty-state" style="text-align: center; margin-top: 100px; color: #94a3b8;">
+                                <div class="empty-state" style="text-align: center; margin-top: 100px; color: var(--text-tertiary, #94a3b8);">
                                     <span class="material-icons-round" style="font-size: 48px; margin-bottom: 16px;">delete</span>
                                     <p>Pagina eliminata.</p>
                                 </div>
@@ -232,8 +232,8 @@ export async function renderDocsView(container, spaceId) {
                         notifyBtn.title = 'Notifiche attivate';
                     } else {
                         icon.innerText = 'notifications_none';
-                        notifyBtn.style.color = '#64748b';
-                        notifyBtn.style.borderColor = '#cbd5e1';
+                        notifyBtn.style.color = 'var(--text-secondary, #64748b)';
+                        notifyBtn.style.borderColor = 'var(--border-default, #cbd5e1)';
                         notifyBtn.title = 'Notifiche disattivate (Clicca per attivare)';
                     }
                 } catch (err) {
@@ -296,8 +296,8 @@ async function loadPage(pageId) {
                     notifyBtn.title = 'Notifiche attivate';
                 } else {
                     icon.innerText = 'notifications_none';
-                    notifyBtn.style.color = '#64748b';
-                    notifyBtn.style.borderColor = '#cbd5e1';
+                    notifyBtn.style.color = 'var(--text-secondary, #64748b)';
+                    notifyBtn.style.borderColor = 'var(--border-default, #cbd5e1)';
                     notifyBtn.title = 'Notifiche disattivate (Clicca per attivare)';
                 }
             } catch (err) {

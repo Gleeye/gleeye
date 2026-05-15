@@ -27,20 +27,19 @@ export function createBlockElement(block, docSpaceId) {
     handle.style.alignItems = 'center';
     handle.style.justifyContent = 'center';
     handle.style.cursor = 'grab';
-    handle.style.color = '#cbd5e1';
-    handle.style.opacity = '0'; // Hidden by default
+    handle.style.color = 'var(--text-tertiary, #cbd5e1)';
+    handle.style.opacity = '0';
     handle.style.borderRadius = '4px';
     handle.style.transition = 'opacity 0.2s, background-color 0.2s';
     handle.innerHTML = '<span class="material-icons-round" style="font-size: 16px;">drag_indicator</span>';
 
-    // Hover effects
     handle.onmouseenter = () => {
-        handle.style.backgroundColor = '#f1f5f9';
-        handle.style.color = '#64748b';
+        handle.style.backgroundColor = 'var(--bg-tertiary, #f1f5f9)';
+        handle.style.color = 'var(--text-secondary, #64748b)';
     };
     handle.onmouseleave = () => {
         handle.style.backgroundColor = 'transparent';
-        handle.style.color = '#cbd5e1';
+        handle.style.color = 'var(--text-tertiary, #cbd5e1)';
     };
 
     // Menu Click
@@ -70,7 +69,7 @@ export function createBlockElement(block, docSpaceId) {
     el.ondragover = (e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        el.style.borderTop = '2px solid #3b82f6'; // Visual cue
+        el.style.borderTop = '2px solid var(--brand-blue, #3b82f6)';
     };
     el.ondragleave = () => {
         el.style.borderTop = 'none';
@@ -128,10 +127,10 @@ export function createBlockElement(block, docSpaceId) {
             content.style.marginTop = '0.75em';
             break;
         case 'quote':
-            content.style.borderLeft = '4px solid #cbd5e1';
+            content.style.borderLeft = '4px solid var(--border-default, #cbd5e1)';
             content.style.paddingLeft = '16px';
             content.style.fontStyle = 'italic';
-            content.style.color = '#475569';
+            content.style.color = 'var(--text-secondary, #475569)';
             break;
         case 'list':
             // Visual trick: bullet outside?
@@ -158,14 +157,14 @@ export function createBlockElement(block, docSpaceId) {
             // Visual style for checked state
             if (checkbox.checked) {
                 content.style.textDecoration = 'line-through';
-                content.style.color = '#94a3b8';
+                content.style.color = 'var(--text-tertiary, #94a3b8)';
             }
 
             checkbox.onchange = (e) => {
                 block.content.checked = e.target.checked;
                 if (e.target.checked) {
                     content.style.textDecoration = 'line-through';
-                    content.style.color = '#94a3b8';
+                    content.style.color = 'var(--text-tertiary, #94a3b8)';
                 } else {
                     content.style.textDecoration = 'none';
                     content.style.color = 'inherit';
@@ -204,7 +203,7 @@ export function createBlockElement(block, docSpaceId) {
                 input.style.flex = '1';
                 input.style.padding = '8px 12px';
                 input.style.borderRadius = '6px';
-                input.style.border = '1px solid #cbd5e1';
+                input.style.border = '1px solid var(--border-default, #cbd5e1)';
                 input.style.outline = 'none';
 
                 const uploadLabel = document.createElement('label');
@@ -214,11 +213,11 @@ export function createBlockElement(block, docSpaceId) {
                 uploadLabel.style.alignItems = 'center';
                 uploadLabel.style.justifyContent = 'center';
                 uploadLabel.style.padding = '8px 12px';
-                uploadLabel.style.backgroundColor = '#f1f5f9';
+                uploadLabel.style.backgroundColor = 'var(--bg-tertiary, #f1f5f9)';
                 uploadLabel.style.borderRadius = '6px';
-                uploadLabel.style.border = '1px solid #cbd5e1';
+                uploadLabel.style.border = '1px solid var(--border-default, #cbd5e1)';
                 uploadLabel.style.fontSize = '13px';
-                uploadLabel.style.color = '#334155';
+                uploadLabel.style.color = 'var(--text-primary, #334155)';
 
                 const fileInput = document.createElement('input');
                 fileInput.type = 'file';
@@ -230,7 +229,7 @@ export function createBlockElement(block, docSpaceId) {
                     if (!file) return;
 
                     try {
-                        wrapper.innerHTML = '<div style="display:flex; alignItems:center; color: #64748b; font-size: 13px;"><span class="material-icons-round spin" style="font-size:16px; margin-right:6px">sync</span> Uploading...</div>';
+                        wrapper.innerHTML = '<div style="display:flex; alignItems:center; color: var(--text-secondary, #64748b); font-size: 13px;"><span class="material-icons-round spin" style="font-size:16px; margin-right:6px">sync</span> Uploading...</div>';
                         const url = await uploadImage(file);
                         block.content.url = url;
 
@@ -304,23 +303,23 @@ export function createBlockElement(block, docSpaceId) {
                 iframe.style.height = '320px';
                 iframe.style.border = 'none';
                 iframe.style.borderRadius = '8px';
-                iframe.style.backgroundColor = '#f1f5f9';
+                iframe.style.backgroundColor = 'var(--bg-tertiary, #f1f5f9)';
                 iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
                 iframe.allowFullscreen = true;
                 content.appendChild(iframe);
             } else {
                 const wrapper = document.createElement('div');
                 wrapper.style.padding = '12px';
-                wrapper.style.backgroundColor = '#f8fafc';
+                wrapper.style.backgroundColor = 'var(--bg-tertiary, #f8fafc)';
                 wrapper.style.borderRadius = '6px';
-                wrapper.style.border = '1px solid #cbd5e1';
+                wrapper.style.border = '1px solid var(--border-default, #cbd5e1)';
                 wrapper.style.display = 'flex';
                 wrapper.style.gap = '8px';
 
                 const icon = document.createElement('span');
                 icon.className = 'material-icons-round';
                 icon.innerText = block.type === 'video' ? 'movie' : 'code';
-                icon.style.color = '#64748b';
+                icon.style.color = 'var(--text-secondary, #64748b)';
 
                 const input = document.createElement('input');
                 input.placeholder = block.type === 'video' ? 'Paste video link (YouTube, Vimeo)...' : 'Paste embed link...';
@@ -346,7 +345,7 @@ export function createBlockElement(block, docSpaceId) {
                         // Dispatch 'block-update-request' used in PageEditor?
                         // PageEditor listens to 'block-check-change'. It doesn't re-render.
                         // I'll manually replace content.
-                        content.innerHTML = `<div style="padding:12px; color:#64748b">Caricamento... (Aggiorna la pagina se resta bloccato)</div>`;
+                        content.innerHTML = `<div style="padding:12px; color:var(--text-secondary, #64748b)">Caricamento... (Aggiorna la pagina se resta bloccato)</div>`;
                         // Actually, I can just call createBlockElement again? No circular dependency.
                         // Simple hack: reload page? No.
                         // I'll assume PageEditor handles re-render if I trigger a specific event?
@@ -399,9 +398,9 @@ export function createBlockElement(block, docSpaceId) {
             } else {
                 const wrapper = document.createElement('div');
                 wrapper.style.padding = '12px';
-                wrapper.style.backgroundColor = '#f8fafc';
+                wrapper.style.backgroundColor = 'var(--bg-tertiary, #f8fafc)';
                 wrapper.style.borderRadius = '6px';
-                wrapper.style.border = '1px solid #cbd5e1';
+                wrapper.style.border = '1px solid var(--border-default, #cbd5e1)';
                 wrapper.style.display = 'flex';
                 wrapper.style.gap = '8px';
 
@@ -456,7 +455,7 @@ export function createBlockElement(block, docSpaceId) {
                     const tr = document.createElement('tr');
                     row.forEach((cell, cIndex) => {
                         const td = document.createElement('td');
-                        td.style.border = '1px solid #cbd5e1';
+                        td.style.border = '1px solid var(--border-default, #cbd5e1)';
                         td.style.padding = '8px';
                         td.style.minWidth = '100px';
                         td.contentEditable = true;
@@ -485,8 +484,8 @@ export function createBlockElement(block, docSpaceId) {
             addRowBtn.style.padding = '4px 8px';
             addRowBtn.style.fontSize = '12px';
             addRowBtn.style.borderRadius = '4px';
-            addRowBtn.style.border = '1px solid #cbd5e1';
-            addRowBtn.style.backgroundColor = '#f1f5f9';
+            addRowBtn.style.border = '1px solid var(--border-default, #cbd5e1)';
+            addRowBtn.style.backgroundColor = 'var(--bg-tertiary, #f1f5f9)';
             addRowBtn.style.cursor = 'pointer';
             addRowBtn.onclick = (e) => {
                 e.stopPropagation();
@@ -501,8 +500,8 @@ export function createBlockElement(block, docSpaceId) {
             addColBtn.style.padding = '4px 8px';
             addColBtn.style.fontSize = '12px';
             addColBtn.style.borderRadius = '4px';
-            addColBtn.style.border = '1px solid #cbd5e1';
-            addColBtn.style.backgroundColor = '#f1f5f9';
+            addColBtn.style.border = '1px solid var(--border-default, #cbd5e1)';
+            addColBtn.style.backgroundColor = 'var(--bg-tertiary, #f1f5f9)';
             addColBtn.style.cursor = 'pointer';
             addColBtn.onclick = (e) => {
                 e.stopPropagation();
@@ -531,26 +530,26 @@ export function createBlockElement(block, docSpaceId) {
                 linkCard.style.padding = '8px 12px';
                 linkCard.style.gap = '8px';
                 linkCard.style.borderRadius = '6px';
-                linkCard.style.border = '1px solid #cbd5e1';
+                linkCard.style.border = '1px solid var(--border-default, #cbd5e1)';
                 linkCard.style.cursor = 'pointer';
                 linkCard.style.backgroundColor = 'white';
                 linkCard.style.width = 'fit-content';
                 linkCard.style.maxWidth = '100%';
 
                 linkCard.innerHTML = `
-                    <span class="material-icons-round" style="font-size: 18px; color: #64748b;">description</span>
-                    <span style="font-weight: 500; color: #334155; text-decoration: underline; text-decoration-color: transparent; transition: text-decoration-color 0.2s;">
+                    <span class="material-icons-round" style="font-size: 18px; color: var(--text-secondary, #64748b);">description</span>
+                    <span style="font-weight: 500; color: var(--text-primary, #334155); text-decoration: underline; text-decoration-color: transparent; transition: text-decoration-color 0.2s;">
                         ${block.content.title || 'Untitled Page'}
                     </span>
-                    <span class="material-icons-round" style="font-size: 14px; color: #94a3b8; margin-left: eightpx;">arrow_forward</span>
+                    <span class="material-icons-round" style="font-size: 14px; color: var(--text-tertiary, #94a3b8); margin-left: eightpx;">arrow_forward</span>
                 `;
 
                 linkCard.onmouseenter = () => {
-                    linkCard.style.backgroundColor = '#f8fafc';
-                    linkCard.querySelector('span:nth-child(2)').style.textDecorationColor = '#334155';
+                    linkCard.style.backgroundColor = 'var(--bg-tertiary, #f8fafc)';
+                    linkCard.querySelector('span:nth-child(2)').style.textDecorationColor = 'var(--text-primary, #334155)';
                 };
                 linkCard.onmouseleave = () => {
-                    linkCard.style.backgroundColor = 'white';
+                    linkCard.style.backgroundColor = 'var(--bg-card, white)';
                     linkCard.querySelector('span:nth-child(2)').style.textDecorationColor = 'transparent';
                 };
 
@@ -565,9 +564,9 @@ export function createBlockElement(block, docSpaceId) {
                 // Render Page Selector
                 const wrapper = document.createElement('div');
                 wrapper.style.padding = '12px';
-                wrapper.style.backgroundColor = '#f8fafc';
+                wrapper.style.backgroundColor = 'var(--bg-tertiary, #f8fafc)';
                 wrapper.style.borderRadius = '6px';
-                wrapper.style.border = '1px solid #cbd5e1';
+                wrapper.style.border = '1px solid var(--border-default, #cbd5e1)';
                 wrapper.style.display = 'flex';
                 wrapper.style.flexDirection = 'column';
                 wrapper.style.gap = '8px';
@@ -576,18 +575,18 @@ export function createBlockElement(block, docSpaceId) {
                 searchInput.placeholder = 'Search for a page to link...';
                 searchInput.style.padding = '8px';
                 searchInput.style.borderRadius = '4px';
-                searchInput.style.border = '1px solid #cbd5e1';
+                searchInput.style.border = '1px solid var(--border-default, #cbd5e1)';
                 searchInput.style.width = '100%';
 
                 const resultsDiv = document.createElement('div');
                 resultsDiv.style.maxHeight = '150px';
                 resultsDiv.style.overflowY = 'auto';
-                resultsDiv.style.border = '1px solid #e2e8f0';
+                resultsDiv.style.border = '1px solid var(--border-default, #e2e8f0)';
                 resultsDiv.style.display = 'none';
                 resultsDiv.style.backgroundColor = 'white';
 
                 const showResults = async (query = '') => {
-                    resultsDiv.innerHTML = '<div style="padding:8px; color:#94a3b8;">Caricamento...</div>';
+                    resultsDiv.innerHTML = '<div style="padding:8px; color:var(--text-tertiary, #94a3b8);">Caricamento...</div>';
                     resultsDiv.style.display = 'block';
                     try {
                         const pages = await fetchDocPages(docSpaceId);
@@ -595,7 +594,7 @@ export function createBlockElement(block, docSpaceId) {
 
                         resultsDiv.innerHTML = '';
                         if (filtered.length === 0) {
-                            resultsDiv.innerHTML = '<div style="padding:8px; color:#94a3b8;">Nessuna pagina trovata</div>';
+                            resultsDiv.innerHTML = '<div style="padding:8px; color:var(--text-tertiary, #94a3b8);">Nessuna pagina trovata</div>';
                         }
 
                         filtered.forEach(p => {
@@ -604,15 +603,15 @@ export function createBlockElement(block, docSpaceId) {
                             item.style.cursor = 'pointer';
                             item.style.fontSize = '13px';
                             item.innerText = p.title || 'Untitled';
-                            item.onmouseenter = () => item.style.backgroundColor = '#f1f5f9';
-                            item.onmouseleave = () => item.style.backgroundColor = 'white';
+                            item.onmouseenter = () => item.style.backgroundColor = 'var(--bg-tertiary, #f1f5f9)';
+                            item.onmouseleave = () => item.style.backgroundColor = 'var(--bg-card, white)';
                             item.onclick = (ev) => {
                                 ev.stopPropagation();
                                 block.content.page_id = p.id;
                                 block.content.title = p.title;
                                 el.dispatchEvent(new CustomEvent('block-check-change', { bubbles: true, detail: { block } }));
 
-                                content.innerHTML = `<div style="padding:8px; border:1px solid #ccc; border-radius:4px; cursor:pointer;">📄 ${p.title}</div>`;
+                                content.innerHTML = `<div style="padding:8px; border:1px solid var(--border-default, #ccc); border-radius:4px; cursor:pointer;">📄 ${p.title}</div>`;
                                 // Ideally re-render fully but innerHTML swap is fine for MVP
                             };
                             resultsDiv.appendChild(item);
@@ -635,13 +634,13 @@ export function createBlockElement(block, docSpaceId) {
         case 'code':
             content.contentEditable = false;
             const pre = document.createElement('pre');
-            pre.style.background = '#f8fafc';
-            pre.style.color = '#334155';
+            pre.style.background = 'var(--bg-tertiary, #f8fafc)';
+            pre.style.color = 'var(--text-primary, #334155)';
             pre.style.fontFamily = 'monospace';
             pre.style.fontSize = '13px';
             pre.style.padding = '12px';
             pre.style.borderRadius = '6px';
-            pre.style.border = '1px solid #cbd5e1';
+            pre.style.border = '1px solid var(--border-default, #cbd5e1)';
             pre.style.overflowX = 'auto';
             pre.style.whiteSpace = 'pre-wrap';
             pre.style.margin = '4px 0';

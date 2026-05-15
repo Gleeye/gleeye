@@ -264,13 +264,13 @@ export async function setupHomepageFeed(data) {
 
         // Visual Toggle
         if (mineBtn) {
-            mineBtn.style.background = tab === 'mine' ? 'white' : 'transparent';
-            mineBtn.style.color = tab === 'mine' ? '#1e293b' : '#94a3b8';
+            mineBtn.style.background = tab === 'mine' ? 'var(--bg-card, var(--card-bg))' : 'transparent';
+            mineBtn.style.color = tab === 'mine' ? 'var(--text-primary)' : 'var(--text-tertiary)';
             mineBtn.style.boxShadow = tab === 'mine' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none';
         }
         if (allBtn) {
-            allBtn.style.background = tab === 'all' ? 'white' : 'transparent';
-            allBtn.style.color = tab === 'all' ? '#1e293b' : '#94a3b8';
+            allBtn.style.background = tab === 'all' ? 'var(--bg-card, var(--card-bg))' : 'transparent';
+            allBtn.style.color = tab === 'all' ? 'var(--text-primary)' : 'var(--text-tertiary)';
             allBtn.style.boxShadow = tab === 'all' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none';
         }
 
@@ -728,14 +728,14 @@ window.togglePmFilter = (type) => {
     
     // Update visual states
     if (btnAccount) {
-        btnAccount.style.background = window.hpActiveFilters.account ? '#fff' : 'transparent';
+        btnAccount.style.background = window.hpActiveFilters.account ? 'var(--bg-card, var(--card-bg))' : 'transparent';
         btnAccount.style.boxShadow = window.hpActiveFilters.account ? '0 2px 6px rgba(0,0,0,0.06)' : 'none';
-        btnAccount.style.color = window.hpActiveFilters.account ? '#1e293b' : '#94a3b8';
+        btnAccount.style.color = window.hpActiveFilters.account ? 'var(--text-primary)' : 'var(--text-tertiary)';
     }
     if (btnPm) {
-        btnPm.style.background = window.hpActiveFilters.pm ? '#fff' : 'transparent';
+        btnPm.style.background = window.hpActiveFilters.pm ? 'var(--bg-card, var(--card-bg))' : 'transparent';
         btnPm.style.boxShadow = window.hpActiveFilters.pm ? '0 2px 6px rgba(0,0,0,0.06)' : 'none';
-        btnPm.style.color = window.hpActiveFilters.pm ? '#1e293b' : '#94a3b8';
+        btnPm.style.color = window.hpActiveFilters.pm ? 'var(--text-primary)' : 'var(--text-tertiary)';
     }
 
     if (window._hpCurrentProjectsRenderer) window._hpCurrentProjectsRenderer();

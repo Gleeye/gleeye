@@ -41,10 +41,10 @@ export function initInvoiceDetailModals() {
                     #invoice-detail-modal #idm-date { font-size: 0.8rem !important; color: var(--text-tertiary); }
                     
                     #invoice-detail-modal .entity-row { display: flex; align-items: center; gap: 0.4rem; }
-                    #invoice-detail-modal #idm-entity-icon { font-size: 0.9rem !important; color: #94a3b8; }
+                    #invoice-detail-modal #idm-entity-icon { font-size: 0.9rem !important; color: var(--text-tertiary, #94a3b8); }
                     #invoice-detail-modal #idm-entity { font-size: 0.9rem !important; font-weight: 600 !important; color: var(--text-secondary); }
 
-                    #invoice-detail-modal .detail-body { padding: 1rem 1.25rem !important; background: #fbfbfc; }
+                    #invoice-detail-modal .detail-body { padding: 1rem 1.25rem !important; background: var(--bg-tertiary, #fbfbfc); }
                     
                     /* Status moved to body top */
                     #invoice-detail-modal #idm-status-badge { font-size: 0.65rem !important; padding: 0.2rem 0.6rem !important; border-radius: 4px; margin-top: 0; margin-bottom: 0.75rem; width: fit-content; }
@@ -58,7 +58,7 @@ export function initInvoiceDetailModals() {
                         border: 1px solid rgba(0,0,0,0.04) !important;
                     }
                     #invoice-detail-modal #idm-total { font-size: 1.25rem !important; font-weight: 800 !important; }
-                    #invoice-detail-modal .amount-card .text-caption { font-size: 0.55rem !important; font-weight: 600; color: #94a3b8 !important; }
+                    #invoice-detail-modal .amount-card .text-caption { font-size: 0.55rem !important; font-weight: 600; color: var(--text-tertiary, #94a3b8) !important; }
                     #invoice-detail-modal #idm-pay-date { font-size: 0.8rem !important; }
                     
                     /* Secondary cards */
@@ -68,7 +68,7 @@ export function initInvoiceDetailModals() {
                     
                     /* Grid and Spacing */
                     #invoice-detail-modal .grid-3 { grid-template-columns: repeat(2, 1fr) !important; gap: 0.5rem !important; }
-                    #invoice-detail-modal .grid-3 > div:first-child { grid-column: span 2; background: #eff6ff !important; border: 1px solid #dbeafe !important; } 
+                    #invoice-detail-modal .grid-3 > div:first-child { grid-column: span 2; background: var(--color-info-soft, #eff6ff) !important; border: 1px solid var(--color-info-border, #dbeafe) !important; } 
                     
                     #invoice-detail-modal #idm-related-section { margin-top: 1rem !important; padding-top: 0.75rem !important; }
                     #invoice-detail-modal .grid-2 { grid-template-columns: 1fr !important; gap: 0.75rem !important; }
@@ -234,7 +234,7 @@ export async function openInvoiceDetail(id, type) {
         badge.className = "badge badge-purple";
         entityName = invoice.collaborators?.full_name || 'Collaboratore Sconosciuto';
         entityIcon.textContent = 'person';
-        entityIcon.style.color = '#8b5cf6';
+        entityIcon.style.color = 'var(--brand-viola, #8b5cf6)';
     } else if (type === 'passive-partner-wl') {
         badge.textContent = "FATTURA PARTNER WL";
         badge.className = "badge badge-neutral";
@@ -246,7 +246,7 @@ export async function openInvoiceDetail(id, type) {
         badge.className = "badge badge-warning";
         entityName = invoice.suppliers?.name || 'Fornitore Sconosciuto';
         entityIcon.textContent = 'local_shipping';
-        entityIcon.style.color = '#f59e0b';
+        entityIcon.style.color = 'var(--color-warning, #f59e0b)';
     }
 
     numEl.textContent = number.includes('/') ? `N. ${number}` : `N. ${number}`; // Keep format
@@ -257,9 +257,9 @@ export async function openInvoiceDetail(id, type) {
     let statusColor = 'var(--text-tertiary)';
     let statusBg = 'var(--glass-highlight)';
     const s = status.toLowerCase();
-    if (s.includes('pagat') || s.includes('saldat')) { statusColor = '#10b981'; statusBg = 'rgba(16, 185, 129, 0.1)'; }
-    else if (s.includes('inviata') || s.includes('ricevuta')) { statusColor = '#3b82f6'; statusBg = 'rgba(59, 130, 246, 0.1)'; }
-    else if (s.includes('bozza') || s.includes('dare')) { statusColor = '#f59e0b'; statusBg = 'rgba(245, 158, 11, 0.1)'; }
+    if (s.includes('pagat') || s.includes('saldat')) { statusColor = 'var(--color-success, #10b981)'; statusBg = 'var(--color-success-soft, rgba(16, 185, 129, 0.1))'; }
+    else if (s.includes('inviata') || s.includes('ricevuta')) { statusColor = 'var(--brand-blue, #3b82f6)'; statusBg = 'var(--color-info-soft, rgba(59, 130, 246, 0.1))'; }
+    else if (s.includes('bozza') || s.includes('dare')) { statusColor = 'var(--color-warning, #f59e0b)'; statusBg = 'var(--color-warning-soft, rgba(245, 158, 11, 0.1))'; }
     statusBadge.textContent = status;
     statusBadge.style.color = statusColor;
     statusBadge.style.background = statusBg;
@@ -318,7 +318,7 @@ export async function openInvoiceDetail(id, type) {
         if (invoice.ritenuta > 0) grid.innerHTML += renderEcoCard('Ritenuta', -invoice.ritenuta, true);
 
         totalEl.textContent = `€ ${formatAmount(netto)}`;
-        totalEl.style.color = '#ef4444'; // Expense
+        totalEl.style.color = 'var(--color-error, #ef4444)';
     }
 
     // Payment Date

@@ -27,7 +27,7 @@ export async function showDuplicateModal(itemId, currentItem, spaceId) {
         const spaces = (state.pm_spaces || []).map(s => {
             let displayName = s.name || '';
             let icon = 'folder';
-            let color = '#94a3b8';
+            let color = 'var(--text-tertiary, #94a3b8)';
 
             if (s.type === 'commessa') {
                 const o = (state.orders || []).find(x => x.id === s.ref_ordine);
@@ -49,30 +49,30 @@ export async function showDuplicateModal(itemId, currentItem, spaceId) {
         let selectedSpaceId = spaceId;
 
         const content = `
-            <div style="background: #fff; position: relative;">
+            <div style="background: var(--bg-card, #fff); position: relative;">
                 <button class="close-modal" id="dup-close-x" style="position: absolute; top: -10px; right: -10px; z-index: 10;"><span class="material-icons-round">close</span></button>
                 <h3 style="margin: 0 0 1.25rem 0; font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text-primary);">Duplica <b>${currentItem.title}</b></h3>
                 
                 <div style="margin-bottom: 1rem;">
-                    <label style="display: block; font-size: 0.65rem; font-weight: 700; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.02em;">NOME</label>
-                    <input type="text" id="dup-title" class="form-control" value="copia di ${currentItem.title}" style="width: 100%; padding: 8px 12px; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 0.85rem; font-family: 'Outfit', sans-serif; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--brand-blue)'" onblur="this.style.borderColor='#e2e8f0'">
+                    <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary, #94a3b8); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.02em;">NOME</label>
+                    <input type="text" id="dup-title" class="form-control" value="copia di ${currentItem.title}" style="width: 100%; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border-default, #e2e8f0); font-size: 0.85rem; font-family: 'Outfit', sans-serif; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--brand-blue)'" onblur="this.style.borderColor='var(--border-default, #e2e8f0)'">
                 </div>
 
                 <div style="margin-bottom: 1rem;">
-                    <label style="display: block; font-size: 0.65rem; font-weight: 700; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.02em;">PREFISSO PER SOTTO-ATTIVITÀ (FACOLTATIVO)</label>
-                    <input type="text" id="dup-prefix" class="form-control" placeholder="es. [COPY] " style="width: 100%; padding: 8px 12px; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 0.85rem; font-family: 'Outfit', sans-serif; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--brand-blue)'" onblur="this.style.borderColor='#e2e8f0'">
+                    <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary, #94a3b8); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.02em;">PREFISSO PER SOTTO-ATTIVITÀ (FACOLTATIVO)</label>
+                    <input type="text" id="dup-prefix" class="form-control" placeholder="es. [COPY] " style="width: 100%; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border-default, #e2e8f0); font-size: 0.85rem; font-family: 'Outfit', sans-serif; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--brand-blue)'" onblur="this.style.borderColor='var(--border-default, #e2e8f0)'">
                 </div>
 
                 <div style="margin-bottom: 1.25rem;">
-                    <label style="display: block; font-size: 0.65rem; font-weight: 700; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.02em;">SALVA IN</label>
+                    <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary, #94a3b8); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.02em;">SALVA IN</label>
                     <div style="position: relative;">
-                        <div id="dup-space-trigger" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; transition: all 0.2s;">
-                           <span class="material-icons-round" style="font-size: 1.1rem; color: ${currentSpace ? currentSpace.color : '#94a3b8'};">${currentSpace ? currentSpace.icon : 'location_on'}</span>
+                        <div id="dup-space-trigger" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border-default, #e2e8f0); background: var(--bg-card, #fff); cursor: pointer; transition: all 0.2s;">
+                           <span class="material-icons-round" style="font-size: 1.1rem; color: ${currentSpace ? currentSpace.color : 'var(--text-tertiary, #94a3b8)'};">${currentSpace ? currentSpace.icon : 'location_on'}</span>
                            <span id="dup-space-label" style="font-size: 0.85rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${currentSpace ? currentSpace.displayName : 'Seleziona ubicazione...'}</span>
-                           <span class="material-icons-round" style="margin-left: auto; font-size: 1.1rem; color: #94a3b8;">expand_more</span>
+                           <span class="material-icons-round" style="margin-left: auto; font-size: 1.1rem; color: var(--text-tertiary, #94a3b8);">expand_more</span>
                         </div>
-                        <div id="dup-space-menu" class="hidden dropdown-menu glass-card" style="position: absolute; top: 100%; left: 0; right: 0; margin-top: 6px; z-index: 1000; max-height: 220px; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 12px; background: white; border: 1px solid #f1f5f9; padding: 6px;">
-                            <div style="padding: 4px 8px 10px; border-bottom: 1px solid #f1f5f9; position: sticky; top: 0; background: #fff; z-index: 1;">
+                        <div id="dup-space-menu" class="hidden dropdown-menu glass-card" style="position: absolute; top: 100%; left: 0; right: 0; margin-top: 6px; z-index: 1000; max-height: 220px; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 12px; background: var(--bg-card, white); border: 1px solid var(--bg-tertiary, #f1f5f9); padding: 6px;">
+                            <div style="padding: 4px 8px 10px; border-bottom: 1px solid var(--bg-tertiary, #f1f5f9); position: sticky; top: 0; background: var(--bg-card, #fff); z-index: 1;">
                                 <input type="text" id="dup-space-search" placeholder="Cerca progetto..." style="width: 100%; border: none; outline: none; font-size: 0.8rem; font-family: 'Outfit', sans-serif; height: 32px;">
                             </div>
                             <div id="dup-spaces-list">
@@ -89,7 +89,7 @@ export async function showDuplicateModal(itemId, currentItem, spaceId) {
                 </div>
 
                 <div style="margin-bottom: 1.25rem;">
-                    <label style="display: block; font-size: 0.65rem; font-weight: 700; color: #94a3b8; margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.02em;">COSA COPIARE</label>
+                    <label style="display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-tertiary, #94a3b8); margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.02em;">COSA COPIARE</label>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; user-select: none;">
                             <input type="checkbox" id="dup-inc-sub" checked style="width: 16px; height: 16px; border-radius: 4px; accent-color: var(--brand-blue); cursor: pointer;">
@@ -110,7 +110,7 @@ export async function showDuplicateModal(itemId, currentItem, spaceId) {
                     </div>
                 </div>
 
-                <div style="margin-bottom: 1.5rem; border-top: 1px dashed #f1f5f9; padding-top: 1rem;">
+                <div style="margin-bottom: 1.5rem; border-top: 1px dashed var(--bg-tertiary, #f1f5f9); padding-top: 1rem;">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; user-select: none;">
                         <input type="checkbox" id="dup-reschedule" style="width: 16px; height: 16px; border-radius: 4px; accent-color: var(--brand-blue); cursor: pointer;">
                         <span style="font-weight: 500;">Ripianificare (pulisci date)</span>
@@ -118,7 +118,7 @@ export async function showDuplicateModal(itemId, currentItem, spaceId) {
                 </div>
 
                 <div style="display: flex; justify-content: flex-end; gap: 10px;">
-                    <button id="dup-cancel" style="padding: 8px 16px; font-weight: 600; background: #f1f5f9; color: #64748b; border: none; border-radius: 10px; cursor: pointer; font-family: 'Outfit', sans-serif; font-size: 0.85rem; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">Annulla</button>
+                    <button id="dup-cancel" style="padding: 8px 16px; font-weight: 600; background: var(--bg-tertiary, #f1f5f9); color: var(--text-secondary, #64748b); border: none; border-radius: 10px; cursor: pointer; font-family: 'Outfit', sans-serif; font-size: 0.85rem; transition: all 0.2s;" onmouseover="this.style.background='var(--bg-hover, #e2e8f0)'" onmouseout="this.style.background='var(--bg-tertiary, #f1f5f9)'">Annulla</button>
                     <button id="dup-submit" style="padding: 8px 20px; font-weight: 600; background: var(--brand-blue); color: #fff; border: none; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2); font-family: 'Outfit', sans-serif; font-size: 0.85rem; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 15px rgba(59, 130, 246, 0.3)'" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 12px rgba(59, 130, 246, 0.2)'">Duplica</button>
                 </div>
             </div>
@@ -157,7 +157,7 @@ export async function showDuplicateModal(itemId, currentItem, spaceId) {
         };
 
         modalDiv.querySelectorAll('.dup-space-opt').forEach(opt => {
-            opt.onmouseover = () => opt.style.background = '#f8fafc';
+            opt.onmouseover = () => opt.style.background = 'var(--bg-tertiary, #f8fafc)';
             opt.onmouseout = () => opt.style.background = 'transparent';
             opt.onclick = (e) => {
                 e.stopPropagation();
