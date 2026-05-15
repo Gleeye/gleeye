@@ -32,7 +32,7 @@ function starsHtml(rating, interactive = false, partnerId = '') {
     const val = parseFloat(rating) || 0;
     const stars = [1, 2, 3, 4, 5].map(n => {
         const filled = n <= Math.round(val);
-        const style = 'font-size: 1.3rem; color: ' + (filled ? '#f59e0b' : 'var(--border-light)') + '; cursor: ' + (interactive ? 'pointer' : 'default') + ';';
+        const style = 'font-size: 1.3rem; color: ' + (filled ? 'var(--color-warning, #f59e0b)' : 'var(--border-light)') + '; cursor: ' + (interactive ? 'pointer' : 'default') + ';';
         const attrs = interactive ? 'data-star="' + n + '" data-partner-id="' + partnerId + '" class="star-btn"' : '';
         return '<span class="material-icons-round" style="' + style + '" ' + attrs + '>' + (filled ? 'star' : 'star_border') + '</span>';
     }).join('');
@@ -867,7 +867,7 @@ export function initWhiteLabelPartnerModals() {
             const n = parseInt(s.dataset.val);
             if (n <= val) {
                 s.textContent = 'star';
-                s.style.color = '#f59e0b';
+                s.style.color = 'var(--color-warning, #f59e0b)';
             } else {
                 s.textContent = 'star_border';
                 s.style.color = 'var(--border-light)';
@@ -882,7 +882,7 @@ export function initWhiteLabelPartnerModals() {
         s.addEventListener('click', () => updateModalStars(parseInt(s.dataset.val)));
         s.addEventListener('mouseover', () => {
             modal.querySelectorAll('.modal-star').forEach(s2 => {
-                s2.style.color = parseInt(s2.dataset.val) <= parseInt(s.dataset.val) ? '#f59e0b' : 'var(--border-light)';
+                s2.style.color = parseInt(s2.dataset.val) <= parseInt(s.dataset.val) ? 'var(--color-warning, #f59e0b)' : 'var(--border-light)';
             });
         });
         s.addEventListener('mouseout', () => {

@@ -649,10 +649,7 @@ export function renderDashboard(container) {
                                         Nessun ordine attivo
                                     </div>
                                 ` : acceptedInProgress.slice(0, 15).map(o => `
-                                    <div class="active-order-item" onclick="window.location.hash='order-detail/${o.id}'" style="
-                                        padding: 0.8rem 1rem; background: #f8fafc; border-radius: 10px; border: 1px solid #f1f5f9; cursor: pointer; transition: all 0.2s ease;
-                                        display: flex; flex-direction: column; gap: 6px; border-left: 4px solid var(--brand-viola);
-                                    " onmouseover="this.style.background='white'; this.style.borderColor='var(--brand-viola)'; this.style.transform='translateX(3px)';" onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#f1f5f9'; this.style.transform='none';">
+                                    <div class="active-order-item" onclick="window.location.hash='order-detail/${o.id}'">
                                         <!-- Top Row: ID and Client -->
                                         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                                             <span style="font-size: 0.55rem; color: var(--text-tertiary); font-weight: 800; text-transform: uppercase;">${o.order_number}</span>

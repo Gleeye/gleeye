@@ -590,7 +590,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                                     <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 700;">${a.role === 'pm' ? (isInternal ? 'Responsabile' : 'Project Manager') : (isInternal ? 'Responsabile' : 'Collaboratore')}</div>
                                                 </div>
                                             </div>
-                                            <button class="remove-space-pm-btn" style="background:none; border:none; padding:4px; cursor:pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
+                                            <button class="remove-space-pm-btn">
                                                 <span class="material-icons-round" style="font-size: 1.1rem; pointer-events: none;">close</span>
                                             </button>
                                         </div>
@@ -609,7 +609,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
                                         <div style="color: var(--text-tertiary); font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Team</div>
                                         <div style="position: relative;">
-                                            <button id="add-space-member-btn" style="width: 24px; height: 24px; border-radius: 50%; color: #64748b; background: white; border: 1px dashed #64748b; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#64748b'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='#64748b'">
+                                            <button id="add-space-member-btn" class="add-member-btn-circle">
                                                 <span class="material-icons-round" style="font-size: 1rem;">group_add</span>
                                             </button>
                                             <div id="space-member-picker" class="hidden glass-card" style="position: absolute; top: 130%; right: 0; left: auto; width: 280px; z-index: 1000; max-height: 320px; overflow-y: auto; padding: 8px; box-shadow: var(--shadow-xl);"></div>
@@ -632,7 +632,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                                         <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 700;">Membro</div>
                                                     </div>
                                                 </div>
-                                                <button class="remove-space-pm-btn" style="background:none; border:none; padding:4px; cursor:pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
+                                                <button class="remove-space-pm-btn">
                                                     <span class="material-icons-round" style="font-size: 1.1rem; pointer-events: none;">close</span>
                                                 </button>
                                             </div>
@@ -1347,7 +1347,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                         <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 700;">${a.role === 'pm' ? (isInternal ? 'Responsabile' : 'Project Manager') : (isInternal ? 'Responsabile' : 'Collaboratore')}</div>
                                     </div>
                                 </div>
-                                <button class="remove-space-pm-btn" style="background:none; border:none; padding:4px; cursor:pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
+                                <button class="remove-space-pm-btn">
                                     <span class="material-icons-round" style="font-size: 1.1rem; pointer-events: none;">close</span>
                                 </button>
                             </div>
@@ -1373,7 +1373,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                         <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; font-weight: 700;">Membro</div>
                                     </div>
                                 </div>
-                                <button class="remove-space-pm-btn" style="background:none; border:none; padding:4px; cursor:pointer; color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
+                                <button class="remove-space-pm-btn">
                                     <span class="material-icons-round" style="font-size: 1.1rem; pointer-events: none;">close</span>
                                 </button>
                             </div>

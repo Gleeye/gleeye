@@ -348,7 +348,7 @@ function openFormModal(form = null) {
                         </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <button type="button" class="btn-remove-field" data-index="${i}" style="background: none; color: #ff5c5c; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; opacity: 0.7;" onmouseover="this.style.opacity='1'; this.style.background='#fff5f5';" onmouseout="this.style.opacity='0.7'; this.style.background='none';" onclick="event.stopPropagation();">
+                        <button type="button" class="btn-remove-field" data-index="${i}" onclick="event.stopPropagation();">
                             <span class="material-icons-round" style="font-size: 1.1rem;">delete_outline</span>
                         </button>
                         <span class="material-icons-round" style="color: var(--text-tertiary); transition: transform 0.3s; transform: ${isExpanded ? 'rotate(180deg)' : 'rotate(0)'};">expand_more</span>

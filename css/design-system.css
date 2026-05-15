@@ -634,3 +634,78 @@
 .spin-hub {
     animation: spin-hub 2s linear infinite;
 }
+
+/* =====================================================
+   Inline-to-CSS extraction (Step 3)
+   ===================================================== */
+
+.remove-space-pm-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--text-tertiary, #cbd5e1);
+    transition: color 0.2s;
+}
+
+.remove-space-pm-btn:hover {
+    color: var(--color-error, #ef4444);
+}
+
+.add-member-btn-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    color: var(--text-secondary, #64748b);
+    background: var(--bg-card, var(--card-bg));
+    border: 1px dashed var(--text-secondary, #64748b);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.add-member-btn-circle:hover {
+    background: var(--text-secondary, #64748b);
+    color: white;
+}
+
+.btn-remove-field {
+    background: none;
+    color: var(--color-error, #ff5c5c);
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    opacity: 0.7;
+}
+
+.btn-remove-field:hover {
+    opacity: 1;
+    background: var(--color-error-soft, #fff5f5);
+}
+
+.active-order-item {
+    padding: 0.8rem 1rem;
+    background: var(--bg-tertiary, #f8fafc);
+    border-radius: 10px;
+    border: 1px solid var(--border-default, var(--glass-border));
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-left: 4px solid var(--brand-viola);
+}
+
+.active-order-item:hover {
+    background: var(--bg-card, var(--card-bg));
+    border-color: var(--brand-viola);
+    transform: translateX(3px);
+}

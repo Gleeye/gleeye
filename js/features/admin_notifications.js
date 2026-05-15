@@ -510,7 +510,7 @@ function openEditModal(id, allTypes) {
                     const chip = document.createElement('span');
                     chip.style.cssText = 'font-size: 0.75rem; background: var(--bg-secondary); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--glass-border); font-family: monospace; cursor: pointer; transition: all 0.2s; color: var(--brand-blue);';
                     chip.innerText = `{{${v}}}`;
-                    chip.onmouseover = () => chip.style.background = '#e0f2fe';
+                    chip.onmouseover = () => chip.style.background = 'var(--color-info-soft, #e0f2fe)';
                     chip.onmouseout = () => chip.style.background = 'var(--bg-secondary)';
 
                     chip.onclick = () => {

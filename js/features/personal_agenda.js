@@ -1430,16 +1430,16 @@ function updateSyncStatus(status, text) {
     container.title = `Google Calendar: ${text}`;
 
     // Reset styles
-    dot.style.background = '#9ca3af'; // gray default
+    dot.style.background = 'var(--text-tertiary, #9ca3af)';
     dot.classList.remove('animate-pulse');
 
     if (status === 'syncing') {
-        dot.style.background = '#fbbf24'; // yellow
+        dot.style.background = 'var(--color-warning, #fbbf24)';
         dot.classList.add('animate-pulse');
     } else if (status === 'success') {
-        dot.style.background = '#22c55e'; // green
+        dot.style.background = 'var(--color-success, #22c55e)';
     } else if (status === 'error') {
-        dot.style.background = '#ef4444'; // red
+        dot.style.background = 'var(--color-error, #ef4444)';
     }
 }
 

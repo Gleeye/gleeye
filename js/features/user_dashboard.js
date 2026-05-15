@@ -741,23 +741,23 @@ export async function renderUserProfile(container) {
             e.preventDefault();
             if (!zoneElement.classList.contains('has-file')) {
                 zoneElement.style.borderColor = 'var(--brand-blue)';
-                zoneElement.style.backgroundColor = '#f0f9ff';
+                zoneElement.style.backgroundColor = 'var(--color-info-soft, #f0f9ff)';
             }
         });
 
         zoneElement.addEventListener('dragleave', (e) => {
             e.preventDefault();
             if (!zoneElement.classList.contains('has-file')) {
-                zoneElement.style.borderColor = '#cbd5e1'; // default
-                zoneElement.style.backgroundColor = 'white'; // default
+                zoneElement.style.borderColor = 'var(--glass-border, #cbd5e1)';
+                zoneElement.style.backgroundColor = 'var(--bg-card, var(--card-bg))';
             } // If has-file, we leave it as is (green border)
         });
 
         zoneElement.addEventListener('drop', (e) => {
             e.preventDefault();
             if (!zoneElement.classList.contains('has-file')) {
-                zoneElement.style.borderColor = '#cbd5e1';
-                zoneElement.style.backgroundColor = 'white';
+                zoneElement.style.borderColor = 'var(--glass-border, #cbd5e1)';
+                zoneElement.style.backgroundColor = 'var(--bg-card, var(--card-bg))';
             }
 
             const file = e.dataTransfer.files[0];

@@ -363,7 +363,7 @@ function renderTable(data) {
     // Attachment link hover
     tbody.querySelectorAll('.attachment-link').forEach(link => {
         link.addEventListener('mouseenter', () => {
-            link.style.color = '#3b82f6';
+            link.style.color = 'var(--brand-blue, #3b82f6)';
             link.style.transform = 'translateX(2px)';
         });
         link.addEventListener('mouseleave', () => {
