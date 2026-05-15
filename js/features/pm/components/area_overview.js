@@ -130,7 +130,7 @@ export async function renderAreaOverview(container, spaceIds, spaceNamesMap, clo
                     
                     <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
                         ${urgencies.length === 0 ? `<div class="dash-empty" style="margin-top:0;">Tutto sotto controllo! Nessuna scadenza.</div>` : urgencies.map(u => `
-                            <div class="urg-item" onclick="import('./hub_drawer.js?v=8012').then(m => m.openHubDrawer('${u.id}', '${u.space_ref}'))">
+                            <div class="urg-item" onclick="import('./hub_drawer.js?v=8013').then(m => m.openHubDrawer('${u.id}', '${u.space_ref}'))">
                                 <div class="icon"><span class="material-icons-round">${u.item_type === 'attivita' ? 'folder' : 'check_circle'}</span></div>
                                 <div style="flex:1; min-width:0;">
                                     <div style="font-size: 0.55rem; color: var(--text-tertiary); font-weight: 800; text-transform: uppercase;">${spaceNamesMap[u.space_ref] || 'Progetto'}</div>
@@ -196,7 +196,7 @@ export async function renderAreaOverview(container, spaceIds, spaceNamesMap, clo
                     </div>
                     <div style="display:flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem;">
                         ${recentComments.length === 0 ? `<div class="dash-empty">Nessun commento recente</div>` : recentComments.map(c => `
-                            <div class="feed-item" style="padding-bottom:0.5rem; cursor:pointer;" onclick="import('./hub_drawer.js?v=8012').then(m => m.openHubDrawer('${c.pm_item_ref}', '${c.pm_items?.space_ref}'))">
+                            <div class="feed-item" style="padding-bottom:0.5rem; cursor:pointer;" onclick="import('./hub_drawer.js?v=8013').then(m => m.openHubDrawer('${c.pm_item_ref}', '${c.pm_items?.space_ref}'))">
                                 ${renderAvatar(c.profiles || { full_name: 'Utente' }, { size: 32, borderRadius: '50%' })}
                                 <div style="flex:1; min-width:0;">
                                     <div style="display:flex; justify-content:space-between; align-items:baseline;">
@@ -221,7 +221,7 @@ export async function renderAreaOverview(container, spaceIds, spaceNamesMap, clo
                         ${recentLogs.length === 0 ? `<div class="dash-empty">Nessuna attività registrata</div>` : recentLogs.map(l => {
                             const human = humanizeActivity(l);
                             return `
-                            <div class="feed-item" style="cursor:pointer;" onclick="import('./hub_drawer.js?v=8012').then(m => m.openHubDrawer('${l.item_ref}', '${l.space_ref}'))">
+                            <div class="feed-item" style="cursor:pointer;" onclick="import('./hub_drawer.js?v=8013').then(m => m.openHubDrawer('${l.item_ref}', '${l.space_ref}'))">
                                 ${renderAvatar(l.actor || { full_name: 'S' }, { size: 32, borderRadius: '50%' })}
                                 <div style="flex: 1; min-width: 0;">
                                     <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.3;">

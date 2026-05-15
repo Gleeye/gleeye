@@ -1110,13 +1110,42 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         </div>
                     `).join('');
 
-                    // Attach listeners to report items
+                    // Attach listeners to report items — apre il report inline nel pannello
                     reportsList.querySelectorAll('.report-item').forEach(item => {
                         item.onclick = async () => {
                             const pageId = item.dataset.pageId;
-                            // Open in document viewer (assuming existing router)
-                            window.location.hash = `#docs/${pageId}`;
-                            closeHubDrawer();
+                            try {
+                                // Trova il job legato a questo doc_page e usa i suoi dati
+                                const { data: jobs } = await supabase
+                                    .from('pm_ai_report_jobs')
+                                    .select('*')
+                                    .eq('doc_page_id', pageId)
+                                    .limit(1);
+                                if (jobs && jobs[0]) {
+                                    await displayReportResult(jobs[0]);
+                                } else {
+                                    // Fallback: leggi il doc_block markdown direttamente
+                                    const { data: blocks } = await supabase
+                                        .from('doc_blocks')
+                                        .select('content')
+                                        .eq('page_ref', pageId)
+                                        .order('position', { ascending: true });
+                                    const md = (blocks || []).map(b => b.content?.markdown || '').join('\n\n');
+                                    if (md) {
+                                        await displayReportResult({
+                                            id: null,
+                                            doc_page_id: pageId,
+                                            transcription: md,
+                                            summary: '(report storico aperto da Report precedenti)',
+                                            report_markdown: md,
+                                            action_items: [],
+                                        });
+                                    }
+                                }
+                            } catch (err) {
+                                console.error('[ReportAuto] open prev report failed', err);
+                                if (window.showGlobalAlert) window.showGlobalAlert('Impossibile aprire il report: ' + err.message, 'error');
+                            }
                         };
                     });
 

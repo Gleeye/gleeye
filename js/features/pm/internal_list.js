@@ -416,7 +416,7 @@ export async function renderInternalProjects(container, initialFilter) {
                     ${filteredLogs.length === 0 ? `<div style="padding: 3rem; text-align: center; color: var(--text-tertiary); font-style: italic;">Nessuna attività recente registrata per questo cluster.</div>` : filteredLogs.slice(0, 30).map(l => {
                         const human = humanizeActivity(l);
                         return `
-                        <div style="display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--bg-primary); animation: fadeIn 0.3s ease; cursor:pointer;" onclick="import('./components/hub_drawer.js?v=8012').then(m => m.openHubDrawer('${l.item_ref}', '${l.space_ref}'))">
+                        <div style="display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--bg-primary); animation: fadeIn 0.3s ease; cursor:pointer;" onclick="import('./components/hub_drawer.js?v=8013').then(m => m.openHubDrawer('${l.item_ref}', '${l.space_ref}'))">
                             ${renderAvatar(l.actor || { full_name: 'S' }, { size: 32, borderRadius: '50%' })}
                             <div style="flex: 1; min-width: 0;">
                                 <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">

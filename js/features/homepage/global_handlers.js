@@ -12,7 +12,7 @@
 
 import { openEventDetails } from '../agenda_utils.js?v=8000';
 import { renderMyActivities } from './activity_feed.js?v=8000';
-import { openHubDrawer } from '../pm/components/hub_drawer.js?v=8012';
+import { openHubDrawer } from '../pm/components/hub_drawer.js?v=8013';
 import { openAppointmentDrawer } from '../pm/components/hub_appointment_drawer.js?v=8000';
 
 
