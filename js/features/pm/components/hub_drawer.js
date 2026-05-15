@@ -623,17 +623,17 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     </div>
                 </div>
                 <div id="more-actions-menu" class="hidden dropdown-menu glass-card" style="position: absolute; top: 120px; right: 24px; padding: 6px; z-index: 1000; min-width: 210px; box-shadow: 0 16px 48px rgba(0,0,0,0.12); border: 1.2px solid rgba(0, 0, 0, 0.06); background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(20px); border-radius: 16px;">
-                    <div class="menu-action-opt" id="duplicate-item-btn" style="padding: 12px 16px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 0.9rem; color: #1a1f36; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600;" onmouseover="this.style.background='rgba(78, 146, 216, 0.05)'; this.style.color='#4e92d8';" onmouseout="this.style.background='transparent'; this.style.color='#1a1f36';">
+                    <div class="menu-action-opt" id="duplicate-item-btn">
                         <span class="material-icons-round" style="font-size: 1.25rem; opacity: 0.8;">content_copy</span>
                         <span>Duplica</span>
                     </div>
-                    <div class="menu-action-opt" id="copy-link-btn" style="padding: 12px 16px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 0.9rem; color: #1a1f36; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600;" onmouseover="this.style.background='rgba(78, 146, 216, 0.05)'; this.style.color='#4e92d8';" onmouseout="this.style.background='transparent'; this.style.color='#1a1f36';">
+                    <div class="menu-action-opt" id="copy-link-btn">
                         <span class="material-icons-round" style="font-size: 1.25rem; opacity: 0.8;">link</span>
                         <span>Copia link diretto</span>
                     </div>
-                    <div style="height: 1.2px; background: #f1f5f9; margin: 6px 10px;"></div>
-                    <div class="menu-action-opt" id="delete-item-btn" style="padding: 12px 16px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 0.9rem; color: #ef4444; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">
-                        <span class="material-icons-round" style="font-size: 1.25rem; color: #ef4444; opacity: 0.9;">delete_outline</span>
+                    <div class="divider" style="margin: 6px 10px;"></div>
+                    <div class="menu-action-opt danger" id="delete-item-btn">
+                        <span class="material-icons-round" style="font-size: 1.25rem; opacity: 0.9;">delete_outline</span>
                         <span>Elimina</span>
                     </div>
                 </div>
@@ -1235,8 +1235,8 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 const { error: taskErr } = await supabase.from('pm_items').insert(taskData);
                                 if (taskErr) throw taskErr;
                                 btn.textContent = '✓ creata';
-                                btn.style.color = '#10b981';
-                                btn.style.borderColor = '#10b981';
+                                btn.style.color = 'var(--color-success, #10b981)';
+                                btn.style.borderColor = 'var(--color-success, #10b981)';
                                 if (window.showGlobalAlert) window.showGlobalAlert('Task creata: ' + ai.text);
                             } catch (err) {
                                 console.error('[create task from action] error', err);
@@ -2414,7 +2414,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 ctxList.innerHTML = html;
 
                 ctxList.querySelectorAll('.ctx-option').forEach(opt => {
-                    opt.onmouseover = () => opt.style.background = '#f8fafc';
+                    opt.onmouseover = () => opt.style.background = 'var(--bg-tertiary, #f8fafc)';
                     opt.onmouseout = () => opt.style.background = 'transparent';
                     opt.onclick = () => {
                         const type = opt.dataset.type;
@@ -2583,7 +2583,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                         picker.classList.add('hidden');
                     };
-                    opt.onmouseover = () => opt.style.background = '#f8fafc';
+                    opt.onmouseover = () => opt.style.background = 'var(--bg-tertiary, #f8fafc)';
                     opt.onmouseout = () => opt.style.background = 'transparent';
                 });
             }

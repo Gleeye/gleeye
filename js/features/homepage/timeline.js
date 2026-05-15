@@ -24,7 +24,7 @@ export function renderVerticalTimeline(container, events, date, rules) {
     timelineContainer.className = 'vertical-timeline-track';
     timelineContainer.style.position = 'relative';
     timelineContainer.style.height = `${totalHeight}px`;
-    timelineContainer.style.background = '#ffffff';
+    timelineContainer.style.background = 'var(--bg-card, var(--card-bg))';
 
     // 1. GRID LINES & LABELS (Y-AXIS)
     for (let h = 0; h < 24; h++) {
@@ -36,7 +36,7 @@ export function renderVerticalTimeline(container, events, date, rules) {
         row.style.left = '45px';
         row.style.right = '0';
         row.style.height = '1px';
-        row.style.background = '#f1f5f9';
+        row.style.background = 'var(--border-default, var(--glass-border))';
         
         // Hour Label
         const label = document.createElement('div');
@@ -46,7 +46,7 @@ export function renderVerticalTimeline(container, events, date, rules) {
         label.style.left = '8px';
         label.style.top = `${(h * pxPerHour) - 8}px`;
         label.style.fontSize = '0.7rem';
-        label.style.color = '#94a3b8';
+        label.style.color = 'var(--text-tertiary, #94a3b8)';
         label.style.fontWeight = '600';
         label.style.fontFamily = 'var(--font-titles)';
         
@@ -79,7 +79,7 @@ export function renderVerticalTimeline(container, events, date, rules) {
         slot.style.top = `${sM * pixelsPerMinute}px`;
         slot.style.height = `${(eM - sM) * pixelsPerMinute}px`;
         slot.style.left = '0'; slot.style.right = '0';
-        slot.style.background = '#fcfaff'; // Very subtle purple
+        slot.style.background = 'rgba(var(--brand-viola-rgb, 139, 92, 246), 0.02)';
         slot.style.zIndex = '0';
         overlay.appendChild(slot);
     });
@@ -236,7 +236,7 @@ export function renderWeeklyTimeline(container, events, startDate, rules, google
         label.style.position = 'absolute';
         label.style.top = `${h * pxPerHour}px`;
         label.style.fontSize = '0.7rem';
-        label.style.color = '#94a3b8';
+        label.style.color = 'var(--text-tertiary, #94a3b8)';
         label.style.transform = 'translateY(-50%)';
         label.style.width = '100%';
         label.style.textAlign = 'right';
@@ -253,8 +253,8 @@ export function renderWeeklyTimeline(container, events, startDate, rules, google
         const dayCol = document.createElement('div');
         dayCol.style.position = 'relative';
         dayCol.style.height = `${totalHeight}px`;
-        dayCol.style.borderRight = (i < 6) ? '1px dashed #f1f5f9' : 'none';
-        dayCol.style.background = '#f8fafc'; // DEFAULT CLOSED (Gray)
+        dayCol.style.borderRight = (i < 6) ? '1px dashed var(--border-default, var(--glass-border))' : 'none';
+        dayCol.style.background = 'var(--bg-tertiary, #f8fafc)';
 
         // 1. RENDER AVAILABILITY (WHITE BLOCKS)
         const dayId = currentD.getDay();
@@ -284,7 +284,7 @@ export function renderWeeklyTimeline(container, events, startDate, rules, google
             line.style.top = `${h * pxPerHour}px`;
             line.style.left = '0'; line.style.right = '0';
             line.style.height = '1px';
-            line.style.background = '#f1f5f9';
+            line.style.background = 'var(--border-default, var(--glass-border))';
             line.style.zIndex = '1';
             dayCol.appendChild(line);
         }

@@ -709,3 +709,31 @@
     border-color: var(--brand-viola);
     transform: translateX(3px);
 }
+
+.menu-action-opt {
+    padding: 12px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    transition: all 0.2s;
+    font-weight: 600;
+}
+
+.menu-action-opt:hover {
+    background: rgba(var(--brand-blue-rgb, 78, 146, 216), 0.05);
+    color: var(--brand-blue);
+}
+
+.menu-action-opt.danger {
+    color: var(--color-error, #ef4444);
+    font-weight: 700;
+}
+
+.menu-action-opt.danger:hover {
+    background: var(--color-error-soft, #fef2f2);
+    color: var(--color-error, #ef4444);
+}
