@@ -25,6 +25,10 @@
 | Z-index consolidamento | DONE | 100% | modal 99999→var(--z-modal), system 1M→var(--z-system), sidebar 20k→var(--z-drawer), overlay 99998→var(--z-overlay), notif dropdown 10k→var(--z-dropdown), toast 10001→var(--z-toast) |
 | Semantic color tokens (modals/sidebar) | DONE | 100% | #ef4444 → var(--color-error) su close-modal, notification-badge, logout |
 | Payments responsive | DONE | 100% | @media 768px aggiunta (info-grid, tab-btn) |
+| Tables responsive + semantic | DONE | 100% | @media 768px, status-badge → semantic tokens, row bg → var() |
+| Cards cleanup | DONE | 100% | Duplicate @media 768px merged, rgba(59,130,246) → rgba(var(--brand-blue-rgb)), fiscal-section → semantic |
+| Inputs z-index + disabled | DONE | 100% | .select-dropdown 10000 → var(--z-dropdown), disabled generalizzato a tutti input/select/textarea |
+| Homepage dark mode | DONE | 100% | 20+ hex hardcoded (#e5e7eb, white, #111, #64748b, #1e293b, #f8fafc, #e2e8f0) → var(), KPI status → semantic |
 | Homepage CSS dedup (P1 #5) | BLOCKED | 0% | homepage-alt.css caricato dinamicamente da homepage-alt.js — richiede refactor JS |
 | Custom select dedup (P2 #8) | TODO | 0% | Merge inputs.css + custom-select.css (basso rischio) |
 | Button system unificato | TODO | 0% | .btn + varianti + sizes + states |
@@ -43,7 +47,7 @@
 
 | Metrica | Prima (15/5/26) | Dopo Step 1 | Dopo Step 2 (parziale) | Target finale |
 |---------|----------------|-------------|----------------------|---------------|
-| Mobile responsive | ~40% viste | ~50% (+agenda) | ~65% (+auth, bank, payments) | 100% |
-| Design system unificato | ~15% | ~20% | ~40% (z-index, colori, radius migrati su 10 file CSS) | 90%+ |
-| Dark mode funzionante | ~60% viste | ~75% | ~85% (+buttons, custom-select, modals) | 100% |
+| Mobile responsive | ~40% viste | ~50% (+agenda) | ~70% (+auth, bank, payments, tables) | 100% |
+| Design system unificato | ~15% | ~20% | ~50% (z-index, colori, radius migrati su 14 file CSS) | 90%+ |
+| Dark mode funzionante | ~60% viste | ~75% | ~90% (+buttons, custom-select, modals, homepage, cards, inputs) | 100% |
 | Inline styles nei JS | 8.530 | 8.530 | 8.530 (non toccati — Step 3) | <500 |

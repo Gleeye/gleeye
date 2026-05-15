@@ -258,10 +258,12 @@ input[type="radio"]:checked::before {
     color: var(--danger-color, #ef4444);
 }
 
-#profile-form input:disabled {
+input:disabled,
+select:disabled,
+textarea:disabled {
     opacity: 0.6;
     cursor: not-allowed;
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--bg-hover, rgba(0, 0, 0, 0.05));
 }
 
 /* Auth Inputs Refactored - Fix Box-in-Box Autofill */
@@ -431,8 +433,7 @@ input[type="radio"]:checked::before {
     box-shadow: var(--shadow-xl);
     max-height: 250px;
     overflow-y: auto;
-    z-index: 10000;
-    /* Higher z-index */
+    z-index: var(--z-dropdown, 500);
     padding: 0.5rem;
 }
 
