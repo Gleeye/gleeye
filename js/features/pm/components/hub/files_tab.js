@@ -7,8 +7,11 @@
 import { supabase } from '/js/modules/config.js?v=8000';
 import { state } from '/js/modules/state.js?v=8000';
 
-// 3.5MB raw, perché dopo base64 (+33%) arriviamo a ~4.7MB sotto i 6MB Supabase
-const MAX_UPLOAD_BYTES = 3.5 * 1024 * 1024;
+// File piccoli: upload singolo. File grandi: chunked upload session.
+// Chunk size 3.5MB raw → ~4.7MB base64 (sotto 6MB Supabase body limit).
+const SINGLE_UPLOAD_LIMIT = 3.5 * 1024 * 1024; // 3.5MB raw
+const CHUNK_SIZE = 3.5 * 1024 * 1024; // chunk size per upload session
+const MAX_FILE_BYTES = 5 * 1024 * 1024 * 1024; // 5GB limite di sicurezza UI (Dropbox supporta 350GB)
 
 export function initFilesTab(drawer, itemId, spaceId) {
     const pane = drawer.querySelector('#tab-files');
@@ -244,56 +247,23 @@ async function handleFiles(fileList, drawer, itemId, spaceId) {
 
     for (let i = 0; i < fileList.length; i++) {
         const file = fileList[i];
-        if (file.size > MAX_UPLOAD_BYTES) {
-            const mb = (file.size / 1024 / 1024).toFixed(1);
-            alert(`"${file.name}" pesa ${mb}MB, oltre il limite attuale di 3.5MB.\n\nLimite temporaneo dovuto al body Supabase. Verrà alzato a 100MB+ in iterazione successiva con upload session.`);
+        if (file.size > MAX_FILE_BYTES) {
+            const gb = (file.size / 1024 / 1024 / 1024).toFixed(1);
+            alert(`"${file.name}" pesa ${gb}GB, oltre il limite di 5GB.\n(Dropbox supporta 350GB ma per ora limitiamo a 5GB.)`);
             continue;
         }
-        if (statusText) statusText.textContent = `Upload ${i + 1}/${fileList.length}: ${file.name}...`;
 
         try {
-            const base64 = await fileToBase64(file);
-            const payload = {
-                action: 'upload',
-                file_base64: base64,
-                file_name: file.name,
-                mime_type: file.type || 'application/octet-stream',
-                pm_space_ref: itemId ? null : spaceId,
-                pm_item_ref: itemId || null,
-                file_size_bytes: file.size,
-                share_with_children: false,
-            };
-            // Uso fetch raw invece di supabase.functions.invoke per avere accesso al
-            // body dell'error response (invoke nasconde il dettaglio).
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
-            const resp = await fetch(
-                supabase.supabaseUrl.replace(/\/$/, '') + '/functions/v1/dropbox-proxy',
-                {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json',
-                        'apikey': supabase.supabaseKey,
-                    },
-                    body: JSON.stringify(payload),
-                }
-            );
-            const respText = await resp.text();
-            let respJson = null;
-            try { respJson = JSON.parse(respText); } catch { /* keep null */ }
-            if (!resp.ok) {
-                console.error('[files_tab] DEBUG response JSON completo:', respJson);
-                const parts = [];
-                if (respJson?.error) parts.push(respJson.error);
-                if (respJson?.missing) parts.push('missing: ' + JSON.stringify(respJson.missing));
-                if (respJson?.env_var_found_containing_DROPBOX_or_DB) parts.push('env found: ' + JSON.stringify(respJson.env_var_found_containing_DROPBOX_or_DB));
-                if (respJson?.detail) parts.push(respJson.detail);
-                const msg = parts.join(' | ') || respText.slice(0, 300);
-                throw new Error(`HTTP ${resp.status}: ${msg}`);
-            }
-            if (respJson?.error) {
-                throw new Error(respJson.error + (respJson.detail ? ' — ' + respJson.detail : ''));
+            if (file.size <= SINGLE_UPLOAD_LIMIT) {
+                // File piccolo: upload singolo
+                if (statusText) statusText.textContent = `Upload ${i + 1}/${fileList.length}: ${file.name}...`;
+                await uploadSingle(file, itemId, spaceId);
+            } else {
+                // File grande: chunked upload session
+                await uploadChunked(file, itemId, spaceId, (progress) => {
+                    const pct = Math.round(progress * 100);
+                    if (statusText) statusText.textContent = `Upload ${i + 1}/${fileList.length}: ${file.name} — ${pct}%`;
+                });
             }
         } catch (err) {
             console.error('[files_tab] upload failed', err);
@@ -362,6 +332,114 @@ function openAddLinkModal(drawer, itemId, spaceId) {
         document.getElementById('files-link-modal').remove();
         refreshLinks(drawer, itemId, spaceId);
     };
+}
+
+// ===== Upload singolo (file <= SINGLE_UPLOAD_LIMIT) =====
+async function uploadSingle(file, itemId, spaceId) {
+    const base64 = await fileToBase64(file);
+    const result = await callDropboxProxy({
+        action: 'upload',
+        file_base64: base64,
+        file_name: file.name,
+        mime_type: file.type || 'application/octet-stream',
+        pm_space_ref: itemId ? null : spaceId,
+        pm_item_ref: itemId || null,
+        file_size_bytes: file.size,
+        share_with_children: false,
+    });
+    return result;
+}
+
+// ===== Upload chunked (file > SINGLE_UPLOAD_LIMIT) =====
+async function uploadChunked(file, itemId, spaceId, onProgress) {
+    const totalSize = file.size;
+    let offset = 0;
+    let sessionId = null;
+
+    while (offset < totalSize) {
+        const end = Math.min(offset + CHUNK_SIZE, totalSize);
+        const isLast = end === totalSize;
+        const chunk = file.slice(offset, end);
+        const base64 = await blobToBase64(chunk);
+
+        if (sessionId === null) {
+            // Primo chunk: start session
+            const r = await callDropboxProxy({ action: 'upload_session_start', file_base64: base64 });
+            sessionId = r.session_id;
+            if (!sessionId) throw new Error('session_id non ricevuto');
+        } else if (isLast) {
+            // Ultimo chunk: finish session + commit
+            await callDropboxProxy({
+                action: 'upload_session_finish',
+                file_base64: base64,
+                session_id: sessionId,
+                offset,
+                file_name: file.name,
+                mime_type: file.type || 'application/octet-stream',
+                pm_space_ref: itemId ? null : spaceId,
+                pm_item_ref: itemId || null,
+                file_size_bytes: file.size,
+                share_with_children: false,
+            });
+        } else {
+            // Chunk intermedio
+            await callDropboxProxy({
+                action: 'upload_session_append',
+                file_base64: base64,
+                session_id: sessionId,
+                offset,
+            });
+        }
+
+        offset = end;
+        if (onProgress) onProgress(offset / totalSize);
+    }
+}
+
+// Helper: chiamata edge function dropbox-proxy con error handling esplicito
+async function callDropboxProxy(payload) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    const resp = await fetch(
+        supabase.supabaseUrl.replace(/\/$/, '') + '/functions/v1/dropbox-proxy',
+        {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json',
+                'apikey': supabase.supabaseKey,
+            },
+            body: JSON.stringify(payload),
+        }
+    );
+    const respText = await resp.text();
+    let respJson = null;
+    try { respJson = JSON.parse(respText); } catch { /* */ }
+    if (!resp.ok) {
+        console.error('[files_tab] DEBUG response JSON:', respJson);
+        const parts = [];
+        if (respJson?.error) parts.push(respJson.error);
+        if (respJson?.missing) parts.push('missing: ' + JSON.stringify(respJson.missing));
+        if (respJson?.detail) parts.push(respJson.detail);
+        const msg = parts.join(' | ') || respText.slice(0, 300);
+        throw new Error(`HTTP ${resp.status}: ${msg}`);
+    }
+    if (respJson?.error) {
+        throw new Error(respJson.error + (respJson.detail ? ' — ' + respJson.detail : ''));
+    }
+    return respJson;
+}
+
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64 = String(reader.result).split(',')[1] || '';
+            resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
 }
 
 async function downloadFile(fileId, fileName) {
