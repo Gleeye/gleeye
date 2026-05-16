@@ -530,12 +530,12 @@ export async function renderSpaceView(container, spaceId) {
 
         container.querySelector('#add-activity-btn')?.addEventListener('click', () => {
             container.querySelector('#add-hub-dropdown').classList.add('hidden');
-            import('/js/features/pm/components/hub_drawer.js?v=8017').then(mod => mod.openHubDrawer(null, spaceId, null, 'attivita'));
+            import('/js/features/pm/components/hub_drawer.js?v=8016').then(mod => mod.openHubDrawer(null, spaceId, null, 'attivita'));
         });
 
         container.querySelector('#add-task-btn')?.addEventListener('click', () => {
             container.querySelector('#add-hub-dropdown').classList.add('hidden');
-            import('/js/features/pm/components/hub_drawer.js?v=8017').then(mod => mod.openHubDrawer(null, spaceId, null, 'task'));
+            import('/js/features/pm/components/hub_drawer.js?v=8016').then(mod => mod.openHubDrawer(null, spaceId, null, 'task'));
         });
 
         // Unified Assignee Picker Logic

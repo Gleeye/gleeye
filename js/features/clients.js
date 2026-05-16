@@ -7,6 +7,7 @@ import { showGlobalAlert } from '../modules/utils.js?v=8000';
 import { activityTranslate } from '../modules/pm_activity_helper.js?v=8000';
 import { glossaryTip } from '../modules/help_tooltip.js?v=8002';
 import { inlineHelpButton, attachInlineHelp } from '../modules/help_inline_ai.js?v=8001';
+import { initClientFilesTab } from './pm/components/hub/files_tab.js';
 // Caricato on-demand: side-effect installa window.openReminderModal
 import './clients/reminder_compose.js?v=8008';
 
@@ -786,6 +787,7 @@ export function renderClientDetail(container) {
                 <button class="tab-btn" data-tab="orders" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">Commesse (${clientOrders.length})</button>
                 <button class="tab-btn" data-tab="invoices" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">Fatture (${clientInvoices.length})</button>
                 <button class="tab-btn" data-tab="payments" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">Pagamenti (${clientPayments.length})</button>
+                <button class="tab-btn" data-tab="files-client" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">📂 File</button>
             </div>
 
             <!-- Tab Content: Overview -->
@@ -907,6 +909,8 @@ export function renderClientDetail(container) {
                     </table>
                  </div>
             </div>
+            <!-- Tab Content: File cliente -->
+            <div id="tab-files-client" class="tab-content hidden"></div>
         </div>
     `;
 
@@ -927,7 +931,12 @@ export function renderClientDetail(container) {
             tab.style.borderBottom = '2px solid var(--brand-blue)';
             tab.style.color = 'var(--brand-blue)';
             const targetId = `tab-${tab.dataset.tab}`;
-            document.getElementById(targetId).classList.remove('hidden');
+            const targetEl = document.getElementById(targetId);
+            targetEl.classList.remove('hidden');
+            if (tab.dataset.tab === 'files-client' && !targetEl.dataset.initialized) {
+                targetEl.dataset.initialized = '1';
+                initClientFilesTab(targetEl, client.id);
+            }
         });
     });
 

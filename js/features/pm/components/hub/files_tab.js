@@ -3,6 +3,7 @@
 // permessi gerarchici + toggle "Condividi sotto".
 //
 // Esporta: initFilesTab(drawer, itemId, spaceId)
+//          initClientFilesTab(container, clientId)
 
 import { supabase } from '/js/modules/config.js?v=8000';
 import { state } from '/js/modules/state.js?v=8000';
@@ -354,6 +355,202 @@ async function handleFiles(fileList, drawer, itemId, spaceId) {
 
     if (statusEl) statusEl.classList.add('hidden');
     refreshFiles(drawer, itemId, spaceId);
+}
+
+// ===== Tab File a livello cliente =====
+export function initClientFilesTab(container, clientId) {
+    container.innerHTML = renderShell();
+    // Rimuovi la sezione link esterni (non supportata a livello cliente per ora)
+    const linksSection = container.querySelector('#files-links-list')?.closest('div:has(h4)');
+    if (linksSection) linksSection.style.display = 'none';
+    const addLinkBtn = container.querySelector('#files-add-link-btn');
+    if (addLinkBtn) addLinkBtn.closest('div')?.style && (addLinkBtn.closest('div[style]').style.display = 'none');
+
+    wireClientUpload(container, clientId);
+    wireClientShareFolder(container, clientId);
+    refreshClientFiles(container, clientId);
+}
+
+function wireClientUpload(container, clientId) {
+    const dropZone = container.querySelector('#files-drop-zone');
+    const input = container.querySelector('#files-input');
+    if (!dropZone || !input) return;
+
+    dropZone.onclick = () => input.click();
+    dropZone.ondragover = (e) => {
+        e.preventDefault();
+        dropZone.style.background = '#eef4fb';
+        dropZone.style.borderColor = '#4e92d8';
+    };
+    dropZone.ondragleave = () => {
+        dropZone.style.background = '#fafbfc';
+        dropZone.style.borderColor = 'rgba(78, 146, 216, 0.3)';
+    };
+    dropZone.ondrop = (e) => {
+        e.preventDefault();
+        dropZone.style.background = '#fafbfc';
+        dropZone.style.borderColor = 'rgba(78, 146, 216, 0.3)';
+        handleClientFiles(e.dataTransfer.files, container, clientId);
+    };
+    input.onchange = () => {
+        handleClientFiles(input.files, container, clientId);
+        input.value = '';
+    };
+}
+
+function wireClientShareFolder(container, clientId) {
+    const btn = container.querySelector('#files-share-folder-btn');
+    if (!btn) return;
+    btn.onclick = async () => {
+        btn.disabled = true;
+        const original = btn.innerHTML;
+        btn.innerHTML = '<span class="material-icons-round" style="font-size: 14px;">sync</span> Generando...';
+        try {
+            const result = await callDropboxProxy({ action: 'share-folder', client_ref: clientId });
+            if (result?.url) {
+                document.getElementById('files-share-modal')?.remove();
+                document.body.insertAdjacentHTML('beforeend', `
+                    <div id="files-share-modal" class="modal active" style="z-index: 11500;">
+                        <div class="modal-content glass-card" style="max-width: 560px; padding: 1.5rem;">
+                            <h3 style="margin: 0 0 0.5rem; font-size: 1.1rem;">📤 Link cartella Dropbox cliente</h3>
+                            <div style="background: #f1f5f9; border-radius: 8px; padding: 0.7rem; font-family: monospace; font-size: 0.78rem; word-break: break-all; margin-bottom: 0.75rem;">${escapeHtml(result.url)}</div>
+                            <div style="font-size: 0.7rem; color: #94a3b8; margin-bottom: 1rem;">📁 ${escapeHtml(result.folder)}</div>
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <button id="share-modal-copy" class="primary-btn small"><span class="material-icons-round" style="font-size: 14px;">content_copy</span> Copia link</button>
+                                <a href="${escapeAttr(result.url)}" target="_blank" class="primary-btn small secondary" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;"><span class="material-icons-round" style="font-size: 14px;">open_in_new</span> Apri</a>
+                                <button class="primary-btn small secondary" onclick="document.getElementById('files-share-modal').remove()">Chiudi</button>
+                            </div>
+                        </div>
+                    </div>
+                `);
+                document.getElementById('share-modal-copy').onclick = () => {
+                    navigator.clipboard.writeText(result.url).then(() => {
+                        const b = document.getElementById('share-modal-copy');
+                        if (b) { b.innerHTML = '<span class="material-icons-round" style="font-size: 14px;">check</span> Copiato'; setTimeout(() => { b.innerHTML = '<span class="material-icons-round" style="font-size: 14px;">content_copy</span> Copia link'; }, 1500); }
+                    });
+                };
+            }
+        } catch (err) {
+            alert(`Errore generazione link: ${err.message}`);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    };
+}
+
+async function handleClientFiles(fileList, container, clientId) {
+    if (!fileList || fileList.length === 0) return;
+    const statusEl = container.querySelector('#files-upload-status');
+    const statusText = container.querySelector('#files-upload-status-text');
+    if (statusEl) statusEl.classList.remove('hidden');
+
+    for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i];
+        if (file.size > MAX_FILE_BYTES) {
+            alert(`"${file.name}" supera il limite di 5GB.`);
+            continue;
+        }
+        try {
+            if (file.size <= SINGLE_UPLOAD_LIMIT) {
+                if (statusText) statusText.textContent = `Upload ${i + 1}/${fileList.length}: ${file.name}...`;
+                const base64 = await fileToBase64(file);
+                await callDropboxProxy({
+                    action: 'upload',
+                    file_base64: base64,
+                    file_name: file.name,
+                    mime_type: file.type || 'application/octet-stream',
+                    client_ref: clientId,
+                    file_size_bytes: file.size,
+                    share_with_children: false,
+                });
+            } else {
+                await uploadChunkedClient(file, clientId, (progress) => {
+                    const pct = Math.round(progress * 100);
+                    if (statusText) statusText.textContent = `Upload ${i + 1}/${fileList.length}: ${file.name} — ${pct}%`;
+                });
+            }
+        } catch (err) {
+            alert(`Errore upload "${file.name}":\n${err.message}`);
+        }
+    }
+
+    if (statusEl) statusEl.classList.add('hidden');
+    refreshClientFiles(container, clientId);
+}
+
+async function uploadChunkedClient(file, clientId, onProgress) {
+    const totalSize = file.size;
+    let offset = 0;
+    let sessionId = null;
+    while (offset < totalSize) {
+        const end = Math.min(offset + CHUNK_SIZE, totalSize);
+        const isLast = end === totalSize;
+        const chunk = file.slice(offset, end);
+        const base64 = await blobToBase64(chunk);
+        if (sessionId === null) {
+            const r = await callDropboxProxy({ action: 'upload_session_start', file_base64: base64 });
+            sessionId = r.session_id;
+            if (!sessionId) throw new Error('session_id non ricevuto');
+        } else if (isLast) {
+            await callDropboxProxy({
+                action: 'upload_session_finish',
+                file_base64: base64,
+                session_id: sessionId,
+                offset,
+                file_name: file.name,
+                mime_type: file.type || 'application/octet-stream',
+                client_ref: clientId,
+                file_size_bytes: file.size,
+                share_with_children: false,
+            });
+        } else {
+            await callDropboxProxy({ action: 'upload_session_append', file_base64: base64, session_id: sessionId, offset });
+        }
+        offset = end;
+        if (onProgress) onProgress(offset / totalSize);
+    }
+}
+
+async function refreshClientFiles(container, clientId) {
+    const listEl = container.querySelector('#files-list');
+    const countEl = container.querySelector('#files-list-count');
+    if (!listEl) return;
+
+    const { data, error } = await supabase.from('pm_files')
+        .select('*')
+        .eq('client_ref', clientId)
+        .is('pm_item_ref', null)
+        .is('pm_space_ref', null)
+        .order('uploaded_at', { ascending: false });
+
+    if (error) {
+        listEl.innerHTML = `<div style="color:#ef4444;font-size:0.8rem;padding:0.5rem;">Errore: ${error.message}</div>`;
+        return;
+    }
+    if (!data || data.length === 0) {
+        listEl.innerHTML = '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:1rem;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">Nessun file caricato</div>';
+        if (countEl) countEl.textContent = '';
+        return;
+    }
+
+    listEl.innerHTML = data.map(f => renderFileRow(f)).join('');
+    if (countEl) countEl.textContent = data.length + ' file';
+
+    listEl.querySelectorAll('[data-action="preview"]').forEach(b => {
+        b.onclick = (e) => { e.stopPropagation(); openFile(b.dataset.id, b.dataset.name, b.dataset.mime); };
+    });
+    listEl.querySelectorAll('[data-action="download"]').forEach(b => {
+        b.onclick = (e) => { e.stopPropagation(); downloadFile(b.dataset.id); };
+    });
+    listEl.querySelectorAll('[data-action="delete"]').forEach(b => {
+        b.onclick = async (e) => {
+            e.stopPropagation();
+            if (!confirm('Cancellare definitivamente?')) return;
+            await deleteFile(b.dataset.id);
+            refreshClientFiles(container, clientId);
+        };
+    });
 }
 
 function wireAddLink(drawer, itemId, spaceId) {
