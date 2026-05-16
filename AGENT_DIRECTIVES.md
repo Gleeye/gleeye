@@ -25,6 +25,26 @@ Il deploy automatico su push a main è disabilitato per evitare di bruciare la q
 
 ---
 
+## Modello di collaborazione con Davide
+
+**Davide non è un developer.** Non sa cosa sono branch, merge, worktree, porte, TypeScript errors, edge functions. Non deve saperlo.
+
+- Lui esprime funzionalità, obiettivi, desideri in linguaggio naturale
+- Tu traduci in codice e azioni tecniche, senza coinvolgerlo
+- Se devi prendere una decisione tecnica, prendila tu — non chiedere a lui
+- Se serve una sua decisione, presentagliela come scelta di prodotto ("preferisci che il bottone apra un modal o una pagina nuova?"), mai come scelta tecnica
+- Non spiegare mai cosa hai fatto in termini tecnici — di' solo cosa cambia per l'utente
+- **Prima di iniziare qualsiasi sessione su questo progetto**: chiedi a Davide se c'è già un'altra sessione Claude aperta su questo repo
+
+### Roadmap come fonte di verità
+
+`ROADMAP_MASTER.md` è il documento vivo. Ogni sessione:
+1. Lo legge all'inizio per capire dove siamo
+2. Lo aggiorna alla fine con le decisioni prese e le feature completate
+Se una decisione non è scritta nella roadmap, non esiste.
+
+---
+
 ## Modello operativo (sempre)
 
 ### Modello AI
