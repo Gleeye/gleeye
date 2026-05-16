@@ -4,21 +4,24 @@
 
 ---
 
-## ⚠️ STATO ATTUALE (14/5/2026)
+## ⚠️ STATO ATTUALE (aggiornato 16/5/2026)
 
-### Vercel deploy: temporaneamente DISABILITATI
+### Vercel deploy: AUTO-DEPLOY DISABILITATO (scelta intenzionale)
 
-Davide ha esaurito la quota giornaliera di deploy Vercel (piano free/hobby = 100 deploy/giorno). Per non bloccare il lavoro:
+Il deploy automatico su push a main è disabilitato per evitare di bruciare la quota giornaliera Vercel (100 deploy/day piano free).
 
-- **`vercel.json`** ha `git.deploymentEnabled.main: false` → i push a `main` NON triggerano più auto-deploy.
-- **Push regolare a main**: sì, continua come prima. Il deploy non parte ma il commit arriva.
-- **Davide riapre** quando vuole rimettere `true` (o rimuovere il blocco e fare un deploy manuale `vercel --prod`).
+- **`vercel.json`** ha `git.deploymentEnabled.main: false` — NON cambiarlo senza che Davide lo chieda esplicitamente.
+- **Push a main**: continua normalmente. Il commit arriva, il deploy NON parte automaticamente.
 
-### Test locale: l'unica fonte di verità per ora
+### Se Davide chiede di deployare in produzione:
+1. Esegui `vercel --prod` dalla root del repo (CLI Vercel, non push)
+2. Oppure digli: "Deploy manuale: esegui `vercel --prod` nel terminale"
+3. **NON** aprire browser, NON cercare alternative, NON toccare `vercel.json`
 
-- Dev server Python su `http://localhost:8090` (avviato dalla root del repo: `python3 -m http.server 8090`).
-- Davide testa lì con hard-refresh (`Cmd+Shift+R`).
-- **Tu (agente)**: dopo ogni modifica push a main, dimmi solo "fatto + hard refresh". Niente menzioni a Vercel/production finché la quota non riapre.
+### Test locale: l'unica fonte di verità
+- Dev server Python su `http://localhost:8090` → avviato dalla root: `python3 -m http.server 8090`
+- Dopo ogni modifica pushata: di' solo "fatto — hard refresh (`Cmd+Shift+R`)"
+- Niente menzioni a Vercel/production a meno che Davide non chieda esplicitamente di deployare
 
 ---
 
