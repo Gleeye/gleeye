@@ -12,6 +12,7 @@ import { updateOrder, fetchOrders, fetchPayments, fetchCollaborators, fetchServi
 import { CustomSelect } from '../../components/CustomSelect.js?v=8000';
 
 import { CloudLinksManager } from '../components/CloudLinksManager.js?v=8000';
+import { formatPaymentMode } from './payment_config.js?v=8000';
 
 // Trigger Preventivo Webhook
 window.generateQuote = async (orderId, btnElement) => {
