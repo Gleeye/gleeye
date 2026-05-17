@@ -95,18 +95,22 @@ window.generateQuote = async (orderId, btnElement) => {
             services: formattedServices // Added
         };
 
-        // 3. Send Webhook & Await Result
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
+        // 3. Send Webhook via Edge Function (proxy to avoid CORS)
+        const { data: edgeData, error: edgeError } = await supabase.functions.invoke('trigger-webhook', {
+            body: { webhookUrl, payload }
         });
 
-        if (response.ok) {
-            const result = await response.json();
-            const docUrl = result.url || result.link || (typeof result === 'string' ? result : null);
+        if (edgeError) throw new Error(edgeError.message);
+
+        // Edge function returns raw text — try to parse as JSON
+        let result = null;
+        const rawText = typeof edgeData === 'string' ? edgeData : JSON.stringify(edgeData);
+        if (rawText && rawText !== 'accepted') {
+            try { result = JSON.parse(rawText); } catch { result = null; }
+        }
+
+        {
+            const docUrl = result?.url || result?.link || null;
 
             if (docUrl) {
                 // Update Cloud Links in DB
@@ -144,10 +148,8 @@ window.generateQuote = async (orderId, btnElement) => {
 
                 return; // Skip finally reset
             } else {
-                showGlobalAlert('Preventivo generato ma nessun link ricevuto.', 'warning');
+                showGlobalAlert('Preventivo in elaborazione (nessun link ancora disponibile).', 'warning');
             }
-        } else {
-            showGlobalAlert('Errore nell\'invio della richiesta.', 'error');
         }
     } catch (error) {
         console.error('Error triggering quote webhook:', error);

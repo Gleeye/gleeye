@@ -66,10 +66,11 @@ export function initOrderEconomicsModal() {
         const orderId = state.currentOrderId;
         try {
             await updateOrderEconomics(orderId, { price_final: parseFloat(document.getElementById('eco-price').value), cost_final: parseFloat(document.getElementById('eco-cost').value) });
+            await fetchOrders();
             showGlobalAlert('Aggiornato');
             document.getElementById('economics-modal').classList.remove('active');
+            const { renderOrderDetail } = await import('../orders.js?v=8000');
             renderOrderDetail(document.getElementById('content-area'), orderId);
-            await fetchOrders();
-        } catch (e) { showGlobalAlert('Errore', 'error'); }
+        } catch (e) { console.error('economics save error:', e); showGlobalAlert('Errore: ' + e.message, 'error'); }
     });
 }
