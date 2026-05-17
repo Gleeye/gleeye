@@ -98,7 +98,7 @@ window.generateQuote = async (orderId, btnElement) => {
 
         // 3. Send Webhook via Edge Function (proxy to avoid CORS)
         const { data: edgeData, error: edgeError } = await supabase.functions.invoke('trigger-webhook', {
-            body: { webhookUrl, payload }
+            body: { webhookUrl, payload, timeout: 25000 }
         });
 
         if (edgeError) throw new Error(edgeError.message);
