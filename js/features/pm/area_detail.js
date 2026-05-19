@@ -287,7 +287,7 @@ export async function renderAreaDetail(container, areaSlug) {
 }
 
 async function renderAreaFilesTab(container, areaSpaces, area) {
-    const { initFilesTab, initAreaFilesTab } = await import('./components/hub/files_tab.js?v=8002');
+    const { initFilesTab, initAreaFilesTab } = await import('./components/hub/files_tab.js?v=8003');
 
     const sorted = [...areaSpaces].sort((a, b) => (b.is_cluster ? 1 : 0) - (a.is_cluster ? 1 : 0));
 
@@ -304,6 +304,19 @@ async function renderAreaFilesTab(container, areaSpaces, area) {
             .af-body { padding: 1rem; }
             .af-body.collapsed { display: none; }
         </style>
+        <div class="af-section" style="border: 1px dashed #e2e8f0; background: #fafbfc; box-shadow: none;">
+            <div class="af-header" data-area-section style="border-bottom: none;">
+                <span class="material-icons-round" style="font-size:1.2rem; color:#94a3b8;">cloud_upload</span>
+                <div style="flex:1; min-width:0;">
+                    <div style="font-size:0.82rem; font-weight:600; color:var(--text-secondary);">File generali area</div>
+                    <div style="font-size:0.6rem; color:var(--text-tertiary);">File non legati a un cluster specifico</div>
+                </div>
+                <span class="af-toggle" style="color:var(--text-tertiary); font-size:1.1rem;">▼</span>
+            </div>
+            <div class="af-body collapsed" data-area-id="${area.id}">
+                <div id="tab-files-area-${area.id}"></div>
+            </div>
+        </div>
         ${sorted.map((s, i) => `
             <div class="af-section">
                 <div class="af-header" data-idx="${i}">
@@ -321,19 +334,6 @@ async function renderAreaFilesTab(container, areaSpaces, area) {
                 </div>
             </div>
         `).join('')}
-        <div class="af-section" style="border: 1px dashed #e2e8f0; background: #fafbfc; box-shadow: none;">
-            <div class="af-header" data-area-section style="border-bottom: none;">
-                <span class="material-icons-round" style="font-size:1.2rem; color:#94a3b8;">cloud_upload</span>
-                <div style="flex:1; min-width:0;">
-                    <div style="font-size:0.82rem; font-weight:600; color:var(--text-secondary);">File generali area</div>
-                    <div style="font-size:0.6rem; color:var(--text-tertiary);">File non legati a un cluster specifico</div>
-                </div>
-                <span class="af-toggle" style="color:var(--text-tertiary); font-size:1.1rem;">▼</span>
-            </div>
-            <div class="af-body collapsed" data-area-id="${area.id}">
-                <div id="tab-files-area-${area.id}"></div>
-            </div>
-        </div>
     `;
 
     const initSection = (spaceId) => {

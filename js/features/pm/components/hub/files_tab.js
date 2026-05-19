@@ -1456,6 +1456,9 @@ async function renderAreaLevel(pane, areaId, folderState) {
     const newFolderBtnEl = pane.querySelector('#files-new-folder-btn');
     if (!listEl) return;
 
+    // Ri-cablaggio drop zone ad ogni render (garantisce che l'upload funzioni sempre)
+    wireAreaUpload(pane, areaId, folderState);
+
     // Aggiorna drive btn onclick con folderId corrente
     if (driveBtnEl) {
         driveBtnEl.onclick = () => openDriveModal(null, null, null, () => renderAreaLevel(pane, areaId, folderState), areaId, folderState.currentId);
