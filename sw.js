@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v2006'; // Extra robustness for cache.put and GET check
+const CACHE_NAME = 'gleeye-pwa-cache-v2007'; // Extra robustness for cache.put and GET check
 const urlsToCache = [
     '/',
     '/index.html',
