@@ -608,7 +608,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
         cards.forEach(card => {
             card.onclick = (e) => {
                 // If it was a real click, not a drag-end
-                import('/js/features/pm/components/hub_drawer.js?v=8016').then(mod => mod.openHubDrawer(card.dataset.id, spaceId));
+                import('/js/features/pm/components/hub_drawer.js?v=8020').then(mod => mod.openHubDrawer(card.dataset.id, spaceId));
             };
 
             card.onmousedown = () => card.style.cursor = 'grabbing';
@@ -682,7 +682,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
                 if (Date.now() - lastDragTime < 150) return;
                 
                 if (!e.target.closest('.tree-toggle') && !e.target.closest('.add-child-btn')) {
-                    import('/js/features/pm/components/hub_drawer.js?v=8016').then(mod => mod.openHubDrawer(row.dataset.id, spaceId));
+                    import('/js/features/pm/components/hub_drawer.js?v=8020').then(mod => mod.openHubDrawer(row.dataset.id, spaceId));
                 }
             };
 
@@ -807,7 +807,7 @@ function setupBoardEventHandlers(container, items, spaceId, currentSort, current
                         }
                     });
                 } else {
-                    import('./hub_drawer.js?v=8016').then(mod => mod.openHubDrawer(null, spaceId, btn.dataset.parent, type));
+                    import('./hub_drawer.js?v=8020').then(mod => mod.openHubDrawer(null, spaceId, btn.dataset.parent, type));
                 }
                 menu.remove();
             };

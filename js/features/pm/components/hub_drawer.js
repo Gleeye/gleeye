@@ -965,7 +965,17 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                     <div id="tab-report" class="tab-pane hidden">
                         <div class="report-section" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
-                            <!-- Upload Area -->
+                            <!-- Source Switcher: Audio vs Testo -->
+                            <div id="report-source-switcher" style="display: flex; gap: 6px; padding: 4px; background: #f1f5f9; border-radius: 12px;">
+                                <button id="report-src-audio" data-src="audio" class="report-src-btn" style="flex: 1; padding: 10px 14px; border: none; background: #fff; color: #1a1f36; border-radius: 9px; font-weight: 700; font-size: 0.85rem; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center; gap: 6px;">
+                                    <span class="material-icons-round" style="font-size: 1.05rem;">mic</span> Audio
+                                </button>
+                                <button id="report-src-text" data-src="text" class="report-src-btn" style="flex: 1; padding: 10px 14px; border: none; background: transparent; color: #697386; border-radius: 9px; font-weight: 700; font-size: 0.85rem; font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                                    <span class="material-icons-round" style="font-size: 1.05rem;">notes</span> Trascrizione
+                                </button>
+                            </div>
+
+                            <!-- Upload Area Audio -->
                                 <div id="report-upload-zone" style="
                                 border: 2.2px dashed rgba(78, 146, 216, 0.2);
                                 border-radius: 20px;
@@ -979,6 +989,24 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 <div style="font-weight: 700; color: #1a1f36; margin-bottom: 0.5rem; font-family: 'Satoshi', sans-serif; font-size: 1.1rem;">Trascina qui il memo vocale</div>
                                 <div style="font-size: 0.82rem; color: #697386; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 500;">Supporta MP3, WAV, M4A (Max 50MB)</div>
                                 <input type="file" id="report-audio-input" accept="audio/*" style="display: none;">
+                            </div>
+
+                            <!-- Text Input Area (alternativa ad Audio) -->
+                            <div id="report-text-zone" class="hidden" style="display: flex; flex-direction: column; gap: 10px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                                    <label style="font-size: 0.78rem; font-weight: 700; color: #1a1f36; font-family: 'Plus Jakarta Sans', sans-serif;">Incolla qui la trascrizione (italiano)</label>
+                                    <button id="report-text-import-btn" type="button" style="padding: 6px 12px; background: #fff; border: 1.2px solid #e2e8f0; border-radius: 8px; cursor: pointer; font-size: 0.75rem; color: #4e92d8; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                                        <span class="material-icons-round" style="font-size: 0.95rem;">attach_file</span> Carica .txt / .md
+                                    </button>
+                                    <input type="file" id="report-text-file-input" accept=".txt,.md,text/plain,text/markdown" style="display: none;">
+                                </div>
+                                <textarea id="report-text-input" placeholder="Incolla qui la trascrizione del meeting / memo già fatta. Verrà strutturata direttamente dall'AI senza passare da Whisper (più veloce ed economico)." style="width: 100%; min-height: 200px; max-height: 400px; padding: 14px; border: 1.2px solid #e2e8f0; border-radius: 14px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.88rem; line-height: 1.55; color: #1a1f36; resize: vertical; outline: none; background: #fafbfc;" oninput="this.style.borderColor = this.value.trim().length > 10 ? '#4e92d8' : '#e2e8f0';"></textarea>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                                    <div id="report-text-stats" style="font-size: 0.72rem; color: #697386; font-family: 'Plus Jakarta Sans', sans-serif;">0 caratteri</div>
+                                    <button id="generate-text-report-btn" class="nt-btn-premium" style="padding: 10px 20px; font-size: 0.82rem;" disabled>
+                                        <span class="material-icons-round" style="font-size: 1.2rem;">auto_awesome</span> GENERA REPORT AI
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- Action Bar -->
@@ -1329,8 +1357,40 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 if (newBtn) {
                     newBtn.onclick = () => {
                         resultPane.classList.add('hidden');
+                        // Reset entrambe le zone in base al source attivo
+                        const audioBtn = drawer.querySelector('#report-src-audio');
+                        const isAudioActive = audioBtn && audioBtn.style.background !== 'transparent';
                         const uz = drawer.querySelector('#report-upload-zone');
-                        if (uz) uz.style.display = 'block';
+                        const tz = drawer.querySelector('#report-text-zone');
+                        if (uz) {
+                            uz.style.display = isAudioActive ? 'block' : 'none';
+                            uz.classList.toggle('hidden', !isAudioActive);
+                        }
+                        if (tz) {
+                            tz.classList.toggle('hidden', isAudioActive);
+                        }
+                        // Reset text input
+                        const ti = drawer.querySelector('#report-text-input');
+                        if (ti) {
+                            ti.value = '';
+                            ti.dispatchEvent(new Event('input'));
+                        }
+                        // Reset audio input
+                        const ai = drawer.querySelector('#report-audio-input');
+                        if (ai) ai.value = '';
+                        const ab = drawer.querySelector('#report-action-bar');
+                        if (ab) ab.classList.add('hidden');
+                        // Reset generate buttons
+                        const gBtn = drawer.querySelector('#generate-report-btn');
+                        if (gBtn) {
+                            gBtn.disabled = false;
+                            gBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1.2rem;">auto_awesome</span> GENERA REPORT AI`;
+                        }
+                        const gtBtn = drawer.querySelector('#generate-text-report-btn');
+                        if (gtBtn) {
+                            gtBtn.disabled = true;
+                            gtBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1.2rem;">auto_awesome</span> GENERA REPORT AI`;
+                        }
                     };
                 }
 
@@ -1472,6 +1532,115 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         if (window.showGlobalAlert) window.showGlobalAlert("Errore durante l'upload: " + e.message, 'error');
                         generateBtn.disabled = false;
                         generateBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1.1rem;">auto_awesome</span> GENERA REPORT AI`;
+                    }
+                };
+            }
+
+            // === REPORT TAB — Source switcher (Audio ↔ Trascrizione) ===
+            const srcAudioBtn = drawer.querySelector('#report-src-audio');
+            const srcTextBtn = drawer.querySelector('#report-src-text');
+            const uploadZoneEl = drawer.querySelector('#report-upload-zone');
+            const textZoneEl = drawer.querySelector('#report-text-zone');
+            const actionBarEl = drawer.querySelector('#report-action-bar');
+
+            function setReportSource(src) {
+                const isAudio = src === 'audio';
+                // Btn styles
+                if (srcAudioBtn) {
+                    srcAudioBtn.style.background = isAudio ? '#fff' : 'transparent';
+                    srcAudioBtn.style.color = isAudio ? '#1a1f36' : '#697386';
+                    srcAudioBtn.style.boxShadow = isAudio ? '0 2px 6px rgba(0,0,0,0.05)' : 'none';
+                }
+                if (srcTextBtn) {
+                    srcTextBtn.style.background = !isAudio ? '#fff' : 'transparent';
+                    srcTextBtn.style.color = !isAudio ? '#1a1f36' : '#697386';
+                    srcTextBtn.style.boxShadow = !isAudio ? '0 2px 6px rgba(0,0,0,0.05)' : 'none';
+                }
+                // Zones visibility
+                if (uploadZoneEl) uploadZoneEl.classList.toggle('hidden', !isAudio);
+                if (textZoneEl) textZoneEl.classList.toggle('hidden', isAudio);
+                // Quando si switcha, nascondi anche eventuale action bar audio in attesa
+                if (actionBarEl && !isAudio) actionBarEl.classList.add('hidden');
+            }
+
+            if (srcAudioBtn) srcAudioBtn.onclick = () => setReportSource('audio');
+            if (srcTextBtn) srcTextBtn.onclick = () => setReportSource('text');
+
+            // === REPORT TAB — Text input (paste + import file .txt/.md) ===
+            const textInput = drawer.querySelector('#report-text-input');
+            const textStats = drawer.querySelector('#report-text-stats');
+            const textImportBtn = drawer.querySelector('#report-text-import-btn');
+            const textFileInput = drawer.querySelector('#report-text-file-input');
+            const generateTextBtn = drawer.querySelector('#generate-text-report-btn');
+
+            if (textInput && textStats) {
+                textInput.addEventListener('input', () => {
+                    const len = textInput.value.length;
+                    textStats.textContent = len.toLocaleString('it-IT') + ' caratteri';
+                    if (generateTextBtn) generateTextBtn.disabled = textInput.value.trim().length < 20;
+                });
+            }
+            if (textImportBtn && textFileInput) {
+                textImportBtn.onclick = () => textFileInput.click();
+                textFileInput.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) {
+                        if (window.showGlobalAlert) window.showGlobalAlert('File troppo grande (max 5MB testo)', 'error');
+                        return;
+                    }
+                    try {
+                        const txt = await file.text();
+                        if (textInput) {
+                            textInput.value = txt;
+                            textInput.dispatchEvent(new Event('input'));
+                        }
+                    } catch (err) {
+                        if (window.showGlobalAlert) window.showGlobalAlert('Errore lettura file: ' + err.message, 'error');
+                    }
+                };
+            }
+
+            if (generateTextBtn) {
+                generateTextBtn.onclick = async () => {
+                    const text = (textInput?.value || '').trim();
+                    if (text.length < 20) return;
+                    generateTextBtn.disabled = true;
+                    generateTextBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1.1rem; animation: spin-hub 1s linear infinite;">sync</span> INVIO...`;
+                    try {
+                        // Crea job con transcription già pronta (no audio)
+                        const { data: jobData, error: jobError } = await supabase.from('pm_ai_report_jobs').insert({
+                            space_ref: spaceId,
+                            item_ref: itemId,
+                            transcription: text,
+                            status: 'pending'
+                        }).select();
+                        if (jobError) throw jobError;
+                        const jobId = jobData[0].id;
+
+                        // Mostra processing pane
+                        if (textZoneEl) textZoneEl.classList.add('hidden');
+                        statusPane.classList.remove('hidden');
+                        drawer.querySelector('#processing-step-text').textContent = "Strutturazione AI in corso...";
+                        drawer.querySelector('#processing-progress-bar').style.width = '30%';
+                        drawer.querySelector('#processing-percentage').textContent = '30%';
+
+                        if (window.showGlobalAlert) window.showGlobalAlert("Trascrizione inviata! L'AI sta strutturando il report.");
+
+                        // Trigger edge function (saltera Whisper, va dritto a Gemini)
+                        supabase.functions.invoke('process-voice-memo', { body: { job_id: jobId } })
+                            .then(({ error }) => {
+                                if (error) console.warn("[ReportAuto] Edge function invoke warning:", error);
+                            })
+                            .catch(err => console.error("[ReportAuto] Edge function invoke error:", err));
+
+                        // Polling stato
+                        pollJobStatus(jobId);
+                    } catch (e) {
+                        console.error(e);
+                        if (window.showGlobalAlert) window.showGlobalAlert("Errore creazione job: " + e.message, 'error');
+                        generateTextBtn.disabled = false;
+                        generateTextBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1.2rem;">auto_awesome</span> GENERA REPORT AI`;
                     }
                 };
             }
