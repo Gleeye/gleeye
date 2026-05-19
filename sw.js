@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v2007'; // Extra robustness for cache.put and GET check
+const CACHE_NAME = 'gleeye-pwa-cache-v2008'; // Extra robustness for cache.put and GET check
 const urlsToCache = [
     '/',
     '/index.html',
@@ -79,7 +79,7 @@ self.addEventListener('fetch', event => {
 self.addEventListener('activate', event => {
     event.waitUntil(
         Promise.all([
-            self.clients.claim(), // Take control immediately
+            self.clients.claim(),
             caches.keys().then(cacheNames => {
                 return Promise.all(
                     cacheNames.map(cacheName => {
@@ -90,7 +90,15 @@ self.addEventListener('activate', event => {
                     })
                 );
             })
-        ])
+        ]).then(() => {
+            // Forza reload di tutti i client dopo aggiornamento SW
+            // Garantisce che iOS PWA carichi i file aggiornati senza reinstallare
+            return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+                clients.forEach(client => {
+                    client.navigate(client.url);
+                });
+            });
+        })
     );
 });
 

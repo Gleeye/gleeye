@@ -214,6 +214,17 @@ function initSpaceNavigator(listEl, countEl, allData, itemMap, drawer, spaceId) 
 
     let currentFolderKey = null; // null = root
 
+    // Se c'è un solo gruppo, mostra i file direttamente senza cartella wrapper
+    const keys = Object.keys(groups);
+    if (keys.length === 1) {
+        const onlyKey = keys[0];
+        const files = groups[onlyKey];
+        if (countEl) countEl.textContent = files.length + ' file';
+        listEl.innerHTML = files.map(f => renderFileRow(f)).join('');
+        wireFileActionButtons(listEl, drawer, null, spaceId, () => refreshFiles(drawer, null, spaceId));
+        return;
+    }
+
     function renderRoot() {
         const keys = Object.keys(groups);
         if (countEl) countEl.textContent = allData.length + ' file';
