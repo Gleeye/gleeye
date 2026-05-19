@@ -345,9 +345,11 @@ async function handleFiles(fileList, drawer, itemId, spaceId) {
     };
     updateStatus();
 
-    // Worker pool: max 4 upload paralleli
+    // Worker pool: max 4 paralleli per file piccoli, max 2 se ci sono file grandi (chunked)
+    const hasLarge = files.some(f => f.size > SINGLE_UPLOAD_LIMIT);
+    const concurrency = hasLarge ? 2 : 4;
     const queue = [...files];
-    await Promise.all(Array.from({ length: Math.min(4, total) }, async () => {
+    await Promise.all(Array.from({ length: Math.min(concurrency, total) }, async () => {
         while (queue.length > 0) {
             const file = queue.shift();
             if (!file) break;
@@ -477,8 +479,10 @@ async function handleClientFiles(fileList, container, clientId) {
     };
     updateStatus();
 
+    const hasLargeClient = files.some(f => f.size > SINGLE_UPLOAD_LIMIT);
+    const concurrencyClient = hasLargeClient ? 2 : 4;
     const queue = [...files];
-    await Promise.all(Array.from({ length: Math.min(4, total) }, async () => {
+    await Promise.all(Array.from({ length: Math.min(concurrencyClient, total) }, async () => {
         while (queue.length > 0) {
             const file = queue.shift();
             if (!file) break;
