@@ -581,21 +581,6 @@ export async function renderInternalProjects(container, initialFilter) {
                             .af-body { padding: 1rem; }
                             .af-body.collapsed { display: none; }
                         </style>
-                        <div class="af-section">
-                            <div class="af-header" data-area-section>
-                                <div style="width:28px; height:28px; border-radius:8px; background:${activeArea.bg}; color:${activeArea.color}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                                    <span class="material-icons-round" style="font-size:1rem;">cloud_upload</span>
-                                </div>
-                                <div style="flex:1; min-width:0;">
-                                    <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary);">File generali area</div>
-                                    <div style="font-size:0.6rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase;">Non associati a un cluster specifico</div>
-                                </div>
-                                <span class="af-toggle" style="color:var(--text-tertiary); font-size:1.1rem;">▲</span>
-                            </div>
-                            <div class="af-body" data-area-id="${activeArea.id}">
-                                <div id="tab-files-area-${activeArea.id}"></div>
-                            </div>
-                        </div>
                         ${sorted.map((s, i) => `
                             <div class="af-section">
                                 <div class="af-header" data-idx="${i}">
@@ -606,37 +591,29 @@ export async function renderInternalProjects(container, initialFilter) {
                                         <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary);">${s.name}</div>
                                         <div style="font-size:0.6rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase;">${s.is_cluster ? 'Cluster' : 'Progetto'}</div>
                                     </div>
-                                    <span class="af-toggle" style="color:var(--text-tertiary); font-size:1.1rem;">▼</span>
+                                    <span class="af-toggle" style="color:var(--text-tertiary); font-size:1.1rem;">${i === 0 ? '▲' : '▼'}</span>
                                 </div>
-                                <div class="af-body collapsed" data-space-id="${s.id}">
+                                <div class="af-body ${i === 0 ? '' : 'collapsed'}" data-space-id="${s.id}">
                                     <div id="tab-files-${s.id}"></div>
                                 </div>
                             </div>
                         `).join('')}
+                        <div class="af-section" style="border: 1px dashed #e2e8f0; background: #fafbfc; box-shadow: none;">
+                            <div class="af-header" data-area-section style="border-bottom: none;">
+                                <span class="material-icons-round" style="font-size:1.2rem; color:#94a3b8;">cloud_upload</span>
+                                <div style="flex:1; min-width:0;">
+                                    <div style="font-size:0.82rem; font-weight:600; color:var(--text-secondary);">File generali area</div>
+                                    <div style="font-size:0.6rem; color:var(--text-tertiary);">File non legati a un cluster specifico</div>
+                                </div>
+                                <span class="af-toggle" style="color:var(--text-tertiary); font-size:1.1rem;">▼</span>
+                            </div>
+                            <div class="af-body collapsed" data-area-id="${activeArea.id}">
+                                <div id="tab-files-area-${activeArea.id}"></div>
+                            </div>
+                        </div>
                     `;
 
-                    // Inizializza subito la sezione area generale
-                    const areaBody = content.querySelector('[data-area-id]');
-                    if (areaBody) {
-                        const areaTabEl = areaBody.querySelector('#tab-files-area-' + activeArea.id);
-                        if (areaTabEl) {
-                            const wrapper = { querySelector: (sel) => sel === '#tab-files' ? areaTabEl : areaBody.querySelector(sel) };
-                            initAreaFilesTab(wrapper, activeArea.id);
-                        }
-                    }
-
-                    // Toggle sezione area generale
-                    const areaHeader = content.querySelector('[data-area-section]');
-                    if (areaHeader) {
-                        areaHeader.addEventListener('click', () => {
-                            const body = areaHeader.nextElementSibling;
-                            const toggle = areaHeader.querySelector('.af-toggle');
-                            const isCollapsed = body.classList.contains('collapsed');
-                            body.classList.toggle('collapsed', !isCollapsed);
-                            if (toggle) toggle.textContent = isCollapsed ? '▲' : '▼';
-                        });
-                    }
-
+                    // Inizializza il primo cluster subito (è già aperto)
                     const initSection = (spaceId) => {
                         const body = content.querySelector('[data-space-id="' + spaceId + '"]');
                         if (!body || body.dataset.initialized) return;
@@ -646,6 +623,28 @@ export async function renderInternalProjects(container, initialFilter) {
                         const wrapper = { querySelector: (sel) => sel === '#tab-files' ? tabEl : body.querySelector(sel) };
                         initFilesTab(wrapper, null, spaceId);
                     };
+
+                    if (sorted[0]) initSection(sorted[0].id);
+
+                    // Toggle sezione area generale (lazy-init al primo open)
+                    const areaHeader = content.querySelector('[data-area-section]');
+                    if (areaHeader) {
+                        areaHeader.addEventListener('click', () => {
+                            const body = areaHeader.nextElementSibling;
+                            const toggle = areaHeader.querySelector('.af-toggle');
+                            const isCollapsed = body.classList.contains('collapsed');
+                            body.classList.toggle('collapsed', !isCollapsed);
+                            if (toggle) toggle.textContent = isCollapsed ? '▲' : '▼';
+                            if (isCollapsed) {
+                                const areaTabEl = body.querySelector('#tab-files-area-' + activeArea.id);
+                                if (areaTabEl && !body.dataset.initialized) {
+                                    body.dataset.initialized = 'true';
+                                    const wrapper = { querySelector: (sel) => sel === '#tab-files' ? areaTabEl : body.querySelector(sel) };
+                                    initAreaFilesTab(wrapper, activeArea.id);
+                                }
+                            }
+                        });
+                    }
 
                     content.querySelectorAll('.af-header[data-idx]').forEach(header => {
                         header.addEventListener('click', () => {
