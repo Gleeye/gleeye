@@ -283,7 +283,7 @@ export async function renderHomepageAlt(container) {
                             <span class="material-icons-round" style="font-size: 18px; color: #8b5cf6;">calendar_today</span> 
                          </button>
 
-                         <button id="hp-top-add-btn" onclick="window.toggleHpQuickEntry(this)" style="width: 38px; height: 38px; min-width: 38px; flex-shrink: 0; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; color: #111; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+                         <button id="hp-top-add-btn" style="width: 38px; height: 38px; min-width: 38px; flex-shrink: 0; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; color: #111; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
                             <span class="material-icons-round" style="font-size: 20px;">add</span>
                          </button>
                      </div>
