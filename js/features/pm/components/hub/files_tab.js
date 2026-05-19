@@ -149,15 +149,14 @@ async function refreshFiles(drawer, itemId, spaceId) {
     if (!listEl) return;
 
     let data, error;
-    let itemMap = {}; // itemId → title per label di contesto
+    let itemMap = {}; // itemId → title
+    const isSpaceView = !itemId && !!spaceId;
 
     if (itemId) {
-        // Vista item specifico: solo i suoi file
         ({ data, error } = await supabase.from('pm_files').select('*')
             .eq('pm_item_ref', itemId)
             .order('uploaded_at', { ascending: false }));
     } else if (spaceId) {
-        // Vista commessa aggregata: file dello space + file di TUTTE le sue task/attività
         const { data: items } = await supabase.from('pm_items').select('id, title')
             .eq('space_ref', spaceId).is('archived_at', null);
         const itemIds = (items || []).map(i => i.id);
@@ -188,15 +187,29 @@ async function refreshFiles(drawer, itemId, spaceId) {
         return;
     }
 
-    listEl.innerHTML = data.map(f => renderFileRow(f, itemMap[f.pm_item_ref])).join('');
-    if (countEl) countEl.textContent = data.length + ' file';
+    // Vista commessa: raggruppata a cartelle (stile Finder)
+    if (isSpaceView) {
+        listEl.innerHTML = renderGroupedFiles(data, itemMap);
+        if (countEl) countEl.textContent = data.length + ' file';
+        // Toggle cartelle
+        listEl.querySelectorAll('.files-folder-header').forEach(header => {
+            header.onclick = () => {
+                const folder = header.closest('.files-folder');
+                const content = folder.querySelector('.files-folder-content');
+                const chevron = header.querySelector('.folder-chevron');
+                const isOpen = content.style.display !== 'none';
+                content.style.display = isOpen ? 'none' : 'block';
+                chevron.textContent = isOpen ? 'chevron_right' : 'expand_more';
+            };
+        });
+    } else {
+        listEl.innerHTML = data.map(f => renderFileRow(f)).join('');
+        if (countEl) countEl.textContent = data.length + ' file';
+    }
 
-    // Wire bottoni
+    // Wire bottoni file (shared tra flat e grouped)
     listEl.querySelectorAll('[data-action="preview"]').forEach(b => {
-        b.onclick = (e) => {
-            e.stopPropagation();
-            openFile(b.dataset.id, b.dataset.name, b.dataset.mime);
-        };
+        b.onclick = (e) => { e.stopPropagation(); openFile(b.dataset.id, b.dataset.name, b.dataset.mime); };
     });
     listEl.querySelectorAll('[data-action="download"]').forEach(b => {
         b.onclick = (e) => { e.stopPropagation(); downloadFile(b.dataset.id); };
@@ -211,11 +224,52 @@ async function refreshFiles(drawer, itemId, spaceId) {
     });
     listEl.querySelectorAll('[data-action="toggle-share"]').forEach(b => {
         b.onchange = async () => {
-            await supabase.from('pm_files')
-                .update({ share_with_children: b.checked })
-                .eq('id', b.dataset.id);
+            await supabase.from('pm_files').update({ share_with_children: b.checked }).eq('id', b.dataset.id);
         };
     });
+}
+
+function renderGroupedFiles(data, itemMap) {
+    // Raggruppa per pm_item_ref (null = livello commessa)
+    const groups = {};
+    data.forEach(f => {
+        const key = f.pm_item_ref || '__space__';
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(f);
+    });
+
+    let html = '';
+
+    // Prima i file diretti sulla commessa
+    if (groups['__space__']) {
+        html += renderFolderSection('Commessa', groups['__space__'], 'folder_special', '#f59e0b');
+    }
+
+    // Poi una cartella per ogni attività/task con file
+    Object.entries(groups).forEach(([key, files]) => {
+        if (key === '__space__') return;
+        const title = itemMap[key] || 'Attività';
+        html += renderFolderSection(title, files, 'folder', '#4e92d8');
+    });
+
+    return html;
+}
+
+function renderFolderSection(title, files, icon, color) {
+    const count = files.length;
+    return `
+        <div class="files-folder" style="border: 1px solid #e8edf3; border-radius: 10px; overflow: hidden; margin-bottom: 6px;">
+            <div class="files-folder-header" style="display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.75rem; background: #f8fafc; cursor: pointer; user-select: none; transition: background 0.15s;">
+                <span class="material-icons-round folder-chevron" style="font-size: 1.1rem; color: #94a3b8;">expand_more</span>
+                <span class="material-icons-round" style="font-size: 1.2rem; color: ${color};">${icon}</span>
+                <span style="font-size: 0.85rem; font-weight: 600; color: #1a1f36; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(title)}</span>
+                <span style="font-size: 0.7rem; color: #64748b; background: #e2e8f0; padding: 2px 8px; border-radius: 10px; flex-shrink: 0;">${count}</span>
+            </div>
+            <div class="files-folder-content" style="display: block; background: white; border-top: 1px solid #f1f5f9;">
+                ${files.map(f => renderFileRow(f)).join('')}
+            </div>
+        </div>
+    `;
 }
 
 async function refreshLinks(drawer, itemId, spaceId) {
@@ -255,23 +309,20 @@ async function refreshLinks(drawer, itemId, spaceId) {
     });
 }
 
-function renderFileRow(f, itemTitle) {
+function renderFileRow(f) {
     const size = (f.file_size_bytes || 0) / (1024 * 1024);
     const sizeStr = size < 1 ? Math.round(size * 1024) + ' KB' : size.toFixed(1) + ' MB';
     const date = f.uploaded_at ? new Date(f.uploaded_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }) : '';
     const icon = fileIcon(f.mime_type, f.file_name);
     const previewable = isPreviewable(f.mime_type, f.file_name);
     const clickAction = previewable ? 'preview' : 'download';
-    const contextLabel = itemTitle
-        ? `<span style="display: inline-flex; align-items: center; gap: 3px; background: #f0f4ff; color: #4e92d8; font-size: 0.62rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; border: 1px solid #dbeafe; margin-top: 2px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeAttr(itemTitle)}">📌 ${escapeHtml(itemTitle)}</span>`
-        : '';
     return `
-        <div style="display: flex; align-items: center; gap: 0.65rem; padding: 0.6rem 0.75rem; background: white; border: 1px solid #f1f5f9; border-radius: 10px;">
+        <div style="display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.75rem 0.55rem 2rem; background: white; border-bottom: 1px solid #f8fafc;">
             <div data-action="${clickAction}" data-id="${f.id}" data-name="${escapeHtml(f.file_name)}" data-mime="${escapeAttr(f.mime_type || '')}" style="display: flex; align-items: center; gap: 0.65rem; flex: 1; min-width: 0; cursor: pointer;" title="${previewable ? 'Apri anteprima' : 'Scarica'}">
                 <span class="material-icons-round" style="color: #4e92d8; font-size: 1.3rem; flex-shrink: 0;">${icon}</span>
                 <div style="flex: 1; min-width: 0;">
                     <div style="font-size: 0.85rem; font-weight: 600; color: #1a1f36; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(f.file_name)}</div>
-                    <div style="font-size: 0.68rem; color: #94a3b8; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">${sizeStr} · ${date}${previewable ? ' · click per anteprima' : ''}${contextLabel}</div>
+                    <div style="font-size: 0.68rem; color: #94a3b8;">${sizeStr} · ${date}${previewable ? ' · click per anteprima' : ''}</div>
                 </div>
             </div>
             <label title="Condividi anche con i collab di task figlie" style="display: flex; align-items: center; gap: 4px; font-size: 0.65rem; color: #64748b; cursor: pointer;">
