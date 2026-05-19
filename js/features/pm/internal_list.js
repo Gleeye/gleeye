@@ -293,10 +293,7 @@ export async function renderInternalProjects(container, initialFilter) {
                             <header style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1rem;">
                                 <div>
                                     <div style="font-size: 0.6rem; font-weight: 800; color: var(--brand-blue); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 2px;">PANORAMICA AREA</div>
-                                    <div style="display:flex; align-items:center; gap:0.6rem;">
-                                        <h2 id="hub-title" style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.015em;">Overview ${activeArea.label}</h2>
-                                        <a href="#pm/area/${activeArea.id}" title="Apri dettaglio area" style="display:flex; align-items:center; padding:4px 10px; border-radius:8px; background:var(--bg-secondary); color:var(--text-tertiary); text-decoration:none; font-size:0.7rem; font-weight:700; gap:4px; transition:all 0.2s;" onmouseover="this.style.background='rgba(59,130,246,0.1)'; this.style.color='var(--brand-blue)'" onmouseout="this.style.background='var(--bg-secondary)'; this.style.color='var(--text-tertiary)'"><span class="material-icons-round" style="font-size:0.9rem;">open_in_new</span>Dettaglio</a>
-                                    </div>
+                                    <h2 id="hub-title" style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.015em;">Overview ${activeArea.label}</h2>
                                 </div>
                             </header>
 
@@ -308,6 +305,7 @@ export async function renderInternalProjects(container, initialFilter) {
                                     <button class="hub-tab ${currentTab === 'feed' ? 'active' : ''}" data-tab="feed"><span class="material-icons-round">history</span>Feed</button>
                                     <button class="hub-tab ${currentTab === 'docs' ? 'active' : ''}" data-tab="docs"><span class="material-icons-round">description</span>Documenti</button>
                                     <button class="hub-tab ${currentTab === 'risorse' ? 'active' : ''}" data-tab="risorse"><span class="material-icons-round">cloud</span>Risorse</button>
+                                    <button class="hub-tab ${currentTab === 'file' ? 'active' : ''}" data-tab="file"><span class="material-icons-round">folder_open</span>File</button>
                                 </div>
                                 <div id="hub-tab-content" style="flex: 1; padding: 1.5rem; overflow-y: auto;">
                                     <div style="display:flex; align-items:center; justify-content:center; height:300px;"><span class="loader"></span></div>
@@ -560,6 +558,73 @@ export async function renderInternalProjects(container, initialFilter) {
                             </div>
                         `;
                     }
+                }
+
+            } else if (currentTab === 'file') {
+                content.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:200px;"><span class="loader"></span></div>';
+                const { initFilesTab } = await import('./components/hub/files_tab.js?v=8001');
+
+                if (currentClusterId !== 'all') {
+                    // Single cluster: render file tab directly
+                    content.innerHTML = '<div id="tab-files"></div>';
+                    initFilesTab(content, null, currentClusterId);
+                } else {
+                    // Area level: accordion per space
+                    const areaSpacesForFiles = (spaces || []).filter(s => (s.area || '').toLowerCase() === activeArea.label.toLowerCase());
+                    const sorted = [...areaSpacesForFiles].sort((a, b) => (b.is_cluster ? 1 : 0) - (a.is_cluster ? 1 : 0));
+                    if (sorted.length === 0) {
+                        content.innerHTML = '<div style="padding:3rem; text-align:center; color:var(--text-tertiary);">Nessun progetto in questa area.</div>';
+                        return;
+                    }
+                    content.innerHTML = `
+                        <style>
+                            .af-section { background: white; border-radius: 16px; box-shadow: var(--shadow-sm); margin-bottom: 1rem; overflow: hidden; }
+                            .af-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.9rem 1.25rem; cursor: pointer; border-bottom: 1px solid var(--surface-2); user-select: none; }
+                            .af-header:hover { background: var(--bg-secondary); }
+                            .af-body { padding: 1rem; }
+                            .af-body.collapsed { display: none; }
+                        </style>
+                        ${sorted.map((s, i) => `
+                            <div class="af-section">
+                                <div class="af-header" data-idx="${i}">
+                                    <div style="width:28px; height:28px; border-radius:8px; background:${activeArea.bg}; color:${activeArea.color}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                        <span class="material-icons-round" style="font-size:1rem;">${s.is_cluster ? 'workspaces' : 'folder_special'}</span>
+                                    </div>
+                                    <div style="flex:1; min-width:0;">
+                                        <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary);">${s.name}</div>
+                                        <div style="font-size:0.6rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase;">${s.is_cluster ? 'Cluster' : 'Progetto'}</div>
+                                    </div>
+                                    <span class="af-toggle" style="color:var(--text-tertiary); font-size:1.1rem;" class="material-icons-round">${i === 0 ? '▲' : '▼'}</span>
+                                </div>
+                                <div class="af-body ${i === 0 ? '' : 'collapsed'}" data-space-id="${s.id}">
+                                    <div id="tab-files-${s.id}"></div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    `;
+
+                    const initSection = (spaceId) => {
+                        const body = content.querySelector(`[data-space-id="${spaceId}"]`);
+                        if (!body || body.dataset.initialized) return;
+                        body.dataset.initialized = 'true';
+                        const tabEl = body.querySelector(`#tab-files-${spaceId}`);
+                        if (!tabEl) return;
+                        const wrapper = { querySelector: (sel) => sel === '#tab-files' ? tabEl : body.querySelector(sel) };
+                        initFilesTab(wrapper, null, spaceId);
+                    };
+
+                    if (sorted[0]) initSection(sorted[0].id);
+
+                    content.querySelectorAll('.af-header').forEach(header => {
+                        header.addEventListener('click', () => {
+                            const body = header.nextElementSibling;
+                            const toggle = header.querySelector('.af-toggle');
+                            const isCollapsed = body.classList.contains('collapsed');
+                            body.classList.toggle('collapsed', !isCollapsed);
+                            if (toggle) toggle.textContent = isCollapsed ? '▲' : '▼';
+                            if (isCollapsed) initSection(body.dataset.spaceId);
+                        });
+                    });
                 }
             }
         };
