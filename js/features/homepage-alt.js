@@ -634,6 +634,25 @@ export async function renderHomepageAlt(container) {
                 }
               </style>
     `;
+
+    // ── FIX: attacca il listener al bottone + subito dopo il render del DOM,
+    //    PRIMA di qualsiasi altra logica — così funziona anche se errori
+    //    successivi impediscono di raggiungere window.toggleHpQuickEntry. ──
+    (() => {
+        const addBtn = document.getElementById('hp-top-add-btn');
+        if (!addBtn) return;
+        addBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Se la funzione window è già definita (render successivi), usala
+            if (typeof window.toggleHpQuickEntry === 'function') {
+                window.toggleHpQuickEntry(addBtn);
+            } else {
+                // Fallback minimo: apri drawer con pick contestuale
+                openHubDrawer(null, null, null, 'task');
+            }
+        });
+    })();
+
     // --- Interaction Logic ---
     // Store current date for timeline navigation
     window.homepageCurrentDate = new Date();
