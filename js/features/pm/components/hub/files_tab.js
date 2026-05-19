@@ -187,89 +187,117 @@ async function refreshFiles(drawer, itemId, spaceId) {
         return;
     }
 
-    // Vista commessa: raggruppata a cartelle (stile Finder)
+    // Vista commessa: navigatore a cartelle (click per entrare, freccia per tornare)
     if (isSpaceView) {
-        listEl.innerHTML = renderGroupedFiles(data, itemMap);
-        if (countEl) countEl.textContent = data.length + ' file';
-        // Toggle cartelle
-        listEl.querySelectorAll('.files-folder-header').forEach(header => {
-            header.onclick = () => {
-                const folder = header.closest('.files-folder');
-                const content = folder.querySelector('.files-folder-content');
-                const chevron = header.querySelector('.folder-chevron');
-                const isOpen = content.style.display !== 'none';
-                content.style.display = isOpen ? 'none' : 'block';
-                chevron.textContent = isOpen ? 'chevron_right' : 'expand_more';
-            };
-        });
-    } else {
-        listEl.innerHTML = data.map(f => renderFileRow(f)).join('');
-        if (countEl) countEl.textContent = data.length + ' file';
+        initSpaceNavigator(listEl, countEl, data, itemMap, drawer, spaceId);
+        return; // il navigator gestisce i bottoni internamente
     }
 
-    // Wire bottoni file (shared tra flat e grouped)
-    listEl.querySelectorAll('[data-action="preview"]').forEach(b => {
-        b.onclick = (e) => { e.stopPropagation(); openFile(b.dataset.id, b.dataset.name, b.dataset.mime); };
-    });
-    listEl.querySelectorAll('[data-action="download"]').forEach(b => {
-        b.onclick = (e) => { e.stopPropagation(); downloadFile(b.dataset.id); };
-    });
-    listEl.querySelectorAll('[data-action="delete"]').forEach(b => {
-        b.onclick = async (e) => {
-            e.stopPropagation();
-            if (!confirm('Cancellare definitivamente?')) return;
-            await deleteFile(b.dataset.id);
-            refreshFiles(drawer, itemId, spaceId);
-        };
-    });
-    listEl.querySelectorAll('[data-action="toggle-share"]').forEach(b => {
-        b.onchange = async () => {
-            await supabase.from('pm_files').update({ share_with_children: b.checked }).eq('id', b.dataset.id);
-        };
-    });
+    listEl.innerHTML = data.map(f => renderFileRow(f)).join('');
+    if (countEl) countEl.textContent = data.length + ' file';
+
+    // Wire bottoni (vista item singolo / non-space)
+    wireFileActionButtons(listEl, drawer, itemId, spaceId);
 }
 
-function renderGroupedFiles(data, itemMap) {
-    // Raggruppa per pm_item_ref (null = livello commessa)
+function initSpaceNavigator(listEl, countEl, allData, itemMap, drawer, spaceId) {
+    // Costruisci gruppi: key = pm_item_ref || '__space__'
     const groups = {};
-    data.forEach(f => {
+    allData.forEach(f => {
         const key = f.pm_item_ref || '__space__';
         if (!groups[key]) groups[key] = [];
         groups[key].push(f);
     });
 
-    let html = '';
+    let currentFolderKey = null; // null = root
 
-    // Prima i file diretti sulla commessa
-    if (groups['__space__']) {
-        html += renderFolderSection('Commessa', groups['__space__'], 'folder_special', '#f59e0b');
+    function renderRoot() {
+        const keys = Object.keys(groups);
+        if (countEl) countEl.textContent = allData.length + ' file';
+
+        listEl.innerHTML = keys.map(key => {
+            const isSpace = key === '__space__';
+            const title = isSpace ? 'Commessa' : (itemMap[key] || 'Attività');
+            const icon = isSpace ? 'folder_special' : 'folder';
+            const color = isSpace ? '#f59e0b' : '#4e92d8';
+            const count = groups[key].length;
+            const sub = count === 1 ? '1 file' : count + ' file';
+            return `
+                <div data-nav-key="${escapeAttr(key)}" style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;background:white;border:1px solid #e8edf3;border-radius:10px;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor='#4e92d8'" onmouseout="this.style.borderColor='#e8edf3'">
+                    <span class="material-icons-round" style="color:${color};font-size:1.8rem;flex-shrink:0;">${icon}</span>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:0.9rem;font-weight:600;color:#1a1f36;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(title)}</div>
+                        <div style="font-size:0.72rem;color:#94a3b8;">${sub}</div>
+                    </div>
+                    <span class="material-icons-round" style="color:#cbd5e1;font-size:1.2rem;">chevron_right</span>
+                </div>
+            `;
+        }).join('');
+
+        listEl.querySelectorAll('[data-nav-key]').forEach(el => {
+            el.onclick = () => { currentFolderKey = el.dataset.navKey; renderFolder(); };
+        });
     }
 
-    // Poi una cartella per ogni attività/task con file
-    Object.entries(groups).forEach(([key, files]) => {
-        if (key === '__space__') return;
-        const title = itemMap[key] || 'Attività';
-        html += renderFolderSection(title, files, 'folder', '#4e92d8');
-    });
+    function renderFolder() {
+        const files = groups[currentFolderKey] || [];
+        const isSpace = currentFolderKey === '__space__';
+        const title = isSpace ? 'Commessa' : (itemMap[currentFolderKey] || 'Attività');
+        if (countEl) countEl.textContent = files.length + ' file';
 
-    return html;
+        listEl.innerHTML = `
+            <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.75rem;">
+                <button id="files-nav-back" style="display:flex;align-items:center;gap:3px;background:none;border:none;cursor:pointer;color:#4e92d8;font-size:0.8rem;font-weight:600;padding:0.25rem 0.4rem;border-radius:6px;transition:background 0.15s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='none'">
+                    <span class="material-icons-round" style="font-size:1rem;">arrow_back_ios</span> Tutti i file
+                </button>
+                <span class="material-icons-round" style="font-size:0.85rem;color:#cbd5e1;">chevron_right</span>
+                <span class="material-icons-round" style="font-size:1rem;color:${isSpace ? '#f59e0b' : '#4e92d8'};">${isSpace ? 'folder_special' : 'folder'}</span>
+                <span style="font-size:0.82rem;font-weight:700;color:#1a1f36;">${escapeHtml(title)}</span>
+            </div>
+            <div id="files-folder-items" style="display:flex;flex-direction:column;gap:5px;">
+                ${files.length === 0
+                    ? '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:1.25rem;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">Nessun file in questa cartella</div>'
+                    : files.map(f => renderFileRow(f)).join('')}
+            </div>
+        `;
+
+        listEl.querySelector('#files-nav-back').onclick = () => { currentFolderKey = null; renderRoot(); };
+
+        const folderItems = listEl.querySelector('#files-folder-items');
+        if (folderItems) wireFileActionButtons(folderItems, drawer, null, spaceId, () => {
+            // dopo delete: re-fetch e riapri stessa cartella
+            const savedKey = currentFolderKey;
+            refreshFiles(drawer, null, spaceId).then(() => {
+                // refreshFiles reinizializza il navigator, tentiamo di rientrare nella cartella se esiste ancora
+                // Per semplicità, dopo delete si torna alla root (refreshFiles già fa questo)
+            });
+        });
+    }
+
+    renderRoot();
 }
 
-function renderFolderSection(title, files, icon, color) {
-    const count = files.length;
-    return `
-        <div class="files-folder" style="border: 1px solid #e8edf3; border-radius: 10px; overflow: hidden; margin-bottom: 6px;">
-            <div class="files-folder-header" style="display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.75rem; background: #f8fafc; cursor: pointer; user-select: none; transition: background 0.15s;">
-                <span class="material-icons-round folder-chevron" style="font-size: 1.1rem; color: #94a3b8;">expand_more</span>
-                <span class="material-icons-round" style="font-size: 1.2rem; color: ${color};">${icon}</span>
-                <span style="font-size: 0.85rem; font-weight: 600; color: #1a1f36; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(title)}</span>
-                <span style="font-size: 0.7rem; color: #64748b; background: #e2e8f0; padding: 2px 8px; border-radius: 10px; flex-shrink: 0;">${count}</span>
-            </div>
-            <div class="files-folder-content" style="display: block; background: white; border-top: 1px solid #f1f5f9;">
-                ${files.map(f => renderFileRow(f)).join('')}
-            </div>
-        </div>
-    `;
+function wireFileActionButtons(container, drawer, itemId, spaceId, onDelete) {
+    container.querySelectorAll('[data-action="preview"]').forEach(b => {
+        b.onclick = (e) => { e.stopPropagation(); openFile(b.dataset.id, b.dataset.name, b.dataset.mime); };
+    });
+    container.querySelectorAll('[data-action="download"]').forEach(b => {
+        b.onclick = (e) => { e.stopPropagation(); downloadFile(b.dataset.id); };
+    });
+    container.querySelectorAll('[data-action="delete"]').forEach(b => {
+        b.onclick = async (e) => {
+            e.stopPropagation();
+            if (!confirm('Cancellare definitivamente?')) return;
+            await deleteFile(b.dataset.id);
+            if (onDelete) onDelete();
+            else refreshFiles(drawer, itemId, spaceId);
+        };
+    });
+    container.querySelectorAll('[data-action="toggle-share"]').forEach(b => {
+        b.onchange = async () => {
+            await supabase.from('pm_files').update({ share_with_children: b.checked }).eq('id', b.dataset.id);
+        };
+    });
 }
 
 async function refreshLinks(drawer, itemId, spaceId) {
