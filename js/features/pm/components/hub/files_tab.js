@@ -956,13 +956,13 @@ function driveIconConfig(fileType) {
     return map[fileType] || map.other;
 }
 
-function wireDriveBtn(container, itemId, spaceId, clientRef, onSaved) {
+function wireDriveBtn(container, itemId, spaceId, clientRef, onSaved, areaRef = null) {
     const btn = container.querySelector('#files-drive-btn');
     if (!btn) return;
-    btn.onclick = () => openDriveModal(itemId, spaceId, clientRef, onSaved);
+    btn.onclick = () => openDriveModal(itemId, spaceId, clientRef, onSaved, areaRef);
 }
 
-function openDriveModal(itemId, spaceId, clientRef, onSaved) {
+function openDriveModal(itemId, spaceId, clientRef, onSaved, areaRef = null) {
     document.getElementById('files-drive-modal')?.remove();
 
     const newFileOptions = [
@@ -1064,6 +1064,7 @@ function openDriveModal(itemId, spaceId, clientRef, onSaved) {
             pm_item_ref: itemId || null,
             pm_space_ref: itemId ? null : (spaceId || null),
             client_ref: clientRef || null,
+            area_ref: areaRef || null,
         };
 
         const { error } = await supabase.from('pm_files').insert(record);
@@ -1399,6 +1400,164 @@ function providerDisplay(p) {
         other: 'Link',
     };
     return map[p] || p;
+}
+
+// ===== Area-level file tab =====
+
+export function initAreaFilesTab(container, areaId) {
+    const pane = container.querySelector('#tab-files');
+    if (!pane) return;
+    pane.innerHTML = renderShell();
+    wireAreaUpload(pane, areaId);
+    wireDriveBtn(pane, null, null, null, () => refreshAreaFiles(pane, areaId), areaId);
+    refreshAreaFiles(pane, areaId);
+    // Share-folder a livello area non applicabile
+    const shareBtn = pane.querySelector('#files-share-folder-btn');
+    if (shareBtn) shareBtn.style.display = 'none';
+}
+
+function wireAreaUpload(pane, areaId) {
+    const dropZone = pane.querySelector('#files-drop-zone');
+    const input = pane.querySelector('#files-input');
+    if (!dropZone || !input) return;
+
+    dropZone.onclick = () => input.click();
+    dropZone.ondragover = (e) => {
+        e.preventDefault();
+        dropZone.style.background = '#eef4fb';
+        dropZone.style.borderColor = '#4e92d8';
+    };
+    dropZone.ondragleave = () => {
+        dropZone.style.background = '#fafbfc';
+        dropZone.style.borderColor = 'rgba(78, 146, 216, 0.3)';
+    };
+    dropZone.ondrop = (e) => {
+        e.preventDefault();
+        dropZone.style.background = '#fafbfc';
+        dropZone.style.borderColor = 'rgba(78, 146, 216, 0.3)';
+        handleAreaFiles(e.dataTransfer.files, pane, areaId);
+    };
+    input.onchange = () => {
+        handleAreaFiles(input.files, pane, areaId);
+        input.value = '';
+    };
+}
+
+async function handleAreaFiles(fileList, pane, areaId) {
+    if (!fileList || fileList.length === 0) return;
+    const statusEl = pane.querySelector('#files-upload-status');
+    const statusText = pane.querySelector('#files-upload-status-text');
+    if (statusEl) statusEl.classList.remove('hidden');
+
+    const files = Array.from(fileList).filter(f => {
+        if (f.size > MAX_FILE_BYTES) { alert('"' + f.name + '" supera il limite di 5GB.'); return false; }
+        return true;
+    });
+
+    let completed = 0;
+    const total = files.length;
+    const errors = [];
+    const updateStatus = () => {
+        if (statusText) statusText.textContent = total === 1
+            ? 'Caricamento ' + files[0].name + '...'
+            : 'Caricamento: ' + completed + '/' + total + ' completati...';
+    };
+    updateStatus();
+
+    const hasLarge = files.some(f => f.size > SINGLE_UPLOAD_LIMIT);
+    const concurrency = hasLarge ? 2 : 4;
+    const queue = [...files];
+    await Promise.all(Array.from({ length: Math.min(concurrency, total) }, async () => {
+        while (queue.length > 0) {
+            const file = queue.shift();
+            if (!file) break;
+            try {
+                if (file.size <= SINGLE_UPLOAD_LIMIT) {
+                    await uploadSingleArea(file, areaId);
+                } else {
+                    await uploadChunkedArea(file, areaId, () => {});
+                }
+            } catch (err) {
+                errors.push('"' + file.name + '": ' + err.message);
+            }
+            completed++;
+            updateStatus();
+        }
+    }));
+
+    if (statusEl) statusEl.classList.add('hidden');
+    if (errors.length) alert('Errori upload:\n' + errors.join('\n'));
+    refreshAreaFiles(pane, areaId);
+}
+
+async function uploadSingleArea(file, areaId) {
+    const base64 = await fileToBase64(file);
+    return callDropboxProxy({
+        action: 'upload',
+        file_base64: base64,
+        file_name: file.name,
+        mime_type: file.type || 'application/octet-stream',
+        area_ref: areaId,
+        file_size_bytes: file.size,
+        share_with_children: false,
+    });
+}
+
+async function uploadChunkedArea(file, areaId, onProgress) {
+    const totalSize = file.size;
+    let offset = 0;
+    let sessionId = null;
+    while (offset < totalSize) {
+        const end = Math.min(offset + CHUNK_SIZE, totalSize);
+        const isLast = end === totalSize;
+        const chunk = file.slice(offset, end);
+        const base64 = await blobToBase64(chunk);
+        if (sessionId === null) {
+            const r = await callDropboxProxy({ action: 'upload_session_start', file_base64: base64 });
+            sessionId = r.session_id;
+            if (!sessionId) throw new Error('session_id non ricevuto');
+        } else if (isLast) {
+            await callDropboxProxy({
+                action: 'upload_session_finish',
+                file_base64: base64,
+                session_id: sessionId,
+                offset,
+                file_name: file.name,
+                mime_type: file.type || 'application/octet-stream',
+                area_ref: areaId,
+                file_size_bytes: file.size,
+                share_with_children: false,
+            });
+        } else {
+            await callDropboxProxy({ action: 'upload_session_append', file_base64: base64, session_id: sessionId, offset });
+        }
+        offset = end;
+        if (onProgress) onProgress(offset / totalSize);
+    }
+}
+
+async function refreshAreaFiles(pane, areaId) {
+    const listEl = pane.querySelector('#files-list');
+    const countEl = pane.querySelector('#files-list-count');
+    if (!listEl) return;
+
+    const { data, error } = await supabase.from('pm_files').select('*')
+        .eq('area_ref', areaId)
+        .order('uploaded_at', { ascending: false });
+
+    if (error) {
+        listEl.innerHTML = '<div style="color:#ef4444;font-size:0.8rem;padding:0.5rem;">Errore: ' + error.message + '</div>';
+        return;
+    }
+    if (!data || data.length === 0) {
+        listEl.innerHTML = '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:1rem;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">Nessun file caricato</div>';
+        if (countEl) countEl.textContent = '';
+        return;
+    }
+
+    listEl.innerHTML = data.map(f => renderFileRow(f)).join('');
+    if (countEl) countEl.textContent = data.length + ' file';
+    wireFileActionButtons(listEl, pane, null, null, () => refreshAreaFiles(pane, areaId));
 }
 
 function escapeHtml(s) {

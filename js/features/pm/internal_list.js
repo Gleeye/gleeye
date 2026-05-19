@@ -562,20 +562,17 @@ export async function renderInternalProjects(container, initialFilter) {
 
             } else if (currentTab === 'file') {
                 content.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:200px;"><span class="loader"></span></div>';
-                const { initFilesTab } = await import('./components/hub/files_tab.js?v=8001');
+                const { initFilesTab, initAreaFilesTab } = await import('./components/hub/files_tab.js?v=8002');
 
                 if (currentClusterId !== 'all') {
                     // Single cluster: render file tab directly
                     content.innerHTML = '<div id="tab-files"></div>';
                     initFilesTab(content, null, currentClusterId);
                 } else {
-                    // Area level: accordion per space
+                    // Area level: sezione generale area + accordion per cluster/progetti
                     const areaSpacesForFiles = (spaces || []).filter(s => (s.area || '').toLowerCase() === activeArea.label.toLowerCase());
                     const sorted = [...areaSpacesForFiles].sort((a, b) => (b.is_cluster ? 1 : 0) - (a.is_cluster ? 1 : 0));
-                    if (sorted.length === 0) {
-                        content.innerHTML = '<div style="padding:3rem; text-align:center; color:var(--text-tertiary);">Nessun progetto in questa area.</div>';
-                        return;
-                    }
+
                     content.innerHTML = `
                         <style>
                             .af-section { background: white; border-radius: 16px; box-shadow: var(--shadow-sm); margin-bottom: 1rem; overflow: hidden; }
@@ -584,6 +581,21 @@ export async function renderInternalProjects(container, initialFilter) {
                             .af-body { padding: 1rem; }
                             .af-body.collapsed { display: none; }
                         </style>
+                        <div class="af-section">
+                            <div class="af-header" data-area-section>
+                                <div style="width:28px; height:28px; border-radius:8px; background:${activeArea.bg}; color:${activeArea.color}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                    <span class="material-icons-round" style="font-size:1rem;">cloud_upload</span>
+                                </div>
+                                <div style="flex:1; min-width:0;">
+                                    <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary);">File generali area</div>
+                                    <div style="font-size:0.6rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase;">Non associati a un cluster specifico</div>
+                                </div>
+                                <span class="af-toggle" style="color:var(--text-tertiary); font-size:1.1rem;">▲</span>
+                            </div>
+                            <div class="af-body" data-area-id="${activeArea.id}">
+                                <div id="tab-files-area-${activeArea.id}"></div>
+                            </div>
+                        </div>
                         ${sorted.map((s, i) => `
                             <div class="af-section">
                                 <div class="af-header" data-idx="${i}">
@@ -594,28 +606,48 @@ export async function renderInternalProjects(container, initialFilter) {
                                         <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary);">${s.name}</div>
                                         <div style="font-size:0.6rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase;">${s.is_cluster ? 'Cluster' : 'Progetto'}</div>
                                     </div>
-                                    <span class="af-toggle" style="color:var(--text-tertiary); font-size:1.1rem;" class="material-icons-round">${i === 0 ? '▲' : '▼'}</span>
+                                    <span class="af-toggle" style="color:var(--text-tertiary); font-size:1.1rem;">▼</span>
                                 </div>
-                                <div class="af-body ${i === 0 ? '' : 'collapsed'}" data-space-id="${s.id}">
+                                <div class="af-body collapsed" data-space-id="${s.id}">
                                     <div id="tab-files-${s.id}"></div>
                                 </div>
                             </div>
                         `).join('')}
                     `;
 
+                    // Inizializza subito la sezione area generale
+                    const areaBody = content.querySelector('[data-area-id]');
+                    if (areaBody) {
+                        const areaTabEl = areaBody.querySelector('#tab-files-area-' + activeArea.id);
+                        if (areaTabEl) {
+                            const wrapper = { querySelector: (sel) => sel === '#tab-files' ? areaTabEl : areaBody.querySelector(sel) };
+                            initAreaFilesTab(wrapper, activeArea.id);
+                        }
+                    }
+
+                    // Toggle sezione area generale
+                    const areaHeader = content.querySelector('[data-area-section]');
+                    if (areaHeader) {
+                        areaHeader.addEventListener('click', () => {
+                            const body = areaHeader.nextElementSibling;
+                            const toggle = areaHeader.querySelector('.af-toggle');
+                            const isCollapsed = body.classList.contains('collapsed');
+                            body.classList.toggle('collapsed', !isCollapsed);
+                            if (toggle) toggle.textContent = isCollapsed ? '▲' : '▼';
+                        });
+                    }
+
                     const initSection = (spaceId) => {
-                        const body = content.querySelector(`[data-space-id="${spaceId}"]`);
+                        const body = content.querySelector('[data-space-id="' + spaceId + '"]');
                         if (!body || body.dataset.initialized) return;
                         body.dataset.initialized = 'true';
-                        const tabEl = body.querySelector(`#tab-files-${spaceId}`);
+                        const tabEl = body.querySelector('#tab-files-' + spaceId);
                         if (!tabEl) return;
                         const wrapper = { querySelector: (sel) => sel === '#tab-files' ? tabEl : body.querySelector(sel) };
                         initFilesTab(wrapper, null, spaceId);
                     };
 
-                    if (sorted[0]) initSection(sorted[0].id);
-
-                    content.querySelectorAll('.af-header').forEach(header => {
+                    content.querySelectorAll('.af-header[data-idx]').forEach(header => {
                         header.addEventListener('click', () => {
                             const body = header.nextElementSibling;
                             const toggle = header.querySelector('.af-toggle');
