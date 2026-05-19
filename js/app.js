@@ -1,5 +1,5 @@
 import { initAuth } from './features/auth.js?v=8000';
-import { router } from './modules/router.js?v=8000';
+import { router } from './modules/router.js?v=8003';
 import { state } from '/js/modules/state.js?v=8000';
 import { initLayout, renderSidebarProfile } from './features/layout.js?v=8000';
 import { initNotifications } from './features/notifications.js?v=8000';

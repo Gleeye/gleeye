@@ -996,12 +996,29 @@ function openDriveModal(itemId, spaceId, clientRef, onSaved) {
     const urlInput = modal.querySelector('#drive-url-input');
     const nameInput = modal.querySelector('#drive-name-input');
 
-    // Auto-detect type e pre-compila nome quando si incolla l'URL
+    // Auto-detect type e fetch titolo reale quando si incolla l'URL
+    let titleFetchTimer = null;
     urlInput.addEventListener('input', () => {
-        const type = detectDriveType(urlInput.value);
-        const cfg = driveIconConfig(type);
-        nameInput.placeholder = cfg.label;
-        // se il nome è ancora vuoto o era un placeholder precedente, non forziamo
+        const url = urlInput.value.trim();
+        const type = detectDriveType(url);
+        nameInput.placeholder = driveIconConfig(type).label + '...';
+        clearTimeout(titleFetchTimer);
+        if (!url || !url.includes('google.com')) return;
+        // Debounce: aspetta 600ms dopo l'ultima digitazione
+        titleFetchTimer = setTimeout(async () => {
+            if (nameInput.value.trim()) return; // l'utente ha già scritto qualcosa
+            nameInput.placeholder = 'Recupero titolo...';
+            try {
+                const result = await callDropboxProxy({ action: 'get-drive-title', url });
+                if (result?.title) {
+                    nameInput.value = result.title;
+                } else {
+                    nameInput.placeholder = driveIconConfig(type).label;
+                }
+            } catch {
+                nameInput.placeholder = driveIconConfig(type).label;
+            }
+        }, 600);
     });
 
     // Crea nuovo
