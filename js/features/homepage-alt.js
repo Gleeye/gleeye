@@ -185,12 +185,7 @@ export async function renderHomepageAlt(container) {
     window.greetingText = greeting; // Store for inner content
 
     if (pageTitle) {
-        const isMobile = window.innerWidth <= 768;
-        if (isMobile) {
-            pageTitle.textContent = "Gleeye";
-        } else {
-            pageTitle.textContent = `${greeting}, ${firstName}!`;
-        }
+        pageTitle.textContent = `${greeting}, ${firstName}!`;
         pageTitle.classList.add('solid-title');
     }
 
