@@ -47,9 +47,10 @@
     </style>
     <link rel="stylesheet" href="css/components/custom-select.css?v=8000">
     
-    <!-- MOBILE HEADER FIX - BYPASS CACHE -->
+    <!-- MOBILE HEADER FIX -->
     <style>
         @media (max-width: 768px) {
+            /* ── TOP BAR LAYOUT ─────────────────────────────────────── */
             .top-bar {
                 height: auto !important;
                 min-height: 64px !important;
@@ -64,21 +65,29 @@
                 position: relative !important;
                 z-index: 1000 !important;
             }
-
-            /* il titolo non supera mai il 60% — lascia spazio alle icone */
+            /* Titolo: cresce ma non ruberà mai spazio alle icone */
             .top-bar .top-bar-left {
                 flex: 1 1 0 !important;
                 min-width: 0 !important;
-                max-width: 60% !important;
+                display: flex !important;
+                align-items: center !important;
+                gap: 8px !important;
                 overflow: hidden !important;
             }
-
             .top-bar h2 {
+                margin: 0 !important;
+                font-size: 1.1rem !important;
+                font-weight: 800 !important;
                 white-space: nowrap !important;
                 overflow: hidden !important;
                 text-overflow: ellipsis !important;
             }
-
+            /* Icone: NON si stringono, NON wrappano */
+            .top-bar .actions {
+                flex: 0 0 auto !important;
+                display: flex !important;
+                align-items: center !important;
+            }
             .header-actions {
                 display: flex !important;
                 flex-direction: row !important;
@@ -86,26 +95,12 @@
                 align-items: center !important;
                 gap: 8px !important;
             }
-
-            .top-bar .actions {
-                display: flex !important;
-                flex-direction: row !important;
-                align-items: center !important;
-                flex-wrap: nowrap !important;
-                flex-shrink: 0 !important;
-            }
-
-            .top-bar .icon-btn {
-                flex-shrink: 0 !important;
-            }
-
             .notification-container {
                 display: flex !important;
                 align-items: center !important;
-                flex-shrink: 0 !important;
             }
-
             .top-bar .icon-btn {
+                flex: 0 0 42px !important;
                 width: 42px !important;
                 height: 42px !important;
                 border-radius: 50% !important;
@@ -117,12 +112,6 @@
                 box-shadow: 0 2px 5px rgba(0,0,0,0.02) !important;
             }
 
-            .top-bar h2 {
-                margin: 0 !important;
-                font-size: 1.15rem !important;
-                font-weight: 800 !important;
-            }
-            
             #back-btn {
                 margin-right: 5px !important;
             }
