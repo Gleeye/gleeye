@@ -127,7 +127,7 @@ export async function renderAreaDetail(container, areaSlug) {
                 });
 
             } else if (currentTab === 'file') {
-                renderAreaFilesTab(tabContent, areaSpaces, area);
+                await renderAreaFilesTab(tabContent, areaSpaces, area);
             }
         };
 
@@ -287,72 +287,96 @@ export async function renderAreaDetail(container, areaSlug) {
 }
 
 async function renderAreaFilesTab(container, areaSpaces, area) {
-    const { initFilesTab } = await import('./components/hub/files_tab.js?v=8001');
+    const { initFilesTab, initAreaFilesTab } = await import('./components/hub/files_tab.js?v=8002');
 
-    const spacesWithShell = areaSpaces.map(s => ({
-        ...s,
-        _isCluster: s.is_cluster,
-    })).sort((a, b) => (b._isCluster ? 1 : 0) - (a._isCluster ? 1 : 0));
+    const sorted = [...areaSpaces].sort((a, b) => (b.is_cluster ? 1 : 0) - (a.is_cluster ? 1 : 0));
 
-    if (spacesWithShell.length === 0) {
+    if (sorted.length === 0) {
         container.innerHTML = '<div style="padding:3rem; text-align:center; color:var(--text-tertiary);">Nessun progetto in questa area.</div>';
         return;
     }
 
     container.innerHTML = `
         <style>
-            .area-files-section { background: white; border-radius: 16px; box-shadow: var(--shadow-sm); margin-bottom: 1rem; overflow: hidden; }
-            .area-files-section-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.9rem 1.25rem; cursor: pointer; border-bottom: 1px solid var(--surface-2); user-select: none; }
-            .area-files-section-header:hover { background: var(--surface-1); }
-            .area-files-section-body { padding: 1rem; }
-            .area-files-section-body.collapsed { display: none; }
+            .af-section { background: white; border-radius: 16px; box-shadow: var(--shadow-sm); margin-bottom: 1rem; overflow: hidden; }
+            .af-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.9rem 1.25rem; cursor: pointer; border-bottom: 1px solid var(--surface-2); user-select: none; }
+            .af-header:hover { background: var(--bg-secondary); }
+            .af-body { padding: 1rem; }
+            .af-body.collapsed { display: none; }
         </style>
-        ${spacesWithShell.map((s, i) => `
-            <div class="area-files-section">
-                <div class="area-files-section-header" data-idx="${i}">
+        ${sorted.map((s, i) => `
+            <div class="af-section">
+                <div class="af-header" data-idx="${i}">
                     <div style="width:28px; height:28px; border-radius:8px; background:${area.bg}; color:${area.color}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                        <span class="material-icons-round" style="font-size:1rem;">${s._isCluster ? 'workspaces' : 'folder_special'}</span>
+                        <span class="material-icons-round" style="font-size:1rem;">${s.is_cluster ? 'workspaces' : 'folder_special'}</span>
                     </div>
                     <div style="flex:1; min-width:0;">
                         <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary);">${s.name}</div>
-                        <div style="font-size:0.6rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase;">${s._isCluster ? 'Cluster' : 'Progetto'}</div>
+                        <div style="font-size:0.6rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase;">${s.is_cluster ? 'Cluster' : 'Progetto'}</div>
                     </div>
-                    <span class="material-icons-round toggle-icon" style="color:var(--text-tertiary); font-size:1.1rem; transition:transform 0.2s;">${i === 0 ? 'expand_less' : 'expand_more'}</span>
+                    <span class="af-toggle" style="color:var(--text-tertiary); font-size:1.1rem;">${i === 0 ? '▲' : '▼'}</span>
                 </div>
-                <div class="area-files-section-body ${i === 0 ? '' : 'collapsed'}" data-space-id="${s.id}">
+                <div class="af-body ${i === 0 ? '' : 'collapsed'}" data-space-id="${s.id}">
                     <div id="tab-files-${s.id}"></div>
                 </div>
             </div>
         `).join('')}
+        <div class="af-section" style="border: 1px dashed #e2e8f0; background: #fafbfc; box-shadow: none;">
+            <div class="af-header" data-area-section style="border-bottom: none;">
+                <span class="material-icons-round" style="font-size:1.2rem; color:#94a3b8;">cloud_upload</span>
+                <div style="flex:1; min-width:0;">
+                    <div style="font-size:0.82rem; font-weight:600; color:var(--text-secondary);">File generali area</div>
+                    <div style="font-size:0.6rem; color:var(--text-tertiary);">File non legati a un cluster specifico</div>
+                </div>
+                <span class="af-toggle" style="color:var(--text-tertiary); font-size:1.1rem;">▼</span>
+            </div>
+            <div class="af-body collapsed" data-area-id="${area.id}">
+                <div id="tab-files-area-${area.id}"></div>
+            </div>
+        </div>
     `;
 
-    // Init first section immediately, lazy-load others on expand
     const initSection = (spaceId) => {
-        const body = container.querySelector(`[data-space-id="${spaceId}"]`);
+        const body = container.querySelector('[data-space-id="' + spaceId + '"]');
         if (!body || body.dataset.initialized) return;
         body.dataset.initialized = 'true';
-        const tabFilesEl = body.querySelector(`#tab-files-${spaceId}`);
-        if (!tabFilesEl) return;
-        // initFilesTab expects drawer.querySelector('#tab-files'), so we wrap
-        const wrapper = { querySelector: (sel) => sel === '#tab-files' ? tabFilesEl : body.querySelector(sel) };
+        const tabEl = body.querySelector('#tab-files-' + spaceId);
+        if (!tabEl) return;
+        const wrapper = { querySelector: (sel) => sel === '#tab-files' ? tabEl : body.querySelector(sel) };
         initFilesTab(wrapper, null, spaceId);
     };
 
-    if (spacesWithShell[0]) initSection(spacesWithShell[0].id);
+    if (sorted[0]) initSection(sorted[0].id);
 
-    container.querySelectorAll('.area-files-section-header').forEach(header => {
-        header.addEventListener('click', () => {
-            const idx = header.dataset.idx;
-            const body = header.nextElementSibling;
-            const icon = header.querySelector('.toggle-icon');
+    // Toggle "File generali area" section (lazy-init on first open)
+    const areaHeader = container.querySelector('[data-area-section]');
+    if (areaHeader) {
+        areaHeader.addEventListener('click', () => {
+            const body = areaHeader.nextElementSibling;
+            const toggle = areaHeader.querySelector('.af-toggle');
             const isCollapsed = body.classList.contains('collapsed');
             body.classList.toggle('collapsed', !isCollapsed);
-            icon.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(-180deg)';
-            icon.textContent = isCollapsed ? 'expand_less' : 'expand_more';
+            if (toggle) toggle.textContent = isCollapsed ? '▲' : '▼';
             if (isCollapsed) {
-                const spaceId = body.dataset.spaceId;
-                initSection(spaceId);
+                const areaTabEl = body.querySelector('#tab-files-area-' + area.id);
+                if (areaTabEl && !body.dataset.initialized) {
+                    body.dataset.initialized = 'true';
+                    const wrapper = { querySelector: (sel) => sel === '#tab-files' ? areaTabEl : body.querySelector(sel) };
+                    initAreaFilesTab(wrapper, area.id);
+                }
             }
+        });
+    }
+
+    // Toggle cluster/project sections (lazy-init on expand)
+    container.querySelectorAll('.af-header[data-idx]').forEach(header => {
+        header.addEventListener('click', () => {
+            const body = header.nextElementSibling;
+            const toggle = header.querySelector('.af-toggle');
+            const isCollapsed = body.classList.contains('collapsed');
+            body.classList.toggle('collapsed', !isCollapsed);
+            if (toggle) toggle.textContent = isCollapsed ? '▲' : '▼';
+            if (isCollapsed) initSection(body.dataset.spaceId);
         });
     });
 }
