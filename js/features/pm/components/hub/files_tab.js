@@ -657,40 +657,240 @@ async function refreshClientFiles(container, clientId) {
     const countEl = container.querySelector('#files-list-count');
     if (!listEl) return;
 
-    const { data, error } = await supabase.from('pm_files')
-        .select('*')
-        .eq('client_ref', clientId)
-        .is('pm_item_ref', null)
-        .is('pm_space_ref', null)
+    listEl.innerHTML = '<div style="text-align:center;padding:2rem;color:#94a3b8;font-size:0.8rem;">Caricamento...</div>';
+
+    // 1. File diretti sul cliente
+    const { data: clientFiles } = await supabase.from('pm_files').select('*')
+        .eq('client_ref', clientId).is('pm_space_ref', null).is('pm_item_ref', null)
         .order('uploaded_at', { ascending: false });
 
-    if (error) {
-        listEl.innerHTML = `<div style="color:#ef4444;font-size:0.8rem;padding:0.5rem;">Errore: ${error.message}</div>`;
-        return;
-    }
-    if (!data || data.length === 0) {
-        listEl.innerHTML = '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:1rem;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">Nessun file caricato</div>';
-        if (countEl) countEl.textContent = '';
-        return;
+    // 2. Ordini di questo cliente
+    const { data: orders } = await supabase.from('orders').select('id, title, order_number')
+        .eq('client_id', clientId);
+
+    const orderIds = (orders || []).map(o => o.id);
+
+    // 3. PM spaces collegati agli ordini
+    let spaceMap = {}; // spaceId → label commessa
+    let allSpaceIds = [];
+    if (orderIds.length > 0) {
+        const { data: spaces } = await supabase.from('pm_spaces').select('id, name, ref_ordine')
+            .in('ref_ordine', orderIds);
+        (spaces || []).forEach(s => {
+            const ord = (orders || []).find(o => o.id === s.ref_ordine);
+            const num = ord?.order_number ? 'Commessa ' + ord.order_number : '';
+            const ttl = ord?.title || s.name || '';
+            spaceMap[s.id] = num && ttl ? num + ' — ' + ttl : (num || ttl || 'Commessa');
+            allSpaceIds.push(s.id);
+        });
     }
 
-    listEl.innerHTML = data.map(f => renderFileRow(f)).join('');
-    if (countEl) countEl.textContent = data.length + ' file';
+    // 4. Items in quegli spaces
+    let itemMap = {}; // itemId → { title, spaceId }
+    let spaceFiles = [];
+    if (allSpaceIds.length > 0) {
+        const { data: items } = await supabase.from('pm_items').select('id, title, space_ref')
+            .in('space_ref', allSpaceIds).is('archived_at', null);
+        (items || []).forEach(i => { itemMap[i.id] = { title: i.title, spaceId: i.space_ref }; });
 
-    listEl.querySelectorAll('[data-action="preview"]').forEach(b => {
-        b.onclick = (e) => { e.stopPropagation(); openFile(b.dataset.id, b.dataset.name, b.dataset.mime); };
+        const itemIds = Object.keys(itemMap);
+        let q = supabase.from('pm_files').select('*');
+        if (itemIds.length > 0) {
+            q = q.or('pm_space_ref.in.(' + allSpaceIds.join(',') + '),pm_item_ref.in.(' + itemIds.join(',') + ')');
+        } else {
+            q = q.in('pm_space_ref', allSpaceIds);
+        }
+        const { data: sf } = await q.order('uploaded_at', { ascending: false });
+        spaceFiles = sf || [];
+    }
+
+    initClientNavigator(listEl, countEl, clientFiles || [], spaceFiles, spaceMap, itemMap, container, clientId);
+}
+
+function initClientNavigator(listEl, countEl, directFiles, spaceFiles, spaceMap, itemMap, container, clientId) {
+    // Raggruppa i file delle commesse per space
+    const spaceGroups = {}; // spaceId → files[]
+    spaceFiles.forEach(f => {
+        let sid = f.pm_space_ref;
+        if (!sid && f.pm_item_ref) sid = itemMap[f.pm_item_ref]?.spaceId;
+        if (!sid) return;
+        if (!spaceGroups[sid]) spaceGroups[sid] = [];
+        spaceGroups[sid].push(f);
     });
-    listEl.querySelectorAll('[data-action="download"]').forEach(b => {
-        b.onclick = (e) => { e.stopPropagation(); downloadFile(b.dataset.id); };
+
+    // Per ogni space: mappa item locale (itemId → title)
+    const spaceItemMaps = {}; // spaceId → { itemId: title }
+    Object.entries(itemMap).forEach(([itemId, info]) => {
+        if (!spaceItemMaps[info.spaceId]) spaceItemMaps[info.spaceId] = {};
+        spaceItemMaps[info.spaceId][itemId] = info.title;
     });
-    listEl.querySelectorAll('[data-action="delete"]').forEach(b => {
-        b.onclick = async (e) => {
-            e.stopPropagation();
-            if (!confirm('Cancellare definitivamente?')) return;
-            await deleteFile(b.dataset.id);
-            refreshClientFiles(container, clientId);
-        };
-    });
+
+    // Stack navigazione: ogni entry ha { label, render }
+    const stack = [];
+
+    function pushLevel(label, renderFn) {
+        stack.push({ label, render: renderFn });
+        renderFn();
+    }
+
+    function popLevel() {
+        stack.pop();
+        if (stack.length > 0) stack[stack.length - 1].render();
+    }
+
+    function renderBreadcrumb(currentLabel) {
+        const parts = stack.slice(0, -1).map((s, i) => `<span data-stack-idx="${i}" style="color:#4e92d8;cursor:pointer;font-weight:600;font-size:0.78rem;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(s.label)}</span>`);
+        parts.push(`<span style="font-size:0.78rem;font-weight:700;color:#1a1f36;">${escapeHtml(currentLabel)}</span>`);
+        const bc = document.createElement('div');
+        bc.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:0.75rem;flex-wrap:wrap;';
+        bc.innerHTML = parts.join('<span class="material-icons-round" style="font-size:0.85rem;color:#cbd5e1;">chevron_right</span>');
+        bc.querySelectorAll('[data-stack-idx]').forEach(el => {
+            el.onclick = () => {
+                const idx = parseInt(el.dataset.stackIdx);
+                stack.splice(idx + 1);
+                stack[idx].render();
+            };
+        });
+        // Back button
+        if (stack.length > 1) {
+            const back = document.createElement('button');
+            back.style.cssText = 'display:flex;align-items:center;gap:3px;background:none;border:none;cursor:pointer;color:#4e92d8;font-size:0.8rem;font-weight:600;padding:0.25rem 0.4rem;border-radius:6px;margin-bottom:0.5rem;';
+            back.innerHTML = '<span class="material-icons-round" style="font-size:1rem;">arrow_back_ios</span>' + escapeHtml(stack[stack.length - 2].label);
+            back.onmouseover = () => { back.style.background = '#eff6ff'; };
+            back.onmouseout = () => { back.style.background = 'none'; };
+            back.onclick = popLevel;
+            return [back, bc];
+        }
+        return [bc];
+    }
+
+    function renderFolderRow(icon, color, title, subtitle, onClick) {
+        const el = document.createElement('div');
+        el.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;background:white;border:1px solid #e8edf3;border-radius:10px;cursor:pointer;transition:border-color 0.15s;';
+        el.innerHTML = `
+            <span class="material-icons-round" style="color:${color};font-size:1.8rem;flex-shrink:0;">${icon}</span>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:0.9rem;font-weight:600;color:#1a1f36;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(title)}</div>
+                <div style="font-size:0.72rem;color:#94a3b8;">${escapeHtml(subtitle)}</div>
+            </div>
+            <span class="material-icons-round" style="color:#cbd5e1;font-size:1.2rem;">chevron_right</span>
+        `;
+        el.onmouseover = () => { el.style.borderColor = '#4e92d8'; };
+        el.onmouseout = () => { el.style.borderColor = '#e8edf3'; };
+        el.onclick = onClick;
+        return el;
+    }
+
+    function renderFileList(files, navHeader) {
+        listEl.innerHTML = '';
+        navHeader.forEach(el => listEl.appendChild(el));
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;flex-direction:column;gap:5px;';
+        if (!files || files.length === 0) {
+            wrap.innerHTML = '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:1.25rem;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">Nessun file in questa cartella</div>';
+        } else {
+            wrap.innerHTML = files.map(f => renderFileRow(f)).join('');
+            wireFileActionButtons(wrap, null, null, null, () => refreshClientFiles(container, clientId));
+        }
+        listEl.appendChild(wrap);
+    }
+
+    // ROOT: cartella cliente + cartelle commesse
+    function renderRoot() {
+        const total = directFiles.length + spaceFiles.length;
+        if (countEl) countEl.textContent = total + ' file';
+        listEl.innerHTML = '';
+
+        const spacesWithFiles = Object.keys(spaceGroups);
+        if (directFiles.length === 0 && spacesWithFiles.length === 0) {
+            listEl.innerHTML = '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:1rem;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">Nessun file caricato</div>';
+            return;
+        }
+
+        const rows = [];
+
+        // Cartella documenti diretti cliente
+        if (directFiles.length > 0) {
+            rows.push(renderFolderRow('folder_special', '#f59e0b', 'Documenti cliente',
+                directFiles.length + ' file',
+                () => pushLevel('Documenti cliente', () => {
+                    const header = renderBreadcrumb('Documenti cliente');
+                    if (countEl) countEl.textContent = directFiles.length + ' file';
+                    renderFileList(directFiles, header);
+                })
+            ));
+        }
+
+        // Cartelle commesse
+        spacesWithFiles.forEach(spaceId => {
+            const label = spaceMap[spaceId] || 'Commessa';
+            const count = spaceGroups[spaceId].length;
+            rows.push(renderFolderRow('folder', '#4e92d8', label,
+                count + ' file',
+                () => pushLevel(label, () => renderCommessaLevel(spaceId, label))
+            ));
+        });
+
+        rows.forEach(r => listEl.appendChild(r));
+    }
+
+    // LIVELLO COMMESSA: sub-cartelle per task (stesso stile di initSpaceNavigator)
+    function renderCommessaLevel(spaceId, spaceLabel) {
+        const files = spaceGroups[spaceId] || [];
+        const localItemMap = spaceItemMaps[spaceId] || {};
+        if (countEl) countEl.textContent = files.length + ' file';
+
+        // Raggruppa per item
+        const groups = {};
+        files.forEach(f => {
+            const key = f.pm_item_ref || '__space__';
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(f);
+        });
+
+        const header = renderBreadcrumb(spaceLabel);
+        listEl.innerHTML = '';
+        header.forEach(el => listEl.appendChild(el));
+
+        const keys = Object.keys(groups);
+        if (keys.length === 0) {
+            listEl.insertAdjacentHTML('beforeend', '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:1rem;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">Nessun file</div>');
+            return;
+        }
+
+        // Se c'è un solo gruppo e sono tutti file di space, mostrali flat (no sub-cartelle)
+        if (keys.length === 1 && keys[0] === '__space__') {
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'display:flex;flex-direction:column;gap:5px;';
+            wrap.innerHTML = groups['__space__'].map(f => renderFileRow(f)).join('');
+            wireFileActionButtons(wrap, null, null, null, () => refreshClientFiles(container, clientId));
+            listEl.appendChild(wrap);
+            return;
+        }
+
+        // Altrimenti mostra cartelle per ogni task/attività
+        keys.forEach(key => {
+            const isSpace = key === '__space__';
+            const title = isSpace ? 'File commessa' : (localItemMap[key] || 'Attività');
+            const taskFiles = groups[key];
+            const row = renderFolderRow(
+                isSpace ? 'folder_special' : 'folder',
+                isSpace ? '#f59e0b' : '#4e92d8',
+                title,
+                taskFiles.length + ' file',
+                () => pushLevel(title, () => {
+                    const hdr = renderBreadcrumb(title);
+                    if (countEl) countEl.textContent = taskFiles.length + ' file';
+                    renderFileList(taskFiles, hdr);
+                })
+            );
+            listEl.appendChild(row);
+        });
+    }
+
+    // Inizia dalla root
+    stack.push({ label: 'File', render: renderRoot });
+    renderRoot();
 }
 
 function wireAddLink(drawer, itemId, spaceId) {
