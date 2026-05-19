@@ -908,7 +908,8 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                 ${!isInternal && order ? `<button class="hub-tab" data-tab="incarichi"><span class="material-icons-round">assignment_ind</span>Incarichi</button>` : ''}
                                 ${space?.is_cluster ? `<button id="mobile-projects-tab" class="hub-tab" data-tab="projects" style="display: none;"><span class="material-icons-round">lan</span>Progetti</button>` : ''}
                                 <button class="hub-tab" data-tab="docs"><span class="material-icons-round">description</span>Documenti</button>
-                                
+                                <button class="hub-tab" data-tab="files"><span class="material-icons-round">folder</span>File</button>
+
                                 <!-- Mobile Risorse Tab Item -->
                                 <button id="mobile-risorse-tab" class="hub-tab" data-tab="risorse" style="display: none; border: 1px solid transparent; color: var(--brand-blue);">
                                     <span class="material-icons-round">cloud_queue</span>Risorse
@@ -1068,6 +1069,12 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                             }
                         }
                     );
+                    break;
+                case 'files':
+                    tabContent.style.padding = '1.5rem';
+                    tabContent.innerHTML = '<div id="tab-files"></div>';
+                    const { initFilesTab } = await import('./components/hub/files_tab.js?v=8001');
+                    initFilesTab(tabContent, null, spaceId);
                     break;
                 case 'docs':
                     tabContent.style.padding = '0';

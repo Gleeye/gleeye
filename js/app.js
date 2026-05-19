@@ -49,17 +49,16 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Gleeye Workspace v294 Booting...');
     initThemeLogic();
 
-    // Init Feature Modals
-    // Init Feature Modals Lazily
-    import('./features/settings.js?v=8000').then(m => m.initSettingsModals());
-    import('./features/invoices.js?v=8000').then(m => m.InvoiceLogic.initInvoiceModals());
-    import('./features/collaborators.js?v=8000').then(m => m.initCollaboratorModals());
-    import('./features/collaborator_services.js?v=8000').then(m => m.initCollaboratorServiceModals());
-    import('./features/bank_transactions.js?v=8000').then(m => m.initBankTransactionModals());
-    import('./features/payments.js?v=8000').then(m => m.initPaymentModals());
-    import('./features/services.js?v=8000').then(m => m.initServiceModals());
-    import('./features/white_label_partners.js?v=8000').then(m => m.initWhiteLabelPartnerModals());
-    import('./features/sap_services.js?v=8000').then(m => m.initSapServiceModals());
+    // Init Feature Modals Lazily — catch prevents unhandledrejection from crashing the homepage
+    import('./features/settings.js?v=8000').then(m => m.initSettingsModals()).catch(e => console.warn('[app] settings modals:', e));
+    import('./features/invoices.js?v=8000').then(m => m.InvoiceLogic.initInvoiceModals()).catch(e => console.warn('[app] invoices modals:', e));
+    import('./features/collaborators.js?v=8000').then(m => m.initCollaboratorModals()).catch(e => console.warn('[app] collaborators modals:', e));
+    import('./features/collaborator_services.js?v=8000').then(m => m.initCollaboratorServiceModals()).catch(e => console.warn('[app] collaborator_services modals:', e));
+    import('./features/bank_transactions.js?v=8000').then(m => m.initBankTransactionModals()).catch(e => console.warn('[app] bank_transactions modals:', e));
+    import('./features/payments.js?v=8000').then(m => m.initPaymentModals()).catch(e => console.warn('[app] payments modals:', e));
+    import('./features/services.js?v=8000').then(m => m.initServiceModals()).catch(e => console.warn('[app] services modals:', e));
+    import('./features/white_label_partners.js?v=8000').then(m => m.initWhiteLabelPartnerModals()).catch(e => console.warn('[app] wl_partners modals:', e));
+    import('./features/sap_services.js?v=8000').then(m => m.initSapServiceModals()).catch(e => console.warn('[app] sap_services modals:', e));
 
     // Init Layout (Sidebar toggles) - run immediately since UI is visible
     initLayout();

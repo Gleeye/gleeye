@@ -7,7 +7,7 @@ import { showGlobalAlert } from '../modules/utils.js?v=8000';
 import { activityTranslate } from '../modules/pm_activity_helper.js?v=8000';
 import { glossaryTip } from '../modules/help_tooltip.js?v=8002';
 import { inlineHelpButton, attachInlineHelp } from '../modules/help_inline_ai.js?v=8001';
-import { initClientFilesTab } from './pm/components/hub/files_tab.js';
+import { initClientFilesTab } from './pm/components/hub/files_tab.js?v=8019';
 // Caricato on-demand: side-effect installa window.openReminderModal
 import './clients/reminder_compose.js?v=8008';
 

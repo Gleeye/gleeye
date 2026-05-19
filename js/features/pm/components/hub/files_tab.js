@@ -148,11 +148,33 @@ async function refreshFiles(drawer, itemId, spaceId) {
     const countEl = drawer.querySelector('#files-list-count');
     if (!listEl) return;
 
-    // Carica file di QUESTO item specifico (RLS filtra automaticamente per ruolo)
-    let q = supabase.from('pm_files').select('*');
-    if (itemId) q = q.eq('pm_item_ref', itemId);
-    else if (spaceId) q = q.eq('pm_space_ref', spaceId).is('pm_item_ref', null);
-    const { data, error } = await q.order('uploaded_at', { ascending: false });
+    let data, error;
+    let itemMap = {}; // itemId → title
+    const isSpaceView = !itemId && !!spaceId;
+
+    if (itemId) {
+        ({ data, error } = await supabase.from('pm_files').select('*')
+            .eq('pm_item_ref', itemId)
+            .order('uploaded_at', { ascending: false }));
+    } else if (spaceId) {
+        const { data: items } = await supabase.from('pm_items').select('id, title')
+            .eq('space_ref', spaceId).is('archived_at', null);
+        const itemIds = (items || []).map(i => i.id);
+        items?.forEach(i => { itemMap[i.id] = i.title; });
+
+        if (itemIds.length > 0) {
+            ({ data, error } = await supabase.from('pm_files').select('*')
+                .or('pm_space_ref.eq.' + spaceId + ',pm_item_ref.in.(' + itemIds.join(',') + ')')
+                .order('uploaded_at', { ascending: false }));
+        } else {
+            ({ data, error } = await supabase.from('pm_files').select('*')
+                .eq('pm_space_ref', spaceId).is('pm_item_ref', null)
+                .order('uploaded_at', { ascending: false }));
+        }
+    } else {
+        listEl.innerHTML = '';
+        return;
+    }
 
     if (error) {
         listEl.innerHTML = `<div style="color: #ef4444; font-size: 0.8rem; padding: 0.5rem;">Errore caricamento: ${error.message}</div>`;
@@ -165,32 +187,115 @@ async function refreshFiles(drawer, itemId, spaceId) {
         return;
     }
 
+    // Vista commessa: navigatore a cartelle (click per entrare, freccia per tornare)
+    if (isSpaceView) {
+        initSpaceNavigator(listEl, countEl, data, itemMap, drawer, spaceId);
+        return; // il navigator gestisce i bottoni internamente
+    }
+
     listEl.innerHTML = data.map(f => renderFileRow(f)).join('');
     if (countEl) countEl.textContent = data.length + ' file';
 
-    // Wire bottoni
-    listEl.querySelectorAll('[data-action="preview"]').forEach(b => {
-        b.onclick = (e) => {
-            e.stopPropagation();
-            openFile(b.dataset.id, b.dataset.name, b.dataset.mime);
-        };
+    // Wire bottoni (vista item singolo / non-space)
+    wireFileActionButtons(listEl, drawer, itemId, spaceId);
+}
+
+function initSpaceNavigator(listEl, countEl, allData, itemMap, drawer, spaceId) {
+    // Costruisci gruppi: key = pm_item_ref || '__space__'
+    const groups = {};
+    allData.forEach(f => {
+        const key = f.pm_item_ref || '__space__';
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(f);
     });
-    listEl.querySelectorAll('[data-action="download"]').forEach(b => {
+
+    let currentFolderKey = null; // null = root
+
+    function renderRoot() {
+        const keys = Object.keys(groups);
+        if (countEl) countEl.textContent = allData.length + ' file';
+
+        listEl.innerHTML = keys.map(key => {
+            const isSpace = key === '__space__';
+            const title = isSpace ? 'Commessa' : (itemMap[key] || 'Attività');
+            const icon = isSpace ? 'folder_special' : 'folder';
+            const color = isSpace ? '#f59e0b' : '#4e92d8';
+            const count = groups[key].length;
+            const sub = count === 1 ? '1 file' : count + ' file';
+            return `
+                <div data-nav-key="${escapeAttr(key)}" style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;background:white;border:1px solid #e8edf3;border-radius:10px;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor='#4e92d8'" onmouseout="this.style.borderColor='#e8edf3'">
+                    <span class="material-icons-round" style="color:${color};font-size:1.8rem;flex-shrink:0;">${icon}</span>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:0.9rem;font-weight:600;color:#1a1f36;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(title)}</div>
+                        <div style="font-size:0.72rem;color:#94a3b8;">${sub}</div>
+                    </div>
+                    <span class="material-icons-round" style="color:#cbd5e1;font-size:1.2rem;">chevron_right</span>
+                </div>
+            `;
+        }).join('');
+
+        listEl.querySelectorAll('[data-nav-key]').forEach(el => {
+            el.onclick = () => { currentFolderKey = el.dataset.navKey; renderFolder(); };
+        });
+    }
+
+    function renderFolder() {
+        const files = groups[currentFolderKey] || [];
+        const isSpace = currentFolderKey === '__space__';
+        const title = isSpace ? 'Commessa' : (itemMap[currentFolderKey] || 'Attività');
+        if (countEl) countEl.textContent = files.length + ' file';
+
+        listEl.innerHTML = `
+            <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.75rem;">
+                <button id="files-nav-back" style="display:flex;align-items:center;gap:3px;background:none;border:none;cursor:pointer;color:#4e92d8;font-size:0.8rem;font-weight:600;padding:0.25rem 0.4rem;border-radius:6px;transition:background 0.15s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='none'">
+                    <span class="material-icons-round" style="font-size:1rem;">arrow_back_ios</span> Tutti i file
+                </button>
+                <span class="material-icons-round" style="font-size:0.85rem;color:#cbd5e1;">chevron_right</span>
+                <span class="material-icons-round" style="font-size:1rem;color:${isSpace ? '#f59e0b' : '#4e92d8'};">${isSpace ? 'folder_special' : 'folder'}</span>
+                <span style="font-size:0.82rem;font-weight:700;color:#1a1f36;">${escapeHtml(title)}</span>
+            </div>
+            <div id="files-folder-items" style="display:flex;flex-direction:column;gap:5px;">
+                ${files.length === 0
+                    ? '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:1.25rem;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">Nessun file in questa cartella</div>'
+                    : files.map(f => renderFileRow(f)).join('')}
+            </div>
+        `;
+
+        listEl.querySelector('#files-nav-back').onclick = () => { currentFolderKey = null; renderRoot(); };
+
+        const folderItems = listEl.querySelector('#files-folder-items');
+        if (folderItems) wireFileActionButtons(folderItems, drawer, null, spaceId, () => {
+            // dopo delete: re-fetch e riapri stessa cartella
+            const savedKey = currentFolderKey;
+            refreshFiles(drawer, null, spaceId).then(() => {
+                // refreshFiles reinizializza il navigator, tentiamo di rientrare nella cartella se esiste ancora
+                // Per semplicità, dopo delete si torna alla root (refreshFiles già fa questo)
+            });
+        });
+    }
+
+    renderRoot();
+}
+
+function wireFileActionButtons(container, drawer, itemId, spaceId, onDelete) {
+    container.querySelectorAll('[data-action="preview"]').forEach(b => {
+        b.onclick = (e) => { e.stopPropagation(); openFile(b.dataset.id, b.dataset.name, b.dataset.mime); };
+    });
+    container.querySelectorAll('[data-action="download"]').forEach(b => {
         b.onclick = (e) => { e.stopPropagation(); downloadFile(b.dataset.id); };
     });
-    listEl.querySelectorAll('[data-action="delete"]').forEach(b => {
+    container.querySelectorAll('[data-action="delete"]').forEach(b => {
         b.onclick = async (e) => {
             e.stopPropagation();
             if (!confirm('Cancellare definitivamente?')) return;
             await deleteFile(b.dataset.id);
-            refreshFiles(drawer, itemId, spaceId);
+            if (onDelete) onDelete();
+            else refreshFiles(drawer, itemId, spaceId);
         };
     });
-    listEl.querySelectorAll('[data-action="toggle-share"]').forEach(b => {
+    container.querySelectorAll('[data-action="toggle-share"]').forEach(b => {
         b.onchange = async () => {
-            await supabase.from('pm_files')
-                .update({ share_with_children: b.checked })
-                .eq('id', b.dataset.id);
+            await supabase.from('pm_files').update({ share_with_children: b.checked }).eq('id', b.dataset.id);
         };
     });
 }
@@ -240,7 +345,7 @@ function renderFileRow(f) {
     const previewable = isPreviewable(f.mime_type, f.file_name);
     const clickAction = previewable ? 'preview' : 'download';
     return `
-        <div style="display: flex; align-items: center; gap: 0.65rem; padding: 0.6rem 0.75rem; background: white; border: 1px solid #f1f5f9; border-radius: 10px;">
+        <div style="display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.75rem 0.55rem 2rem; background: white; border-bottom: 1px solid #f8fafc;">
             <div data-action="${clickAction}" data-id="${f.id}" data-name="${escapeHtml(f.file_name)}" data-mime="${escapeAttr(f.mime_type || '')}" style="display: flex; align-items: center; gap: 0.65rem; flex: 1; min-width: 0; cursor: pointer;" title="${previewable ? 'Apri anteprima' : 'Scarica'}">
                 <span class="material-icons-round" style="color: #4e92d8; font-size: 1.3rem; flex-shrink: 0;">${icon}</span>
                 <div style="flex: 1; min-width: 0;">
