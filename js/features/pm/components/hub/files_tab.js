@@ -1,6 +1,5 @@
 // Tab "📂 File" nell'hub_drawer.
-// Gestisce file Dropbox (Categoria B) + link esterni (Categoria C) con
-// permessi gerarchici + toggle "Condividi sotto".
+// Gestisce file Dropbox + Google Drive (link/crea) + link esterni.
 //
 // Esporta: initFilesTab(drawer, itemId, spaceId)
 //          initClientFilesTab(container, clientId)
@@ -22,6 +21,7 @@ export function initFilesTab(drawer, itemId, spaceId) {
     wireUpload(drawer, itemId, spaceId);
     wireAddLink(drawer, itemId, spaceId);
     wireShareFolder(drawer, itemId, spaceId);
+    wireDriveBtn(pane, itemId, spaceId, null, () => refresh(drawer, itemId, spaceId));
     refresh(drawer, itemId, spaceId);
 }
 
@@ -95,7 +95,7 @@ function renderShell() {
             ">
                 <span class="material-icons-round" style="font-size: 2.5rem; color: #4e92d8; opacity: 0.5;">cloud_upload</span>
                 <div style="font-weight: 600; color: #1a1f36; margin-top: 0.5rem; font-size: 0.95rem;">Trascina qui i file o clicca</div>
-                <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem;">Caricamento su Dropbox · max 5MB (per ora)</div>
+                <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem;">Caricamento su Dropbox · fino a 5GB per file</div>
                 <input type="file" id="files-input" multiple style="display:none;">
             </div>
 
@@ -110,8 +110,11 @@ function renderShell() {
                     <h4 style="font-size: 0.7rem; font-weight: 700; color: #94a3b8; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">📎 File caricati</h4>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                         <span id="files-list-count" style="font-size: 0.7rem; color: #94a3b8;"></span>
+                        <button id="files-drive-btn" class="primary-btn small" title="Collega file Google Drive o crea nuovo Doc/Sheet/Slides" style="padding: 0.3rem 0.75rem; font-size: 0.7rem; background: #e8f0fe; color: #1a73e8; border: 1px solid #c5d8fd;">
+                            <span class="material-icons-round" style="font-size: 14px;">add_to_drive</span> Drive
+                        </button>
                         <button id="files-share-folder-btn" class="primary-btn small" title="Genera shared link della cartella Dropbox di questo livello" style="padding: 0.3rem 0.75rem; font-size: 0.7rem; background: #f1f5f9; color: #1a1f36; border: 1px solid #e2e8f0;">
-                            <span class="material-icons-round" style="font-size: 14px;">ios_share</span> Cartella Dropbox
+                            <span class="material-icons-round" style="font-size: 14px;">ios_share</span> Dropbox
                         </button>
                     </div>
                 </div>
@@ -338,6 +341,8 @@ async function refreshLinks(drawer, itemId, spaceId) {
 }
 
 function renderFileRow(f) {
+    if (f.storage_provider === 'gdrive') return renderDriveFileRow(f);
+
     const size = (f.file_size_bytes || 0) / (1024 * 1024);
     const sizeStr = size < 1 ? Math.round(size * 1024) + ' KB' : size.toFixed(1) + ' MB';
     const date = f.uploaded_at ? new Date(f.uploaded_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }) : '';
@@ -362,6 +367,30 @@ function renderFileRow(f) {
             </button>
             <button data-action="delete" data-id="${f.id}" class="icon-btn small" style="background: none; border: 1px solid #fee2e2; padding: 0.3rem 0.5rem; border-radius: 6px; cursor: pointer;" title="Elimina">
                 <span class="material-icons-round" style="font-size: 1rem; color: #ef4444;">delete_outline</span>
+            </button>
+        </div>
+    `;
+}
+
+function renderDriveFileRow(f) {
+    const cfg = driveIconConfig(f.gdrive_file_type || 'other');
+    const date = f.uploaded_at ? new Date(f.uploaded_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }) : '';
+    const url = escapeAttr(f.gdrive_url || '#');
+    return `
+        <div style="display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.75rem 0.55rem 2rem; background: white; border-bottom: 1px solid #f8fafc;">
+            <a href="${url}" target="_blank" rel="noopener" style="display: flex; align-items: center; gap: 0.65rem; flex: 1; min-width: 0; text-decoration: none;" title="Apri in Google Drive">
+                <span class="material-icons-round" style="color: ${cfg.color}; font-size: 1.3rem; flex-shrink: 0;">${cfg.icon}</span>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #1a1f36; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(f.file_name)}</div>
+                    <div style="font-size: 0.68rem; color: #94a3b8; display: flex; align-items: center; gap: 5px;">
+                        <span style="color: ${cfg.color}; font-weight: 600;">${cfg.label}</span>
+                        ${date ? '· ' + date : ''}
+                        · <span style="color: ${cfg.color};">↗ apri in Drive</span>
+                    </div>
+                </div>
+            </a>
+            <button data-action="delete" data-id="${f.id}" class="icon-btn small" style="background: none; border: 1px solid #fee2e2; padding: 0.3rem 0.5rem; border-radius: 6px; cursor: pointer;" title="Rimuovi collegamento">
+                <span class="material-icons-round" style="font-size: 1rem; color: #ef4444;">link_off</span>
             </button>
         </div>
     `;
@@ -489,6 +518,7 @@ export function initClientFilesTab(container, clientId) {
 
     wireClientUpload(container, clientId);
     wireClientShareFolder(container, clientId);
+    wireDriveBtn(container, null, null, clientId, () => refreshClientFiles(container, clientId));
     refreshClientFiles(container, clientId);
 }
 
@@ -657,40 +687,372 @@ async function refreshClientFiles(container, clientId) {
     const countEl = container.querySelector('#files-list-count');
     if (!listEl) return;
 
-    const { data, error } = await supabase.from('pm_files')
-        .select('*')
-        .eq('client_ref', clientId)
-        .is('pm_item_ref', null)
-        .is('pm_space_ref', null)
+    listEl.innerHTML = '<div style="text-align:center;padding:2rem;color:#94a3b8;font-size:0.8rem;">Caricamento...</div>';
+
+    // 1. File diretti sul cliente
+    const { data: clientFiles } = await supabase.from('pm_files').select('*')
+        .eq('client_ref', clientId).is('pm_space_ref', null).is('pm_item_ref', null)
         .order('uploaded_at', { ascending: false });
 
-    if (error) {
-        listEl.innerHTML = `<div style="color:#ef4444;font-size:0.8rem;padding:0.5rem;">Errore: ${error.message}</div>`;
-        return;
-    }
-    if (!data || data.length === 0) {
-        listEl.innerHTML = '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:1rem;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">Nessun file caricato</div>';
-        if (countEl) countEl.textContent = '';
-        return;
+    // 2. Ordini di questo cliente
+    const { data: orders } = await supabase.from('orders').select('id, title, order_number')
+        .eq('client_id', clientId);
+
+    const orderIds = (orders || []).map(o => o.id);
+
+    // 3. PM spaces collegati agli ordini
+    let spaceMap = {}; // spaceId → label commessa
+    let allSpaceIds = [];
+    if (orderIds.length > 0) {
+        const { data: spaces } = await supabase.from('pm_spaces').select('id, name, ref_ordine')
+            .in('ref_ordine', orderIds);
+        (spaces || []).forEach(s => {
+            const ord = (orders || []).find(o => o.id === s.ref_ordine);
+            const num = ord?.order_number ? 'Commessa ' + ord.order_number : '';
+            const ttl = ord?.title || s.name || '';
+            spaceMap[s.id] = num && ttl ? num + ' — ' + ttl : (num || ttl || 'Commessa');
+            allSpaceIds.push(s.id);
+        });
     }
 
-    listEl.innerHTML = data.map(f => renderFileRow(f)).join('');
-    if (countEl) countEl.textContent = data.length + ' file';
+    // 4. Items in quegli spaces
+    let itemMap = {}; // itemId → { title, spaceId }
+    let spaceFiles = [];
+    if (allSpaceIds.length > 0) {
+        const { data: items } = await supabase.from('pm_items').select('id, title, space_ref')
+            .in('space_ref', allSpaceIds).is('archived_at', null);
+        (items || []).forEach(i => { itemMap[i.id] = { title: i.title, spaceId: i.space_ref }; });
 
-    listEl.querySelectorAll('[data-action="preview"]').forEach(b => {
-        b.onclick = (e) => { e.stopPropagation(); openFile(b.dataset.id, b.dataset.name, b.dataset.mime); };
+        const itemIds = Object.keys(itemMap);
+        let q = supabase.from('pm_files').select('*');
+        if (itemIds.length > 0) {
+            q = q.or('pm_space_ref.in.(' + allSpaceIds.join(',') + '),pm_item_ref.in.(' + itemIds.join(',') + ')');
+        } else {
+            q = q.in('pm_space_ref', allSpaceIds);
+        }
+        const { data: sf } = await q.order('uploaded_at', { ascending: false });
+        spaceFiles = sf || [];
+    }
+
+    initClientNavigator(listEl, countEl, clientFiles || [], spaceFiles, spaceMap, itemMap, container, clientId);
+}
+
+function initClientNavigator(listEl, countEl, directFiles, spaceFiles, spaceMap, itemMap, container, clientId) {
+    // Raggruppa i file delle commesse per space
+    const spaceGroups = {}; // spaceId → files[]
+    spaceFiles.forEach(f => {
+        let sid = f.pm_space_ref;
+        if (!sid && f.pm_item_ref) sid = itemMap[f.pm_item_ref]?.spaceId;
+        if (!sid) return;
+        if (!spaceGroups[sid]) spaceGroups[sid] = [];
+        spaceGroups[sid].push(f);
     });
-    listEl.querySelectorAll('[data-action="download"]').forEach(b => {
-        b.onclick = (e) => { e.stopPropagation(); downloadFile(b.dataset.id); };
+
+    // Per ogni space: mappa item locale (itemId → title)
+    const spaceItemMaps = {}; // spaceId → { itemId: title }
+    Object.entries(itemMap).forEach(([itemId, info]) => {
+        if (!spaceItemMaps[info.spaceId]) spaceItemMaps[info.spaceId] = {};
+        spaceItemMaps[info.spaceId][itemId] = info.title;
     });
-    listEl.querySelectorAll('[data-action="delete"]').forEach(b => {
-        b.onclick = async (e) => {
-            e.stopPropagation();
-            if (!confirm('Cancellare definitivamente?')) return;
-            await deleteFile(b.dataset.id);
-            refreshClientFiles(container, clientId);
+
+    // Stack navigazione: ogni entry ha { label, render }
+    const stack = [];
+
+    function pushLevel(label, renderFn) {
+        stack.push({ label, render: renderFn });
+        renderFn();
+    }
+
+    function popLevel() {
+        stack.pop();
+        if (stack.length > 0) stack[stack.length - 1].render();
+    }
+
+    function renderBreadcrumb(currentLabel) {
+        const parts = stack.slice(0, -1).map((s, i) => `<span data-stack-idx="${i}" style="color:#4e92d8;cursor:pointer;font-weight:600;font-size:0.78rem;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(s.label)}</span>`);
+        parts.push(`<span style="font-size:0.78rem;font-weight:700;color:#1a1f36;">${escapeHtml(currentLabel)}</span>`);
+        const bc = document.createElement('div');
+        bc.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:0.75rem;flex-wrap:wrap;';
+        bc.innerHTML = parts.join('<span class="material-icons-round" style="font-size:0.85rem;color:#cbd5e1;">chevron_right</span>');
+        bc.querySelectorAll('[data-stack-idx]').forEach(el => {
+            el.onclick = () => {
+                const idx = parseInt(el.dataset.stackIdx);
+                stack.splice(idx + 1);
+                stack[idx].render();
+            };
+        });
+        // Back button
+        if (stack.length > 1) {
+            const back = document.createElement('button');
+            back.style.cssText = 'display:flex;align-items:center;gap:3px;background:none;border:none;cursor:pointer;color:#4e92d8;font-size:0.8rem;font-weight:600;padding:0.25rem 0.4rem;border-radius:6px;margin-bottom:0.5rem;';
+            back.innerHTML = '<span class="material-icons-round" style="font-size:1rem;">arrow_back_ios</span>' + escapeHtml(stack[stack.length - 2].label);
+            back.onmouseover = () => { back.style.background = '#eff6ff'; };
+            back.onmouseout = () => { back.style.background = 'none'; };
+            back.onclick = popLevel;
+            return [back, bc];
+        }
+        return [bc];
+    }
+
+    function renderFolderRow(icon, color, title, subtitle, onClick) {
+        const el = document.createElement('div');
+        el.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;background:white;border:1px solid #e8edf3;border-radius:10px;cursor:pointer;transition:border-color 0.15s;';
+        el.innerHTML = `
+            <span class="material-icons-round" style="color:${color};font-size:1.8rem;flex-shrink:0;">${icon}</span>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:0.9rem;font-weight:600;color:#1a1f36;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(title)}</div>
+                <div style="font-size:0.72rem;color:#94a3b8;">${escapeHtml(subtitle)}</div>
+            </div>
+            <span class="material-icons-round" style="color:#cbd5e1;font-size:1.2rem;">chevron_right</span>
+        `;
+        el.onmouseover = () => { el.style.borderColor = '#4e92d8'; };
+        el.onmouseout = () => { el.style.borderColor = '#e8edf3'; };
+        el.onclick = onClick;
+        return el;
+    }
+
+    function renderFileList(files, navHeader) {
+        listEl.innerHTML = '';
+        navHeader.forEach(el => listEl.appendChild(el));
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;flex-direction:column;gap:5px;';
+        if (!files || files.length === 0) {
+            wrap.innerHTML = '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:1.25rem;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">Nessun file in questa cartella</div>';
+        } else {
+            wrap.innerHTML = files.map(f => renderFileRow(f)).join('');
+            wireFileActionButtons(wrap, null, null, null, () => refreshClientFiles(container, clientId));
+        }
+        listEl.appendChild(wrap);
+    }
+
+    // ROOT: cartella cliente + cartelle commesse
+    function renderRoot() {
+        const total = directFiles.length + spaceFiles.length;
+        if (countEl) countEl.textContent = total + ' file';
+        listEl.innerHTML = '';
+
+        const spacesWithFiles = Object.keys(spaceGroups);
+        if (directFiles.length === 0 && spacesWithFiles.length === 0) {
+            listEl.innerHTML = '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:1rem;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">Nessun file caricato</div>';
+            return;
+        }
+
+        const rows = [];
+
+        // Cartella documenti diretti cliente
+        if (directFiles.length > 0) {
+            rows.push(renderFolderRow('folder_special', '#f59e0b', 'Documenti cliente',
+                directFiles.length + ' file',
+                () => pushLevel('Documenti cliente', () => {
+                    const header = renderBreadcrumb('Documenti cliente');
+                    if (countEl) countEl.textContent = directFiles.length + ' file';
+                    renderFileList(directFiles, header);
+                })
+            ));
+        }
+
+        // Cartelle commesse
+        spacesWithFiles.forEach(spaceId => {
+            const label = spaceMap[spaceId] || 'Commessa';
+            const count = spaceGroups[spaceId].length;
+            rows.push(renderFolderRow('folder', '#4e92d8', label,
+                count + ' file',
+                () => pushLevel(label, () => renderCommessaLevel(spaceId, label))
+            ));
+        });
+
+        rows.forEach(r => listEl.appendChild(r));
+    }
+
+    // LIVELLO COMMESSA: sub-cartelle per task (stesso stile di initSpaceNavigator)
+    function renderCommessaLevel(spaceId, spaceLabel) {
+        const files = spaceGroups[spaceId] || [];
+        const localItemMap = spaceItemMaps[spaceId] || {};
+        if (countEl) countEl.textContent = files.length + ' file';
+
+        // Raggruppa per item
+        const groups = {};
+        files.forEach(f => {
+            const key = f.pm_item_ref || '__space__';
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(f);
+        });
+
+        const header = renderBreadcrumb(spaceLabel);
+        listEl.innerHTML = '';
+        header.forEach(el => listEl.appendChild(el));
+
+        const keys = Object.keys(groups);
+        if (keys.length === 0) {
+            listEl.insertAdjacentHTML('beforeend', '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:1rem;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">Nessun file</div>');
+            return;
+        }
+
+        // Se c'è un solo gruppo e sono tutti file di space, mostrali flat (no sub-cartelle)
+        if (keys.length === 1 && keys[0] === '__space__') {
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'display:flex;flex-direction:column;gap:5px;';
+            wrap.innerHTML = groups['__space__'].map(f => renderFileRow(f)).join('');
+            wireFileActionButtons(wrap, null, null, null, () => refreshClientFiles(container, clientId));
+            listEl.appendChild(wrap);
+            return;
+        }
+
+        // Altrimenti mostra cartelle per ogni task/attività
+        keys.forEach(key => {
+            const isSpace = key === '__space__';
+            const title = isSpace ? 'File commessa' : (localItemMap[key] || 'Attività');
+            const taskFiles = groups[key];
+            const row = renderFolderRow(
+                isSpace ? 'folder_special' : 'folder',
+                isSpace ? '#f59e0b' : '#4e92d8',
+                title,
+                taskFiles.length + ' file',
+                () => pushLevel(title, () => {
+                    const hdr = renderBreadcrumb(title);
+                    if (countEl) countEl.textContent = taskFiles.length + ' file';
+                    renderFileList(taskFiles, hdr);
+                })
+            );
+            listEl.appendChild(row);
+        });
+    }
+
+    // Inizia dalla root
+    stack.push({ label: 'File', render: renderRoot });
+    renderRoot();
+}
+
+// ===== Google Drive =====
+
+function detectDriveType(url) {
+    if (!url) return 'other';
+    if (url.includes('docs.google.com/document')) return 'doc';
+    if (url.includes('docs.google.com/spreadsheets')) return 'sheet';
+    if (url.includes('docs.google.com/presentation')) return 'slides';
+    if (url.includes('docs.google.com/forms')) return 'form';
+    return 'other';
+}
+
+function driveIconConfig(fileType) {
+    const map = {
+        doc:    { icon: 'article',       color: '#1a73e8', bg: '#e8f0fe', label: 'Google Docs' },
+        sheet:  { icon: 'table_chart',   color: '#188038', bg: '#e6f4ea', label: 'Google Sheets' },
+        slides: { icon: 'slideshow',     color: '#e37400', bg: '#fef7e0', label: 'Google Slides' },
+        form:   { icon: 'dynamic_form',  color: '#7248b9', bg: '#f3e8fd', label: 'Google Forms' },
+        other:  { icon: 'add_to_drive',  color: '#1a73e8', bg: '#e8f0fe', label: 'Google Drive' },
+    };
+    return map[fileType] || map.other;
+}
+
+function wireDriveBtn(container, itemId, spaceId, clientRef, onSaved) {
+    const btn = container.querySelector('#files-drive-btn');
+    if (!btn) return;
+    btn.onclick = () => openDriveModal(itemId, spaceId, clientRef, onSaved);
+}
+
+function openDriveModal(itemId, spaceId, clientRef, onSaved) {
+    document.getElementById('files-drive-modal')?.remove();
+
+    const newFileOptions = [
+        { type: 'doc',    label: 'Documento',    url: 'https://docs.new',              color: '#1a73e8' },
+        { type: 'sheet',  label: 'Foglio',        url: 'https://sheets.new',            color: '#188038' },
+        { type: 'slides', label: 'Presentazione', url: 'https://slides.new',            color: '#e37400' },
+    ];
+
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="files-drive-modal" class="modal active" style="z-index:11500;">
+            <div class="modal-content glass-card" style="max-width:500px;padding:1.5rem;">
+                <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.25rem;">
+                    <span class="material-icons-round" style="color:#1a73e8;font-size:1.4rem;">add_to_drive</span>
+                    <h3 style="margin:0;font-size:1.05rem;font-weight:700;">Google Drive</h3>
+                    <button onclick="document.getElementById('files-drive-modal').remove()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:1.2rem;">✕</button>
+                </div>
+
+                <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">Collega file esistente</div>
+                <input id="drive-url-input" type="url" placeholder="Incolla link Google Drive..." style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;margin-bottom:0.5rem;outline:none;" />
+                <input id="drive-name-input" type="text" placeholder="Nome file (es. Brief cliente)" style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;margin-bottom:0.75rem;outline:none;" />
+                <button id="drive-save-btn" class="primary-btn" style="width:100%;margin-bottom:1.25rem;">
+                    <span class="material-icons-round" style="font-size:15px;">link</span> Aggiungi
+                </button>
+
+                <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">Crea nuovo</div>
+                <div style="display:flex;gap:0.5rem;">
+                    ${newFileOptions.map(o => `
+                        <button data-new-type="${o.type}" data-new-url="${o.url}" style="flex:1;padding:0.6rem 0.5rem;background:white;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;color:${o.color};display:flex;flex-direction:column;align-items:center;gap:4px;transition:border-color 0.15s;" onmouseover="this.style.borderColor='${o.color}'" onmouseout="this.style.borderColor='#e2e8f0'">
+                            <span class="material-icons-round" style="font-size:1.3rem;">${driveIconConfig(o.type).icon}</span>
+                            ${o.label}
+                        </button>
+                    `).join('')}
+                </div>
+                <div id="drive-new-hint" style="display:none;font-size:0.75rem;color:#64748b;margin-top:0.75rem;padding:0.6rem;background:#f8fafc;border-radius:8px;">
+                    ✅ File aperto in un nuovo tab. Quando sei pronto, copia il link e incollalo nel campo qui sopra.
+                </div>
+            </div>
+        </div>
+    `);
+
+    const modal = document.getElementById('files-drive-modal');
+    const urlInput = modal.querySelector('#drive-url-input');
+    const nameInput = modal.querySelector('#drive-name-input');
+
+    // Auto-detect type e suggerisci nome quando si incolla l'URL
+    urlInput.addEventListener('input', () => {
+        const type = detectDriveType(urlInput.value);
+        if (type !== 'other' && !nameInput.value) {
+            nameInput.placeholder = driveIconConfig(type).label + ' (aggiungi nome)';
+        }
+    });
+
+    // Crea nuovo
+    modal.querySelectorAll('[data-new-type]').forEach(btn => {
+        btn.onclick = () => {
+            window.open(btn.dataset.newUrl, '_blank');
+            modal.querySelector('#drive-new-hint').style.display = 'block';
+            setTimeout(() => urlInput.focus(), 300);
         };
     });
+
+    // Salva link
+    modal.querySelector('#drive-save-btn').onclick = async () => {
+        const url = urlInput.value.trim();
+        const name = nameInput.value.trim();
+        if (!url) { urlInput.style.borderColor = '#ef4444'; urlInput.focus(); return; }
+        if (!name) { nameInput.style.borderColor = '#ef4444'; nameInput.focus(); return; }
+
+        const type = detectDriveType(url);
+        const saveBtn = modal.querySelector('#drive-save-btn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Salvataggio...';
+
+        const record = {
+            file_name: name,
+            storage_provider: 'gdrive',
+            gdrive_url: url,
+            gdrive_file_type: type,
+            file_size_bytes: 0,
+            mime_type: null,
+            share_with_children: false,
+            pm_item_ref: itemId || null,
+            pm_space_ref: itemId ? null : (spaceId || null),
+            client_ref: clientRef || null,
+        };
+
+        const { error } = await supabase.from('pm_files').insert(record);
+        if (error) {
+            alert('Errore: ' + error.message);
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Aggiungi';
+            return;
+        }
+
+        modal.remove();
+        if (onSaved) onSaved();
+    };
+
+    // Chiudi cliccando fuori
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    setTimeout(() => urlInput.focus(), 100);
 }
 
 function wireAddLink(drawer, itemId, spaceId) {

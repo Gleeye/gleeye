@@ -283,7 +283,7 @@ export async function renderHomepageAlt(container) {
                             <span class="material-icons-round" style="font-size: 18px; color: #8b5cf6;">calendar_today</span> 
                          </button>
 
-                         <button id="hp-top-add-btn" onclick="window.toggleHpQuickEntry(this)" style="width: 38px; height: 38px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; color: #111; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+                         <button id="hp-top-add-btn" onclick="window.toggleHpQuickEntry(this)" style="width: 38px; height: 38px; min-width: 38px; flex-shrink: 0; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; color: #111; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
                             <span class="material-icons-round" style="font-size: 20px;">add</span>
                          </button>
                      </div>
@@ -1270,39 +1270,113 @@ export async function renderHomepageAlt(container) {
         if (existing) { existing.remove(); return; }
 
         const rect = btn.getBoundingClientRect();
-        const popoverWidth = 240;
+        const popoverWidth = 260;
         const popover = document.createElement('div');
         popover.id = 'hp-quick-entry-popover';
         popover.className = 'glass-card';
+        // Position: below the button, right-aligned
+        const left = Math.max(8, rect.right - popoverWidth);
         popover.style.cssText = `
-            position: fixed; top: ${rect.bottom + 8}px; left: ${rect.right - popoverWidth}px;
-            background: white; color: #1f2937; padding: 8px; border-radius: 12px;
-            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); z-index: 99999;
-            width: ${popoverWidth}px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; gap: 4px;
+            position: fixed; top: ${rect.bottom + 8}px; left: ${left}px;
+            background: white; color: #1f2937; padding: 8px; border-radius: 14px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.12); z-index: 99999;
+            width: ${popoverWidth}px; border: 1px solid #e5e7eb;
+            display: flex; flex-direction: column; gap: 2px;
+            font-family: 'Outfit', var(--font-base, sans-serif);
         `;
 
-        const items = [
-            { id: 'task', label: 'Nuova Task', description: 'Crea attività operativa', icon: 'check_circle', color: '#3b82f6', action: () => openHubDrawer(null, null, null, 'task') },
-            { id: 'appt', label: 'Nuovo Appuntamento', description: 'Segna incontro o evento', icon: 'event', color: '#a855f7', action: () => openAppointmentDrawer() }
-        ];
-
-        items.forEach(item => {
+        // Helper: build a menu row
+        const makeRow = (icon, color, title, subtitle, onClick, hasArrow = false) => {
             const row = document.createElement('div');
-            row.style.cssText = `display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; border-radius: 8px; transition: all 0.2s;`;
-            row.onmouseover = () => { row.style.background = '#f3f4f6'; };
-            row.onmouseout = () => { row.style.background = 'transparent'; };
-            row.onclick = () => { popover.remove(); item.action(); };
+            row.style.cssText = `display: flex; align-items: center; gap: 10px; padding: 9px 10px; cursor: pointer; border-radius: 9px; transition: background 0.15s;`;
+            row.onmouseover = () => { row.style.background = '#f5f7fa'; };
+            row.onmouseout  = () => { row.style.background = 'transparent'; };
+            row.onclick = onClick;
             row.innerHTML = `
-                <div style="width: 32px; height: 32px; border-radius: 8px; background: ${item.color}15; color: ${item.color}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                    <span class="material-icons-round" style="font-size: 18px;">${item.icon}</span>
+                <div style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; background: ${color}18; color: ${color}; display: flex; align-items: center; justify-content: center;">
+                    <span class="material-icons-round" style="font-size: 17px;">${icon}</span>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 1px;">
-                    <div style="font-weight: 700; font-size: 0.85rem; color: #111;">${item.label}</div>
-                    <div style="font-size: 0.75rem; color: #6b7280;">${item.description}</div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 700; font-size: 0.83rem; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${title}</div>
+                    <div style="font-size: 0.72rem; color: #9ca3af;">${subtitle}</div>
                 </div>
+                ${hasArrow ? '<span class="material-icons-round" style="font-size: 16px; color: #d1d5db;">chevron_right</span>' : ''}
             `;
-            popover.appendChild(row);
-        });
+            return row;
+        };
+
+        // Separator
+        const sep = () => {
+            const d = document.createElement('div');
+            d.style.cssText = 'height: 1px; background: #f1f5f9; margin: 3px 0;';
+            return d;
+        };
+
+        // --- Section label helper ---
+        const label = (text) => {
+            const d = document.createElement('div');
+            d.style.cssText = 'font-size: 0.68rem; font-weight: 800; color: #9ca3af; letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 10px 2px;';
+            d.textContent = text;
+            return d;
+        };
+
+        // ── TASK SECTION ─────────────────────────────────────────────────
+        // Build list of recent/active spaces to pick from
+        const spaces = (state.pm_spaces || [])
+            .filter(s => s.status !== 'archived')
+            .slice(0, 6); // max 6 spaces
+
+        if (spaces.length > 0) {
+            // "Nuova Task" header row — clicking shows sub-spaces inline
+            let taskExpanded = false;
+            let spacesContainer = null;
+
+            const taskRow = makeRow('check_circle', '#3b82f6', 'Nuova Task', 'Scegli commessa o progetto', (e) => {
+                e.stopPropagation();
+                if (!taskExpanded) {
+                    taskExpanded = true;
+                    spacesContainer.style.display = 'flex';
+                    taskRow.querySelector('.material-icons-round:last-child').textContent = 'expand_less';
+                } else {
+                    taskExpanded = false;
+                    spacesContainer.style.display = 'none';
+                    taskRow.querySelector('.material-icons-round:last-child').textContent = 'chevron_right';
+                }
+            }, true);
+            popover.appendChild(taskRow);
+
+            // Sub-list of spaces
+            spacesContainer = document.createElement('div');
+            spacesContainer.style.cssText = 'display: none; flex-direction: column; gap: 1px; padding: 0 4px;';
+            spaces.forEach(space => {
+                const isCommessa = space.type === 'commessa';
+                const order = isCommessa ? (state.orders || []).find(o => o.id === space.ref_ordine) : null;
+                const spaceName = order ? `#${order.order_number} ${order.title || space.name}` : (space.name || 'Progetto');
+                const sub = makeRow(
+                    isCommessa ? 'style' : 'folder_special',
+                    isCommessa ? '#0ea5e9' : '#8b5cf6',
+                    spaceName,
+                    isCommessa ? 'Commessa' : 'Progetto interno',
+                    () => { popover.remove(); openHubDrawer(null, space.id, null, 'task'); }
+                );
+                sub.style.paddingLeft = '14px';
+                spacesContainer.appendChild(sub);
+            });
+            popover.appendChild(spacesContainer);
+
+        } else {
+            // No spaces yet — open drawer directly (user will pick inline)
+            popover.appendChild(makeRow('check_circle', '#3b82f6', 'Nuova Task', 'Crea attività operativa', () => {
+                popover.remove(); openHubDrawer(null, null, null, 'task');
+            }));
+        }
+
+        popover.appendChild(sep());
+
+        // ── APPOINTMENT ───────────────────────────────────────────────────
+        popover.appendChild(makeRow('event', '#a855f7', 'Nuovo Appuntamento', 'Segna incontro o evento', () => {
+            popover.remove(); openAppointmentDrawer();
+        }));
 
         document.body.appendChild(popover);
         setTimeout(() => {
