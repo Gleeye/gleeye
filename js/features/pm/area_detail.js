@@ -125,6 +125,9 @@ export async function renderAreaDetail(container, areaSlug) {
                 import('./components/activity_log.js?v=8000').then(mod => {
                     mod.renderActivityLog(tabContent, { spaceIds: allSpaceIds, isAccountLevel: false });
                 });
+
+            } else if (currentTab === 'file') {
+                renderAreaFilesTab(tabContent, areaSpaces, area);
             }
         };
 
@@ -253,6 +256,9 @@ export async function renderAreaDetail(container, areaSlug) {
                     <button class="area-tab" data-tab="feed">
                         <span class="material-icons-round">history</span> Feed
                     </button>
+                    <button class="area-tab" data-tab="file">
+                        <span class="material-icons-round">folder_open</span> File
+                    </button>
                 </div>
 
                 <div class="area-tab-content" id="area-tab-content">
@@ -278,6 +284,77 @@ export async function renderAreaDetail(container, areaSlug) {
         console.error('[AreaDetail] Error:', err);
         container.innerHTML = `<div style="padding:2rem; color:red;">Errore caricamento area: ${err.message}</div>`;
     }
+}
+
+async function renderAreaFilesTab(container, areaSpaces, area) {
+    const { initFilesTab } = await import('./components/hub/files_tab.js?v=8001');
+
+    const spacesWithShell = areaSpaces.map(s => ({
+        ...s,
+        _isCluster: s.is_cluster,
+    })).sort((a, b) => (b._isCluster ? 1 : 0) - (a._isCluster ? 1 : 0));
+
+    if (spacesWithShell.length === 0) {
+        container.innerHTML = '<div style="padding:3rem; text-align:center; color:var(--text-tertiary);">Nessun progetto in questa area.</div>';
+        return;
+    }
+
+    container.innerHTML = `
+        <style>
+            .area-files-section { background: white; border-radius: 16px; box-shadow: var(--shadow-sm); margin-bottom: 1rem; overflow: hidden; }
+            .area-files-section-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.9rem 1.25rem; cursor: pointer; border-bottom: 1px solid var(--surface-2); user-select: none; }
+            .area-files-section-header:hover { background: var(--surface-1); }
+            .area-files-section-body { padding: 1rem; }
+            .area-files-section-body.collapsed { display: none; }
+        </style>
+        ${spacesWithShell.map((s, i) => `
+            <div class="area-files-section">
+                <div class="area-files-section-header" data-idx="${i}">
+                    <div style="width:28px; height:28px; border-radius:8px; background:${area.bg}; color:${area.color}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                        <span class="material-icons-round" style="font-size:1rem;">${s._isCluster ? 'workspaces' : 'folder_special'}</span>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary);">${s.name}</div>
+                        <div style="font-size:0.6rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase;">${s._isCluster ? 'Cluster' : 'Progetto'}</div>
+                    </div>
+                    <span class="material-icons-round toggle-icon" style="color:var(--text-tertiary); font-size:1.1rem; transition:transform 0.2s;">${i === 0 ? 'expand_less' : 'expand_more'}</span>
+                </div>
+                <div class="area-files-section-body ${i === 0 ? '' : 'collapsed'}" data-space-id="${s.id}">
+                    <div id="tab-files-${s.id}"></div>
+                </div>
+            </div>
+        `).join('')}
+    `;
+
+    // Init first section immediately, lazy-load others on expand
+    const initSection = (spaceId) => {
+        const body = container.querySelector(`[data-space-id="${spaceId}"]`);
+        if (!body || body.dataset.initialized) return;
+        body.dataset.initialized = 'true';
+        const tabFilesEl = body.querySelector(`#tab-files-${spaceId}`);
+        if (!tabFilesEl) return;
+        // initFilesTab expects drawer.querySelector('#tab-files'), so we wrap
+        const wrapper = { querySelector: (sel) => sel === '#tab-files' ? tabFilesEl : body.querySelector(sel) };
+        initFilesTab(wrapper, null, spaceId);
+    };
+
+    if (spacesWithShell[0]) initSection(spacesWithShell[0].id);
+
+    container.querySelectorAll('.area-files-section-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const idx = header.dataset.idx;
+            const body = header.nextElementSibling;
+            const icon = header.querySelector('.toggle-icon');
+            const isCollapsed = body.classList.contains('collapsed');
+            body.classList.toggle('collapsed', !isCollapsed);
+            icon.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(-180deg)';
+            icon.textContent = isCollapsed ? 'expand_less' : 'expand_more';
+            if (isCollapsed) {
+                const spaceId = body.dataset.spaceId;
+                initSection(spaceId);
+            }
+        });
+    });
 }
 
 function renderClusterTab(container, clusters, allProjects, clusterStats, area) {
