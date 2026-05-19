@@ -1015,7 +1015,7 @@ export async function renderHomepageAlt(container) {
         let greeting = 'Buongiorno';
         if (hours >= 14 && hours < 19) greeting = 'Buon pomeriggio';
         else if (hours >= 19 || hours < 5) greeting = 'Buonasera';
-        if (headerTitle) headerTitle.textContent = window.innerWidth <= 768 ? 'Gleeye' : `${greeting}, ${currentFirstName}!`;
+        if (headerTitle) headerTitle.textContent = `${greeting}, ${currentFirstName}!`;
         
         if (!timelineWrapper) {
             console.log("[Homepage] timelineWrapper not found, aborting update.");
