@@ -148,11 +148,34 @@ async function refreshFiles(drawer, itemId, spaceId) {
     const countEl = drawer.querySelector('#files-list-count');
     if (!listEl) return;
 
-    // Carica file di QUESTO item specifico (RLS filtra automaticamente per ruolo)
-    let q = supabase.from('pm_files').select('*');
-    if (itemId) q = q.eq('pm_item_ref', itemId);
-    else if (spaceId) q = q.eq('pm_space_ref', spaceId).is('pm_item_ref', null);
-    const { data, error } = await q.order('uploaded_at', { ascending: false });
+    let data, error;
+    let itemMap = {}; // itemId → title per label di contesto
+
+    if (itemId) {
+        // Vista item specifico: solo i suoi file
+        ({ data, error } = await supabase.from('pm_files').select('*')
+            .eq('pm_item_ref', itemId)
+            .order('uploaded_at', { ascending: false }));
+    } else if (spaceId) {
+        // Vista commessa aggregata: file dello space + file di TUTTE le sue task/attività
+        const { data: items } = await supabase.from('pm_items').select('id, title')
+            .eq('space_ref', spaceId).is('archived_at', null);
+        const itemIds = (items || []).map(i => i.id);
+        items?.forEach(i => { itemMap[i.id] = i.title; });
+
+        if (itemIds.length > 0) {
+            ({ data, error } = await supabase.from('pm_files').select('*')
+                .or('pm_space_ref.eq.' + spaceId + ',pm_item_ref.in.(' + itemIds.join(',') + ')')
+                .order('uploaded_at', { ascending: false }));
+        } else {
+            ({ data, error } = await supabase.from('pm_files').select('*')
+                .eq('pm_space_ref', spaceId).is('pm_item_ref', null)
+                .order('uploaded_at', { ascending: false }));
+        }
+    } else {
+        listEl.innerHTML = '';
+        return;
+    }
 
     if (error) {
         listEl.innerHTML = `<div style="color: #ef4444; font-size: 0.8rem; padding: 0.5rem;">Errore caricamento: ${error.message}</div>`;
@@ -165,7 +188,7 @@ async function refreshFiles(drawer, itemId, spaceId) {
         return;
     }
 
-    listEl.innerHTML = data.map(f => renderFileRow(f)).join('');
+    listEl.innerHTML = data.map(f => renderFileRow(f, itemMap[f.pm_item_ref])).join('');
     if (countEl) countEl.textContent = data.length + ' file';
 
     // Wire bottoni
@@ -232,20 +255,23 @@ async function refreshLinks(drawer, itemId, spaceId) {
     });
 }
 
-function renderFileRow(f) {
+function renderFileRow(f, itemTitle) {
     const size = (f.file_size_bytes || 0) / (1024 * 1024);
     const sizeStr = size < 1 ? Math.round(size * 1024) + ' KB' : size.toFixed(1) + ' MB';
     const date = f.uploaded_at ? new Date(f.uploaded_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }) : '';
     const icon = fileIcon(f.mime_type, f.file_name);
     const previewable = isPreviewable(f.mime_type, f.file_name);
     const clickAction = previewable ? 'preview' : 'download';
+    const contextLabel = itemTitle
+        ? `<span style="display: inline-flex; align-items: center; gap: 3px; background: #f0f4ff; color: #4e92d8; font-size: 0.62rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; border: 1px solid #dbeafe; margin-top: 2px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeAttr(itemTitle)}">📌 ${escapeHtml(itemTitle)}</span>`
+        : '';
     return `
         <div style="display: flex; align-items: center; gap: 0.65rem; padding: 0.6rem 0.75rem; background: white; border: 1px solid #f1f5f9; border-radius: 10px;">
             <div data-action="${clickAction}" data-id="${f.id}" data-name="${escapeHtml(f.file_name)}" data-mime="${escapeAttr(f.mime_type || '')}" style="display: flex; align-items: center; gap: 0.65rem; flex: 1; min-width: 0; cursor: pointer;" title="${previewable ? 'Apri anteprima' : 'Scarica'}">
                 <span class="material-icons-round" style="color: #4e92d8; font-size: 1.3rem; flex-shrink: 0;">${icon}</span>
                 <div style="flex: 1; min-width: 0;">
                     <div style="font-size: 0.85rem; font-weight: 600; color: #1a1f36; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(f.file_name)}</div>
-                    <div style="font-size: 0.68rem; color: #94a3b8;">${sizeStr} · ${date}${previewable ? ' · click per anteprima' : ''}</div>
+                    <div style="font-size: 0.68rem; color: #94a3b8; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">${sizeStr} · ${date}${previewable ? ' · click per anteprima' : ''}${contextLabel}</div>
                 </div>
             </div>
             <label title="Condividi anche con i collab di task figlie" style="display: flex; align-items: center; gap: 4px; font-size: 0.65rem; color: #64748b; cursor: pointer;">
