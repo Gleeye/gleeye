@@ -63,7 +63,20 @@
                 box-shadow: 0 2px 10px rgba(0,0,0,0.05) !important;
                 position: relative !important;
                 z-index: 1000 !important;
+            }
+
+            /* il titolo non supera mai il 60% — lascia spazio alle icone */
+            .top-bar .top-bar-left {
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
+                max-width: 60% !important;
                 overflow: hidden !important;
+            }
+
+            .top-bar h2 {
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
             }
 
             .header-actions {
@@ -74,13 +87,12 @@
                 gap: 8px !important;
             }
 
-            /* actions può stringersi, ma i singoli bottoni no */
             .top-bar .actions {
                 display: flex !important;
                 flex-direction: row !important;
                 align-items: center !important;
                 flex-wrap: nowrap !important;
-                flex-shrink: 1 !important;
+                flex-shrink: 0 !important;
             }
 
             .top-bar .icon-btn {
