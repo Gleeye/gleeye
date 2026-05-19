@@ -353,9 +353,12 @@ function render() {
                             contentArea.innerHTML = `<div class="error-state">Errore caricamento: ${err.message}</div>`;
                         });
 
-                    // Route: Area shortcut (#pm/area/:areaSlug) → redirect to interni hub
+                    // Route: Area Detail (#pm/area/:areaSlug)
                 } else if (state.currentSubPage === 'area' && state.currentId) {
-                    window.location.hash = `#pm/interni/${state.currentId}`;
+                    if (pageTitle) pageTitle.textContent = 'Dettaglio Area';
+                    import('../features/pm/area_detail.js?v=8000')
+                        .then(module => module.renderAreaDetail(contentArea, state.currentId))
+                        .catch(err => { contentArea.innerHTML = `<div class="error-state">Errore: ${err.message}</div>`; });
 
                 } else if (state.currentSubPage === 'task' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Attività';

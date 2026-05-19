@@ -158,7 +158,7 @@ export function renderInternalDashboard(hubs, clusters) {
         hubContainer.parentElement.style.display = 'block';
         const areaLabel = `<span style="font-family: 'Outfit', sans-serif; font-size: 0.65rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 8px; display: flex; align-items: center; white-space: nowrap;">AREE:</span>`;
         hubContainer.innerHTML = areaLabel + respHubs.map(h => `
-            <button onclick="window.location.hash='#pm/interni/${h.id}'"
+            <button onclick="window.location.hash='#pm/area/${h.id}'"
                 class="hp-hub-pill"
                 style="
                     padding: 4px; border-radius: 100px; border: none; 

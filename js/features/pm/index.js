@@ -22,7 +22,11 @@ export function renderPM(container) {
         case 'my-work': renderMyWork(container); break;
         case 'space': id ? renderSpaceView(container, id) : (container.innerHTML = '<p style=\"padding:2rem;color:red;\">ID Progetto mancante.</p>'); break;
         case 'area':
-            window.location.hash = `#pm/interni/${id || ''}`;
+            if (id) {
+                import('./area_detail.js?v=8000').then(m => m.renderAreaDetail(container, id));
+            } else {
+                window.location.hash = '#pm/interni';
+            }
             break;
         default: container.innerHTML = `<div style=\"padding:2rem;\"><h3>Project Management</h3><p>Seleziona una voce dal menu laterale.</p></div>`;
     }
