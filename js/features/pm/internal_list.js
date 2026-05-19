@@ -291,7 +291,13 @@ export async function renderInternalProjects(container, initialFilter) {
 
                         <main class="hub-main-content">
                             <header style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1rem;">
-                                <div><div style="font-size: 0.6rem; font-weight: 800; color: var(--brand-blue); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 2px;">PANORAMICA AREA</div><h2 id="hub-title" style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.015em;">Overview ${activeArea.label}</h2></div>
+                                <div>
+                                    <div style="font-size: 0.6rem; font-weight: 800; color: var(--brand-blue); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 2px;">PANORAMICA AREA</div>
+                                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                                        <h2 id="hub-title" style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.015em;">Overview ${activeArea.label}</h2>
+                                        <a href="#pm/area/${activeArea.id}" title="Apri dettaglio area" style="display:flex; align-items:center; padding:4px 10px; border-radius:8px; background:var(--bg-secondary); color:var(--text-tertiary); text-decoration:none; font-size:0.7rem; font-weight:700; gap:4px; transition:all 0.2s;" onmouseover="this.style.background='rgba(59,130,246,0.1)'; this.style.color='var(--brand-blue)'" onmouseout="this.style.background='var(--bg-secondary)'; this.style.color='var(--text-tertiary)'"><span class="material-icons-round" style="font-size:0.9rem;">open_in_new</span>Dettaglio</a>
+                                    </div>
+                                </div>
                             </header>
 
                             <div class="glass-card" style="display: flex; flex-direction: column; min-height: 600px; flex: 1; overflow: hidden; border: none;">

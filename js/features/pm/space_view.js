@@ -152,11 +152,14 @@ export async function renderSpaceView(container, spaceId) {
                     background: white; border-bottom: 1px solid var(--surface-2); padding: 1.25rem 1.5rem;
                     position: sticky; top: 0; z-index: 50;
                 ">
-                    <!-- Top Row: Meta -->
-                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
-                        <span style="font-family: monospace; color: var(--text-secondary); font-weight: 600; font-size: 0.85rem; text-transform: uppercase;">
-                            ${space.area || 'Generale'}
-                        </span>
+                    <!-- Top Row: Meta (breadcrumb) -->
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-tertiary);">
+                        <a href="#pm/interni" style="color:var(--text-tertiary); text-decoration:none; font-weight:600; transition:color 0.2s;" onmouseover="this.style.color='var(--brand-blue)'" onmouseout="this.style.color='var(--text-tertiary)'">Progetti Interni</a>
+                        ${space.area ? `
+                        <span class="material-icons-round" style="font-size:0.9rem;">chevron_right</span>
+                        <a href="#pm/area/${{'Amministrazione':'amministrazione','Marketing':'marketing','Produzione':'produzione','Ricerca e Sviluppo':'ricerca_sviluppo','Risorse Umane':'risorse_umane','Servizi':'servizi','Vendite':'vendite'}[space.area] || space.area.toLowerCase()}" style="color:var(--text-tertiary); text-decoration:none; font-weight:600; transition:color 0.2s; text-transform:uppercase;" onmouseover="this.style.color='var(--brand-blue)'" onmouseout="this.style.color='var(--text-tertiary)'">${space.area}</a>
+                        ` : ''}
+                        <span class="material-icons-round" style="font-size:0.9rem;">chevron_right</span>
                         <span style="background: #f1f5f9; color: var(--text-secondary); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase;">
                             ${space.is_cluster ? 'Cluster' : 'Progetto'}
                         </span>
