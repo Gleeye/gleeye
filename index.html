@@ -68,8 +68,25 @@
             .header-actions {
                 display: flex !important;
                 flex-direction: row !important;
+                flex-wrap: nowrap !important;
                 align-items: center !important;
                 gap: 10px !important;
+                flex-shrink: 0 !important;
+            }
+
+            .top-bar .actions {
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                flex-shrink: 0 !important;
+                flex-wrap: nowrap !important;
+                gap: 8px !important;
+            }
+
+            .notification-container {
+                display: flex !important;
+                align-items: center !important;
+                flex-shrink: 0 !important;
             }
 
             .top-bar .icon-btn {

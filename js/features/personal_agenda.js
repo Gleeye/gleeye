@@ -148,7 +148,7 @@ export async function renderAgenda(container) {
                 .agenda-sidebar { width: 100% !important; height: auto !important; border-left: none !important; border-bottom: 1px solid rgba(0,0,0,0.05); }
                 .agenda-main { min-height: 600px; }
                 .agenda-main-header { flex-direction: column; align-items: flex-start !important; gap: 1rem; }
-                .header-actions { width: 100%; flex-wrap: wrap; justify-content: flex-start !important; }
+                .agenda-main-header .header-actions { width: 100%; flex-wrap: wrap; justify-content: flex-start !important; }
             }
         </style>
     `;
