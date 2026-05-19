@@ -95,7 +95,7 @@ function renderShell() {
             ">
                 <span class="material-icons-round" style="font-size: 2.5rem; color: #4e92d8; opacity: 0.5;">cloud_upload</span>
                 <div style="font-weight: 600; color: #1a1f36; margin-top: 0.5rem; font-size: 0.95rem;">Trascina qui i file o clicca</div>
-                <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem;">Caricamento su Dropbox · max 5MB (per ora)</div>
+                <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem;">Caricamento su Dropbox · fino a 5GB per file</div>
                 <input type="file" id="files-input" multiple style="display:none;">
             </div>
 
