@@ -996,12 +996,12 @@ function openDriveModal(itemId, spaceId, clientRef, onSaved) {
     const urlInput = modal.querySelector('#drive-url-input');
     const nameInput = modal.querySelector('#drive-name-input');
 
-    // Auto-detect type e suggerisci nome quando si incolla l'URL
+    // Auto-detect type e pre-compila nome quando si incolla l'URL
     urlInput.addEventListener('input', () => {
         const type = detectDriveType(urlInput.value);
-        if (type !== 'other' && !nameInput.value) {
-            nameInput.placeholder = driveIconConfig(type).label + ' (aggiungi nome)';
-        }
+        const cfg = driveIconConfig(type);
+        nameInput.placeholder = cfg.label;
+        // se il nome è ancora vuoto o era un placeholder precedente, non forziamo
     });
 
     // Crea nuovo
@@ -1016,11 +1016,11 @@ function openDriveModal(itemId, spaceId, clientRef, onSaved) {
     // Salva link
     modal.querySelector('#drive-save-btn').onclick = async () => {
         const url = urlInput.value.trim();
-        const name = nameInput.value.trim();
         if (!url) { urlInput.style.borderColor = '#ef4444'; urlInput.focus(); return; }
-        if (!name) { nameInput.style.borderColor = '#ef4444'; nameInput.focus(); return; }
 
         const type = detectDriveType(url);
+        // Nome: usa quello digitato, altrimenti il label del tipo (es. "Google Docs")
+        const name = nameInput.value.trim() || driveIconConfig(type).label;
         const saveBtn = modal.querySelector('#drive-save-btn');
         saveBtn.disabled = true;
         saveBtn.textContent = 'Salvataggio...';
