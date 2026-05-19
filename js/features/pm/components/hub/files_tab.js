@@ -959,10 +959,10 @@ function driveIconConfig(fileType) {
 function wireDriveBtn(container, itemId, spaceId, clientRef, onSaved, areaRef = null) {
     const btn = container.querySelector('#files-drive-btn');
     if (!btn) return;
-    btn.onclick = () => openDriveModal(itemId, spaceId, clientRef, onSaved, areaRef);
+    btn.onclick = () => openDriveModal(itemId, spaceId, clientRef, onSaved, areaRef, null);
 }
 
-function openDriveModal(itemId, spaceId, clientRef, onSaved, areaRef = null) {
+function openDriveModal(itemId, spaceId, clientRef, onSaved, areaRef = null, folderId = null) {
     document.getElementById('files-drive-modal')?.remove();
 
     const newFileOptions = [
@@ -1065,6 +1065,7 @@ function openDriveModal(itemId, spaceId, clientRef, onSaved, areaRef = null) {
             pm_space_ref: itemId ? null : (spaceId || null),
             client_ref: clientRef || null,
             area_ref: areaRef || null,
+            folder_id: folderId || null,
         };
 
         const { error } = await supabase.from('pm_files').insert(record);
@@ -1402,65 +1403,246 @@ function providerDisplay(p) {
     return map[p] || p;
 }
 
-// ===== Area-level file tab =====
+// ===== Area-level file tab con cartelle libere =====
 
 export function initAreaFilesTab(container, areaId) {
     const pane = container.querySelector('#tab-files');
     if (!pane) return;
     pane.innerHTML = renderShell();
-    wireAreaUpload(pane, areaId);
-    wireDriveBtn(pane, null, null, null, () => refreshAreaFiles(pane, areaId), areaId);
-    refreshAreaFiles(pane, areaId);
-    // Share-folder a livello area non applicabile
+
+    // Nascondi share-folder (non applicabile a livello area)
     const shareBtn = pane.querySelector('#files-share-folder-btn');
     if (shareBtn) shareBtn.style.display = 'none';
+
+    // Aggiungi bottone "Nuova cartella" accanto a Drive
+    const driveBtn = pane.querySelector('#files-drive-btn');
+    if (driveBtn) {
+        driveBtn.insertAdjacentHTML('beforebegin',
+            '<button id="files-new-folder-btn" class="primary-btn small" title="Crea nuova cartella" style="padding:0.3rem 0.75rem;font-size:0.7rem;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;">' +
+            '<span class="material-icons-round" style="font-size:14px;">create_new_folder</span> Cartella' +
+            '</button>'
+        );
+    }
+
+    // Stato navigazione cartelle
+    const folderState = { currentId: null, stack: [{ id: null, name: 'File generali' }] };
+
+    // Drive btn con folder awareness
+    const driveBtnEl = pane.querySelector('#files-drive-btn');
+    if (driveBtnEl) {
+        driveBtnEl.onclick = () => openDriveModal(null, null, null, () => renderAreaLevel(pane, areaId, folderState), areaId, folderState.currentId);
+    }
+
+    // Upload zone con folder awareness
+    wireAreaUpload(pane, areaId, folderState);
+
+    // Nuova cartella
+    const newFolderBtn = pane.querySelector('#files-new-folder-btn');
+    if (newFolderBtn) {
+        newFolderBtn.onclick = () => openNewFolderModal(
+            folderState.currentId,
+            { area_ref: areaId },
+            () => renderAreaLevel(pane, areaId, folderState)
+        );
+    }
+
+    renderAreaLevel(pane, areaId, folderState);
 }
 
-function wireAreaUpload(pane, areaId) {
+async function renderAreaLevel(pane, areaId, folderState) {
+    const listEl = pane.querySelector('#files-list');
+    const countEl = pane.querySelector('#files-list-count');
+    const driveBtnEl = pane.querySelector('#files-drive-btn');
+    const newFolderBtnEl = pane.querySelector('#files-new-folder-btn');
+    if (!listEl) return;
+
+    // Aggiorna drive btn onclick con folderId corrente
+    if (driveBtnEl) {
+        driveBtnEl.onclick = () => openDriveModal(null, null, null, () => renderAreaLevel(pane, areaId, folderState), areaId, folderState.currentId);
+    }
+    if (newFolderBtnEl) {
+        newFolderBtnEl.onclick = () => openNewFolderModal(
+            folderState.currentId,
+            { area_ref: areaId },
+            () => renderAreaLevel(pane, areaId, folderState)
+        );
+    }
+
+    listEl.innerHTML = '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:1rem;">Caricamento...</div>';
+
+    const folderId = folderState.currentId;
+
+    // Carica cartelle e file in parallelo
+    let foldersQ = supabase.from('pm_file_folders').select('*').eq('area_ref', areaId).order('name');
+    foldersQ = folderId ? foldersQ.eq('parent_id', folderId) : foldersQ.is('parent_id', null);
+
+    let filesQ = supabase.from('pm_files').select('*').eq('area_ref', areaId).order('uploaded_at', { ascending: false });
+    filesQ = folderId ? filesQ.eq('folder_id', folderId) : filesQ.is('folder_id', null);
+
+    const [{ data: folders }, { data: files, error }] = await Promise.all([foldersQ, filesQ]);
+
+    if (error) {
+        listEl.innerHTML = '<div style="color:#ef4444;font-size:0.8rem;padding:0.5rem;">Errore: ' + error.message + '</div>';
+        return;
+    }
+
+    const totalCount = (folders?.length || 0) + (files?.length || 0);
+    if (countEl) countEl.textContent = totalCount > 0 ? totalCount + ' elementi' : '';
+
+    // Costruisci breadcrumb
+    const breadcrumbHtml = folderState.stack.length > 1
+        ? '<div style="display:flex;align-items:center;gap:4px;margin-bottom:0.75rem;flex-wrap:wrap;">' +
+          folderState.stack.map((crumb, i) => {
+              const isLast = i === folderState.stack.length - 1;
+              if (isLast) return '<span style="font-size:0.8rem;font-weight:700;color:#1a1f36;">' + escapeHtml(crumb.name) + '</span>';
+              return '<button data-crumb-idx="' + i + '" style="background:none;border:none;cursor:pointer;color:#4e92d8;font-size:0.8rem;font-weight:600;padding:0.15rem 0.3rem;border-radius:5px;" onmouseover="this.style.background=\'#eff6ff\'" onmouseout="this.style.background=\'none\'">' + escapeHtml(crumb.name) + '</button><span style="color:#cbd5e1;font-size:0.85rem;">›</span>';
+          }).join('') +
+          '</div>'
+        : '';
+
+    // Render cartelle + file
+    const foldersHtml = (folders || []).map(f => renderFolderCard(f)).join('');
+    const filesHtml = (files && files.length > 0) ? files.map(f => renderFileRow(f)).join('') : '';
+    const emptyHtml = (!folders?.length && !files?.length)
+        ? '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:1.5rem;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">Cartella vuota · trascina file o crea una sottocartella</div>'
+        : '';
+
+    listEl.innerHTML = breadcrumbHtml + foldersHtml + filesHtml + emptyHtml;
+
+    // Wire breadcrumb clicks
+    listEl.querySelectorAll('[data-crumb-idx]').forEach(btn => {
+        btn.onclick = () => {
+            const idx = parseInt(btn.dataset.crumbIdx);
+            folderState.stack = folderState.stack.slice(0, idx + 1);
+            folderState.currentId = folderState.stack[folderState.stack.length - 1].id;
+            renderAreaLevel(pane, areaId, folderState);
+        };
+    });
+
+    // Wire click su cartelle
+    listEl.querySelectorAll('[data-folder-id]').forEach(card => {
+        card.onclick = () => {
+            const fid = card.dataset.folderId;
+            const fname = card.dataset.folderName;
+            folderState.stack.push({ id: fid, name: fname });
+            folderState.currentId = fid;
+            renderAreaLevel(pane, areaId, folderState);
+        };
+    });
+
+    // Wire delete cartelle
+    listEl.querySelectorAll('[data-action="delete-folder"]').forEach(btn => {
+        btn.onclick = async (e) => {
+            e.stopPropagation();
+            if (!confirm('Eliminare la cartella e tutto il suo contenuto?')) return;
+            await supabase.from('pm_file_folders').delete().eq('id', btn.dataset.id);
+            renderAreaLevel(pane, areaId, folderState);
+        };
+    });
+
+    // Wire rename cartelle
+    listEl.querySelectorAll('[data-action="rename-folder"]').forEach(btn => {
+        btn.onclick = async (e) => {
+            e.stopPropagation();
+            const newName = prompt('Nuovo nome cartella:', btn.dataset.name);
+            if (!newName || !newName.trim()) return;
+            await supabase.from('pm_file_folders').update({ name: newName.trim() }).eq('id', btn.dataset.id);
+            renderAreaLevel(pane, areaId, folderState);
+        };
+    });
+
+    // Wire file action buttons
+    wireFileActionButtons(listEl, pane, null, null, () => renderAreaLevel(pane, areaId, folderState));
+}
+
+function renderFolderCard(folder) {
+    return '<div data-folder-id="' + escapeAttr(folder.id) + '" data-folder-name="' + escapeAttr(folder.name) + '" ' +
+        'style="display:flex;align-items:center;gap:0.65rem;padding:0.65rem 0.9rem;background:white;border:1px solid #e8edf3;border-radius:10px;cursor:pointer;transition:border-color 0.15s;margin-bottom:4px;" ' +
+        'onmouseover="this.style.borderColor=\'#4e92d8\'" onmouseout="this.style.borderColor=\'#e8edf3\'">' +
+        '<span class="material-icons-round" style="color:#f59e0b;font-size:1.5rem;flex-shrink:0;">folder</span>' +
+        '<div style="flex:1;min-width:0;font-size:0.87rem;font-weight:600;color:#1a1f36;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(folder.name) + '</div>' +
+        '<button data-action="rename-folder" data-id="' + escapeAttr(folder.id) + '" data-name="' + escapeAttr(folder.name) + '" ' +
+        'style="background:none;border:none;cursor:pointer;color:#94a3b8;padding:0.2rem;border-radius:5px;" title="Rinomina" onclick="event.stopPropagation()">' +
+        '<span class="material-icons-round" style="font-size:1rem;">edit</span></button>' +
+        '<button data-action="delete-folder" data-id="' + escapeAttr(folder.id) + '" ' +
+        'style="background:none;border:none;cursor:pointer;color:#ef4444;padding:0.2rem;border-radius:5px;" title="Elimina" onclick="event.stopPropagation()">' +
+        '<span class="material-icons-round" style="font-size:1rem;">delete_outline</span></button>' +
+        '<span class="material-icons-round" style="color:#cbd5e1;font-size:1rem;">chevron_right</span>' +
+        '</div>';
+}
+
+function openNewFolderModal(parentId, contextFields, onCreated) {
+    document.getElementById('files-new-folder-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend',
+        '<div id="files-new-folder-modal" class="modal active" style="z-index:11500;">' +
+        '<div class="modal-content glass-card" style="max-width:400px;padding:1.5rem;">' +
+        '<h3 style="margin:0 0 1rem;font-size:1.05rem;font-weight:700;">📁 Nuova cartella</h3>' +
+        '<input id="new-folder-name" type="text" placeholder="Nome cartella..." style="width:100%;box-sizing:border-box;padding:0.65rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;" />' +
+        '<div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;">' +
+        '<button id="new-folder-cancel" class="primary-btn small secondary">Annulla</button>' +
+        '<button id="new-folder-save" class="primary-btn small">Crea</button>' +
+        '</div></div></div>'
+    );
+
+    const modal = document.getElementById('files-new-folder-modal');
+    const input = modal.querySelector('#new-folder-name');
+    const saveBtn = modal.querySelector('#new-folder-save');
+    const cancelBtn = modal.querySelector('#new-folder-cancel');
+
+    setTimeout(() => input.focus(), 80);
+
+    const doSave = async () => {
+        const name = input.value.trim();
+        if (!name) { input.style.borderColor = '#ef4444'; input.focus(); return; }
+        saveBtn.disabled = true;
+        saveBtn.textContent = '...';
+        const record = { name, parent_id: parentId || null, ...contextFields };
+        const { error } = await supabase.from('pm_file_folders').insert(record);
+        if (error) { alert('Errore: ' + error.message); saveBtn.disabled = false; saveBtn.textContent = 'Crea'; return; }
+        modal.remove();
+        if (onCreated) onCreated();
+    };
+
+    saveBtn.onclick = doSave;
+    cancelBtn.onclick = () => modal.remove();
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') doSave(); if (e.key === 'Escape') modal.remove(); });
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+function wireAreaUpload(pane, areaId, folderState) {
     const dropZone = pane.querySelector('#files-drop-zone');
     const input = pane.querySelector('#files-input');
     if (!dropZone || !input) return;
 
     dropZone.onclick = () => input.click();
-    dropZone.ondragover = (e) => {
-        e.preventDefault();
-        dropZone.style.background = '#eef4fb';
-        dropZone.style.borderColor = '#4e92d8';
-    };
-    dropZone.ondragleave = () => {
-        dropZone.style.background = '#fafbfc';
-        dropZone.style.borderColor = 'rgba(78, 146, 216, 0.3)';
-    };
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.background = '#eef4fb'; dropZone.style.borderColor = '#4e92d8'; };
+    dropZone.ondragleave = () => { dropZone.style.background = '#fafbfc'; dropZone.style.borderColor = 'rgba(78, 146, 216, 0.3)'; };
     dropZone.ondrop = (e) => {
         e.preventDefault();
-        dropZone.style.background = '#fafbfc';
-        dropZone.style.borderColor = 'rgba(78, 146, 216, 0.3)';
-        handleAreaFiles(e.dataTransfer.files, pane, areaId);
+        dropZone.style.background = '#fafbfc'; dropZone.style.borderColor = 'rgba(78, 146, 216, 0.3)';
+        handleAreaFiles(e.dataTransfer.files, pane, areaId, folderState);
     };
-    input.onchange = () => {
-        handleAreaFiles(input.files, pane, areaId);
-        input.value = '';
-    };
+    input.onchange = () => { handleAreaFiles(input.files, pane, areaId, folderState); input.value = ''; };
 }
 
-async function handleAreaFiles(fileList, pane, areaId) {
+async function handleAreaFiles(fileList, pane, areaId, folderState) {
     if (!fileList || fileList.length === 0) return;
     const statusEl = pane.querySelector('#files-upload-status');
     const statusText = pane.querySelector('#files-upload-status-text');
     if (statusEl) statusEl.classList.remove('hidden');
+    const folderId = folderState ? folderState.currentId : null;
 
     const files = Array.from(fileList).filter(f => {
         if (f.size > MAX_FILE_BYTES) { alert('"' + f.name + '" supera il limite di 5GB.'); return false; }
         return true;
     });
+    if (!files.length) { if (statusEl) statusEl.classList.add('hidden'); return; }
 
     let completed = 0;
     const total = files.length;
     const errors = [];
     const updateStatus = () => {
-        if (statusText) statusText.textContent = total === 1
-            ? 'Caricamento ' + files[0].name + '...'
-            : 'Caricamento: ' + completed + '/' + total + ' completati...';
+        if (statusText) statusText.textContent = total === 1 ? 'Caricamento ' + files[0].name + '...' : 'Caricamento: ' + completed + '/' + total + '...';
     };
     updateStatus();
 
@@ -1472,14 +1654,9 @@ async function handleAreaFiles(fileList, pane, areaId) {
             const file = queue.shift();
             if (!file) break;
             try {
-                if (file.size <= SINGLE_UPLOAD_LIMIT) {
-                    await uploadSingleArea(file, areaId);
-                } else {
-                    await uploadChunkedArea(file, areaId, () => {});
-                }
-            } catch (err) {
-                errors.push('"' + file.name + '": ' + err.message);
-            }
+                if (file.size <= SINGLE_UPLOAD_LIMIT) await uploadSingleArea(file, areaId, folderId);
+                else await uploadChunkedArea(file, areaId, folderId, () => {});
+            } catch (err) { errors.push('"' + file.name + '": ' + err.message); }
             completed++;
             updateStatus();
         }
@@ -1487,26 +1664,22 @@ async function handleAreaFiles(fileList, pane, areaId) {
 
     if (statusEl) statusEl.classList.add('hidden');
     if (errors.length) alert('Errori upload:\n' + errors.join('\n'));
-    refreshAreaFiles(pane, areaId);
+    if (folderState) renderAreaLevel(pane, areaId, folderState);
 }
 
-async function uploadSingleArea(file, areaId) {
+async function uploadSingleArea(file, areaId, folderId) {
     const base64 = await fileToBase64(file);
     return callDropboxProxy({
-        action: 'upload',
-        file_base64: base64,
-        file_name: file.name,
-        mime_type: file.type || 'application/octet-stream',
-        area_ref: areaId,
-        file_size_bytes: file.size,
-        share_with_children: false,
+        action: 'upload', file_base64: base64,
+        file_name: file.name, mime_type: file.type || 'application/octet-stream',
+        area_ref: areaId, folder_id: folderId || undefined,
+        file_size_bytes: file.size, share_with_children: false,
     });
 }
 
-async function uploadChunkedArea(file, areaId, onProgress) {
+async function uploadChunkedArea(file, areaId, folderId, onProgress) {
     const totalSize = file.size;
-    let offset = 0;
-    let sessionId = null;
+    let offset = 0; let sessionId = null;
     while (offset < totalSize) {
         const end = Math.min(offset + CHUNK_SIZE, totalSize);
         const isLast = end === totalSize;
@@ -1518,15 +1691,11 @@ async function uploadChunkedArea(file, areaId, onProgress) {
             if (!sessionId) throw new Error('session_id non ricevuto');
         } else if (isLast) {
             await callDropboxProxy({
-                action: 'upload_session_finish',
-                file_base64: base64,
-                session_id: sessionId,
-                offset,
-                file_name: file.name,
-                mime_type: file.type || 'application/octet-stream',
-                area_ref: areaId,
-                file_size_bytes: file.size,
-                share_with_children: false,
+                action: 'upload_session_finish', file_base64: base64,
+                session_id: sessionId, offset,
+                file_name: file.name, mime_type: file.type || 'application/octet-stream',
+                area_ref: areaId, folder_id: folderId || undefined,
+                file_size_bytes: file.size, share_with_children: false,
             });
         } else {
             await callDropboxProxy({ action: 'upload_session_append', file_base64: base64, session_id: sessionId, offset });
@@ -1534,30 +1703,6 @@ async function uploadChunkedArea(file, areaId, onProgress) {
         offset = end;
         if (onProgress) onProgress(offset / totalSize);
     }
-}
-
-async function refreshAreaFiles(pane, areaId) {
-    const listEl = pane.querySelector('#files-list');
-    const countEl = pane.querySelector('#files-list-count');
-    if (!listEl) return;
-
-    const { data, error } = await supabase.from('pm_files').select('*')
-        .eq('area_ref', areaId)
-        .order('uploaded_at', { ascending: false });
-
-    if (error) {
-        listEl.innerHTML = '<div style="color:#ef4444;font-size:0.8rem;padding:0.5rem;">Errore: ' + error.message + '</div>';
-        return;
-    }
-    if (!data || data.length === 0) {
-        listEl.innerHTML = '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:1rem;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">Nessun file caricato</div>';
-        if (countEl) countEl.textContent = '';
-        return;
-    }
-
-    listEl.innerHTML = data.map(f => renderFileRow(f)).join('');
-    if (countEl) countEl.textContent = data.length + ' file';
-    wireFileActionButtons(listEl, pane, null, null, () => refreshAreaFiles(pane, areaId));
 }
 
 function escapeHtml(s) {
