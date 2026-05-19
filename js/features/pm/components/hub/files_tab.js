@@ -327,33 +327,47 @@ async function handleFiles(fileList, drawer, itemId, spaceId) {
     const statusText = drawer.querySelector('#files-upload-status-text');
     if (statusEl) statusEl.classList.remove('hidden');
 
-    for (let i = 0; i < fileList.length; i++) {
-        const file = fileList[i];
-        if (file.size > MAX_FILE_BYTES) {
-            const gb = (file.size / 1024 / 1024 / 1024).toFixed(1);
-            alert(`"${file.name}" pesa ${gb}GB, oltre il limite di 5GB.\n(Dropbox supporta 350GB ma per ora limitiamo a 5GB.)`);
-            continue;
+    const files = Array.from(fileList).filter(f => {
+        if (f.size > MAX_FILE_BYTES) {
+            alert(`"${f.name}" supera il limite di 5GB.`);
+            return false;
         }
+        return true;
+    });
 
-        try {
-            if (file.size <= SINGLE_UPLOAD_LIMIT) {
-                // File piccolo: upload singolo
-                if (statusText) statusText.textContent = `Upload ${i + 1}/${fileList.length}: ${file.name}...`;
-                await uploadSingle(file, itemId, spaceId);
-            } else {
-                // File grande: chunked upload session
-                await uploadChunked(file, itemId, spaceId, (progress) => {
-                    const pct = Math.round(progress * 100);
-                    if (statusText) statusText.textContent = `Upload ${i + 1}/${fileList.length}: ${file.name} — ${pct}%`;
-                });
+    let completed = 0;
+    const total = files.length;
+    const errors = [];
+    const updateStatus = () => {
+        if (statusText) statusText.textContent = total === 1
+            ? `Caricamento ${files[0].name}...`
+            : `Caricamento: ${completed}/${total} completati...`;
+    };
+    updateStatus();
+
+    // Worker pool: max 4 upload paralleli
+    const queue = [...files];
+    await Promise.all(Array.from({ length: Math.min(4, total) }, async () => {
+        while (queue.length > 0) {
+            const file = queue.shift();
+            if (!file) break;
+            try {
+                if (file.size <= SINGLE_UPLOAD_LIMIT) {
+                    await uploadSingle(file, itemId, spaceId);
+                } else {
+                    await uploadChunked(file, itemId, spaceId, () => {});
+                }
+            } catch (err) {
+                console.error('[files_tab] upload failed', err);
+                errors.push(`"${file.name}": ${err.message}`);
             }
-        } catch (err) {
-            console.error('[files_tab] upload failed', err);
-            alert(`Errore upload "${file.name}":\n${err.message}`);
+            completed++;
+            updateStatus();
         }
-    }
+    }));
 
     if (statusEl) statusEl.classList.add('hidden');
+    if (errors.length) alert('Errori upload:\n' + errors.join('\n'));
     refreshFiles(drawer, itemId, spaceId);
 }
 
@@ -445,37 +459,54 @@ async function handleClientFiles(fileList, container, clientId) {
     const statusText = container.querySelector('#files-upload-status-text');
     if (statusEl) statusEl.classList.remove('hidden');
 
-    for (let i = 0; i < fileList.length; i++) {
-        const file = fileList[i];
-        if (file.size > MAX_FILE_BYTES) {
-            alert(`"${file.name}" supera il limite di 5GB.`);
-            continue;
+    const files = Array.from(fileList).filter(f => {
+        if (f.size > MAX_FILE_BYTES) {
+            alert(`"${f.name}" supera il limite di 5GB.`);
+            return false;
         }
-        try {
-            if (file.size <= SINGLE_UPLOAD_LIMIT) {
-                if (statusText) statusText.textContent = `Upload ${i + 1}/${fileList.length}: ${file.name}...`;
-                const base64 = await fileToBase64(file);
-                await callDropboxProxy({
-                    action: 'upload',
-                    file_base64: base64,
-                    file_name: file.name,
-                    mime_type: file.type || 'application/octet-stream',
-                    client_ref: clientId,
-                    file_size_bytes: file.size,
-                    share_with_children: false,
-                });
-            } else {
-                await uploadChunkedClient(file, clientId, (progress) => {
-                    const pct = Math.round(progress * 100);
-                    if (statusText) statusText.textContent = `Upload ${i + 1}/${fileList.length}: ${file.name} — ${pct}%`;
-                });
+        return true;
+    });
+
+    let completed = 0;
+    const total = files.length;
+    const errors = [];
+    const updateStatus = () => {
+        if (statusText) statusText.textContent = total === 1
+            ? `Caricamento ${files[0].name}...`
+            : `Caricamento: ${completed}/${total} completati...`;
+    };
+    updateStatus();
+
+    const queue = [...files];
+    await Promise.all(Array.from({ length: Math.min(4, total) }, async () => {
+        while (queue.length > 0) {
+            const file = queue.shift();
+            if (!file) break;
+            try {
+                if (file.size <= SINGLE_UPLOAD_LIMIT) {
+                    const base64 = await fileToBase64(file);
+                    await callDropboxProxy({
+                        action: 'upload',
+                        file_base64: base64,
+                        file_name: file.name,
+                        mime_type: file.type || 'application/octet-stream',
+                        client_ref: clientId,
+                        file_size_bytes: file.size,
+                        share_with_children: false,
+                    });
+                } else {
+                    await uploadChunkedClient(file, clientId, () => {});
+                }
+            } catch (err) {
+                errors.push(`"${file.name}": ${err.message}`);
             }
-        } catch (err) {
-            alert(`Errore upload "${file.name}":\n${err.message}`);
+            completed++;
+            updateStatus();
         }
-    }
+    }));
 
     if (statusEl) statusEl.classList.add('hidden');
+    if (errors.length) alert('Errori upload:\n' + errors.join('\n'));
     refreshClientFiles(container, clientId);
 }
 
