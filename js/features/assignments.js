@@ -292,6 +292,8 @@ export async function renderAssignmentDetail(container) {
                                 <p style="font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary); margin: 0; font-style: italic;">${assignment.pm_notes}</p>
                             </div>
                         ` : ''}
+
+                        ${isCollabView ? `<div id="ai-brief-slot-${assignment.id}"></div>` : ''}
                     </div>
 
                     <!-- Column 3: Economics & Payments -->
@@ -443,6 +445,14 @@ export async function renderAssignmentDetail(container) {
         // Mina D: fetch hub operativo async (solo collab view)
         if (isCollabView && assignment.order_id) {
             loadAssignmentHubOperativo(assignment, myCollabId).catch(err => console.warn('[hub-operativo]', err));
+        }
+
+        // Mina E: card briefing AI (solo collab view)
+        if (isCollabView) {
+            import('./assignments_ai_brief.js?v=8000').then(mod => {
+                const slot = container.querySelector(`#ai-brief-slot-${assignment.id}`);
+                if (slot) slot.innerHTML = mod.buildBriefCardHtml(assignment);
+            }).catch(err => console.warn('[ai-brief]', err));
         }
 
         // Help inline AI: bottone "Cosa devo fare?" (solo collab view)
