@@ -1151,6 +1151,19 @@ export function renderAssignmentsDashboard(container) {
                 a.collaborator_id == myCollabId ||
                 a.collaborators?.id == myCollabId
             );
+        } else if (isPrivileged && state.assignmentsMineOnly && myCollabId) {
+            // Toggle quick "I miei" per partner/admin (R-A-R)
+            const myOrderIds = state.orders.filter(o =>
+                o.account_id == myCollabId ||
+                o.order_collaborators?.some(oc =>
+                    (oc.collaborator_id == myCollabId || oc.collaborators?.id == myCollabId)
+                )
+            ).map(o => o.id);
+            baseAssignments = state.assignments.filter(a =>
+                myOrderIds.includes(a.order_id) ||
+                a.collaborator_id == myCollabId ||
+                a.collaborators?.id == myCollabId
+            );
         }
 
         const selectedStatus = state.assignmentsStatusFilter || 'all';
@@ -1209,6 +1222,11 @@ export function renderAssignmentsDashboard(container) {
                     </div>
                     
                     <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;">
+                        ${isPrivileged && myCollabId ? `
+                            <button id="assignments-mine-toggle" style="padding: 0.4rem 0.8rem; border-radius: 999px; border: 1px solid ${state.assignmentsMineOnly ? '#3b82f6' : 'var(--glass-border)'}; background: ${state.assignmentsMineOnly ? '#3b82f6' : 'white'}; color: ${state.assignmentsMineOnly ? 'white' : 'var(--text-secondary)'}; font-size: 0.78rem; font-weight: 700; cursor: pointer;">
+                                ${state.assignmentsMineOnly ? '👤 I miei' : 'Tutti i collab'}
+                            </button>
+                        ` : ''}
                         <span style="font-size: 0.75rem; font-weight: 400; color: var(--text-tertiary); text-transform: uppercase;">Stato Incarico</span>
                         <div style="display: flex; background: rgba(0,0,0,0.03); padding: 0.25rem; border-radius: 12px; border: 1px solid var(--glass-border); flex-wrap: wrap; gap: 0.25rem;">
                             ${uniqueStatuses.map(s => `
@@ -1241,6 +1259,13 @@ export function renderAssignmentsDashboard(container) {
                 updateUI();
             });
         });
+        const mineToggle = container.querySelector('#assignments-mine-toggle');
+        if (mineToggle) {
+            mineToggle.addEventListener('click', () => {
+                state.assignmentsMineOnly = !state.assignmentsMineOnly;
+                updateUI();
+            });
+        }
     };
 
     updateUI();
