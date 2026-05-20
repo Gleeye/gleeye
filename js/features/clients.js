@@ -857,6 +857,16 @@ export function renderClientDetail(container) {
                         <div class="stats-trend">Totali</div>
                     </div>
                 </div>
+
+                ${client.notes ? `
+                    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 2rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 800; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                            <span class="material-icons-round" style="font-size: 1rem;">sticky_note_2</span>
+                            Note sul cliente
+                        </div>
+                        <div style="font-size: 0.9rem; color: var(--text-primary); line-height: 1.5; white-space: pre-wrap;">${client.notes.replace(/</g, '&lt;')}</div>
+                    </div>
+                ` : ''}
             </div>
 
             <!-- Tab Content: Referenti -->
@@ -1180,6 +1190,11 @@ export function initNewClientModal() {
                                 </div>
                             </div>
                         </div>
+
+                        <div class="form-group">
+                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; letter-spacing: 0.5px; text-transform: uppercase;">Note</label>
+                            <textarea id="new-cli-notes" class="modal-input" placeholder="Note libere sul cliente (preferenze, debolezze, contesto, ecc.)" rows="4" style="width: 100%; border-radius: 12px; padding: 0.75rem 1rem; resize: vertical; font-family: inherit;"></textarea>
+                        </div>
                     </div>
                 </div>
 
@@ -1235,7 +1250,8 @@ export function initNewClientModal() {
                 payment_terms: document.getElementById('new-cli-payment-terms').value !== ''
                     ? parseInt(document.getElementById('new-cli-payment-terms').value, 10)
                     : null,
-                account_responsible_id: document.getElementById('new-cli-account').value || null
+                account_responsible_id: document.getElementById('new-cli-account').value || null,
+                notes: document.getElementById('new-cli-notes').value.trim() || null
             };
 
             // Add ID if editing
@@ -1307,6 +1323,7 @@ window.openNewClientModal = (client = null) => {
         document.getElementById('new-cli-sdi').value = client.sdi_code || '';
         document.getElementById('new-cli-payment-terms').value = client.payment_terms != null ? String(client.payment_terms) : '';
         document.getElementById('new-cli-account').value = client.account_responsible_id || '';
+        document.getElementById('new-cli-notes').value = client.notes || '';
     } else {
         titleEl.textContent = 'Nuovo Cliente';
         descEl.textContent = 'Inserisci i dati dell\'anagrafica cliente';
@@ -1327,6 +1344,7 @@ window.openNewClientModal = (client = null) => {
         document.getElementById('new-cli-sdi').value = '';
         document.getElementById('new-cli-payment-terms').value = '';
         document.getElementById('new-cli-account').value = '';
+        document.getElementById('new-cli-notes').value = '';
     }
 
     saveBtn.disabled = false;
@@ -1634,7 +1652,16 @@ export function openClientContactModal(clientId, contact, onSaved) {
                             </div>
                             <div class="form-group">
                                 <label>Ruolo / Funzione</label>
-                                <input type="text" id="client-contact-role" placeholder="Es: Direzione, Marketing, Amministrazione">
+                                <input type="text" id="client-contact-role" list="client-contact-role-suggestions" placeholder="Es: Direzione, Marketing…" autocomplete="off">
+                                <datalist id="client-contact-role-suggestions">
+                                    <option value="Direzione / CEO">
+                                    <option value="Marketing">
+                                    <option value="Comunicazione">
+                                    <option value="Amministrazione">
+                                    <option value="Tecnico">
+                                    <option value="Vendite">
+                                    <option value="Altro">
+                                </datalist>
                             </div>
                             <div class="form-group">
                                 <label>Email</label>
