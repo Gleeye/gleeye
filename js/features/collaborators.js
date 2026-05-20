@@ -824,12 +824,17 @@ export function renderCollaboratorDetail(container) {
                     </div>
                     
                     <div>
-                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.4rem;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.4rem; flex-wrap: wrap;">
                              <h1 style="font-size: 2rem; font-weight: 700; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.02em;">${c.full_name}</h1>
                              <span class="status-badge" style="display: inline-flex; align-items: center; gap: 4px; background: ${statusColor}15; color: ${statusColor}; border: 1px solid ${statusColor}30; font-size: 0.75rem; padding: 4px 10px; border-radius: 2rem; font-weight: 600;">
                                 <span style="width: 6px; height: 6px; border-radius: 50%; background: ${statusColor};"></span>
                                 ${statusText}
                              </span>
+                             ${(() => {
+                                 const lc = _COLLAB_STATUS_STYLE[c.status_lifecycle];
+                                 if (!lc) return '';
+                                 return `<span title="Lifecycle: ${lc.label}" style="display: inline-flex; align-items: center; gap: 4px; background: ${lc.color}15; color: ${lc.color}; border: 1px solid ${lc.color}30; font-size: 0.75rem; padding: 4px 10px; border-radius: 2rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;"><span style="width: 6px; height: 6px; border-radius: 50%; background: ${lc.color};"></span>${lc.label}</span>`;
+                             })()}
                         </div>
                         <div style="display: flex; align-items: center; gap: 1rem; color: var(--text-tertiary); font-size: 0.9rem; flex-wrap: wrap;">
                             <span style="display: flex; align-items: center; gap: 0.4rem; font-weight: 500;">
