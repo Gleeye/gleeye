@@ -235,6 +235,15 @@ export function renderDashboard(container) {
                 );
             });
             console.log(`[Dashboard] Non-privileged Filter applied: orders=${baseOrders.length}/${state.orders.length}`);
+        } else if (isPrivileged && state.dashboardMineOnly && myCollabId) {
+            // Quick toggle "I miei ordini" per partner/admin (R-A-R)
+            baseOrders = state.orders.filter(o =>
+                o.account_id == myCollabId ||
+                o.pm_id == myCollabId ||
+                o.order_collaborators?.some(oc =>
+                    (oc.collaborator_id == myCollabId || oc.collaborators?.id == myCollabId)
+                )
+            );
         }
 
         // (14/5) Rimosso il filtro "Come Account / Come PM" qui: Davide ha
@@ -736,6 +745,11 @@ export function renderDashboard(container) {
                                     ${renderDropdown('year', 'Anno', 'calendar_today', uniqueYears, currentYearFilter)}
                                     ${renderDropdown('client', 'Cliente', 'person', uniqueClients, currentClientFilter)}
                                     ${renderDropdown('status', 'Stato', 'flag', uniqueStatuses, currentStatusFilter)}
+                                    ${isPrivileged && myCollabId ? `
+                                        <button id="dashboard-mine-toggle" style="padding: 6px 14px; border-radius: 8px; border: 1px solid ${state.dashboardMineOnly ? '#3b82f6' : 'var(--glass-border)'}; background: ${state.dashboardMineOnly ? '#3b82f6' : 'white'}; color: ${state.dashboardMineOnly ? 'white' : 'var(--text-secondary)'}; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.2s;">
+                                            ${state.dashboardMineOnly ? '👤 I miei' : '👥 Tutti'}
+                                        </button>
+                                    ` : ''}
                                 </div>
                             </div>
                             <div class="table-container" style="overflow-x: auto; overflow-y: auto; flex: 1; position: relative;">
@@ -773,6 +787,14 @@ export function renderDashboard(container) {
         if (btnNewOrderMain) {
             btnNewOrderMain.addEventListener('click', () => {
                 window.openNewOrderModal();
+            });
+        }
+
+        const mineToggleBtn = container.querySelector('#dashboard-mine-toggle');
+        if (mineToggleBtn) {
+            mineToggleBtn.addEventListener('click', () => {
+                state.dashboardMineOnly = !state.dashboardMineOnly;
+                renderContent();
             });
         }
 
