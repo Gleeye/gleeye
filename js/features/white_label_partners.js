@@ -92,17 +92,31 @@ export async function renderWhiteLabelPartners(container) {
     });
 }
 
+// Stile lifecycle (B7 — coerente con collaborators)
+const _WL_LIFECYCLE_STYLE = {
+    attivo:      { label: 'Attivo',         color: '#10b981' },
+    dormiente:   { label: 'Dormiente',      color: '#94a3b8' },
+    candidato:   { label: 'Candidato',      color: '#3b82f6' },
+    valutazione: { label: 'In valutazione', color: '#f59e0b' },
+    perso:       { label: 'Perso',          color: '#ef4444' },
+};
+
 function renderPartnerCard(p) {
     const rating = p.quality_rating;
+    const lc = _WL_LIFECYCLE_STYLE[p.status_lifecycle];
+    const lcBadge = lc ? `<span title="Lifecycle: ${lc.label}" style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:${lc.color}18;color:${lc.color};border:1px solid ${lc.color}40;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;"><span style="width:6px;height:6px;border-radius:50%;background:${lc.color};"></span>${lc.label}</span>` : '';
     return `
         <div class="glass-card partner-card clickable-card" data-id="${p.id}" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; position: relative;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div style="width: 52px; height: 52px; border-radius: 12px; background: var(--brand-gradient); display: flex; align-items: center; justify-content: center; color: white;">
                     <span class="material-icons-round" style="font-size: 1.8rem;">corporate_fare</span>
                 </div>
-                <button class="icon-btn edit-btn" style="padding: 4px;" onclick="event.stopPropagation(); window.openWhiteLabelPartnerModal('${p.id}')">
-                    <span class="material-icons-round" style="font-size: 1.2rem;">edit</span>
-                </button>
+                <div style="display:flex; gap:0.4rem; align-items:center;">
+                    ${lcBadge}
+                    <button class="icon-btn edit-btn" style="padding: 4px;" onclick="event.stopPropagation(); window.openWhiteLabelPartnerModal('${p.id}')">
+                        <span class="material-icons-round" style="font-size: 1.2rem;">edit</span>
+                    </button>
+                </div>
             </div>
 
             <div>
