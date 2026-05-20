@@ -267,6 +267,9 @@ export async function renderClients(container) {
                 : `<div class="v7-acc-badge" title="Account: ${acc.full_name}" style="width: 22px; height: 22px; border-radius: 50%; background: ${_accountColor(acc.id)}22; color: ${_accountColor(acc.id)}; display:flex; align-items:center; justify-content:center; font-size: 0.65rem; font-weight: 700; border: 1px solid ${_accountColor(acc.id)}55;">${_accountInitials(acc.full_name)}</div>`)
             : `<div class="v7-acc-badge v7-acc-unassigned" title="Account non assegnato" style="width: 22px; height: 22px; border-radius: 50%; background: rgba(148,163,184,0.1); color: #94a3b8; display:flex; align-items:center; justify-content:center; border: 1px dashed #cbd5e1;"><span class="material-icons-round" style="font-size: 14px;">person_off</span></div>`;
 
+        const userTags = Array.isArray(client.tags) ? client.tags.filter(Boolean) : [];
+        const tagsHtml = userTags.length === 0 ? '' :
+            `<div style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px;">${userTags.slice(0, 4).map(t => `<span style="font-size: 0.62rem; padding: 1px 6px; border-radius: 4px; background: rgba(99,102,241,0.10); color: #6366f1; font-weight: 600;">${t}</span>`).join('')}${userTags.length > 4 ? `<span style="font-size: 0.62rem; color: var(--text-tertiary);">+${userTags.length - 4}</span>` : ''}</div>`;
         return `
             <div class="v7-rubrica-item animate-fade-in" onclick="window.location.hash='client-detail/${client.id}'">
                 <div class="v7-item-main">
@@ -277,6 +280,7 @@ export async function renderClients(container) {
                     </div>
                     <div class="v7-name">${client.business_name}</div>
                     <div class="v7-city-mini">${client.city || '-'}</div>
+                    ${tagsHtml}
                 </div>
                 <div class="v7-item-contacts">
                     ${accBadge}
@@ -1205,6 +1209,12 @@ export function initNewClientModal() {
                         </div>
 
                         <div class="form-group">
+                            <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; letter-spacing: 0.5px; text-transform: uppercase;">Tag liberi</label>
+                            <input type="text" id="new-cli-tags" class="modal-input" placeholder="Es: TOP10, Premium, Stagionale, Rischio churn (separati da virgola)" style="width: 100%; border-radius: 12px; padding: 0.75rem 1rem;">
+                            <p style="font-size: 0.72rem; color: var(--text-tertiary); margin-top: 0.4rem;">Etichette libere per segmentare il cliente (separate da virgola). Saranno visibili nelle card lista.</p>
+                        </div>
+
+                        <div class="form-group">
                             <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.5rem; letter-spacing: 0.5px; text-transform: uppercase;">Note</label>
                             <textarea id="new-cli-notes" class="modal-input" placeholder="Note libere sul cliente (preferenze, debolezze, contesto, ecc.)" rows="4" style="width: 100%; border-radius: 12px; padding: 0.75rem 1rem; resize: vertical; font-family: inherit;"></textarea>
                         </div>
@@ -1270,7 +1280,9 @@ export function initNewClientModal() {
                     ? parseInt(document.getElementById('new-cli-payment-terms').value, 10)
                     : null,
                 account_responsible_id: document.getElementById('new-cli-account').value || null,
-                notes: orNull('new-cli-notes')
+                notes: orNull('new-cli-notes'),
+                tags: (document.getElementById('new-cli-tags').value || '')
+                    .split(',').map(t => t.trim()).filter(Boolean)
             };
 
             // Add ID if editing
@@ -1343,6 +1355,7 @@ window.openNewClientModal = (client = null) => {
         document.getElementById('new-cli-payment-terms').value = client.payment_terms != null ? String(client.payment_terms) : '';
         document.getElementById('new-cli-account').value = client.account_responsible_id || '';
         document.getElementById('new-cli-notes').value = client.notes || '';
+        document.getElementById('new-cli-tags').value = Array.isArray(client.tags) ? client.tags.join(', ') : '';
     } else {
         titleEl.textContent = 'Nuovo Cliente';
         descEl.textContent = 'Inserisci i dati dell\'anagrafica cliente';
@@ -1364,6 +1377,7 @@ window.openNewClientModal = (client = null) => {
         document.getElementById('new-cli-payment-terms').value = '';
         document.getElementById('new-cli-account').value = '';
         document.getElementById('new-cli-notes').value = '';
+        document.getElementById('new-cli-tags').value = '';
     }
 
     saveBtn.disabled = false;
