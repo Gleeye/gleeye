@@ -27,7 +27,33 @@ export async function renderSuppliers(container) {
 
     const render = () => {
         const showArchived = state.suppliersShowArchived || false;
-        const displaySuppliers = showArchived ? archivedSuppliers : activeSuppliers;
+        let displaySuppliers = showArchived ? archivedSuppliers : activeSuppliers;
+
+        // Filtro categoria
+        if (typeof state.suppliersCategoryFilter === 'undefined') state.suppliersCategoryFilter = 'all';
+        if (state.suppliersCategoryFilter !== 'all') {
+            if (state.suppliersCategoryFilter === '__individual__') {
+                displaySuppliers = displaySuppliers.filter(s => s.is_individual);
+            } else {
+                displaySuppliers = displaySuppliers.filter(s => s.category === state.suppliersCategoryFilter);
+            }
+        }
+
+        // Conteggi per chip (su base attiva/archiviata corrente)
+        const baseList = showArchived ? archivedSuppliers : activeSuppliers;
+        const catCounts = { all: baseList.length, __individual__: baseList.filter(s => s.is_individual).length };
+        const catLabels = {
+            software_saas: 'Software/SaaS',
+            hosting_domini: 'Hosting',
+            servizi_professionali: 'Professionali',
+            stampa_produzione: 'Stampa',
+            ufficio_coworking: 'Ufficio',
+            marketplace_pagamenti: 'Marketplace',
+            altro: 'Altro',
+        };
+        baseList.forEach(s => {
+            if (s.category) catCounts[s.category] = (catCounts[s.category] || 0) + 1;
+        });
 
         return `
             <div class="animate-fade-in" style="max-width: 1400px; margin: 0 auto; padding-bottom: 4rem;">
@@ -58,7 +84,7 @@ export async function renderSuppliers(container) {
 
                 <div class="main-column">
                     <!-- HEADER -->
-                    <div class="section-header" style="background: var(--card-bg); padding: 1.25rem 1.5rem; border-radius: 20px; border: 1px solid var(--glass-border); margin-bottom: 1.5rem; backdrop-filter: blur(10px);">
+                    <div class="section-header" style="background: var(--card-bg); padding: 1.25rem 1.5rem; border-radius: 20px; border: 1px solid var(--glass-border); margin-bottom: 1rem; backdrop-filter: blur(10px);">
                         <div>
                             <h2 style="font-family: var(--font-titles); font-weight: 400; margin: 0; font-size: 1.5rem;">Fornitori</h2>
                             <span style="font-size: 0.85rem; color: var(--text-secondary);">${displaySuppliers.length} fornitori ${showArchived ? 'archiviati' : 'attivi'}</span>
@@ -75,6 +101,26 @@ export async function renderSuppliers(container) {
                                 Nuovo
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Chip filtri categoria -->
+                    <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+                        ${[
+                            { k: 'all', label: 'Tutti', color: '#64748b' },
+                            { k: 'software_saas', label: 'Software/SaaS', color: '#3b82f6' },
+                            { k: 'hosting_domini', label: 'Hosting', color: '#8b5cf6' },
+                            { k: 'servizi_professionali', label: 'Professionali', color: '#ec4899' },
+                            { k: 'stampa_produzione', label: 'Stampa', color: '#f59e0b' },
+                            { k: 'ufficio_coworking', label: 'Ufficio', color: '#10b981' },
+                            { k: 'marketplace_pagamenti', label: 'Marketplace', color: '#14b8a6' },
+                            { k: 'altro', label: 'Altro', color: '#94a3b8' },
+                            { k: '__individual__', label: '👤 Persone fisiche', color: '#ef4444' },
+                        ].map(ch => {
+                            const active = state.suppliersCategoryFilter === ch.k;
+                            const cnt = catCounts[ch.k] || 0;
+                            if (cnt === 0 && ch.k !== 'all' && !active) return '';
+                            return `<button data-cat-filter="${ch.k}" style="padding: 6px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: 1px solid ${ch.color}${active ? '' : '30'}; background: ${active ? ch.color : ch.color + '15'}; color: ${active ? 'white' : ch.color};">${ch.label} ${cnt}</button>`;
+                        }).join('')}
                     </div>
 
                     <!-- LIST -->
@@ -133,12 +179,24 @@ export async function renderSuppliers(container) {
         `;
     };
 
+    const attachFilters = () => {
+        container.querySelectorAll('[data-cat-filter]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                state.suppliersCategoryFilter = btn.dataset.catFilter;
+                container.innerHTML = render();
+                attachFilters();
+            });
+        });
+    };
+
     container.innerHTML = render();
+    attachFilters();
 
     // Global functions
     window.toggleSuppliersArchive = (showArchived) => {
         state.suppliersShowArchived = showArchived;
         container.innerHTML = render();
+        attachFilters();
     };
 
     window.toggleSupplierArchive = async (id, archive) => {
@@ -156,6 +214,7 @@ export async function renderSuppliers(container) {
         const idx = state.suppliers.findIndex(s => s.id === id);
         if (idx >= 0) state.suppliers[idx].archived = archive;
         container.innerHTML = render();
+        attachFilters();
     };
 }
 
