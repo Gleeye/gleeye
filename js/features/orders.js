@@ -207,6 +207,15 @@ export async function renderOrderDetail(container, orderId) {
     const toBeInvoiced = Math.max(0, priceFinal - totalInvoicedOnOrder);
     const isOrderClosed = (order.status_works || '').toLowerCase() === 'completato';
     const showInvoiceCTA = canSeeInternals && priceFinal > 0 && toBeInvoiced > 0.5;
+    // CO-2: mostra card fatturazione anche se completamente fatturato
+    const showInvoicingCard = canSeeInternals && priceFinal > 0;
+    const invoicedCoveragePct = priceFinal > 0 ? Math.min(100, Math.round((totalInvoicedOnOrder / priceFinal) * 100)) : 0;
+    const totalPaidOnOrder = linkedInvoicesForOrder.reduce((s, i) => s + (parseFloat(i.amount_paid) || 0), 0);
+    const sortedInvoicesForOrder = [...linkedInvoicesForOrder].sort((a, b) => {
+        const da = new Date(a.created_at || a.due_date || 0).getTime();
+        const db = new Date(b.created_at || b.due_date || 0).getTime();
+        return da - db;
+    });
 
     // --- PM Data Fetching ---
     const pmSpace = await fetchProjectSpaceForOrder(orderId);
@@ -746,29 +755,73 @@ export async function renderOrderDetail(container, orderId) {
             ` : ''}
 
 
-            ${showInvoiceCTA ? `
-            <!-- Smart "Da Fatturare" Card -->
-            <div class="glass-card" style="padding: 1.25rem; background: ${isOrderClosed ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.10), rgba(16, 185, 129, 0.02))' : 'var(--bg-secondary)'}; border: ${isOrderClosed ? '2px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--glass-border)'};">
+            ${showInvoicingCard ? `
+            <!-- CO-2 Multi-fattura: card Fatturazione potenziata -->
+            <div class="glass-card" style="padding: 1.25rem; background: ${invoicedCoveragePct >= 100 ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.10), rgba(16, 185, 129, 0.02))' : 'var(--bg-secondary)'}; border: ${invoicedCoveragePct >= 100 ? '2px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--glass-border)'};">
                 <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.85rem;">
                     <div style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.15);">
                         <span class="material-icons-round" style="font-size: 1.1rem; color: #10b981;">receipt</span>
                     </div>
-                    <span style="font-weight: 700; font-size: 1rem; color: var(--text-primary); font-family: var(--font-titles);">Da Fatturare</span>
-                    ${isOrderClosed ? '<span style="font-size: 0.65rem; padding: 2px 8px; border-radius: 999px; background: #10b981; color: white; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Lavoro chiuso</span>' : ''}
+                    <span style="font-weight: 700; font-size: 1rem; color: var(--text-primary); font-family: var(--font-titles);">Fatturazione</span>
+                    ${invoicedCoveragePct >= 100 ? '<span style="font-size: 0.65rem; padding: 2px 8px; border-radius: 999px; background: #10b981; color: white; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Tutto fatturato</span>' : ''}
+                    ${isOrderClosed && invoicedCoveragePct < 100 ? '<span style="font-size: 0.65rem; padding: 2px 8px; border-radius: 999px; background: #f59e0b; color: white; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;" title="Commessa chiusa ma non completamente fatturata">Da chiudere</span>' : ''}
                 </div>
-                <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.5rem;">
-                    <span style="font-size: 1.6rem; font-weight: 800; color: #10b981; font-family: var(--font-titles); line-height: 1;">${formatAmount(toBeInvoiced)}€</span>
-                    <span style="font-size: 0.75rem; color: var(--text-tertiary);">residuo</span>
+
+                <!-- Coverage bar -->
+                <div style="margin-bottom: 0.85rem;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-tertiary); margin-bottom: 0.3rem;">
+                        <span>Avanzamento fatturazione</span>
+                        <span style="font-weight: 700; color: ${invoicedCoveragePct >= 100 ? '#10b981' : 'var(--text-primary)'};">${invoicedCoveragePct}%</span>
+                    </div>
+                    <div style="width: 100%; height: 8px; background: var(--bg-tertiary); border-radius: 999px; overflow: hidden;">
+                        <div style="width: ${invoicedCoveragePct}%; height: 100%; background: ${invoicedCoveragePct >= 100 ? '#10b981' : invoicedCoveragePct >= 50 ? '#3b82f6' : '#f59e0b'}; transition: width .3s;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: var(--text-secondary); margin-top: 0.3rem;">
+                        <span>Fatturato <strong style="color: var(--text-primary);">${formatAmount(totalInvoicedOnOrder)}€</strong> su ${formatAmount(priceFinal)}€</span>
+                        ${toBeInvoiced > 0.5 ? `<span>Residuo <strong style="color: #f59e0b;">${formatAmount(toBeInvoiced)}€</strong></span>` : ''}
+                    </div>
                 </div>
-                <div style="font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.85rem;">
-                    Fatturato finora: <strong>${formatAmount(totalInvoicedOnOrder)}€</strong>
-                    ${linkedInvoicesForOrder.length > 0 ? ` su ${linkedInvoicesForOrder.length} fattur${linkedInvoicesForOrder.length === 1 ? 'a' : 'e'}` : ' — nessuna fattura emessa'}
-                    · prezzo commessa <strong>${formatAmount(priceFinal)}€</strong>
+
+                ${sortedInvoicesForOrder.length > 0 ? `
+                <!-- Lista fatture collegate -->
+                <div style="border-top: 1px solid var(--glass-border); padding-top: 0.75rem; margin-bottom: ${toBeInvoiced > 0.5 ? '0.85rem' : '0'};">
+                    <div style="font-size: 0.65rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-bottom: 0.5rem;">
+                        ${sortedInvoicesForOrder.length} fattur${sortedInvoicesForOrder.length === 1 ? 'a collegata' : 'e collegate'}
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                        ${sortedInvoicesForOrder.map(inv => {
+            const amount = parseFloat(inv.amount_tax_excluded) || 0;
+            const paid = parseFloat(inv.amount_paid) || 0;
+            const isPaid = inv.status === 'Saldata' || paid >= amount - 0.5;
+            const isCancelled = inv.status === 'Annullata';
+            const statusColor = isCancelled ? '#6b7280' : isPaid ? '#10b981' : (inv.status === 'Scaduta' ? '#ef4444' : '#f59e0b');
+            const statusBg = isCancelled ? 'rgba(107,114,128,0.10)' : isPaid ? 'rgba(16,185,129,0.10)' : (inv.status === 'Scaduta' ? 'rgba(239,68,68,0.10)' : 'rgba(245,158,11,0.10)');
+            const dateLabel = inv.due_date ? new Date(inv.due_date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : (inv.created_at ? new Date(inv.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—');
+            return `
+                                <div onclick="window.openInvoiceDetail && window.openInvoiceDetail('${inv.id}', 'active')" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.65rem; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer; transition: background .15s; ${isCancelled ? 'opacity: 0.55;' : ''}" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='var(--bg-tertiary)'">
+                                    <span style="font-family: ui-monospace, monospace; font-size: 0.72rem; font-weight: 600; color: var(--text-primary); flex-shrink: 0;">${inv.invoice_number || '—'}</span>
+                                    <span style="font-size: 0.65rem; color: var(--text-tertiary); flex-shrink: 0;">${dateLabel}</span>
+                                    <span style="flex: 1;"></span>
+                                    <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-primary); flex-shrink: 0;">${formatAmount(amount)}€</span>
+                                    <span style="font-size: 0.62rem; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: ${statusBg}; color: ${statusColor}; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.04em;">${inv.status || '—'}</span>
+                                </div>
+                            `;
+        }).join('')}
+                    </div>
+                    ${totalPaidOnOrder > 0 && totalPaidOnOrder < totalInvoicedOnOrder - 0.5 ? `
+                        <div style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                            Incassato: <strong>${formatAmount(totalPaidOnOrder)}€</strong> · da incassare: <strong style="color: #f59e0b;">${formatAmount(totalInvoicedOnOrder - totalPaidOnOrder)}€</strong>
+                        </div>
+                    ` : ''}
                 </div>
+                ` : ''}
+
+                ${toBeInvoiced > 0.5 ? `
                 <button onclick="window.prefillInvoiceFromOrder('${order.id}', ${toBeInvoiced.toFixed(2)})" class="primary-btn" style="width: 100%; justify-content: center; gap: 0.5rem; background: #10b981; color: white; border: none; padding: 0.7rem; border-radius: 10px; font-weight: 600; cursor: pointer;">
                     <span class="material-icons-round">add_circle</span>
                     ${linkedInvoicesForOrder.length === 0 ? 'Genera fattura' : 'Genera fattura saldo'} ${formatAmount(toBeInvoiced)}€
                 </button>
+                ` : ''}
             </div>
             ` : ''}
 
