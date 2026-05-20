@@ -683,6 +683,17 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 </div>
                             </div>
 
+                            <!-- Promemoria PM-2 (full-width row sotto metadata-grid) -->
+                            <div style="width: 100%; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #f1f5f9; display: flex; align-items: center; gap: 10px;">
+                                <span class="material-icons-round" style="font-size: 1.15rem; color: ${item.reminder_at ? '#f59e0b' : '#94a3b8'};">notifications_active</span>
+                                <span style="font-size: 0.65rem; font-weight: 800; color: #697386; text-transform: uppercase; letter-spacing: 0.06em;">PROMEMORIA</span>
+                                <input type="datetime-local" id="reminder-at-input" value="${item.reminder_at ? new Date(item.reminder_at).toISOString().slice(0,16) : ''}"
+                                       style="padding: 4px 8px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; font-family: inherit;">
+                                ${item.reminder_at ? `<button id="reminder-clear-btn" style="appearance:none; border:none; background:transparent; color:#ef4444; cursor:pointer; font-size:0.8rem; font-weight:700;">Rimuovi</button>` : ''}
+                                ${item.reminder_at && item.reminder_notified_at ? `<span style="font-size:0.7rem; color:#10b981; font-weight:600;">✓ inviato ${new Date(item.reminder_notified_at).toLocaleString('it-IT', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>` : ''}
+                                ${item.reminder_at && !item.reminder_notified_at ? `<span style="font-size:0.7rem; color:#f59e0b; font-weight:600;">in attesa</span>` : ''}
+                            </div>
+
                             <!-- Ultra-Compact Mobile Metadata Bar (Single Row) -->
                             <div class="mobile-metadata-bar" style="display: none;">
                                 <!-- Single Line Dates: separately clickable -->
@@ -2305,6 +2316,30 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
         // Mobile specific date triggers
         setupDate('mobile-start-date', 'start_date');
         setupDate('mobile-due-date', 'due_date');
+
+        // PM-2 Reminder: wire-up input + clear
+        const reminderInput = drawer.querySelector('#reminder-at-input');
+        if (reminderInput) {
+            reminderInput.onchange = async (e) => {
+                const val = e.target.value ? new Date(e.target.value).toISOString() : null;
+                item.reminder_at = val;
+                item.reminder_notified_at = null;
+                await updatePMItem(itemId, { reminder_at: val, reminder_notified_at: null });
+                render();
+                document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId, itemId, action: 'update' } }));
+            };
+        }
+        const reminderClearBtn = drawer.querySelector('#reminder-clear-btn');
+        if (reminderClearBtn) {
+            reminderClearBtn.onclick = async (e) => {
+                e.stopPropagation();
+                item.reminder_at = null;
+                item.reminder_notified_at = null;
+                await updatePMItem(itemId, { reminder_at: null, reminder_notified_at: null });
+                render();
+                document.dispatchEvent(new CustomEvent('pm-item-changed', { detail: { spaceId, itemId, action: 'update' } }));
+            };
+        }
 
         const setupPicker = (btnId, pkrId) => {
             const btn = drawer.querySelector(`#${btnId}`);
