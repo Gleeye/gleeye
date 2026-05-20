@@ -350,6 +350,30 @@ export function initSupplierModals() {
                             </div>
                         </div>
 
+                        <!-- Subscription tracker -->
+                        <div style="padding-bottom: 0.5rem; border-bottom: 1px solid var(--glass-border); margin-top: 0.5rem;">
+                            <h4 style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">Abbonamento (se ricorrente)</h4>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label>Importo €</label>
+                                <input type="number" id="supplier-sub-amount" class="modal-input" step="0.01" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Frequenza</label>
+                                <select id="supplier-sub-frequency" class="modal-input">
+                                    <option value="">— Una tantum —</option>
+                                    <option value="monthly">Mensile</option>
+                                    <option value="quarterly">Trimestrale</option>
+                                    <option value="yearly">Annuale</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Prossimo rinnovo</label>
+                                <input type="date" id="supplier-sub-renewal" class="modal-input">
+                            </div>
+                        </div>
+
                         <div class="form-group">
                             <label>Note</label>
                             <textarea id="supplier-notes" rows="2" class="modal-input"></textarea>
@@ -402,7 +426,11 @@ export function initSupplierModals() {
                 bank_iban: document.getElementById('supplier-iban').value || null,
                 category: document.getElementById('supplier-category').value || null,
                 subcategory: document.getElementById('supplier-subcategory').value || null,
-                is_individual: document.getElementById('supplier-is-individual').checked
+                is_individual: document.getElementById('supplier-is-individual').checked,
+                subscription_amount: parseFloat(document.getElementById('supplier-sub-amount').value) || null,
+                subscription_frequency: document.getElementById('supplier-sub-frequency').value || null,
+                next_renewal_at: document.getElementById('supplier-sub-renewal').value || null,
+                renewal_notified_at: null
             };
 
             try {
@@ -458,6 +486,9 @@ window.openSupplierModal = (id = null) => {
             document.getElementById('supplier-category').value = supplier.category || '';
             document.getElementById('supplier-subcategory').value = supplier.subcategory || '';
             document.getElementById('supplier-is-individual').checked = !!supplier.is_individual;
+            document.getElementById('supplier-sub-amount').value = supplier.subscription_amount ?? '';
+            document.getElementById('supplier-sub-frequency').value = supplier.subscription_frequency || '';
+            document.getElementById('supplier-sub-renewal').value = supplier.next_renewal_at || '';
         }
     } else {
         document.getElementById('supplier-modal-title').textContent = 'Nuovo Fornitore';
@@ -469,6 +500,9 @@ window.openSupplierModal = (id = null) => {
         document.getElementById('supplier-category').value = '';
         document.getElementById('supplier-subcategory').value = '';
         document.getElementById('supplier-is-individual').checked = false;
+        document.getElementById('supplier-sub-amount').value = '';
+        document.getElementById('supplier-sub-frequency').value = '';
+        document.getElementById('supplier-sub-renewal').value = '';
     }
 
     modal.classList.add('active');
