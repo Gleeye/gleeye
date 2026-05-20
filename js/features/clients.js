@@ -126,8 +126,11 @@ export async function renderClients(container) {
         await fetchCollaborators();
     }
 
-    // Filtro per account (state.clientsAccountFilter = 'all' | '<collab_id>' | 'unassigned')
+    // Filtro per account (state.clientsAccountFilter = 'all' | 'mine' | '<collab_id>' | 'unassigned')
     if (typeof state.clientsAccountFilter === 'undefined') state.clientsAccountFilter = 'all';
+    // Current user → collaborator_id (per filtro "I miei clienti")
+    const _currentUserId = state.session?.user?.id;
+    const _myCollabId = (state.collaborators || []).find(c => c.user_id === _currentUserId)?.id || null;
     // Filtro per stato cliente (state.clientsStatusFilter = 'all' | 'lead' | 'potenziale' | 'attivo' | 'dormante' | 'perso')
     if (typeof state.clientsStatusFilter === 'undefined') state.clientsStatusFilter = 'all';
 
@@ -142,6 +145,8 @@ export async function renderClients(container) {
         if (state.clientsAccountFilter !== 'all') {
             if (state.clientsAccountFilter === 'unassigned') {
                 if (c.account_responsible_id) return false;
+            } else if (state.clientsAccountFilter === 'mine') {
+                if (!_myCollabId || c.account_responsible_id !== _myCollabId) return false;
             } else if (c.account_responsible_id !== state.clientsAccountFilter) {
                 return false;
             }
@@ -479,6 +484,7 @@ export async function renderClients(container) {
                         <select onchange="state.clientsAccountFilter = this.value; renderClients(document.getElementById('content-area'))"
                             style="flex: 1; padding: 0.4rem 0.6rem; border: 1px solid var(--glass-border); border-radius: 8px; background: white; font-size: 0.82rem; color: var(--text-primary);">
                             <option value="all" ${state.clientsAccountFilter === 'all' ? 'selected' : ''}>Tutti gli account</option>
+                            ${_myCollabId ? `<option value="mine" ${state.clientsAccountFilter === 'mine' ? 'selected' : ''}>👤 I miei clienti (${accountCounts[_myCollabId] || 0})</option>` : ''}
                             <option value="unassigned" ${state.clientsAccountFilter === 'unassigned' ? 'selected' : ''}>Non assegnati (${accountCounts['__unassigned__'] || 0})</option>
                             ${accountFilterOptions}
                         </select>
