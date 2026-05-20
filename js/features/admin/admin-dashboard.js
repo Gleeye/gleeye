@@ -115,9 +115,6 @@ export function renderAdminDashboard(container) {
                     <!-- KPI Bozze Email -->
                     <div id="admin-outbound-drafts-kpi" style="margin-bottom: 1.5rem;"></div>
 
-                    <!-- Subscription Tracker Dashboard -->
-                    <div id="admin-subscriptions-dashboard" style="margin-bottom: 1.5rem;"></div>
-
                     <!-- Google Calendar Config Section -->
                     <div class="glass-card" style="padding: 1.5rem; margin-bottom: 2rem; border: 1px solid var(--glass-border);">
                         <h3 style="font-size: 1.1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -325,9 +322,6 @@ export function renderAdminDashboard(container) {
     // KPI bozze email
     _renderOutboundDraftsKpi(container.querySelector('#admin-outbound-drafts-kpi'));
 
-    // Subscription tracker dashboard
-    _renderSubscriptionsDashboard(container.querySelector('#admin-subscriptions-dashboard'));
-
     // Tab Logic
     const tabs = container.querySelectorAll('.tab-btn');
     const contents = container.querySelectorAll('.tab-content');
@@ -489,96 +483,6 @@ async function _renderOutboundDraftsKpi(el) {
         `;
     } catch (err) {
         console.error('[admin-dashboard] outbound drafts kpi error', err);
-    }
-}
-
-async function _renderSubscriptionsDashboard(el) {
-    if (!el) return;
-    try {
-        const { supabase } = await import('../../modules/config.js?v=8000');
-        const { data, error } = await supabase.rpc('fn_subscription_dashboard');
-        if (error || !data || !data.count) { el.innerHTML = ''; return; }
-
-        const fmt = (n) => (Number(n) || 0).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-        const fmt2 = (n) => (Number(n) || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-
-        const top5Html = (data.top5 || []).map(t => {
-            const inactive = (t.invoices_last_6m === 0);
-            return `<div style="display:flex;align-items:center;gap:.6rem;padding:.5rem .65rem;background:var(--bg-tertiary);border-radius:8px;border:1px solid var(--glass-border);${inactive ? 'opacity:.85;' : ''}">
-                <span style="font-size:.78rem;font-weight:600;color:var(--text-primary);flex:1;">${esc(t.name)}</span>
-                <span style="font-size:.65rem;color:var(--text-tertiary);text-transform:uppercase;">${esc(t.frequency || '—')}</span>
-                <span style="font-size:.78rem;font-weight:700;color:var(--text-primary);">${fmt(t.yearly_cost)}€<span style="color:var(--text-tertiary);font-weight:400;">/anno</span></span>
-                ${inactive ? '<span style="font-size:.6rem;font-weight:700;padding:2px 6px;border-radius:999px;background:rgba(245,158,11,.15);color:#d97706;text-transform:uppercase;letter-spacing:.04em;" title="Nessuna fattura ricevuta negli ultimi 6 mesi">Inattivo</span>' : ''}
-            </div>`;
-        }).join('');
-
-        const catHtml = (data.by_category || []).map(c => {
-            const pct = data.yearly_total > 0 ? Math.round((c.yearly_cost / data.yearly_total) * 100) : 0;
-            return `<div style="margin-bottom:.6rem;">
-                <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-secondary);margin-bottom:.2rem;">
-                    <span style="text-transform:capitalize;">${esc((c.category || 'altro').replace(/_/g,' '))} <span style="color:var(--text-tertiary);">(${c.count})</span></span>
-                    <span style="font-weight:600;color:var(--text-primary);">${fmt(c.yearly_cost)}€ <span style="color:var(--text-tertiary);">(${pct}%)</span></span>
-                </div>
-                <div style="width:100%;height:6px;background:var(--bg-tertiary);border-radius:999px;overflow:hidden;">
-                    <div style="width:${pct}%;height:100%;background:#8b5cf6;"></div>
-                </div>
-            </div>`;
-        }).join('');
-
-        const upcomingHtml = (data.upcoming || []).slice(0, 5).map(u => {
-            const urgency = u.days_to_renewal <= 7 ? '#ef4444' : u.days_to_renewal <= 30 ? '#f59e0b' : '#3b82f6';
-            return `<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;background:var(--bg-tertiary);border-radius:8px;font-size:.75rem;">
-                <span style="font-weight:600;color:var(--text-primary);flex:1;">${esc(u.name)}</span>
-                <span style="color:var(--text-tertiary);">${fmt2(u.subscription_amount)}€</span>
-                <span style="font-weight:700;color:${urgency};">${u.days_to_renewal}gg</span>
-            </div>`;
-        }).join('');
-
-        el.innerHTML = `
-            <div style="background:linear-gradient(135deg,rgba(139,92,246,.06),rgba(139,92,246,.01));border:1px solid rgba(139,92,246,.18);border-radius:12px;padding:1.25rem;">
-                <div style="display:flex;align-items:center;gap:.65rem;margin-bottom:1rem;">
-                    <span class="material-icons-round" style="font-size:1.3rem;color:#8b5cf6;">autorenew</span>
-                    <span style="font-weight:700;font-size:.95rem;color:var(--text-primary);font-family:var(--font-titles);">Cash-out abbonamenti</span>
-                    <span style="margin-left:auto;font-size:.7rem;color:var(--text-tertiary);">${data.count} abbonament${data.count === 1 ? 'o' : 'i'}</span>
-                </div>
-
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem;">
-                    <div style="padding:.85rem;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--glass-border);">
-                        <div style="font-size:.65rem;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">Costo annuo</div>
-                        <div style="font-size:1.5rem;font-weight:800;color:#8b5cf6;font-family:var(--font-titles);">${fmt(data.yearly_total)}€</div>
-                    </div>
-                    <div style="padding:.85rem;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--glass-border);">
-                        <div style="font-size:.65rem;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">Costo mensile</div>
-                        <div style="font-size:1.5rem;font-weight:800;color:var(--text-primary);font-family:var(--font-titles);">${fmt2(data.monthly_total)}€</div>
-                    </div>
-                </div>
-
-                ${catHtml ? `<div style="margin-bottom:1rem;"><div style="font-size:.65rem;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:.5rem;">Distribuzione per categoria</div>${catHtml}</div>` : ''}
-
-                ${top5Html ? `<div style="margin-bottom:1rem;"><div style="font-size:.65rem;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:.5rem;">Top 5 per costo annuo</div><div style="display:flex;flex-direction:column;gap:.35rem;">${top5Html}</div></div>` : ''}
-
-                ${data.orphans?.length ? `
-                    <div style="margin-bottom:1rem;padding:.85rem;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.22);border-radius:10px;">
-                        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
-                            <span class="material-icons-round" style="font-size:1rem;color:#d97706;">warning_amber</span>
-                            <span style="font-size:.75rem;font-weight:700;color:#d97706;">${data.orphans.length} abbonament${data.orphans.length === 1 ? 'o' : 'i'} senza fattura ricevuta da 6+ mesi</span>
-                        </div>
-                        <div style="font-size:.7rem;color:var(--text-secondary);">
-                            Potenziale risparmio: <strong>${fmt(data.orphans.reduce((s,o) => s + (o.yearly_cost || 0), 0))}€/anno</strong> se cancelli quelli che non usi più.
-                        </div>
-                    </div>
-                ` : ''}
-
-                ${upcomingHtml ? `<div><div style="font-size:.65rem;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:.5rem;">Rinnovi entro 60 giorni</div><div style="display:flex;flex-direction:column;gap:.3rem;">${upcomingHtml}</div></div>` : ''}
-
-                <div style="text-align:right;margin-top:1rem;">
-                    <a href="#suppliers" style="font-size:.72rem;color:#8b5cf6;text-decoration:none;font-weight:600;">Gestisci fornitori →</a>
-                </div>
-            </div>
-        `;
-    } catch (err) {
-        console.error('[admin-dashboard] subscriptions error', err);
     }
 }
 

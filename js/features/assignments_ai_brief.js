@@ -8,17 +8,27 @@ import { ai, AI_MODELS } from '/js/modules/ai_client.js?v=8000';
 const CACHE_TTL_HOURS = 24;
 
 const SYSTEM_PROMPT = `Sei l'assistente operativo di un collaboratore freelance di Gleeye, agenzia di comunicazione di Genova.
-Dato il contesto della commessa e dell'incarico, scrivi un BRIEFING operativo per il collaboratore.
+Scrivi un BRIEFING operativo per il collaboratore, basato ESCLUSIVAMENTE sul contesto fornito.
 
-LINEE GUIDA:
+REGOLE FERREE (anti-allucinazione):
+- USA SOLO i fatti presenti nel CONTESTO sotto. NIENTE INVENZIONI.
+- NON inventare: persone, nomi, date, scadenze, budget, tool, brand del cliente, materiali, fasi del progetto, deliverable specifici.
+- NON dare per scontato: settore del cliente, target di comunicazione, tone-of-voice, formati di consegna, canali — a meno che siano scritti esplicitamente nel contesto.
+- Se un'informazione importante MANCA, NON colmare il vuoto con ipotesi: scrivi esplicitamente "MANCA: …, chiedi all'account".
+- Distinguere chiaramente FATTI (dal contesto) da DOMANDE (cose da chiedere).
+
+STRUTTURA OBBLIGATORIA:
+1. **Sintesi**: 1 frase neutra che riassume cosa devi fare basato SOLO sui servizi assegnati e sul titolo della commessa. Se titolo/servizi sono vaghi, dillo.
+2. **Cosa sai dal contesto**: bullet con i fatti rilevanti (cliente, scadenza se presente, servizi). Niente extrapolazioni.
+3. **Cosa manca / da chiedere all'account**: bullet con domande concrete. Sii puntuale: "Chiedi formato deliverable", "Chiedi se c'è brief scritto", "Chiedi tone-of-voice", ecc.
+4. **Prossimo passo concreto**: 1 frase su cosa fare PRIMA (es. "leggi il brief se esiste, altrimenti contatta l'account per averlo").
+
+LINEE GUIDA STILE:
 - Italiano semplice, diretto, max 250 parole.
-- Inizia con 1 frase che riassume il senso dell'incarico ("Cosa stai facendo, perché conta").
-- Poi 3-5 punti operativi concreti su cosa fare prima.
-- Evidenzia eventuali insidie, vincoli o priorità del cliente che emergono dal contesto.
-- Se mancano informazioni importanti, indica esplicitamente cosa chiedere all'account.
-- Niente jargon, niente "Spero che questo aiuti".
-- Usa **grassetto** per i punti chiave (saranno renderizzati).
-- Sezioni separate con riga vuota.`;
+- Usa **grassetto** sui punti chiave (sarà renderizzato).
+- Sezioni separate con riga vuota.
+- Niente jargon, niente "Spero che questo aiuti", niente saluti finali.
+- Niente emoji.`;
 
 function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -53,27 +63,44 @@ function formatRelative(iso) {
 }
 
 function buildPromptContext({ assignment, order, client, services, collab }) {
-    const lines = [];
-    if (client?.business_name) lines.push(`CLIENTE: ${client.business_name}`);
-    if (order?.title) lines.push(`COMMESSA: ${order.title}`);
-    if (order?.order_number) lines.push(`Riferimento: ${order.order_number}`);
-    if (order?.description) lines.push(`Descrizione commessa: ${order.description}`);
-    if (assignment.start_date) lines.push(`Inizio incarico: ${assignment.start_date}`);
-    if (assignment.deadline) lines.push(`Scadenza incarico: ${assignment.deadline}`);
-    if (assignment.notes) lines.push(`Note specifiche: ${assignment.notes}`);
-    if (collab?.role || collab?.tags) {
-        const role = collab.role || (Array.isArray(collab.tags) ? collab.tags.join(', ') : collab.tags);
-        if (role) lines.push(`Ruolo del collaboratore: ${role}`);
-    }
+    const lines = ['=== CONTESTO ==='];
+
+    lines.push('\n[CLIENTE]');
+    lines.push(client?.business_name ? `Nome: ${client.business_name}` : 'Nome: NON FORNITO');
+
+    lines.push('\n[COMMESSA]');
+    lines.push(order?.title ? `Titolo: ${order.title}` : 'Titolo: NON FORNITO');
+    lines.push(order?.order_number ? `Numero: ${order.order_number}` : 'Numero: NON FORNITO');
+    lines.push(order?.description ? `Descrizione: ${order.description}` : 'Descrizione: NON FORNITA');
+
+    lines.push('\n[INCARICO]');
+    lines.push(assignment.description ? `Descrizione: ${assignment.description}` : 'Descrizione: NON FORNITA');
+    lines.push(assignment.scope ? `Scope: ${assignment.scope}` : 'Scope: NON FORNITO');
+    lines.push(assignment.start_date ? `Data inizio: ${assignment.start_date}` : 'Data inizio: NON FORNITA');
+    lines.push(assignment.deadline ? `Scadenza: ${assignment.deadline}` : 'Scadenza: NON FORNITA');
+    lines.push(assignment.notes ? `Note: ${assignment.notes}` : 'Note: NESSUNA');
+
+    lines.push('\n[COLLABORATORE]');
+    const role = collab?.role || (Array.isArray(collab?.tags) ? collab.tags.join(', ') : collab?.tags);
+    lines.push(role ? `Ruolo/tag: ${role}` : 'Ruolo: NON FORNITO');
+
+    lines.push('\n[SERVIZI ASSEGNATI]');
     if (services?.length) {
-        lines.push(`SERVIZI ASSEGNATI:`);
         services.forEach(s => {
-            const name = s.services?.name || s.legacy_service_name || s.name || 'Servizio';
-            const qty = s.quantity || s.hours || 1;
-            const unit = s.unit || 'unità';
-            lines.push(`- ${name} (${qty} ${unit})`);
+            const name = s.services?.name || s.legacy_service_name || s.name || 'Servizio senza nome';
+            const qty = s.quantity || s.hours || null;
+            const desc = s.services?.description || '';
+            let line = `- ${name}`;
+            if (qty) line += ` (quantità: ${qty})`;
+            if (desc) line += `\n  Descrizione servizio: ${desc}`;
+            lines.push(line);
         });
+    } else {
+        lines.push('NESSUN SERVIZIO ASSEGNATO');
     }
+
+    lines.push('\n=== FINE CONTESTO ===');
+    lines.push('\nORA SCRIVI IL BRIEFING SECONDO LA STRUTTURA OBBLIGATORIA. NON INVENTARE NIENTE OLTRE QUESTI FATTI.');
     return lines.join('\n');
 }
 
@@ -145,7 +172,7 @@ window.generateAssignmentBrief = async function (assignmentId, isRegen) {
 
         const { data: services } = await supabase
             .from('assignment_services')
-            .select('quantity, hours, unit_cost, total_cost, legacy_service_name, services(name)')
+            .select('quantity, hours, unit_cost, total_cost, legacy_service_name, services(name, description)')
             .eq('assignment_id', assignmentId);
 
         const context = buildPromptContext({
@@ -159,7 +186,7 @@ window.generateAssignmentBrief = async function (assignmentId, isRegen) {
         const briefText = await ai.complete(context, {
             feature: 'assignment_briefing',
             system: SYSTEM_PROMPT,
-            temperature: 0.4,
+            temperature: 0.1,
         });
 
         if (!briefText || briefText.trim().length < 20) {

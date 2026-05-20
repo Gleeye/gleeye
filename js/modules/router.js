@@ -429,6 +429,10 @@ function render() {
                 if (pageTitle) pageTitle.textContent = 'Popola da Storico';
                 import('../features/cfo/cfo_storico.js?v=8000').then(m => m.renderCFOStorico(contentArea));
                 break;
+            case 'cfo-subscriptions':
+                if (pageTitle) pageTitle.textContent = 'Cash-out Abbonamenti';
+                import('../features/cfo/cfo_subscriptions.js?v=8000').then(m => m.renderCFOSubscriptions(contentArea));
+                break;
             // ── Sales Engine (Phase 1 + 2) ──────────────────────────────────
             case 'sales-pipeline':
                 if (pageTitle) pageTitle.textContent = 'Pipeline Vendite';

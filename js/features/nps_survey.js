@@ -93,7 +93,6 @@ window.requestNpsFeedback = async function (orderId, isResend) {
         .eq('id', orderId)
         .single();
     if (oErr || !order) { alert('Errore lettura ordine: ' + (oErr?.message || 'not found')); return; }
-
     if (!order.client_id) { alert('Manca il cliente sulla commessa.'); return; }
 
     const { data: client } = await supabase
@@ -102,14 +101,6 @@ window.requestNpsFeedback = async function (orderId, isResend) {
         .eq('id', order.client_id)
         .single();
     if (!client) { alert('Cliente non trovato.'); return; }
-
-    const defaultEmail = client.email || '';
-    const toEmail = prompt(`Email destinatario NPS:`, defaultEmail);
-    if (!toEmail) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
-        alert('Email non valida.');
-        return;
-    }
 
     const senderUserId = order.account_id || order.pm_id || state.profile?.id;
     let senderName = null;
@@ -127,7 +118,12 @@ window.requestNpsFeedback = async function (orderId, isResend) {
     }
     senderName = senderName || 'Il team Gleeye';
 
-    if (!confirm(`Inviare la survey NPS a ${toEmail}?\nMittente: ${senderName}`)) return;
+    const toEmail = await openNpsEmailPickerModal({
+        defaultEmail: client.email || '',
+        clientName: client.business_name || '',
+        senderName,
+    });
+    if (!toEmail) return;
 
     const { data: surveyRow, error: insertErr } = await supabase
         .from('nps_surveys')
@@ -186,6 +182,67 @@ Se non si apre: ${npsUrl}</p>
         alert('Errore inatteso: ' + err.message);
     }
 };
+
+function openNpsEmailPickerModal({ defaultEmail, clientName, senderName }) {
+    return new Promise(resolve => {
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+        modal.innerHTML = `
+            <div style="background:#fff;border-radius:16px;max-width:480px;width:100%;padding:1.5rem 1.75rem;">
+                <h3 style="margin:0 0 .25rem;font-size:1.15rem;color:#1f2937;">Chiedi feedback NPS</h3>
+                <div style="font-size:.8rem;color:#6b7280;margin-bottom:1.25rem;">
+                    Mittente: <strong>${escapeHtml(senderName)}</strong> · Cliente: <strong>${escapeHtml(clientName)}</strong>
+                </div>
+                <label style="display:block;font-size:.8rem;color:#374151;font-weight:500;margin-bottom:.3rem;">Email destinatario</label>
+                <input type="email" id="nps-email-input" value="${escapeHtml(defaultEmail)}" placeholder="es. cliente@example.com"
+                    style="width:100%;padding:.65rem .8rem;border:1px solid #e5e7eb;border-radius:8px;font-size:.95rem;margin-bottom:.4rem;box-sizing:border-box;">
+                <div id="nps-email-err" style="font-size:.72rem;color:#dc2626;min-height:1em;margin-bottom:.85rem;"></div>
+                <div style="display:flex;justify-content:flex-end;gap:.5rem;">
+                    <button id="nps-cancel" style="padding:.55rem 1.1rem;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer;font-size:.85rem;">Annulla</button>
+                    <button id="nps-confirm" style="padding:.55rem 1.1rem;border-radius:8px;border:none;background:#1f2937;color:#fff;cursor:pointer;font-size:.85rem;font-weight:500;">Invia survey</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const input = modal.querySelector('#nps-email-input');
+        const err = modal.querySelector('#nps-email-err');
+        const cancel = modal.querySelector('#nps-cancel');
+        const confirm = modal.querySelector('#nps-confirm');
+
+        const close = (value) => { modal.remove(); resolve(value); };
+
+        cancel.addEventListener('click', () => close(null));
+        modal.addEventListener('click', ev => { if (ev.target === modal) close(null); });
+
+        const validate = () => {
+            const v = input.value.trim();
+            const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+            err.textContent = v && !ok ? 'Email non valida' : '';
+            confirm.disabled = !ok;
+            confirm.style.opacity = ok ? '1' : '.5';
+            return ok ? v : null;
+        };
+        input.addEventListener('input', validate);
+        validate();
+
+        confirm.addEventListener('click', () => {
+            const v = validate();
+            if (v) close(v);
+        });
+
+        input.addEventListener('keydown', ev => {
+            if (ev.key === 'Enter') {
+                const v = validate();
+                if (v) close(v);
+            } else if (ev.key === 'Escape') {
+                close(null);
+            }
+        });
+
+        setTimeout(() => input.focus(), 50);
+    });
+}
 
 function formatDate(iso) {
     if (!iso) return '—';

@@ -819,7 +819,7 @@ export async function renderOrderDetail(container, orderId) {
                 ${toBeInvoiced > 0.5 ? `
                 <button onclick="window.prefillInvoiceFromOrder('${order.id}', ${toBeInvoiced.toFixed(2)})" class="primary-btn" style="width: 100%; justify-content: center; gap: 0.5rem; background: #10b981; color: white; border: none; padding: 0.7rem; border-radius: 10px; font-weight: 600; cursor: pointer;">
                     <span class="material-icons-round">add_circle</span>
-                    ${linkedInvoicesForOrder.length === 0 ? 'Genera fattura' : 'Genera fattura saldo'} ${formatAmount(toBeInvoiced)}€
+                    ${linkedInvoicesForOrder.length === 0 ? 'Genera fattura' : 'Genera nuova fattura'} ${formatAmount(toBeInvoiced)}€
                 </button>
                 ` : ''}
             </div>
