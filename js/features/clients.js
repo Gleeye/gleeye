@@ -128,6 +128,8 @@ export async function renderClients(container) {
 
     // Filtro per account (state.clientsAccountFilter = 'all' | '<collab_id>' | 'unassigned')
     if (typeof state.clientsAccountFilter === 'undefined') state.clientsAccountFilter = 'all';
+    // Filtro per stato cliente (state.clientsStatusFilter = 'all' | 'lead' | 'potenziale' | 'attivo' | 'dormante' | 'perso')
+    if (typeof state.clientsStatusFilter === 'undefined') state.clientsStatusFilter = 'all';
 
     const filteredClients = state.clients.filter(c => {
         const matchesSearch =
@@ -135,9 +137,30 @@ export async function renderClients(container) {
             (c.client_code || '').toLowerCase().includes(state.searchTerm.toLowerCase()) ||
             (c.city || '').toLowerCase().includes(state.searchTerm.toLowerCase());
         if (!matchesSearch) return false;
-        if (state.clientsAccountFilter === 'all') return true;
-        if (state.clientsAccountFilter === 'unassigned') return !c.account_responsible_id;
-        return c.account_responsible_id === state.clientsAccountFilter;
+
+        // Account filter
+        if (state.clientsAccountFilter !== 'all') {
+            if (state.clientsAccountFilter === 'unassigned') {
+                if (c.account_responsible_id) return false;
+            } else if (c.account_responsible_id !== state.clientsAccountFilter) {
+                return false;
+            }
+        }
+
+        // Status filter (usa status_derived DB se presente, fallback a compute)
+        if (state.clientsStatusFilter !== 'all') {
+            const st = computeClientStatus(c);
+            if (st.key !== state.clientsStatusFilter) return false;
+        }
+
+        return true;
+    });
+
+    // Conteggio per chip stato (sempre su tutti i clienti, ignora filtri attivi tranne search)
+    const statusCounts = { lead: 0, potenziale: 0, attivo: 0, dormante: 0, perso: 0 };
+    (state.clients || []).forEach(c => {
+        const st = computeClientStatus(c);
+        if (statusCounts[st.key] !== undefined) statusCounts[st.key]++;
     });
 
     // ANALYTICS LOGIC
@@ -459,6 +482,20 @@ export async function renderClients(container) {
                             <option value="unassigned" ${state.clientsAccountFilter === 'unassigned' ? 'selected' : ''}>Non assegnati (${accountCounts['__unassigned__'] || 0})</option>
                             ${accountFilterOptions}
                         </select>
+                    </div>
+                    <!-- Chip filtro stato cliente -->
+                    <div style="margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.3rem;">
+                        ${[
+                            { key: 'all', label: 'Tutti', color: '#64748b', count: (state.clients || []).length },
+                            { key: 'lead', label: 'Lead', color: '#3b82f6', count: statusCounts.lead },
+                            { key: 'potenziale', label: 'Potenziali', color: '#f59e0b', count: statusCounts.potenziale },
+                            { key: 'attivo', label: 'Attivi', color: '#10b981', count: statusCounts.attivo },
+                            { key: 'dormante', label: 'Dormienti', color: '#94a3b8', count: statusCounts.dormante },
+                            { key: 'perso', label: 'Persi', color: '#ef4444', count: statusCounts.perso },
+                        ].map(chip => {
+                            const active = state.clientsStatusFilter === chip.key;
+                            return `<button onclick="state.clientsStatusFilter='${chip.key}'; renderClients(document.getElementById('content-area'))" style="padding: 0.25rem 0.55rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; cursor: pointer; border: 1px solid ${chip.color}${active ? '' : '30'}; background: ${active ? chip.color : chip.color + '15'}; color: ${active ? 'white' : chip.color};">${chip.label} ${chip.count}</button>`;
+                        }).join('')}
                     </div>
                 </div>
                 <div class="crm-sidebar-list">
@@ -1393,7 +1430,24 @@ function _renderContactCard(c) {
 //   - perso:       tutti gli ordini sono rifiutati (e nessuno aperto/in corso)
 //
 // Logica esposta in window per debug + uso in altri file (es. Cmd+K client_summary)
+// Schema label/colore/emoji per ogni stato
+const _CLIENT_STATUS_STYLE = {
+    lead:       { label: 'Lead',       color: '#3b82f6', emoji: '🔵' },
+    potenziale: { label: 'Potenziale', color: '#f59e0b', emoji: '🟡' },
+    attivo:     { label: 'Attivo',     color: '#10b981', emoji: '🟢' },
+    dormante:   { label: 'Dormante',   color: '#94a3b8', emoji: '⚪' },
+    dormiente:  { label: 'Dormiente',  color: '#94a3b8', emoji: '⚪' }, // alias DB
+    perso:      { label: 'Perso',      color: '#ef4444', emoji: '🔴' },
+};
+
 export function computeClientStatus(client) {
+    // Preferenza al campo DB se presente (auto-calcolato da trigger B1)
+    if (client?.status_derived && _CLIENT_STATUS_STYLE[client.status_derived]) {
+        const key = client.status_derived === 'dormiente' ? 'dormante' : client.status_derived;
+        const style = _CLIENT_STATUS_STYLE[client.status_derived];
+        return { key, label: style.label, color: style.color, emoji: style.emoji };
+    }
+
     const clientOrders = (state.orders || []).filter(o => o.client_id === client.id);
 
     // Helper: data più recente di attività
