@@ -726,6 +726,12 @@ export function renderClientDetail(container) {
                                 <span style="font-size: 1rem; color: var(--brand-blue); font-weight: 400;">Cliente</span>
                                 <div style="width: 4px; height: 4px; border-radius: 50%; background: var(--text-tertiary);"></div>
                                 <span style="font-size: 0.85rem; color: var(--text-secondary); background: var(--bg-secondary); padding: 2px 10px; border-radius: 12px;">${client.city ? `${client.city}${client.province ? ` (${client.province})` : ''}` : 'N/A'}</span>
+                                ${client.last_touch_at ? (() => {
+                                    const days = Math.floor((Date.now() - new Date(client.last_touch_at).getTime()) / 86400000);
+                                    const label = days === 0 ? 'oggi' : days === 1 ? '1 giorno fa' : days < 30 ? `${days} giorni fa` : days < 60 ? '1 mese fa' : days < 365 ? `${Math.floor(days/30)} mesi fa` : `${Math.floor(days/365)} anni fa`;
+                                    const color = days < 30 ? '#10b981' : days < 90 ? '#f59e0b' : '#94a3b8';
+                                    return `<span title="Ultima interazione" style="font-size: 0.8rem; color: ${color}; background: ${color}15; padding: 2px 10px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;"><span class="material-icons-round" style="font-size: 0.9rem;">history</span>${label}</span>`;
+                                })() : ''}
                                 ${inlineHelpButton({ id: client.id, contextType: 'client', label: 'Spiegami', icon: 'auto_awesome' })}
                             </div>
                         </div>
