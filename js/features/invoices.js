@@ -285,7 +285,7 @@ export function initInvoiceModals() {
                                     <label style="display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Stato *</label>
                                     <select id="pinv-status" class="modal-input" required style="width: 100%;">
                                         <option value="Da Pagare">Da Pagare</option>
-                                        <option value="Pagata">Pagata</option>
+                                        <option value="Pagato">Pagato</option>
                                     </select>
                                 </div>
                                 <div id="pinv-payment-date-container" style="display: none;">
@@ -443,7 +443,7 @@ export function initInvoiceModals() {
 
         // Stato → Data Saldo conditional
         document.getElementById('pinv-status')?.addEventListener('change', (e) => {
-            document.getElementById('pinv-payment-date-container').style.display = e.target.value === 'Pagata' ? 'block' : 'none';
+            document.getElementById('pinv-payment-date-container').style.display = e.target.value === 'Pagato' ? 'block' : 'none';
         });
 
         // File preview
@@ -1282,7 +1282,7 @@ async function handleSavePassiveInvoice(e) {
         iva_attiva: hasVat,
         category: tipo,
         status: status,
-        payment_date: (status === 'Pagata' && document.getElementById('pinv-payment-date').value) ? document.getElementById('pinv-payment-date').value : null,
+        payment_date: (status === 'Pagato' && document.getElementById('pinv-payment-date').value) ? document.getElementById('pinv-payment-date').value : null,
         collaborator_id: (mode === 'collab' || mode === 'partner-wl') ? collaboratorId : null,
         collaborator_name: collaboratorName,
         supplier_id: mode === 'supplier' ? supplierId : null,
@@ -1328,9 +1328,9 @@ async function handleSavePassiveInvoice(e) {
             if (selectedPayments.length > 0) {
                 for (const paymentId of selectedPayments) {
                     const updatePayload = { passive_invoice_id: savedId };
-                    // If invoice is already 'Pagata', mark payment as 'Saldato'
+                    // If invoice is already 'Pagato', mark payment as 'Saldato'
                     // Otherwise, change status from 'Invito Inviato' to 'Fattura Ricevuta'
-                    if (status === 'Pagata') {
+                    if (status === 'Pagato') {
                         updatePayload.status = 'Saldato';
                     } else {
                         updatePayload.status = 'Fattura Ricevuta';
@@ -1523,7 +1523,7 @@ export async function openPassiveInvoiceForm(id = null, mode = 'collab') {
             }
 
             // Payment date
-            if (inv.status === 'Pagata') {
+            if (inv.status === 'Pagato') {
                 document.getElementById('pinv-payment-date-container').style.display = 'block';
                 document.getElementById('pinv-payment-date').value = inv.payment_date || '';
             }
