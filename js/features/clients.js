@@ -2,7 +2,7 @@ import { state } from '/js/modules/state.js?v=8000';
 import { formatAmount } from '../modules/utils.js?v=8000';
 // Import dependencies similar to collaborators.js
 // We assume fetch functions are available in api.js if needed, but we rely on state mostly
-import { fetchOrders, fetchInvoices, fetchPayments, upsertClient, fetchClients } from '../modules/api.js?v=8000';
+import { fetchOrders, fetchInvoices, fetchPayments, upsertClient, fetchClients, upsertPartnerContact, deletePartnerContact, fetchContacts } from '../modules/api.js?v=8000';
 import { showGlobalAlert } from '../modules/utils.js?v=8000';
 import { activityTranslate } from '../modules/pm_activity_helper.js?v=8000';
 import { glossaryTip } from '../modules/help_tooltip.js?v=8002';
@@ -818,6 +818,14 @@ export function renderClientDetail(container) {
 
             <!-- Tab Content: Referenti -->
             <div id="tab-contacts" class="tab-content hidden">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                    <h3 style="margin:0;font-family:var(--font-titles);font-weight:400;font-size:1.1rem;">
+                        ${clientContacts.length} referent${clientContacts.length === 1 ? 'e' : 'i'}
+                    </h3>
+                    <button id="add-client-contact-btn" class="primary-btn" data-client-id="${client.id}" style="display:flex;align-items:center;gap:0.4rem;">
+                        <span class="material-icons-round" style="font-size:1.1rem;">person_add</span> Aggiungi referente
+                    </button>
+                </div>
                 ${clientContacts.length === 0 ? `
                     <div style="text-align: center; padding: 4rem 2rem; background: var(--glass-bg); border-radius: 24px; border: 2px dashed var(--glass-border);">
                         <div style="width: 80px; height: 80px; background: rgba(78, 146, 216, 0.05); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
@@ -825,12 +833,12 @@ export function renderClientDetail(container) {
                         </div>
                         <h3 style="font-family: var(--font-titles); font-weight: 400; margin-bottom: 0.5rem;">Nessun referente</h3>
                         <p style="color: var(--text-secondary); margin-bottom: 0; max-width: 400px; margin-inline: auto; font-size: 0.9rem;">
-                            Non ci sono ancora referenti per questo cliente. I referenti si gestiscono in DB (tabella <code>contacts</code>) o tramite l'app Booking.
+                            Clicca su <strong>Aggiungi referente</strong> per registrare il primo contatto operativo del cliente.
                         </p>
                     </div>
                 ` : `
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
-                        ${clientContacts.map(c => _renderContactCard(c)).join('')}
+                        ${clientContacts.map(c => `<div class="client-contact-card-wrapper" data-contact-id="${c.id}" style="cursor:pointer;">${_renderContactCard(c)}</div>`).join('')}
                     </div>
                 `}
             </div>
@@ -937,6 +945,25 @@ export function renderClientDetail(container) {
                 targetEl.dataset.initialized = '1';
                 initClientFilesTab(targetEl, client.id);
             }
+        });
+    });
+
+    // Referenti — wire-up CRUD
+    const reloadReferentiTab = async () => {
+        await fetchContacts(true);
+        renderClientDetail(container);
+    };
+    const addContactBtn = container.querySelector('#add-client-contact-btn');
+    if (addContactBtn) {
+        addContactBtn.addEventListener('click', () => {
+            openClientContactModal(client.id, null, reloadReferentiTab);
+        });
+    }
+    container.querySelectorAll('.client-contact-card-wrapper').forEach(wrap => {
+        wrap.addEventListener('click', () => {
+            const contactId = wrap.dataset.contactId;
+            const contact = (state.contacts || []).find(c => c.id === contactId);
+            if (contact) openClientContactModal(client.id, contact, reloadReferentiTab);
         });
     });
 
@@ -1519,6 +1546,136 @@ async function openClientAccountPicker(clientId) {
     });
 }
 
+// ── Client Contact Modal (CRUD referenti dal client-detail) ──────────────────
+export function openClientContactModal(clientId, contact, onSaved) {
+    let modal = document.getElementById('client-contact-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'client-contact-modal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 540px; width: 90vw;">
+                <div class="modal-header">
+                    <h2 id="client-contact-modal-title">Referente</h2>
+                    <button class="close-modal material-icons-round" id="close-client-contact-modal">close</button>
+                </div>
+                <div class="modal-body">
+                    <form id="client-contact-form">
+                        <input type="hidden" id="client-contact-id">
+                        <input type="hidden" id="client-contact-client-id">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+                            <div class="form-group">
+                                <label>Nome *</label>
+                                <input type="text" id="client-contact-first-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Cognome *</label>
+                                <input type="text" id="client-contact-last-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Ruolo / Funzione</label>
+                                <input type="text" id="client-contact-role" placeholder="Es: Direzione, Marketing, Amministrazione">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="client-contact-email">
+                            </div>
+                            <div class="form-group">
+                                <label>Telefono</label>
+                                <input type="tel" id="client-contact-phone">
+                            </div>
+                            <div class="form-group">
+                                <label>Mobile</label>
+                                <input type="tel" id="client-contact-mobile">
+                            </div>
+                        </div>
+                        <div class="form-actions" style="margin-top:1.5rem;display:flex;justify-content:space-between;align-items:center;">
+                            <button type="button" class="primary-btn danger-outline" id="client-delete-contact-btn" style="display:none;">
+                                <span class="material-icons-round">delete</span> Elimina
+                            </button>
+                            <div style="display:flex;gap:1rem;margin-left:auto;">
+                                <button type="button" class="primary-btn secondary" id="client-cancel-contact-modal">Annulla</button>
+                                <button type="submit" class="primary-btn">Salva</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    const close = () => modal.classList.remove('active');
+    document.getElementById('close-client-contact-modal').onclick = close;
+    document.getElementById('client-cancel-contact-modal').onclick = close;
+    modal.onclick = e => { if (e.target === modal) close(); };
+
+    const form = document.getElementById('client-contact-form');
+    form.reset();
+    document.getElementById('client-contact-modal-title').textContent = contact ? 'Modifica Referente' : 'Nuovo Referente';
+    document.getElementById('client-contact-id').value = contact?.id || '';
+    document.getElementById('client-contact-client-id').value = clientId;
+    document.getElementById('client-contact-first-name').value = contact?.first_name || '';
+    document.getElementById('client-contact-last-name').value = contact?.last_name || '';
+    document.getElementById('client-contact-role').value = contact?.role || '';
+    document.getElementById('client-contact-email').value = contact?.email || '';
+    document.getElementById('client-contact-phone').value = contact?.phone || '';
+    document.getElementById('client-contact-mobile').value = contact?.mobile || '';
+
+    const deleteBtn = document.getElementById('client-delete-contact-btn');
+    deleteBtn.style.display = contact ? 'flex' : 'none';
+    deleteBtn.onclick = async () => {
+        const confirmFn = window.showConfirm || (msg => Promise.resolve(confirm(msg)));
+        const confirmed = await confirmFn('Eliminare questo referente?', 'Elimina Referente');
+        if (!confirmed) return;
+        try {
+            await deletePartnerContact(contact.id);
+            close();
+            (window.showAlert || showGlobalAlert)('Referente eliminato', 'success');
+            onSaved && onSaved();
+        } catch (err) {
+            (window.showAlert || showGlobalAlert)('Errore: ' + err.message, 'error');
+        }
+    };
+
+    form.onsubmit = async e => {
+        e.preventDefault();
+        const btn = form.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<span class="loader-sm"></span>';
+        const firstName = document.getElementById('client-contact-first-name').value.trim();
+        const lastName = document.getElementById('client-contact-last-name').value.trim();
+        const payload = {
+            id: document.getElementById('client-contact-id').value || undefined,
+            client_id: clientId,
+            relation_type: 'client',
+            first_name: firstName,
+            last_name: lastName,
+            full_name: (firstName + ' ' + lastName).trim(),
+            role: document.getElementById('client-contact-role').value || null,
+            email: document.getElementById('client-contact-email').value || null,
+            phone: document.getElementById('client-contact-phone').value || null,
+            mobile: document.getElementById('client-contact-mobile').value || null,
+        };
+        if (!payload.id) delete payload.id;
+        try {
+            await upsertPartnerContact(payload);
+            close();
+            (window.showAlert || showGlobalAlert)('Referente salvato', 'success');
+            onSaved && onSaved();
+        } catch (err) {
+            (window.showAlert || showGlobalAlert)('Errore: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+        }
+    };
+
+    modal.classList.add('active');
+}
+
 if (typeof window !== 'undefined') {
     window.openClientAccountPicker = openClientAccountPicker;
+    window.openClientContactModal = openClientContactModal;
 }
