@@ -1138,6 +1138,8 @@ export function renderAssignmentsDashboard(container) {
         const userTags = tagsToUse.map(t => typeof t === 'string' ? t.trim().toLowerCase() : '');
         const isPrivileged = userTags.some(t => t === 'partner' || t === 'amministrazione');
         const isAccount = userTags.some(t => t === 'account');
+        // Default esplicito per evitare comportamento ambiguo al primo render
+        if (typeof state.assignmentsMineOnly === 'undefined') state.assignmentsMineOnly = false;
         let baseAssignments = state.assignments;
         if (!isPrivileged && activeRole !== 'admin') {
             const myOrderIds = state.orders.filter(o =>

@@ -262,7 +262,9 @@ export async function renderClients(container) {
         const creditBadge = _renderCreditRiskBadge(client, { compact: true });
         const acc = findAccountResponsible(client);
         const accBadge = acc
-            ? `<div class="v7-acc-badge" title="Account: ${acc.full_name}" style="width: 22px; height: 22px; border-radius: 50%; background: ${_accountColor(acc.id)}22; color: ${_accountColor(acc.id)}; display:flex; align-items:center; justify-content:center; font-size: 0.65rem; font-weight: 700; border: 1px solid ${_accountColor(acc.id)}55;">${_accountInitials(acc.full_name)}</div>`
+            ? (acc.avatar_url
+                ? `<img class="v7-acc-badge" title="Account: ${acc.full_name}" src="${acc.avatar_url}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid ${_accountColor(acc.id)}55;" alt="${_accountInitials(acc.full_name)}">`
+                : `<div class="v7-acc-badge" title="Account: ${acc.full_name}" style="width: 22px; height: 22px; border-radius: 50%; background: ${_accountColor(acc.id)}22; color: ${_accountColor(acc.id)}; display:flex; align-items:center; justify-content:center; font-size: 0.65rem; font-weight: 700; border: 1px solid ${_accountColor(acc.id)}55;">${_accountInitials(acc.full_name)}</div>`)
             : `<div class="v7-acc-badge v7-acc-unassigned" title="Account non assegnato" style="width: 22px; height: 22px; border-radius: 50%; background: rgba(148,163,184,0.1); color: #94a3b8; display:flex; align-items:center; justify-content:center; border: 1px dashed #cbd5e1;"><span class="material-icons-round" style="font-size: 14px;">person_off</span></div>`;
 
         return `
@@ -490,7 +492,7 @@ export async function renderClients(container) {
                         </select>
                     </div>
                     <!-- Chip filtro stato cliente -->
-                    <div style="margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.3rem;">
+                    <div style="margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center;">
                         ${[
                             { key: 'all', label: 'Tutti', color: '#64748b', count: (state.clients || []).length },
                             { key: 'lead', label: 'Lead', color: '#3b82f6', count: statusCounts.lead },
@@ -502,6 +504,9 @@ export async function renderClients(container) {
                             const active = state.clientsStatusFilter === chip.key;
                             return `<button onclick="state.clientsStatusFilter='${chip.key}'; renderClients(document.getElementById('content-area'))" style="padding: 0.25rem 0.55rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; cursor: pointer; border: 1px solid ${chip.color}${active ? '' : '30'}; background: ${active ? chip.color : chip.color + '15'}; color: ${active ? 'white' : chip.color};">${chip.label} ${chip.count}</button>`;
                         }).join('')}
+                        <button onclick="window.showClientStatusHelp()" title="Cosa significano gli stati?" style="margin-left: auto; padding: 0.2rem 0.45rem; border-radius: 999px; border: 1px solid var(--glass-border); background: white; color: var(--text-tertiary); font-size: 0.75rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 0.2rem;">
+                            <span class="material-icons-round" style="font-size: 0.9rem;">help_outline</span>
+                        </button>
                     </div>
                 </div>
                 <div class="crm-sidebar-list">
@@ -809,7 +814,9 @@ export function renderClientDetail(container) {
                                     const color = _accountColor(acc.id);
                                     return `
                                         <div style="display: flex; align-items: center; gap: 0.6rem;">
-                                            <div style="width: 32px; height: 32px; border-radius: 50%; background: ${color}22; color: ${color}; display:flex; align-items:center; justify-content:center; font-size: 0.78rem; font-weight: 700; border: 1px solid ${color}55;">${_accountInitials(acc.full_name)}</div>
+                                            ${acc.avatar_url
+                                                ? `<img src="${acc.avatar_url}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid ${color}55;" alt="${_accountInitials(acc.full_name)}">`
+                                                : `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${color}22; color: ${color}; display:flex; align-items:center; justify-content:center; font-size: 0.78rem; font-weight: 700; border: 1px solid ${color}55;">${_accountInitials(acc.full_name)}</div>`}
                                             <div style="flex: 1; min-width: 0;">
                                                 <div style="font-weight: 600; color: var(--text-primary); font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${acc.full_name}</div>
                                                 <button class="btn-link" onclick="window.openClientAccountPicker('${client.id}')" style="padding: 0; font-size: 0.72rem; color: var(--brand-blue); background: none; border: none; cursor: pointer;">Cambia</button>
@@ -1240,24 +1247,30 @@ export function initNewClientModal() {
         saveBtn.innerHTML = '<span class="loader" style="width:20px;height:20px;"></span> Salvataggio...';
 
         try {
+            // Helper: ritorna null per stringhe vuote (evita falsi positivi su trigger DISTINCT FROM)
+            const orNull = (id, transform) => {
+                const v = document.getElementById(id).value.trim();
+                if (!v) return null;
+                return transform ? transform(v) : v;
+            };
             const clientData = {
                 business_name,
                 client_code,
-                email: document.getElementById('new-cli-email').value.trim(),
-                pec: document.getElementById('new-cli-pec').value.trim(),
-                phone: document.getElementById('new-cli-phone').value.trim(),
-                address: document.getElementById('new-cli-address').value.trim(),
-                city: document.getElementById('new-cli-city').value.trim(),
-                province: document.getElementById('new-cli-prov').value.trim().toUpperCase(),
-                cap: document.getElementById('new-cli-cap').value.trim(),
-                vat_number: document.getElementById('new-cli-vat').value.trim(),
-                fiscal_code: document.getElementById('new-cli-fiscal').value.trim(),
-                sdi_code: document.getElementById('new-cli-sdi').value.trim().toUpperCase(),
+                email: orNull('new-cli-email'),
+                pec: orNull('new-cli-pec'),
+                phone: orNull('new-cli-phone'),
+                address: orNull('new-cli-address'),
+                city: orNull('new-cli-city'),
+                province: orNull('new-cli-prov', v => v.toUpperCase()),
+                cap: orNull('new-cli-cap'),
+                vat_number: orNull('new-cli-vat'),
+                fiscal_code: orNull('new-cli-fiscal'),
+                sdi_code: orNull('new-cli-sdi', v => v.toUpperCase()),
                 payment_terms: document.getElementById('new-cli-payment-terms').value !== ''
                     ? parseInt(document.getElementById('new-cli-payment-terms').value, 10)
                     : null,
                 account_responsible_id: document.getElementById('new-cli-account').value || null,
-                notes: document.getElementById('new-cli-notes').value.trim() || null
+                notes: orNull('new-cli-notes')
             };
 
             // Add ID if editing
@@ -1590,7 +1603,9 @@ async function openClientAccountPicker(clientId) {
                         const selected = acc.id === currentId;
                         return `
                             <button class="cap-option" data-acc-id="${acc.id}" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid ${selected ? 'var(--brand-blue)' : 'var(--glass-border)'}; background: ${selected ? 'rgba(59,130,246,0.08)' : 'white'}; border-radius: 10px; cursor: pointer; text-align: left;">
-                                <div style="width: 36px; height: 36px; border-radius: 50%; background: ${color}22; color: ${color}; display:flex; align-items:center; justify-content:center; font-weight: 700; font-size: 0.85rem; border: 1px solid ${color}55;">${_accountInitials(acc.full_name)}</div>
+                                ${acc.avatar_url
+                                    ? `<img src="${acc.avatar_url}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid ${color}55;" alt="${_accountInitials(acc.full_name)}">`
+                                    : `<div style="width: 36px; height: 36px; border-radius: 50%; background: ${color}22; color: ${color}; display:flex; align-items:center; justify-content:center; font-weight: 700; font-size: 0.85rem; border: 1px solid ${color}55;">${_accountInitials(acc.full_name)}</div>`}
                                 <div style="flex: 1; min-width: 0;">
                                     <div style="font-weight: 600; color: var(--text-primary);">${acc.full_name}</div>
                                     <div style="font-size: 0.78rem; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${acc.email || '-'}</div>
@@ -1768,7 +1783,52 @@ export function openClientContactModal(clientId, contact, onSaved) {
     modal.classList.add('active');
 }
 
+// Modal di spiegazione stati cliente
+function showClientStatusHelp() {
+    let modal = document.getElementById('client-status-help-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'client-status-help-modal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 560px; width: 90vw;">
+                <div class="modal-header">
+                    <h2>Stati cliente — come funzionano</h2>
+                    <button class="close-modal material-icons-round" id="close-client-status-help">close</button>
+                </div>
+                <div class="modal-body">
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem;">
+                        Lo stato del cliente viene <strong>calcolato automaticamente</strong> dal sistema in base alla sua storia di ordini e fatture. Non lo imposti tu a mano.
+                    </p>
+                    ${[
+                        { color: '#3b82f6', label: 'Lead', desc: 'Mai avuto una commessa. È un contatto in anagrafica che non ha ancora aperto nulla con noi.' },
+                        { color: '#f59e0b', label: 'Potenziale', desc: 'Ha almeno una commessa in fase commerciale (offerta in lavorazione, programmata o inviata), ma nulla è stato ancora accettato.' },
+                        { color: '#10b981', label: 'Attivo', desc: 'Ha almeno una commessa accettata con lavori non chiusi. È un cliente che sta producendo fatturato adesso.' },
+                        { color: '#94a3b8', label: 'Dormiente', desc: 'In passato ha avuto commesse accettate, ma sono tutte chiuse. Candidato naturale per ri-attivazione.' },
+                        { color: '#ef4444', label: 'Perso', desc: 'Tutte le offerte rifiutate, nessuna accettata mai. Da escludere da outreach (a meno di cambiamenti).' },
+                    ].map(s => `
+                        <div style="display: flex; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--glass-border);">
+                            <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 999px; background: ${s.color}18; color: ${s.color}; border: 1px solid ${s.color}30; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; height: fit-content; white-space: nowrap;">
+                                <span style="width: 7px; height: 7px; border-radius: 50%; background: ${s.color};"></span>${s.label}
+                            </span>
+                            <div style="font-size: 0.88rem; color: var(--text-primary); line-height: 1.45;">${s.desc}</div>
+                        </div>
+                    `).join('')}
+                    <p style="color: var(--text-tertiary); font-size: 0.78rem; margin-top: 1rem;">
+                        ℹ️ Lo stato si aggiorna in tempo reale ogni volta che crei o cambi un ordine.
+                    </p>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    document.getElementById('close-client-status-help').onclick = () => modal.classList.remove('active');
+    modal.onclick = e => { if (e.target === modal) modal.classList.remove('active'); };
+    modal.classList.add('active');
+}
+
 if (typeof window !== 'undefined') {
     window.openClientAccountPicker = openClientAccountPicker;
     window.openClientContactModal = openClientContactModal;
+    window.showClientStatusHelp = showClientStatusHelp;
 }

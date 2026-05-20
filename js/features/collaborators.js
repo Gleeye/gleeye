@@ -143,6 +143,9 @@ export function renderCollaborators(container) {
                             return `<button class="pill-filter-lifecycle" data-lifecycle="${ch.k}" style="padding: 6px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: 1px solid ${ch.color}${isActive ? '' : '30'}; background: ${isActive ? ch.color : ch.color + '15'}; color: ${isActive ? 'white' : ch.color};">${ch.label} ${counts[ch.k] || 0}</button>`;
                         }).join('');
                     })()}
+                    <button onclick="window.showCollabLifecycleHelp()" title="Cosa significano gli stati?" style="padding: 4px 8px; border-radius: 999px; border: 1px solid var(--glass-border); background: white; color: var(--text-tertiary); cursor: pointer; display: inline-flex; align-items: center;">
+                        <span class="material-icons-round" style="font-size: 1rem;">help_outline</span>
+                    </button>
 
                     <div style="width: 1px; height: 24px; background: var(--glass-border); margin: 0 0.5rem;"></div>
 
@@ -836,13 +839,10 @@ export function renderCollaboratorDetail(container) {
                     <div>
                         <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.4rem; flex-wrap: wrap;">
                              <h1 style="font-size: 2rem; font-weight: 700; margin: 0; color: var(--text-primary); font-family: var(--font-titles); letter-spacing: -0.02em;">${c.full_name}</h1>
-                             <span class="status-badge" style="display: inline-flex; align-items: center; gap: 4px; background: ${statusColor}15; color: ${statusColor}; border: 1px solid ${statusColor}30; font-size: 0.75rem; padding: 4px 10px; border-radius: 2rem; font-weight: 600;">
-                                <span style="width: 6px; height: 6px; border-radius: 50%; background: ${statusColor};"></span>
-                                ${statusText}
-                             </span>
                              ${(() => {
+                                 // Solo lifecycle badge (rimosso doppio Attivo/Inattivo redundant — il lifecycle copre già 'perso' per is_active=false)
                                  const lc = _COLLAB_STATUS_STYLE[c.status_lifecycle];
-                                 if (!lc) return '';
+                                 if (!lc) return `<span style="display: inline-flex; align-items: center; gap: 4px; background: ${statusColor}15; color: ${statusColor}; border: 1px solid ${statusColor}30; font-size: 0.75rem; padding: 4px 10px; border-radius: 2rem; font-weight: 600;"><span style="width: 6px; height: 6px; border-radius: 50%; background: ${statusColor};"></span>${statusText}</span>`;
                                  return `<span title="Lifecycle: ${lc.label}" style="display: inline-flex; align-items: center; gap: 4px; background: ${lc.color}15; color: ${lc.color}; border: 1px solid ${lc.color}30; font-size: 0.75rem; padding: 4px 10px; border-radius: 2rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;"><span style="width: 6px; height: 6px; border-radius: 50%; background: ${lc.color};"></span>${lc.label}</span>`;
                              })()}
                         </div>
@@ -1295,3 +1295,47 @@ async function initAvailabilityTab(collaboratorId) {
         loading.innerHTML = `<div style="padding:1rem;color:red;">Errore: ${err.message}</div>`;
     }
 }
+
+// Modal spiegazione lifecycle collab
+window.showCollabLifecycleHelp = function() {
+    let modal = document.getElementById('collab-lifecycle-help-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'collab-lifecycle-help-modal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 560px; width: 90vw;">
+                <div class="modal-header">
+                    <h2>Lifecycle collaboratori — come funziona</h2>
+                    <button class="close-modal material-icons-round" id="close-collab-lifecycle-help">close</button>
+                </div>
+                <div class="modal-body">
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem;">
+                        Il lifecycle del collaboratore viene <strong>calcolato automaticamente</strong> in base agli incarichi e allo stato anagrafico (is_active). Non lo imposti tu a mano (eccetto Candidato/Valutazione, che restano manuali).
+                    </p>
+                    ${[
+                        { color: '#10b981', label: 'Attivo', desc: 'Ha almeno un incarico In Corso / Da Fare / In attesa / Terminato da saldare, oppure ha chiuso un incarico negli ultimi 90 giorni.' },
+                        { color: '#94a3b8', label: 'Dormiente', desc: 'Ha avuto incarichi in passato ma niente di recente. Disponibile, ma non sta lavorando per noi adesso.' },
+                        { color: '#3b82f6', label: 'Candidato', desc: 'In anagrafica con is_active=true ma mai un incarico. Tipicamente un nuovo collab appena inserito o un profilo da valutare.' },
+                        { color: '#f59e0b', label: 'In valutazione', desc: 'Stato transitorio manuale. Lo imposti tu quando il candidato è in fase di onboarding/prova.' },
+                        { color: '#ef4444', label: 'Perso', desc: 'Disattivato (is_active=false). Non appare nelle liste filtri di default.' },
+                    ].map(s => `
+                        <div style="display: flex; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--glass-border);">
+                            <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 999px; background: ${s.color}18; color: ${s.color}; border: 1px solid ${s.color}30; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; height: fit-content; white-space: nowrap;">
+                                <span style="width: 7px; height: 7px; border-radius: 50%; background: ${s.color};"></span>${s.label}
+                            </span>
+                            <div style="font-size: 0.88rem; color: var(--text-primary); line-height: 1.45;">${s.desc}</div>
+                        </div>
+                    `).join('')}
+                    <p style="color: var(--text-tertiary); font-size: 0.78rem; margin-top: 1rem;">
+                        ℹ️ Lo stato si aggiorna in tempo reale ogni volta che si crea/chiude un incarico o si cambia is_active.
+                    </p>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    document.getElementById('close-collab-lifecycle-help').onclick = () => modal.classList.remove('active');
+    modal.onclick = e => { if (e.target === modal) modal.classList.remove('active'); };
+    modal.classList.add('active');
+};
