@@ -24,7 +24,18 @@ if (!window.openSignedUrl) {
     };
 }
 
+// Stile badge status_lifecycle (B7 — auto-calcolato dal trigger DB)
+const _COLLAB_STATUS_STYLE = {
+    attivo:      { label: 'Attivo',      color: '#10b981' },
+    dormiente:   { label: 'Dormiente',   color: '#94a3b8' },
+    candidato:   { label: 'Candidato',   color: '#3b82f6' },
+    valutazione: { label: 'In valutazione', color: '#f59e0b' },
+    perso:       { label: 'Perso',       color: '#ef4444' },
+};
+
 export function renderCollaborators(container) {
+    if (typeof state.collabsLifecycleFilter === 'undefined') state.collabsLifecycleFilter = 'all';
+
     const renderGrid = () => {
         const filtered = state.collaborators.filter(c => {
             const matchesSearch = c.full_name.toLowerCase().includes(state.searchTerm.toLowerCase());
@@ -33,7 +44,8 @@ export function renderCollaborators(container) {
             const isActive = c.is_active !== false;
             const isIndividual = (c.type === 'individual' || !c.type);
             const matchesActive = state.showInactiveCollaborators || isActive;
-            return matchesSearch && matchesDept && matchesActive && isIndividual;
+            const matchesLifecycle = state.collabsLifecycleFilter === 'all' || c.status_lifecycle === state.collabsLifecycleFilter;
+            return matchesSearch && matchesDept && matchesActive && matchesLifecycle && isIndividual;
         }).sort((a, b) => {
             const nameA = (a.last_name || a.full_name.trim().split(' ').pop() || '').toLowerCase();
             const nameB = (b.last_name || b.full_name.trim().split(' ').pop() || '').toLowerCase();
@@ -53,6 +65,11 @@ export function renderCollaborators(container) {
                     `<img src="${c.avatar_url}" style="width:100%; height:100%; border-radius:50%; object-fit:cover; border: 2px solid white; ${isInactive ? 'filter: grayscale(100%);' : ''}">` :
                     c.full_name[0]}
                 </div>
+                ${(() => {
+                    const st = _COLLAB_STATUS_STYLE[c.status_lifecycle];
+                    if (!st || isInactive) return '';
+                    return `<span title="Lifecycle: ${st.label}" style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:${st.color}18;color:${st.color};border:1px solid ${st.color}40;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;"><span style="width:6px;height:6px;border-radius:50%;background:${st.color};"></span>${st.label}</span>`;
+                })()}
             </div>
             
             <div style="width: 100%; margin-top: 0.25rem;">
@@ -104,9 +121,31 @@ export function renderCollaborators(container) {
                 <div class="pills-container">
                     <button class="pill-filter ${!state.selectedDepartment ? 'active' : ''}" data-dept="">Tutti</button>
                     ${state.departments.map(d => `<button class="pill-filter ${state.selectedDepartment === d.name ? 'active' : ''}" data-dept="${d.name}">${d.name}</button>`).join('')}
-                    
+
                     <div style="width: 1px; height: 24px; background: var(--glass-border); margin: 0 0.5rem;"></div>
-                    
+
+                    <!-- Filtri lifecycle (B7) -->
+                    ${(() => {
+                        const counts = { all: 0, attivo: 0, dormiente: 0, candidato: 0, valutazione: 0, perso: 0 };
+                        (state.collaborators || []).forEach(c => {
+                            if ((c.type || 'individual') !== 'individual') return;
+                            counts.all++;
+                            if (counts[c.status_lifecycle] !== undefined) counts[c.status_lifecycle]++;
+                        });
+                        const chips = [
+                            { k: 'all', label: 'Tutti i lifecycle', color: '#64748b' },
+                            { k: 'attivo', label: 'Attivi', color: '#10b981' },
+                            { k: 'dormiente', label: 'Dormienti', color: '#94a3b8' },
+                            { k: 'candidato', label: 'Candidati', color: '#3b82f6' },
+                        ];
+                        return chips.map(ch => {
+                            const isActive = state.collabsLifecycleFilter === ch.k;
+                            return `<button class="pill-filter-lifecycle" data-lifecycle="${ch.k}" style="padding: 6px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: 1px solid ${ch.color}${isActive ? '' : '30'}; background: ${isActive ? ch.color : ch.color + '15'}; color: ${isActive ? 'white' : ch.color};">${ch.label} ${counts[ch.k] || 0}</button>`;
+                        }).join('');
+                    })()}
+
+                    <div style="width: 1px; height: 24px; background: var(--glass-border); margin: 0 0.5rem;"></div>
+
                     <button class="pill-filter" id="open-dept-manager-btn" style="background: transparent; border: 1px dashed var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; gap: 0.25rem;">
                         <span class="material-icons-round" style="font-size:1rem;">settings</span>
                         Gestisci
@@ -128,6 +167,10 @@ export function renderCollaborators(container) {
                 e.target.classList.add('active');
                 document.getElementById('collaborators-grid').innerHTML = renderGrid();
                 updateCount();
+            } else if (e.target.classList.contains('pill-filter-lifecycle')) {
+                state.collabsLifecycleFilter = e.target.dataset.lifecycle;
+                container.innerHTML = '';
+                renderCollaborators(container);
             }
         });
 
