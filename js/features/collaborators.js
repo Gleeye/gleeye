@@ -295,6 +295,7 @@ window.openCollaboratorModal = (collaboratorId = null) => {
                 document.getElementById('collab-vat-number').value = c.vat_number || '';
                 document.getElementById('collab-bank-name').value = c.bank_name || '';
                 document.getElementById('collab-iban').value = c.iban || '';
+                document.getElementById('collab-notes').value = c.notes || '';
 
                 // Handle is_active - set visual state
                 setToggleState(c.is_active !== false);
@@ -427,6 +428,14 @@ export function initCollaboratorModals() {
                                         </div>
                                     </div>
                                 </div>
+                                <!-- Note libere -->
+                                <div class="modal-section">
+                                    <div class="section-title"><span class="material-icons-round">sticky_note_2</span><h4>Note</h4></div>
+                                    <div class="form-group full-width">
+                                        <label>Note libere (preferenze, debolezze, contesto)</label>
+                                        <textarea id="collab-notes" rows="4" placeholder="Annota tutto quello che ti aiuta a ricordare come gestire al meglio questo collaboratore" style="width: 100%; border-radius: 8px; padding: 0.6rem 0.8rem; font-family: inherit; resize: vertical;"></textarea>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="form-actions" style="margin-top:2rem; padding-top:1rem; border-top:1px solid #eee; display: flex; justify-content: space-between;">
@@ -502,6 +511,7 @@ export function initCollaboratorModals() {
                 vat_number: document.getElementById('collab-vat-number').value || null,
                 bank_name: document.getElementById('collab-bank-name').value || null,
                 iban: document.getElementById('collab-iban').value || null,
+                notes: document.getElementById('collab-notes').value.trim() || null,
                 tags: JSON.parse(document.getElementById('collab-tags').value || '[]'),
                 full_name: `${document.getElementById('collab-first-name').value} ${document.getElementById('collab-last-name').value}`.trim(),
                 is_active: document.getElementById('collab-is-active').value === 'true'
@@ -1043,6 +1053,16 @@ export function renderCollaboratorDetail(container) {
                                     </div>
                                 `).join('')}
                             </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- Note libere -->
+                    ${c.notes ? `
+                        <div class="glass-card" style="padding: 1.25rem; background: #fffbeb; border-color: #fde68a;">
+                            <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span class="material-icons-round" style="color: #b45309; font-size: 1.1rem;">sticky_note_2</span> Note
+                            </h3>
+                            <div style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.5; white-space: pre-wrap;">${c.notes.replace(/</g, '&lt;')}</div>
                         </div>
                     ` : ''}
                 </div>
