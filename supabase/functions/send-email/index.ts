@@ -13,7 +13,7 @@ serve(async (req) => {
     }
 
     try {
-        const { to, subject, html } = await req.json()
+        const { to, subject, html, fromName: fromNameOverride, replyTo, accountId: smtpAccountId } = await req.json()
 
         if (!to || !subject || !html) {
             throw new Error("Parameters 'to', 'subject', and 'html' are required.");
@@ -41,8 +41,11 @@ serve(async (req) => {
             try {
                 const accounts = JSON.parse(allConfigs.smtp_accounts);
                 if (Array.isArray(accounts) && accounts.length > 0) {
-                    // Use first account as default for now
-                    activeConfig = accounts[0];
+                    if (smtpAccountId) {
+                        activeConfig = accounts.find((a: any) => a.id === smtpAccountId) || accounts[0];
+                    } else {
+                        activeConfig = accounts[0];
+                    }
                 }
             } catch (e) {
                 console.warn("Error parsing smtp_accounts JSON:", e);
@@ -83,14 +86,19 @@ serve(async (req) => {
             }
         });
 
-        const fromName = activeConfig.from_name || 'Gleeye System';
-        
-        await transporter.sendMail({
+        const fromName = fromNameOverride || activeConfig.from_name || 'Gleeye System';
+
+        const mailOptions: any = {
             from: `"${fromName}" <${activeConfig.user}>`,
             to,
             subject,
             html
-        });
+        };
+        if (replyTo) {
+            mailOptions.replyTo = replyTo;
+        }
+
+        await transporter.sendMail(mailOptions);
 
         return new Response(JSON.stringify({ success: true, message: "Email sent successfully" }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

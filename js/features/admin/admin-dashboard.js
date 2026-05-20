@@ -112,6 +112,9 @@ export function renderAdminDashboard(container) {
                     <!-- KPI Movimenti da Quadrare -->
                     <div id="admin-bank-orphan-kpi" style="margin-bottom: 1.5rem;"></div>
 
+                    <!-- KPI Bozze Email -->
+                    <div id="admin-outbound-drafts-kpi" style="margin-bottom: 1.5rem;"></div>
+
                     <!-- Google Calendar Config Section -->
                     <div class="glass-card" style="padding: 1.5rem; margin-bottom: 2rem; border: 1px solid var(--glass-border);">
                         <h3 style="font-size: 1.1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -316,6 +319,9 @@ export function renderAdminDashboard(container) {
     // KPI movimenti orfani
     _renderBankOrphanKpi(container.querySelector('#admin-bank-orphan-kpi'));
 
+    // KPI bozze email
+    _renderOutboundDraftsKpi(container.querySelector('#admin-outbound-drafts-kpi'));
+
     // Tab Logic
     const tabs = container.querySelectorAll('.tab-btn');
     const contents = container.querySelectorAll('.tab-content');
@@ -445,6 +451,38 @@ async function _renderBankOrphanKpi(el) {
         `;
     } catch (err) {
         console.error('[admin-dashboard] bank orphan kpi error', err);
+    }
+}
+
+async function _renderOutboundDraftsKpi(el) {
+    if (!el) return;
+    try {
+        const { supabase } = await import('../../modules/config.js?v=8000');
+        const { count, error } = await supabase
+            .from('outbound_emails')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'draft');
+        if (error || !count) { el.innerHTML = ''; return; }
+
+        el.innerHTML = `
+            <a href="#outbound-emails" style="text-decoration: none; display: block;">
+                <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.2); border-radius: 12px; cursor: pointer; transition: background 0.15s;"
+                    onmouseover="this.style.background='rgba(245,158,11,0.1)'" onmouseout="this.style.background='rgba(245,158,11,0.06)'">
+                    <span class="material-icons-round" style="font-size: 1.4rem; color: #d97706; flex-shrink: 0;">drafts</span>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 700; font-size: 0.9rem; color: #d97706;">
+                            ${count} bozz${count === 1 ? 'a email' : 'e email'} da inviare
+                        </div>
+                        <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.15rem;">
+                            Email generate automaticamente al completamento commessa, in attesa di revisione e invio.
+                        </div>
+                    </div>
+                    <span class="material-icons-round" style="font-size: 1rem; color: #d97706; opacity: 0.7;">arrow_forward</span>
+                </div>
+            </a>
+        `;
+    } catch (err) {
+        console.error('[admin-dashboard] outbound drafts kpi error', err);
     }
 }
 

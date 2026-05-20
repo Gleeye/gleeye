@@ -772,6 +772,19 @@ export async function renderOrderDetail(container, orderId) {
             </div>
             ` : ''}
 
+            ${isOrderClosed ? `
+            <!-- NPS Feedback Card (Mina 6 Step 6) -->
+            <div class="glass-card" id="nps-card-${order.id}" style="padding: 1.25rem; background: var(--bg-secondary); border: 1px solid var(--glass-border);">
+                <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.85rem;">
+                    <div style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(59, 130, 246, 0.12);">
+                        <span class="material-icons-round" style="font-size: 1.1rem; color: #3b82f6;">favorite_border</span>
+                    </div>
+                    <span style="font-weight: 700; font-size: 1rem; color: var(--text-primary); font-family: var(--font-titles);">Feedback cliente</span>
+                </div>
+                <div id="nps-body-${order.id}" style="font-size: 0.85rem; color: var(--text-secondary);">Caricamento…</div>
+            </div>
+            ` : ''}
+
             <!-- Preventivo Automation Card -->
             <div class="glass-card" style="padding: 1.25rem; background: var(--bg-secondary); border: 1px solid var(--glass-border);">
                 <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem;">
@@ -955,6 +968,13 @@ export async function renderOrderDetail(container, orderId) {
         import('./pm/components/activity_log.js?v=8000').then(mod => {
             mod.renderActivityLog(logContainer, { orderId: order.id });
         }).catch(err => console.error("Error loading activity log module:", err));
+    }
+
+    // Render NPS Feedback Card if order is closed
+    if (isOrderClosed) {
+        import('./nps_survey.js?v=8000').then(mod => {
+            mod.populateNpsCard(order);
+        }).catch(err => console.error("Error loading nps_survey module:", err));
     }
 }
 

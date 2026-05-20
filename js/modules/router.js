@@ -68,7 +68,7 @@ export function router() {
     const allowedPagesForCollaborator = ['home', 'profile', 'agenda', 'tasks-summary', 'booking', 'notifications', 'chat', 'assignment-detail', 'assignments', 'pm', 'leads', 'lead-detail', 'contact-forms', 'my-assignments'];
 
     if (isPrivilegedCollaborator || isAccount) {
-        allowedPagesForCollaborator.push('dashboard', 'order-detail', 'client-detail', 'collaborator-detail', 'sap-services', 'sap-service-detail');
+        allowedPagesForCollaborator.push('dashboard', 'order-detail', 'client-detail', 'collaborator-detail', 'sap-services', 'sap-service-detail', 'outbound-emails');
     }
 
     if (isProjectManager) {
@@ -296,6 +296,10 @@ function render() {
                 import('../features/admin/admin-dashboard.js?v=8000').then(module => {
                     module.renderAdminDashboard(contentArea);
                 });
+                break;
+            case 'outbound-emails':
+                if (pageTitle) pageTitle.textContent = 'Bozze Email';
+                import('../features/outbound_emails.js?v=8000').then(m => m.renderOutboundEmails(contentArea));
                 break;
             case 'chat':
                 if (pageTitle) pageTitle.textContent = 'Chat Team';
