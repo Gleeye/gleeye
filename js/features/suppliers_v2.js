@@ -265,6 +265,32 @@ export function initSupplierModals() {
                             <input type="text" id="supplier-iban" class="modal-input" placeholder="IT00 X000 0000 0000 0000 0000 000" style="font-family: monospace; letter-spacing: 0.05em;">
                         </div>
 
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; align-items: end;">
+                            <div class="form-group">
+                                <label>Categoria</label>
+                                <select id="supplier-category" class="modal-input">
+                                    <option value="">— Non categorizzato —</option>
+                                    <option value="software_saas">Software / SaaS</option>
+                                    <option value="hosting_domini">Hosting & Domini</option>
+                                    <option value="servizi_professionali">Servizi professionali</option>
+                                    <option value="stampa_produzione">Stampa & Produzione</option>
+                                    <option value="ufficio_coworking">Ufficio & Co-working</option>
+                                    <option value="marketplace_pagamenti">Marketplace & Pagamenti</option>
+                                    <option value="altro">Altro</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Sotto-categoria</label>
+                                <input type="text" id="supplier-subcategory" class="modal-input" placeholder="Es: Design, Hosting, ...">
+                            </div>
+                            <div class="form-group">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                    <input type="checkbox" id="supplier-is-individual" style="width: 18px; height: 18px; cursor: pointer;">
+                                    Persona fisica
+                                </label>
+                            </div>
+                        </div>
+
                         <div class="form-group">
                             <label>Note</label>
                             <textarea id="supplier-notes" rows="2" class="modal-input"></textarea>
@@ -314,7 +340,10 @@ export function initSupplierModals() {
                 cassa_previdenziale_rate: parseFloat(document.getElementById('supplier-cassa-rate').value) || 0,
                 withholding_tax_rate: parseFloat(document.getElementById('supplier-withholding-rate').value) || 0,
                 payment_terms: document.getElementById('supplier-payment-terms').value || null,
-                bank_iban: document.getElementById('supplier-iban').value || null
+                bank_iban: document.getElementById('supplier-iban').value || null,
+                category: document.getElementById('supplier-category').value || null,
+                subcategory: document.getElementById('supplier-subcategory').value || null,
+                is_individual: document.getElementById('supplier-is-individual').checked
             };
 
             try {
@@ -367,6 +396,9 @@ window.openSupplierModal = (id = null) => {
             document.getElementById('supplier-withholding-rate').value = supplier.withholding_tax_rate ?? 0;
             document.getElementById('supplier-payment-terms').value = supplier.payment_terms || '';
             document.getElementById('supplier-iban').value = supplier.bank_iban || '';
+            document.getElementById('supplier-category').value = supplier.category || '';
+            document.getElementById('supplier-subcategory').value = supplier.subcategory || '';
+            document.getElementById('supplier-is-individual').checked = !!supplier.is_individual;
         }
     } else {
         document.getElementById('supplier-modal-title').textContent = 'Nuovo Fornitore';
@@ -375,6 +407,9 @@ window.openSupplierModal = (id = null) => {
         document.getElementById('supplier-country').value = 'IT';
         document.getElementById('supplier-regime').value = 'ordinario';
         document.getElementById('supplier-vat-rate').value = 22;
+        document.getElementById('supplier-category').value = '';
+        document.getElementById('supplier-subcategory').value = '';
+        document.getElementById('supplier-is-individual').checked = false;
     }
 
     modal.classList.add('active');
