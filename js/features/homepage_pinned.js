@@ -6,11 +6,11 @@ import { supabase } from '/js/modules/config.js?v=8000';
 import { state } from '/js/modules/state.js?v=8000';
 
 const TYPE_META = {
-    order:        { icon: 'inventory_2',    color: '#3b82f6', route: 'order-detail' },
-    client:       { icon: 'business',       color: '#10b981', route: 'client-detail' },
-    assignment:   { icon: 'assignment',     color: '#8b5cf6', route: 'assignment-detail' },
-    pm_item:      { icon: 'task_alt',       color: '#f59e0b', route: 'pm' },
-    collaborator: { icon: 'badge',          color: '#ef4444', route: 'collaborator-detail' },
+    order:        { icon: 'inventory_2',    color: '#3b82f6', route: 'order-detail',        label: 'Commessa' },
+    client:       { icon: 'business',       color: '#10b981', route: 'client-detail',       label: 'Cliente' },
+    assignment:   { icon: 'assignment',     color: '#8b5cf6', route: 'assignment-detail',   label: 'Incarico' },
+    pm_item:      { icon: 'task_alt',       color: '#f59e0b', route: 'pm',                  label: 'Task' },
+    collaborator: { icon: 'badge',          color: '#ef4444', route: 'collaborator-detail', label: 'Collaboratore' },
 };
 
 function escapeHtml(s) {
@@ -42,12 +42,13 @@ export async function renderSidebarPinned() {
     }
 
     slot.innerHTML = `
-        <div class="sidebar-pinned-section" style="padding: 0.5rem 0.75rem 0.75rem; margin-bottom: 0.25rem; border-bottom: 1px solid var(--glass-border);">
-            <div class="sidebar-pinned-label" style="display: flex; align-items: center; gap: 0.35rem; padding: 0 0.5rem 0.4rem; font-size: 0.62rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.08em;">
-                <span class="material-icons-round" style="font-size: 0.85rem; color: #f59e0b;">push_pin</span>
-                <span class="sidebar-pinned-label-text">Pinnati</span>
+        <div class="sidebar-pinned-section" style="padding: 0.65rem 0.5rem 0.75rem; border-top: 1px solid var(--glass-border); margin-top: 0.5rem;">
+            <div class="sidebar-pinned-label" style="display: flex; align-items: center; gap: 0.35rem; padding: 0 0.5rem 0.5rem; font-size: 0.62rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.08em;">
+                <span class="material-icons-round" style="font-size: 0.85rem; color: #f59e0b;">star</span>
+                <span class="sidebar-pinned-label-text">Preferiti</span>
+                <span class="sidebar-pinned-label-text" style="margin-left: auto; color: var(--text-tertiary); font-weight: 600;">${pinned.length}</span>
             </div>
-            <div style="display: flex; flex-direction: column; gap: 0.15rem;">
+            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
                 ${pinned.map(p => renderRow(p)).join('')}
             </div>
         </div>
@@ -63,14 +64,17 @@ export async function renderSidebarPinned() {
 }
 
 function renderRow(p) {
-    const meta = TYPE_META[p.entity_type] || { icon: 'star', color: '#6b7280', route: 'home' };
-    const label = p.label || `${p.entity_type} ${p.entity_id.slice(0, 8)}`;
+    const meta = TYPE_META[p.entity_type] || { icon: 'star', color: '#6b7280', route: 'home', label: p.entity_type };
+    const fullLabel = p.label || `${meta.label} ${p.entity_id.slice(0, 8)}`;
     return `
-        <a href="#${meta.route}/${p.entity_id}" class="pin-row nav-item sub-item" style="display: flex; align-items: center; gap: 0.65rem; padding: 0.45rem 0.65rem; border-radius: 8px; text-decoration: none; color: var(--text-primary); font-size: 0.78rem; cursor: pointer; position: relative; min-height: 32px;">
-            <span class="material-icons-round" style="font-size: 1.05rem; color: ${meta.color}; flex-shrink: 0;">${meta.icon}</span>
-            <span class="pin-label" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+        <a href="#${meta.route}/${p.entity_id}" class="pin-row nav-item sub-item" style="display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.55rem; border-radius: 8px; text-decoration: none; color: var(--text-primary); cursor: pointer; position: relative; min-height: 40px;" title="${escapeHtml(fullLabel)}">
+            <span class="material-icons-round" style="font-size: 1.15rem; color: ${meta.color}; flex-shrink: 0;">${meta.icon}</span>
+            <div class="pin-label" style="flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.1; overflow: hidden;">
+                <span style="font-size: 0.58rem; font-weight: 700; color: ${meta.color}; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 1px;">${meta.label}</span>
+                <span style="font-size: 0.76rem; color: var(--text-primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(fullLabel)}</span>
+            </div>
             <button class="pin-close" onclick="event.preventDefault();event.stopPropagation();window.unpinItem('${p.id}', this.closest('.pin-row'))"
-                style="background: none; border: none; padding: 2px; cursor: pointer; color: var(--text-tertiary); opacity: 0; transition: opacity 0.15s; display: flex; align-items: center; flex-shrink: 0;" title="Rimuovi dai pinned">
+                style="background: none; border: none; padding: 2px; cursor: pointer; color: var(--text-tertiary); opacity: 0; transition: opacity 0.15s; display: flex; align-items: center; flex-shrink: 0;" title="Rimuovi dai preferiti">
                 <span class="material-icons-round" style="font-size: 0.95rem;">close</span>
             </button>
         </a>

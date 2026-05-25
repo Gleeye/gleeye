@@ -385,9 +385,9 @@ export async function renderOrderDetail(container, orderId) {
                     <button class="icon-btn" id="order-pin-btn-${order.id}"
                             data-pin-label="${((order.order_number ? order.order_number + ' · ' : '') + (order.title || 'Commessa')).replace(/"/g, '&quot;')}"
                             onclick="window.handlePinOrder('${order.id}', this)"
-                            title="Pinna in sidebar"
+                            title="Aggiungi ai Preferiti"
                             style="width: 40px; height: 40px; border-radius: 12px; background: white; border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-sm); margin-right: .5rem;">
-                        <span class="material-icons-round" style="font-size:1.15rem;">push_pin</span>
+                        <span class="material-icons-round" style="font-size:1.15rem;">star_outline</span>
                     </button>
 
                     <div class="order-actions-menu" style="position: relative;">
@@ -1054,7 +1054,8 @@ export async function renderOrderDetail(container, orderId) {
                     btn.style.background = 'rgba(245,158,11,.12)';
                     btn.style.borderColor = '#f59e0b';
                     btn.style.color = '#f59e0b';
-                    btn.title = 'Rimuovi dai pinned';
+                    btn.title = 'Rimuovi dai Preferiti';
+                    if (icon) icon.textContent = 'star';
                 }
             }
         });
@@ -1066,16 +1067,19 @@ window.handlePinOrder = async function (orderId, btn) {
     await import('./homepage_pinned.js?v=8000');
     const result = await window.togglePin('order', orderId, label);
     if (!result?.ok) return;
+    const icon = btn.querySelector('.material-icons-round');
     if (result.pinned) {
         btn.style.background = 'rgba(245,158,11,.12)';
         btn.style.borderColor = '#f59e0b';
         btn.style.color = '#f59e0b';
-        btn.title = 'Rimuovi dai pinned';
+        btn.title = 'Rimuovi dai Preferiti';
+        if (icon) icon.textContent = 'star';
     } else {
         btn.style.background = 'white';
         btn.style.borderColor = 'var(--glass-border)';
         btn.style.color = 'var(--text-secondary)';
-        btn.title = 'Pinna in sidebar';
+        btn.title = 'Aggiungi ai Preferiti';
+        if (icon) icon.textContent = 'star_outline';
     }
 };
 
