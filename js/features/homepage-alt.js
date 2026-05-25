@@ -421,6 +421,9 @@ export async function renderHomepageAlt(container) {
                      }
                  </style>
 
+                 <!-- Inbox unificato (cose da fare oggi) -->
+                 <div id="hp-inbox-slot"></div>
+
                  <!-- MOBILE STICKY BANNER -->
                  <div class="hp-mobile-banner" onclick="window.openMobileAgenda()">
                     <div style="display: flex; align-items: center; gap: 14px;">
@@ -1541,6 +1544,13 @@ export async function renderHomepageAlt(container) {
         document.addEventListener('appointment-changed', reload);
     };
     setupRefresher();
+
+    // Inbox unificato
+    const inboxSlot = container.querySelector('#hp-inbox-slot');
+    if (inboxSlot) {
+        import('./homepage_inbox.js?v=8000').then(mod => mod.renderInboxWidget(inboxSlot))
+            .catch(err => console.warn('[hp-inbox]', err));
+    }
 }
 
 // --- INTERNAL HUB/CLUSTER ENGINES ---
