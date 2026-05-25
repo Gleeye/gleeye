@@ -383,8 +383,9 @@ export async function renderOrderDetail(container, orderId) {
                     </button>
 
                     <button class="icon-btn" id="order-pin-btn-${order.id}"
+                            data-pin-label="${((order.order_number ? order.order_number + ' · ' : '') + (order.title || 'Commessa')).replace(/"/g, '&quot;')}"
                             onclick="window.handlePinOrder('${order.id}', this)"
-                            title="Pinna in homepage"
+                            title="Pinna in sidebar"
                             style="width: 40px; height: 40px; border-radius: 12px; background: white; border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-sm); margin-right: .5rem;">
                         <span class="material-icons-round" style="font-size:1.15rem;">push_pin</span>
                     </button>
@@ -1061,14 +1062,10 @@ export async function renderOrderDetail(container, orderId) {
 }
 
 window.handlePinOrder = async function (orderId, btn) {
-    const orderLabel = btn.closest('div')?.previousElementSibling?.textContent?.trim() || null;
-    // Prendo order_number + title dal DOM (in alto a sinistra) se possibile
-    const titleEl = document.querySelector('#page-title');
-    const label = titleEl?.textContent?.trim() || `Ordine ${orderId.slice(0, 8)}`;
-    const mod = await import('./homepage_pinned.js?v=8000');
+    const label = btn.dataset.pinLabel || `Ordine ${orderId.slice(0, 8)}`;
+    await import('./homepage_pinned.js?v=8000');
     const result = await window.togglePin('order', orderId, label);
     if (!result?.ok) return;
-    const icon = btn.querySelector('.material-icons-round');
     if (result.pinned) {
         btn.style.background = 'rgba(245,158,11,.12)';
         btn.style.borderColor = '#f59e0b';
@@ -1078,7 +1075,7 @@ window.handlePinOrder = async function (orderId, btn) {
         btn.style.background = 'white';
         btn.style.borderColor = 'var(--glass-border)';
         btn.style.color = 'var(--text-secondary)';
-        btn.title = 'Pinna in homepage';
+        btn.title = 'Pinna in sidebar';
     }
 };
 

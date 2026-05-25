@@ -98,6 +98,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderSidebarProfile();
         initNotifications();  // Initialize notifications after auth
+
+        // Render sidebar pinned items (sotto profilo / sopra menu principale)
+        import('./features/homepage_pinned.js?v=8000')
+            .then(mod => mod.renderSidebarPinned())
+            .catch(err => console.warn('[sidebar-pinned]', err));
         // Chat initializes lazily when user navigates to #chat
         // router(); // REMOVED - already called above
         // setTimeout(() => runOneTimeFix(), 1000);
