@@ -382,8 +382,15 @@ export async function renderOrderDetail(container, orderId) {
                         <span style="font-weight: 700; color: var(--text-primary); font-size: 0.85rem; letter-spacing: -0.01em;">Risorse</span>
                     </button>
 
+                    <button class="icon-btn" id="order-pin-btn-${order.id}"
+                            onclick="window.handlePinOrder('${order.id}', this)"
+                            title="Pinna in homepage"
+                            style="width: 40px; height: 40px; border-radius: 12px; background: white; border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-sm); margin-right: .5rem;">
+                        <span class="material-icons-round" style="font-size:1.15rem;">push_pin</span>
+                    </button>
+
                     <div class="order-actions-menu" style="position: relative;">
-                        <button class="icon-btn" onclick="const m = this.nextElementSibling; m.style.display = m.style.display === 'block' ? 'none' : 'block'; event.stopPropagation();" 
+                        <button class="icon-btn" onclick="const m = this.nextElementSibling; m.style.display = m.style.display === 'block' ? 'none' : 'block'; event.stopPropagation();"
                                 style="width: 40px; height: 40px; border-radius: 12px; background: white; border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-sm);"
                                 onmouseover="this.style.borderColor='var(--brand-blue)'; this.style.color='var(--brand-blue)'"
                                 onmouseout="this.style.borderColor='var(--glass-border)'; this.style.color='var(--text-secondary)'">
@@ -901,10 +908,16 @@ export async function renderOrderDetail(container, orderId) {
                                  </div>
                                  `;
         }).join('')}
-                    <button onclick="window.openCollaboratorServiceEdit(null, '${order.id}')" style="width: 100%; border: none; background: var(--brand-gradient); color: white; font-size: 0.75rem; font-weight: 500; padding: 0.7rem; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; margin-top: 0.5rem;">
-                        <span class="material-icons-round" style="font-size: 1rem;">add</span>
-                        <span>Aggiungi Servizio</span>
-                    </button>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        <button onclick="window.openCollaboratorServiceEdit(null, '${order.id}')" style="flex:1; border: none; background: var(--brand-gradient); color: white; font-size: 0.75rem; font-weight: 500; padding: 0.7rem; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+                            <span class="material-icons-round" style="font-size: 1rem;">add</span>
+                            <span>Aggiungi Servizio</span>
+                        </button>
+                        <button onclick="import('/js/features/order_ai_quote.js?v=8000').then(m => window.openAIQuoteModal('${order.id}'))" style="flex:1; border: 1px solid rgba(139,92,246,.3); background: rgba(139,92,246,.08); color: #8b5cf6; font-size: 0.75rem; font-weight: 600; padding: 0.7rem; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+                            <span class="material-icons-round" style="font-size: 1rem;">auto_awesome</span>
+                            <span>Suggerisci AI</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -1029,7 +1042,45 @@ export async function renderOrderDetail(container, orderId) {
             mod.populateNpsCard(order);
         }).catch(err => console.error("Error loading nps_survey module:", err));
     }
+
+    // Init pin button state
+    import('./homepage_pinned.js?v=8000').then(mod => {
+        mod.isPinned('order', order.id).then(pinned => {
+            const btn = container.querySelector(`#order-pin-btn-${order.id}`);
+            if (btn) {
+                const icon = btn.querySelector('.material-icons-round');
+                if (pinned) {
+                    btn.style.background = 'rgba(245,158,11,.12)';
+                    btn.style.borderColor = '#f59e0b';
+                    btn.style.color = '#f59e0b';
+                    btn.title = 'Rimuovi dai pinned';
+                }
+            }
+        });
+    }).catch(err => console.warn('[pin-init]', err));
 }
+
+window.handlePinOrder = async function (orderId, btn) {
+    const orderLabel = btn.closest('div')?.previousElementSibling?.textContent?.trim() || null;
+    // Prendo order_number + title dal DOM (in alto a sinistra) se possibile
+    const titleEl = document.querySelector('#page-title');
+    const label = titleEl?.textContent?.trim() || `Ordine ${orderId.slice(0, 8)}`;
+    const mod = await import('./homepage_pinned.js?v=8000');
+    const result = await window.togglePin('order', orderId, label);
+    if (!result?.ok) return;
+    const icon = btn.querySelector('.material-icons-round');
+    if (result.pinned) {
+        btn.style.background = 'rgba(245,158,11,.12)';
+        btn.style.borderColor = '#f59e0b';
+        btn.style.color = '#f59e0b';
+        btn.title = 'Rimuovi dai pinned';
+    } else {
+        btn.style.background = 'white';
+        btn.style.borderColor = 'var(--glass-border)';
+        btn.style.color = 'var(--text-secondary)';
+        btn.title = 'Pinna in homepage';
+    }
+};
 
 // 4 order action UI window handlers (generateQuote, openOrderDocsModal, openAccountActivitiesModal, openOrderCloudResourcesModal)
 // extracted to ./orders/actions_ui.js

@@ -170,10 +170,13 @@ window.generateAssignmentBrief = async function (assignmentId, isRegen) {
             ? await supabase.from('clients').select('id, business_name').eq('id', order.client_id).single()
             : { data: null };
 
-        const { data: services } = await supabase
-            .from('assignment_services')
-            .select('quantity, hours, unit_cost, total_cost, legacy_service_name, services(name, description)')
-            .eq('assignment_id', assignmentId);
+        const { data: services } = assignment.order_id && assignment.collaborator_id
+            ? await supabase
+                .from('collaborator_services')
+                .select('quantity, hours, unit_cost, total_cost, legacy_service_name, services(name, description)')
+                .eq('order_id', assignment.order_id)
+                .eq('collaborator_id', assignment.collaborator_id)
+            : { data: [] };
 
         const context = buildPromptContext({
             assignment,

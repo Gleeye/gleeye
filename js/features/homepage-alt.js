@@ -421,6 +421,9 @@ export async function renderHomepageAlt(container) {
                      }
                  </style>
 
+                 <!-- Pinned items slot -->
+                 <div id="hp-pinned-slot"></div>
+
                  <!-- MOBILE STICKY BANNER -->
                  <div class="hp-mobile-banner" onclick="window.openMobileAgenda()">
                     <div style="display: flex; align-items: center; gap: 14px;">
@@ -1541,6 +1544,13 @@ export async function renderHomepageAlt(container) {
         document.addEventListener('appointment-changed', reload);
     };
     setupRefresher();
+
+    // Pinned items section
+    const pinnedSlot = container.querySelector('#hp-pinned-slot');
+    if (pinnedSlot) {
+        import('./homepage_pinned.js?v=8000').then(mod => mod.renderPinnedSection(pinnedSlot))
+            .catch(err => console.warn('[homepage-pinned]', err));
+    }
 }
 
 // --- INTERNAL HUB/CLUSTER ENGINES ---
