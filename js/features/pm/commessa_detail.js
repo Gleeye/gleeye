@@ -538,6 +538,16 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                                         </div>
                                     ` : ''}
                                 </div>
+                                ${isInternal && space?.id ? `
+                                    <button class="icon-btn favorite-btn" data-fav-type="pm_space" data-fav-id="${space.id}" data-fav-label="${(space.name || 'Workspace PM').replace(/"/g, '&quot;')}" onclick="window.handleFavoriteClick(this)" title="Aggiungi ai Preferiti" style="width: 36px; height: 36px; border-radius: 10px; background: white; border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                        <span class="material-icons-round" style="font-size: 1.1rem;">star_outline</span>
+                                    </button>
+                                ` : ''}
+                                ${!isInternal && order?.id ? `
+                                    <button class="icon-btn favorite-btn" data-fav-type="pm_commessa" data-fav-id="${order.id}" data-fav-label="${((order.order_number ? order.order_number + ' · ' : '') + (order.title || 'Commessa PM')).replace(/"/g, '&quot;')}" onclick="window.handleFavoriteClick(this)" title="Aggiungi ai Preferiti" style="width: 36px; height: 36px; border-radius: 10px; background: white; border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                        <span class="material-icons-round" style="font-size: 1.1rem;">star_outline</span>
+                                    </button>
+                                ` : ''}
                             </div>
 
                             <!-- Subject Client (Integrated) -->
@@ -1511,6 +1521,10 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
         const lastTab = localStorage.getItem('pm_last_tab');
         const initialTab = (lastTab && container.querySelector(`[data-tab="${lastTab}"]`)) ? lastTab : 'overview';
         renderTab(initialTab);
+
+        // Init favorite button state
+        import('../homepage_pinned.js?v=8000').then(m => m.initFavoriteButtons(container))
+            .catch(err => console.warn('[fav-init]', err));
 
         // Multi-PM Picker Logic Helpers
         const renderPmOptions = () => {

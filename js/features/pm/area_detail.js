@@ -205,6 +205,9 @@ export async function renderAreaDetail(container, areaSlug) {
                                 <h1 class="area-name">${area.label}</h1>
                             </div>
                             <span class="area-badge">Area</span>
+                            <button class="icon-btn favorite-btn" data-fav-type="pm_area" data-fav-id="${areaSlug}" data-fav-label="${(area.label || 'Area').replace(/"/g, '&quot;')}" onclick="window.handleFavoriteClick(this)" title="Aggiungi ai Preferiti" style="width: 36px; height: 36px; border-radius: 10px; background: white; border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; margin-left: .5rem;">
+                                <span class="material-icons-round" style="font-size: 1.1rem;">star_outline</span>
+                            </button>
                         </div>
                     </div>
 
@@ -279,6 +282,10 @@ export async function renderAreaDetail(container, areaSlug) {
                 await renderTab(tabContent);
             });
         });
+
+        // Init favorite button state
+        import('../homepage_pinned.js?v=8000').then(m => m.initFavoriteButtons(container))
+            .catch(err => console.warn('[fav-init]', err));
 
     } catch (err) {
         console.error('[AreaDetail] Error:', err);
