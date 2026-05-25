@@ -103,6 +103,11 @@ document.addEventListener('DOMContentLoaded', () => {
         import('./features/homepage_pinned.js?v=8000')
             .then(mod => mod.renderSidebarPinned())
             .catch(err => console.warn('[sidebar-pinned]', err));
+
+        // Quick-capture FAB (bottone "+" galleggiante)
+        import('./features/quick_capture.js?v=8000')
+            .then(mod => mod.mountQuickCaptureFab())
+            .catch(err => console.warn('[quick-capture]', err));
         // Chat initializes lazily when user navigates to #chat
         // router(); // REMOVED - already called above
         // setTimeout(() => runOneTimeFix(), 1000);
