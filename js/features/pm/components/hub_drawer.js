@@ -604,6 +604,9 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 <button id="toggle-subscription-btn" class="icon-btn" title="${isSubscribed ? 'Smetti di seguire' : 'Segui attività'}" style="width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: ${isSubscribed ? 'rgba(59, 130, 246, 0.08)' : '#fff'}; border: 1.2px solid ${isSubscribed ? 'rgba(59, 130, 246, 0.3)' : '#e2e8f0'}; color: ${isSubscribed ? 'var(--brand-blue)' : 'var(--text-tertiary)'}; transition: all 0.2s;">
                                     <span class="material-icons-round" style="font-size: 20px;">${isSubscribed ? 'notifications_active' : 'notifications_none'}</span>
                                 </button>
+                                <button class="icon-btn favorite-btn" data-fav-type="pm_item" data-fav-id="${item.id}" data-fav-label="${(item.title || 'Task').replace(/"/g, '&quot;')}" onclick="window.handleFavoriteClick(this)" title="Aggiungi ai Preferiti" style="width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1.2px solid #e2e8f0; color: var(--text-tertiary); transition: all 0.2s;">
+                                    <span class="material-icons-round" style="font-size: 20px;">star_outline</span>
+                                </button>
                             ` : ''}
                             
                             <div style="display: flex; align-items: center; gap: 0.5rem; padding-left: 0.5rem; border-left: 1.2px solid #e2e8f0;">

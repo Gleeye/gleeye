@@ -10,7 +10,7 @@
 
 **Setup**: serve almeno un ordine con `status_works=completato` e `client_id` valido.
 
-- [ ] Apri sidebar → **Amministrazione → Comunicazioni → Bozze Email**
+- [sulle mail dobbiamo fare un lungo discorso ] Apri sidebar → **Amministrazione → Comunicazioni → Bozze Email**
 - [ ] La vista carica senza errori
 - [ ] Se già esistono bozze: vedi card con cliente + numero ordine + email destinatario
 - [ ] Filtri chip in alto funzionano: Bozze / Inviate / Errore / Scartate / Tutte
@@ -28,10 +28,10 @@
 
 **Setup**: serve un ordine con `status_works=completato`.
 
-- [ ] Apri detail di una commessa chiusa
-- [ ] Card **"Feedback cliente"** appare sotto "Da fatturare" / "Preventivo"
-- [ ] Se nessuna survey ancora: bottone "Chiedi feedback NPS"
-- [ ] Click bottone → prompt email destinatario (default email cliente) → conferma
+- [V] Apri detail di una commessa chiusa
+- [V] Card **"Feedback cliente"** appare sotto "Da fatturare" / "Preventivo"
+- [V] Se nessuna survey ancora: bottone "Chiedi feedback NPS"
+- [ non succede nulla se clicco ] Click bottone → prompt email destinatario (default email cliente) → conferma
 - [ ] Email arriva al destinatario con link `/nps.html?token=...`
 - [ ] Apri il link: pagina pubblica con scala 0-10 + commento
 - [ ] Seleziona uno score, scrivi commento, clicca "Invia feedback"
@@ -43,28 +43,28 @@
 
 ## 3. CO-2 — Card Fatturazione potenziata
 
-- [ ] Apri detail di una commessa con `price_final > 0`
-- [ ] Card **"Fatturazione"** (era "Da Fatturare") presente
-- [ ] **Barra coverage** colorata: rossa se <50%, blu se 50-99%, verde se 100%
-- [ ] Sotto la barra: "Fatturato X€ su Y€" + "Residuo Z€" se non tutto fatturato
-- [ ] Se ci sono fatture: lista compatta con numero, data, importo, badge stato
-- [ ] **Click su una riga fattura** → apre detail fattura
-- [ ] Hover: riga si illumina (background cambia)
-- [ ] Se commessa "completato" ma non tutto fatturato: badge giallo **"Da chiudere"**
-- [ ] Se 100% fatturato: card verde con badge **"Tutto fatturato"**, NIENTE bottone "Genera fattura"
-- [ ] Se manca da fatturare: bottone verde "Genera fattura saldo X€"
+- [V ] Apri detail di una commessa con `price_final > 0`
+- [ V] Card **"Fatturazione"** (era "Da Fatturare") presente
+- [V] **Barra coverage** colorata: rossa se <50%, blu se 50-99%, verde se 100%
+- [V ] Sotto la barra: "Fatturato X€ su Y€" + "Residuo Z€" se non tutto fatturato
+- [V ] Se ci sono fatture: lista compatta con numero, data, importo, badge stato
+- [ V] **Click su una riga fattura** → apre detail fattura
+- [V] Hover: riga si illumina (background cambia)
+- [V] Se commessa "completato" ma non tutto fatturato: badge giallo **"Da chiudere"**
+- [V] Se 100% fatturato: card verde con badge **"Tutto fatturato"**, NIENTE bottone "Genera fattura"
+- [ si però è concettualmente sbagliato la fattura saldo cioè tipo sono in un ordine a rate...] Se manca da fatturare: bottone verde "Genera fattura saldo X€"
 
 ---
 
 ## 4. Subscription tracker — dashboard cash-out
 
-- [ ] Apri **Amministrazione** (tab Settings)
-- [ ] In alto, dopo le card KPI, vedi il widget viola **"Cash-out abbonamenti"**
-- [ ] 2 box: "Costo annuo" + "Costo mensile" (oggi dovresti vedere ~648€/anno - Dropbox)
-- [ ] Sezione "Distribuzione per categoria" con barre orizzontali
-- [ ] Sezione "Top 5 per costo annuo": Dropbox dovrebbe essere lì con badge **"Inattivo"** (nessuna fattura ricevuta 6m+)
-- [ ] Banner arancione: "1 abbonamento senza fattura ricevuta da 6+ mesi · Potenziale risparmio 648€/anno"
-- [ ] Link "Gestisci fornitori →" in basso porta a `#suppliers`
+- [non ho capito perché sta cosa l'hai messa in questa vista e non nella parte di amministrazione della società, questa è l'area amministrazione tecnica dell'app] Apri **Amministrazione** (tab Settings)
+- [v] In alto, dopo le card KPI, vedi il widget viola **"Cash-out abbonamenti"**
+- [v] 2 box: "Costo annuo" + "Costo mensile" (oggi dovresti vedere ~648€/anno - Dropbox)
+- [v] Sezione "Distribuzione per categoria" con barre orizzontali
+- [v] Sezione "Top 5 per costo annuo": Dropbox dovrebbe essere lì con badge **"Inattivo"** (nessuna fattura ricevuta 6m+)
+- [v] Banner arancione: "1 abbonamento senza fattura ricevuta da 6+ mesi · Potenziale risparmio 648€/anno"
+- [v] Link "Gestisci fornitori →" in basso porta a `#suppliers`
 
 > **Per testarlo bene**: vai in #suppliers, aggiungi qualche subscription a fornitori esistenti (es. ChatGPT, Vercel, ecc.) con importo + frequenza. Torna sull'admin dashboard → vedi totali aggiornati.
 
@@ -74,7 +74,7 @@
 
 **Test sicuro (in browser)**:
 
-- [ ] Trova una commessa con TUTTI gli assignment in stati intermedi (almeno 1 "In Corso")
+- [ prova a fare un test tu con commessa nuova, non voglio toccare le attuali] Trova una commessa con TUTTI gli assignment in stati intermedi (almeno 1 "In Corso")
 - [ ] Apri il detail di quell'assignment "In Corso"
 - [ ] Cambia status a "Completato"
 - [ ] Torna alla commessa → `status_works` deve essere passato a **"completato"** automaticamente
@@ -93,23 +93,23 @@
 
 **Setup**: serve essere loggato come collab (o impersonare un collab) per vedere la vista collab.
 
-- [ ] Impersona un collaboratore (icona admin → impersona)
-- [ ] Vai sui tuoi incarichi (`#my-assignments`) → click su uno per aprire il detail
-- [ ] Sotto la card "Cosa devi fare" → nuova card viola **"Briefing AI"**
-- [ ] Bottone "Genera briefing AI"
-- [ ] Click → spinner "L'AI sta scrivendo il briefing…" per qualche secondo
-- [ ] Appare il brief in markdown: 1 frase sintesi + 3-5 punti operativi + insidie/cose da chiedere all'account
-- [ ] Bottone "Rigenera" in basso a destra
-- [ ] Click "Rigenera" → spinner → nuovo brief
-- [ ] Esci e rientra sulla pagina → brief ancora visibile (cached 24h)
-- [ ] Dopo 24h: badge "Aggiorna (cache scaduta)" sul bottone
+- [v] Impersona un collaboratore (icona admin → impersona)
+- [v] Vai sui tuoi incarichi (`#my-assignments`) → click su uno per aprire il detail
+- [v] Sotto la card "Cosa devi fare" → nuova card viola **"Briefing AI"**
+- [v] Bottone "Genera briefing AI"
+- [v] Click → spinner "L'AI sta scrivendo il briefing…" per qualche secondo
+- [ se lo è inventato,completamente allucinato] Appare il brief in markdown: 1 frase sintesi + 3-5 punti operativi + insidie/cose da chiedere all'account
+- [v] Bottone "Rigenera" in basso a destra
+- [v] Click "Rigenera" → spinner → nuovo brief
+- [v] Esci e rientra sulla pagina → brief ancora visibile (cached 24h)
+- [v] Dopo 24h: badge "Aggiorna (cache scaduta)" sul bottone
 
 ---
 
 ## 7. BK-4 — Reminder booking 24h
 
 **Test in modo "naturale"**:
-- [ ] Crea (o trova) un booking con `start_time` ESATTAMENTE tra 23-25 ore da adesso
+- [prova a farlo tu se riesci ] Crea (o trova) un booking con `start_time` ESATTAMENTE tra 23-25 ore da adesso
 - [ ] Aspetta l'esecuzione del cron (minuto :05 dell'ora successiva)
 - [ ] L'email arriva al cliente con "Promemoria: appuntamento domani alle X"
 - [ ] In DB: `bookings.reminder_sent_at_24h` ora valorizzato

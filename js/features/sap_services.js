@@ -292,6 +292,9 @@ export async function renderSapServiceDetail(container, serviceId) {
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <button class="icon-btn favorite-btn" data-fav-type="sap_service" data-fav-id="${service.id}" data-fav-label="${(service.name || 'Servizio SAP').replace(/"/g, '&quot;')}" onclick="window.handleFavoriteClick(this)" title="Aggiungi ai Preferiti" style="width: 42px; height: 42px; border-radius: 12px; background: white; border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; justify-content: center;">
+                        <span class="material-icons-round" style="font-size: 1.2rem;">star_outline</span>
+                    </button>
                     <button onclick="window.openSapServiceDocsModal('${space?.id}')" class="secondary-btn" style="display:flex; align-items:center; gap:0.5rem; background:white; padding:0.6rem 1rem; border-radius:12px; border:1px solid var(--glass-border); cursor:pointer;">
                         <span class="material-icons-round" style="color:var(--brand-blue); font-size:1.2rem;">description</span> <b>Note</b>
                     </button>
@@ -678,6 +681,10 @@ export async function renderSapServiceDetail(container, serviceId) {
 
         </div>
     `;
+
+    // Init favorite button state
+    import('./homepage_pinned.js?v=8000').then(m => m.initFavoriteButtons(container))
+        .catch(err => console.warn('[fav-init]', err));
 }
 
 // --- WINDOW MODALS & ACTIONS ---

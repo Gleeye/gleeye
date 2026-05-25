@@ -202,6 +202,10 @@ export async function renderWhiteLabelPartnerDetail(container) {
 
     attachReferentiEvents(p.id, contacts);
     attachContrattiEvents(p.id, contracts);
+
+    // Init favorite button state
+    import('./homepage_pinned.js?v=8000').then(m => m.initFavoriteButtons(container))
+        .catch(err => console.warn('[fav-init]', err));
 }
 
 function buildDetailHtml(p, assignments, contacts, contracts, sc) {
@@ -217,6 +221,9 @@ function buildDetailHtml(p, assignments, contacts, contracts, sc) {
                     <p style="margin: 0.25rem 0 0; color: var(--text-tertiary); font-size: 0.85rem;">${p.vat_number || ''}</p>
                 </div>
                 <span class="badge" style="background: var(--brand-blue-light); color: var(--brand-blue);">Partner WL</span>
+                <button class="icon-btn favorite-btn" data-fav-type="wl_partner" data-fav-id="${p.id}" data-fav-label="${(p.full_name || 'Partner WL').replace(/"/g, '&quot;')}" onclick="window.handleFavoriteClick(this)" title="Aggiungi ai Preferiti" style="width: 40px; height: 40px; border-radius: 10px; background: white; border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; justify-content: center;">
+                    <span class="material-icons-round" style="font-size: 1.15rem;">star_outline</span>
+                </button>
                 <button class="primary-btn secondary" onclick="window.openWhiteLabelPartnerModal('${p.id}')">
                     <span class="material-icons-round">edit</span> Modifica
                 </button>

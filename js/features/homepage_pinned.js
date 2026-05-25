@@ -6,14 +6,19 @@ import { supabase } from '/js/modules/config.js?v=8000';
 import { state } from '/js/modules/state.js?v=8000';
 
 const TYPE_META = {
-    order:        { icon: 'inventory_2',    color: '#3b82f6', route: 'order-detail',        label: 'Commessa' },
-    pm_commessa:  { icon: 'workspaces',     color: '#1e40af', route: 'pm/commessa',         label: 'Commessa PM' },
-    client:       { icon: 'business',       color: '#10b981', route: 'client-detail',       label: 'Cliente' },
-    assignment:   { icon: 'assignment',     color: '#8b5cf6', route: 'assignment-detail',   label: 'Incarico' },
-    pm_item:      { icon: 'task_alt',       color: '#f59e0b', route: 'pm/task',             label: 'Task' },
-    collaborator: { icon: 'badge',          color: '#ef4444', route: 'collaborator-detail', label: 'Collaboratore' },
-    pm_space:     { icon: 'folder_open',    color: '#0ea5e9', route: 'pm/space',            label: 'Workspace PM' },
-    pm_area:      { icon: 'category',       color: '#a855f7', route: 'pm/area',             label: 'Area PM' },
+    order:        { icon: 'inventory_2',    color: '#3b82f6', route: 'order-detail',              label: 'Commessa' },
+    pm_commessa:  { icon: 'workspaces',     color: '#1e40af', route: 'pm/commessa',               label: 'Commessa PM' },
+    client:       { icon: 'business',       color: '#10b981', route: 'client-detail',             label: 'Cliente' },
+    contact:      { icon: 'contact_phone',  color: '#059669', route: 'contacts',                  label: 'Referente' },
+    assignment:   { icon: 'assignment',     color: '#8b5cf6', route: 'assignment-detail',         label: 'Incarico' },
+    pm_item:      { icon: 'task_alt',       color: '#f59e0b', route: 'pm/task',                   label: 'Task' },
+    collaborator: { icon: 'badge',          color: '#ef4444', route: 'collaborator-detail',       label: 'Collaboratore' },
+    wl_partner:   { icon: 'corporate_fare', color: '#dc2626', route: 'white-label-partner-detail',label: 'Partner WL' },
+    supplier:     { icon: 'local_shipping', color: '#64748b', route: 'suppliers',                 label: 'Fornitore' },
+    pm_space:     { icon: 'folder_open',    color: '#0ea5e9', route: 'pm/space',                  label: 'Workspace PM' },
+    pm_area:      { icon: 'category',       color: '#a855f7', route: 'pm/area',                   label: 'Area PM' },
+    sap_service:  { icon: 'inventory',      color: '#d97706', route: 'sap-service-detail',        label: 'Servizio SAP' },
+    doc_page:     { icon: 'description',    color: '#0891b2', route: 'pm/doc',                    label: 'Documento' },
 };
 
 function escapeHtml(s) {
@@ -224,4 +229,36 @@ if (typeof window !== 'undefined') {
             obs.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
         }
     });
+}
+
+// Auto-init dei .favorite-btn appena vengono inseriti nel DOM (drawer, modal, viste)
+async function initSingleFavBtn(btn) {
+    if (btn.dataset.favInit === '1') return;
+    btn.dataset.favInit = '1';
+    const t = btn.dataset.favType;
+    const i = btn.dataset.favId;
+    if (!t || !i) return;
+    try {
+        const pinned = await isPinned(t, i);
+        applyFavStyle(btn, pinned);
+    } catch (e) { /* silenzioso */ }
+}
+
+if (typeof window !== 'undefined' && typeof MutationObserver !== 'undefined') {
+    const autoInit = () => {
+        document.querySelectorAll('.favorite-btn').forEach(initSingleFavBtn);
+    };
+    autoInit();
+    const obs = new MutationObserver(mutations => {
+        for (const m of mutations) {
+            for (const node of m.addedNodes) {
+                if (node.nodeType !== 1) continue;
+                if (node.matches?.('.favorite-btn')) {
+                    initSingleFavBtn(node);
+                }
+                node.querySelectorAll?.('.favorite-btn').forEach(initSingleFavBtn);
+            }
+        }
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
 }
