@@ -133,6 +133,59 @@ window.unpinItem = async function (pinId, rowEl) {
     });
 };
 
+/** Costruisce HTML del bottone preferito per qualsiasi entity detail header */
+export function buildFavoriteButton({ entityType, entityId, label, size = 40 }) {
+    const safeLabel = (label || '').replace(/"/g, '&quot;');
+    return `
+        <button class="icon-btn favorite-btn" id="fav-btn-${entityType}-${entityId}"
+                data-fav-type="${entityType}" data-fav-id="${entityId}" data-fav-label="${safeLabel}"
+                onclick="window.handleFavoriteClick(this)"
+                title="Aggiungi ai Preferiti"
+                style="width: ${size}px; height: ${size}px; border-radius: 12px; background: white; border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-sm); margin-right: .5rem;">
+            <span class="material-icons-round" style="font-size:1.15rem;">star_outline</span>
+        </button>
+    `;
+}
+
+/** Inizializza lo stato visuale di tutti i bottoni preferito presenti nel container */
+export async function initFavoriteButtons(container) {
+    const buttons = (container || document).querySelectorAll('.favorite-btn');
+    for (const btn of buttons) {
+        const t = btn.dataset.favType;
+        const i = btn.dataset.favId;
+        if (!t || !i) continue;
+        const pinned = await isPinned(t, i);
+        applyFavStyle(btn, pinned);
+    }
+}
+
+function applyFavStyle(btn, pinned) {
+    const icon = btn.querySelector('.material-icons-round');
+    if (pinned) {
+        btn.style.background = 'rgba(245,158,11,.12)';
+        btn.style.borderColor = '#f59e0b';
+        btn.style.color = '#f59e0b';
+        btn.title = 'Rimuovi dai Preferiti';
+        if (icon) icon.textContent = 'star';
+    } else {
+        btn.style.background = 'white';
+        btn.style.borderColor = 'var(--glass-border)';
+        btn.style.color = 'var(--text-secondary)';
+        btn.title = 'Aggiungi ai Preferiti';
+        if (icon) icon.textContent = 'star_outline';
+    }
+}
+
+window.handleFavoriteClick = async function (btn) {
+    const t = btn.dataset.favType;
+    const i = btn.dataset.favId;
+    const label = btn.dataset.favLabel || null;
+    if (!t || !i) return;
+    const result = await window.togglePin(t, i, label);
+    if (!result?.ok) return;
+    applyFavStyle(btn, result.pinned);
+};
+
 /** Verifica se l'entità è già pinnata */
 export async function isPinned(entityType, entityId) {
     const userId = state.profile?.id;

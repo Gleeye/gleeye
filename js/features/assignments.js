@@ -153,11 +153,19 @@ export async function renderAssignmentDetail(container) {
                         </div>
                     </div>
 
-                    <div style="display: flex; gap: 0.75rem;">
+                    <div style="display: flex; gap: 0.75rem; align-items: center;">
                         <button class="primary-btn secondary" onclick="window.history.back()" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
                             <span class="material-icons-round">arrow_back</span> Indietro
                         </button>
                         ${!isCollabView ? `
+                        <button class="icon-btn favorite-btn" data-fav-type="assignment" data-fav-id="${assignment.id}" data-fav-label="${(`Incarico ${assignment.legacy_id || assignment.id.substring(0,8)} · ${collabName}`).replace(/"/g, '&quot;')}" onclick="window.handleFavoriteClick(this)" title="Aggiungi ai Preferiti" style="width: 42px; height: 42px; border-radius: 10px; background: white; border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; justify-content: center;">
+                            <span class="material-icons-round" style="font-size: 1.15rem;">star_outline</span>
+                        </button>
+                        ` : ''}
+                        ${!isCollabView ? `
+                            <button class="primary-btn secondary" onclick="import('/js/features/assignment_suggest_collab.js?v=8000').then(() => window.openCollabSuggestModal('${assignment.id}'))" style="padding: 0.6rem 1.25rem; border-radius: 10px; color: #8b5cf6; border-color: rgba(139, 92, 246, 0.25);" title="Suggerisci collaboratore con AI">
+                                <span class="material-icons-round">auto_awesome</span> Suggerisci collab
+                            </button>
                             <button class="primary-btn secondary" onclick="window.deleteAssignment('${assignment.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px; color: #ef4444; border-color: rgba(239, 68, 68, 0.2);">
                                 <span class="material-icons-round">delete</span> Elimina
                             </button>
@@ -454,6 +462,10 @@ export async function renderAssignmentDetail(container) {
                 if (slot) slot.innerHTML = mod.buildBriefCardHtml(assignment);
             }).catch(err => console.warn('[ai-brief]', err));
         }
+
+        // Init favorite button state
+        import('./homepage_pinned.js?v=8000').then(m => m.initFavoriteButtons(container))
+            .catch(err => console.warn('[fav-init]', err));
 
         // Help inline AI: bottone "Cosa devo fare?" (solo collab view)
         if (isCollabView) {

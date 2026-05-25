@@ -753,6 +753,9 @@ export function renderClientDetail(container) {
                                     <span class="material-icons-round" style="font-size: 18px;">mail</span> Sollecita €${formatAmount(r.totalDue)}
                                 </button>`;
                             })()}
+                            <button class="icon-btn favorite-btn" data-fav-type="client" data-fav-id="${client.id}" data-fav-label="${(client.business_name || 'Cliente').replace(/"/g, '&quot;')}" onclick="window.handleFavoriteClick(this)" title="Aggiungi ai Preferiti" style="background: white; border: 1px solid var(--glass-border); width: 42px; height: 42px; color: var(--text-secondary);">
+                                <span class="material-icons-round" style="font-size: 1.15rem;">star_outline</span>
+                            </button>
                             <button class="icon-btn" style="background: var(--bg-secondary); width: 42px; height: 42px;" onclick='window.openNewClientModal(${JSON.stringify(client).replace(/'/g, "&apos;")})' title="Modifica">
                                 <span class="material-icons-round" style="color: var(--text-primary);">edit</span>
                             </button>
@@ -1039,6 +1042,10 @@ export function renderClientDetail(container) {
 
     // Help inline AI: "Spiegami questo cliente"
     attachInlineHelp(container, _buildClientHelpContext);
+
+    // Init favorite button state
+    import('./homepage_pinned.js?v=8000').then(m => m.initFavoriteButtons(container))
+        .catch(err => console.warn('[fav-init]', err));
 }
 
 // Help AI context loader per il cliente

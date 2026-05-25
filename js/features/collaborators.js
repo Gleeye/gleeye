@@ -868,6 +868,9 @@ export function renderCollaboratorDetail(container) {
                     <button class="primary-btn secondary" onclick="sendMagicLink('${c.email || ''}')" title="Invia Magic Link" style="padding: 0.6rem 1.25rem; border-radius: 10px; display: flex; align-items: center; gap: 0.5rem;">
                         <span class="material-icons-round">auto_fix_high</span> Magic Link
                     </button>
+                    <button class="icon-btn favorite-btn" data-fav-type="collaborator" data-fav-id="${c.id}" data-fav-label="${(c.full_name || c.name || 'Collaboratore').replace(/"/g, '&quot;')}" onclick="window.handleFavoriteClick(this)" title="Aggiungi ai Preferiti" style="width: 42px; height: 42px; border-radius: 10px; background: white; border: 1px solid var(--glass-border); color: var(--text-secondary); display: flex; align-items: center; justify-content: center;">
+                        <span class="material-icons-round" style="font-size: 1.15rem;">star_outline</span>
+                    </button>
                     <button class="primary-btn" onclick="openCollaboratorModal('${c.id}')" style="padding: 0.6rem 1.25rem; border-radius: 10px;">
                         <span class="material-icons-round">edit</span> Modifica
                     </button>
@@ -1225,6 +1228,10 @@ export function renderCollaboratorDetail(container) {
 
     // Help inline AI: "Spiegami questo collaboratore"
     attachInlineHelp(container, _buildCollabHelpContext);
+
+    // Init favorite button state
+    import('./homepage_pinned.js?v=8000').then(m => m.initFavoriteButtons(container))
+        .catch(err => console.warn('[fav-init]', err));
 }
 
 // Help AI context loader per il collaboratore
