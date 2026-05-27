@@ -353,7 +353,7 @@ export async function renderInternalProjects(container, initialFilter) {
                     }
                 });
 
-                import('./components/area_overview.js?v=8000').then(mod => {
+                import('./components/area_overview.js?v=8001').then(mod => {
                     mod.renderAreaOverview(content, targetSpaceIds, spaceNamesMap, cloudLinks);
                 });
 

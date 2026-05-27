@@ -410,7 +410,7 @@ export async function renderSpaceView(container, spaceId) {
                 const view = tab.dataset.view;
 
                 if (view === 'overview') {
-                    import('./components/space_overview.js?v=8000').then(mod => mod.renderSpaceOverview(viewContent, spaceId, items, space));
+                    import('./components/space_overview.js?v=8001').then(mod => mod.renderSpaceOverview(viewContent, spaceId, items, space));
                 } else if (view === 'tree') {
                     renderHubTree(viewContent, items, space, spaceId);
                 } else if (view === 'projects' && space.is_cluster) {
@@ -657,7 +657,7 @@ export async function renderSpaceView(container, spaceId) {
 
         // Initial Content Render
         if (activeView === 'overview') {
-            import('./components/space_overview.js?v=8000').then(mod => mod.renderSpaceOverview(viewContent, spaceId, items, space));
+            import('./components/space_overview.js?v=8001').then(mod => mod.renderSpaceOverview(viewContent, spaceId, items, space));
         } else if (activeView === 'people') {
             renderTeamTab(viewContent, spaceAssignees, latestCollabs, spaceId);
         } else if (activeView === 'projects' && space.is_cluster) {

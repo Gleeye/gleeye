@@ -47,6 +47,22 @@ export async function renderAreaOverview(container, spaceIds, spaceNamesMap, clo
             .order('created_at', { ascending: false })
             .limit(10);
 
+        // Fetch Documenti veri (doc_pages) dei doc_space dei pm_space dell'area
+        let recentDocPages = [];
+        try {
+            const { data: ds } = await supabase.from('doc_spaces').select('id').in('space_ref', spaceIds);
+            const dsIds = (ds || []).map(d => d.id);
+            if (dsIds.length > 0) {
+                const { data: dp } = await supabase
+                    .from('doc_pages')
+                    .select('id, title, created_at, metadata, page_type, space_ref')
+                    .in('space_ref', dsIds)
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+                recentDocPages = dp || [];
+            }
+        } catch (e) { console.warn('[area_overview] doc_pages fetch failed', e); }
+
         // 1. Calculate Activities Stats
         const now = new Date();
         const safeItems = items || [];
@@ -169,22 +185,34 @@ export async function renderAreaOverview(container, spaceIds, spaceNamesMap, clo
                     </div>
                 </div>
 
-                <!-- COL 3 TOP: DOCUMENTI -->
+                <!-- COL 3 TOP: DOCUMENTI (doc_pages incluso report) -->
                 <div class="dash-box">
                     <div class="dash-title">
-                        <div style="display:flex; align-items:center; gap:8px;"><div style="width:28px; height:28px; border-radius:8px; background:rgba(59, 130, 246, 0.1); color:var(--brand-blue); display:flex; align-items:center; justify-content:center;"><span class="material-icons-round" style="font-size: 1.1rem;">folder</span></div> Documenti Recenti</div>
-                        <span class="material-icons-round" style="cursor:pointer;" onclick="document.querySelector('.tab-btn[data-tab=docs]')?.click()">swap_horiz</span>
+                        <div style="display:flex; align-items:center; gap:8px;"><div style="width:28px; height:28px; border-radius:8px; background:rgba(78, 146, 216, 0.1); color:var(--brand-blue); display:flex; align-items:center; justify-content:center;"><span class="material-icons-round" style="font-size: 1.1rem;">description</span></div> Documenti Recenti</div>
+                        <span class="material-icons-round" style="cursor:pointer;" title="Vai a tutti i documenti" onclick="document.querySelector('.area-tab[data-tab=documenti]')?.click()">arrow_forward</span>
                     </div>
                     <div style="display:flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-                        ${docs.length === 0 ? `<div class="dash-empty">Nessun documento collegato.</div>` : docs.map(d => `
-                            <a href="${d.url}" target="_blank" class="doc-item" style="text-decoration:none;">
-                                <span class="material-icons-round">description</span>
-                                <div style="flex:1; min-width:0;">
-                                    <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${d.title || 'Documento'}</div>
-                                    <div style="font-size:0.65rem; color:var(--text-tertiary); margin-top:2px;">${new Date(d.added_at || new Date()).toLocaleDateString('it-IT')}</div>
-                                </div>
-                            </a>
-                        `).join('')}
+                        ${recentDocPages.length === 0 ? `<div class="dash-empty">Nessun documento ancora creato.</div>` : recentDocPages.map(p => {
+                            const isReport = p?.metadata?.source === 'voice_memo';
+                            const isWb = p?.page_type === 'whiteboard';
+                            const icon = isReport ? 'mic' : (isWb ? 'gesture' : 'description');
+                            const color = isReport ? '#7c3aed' : (isWb ? '#0891b2' : 'var(--brand-blue)');
+                            const bg = isReport ? 'rgba(124,58,237,0.10)' : (isWb ? 'rgba(8,145,178,0.10)' : 'rgba(78,146,216,0.10)');
+                            const label = isReport ? 'Report' : (isWb ? 'Whiteboard' : 'Doc');
+                            return `
+                                <div class="doc-page-item" data-page-id="${p.id}" style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; cursor:pointer; transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                                    <div style="width:28px; height:28px; border-radius:8px; background:${bg}; color:${color}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                        <span class="material-icons-round" style="font-size:1rem;">${icon}</span>
+                                    </div>
+                                    <div style="flex:1; min-width:0;">
+                                        <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.title || 'Senza titolo'}</div>
+                                        <div style="font-size:0.65rem; color:var(--text-tertiary); margin-top:2px; display:flex; gap:6px; align-items:center;">
+                                            <span style="background:${bg}; color:${color}; padding:1px 6px; border-radius:5px; font-weight:700;">${label}</span>
+                                            <span>${new Date(p.created_at).toLocaleString('it-IT', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</span>
+                                        </div>
+                                    </div>
+                                </div>`;
+                        }).join('')}
                     </div>
                 </div>
                 
@@ -236,6 +264,24 @@ export async function renderAreaOverview(container, spaceIds, spaceNamesMap, clo
 
             </div>
         `;
+
+        // Wire click su Documenti Recenti → apre nel viewer fullscreen
+        container.querySelectorAll('.doc-page-item').forEach(el => {
+            el.onclick = async () => {
+                const pageId = el.dataset.pageId;
+                if (!pageId) return;
+                try {
+                    const { data: page, error } = await supabase
+                        .from('doc_pages').select('*').eq('id', pageId).single();
+                    if (error || !page) throw error || new Error('Pagina non trovata');
+                    const { openFullscreenEditor } = await import('../../docs/DocsView.js?v=8003');
+                    await openFullscreenEditor(page);
+                } catch (e) {
+                    console.error('[area_overview] open doc error', e);
+                    if (window.showGlobalAlert) window.showGlobalAlert('Errore apertura: ' + (e?.message || e), 'error');
+                }
+            };
+        });
     } catch (e) {
         console.error("Error rendering area dashboard:", e);
         container.innerHTML = `<div class="dash-empty">Errore caricamento Dashboard: ${e.message}</div>`;

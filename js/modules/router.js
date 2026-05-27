@@ -360,7 +360,7 @@ function render() {
                     // Route: Area Detail (#pm/area/:areaSlug)
                 } else if (state.currentSubPage === 'area' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Area';
-                    import('../features/pm/area_detail.js?v=8000')
+                    import('../features/pm/area_detail.js?v=8001')
                         .then(module => module.renderAreaDetail(contentArea, state.currentId))
                         .catch(err => { contentArea.innerHTML = `<div class="error-state">Errore: ${err.message}</div>`; });
 

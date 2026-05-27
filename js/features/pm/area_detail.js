@@ -1,5 +1,5 @@
 import { fetchInternalSpaces, fetchAppointments, fetchAppointmentTypes } from '../../modules/pm_api.js?v=8000';
-import { renderAreaOverview } from './components/area_overview.js?v=8000';
+import { renderAreaOverview } from './components/area_overview.js?v=8001';
 import { renderHubTree } from './components/hub_tree.js?v=8000';
 import { renderHubAppointments } from './components/hub_appointments.js?v=8000';
 import { supabase } from '../../modules/config.js?v=8000';
@@ -128,6 +128,18 @@ export async function renderAreaDetail(container, areaSlug) {
 
             } else if (currentTab === 'file') {
                 await renderAreaFilesTab(tabContent, areaSpaces, area);
+
+            } else if (currentTab === 'documenti') {
+                if (allSpaceIds.length === 0) {
+                    tabContent.innerHTML = '<div style="padding:3rem; text-align:center; color:var(--text-tertiary);">Nessun progetto in questa area.</div>';
+                    return;
+                }
+                const { renderDocsAggregate } = await import('../docs/docs_aggregate.js?v=8000');
+                await renderDocsAggregate(tabContent, allSpaceIds, {
+                    spaceNamesMap,
+                    showSpaceLabel: true,
+                    emptyMessage: 'Nessun documento ancora creato nei progetti di questa area.',
+                });
             }
         };
 
@@ -258,6 +270,9 @@ export async function renderAreaDetail(container, areaSlug) {
                     </button>
                     <button class="area-tab" data-tab="feed">
                         <span class="material-icons-round">history</span> Feed
+                    </button>
+                    <button class="area-tab" data-tab="documenti">
+                        <span class="material-icons-round">description</span> Documenti
                     </button>
                     <button class="area-tab" data-tab="file">
                         <span class="material-icons-round">folder_open</span> File
