@@ -1542,8 +1542,8 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                         // 2. Queue AI Job
                         const { data: jobData, error: jobError } = await supabase.from('pm_ai_report_jobs').insert({
-                            space_ref: spaceId,
-                            item_ref: itemId,
+                            space_ref: spaceId || null,
+                            item_ref: itemId || null,
                             audio_url: publicUrl,
                             status: 'pending'
                         }).select();
@@ -1660,8 +1660,8 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                     try {
                         // Crea job con transcription già pronta (no audio)
                         const { data: jobData, error: jobError } = await supabase.from('pm_ai_report_jobs').insert({
-                            space_ref: spaceId,
-                            item_ref: itemId,
+                            space_ref: spaceId || null,
+                            item_ref: itemId || null,
                             transcription: text,
                             status: 'pending'
                         }).select();

@@ -5,7 +5,7 @@ import { formatAmount, renderAvatar } from '../modules/utils.js?v=8000';
 import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment, fetchGoogleCalendarBusy } from '../modules/api.js?v=8000';
 import { fetchAppointment, updatePMItem, fetchSmartPersonalFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=8000';
 import { humanizeActivity } from '../modules/pm_activity_helper.js?v=8000';
-import { openHubDrawer } from './pm/components/hub_drawer.js?v=8022';
+import { openHubDrawer } from './pm/components/hub_drawer.js?v=8023';
 import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=8000';
 
 // Activity-feed widgets (extracted to a sibling module). Importing this also
