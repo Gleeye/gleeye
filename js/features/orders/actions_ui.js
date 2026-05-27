@@ -209,7 +209,7 @@ window.openOrderDocsModal = async (spaceId) => {
 
     try {
         const docsContainer = modal.querySelector('#modal-docs-container');
-        const { renderDocsView } = await import('../docs/DocsView.js?v=8000');
+        const { renderDocsView } = await import('../docs/DocsView.js?v=8001');
         await renderDocsView(docsContainer, spaceId);
     } catch (err) {
         console.error("Error loading Docs Modal:", err);

@@ -326,35 +326,38 @@ export async function openFullscreenEditor(page) {
     const modalId = 'fullscreen-doc-modal';
 
     // Create the content based on type
+    const isMobileViewport = window.innerWidth <= 768;
     const wrapperStyle = isWhiteboard
         ? "width: 100vw; height: 100vh; background: white; position: relative;"
-        : "width: 100%; max-width: 900px; height: 100vh; background: white; margin: 0 auto; box-shadow: 0 0 100px rgba(0,0,0,0.2); position: relative; animation: paperSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column;";
+        : (isMobileViewport
+            ? "width: 100vw; height: 100vh; background: white; position: relative; display: flex; flex-direction: column; animation: paperSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);"
+            : "width: 100%; max-width: 900px; height: 100vh; background: white; margin: 0 auto; box-shadow: 0 0 100px rgba(0,0,0,0.2); position: relative; animation: paperSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column;");
 
     const content = `
         <div class="notion-fullscreen-wrapper" style="${wrapperStyle}">
             <!-- Actions Layer -->
-            <div style="position: absolute; top: 20px; right: ${isWhiteboard ? '20px' : '-60px'}; z-index: 10000;">
+            <div style="position: absolute; top: ${isMobileViewport ? '14px' : '20px'}; right: ${isWhiteboard || isMobileViewport ? '14px' : '-60px'}; z-index: 10000;">
                 <button class="close-modal" style="
-                    background: rgba(255, 255, 255, 0.2); 
+                    background: ${isMobileViewport && !isWhiteboard ? '#f1f5f9' : 'rgba(255, 255, 255, 0.2)'};
                     backdrop-filter: blur(12px);
-                    border: 1px solid rgba(255,255,255,0.3);
-                    border-radius: 50%; 
-                    width: 44px; height: 44px;
+                    border: 1px solid ${isMobileViewport && !isWhiteboard ? '#e2e8f0' : 'rgba(255,255,255,0.3)'};
+                    border-radius: 50%;
+                    width: 40px; height: 40px;
                     display: flex; align-items: center; justify-content: center;
                     cursor: pointer;
-                    color: ${isWhiteboard ? '#000' : '#fff'};
+                    color: ${isWhiteboard || isMobileViewport ? '#1a1f36' : '#fff'};
                     transition: all 0.2s;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
                 " onclick="document.getElementById('${modalId}').classList.remove('active'); setTimeout(() => document.getElementById('${modalId}').remove(), 300)" title="Chiudi (ESC)">
-                    <span class="material-icons-round" style="font-size: 24px;">close</span>
+                    <span class="material-icons-round" style="font-size: 22px;">close</span>
                 </button>
             </div>
 
             <!-- Editor Surface -->
             <div id="fullscreen-editor-container" style="
-                flex: 1; 
-                overflow-y: auto; 
-                padding: ${isWhiteboard ? '0' : '60px 80px'};
+                flex: 1;
+                overflow-y: auto;
+                padding: ${isWhiteboard ? '0' : (isMobileViewport ? '24px 18px 80px' : '60px 80px')};
                 width: 100%;
                 height: 100%;
                 background: white;
@@ -389,6 +392,31 @@ export async function openFullscreenEditor(page) {
             @keyframes paperSlideUp {
                 from { transform: translateY(40px); opacity: 0; }
                 to { transform: translateY(0); opacity: 1; }
+            }
+            /* Mobile: titolo e contenuto leggibili dentro al fullscreen Notion-like */
+            @media (max-width: 768px) {
+                #${modalId} .modal-content {
+                    backdrop-filter: none !important;
+                    background: white !important;
+                    align-items: stretch !important;
+                    justify-content: stretch !important;
+                }
+                #${modalId} .page-title-input {
+                    font-size: 1.55rem !important;
+                    line-height: 1.2 !important;
+                    margin-bottom: 0 !important;
+                    word-break: break-word;
+                }
+                #${modalId} .doc-block-content {
+                    font-size: 0.95rem !important;
+                    line-height: 1.55 !important;
+                    word-break: break-word;
+                }
+                #${modalId} .doc-block[data-type="heading1"] .doc-block-content { font-size: 1.5rem !important; }
+                #${modalId} .doc-block[data-type="heading2"] .doc-block-content { font-size: 1.25rem !important; }
+                #${modalId} .doc-block[data-type="heading3"] .doc-block-content { font-size: 1.05rem !important; }
+                /* nascondi handle del block su mobile (occuperebbe spazio prezioso) */
+                #${modalId} .doc-block-handle { display: none !important; }
             }
         `;
         document.head.appendChild(style);

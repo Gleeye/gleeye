@@ -422,7 +422,7 @@ export async function renderSpaceView(container, spaceId) {
                 } else if (view === 'list') {
                     viewContent.innerHTML = '<div style="text-align:center; padding: 2rem; color: #94a3b8;">Vista lista in arrivo...</div>';
                 } else if (view === 'docs') {
-                    import('../docs/DocsView.js?v=8000').then(mod => mod.renderDocsView(viewContent, spaceId));
+                    import('../docs/DocsView.js?v=8001').then(mod => mod.renderDocsView(viewContent, spaceId));
                 } else if (view === 'activity_log') {
                     import('./components/activity_log.js?v=8000').then(mod => mod.renderActivityLog(viewContent, { spaceId, isAccountLevel: false }));
                 }
@@ -533,12 +533,12 @@ export async function renderSpaceView(container, spaceId) {
 
         container.querySelector('#add-activity-btn')?.addEventListener('click', () => {
             container.querySelector('#add-hub-dropdown').classList.add('hidden');
-            import('/js/features/pm/components/hub_drawer.js?v=8025').then(mod => mod.openHubDrawer(null, spaceId, null, 'attivita'));
+            import('/js/features/pm/components/hub_drawer.js?v=8026').then(mod => mod.openHubDrawer(null, spaceId, null, 'attivita'));
         });
 
         container.querySelector('#add-task-btn')?.addEventListener('click', () => {
             container.querySelector('#add-hub-dropdown').classList.add('hidden');
-            import('/js/features/pm/components/hub_drawer.js?v=8025').then(mod => mod.openHubDrawer(null, spaceId, null, 'task'));
+            import('/js/features/pm/components/hub_drawer.js?v=8026').then(mod => mod.openHubDrawer(null, spaceId, null, 'task'));
         });
 
         // Unified Assignee Picker Logic
@@ -667,7 +667,7 @@ export async function renderSpaceView(container, spaceId) {
         } else if (activeView === 'appointments') {
             renderHubAppointments(viewContent, appointments, appointmentTypes, spaceId, 'space');
         } else if (activeView === 'docs') {
-            import('../docs/DocsView.js?v=8000').then(mod => mod.renderDocsView(viewContent, spaceId));
+            import('../docs/DocsView.js?v=8001').then(mod => mod.renderDocsView(viewContent, spaceId));
         } else if (activeView === 'activity_log') {
             import('./components/activity_log.js?v=8000').then(mod => mod.renderActivityLog(viewContent, { spaceId, isAccountLevel: false }));
         } else {

@@ -1235,22 +1235,13 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         </div>
                     `).join('');
 
-                    // Attach listeners to report items — apre direttamente nel viewer Notion-like
+                    // Attach listeners to report items — riapre l'anteprima sintetica
+                    // ("Apri report" dentro l'anteprima manda al viewer Notion-like fullscreen)
                     reportsList.querySelectorAll('.report-item').forEach(item => {
                         item.onclick = async () => {
                             const pageId = item.dataset.pageId;
                             try {
-                                const { data: page, error: pageErr } = await supabase
-                                    .from('doc_pages').select('*').eq('id', pageId).single();
-                                if (pageErr || !page) throw pageErr || new Error('page not found');
-                                const { openFullscreenEditor } = await import('../../docs/DocsView.js?v=8000');
-                                await openFullscreenEditor(page);
-                                return;
-                            } catch (e) {
-                                console.warn('[reports list] fallback inline preview:', e?.message);
-                            }
-                            // Fallback inline (vecchio percorso): se viewer non disponibile
-                            try {
+                                // Trova il job legato a questo doc_page e usa i suoi dati
                                 const { data: jobs } = await supabase
                                     .from('pm_ai_report_jobs')
                                     .select('*')
@@ -1458,7 +1449,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             const { data: page, error } = await supabase
                                 .from('doc_pages').select('*').eq('id', pageId).single();
                             if (error || !page) throw error || new Error('page not found');
-                            const { openFullscreenEditor } = await import('../../docs/DocsView.js?v=8000');
+                            const { openFullscreenEditor } = await import('../../docs/DocsView.js?v=8001');
                             await openFullscreenEditor(page);
                         } catch (e) {
                             console.error('[open report] error', e);

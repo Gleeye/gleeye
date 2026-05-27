@@ -5,7 +5,7 @@ import { formatAmount, renderAvatar } from '../modules/utils.js?v=8000';
 import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment, fetchGoogleCalendarBusy } from '../modules/api.js?v=8000';
 import { fetchAppointment, updatePMItem, fetchMyActivityFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=8000';
 import { humanizeActivity } from '../modules/pm_activity_helper.js?v=8000';
-import { openHubDrawer } from './pm/components/hub_drawer.js?v=8025';
+import { openHubDrawer } from './pm/components/hub_drawer.js?v=8026';
 import { openAppointmentDrawer } from './pm/components/hub_appointment_drawer.js?v=8000';
 
 // We reuse fetchMyBookings but we might need a tighter scoped fetch for "Today"

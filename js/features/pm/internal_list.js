@@ -420,7 +420,7 @@ export async function renderInternalProjects(container, initialFilter) {
                     ${filteredLogs.length === 0 ? `<div style="padding: 3rem; text-align: center; color: var(--text-tertiary); font-style: italic;">Nessuna attività recente registrata per questo cluster.</div>` : filteredLogs.slice(0, 30).map(l => {
                         const human = humanizeActivity(l);
                         return `
-                        <div style="display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--bg-primary); animation: fadeIn 0.3s ease; cursor:pointer;" onclick="import('./components/hub_drawer.js?v=8025').then(m => m.openHubDrawer('${l.item_ref}', '${l.space_ref}'))">
+                        <div style="display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--bg-primary); animation: fadeIn 0.3s ease; cursor:pointer;" onclick="import('./components/hub_drawer.js?v=8026').then(m => m.openHubDrawer('${l.item_ref}', '${l.space_ref}'))">
                             ${renderAvatar(l.actor || { full_name: 'S' }, { size: 32, borderRadius: '50%' })}
                             <div style="flex: 1; min-width: 0;">
                                 <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
@@ -437,7 +437,7 @@ export async function renderInternalProjects(container, initialFilter) {
                 if (currentClusterId !== 'all') {
                     // Show directly for the selected cluster
                     content.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:300px;"><span class="loader"></span></div>`;
-                    const { renderDocsView } = await import('../docs/DocsView.js?v=8000');
+                    const { renderDocsView } = await import('../docs/DocsView.js?v=8001');
                     await renderDocsView(content, currentClusterId);
                 } else {
                     // Area level: Show list of cluster documentations
@@ -472,7 +472,7 @@ export async function renderInternalProjects(container, initialFilter) {
                             card.onclick = async () => {
                                 const cid = card.dataset.id;
                                 content.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:300px;"><span class="loader"></span></div>`;
-                                const { renderDocsView } = await import('../docs/DocsView.js?v=8000');
+                                const { renderDocsView } = await import('../docs/DocsView.js?v=8001');
                                 await renderDocsView(content, cid);
                             };
                         });

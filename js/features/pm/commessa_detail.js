@@ -1088,7 +1088,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     break;
                 case 'docs':
                     tabContent.style.padding = '0';
-                    const { renderDocsView } = await import('../docs/DocsView.js?v=8000');
+                    const { renderDocsView } = await import('../docs/DocsView.js?v=8001');
                     renderDocsView(tabContent, spaceId);
                     break;
                 case 'projects':
@@ -1800,7 +1800,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
 // Drawer function (exported for use by child components)
 export function openItemDrawer(itemId, spaceId, parentId = null, itemType = 'task') {
-    import('./components/hub_drawer.js?v=8025').then(mod => {
+    import('./components/hub_drawer.js?v=8026').then(mod => {
         mod.openHubDrawer(itemId, spaceId, parentId, itemType);
     });
 }
