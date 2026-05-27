@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gleeye-pwa-cache-v2009'; // bust per fix voice memo
+const CACHE_NAME = 'gleeye-pwa-cache-v2010'; // bust per fix voice memo
 const urlsToCache = [
     '/',
     '/index.html',

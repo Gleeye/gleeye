@@ -1023,6 +1023,9 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 </div>
                             </div>
 
+                            <!-- Inline status/error banner (visibile DENTRO il drawer) -->
+                            <div id="report-inline-status" class="hidden" style="padding: 12px 14px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; line-height: 1.4;"></div>
+
                             <!-- Action Bar -->
                             <div id="report-action-bar" class="hidden" style="display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 1.25rem; border: 1.2px solid #f1f5f9; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.03);">
                                 <div style="display: flex; align-items: center; gap: 14px;">
@@ -1477,6 +1480,22 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
             const actionBar = drawer.querySelector('#report-action-bar');
             const generateBtn = drawer.querySelector('#generate-report-btn');
             const statusPane = drawer.querySelector('#report-processing-status');
+            const inlineStatus = drawer.querySelector('#report-inline-status');
+
+            const showInlineStatus = (msg, kind = 'error') => {
+                if (!inlineStatus) return;
+                const palette = kind === 'error'
+                    ? { bg: '#fef2f2', border: '#fecaca', color: '#b91c1c', icon: 'error_outline' }
+                    : kind === 'success'
+                        ? { bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d', icon: 'check_circle' }
+                        : { bg: '#eff6ff', border: '#bfdbfe', color: '#1e40af', icon: 'info' };
+                inlineStatus.style.background = palette.bg;
+                inlineStatus.style.border = '1px solid ' + palette.border;
+                inlineStatus.style.color = palette.color;
+                inlineStatus.innerHTML = '<span class="material-icons-round" style="font-size:1.05rem;vertical-align:middle;margin-right:6px;">' + palette.icon + '</span>' + msg;
+                inlineStatus.classList.remove('hidden');
+            };
+            const hideInlineStatus = () => { if (inlineStatus) inlineStatus.classList.add('hidden'); };
 
             if (uploadZone && audioInput) {
                 uploadZone.onclick = () => audioInput.click();
@@ -1495,12 +1514,13 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 generateBtn.onclick = async () => {
                     const file = audioInput.files[0];
                     console.log('[ReportAuto/audio] click — file:', file?.name, file?.type, file?.size);
+                    hideInlineStatus();
                     if (!file) {
-                        if (window.showGlobalAlert) window.showGlobalAlert('Nessun file audio selezionato.', 'error');
+                        showInlineStatus('Nessun file audio selezionato.', 'error');
                         return;
                     }
                     if (file.size > 50 * 1024 * 1024) {
-                        if (window.showGlobalAlert) window.showGlobalAlert('File troppo grande (max 50MB). Comprimi l\'audio o usa la trascrizione testuale.', 'error');
+                        showInlineStatus('File troppo grande (max 50MB). Comprimi l\'audio o usa la trascrizione testuale.', 'error');
                         return;
                     }
 
@@ -1550,8 +1570,11 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         // 4. Start Polling
                         pollJobStatus(jobId);
                     } catch (e) {
-                        console.error(e);
-                        if (window.showGlobalAlert) window.showGlobalAlert("Errore durante l'upload: " + e.message, 'error');
+                        console.error('[ReportAuto/audio] error', e);
+                        // Reset UI: hide processing pane, show action bar + button again
+                        if (statusPane) statusPane.classList.add('hidden');
+                        if (actionBar) actionBar.classList.remove('hidden');
+                        showInlineStatus("Errore: " + (e.message || e.code || JSON.stringify(e).slice(0, 200)), 'error');
                         generateBtn.disabled = false;
                         generateBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1.1rem;">auto_awesome</span> GENERA REPORT AI`;
                     }
@@ -1627,8 +1650,9 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 generateTextBtn.onclick = async () => {
                     const text = (textInput?.value || '').trim();
                     console.log('[ReportAuto/text] click — chars:', text.length);
+                    hideInlineStatus();
                     if (text.length < 20) {
-                        if (window.showGlobalAlert) window.showGlobalAlert('Incolla almeno 20 caratteri di trascrizione prima di generare il report.', 'error');
+                        showInlineStatus('Incolla almeno 20 caratteri di trascrizione prima di generare il report.', 'error');
                         return;
                     }
                     generateTextBtn.disabled = true;
@@ -1665,8 +1689,12 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         // Polling stato
                         pollJobStatus(jobId);
                     } catch (e) {
-                        console.error(e);
-                        if (window.showGlobalAlert) window.showGlobalAlert("Errore creazione job: " + e.message, 'error');
+                        console.error('[ReportAuto/text] error', e);
+                        // Reset UI: hide processing pane, show text zone again
+                        if (statusPane) statusPane.classList.add('hidden');
+                        if (textZoneEl) textZoneEl.classList.remove('hidden');
+                        const errMsg = e?.message || e?.code || e?.hint || JSON.stringify(e).slice(0, 200);
+                        showInlineStatus("Errore creazione job: " + errMsg, 'error');
                         generateTextBtn.disabled = false;
                         generateTextBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1.2rem;">auto_awesome</span> GENERA REPORT AI`;
                     }
