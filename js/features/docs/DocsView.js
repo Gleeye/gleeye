@@ -395,11 +395,24 @@ export async function openFullscreenEditor(page) {
             }
             /* Mobile: titolo e contenuto leggibili dentro al fullscreen Notion-like */
             @media (max-width: 768px) {
+                #${modalId} {
+                    height: 100dvh !important;
+                    min-height: 100dvh !important;
+                    background: white !important;
+                }
                 #${modalId} .modal-content {
                     backdrop-filter: none !important;
                     background: white !important;
                     align-items: stretch !important;
                     justify-content: stretch !important;
+                    height: 100dvh !important;
+                    min-height: 100dvh !important;
+                    padding: 0 !important;
+                }
+                #${modalId} .notion-fullscreen-wrapper {
+                    height: 100dvh !important;
+                    min-height: 100dvh !important;
+                    padding-bottom: env(safe-area-inset-bottom, 0) !important;
                 }
                 #${modalId} .page-title-input {
                     font-size: 1.55rem !important;

@@ -1449,7 +1449,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             const { data: page, error } = await supabase
                                 .from('doc_pages').select('*').eq('id', pageId).single();
                             if (error || !page) throw error || new Error('page not found');
-                            const { openFullscreenEditor } = await import('../../docs/DocsView.js?v=8001');
+                            const { openFullscreenEditor } = await import('../../docs/DocsView.js?v=8002');
                             await openFullscreenEditor(page);
                         } catch (e) {
                             console.error('[open report] error', e);

@@ -437,7 +437,7 @@ export async function renderInternalProjects(container, initialFilter) {
                 if (currentClusterId !== 'all') {
                     // Show directly for the selected cluster
                     content.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:300px;"><span class="loader"></span></div>`;
-                    const { renderDocsView } = await import('../docs/DocsView.js?v=8001');
+                    const { renderDocsView } = await import('../docs/DocsView.js?v=8002');
                     await renderDocsView(content, currentClusterId);
                 } else {
                     // Area level: Show list of cluster documentations
@@ -472,7 +472,7 @@ export async function renderInternalProjects(container, initialFilter) {
                             card.onclick = async () => {
                                 const cid = card.dataset.id;
                                 content.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:300px;"><span class="loader"></span></div>`;
-                                const { renderDocsView } = await import('../docs/DocsView.js?v=8001');
+                                const { renderDocsView } = await import('../docs/DocsView.js?v=8002');
                                 await renderDocsView(content, cid);
                             };
                         });

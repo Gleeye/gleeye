@@ -840,7 +840,7 @@ window.openSapServiceDocsModal = async (spaceId) => {
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
     try {
         const docsContainer = modal.querySelector('#modal-docs-container');
-        const { renderDocsView } = await import('./docs/DocsView.js?v=8001');
+        const { renderDocsView } = await import('./docs/DocsView.js?v=8002');
         await renderDocsView(docsContainer, spaceId);
     } catch (err) {
         console.error("Error loading Docs Modal:", err);
