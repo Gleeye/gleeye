@@ -1177,8 +1177,20 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 if (!reportsList) return;
 
                 try {
+                    // Resolve effective pm_space (fallback via pm_items.space_ref se spaceId non passato)
+                    let effectiveSpaceId = spaceId || null;
+                    if (!effectiveSpaceId && itemId) {
+                        const { data: itemRow } = await supabase
+                            .from('pm_items').select('space_ref').eq('id', itemId).maybeSingle();
+                        effectiveSpaceId = itemRow?.space_ref || null;
+                    }
+                    if (!effectiveSpaceId) {
+                        reportsList.innerHTML = '<div style="font-size: 0.85rem; color: #94a3b8; font-style: italic; padding: 20px; text-align: center; background: #f8fafc; border: 1.5px dashed #e2e8f0; border-radius: 12px;">Nessun report generato finora.</div>';
+                        return;
+                    }
+
                     // 1. Get Doc Space
-                    const { data: docSpaces } = await supabase.from('doc_spaces').select('id').eq('space_ref', spaceId);
+                    const { data: docSpaces } = await supabase.from('doc_spaces').select('id').eq('space_ref', effectiveSpaceId);
                     if (!docSpaces || docSpaces.length === 0) {
                         reportsList.innerHTML = '<div style="font-size: 0.85rem; color: #94a3b8; font-style: italic; padding: 20px; text-align: center; background: #f8fafc; border: 1.5px dashed #e2e8f0; border-radius: 12px;">Nessun report generato finora.</div>';
                         return;
@@ -1186,10 +1198,11 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                     const docSpaceId = docSpaces[0].id;
 
-                    // 2. Get Pages
+                    // 2. Get Pages — solo report (source=voice_memo) per non mischiare con altre doc_pages
                     const { data: pages, error } = await supabase.from('doc_pages')
                         .select('id, title, created_at, metadata')
                         .eq('space_ref', docSpaceId)
+                        .eq('metadata->>source', 'voice_memo')
                         .order('created_at', { ascending: false });
 
                     if (error) throw error;

@@ -493,7 +493,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
     container.querySelectorAll('.urgent-item').forEach(el => {
         el.addEventListener('click', () => {
             const itemId = el.dataset.id;
-            import('/js/features/pm/components/hub_drawer.js?v=8024').then(mod => {
+            import('/js/features/pm/components/hub_drawer.js?v=8025').then(mod => {
                 mod.openHubDrawer(itemId, spaceId);
             });
         });
@@ -511,7 +511,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
     container.querySelectorAll('.comment-preview-item').forEach(el => {
         el.addEventListener('click', () => {
             const itemId = el.dataset.item;
-            import('/js/features/pm/components/hub_drawer.js?v=8024').then(mod => {
+            import('/js/features/pm/components/hub_drawer.js?v=8025').then(mod => {
                 mod.openHubDrawer(itemId, spaceId);
             });
         });

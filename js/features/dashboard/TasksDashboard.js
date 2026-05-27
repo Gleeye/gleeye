@@ -1,7 +1,7 @@
 import { supabase } from '../../modules/config.js?v=8000';
 import { state } from '../../modules/state.js?v=8000';
 import { showGlobalAlert, formatDate } from '../../modules/utils.js?v=8000';
-import { openHubDrawer } from '../pm/components/hub_drawer.js?v=8024';
+import { openHubDrawer } from '../pm/components/hub_drawer.js?v=8025';
 
 // --- VISUAL CONSTANTS ---
 const PRIORITY_CONFIG = {
