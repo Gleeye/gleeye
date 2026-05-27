@@ -1088,7 +1088,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                     break;
                 case 'docs':
                     tabContent.style.padding = '0';
-                    const { renderDocsView } = await import('../docs/DocsView.js?v=8002');
+                    const { renderDocsView } = await import('../docs/DocsView.js?v=8003');
                     renderDocsView(tabContent, spaceId);
                     break;
                 case 'projects':

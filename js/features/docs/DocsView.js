@@ -336,7 +336,7 @@ export async function openFullscreenEditor(page) {
     const content = `
         <div class="notion-fullscreen-wrapper" style="${wrapperStyle}">
             <!-- Actions Layer -->
-            <div style="position: absolute; top: ${isMobileViewport ? '14px' : '20px'}; right: ${isWhiteboard || isMobileViewport ? '14px' : '-60px'}; z-index: 10000;">
+            <div style="position: ${isMobileViewport ? 'fixed' : 'absolute'}; top: ${isMobileViewport ? 'calc(env(safe-area-inset-top, 0px) + 10px)' : '20px'}; right: ${isWhiteboard || isMobileViewport ? '14px' : '-60px'}; z-index: 1000001;">
                 <button class="close-modal" style="
                     background: ${isMobileViewport && !isWhiteboard ? '#f1f5f9' : 'rgba(255, 255, 255, 0.2)'};
                     backdrop-filter: blur(12px);
@@ -393,26 +393,48 @@ export async function openFullscreenEditor(page) {
                 from { transform: translateY(40px); opacity: 0; }
                 to { transform: translateY(0); opacity: 1; }
             }
-            /* Mobile: titolo e contenuto leggibili dentro al fullscreen Notion-like */
+            /* Mobile: full-bleed, scroll proprio sull'editor-container, X sopra safe-area */
             @media (max-width: 768px) {
                 #${modalId} {
-                    height: 100dvh !important;
-                    min-height: 100dvh !important;
+                    padding: 0 !important;
                     background: white !important;
+                    backdrop-filter: none !important;
                 }
                 #${modalId} .modal-content {
-                    backdrop-filter: none !important;
+                    max-width: 100vw !important;
+                    width: 100vw !important;
+                    height: 100dvh !important;
+                    max-height: 100dvh !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    border-radius: 0 !important;
+                    border: none !important;
+                    box-shadow: none !important;
                     background: white !important;
+                    overflow: hidden !important;
+                    transform: none !important;
+                    display: flex !important;
                     align-items: stretch !important;
                     justify-content: stretch !important;
-                    height: 100dvh !important;
-                    min-height: 100dvh !important;
-                    padding: 0 !important;
+                    backdrop-filter: none !important;
                 }
                 #${modalId} .notion-fullscreen-wrapper {
-                    height: 100dvh !important;
-                    min-height: 100dvh !important;
-                    padding-bottom: env(safe-area-inset-bottom, 0) !important;
+                    width: 100% !important;
+                    height: 100% !important;
+                    max-width: none !important;
+                    margin: 0 !important;
+                    box-shadow: none !important;
+                    background: white !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    overflow: hidden !important;
+                }
+                #${modalId} #fullscreen-editor-container {
+                    flex: 1 1 auto !important;
+                    min-height: 0 !important;
+                    overflow-y: auto !important;
+                    -webkit-overflow-scrolling: touch !important;
+                    padding: calc(env(safe-area-inset-top, 0px) + 56px) 18px calc(env(safe-area-inset-bottom, 0px) + 60px) !important;
                 }
                 #${modalId} .page-title-input {
                     font-size: 1.55rem !important;
@@ -428,7 +450,6 @@ export async function openFullscreenEditor(page) {
                 #${modalId} .doc-block[data-type="heading1"] .doc-block-content { font-size: 1.5rem !important; }
                 #${modalId} .doc-block[data-type="heading2"] .doc-block-content { font-size: 1.25rem !important; }
                 #${modalId} .doc-block[data-type="heading3"] .doc-block-content { font-size: 1.05rem !important; }
-                /* nascondi handle del block su mobile (occuperebbe spazio prezioso) */
                 #${modalId} .doc-block-handle { display: none !important; }
             }
         `;
