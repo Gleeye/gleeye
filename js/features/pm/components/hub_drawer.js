@@ -1002,7 +1002,7 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 <span class="material-icons-round" style="font-size: 3.5rem; color: #4e92d8; opacity: 0.4; margin-bottom: 1.25rem;">mic</span>
                                 <div style="font-weight: 700; color: #1a1f36; margin-bottom: 0.5rem; font-family: 'Satoshi', sans-serif; font-size: 1.1rem;">Trascina qui il memo vocale</div>
                                 <div style="font-size: 0.82rem; color: #697386; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 500;">Supporta MP3, WAV, M4A (Max 50MB)</div>
-                                <input type="file" id="report-audio-input" accept="audio/*" style="display: none;">
+                                <input type="file" id="report-audio-input" accept="audio/*,.m4a,.mp3,.wav,.mp4,.ogg,.aac,.aiff,.webm,audio/mp4,audio/x-m4a,audio/mpeg,audio/wav" style="display: none;">
                             </div>
 
                             <!-- Text Input Area (alternativa ad Audio) -->
@@ -1494,7 +1494,15 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
             if (generateBtn) {
                 generateBtn.onclick = async () => {
                     const file = audioInput.files[0];
-                    if (!file) return;
+                    console.log('[ReportAuto/audio] click — file:', file?.name, file?.type, file?.size);
+                    if (!file) {
+                        if (window.showGlobalAlert) window.showGlobalAlert('Nessun file audio selezionato.', 'error');
+                        return;
+                    }
+                    if (file.size > 50 * 1024 * 1024) {
+                        if (window.showGlobalAlert) window.showGlobalAlert('File troppo grande (max 50MB). Comprimi l\'audio o usa la trascrizione testuale.', 'error');
+                        return;
+                    }
 
                     generateBtn.disabled = true;
                     generateBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1.1rem; animation: spin-hub 1s linear infinite;">sync</span> CARICAMENTO...`;
@@ -1618,7 +1626,11 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
             if (generateTextBtn) {
                 generateTextBtn.onclick = async () => {
                     const text = (textInput?.value || '').trim();
-                    if (text.length < 20) return;
+                    console.log('[ReportAuto/text] click — chars:', text.length);
+                    if (text.length < 20) {
+                        if (window.showGlobalAlert) window.showGlobalAlert('Incolla almeno 20 caratteri di trascrizione prima di generare il report.', 'error');
+                        return;
+                    }
                     generateTextBtn.disabled = true;
                     generateTextBtn.innerHTML = `<span class="material-icons-round" style="font-size: 1.1rem; animation: spin-hub 1s linear infinite;">sync</span> INVIO...`;
                     try {
@@ -1630,7 +1642,9 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                             status: 'pending'
                         }).select();
                         if (jobError) throw jobError;
+                        if (!jobData || !jobData[0]) throw new Error('Insert ha restituito nessuna riga (RLS?)');
                         const jobId = jobData[0].id;
+                        console.log('[ReportAuto/text] job creato:', jobId);
 
                         // Mostra processing pane
                         if (textZoneEl) textZoneEl.classList.add('hidden');

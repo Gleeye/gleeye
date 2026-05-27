@@ -208,7 +208,7 @@ async function handleSession(session) {
                 import('./homepage.js?v=8000');
                 import('./dashboard.js?v=8000');
                 import('./pm/internal_list.js?v=8000');
-                import('./pm/components/hub_drawer.js?v=8020');
+                import('./pm/components/hub_drawer.js?v=8021');
                 
                 console.log("[Auth] Critical data loaded. Revealing workspace.");
                 
