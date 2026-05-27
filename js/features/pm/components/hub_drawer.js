@@ -28,6 +28,63 @@ import { toggleHubDatePicker, renderHubCalendar } from './hub/date_picker.js?v=8
 // duplicate_modal also installs window.quickRemoveAssignee on import (side effect).
 import { showDuplicateModal } from './hub/duplicate_modal.js?v=8000';
 
+// Inline markdown → HTML (bold/italic/code/link) — niente nesting complesso
+function _inlineMdToHtml(s) {
+    if (!s) return '';
+    const esc = s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    return esc
+        .replace(/`([^`]+)`/g, '<code style="background:#f1f5f9;padding:1px 6px;border-radius:4px;font-family:monospace;font-size:0.92em;">$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+        .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<i>$1</i>')
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:var(--brand-blue);text-decoration:underline;">$1</a>');
+}
+
+// Markdown blocks → doc_blocks (heading1/2/3, list, paragraph)
+function _markdownToDocBlocks(md) {
+    if (!md || typeof md !== 'string') return [];
+    const lines = md.replace(/\r\n/g, '\n').split('\n');
+    const blocks = [];
+    let para = [];
+    const flushPara = () => {
+        if (para.length === 0) return;
+        const text = para.join(' ').trim();
+        if (text) blocks.push({ type: 'paragraph', content: { text, html: _inlineMdToHtml(text) } });
+        para = [];
+    };
+    for (const raw of lines) {
+        const line = raw.trim();
+        if (!line) { flushPara(); continue; }
+        if (line.startsWith('### ')) {
+            flushPara();
+            const t = line.slice(4);
+            blocks.push({ type: 'heading3', content: { text: t, html: _inlineMdToHtml(t) } });
+        } else if (line.startsWith('## ')) {
+            flushPara();
+            const t = line.slice(3);
+            blocks.push({ type: 'heading2', content: { text: t, html: _inlineMdToHtml(t) } });
+        } else if (line.startsWith('# ')) {
+            flushPara();
+            const t = line.slice(2);
+            blocks.push({ type: 'heading1', content: { text: t, html: _inlineMdToHtml(t) } });
+        } else if (line.startsWith('- ') || line.startsWith('* ') || /^\d+\.\s/.test(line)) {
+            flushPara();
+            const t = line.replace(/^(\-\s|\*\s|\d+\.\s)/, '');
+            blocks.push({ type: 'list', content: { text: t, html: _inlineMdToHtml(t) } });
+        } else if (/^>\s/.test(line)) {
+            flushPara();
+            const t = line.replace(/^>\s/, '');
+            blocks.push({ type: 'quote', content: { text: t, html: _inlineMdToHtml(t) } });
+        } else {
+            para.push(line);
+        }
+    }
+    flushPara();
+    return blocks;
+}
+
 export async function openHubDrawer(itemId, spaceId, parentId = null, itemType = 'task', options = {}) {
     let overlay = document.getElementById('hub-drawer-overlay');
     let drawer = document.getElementById('hub-drawer');
@@ -1165,12 +1222,22 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                         </div>
                     `).join('');
 
-                    // Attach listeners to report items — apre il report inline nel pannello
+                    // Attach listeners to report items — apre direttamente nel viewer Notion-like
                     reportsList.querySelectorAll('.report-item').forEach(item => {
                         item.onclick = async () => {
                             const pageId = item.dataset.pageId;
                             try {
-                                // Trova il job legato a questo doc_page e usa i suoi dati
+                                const { data: page, error: pageErr } = await supabase
+                                    .from('doc_pages').select('*').eq('id', pageId).single();
+                                if (pageErr || !page) throw pageErr || new Error('page not found');
+                                const { openFullscreenEditor } = await import('../../docs/DocsView.js?v=8000');
+                                await openFullscreenEditor(page);
+                                return;
+                            } catch (e) {
+                                console.warn('[reports list] fallback inline preview:', e?.message);
+                            }
+                            // Fallback inline (vecchio percorso): se viewer non disponibile
+                            try {
                                 const { data: jobs } = await supabase
                                     .from('pm_ai_report_jobs')
                                     .select('*')
@@ -1179,13 +1246,13 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                 if (jobs && jobs[0]) {
                                     await displayReportResult(jobs[0]);
                                 } else {
-                                    // Fallback: leggi il doc_block markdown direttamente
+                                    // Fallback: leggi i doc_blocks direttamente
                                     const { data: blocks } = await supabase
                                         .from('doc_blocks')
                                         .select('content')
                                         .eq('page_ref', pageId)
-                                        .order('position', { ascending: true });
-                                    const md = (blocks || []).map(b => b.content?.markdown || '').join('\n\n');
+                                        .order('order_index', { ascending: true });
+                                    const md = (blocks || []).map(b => b.content?.text || b.content?.markdown || '').join('\n\n');
                                     if (md) {
                                         await displayReportResult({
                                             id: null,
@@ -1223,19 +1290,30 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
 
                 // 1. Crea (o riusa) il doc_space del pm_space, poi crea un doc_page col report
                 let docPageId = jobData.doc_page_id || null;
+                let docPageObj = null;
                 if (!docPageId) {
                     try {
+                        // Resolve pm_space: se spaceId mancante, prendilo dal pm_item via item_ref
+                        let effectiveSpaceId = spaceId || null;
+                        if (!effectiveSpaceId && (jobData.item_ref || itemId)) {
+                            const lookupItem = jobData.item_ref || itemId;
+                            const { data: itemRow } = await supabase
+                                .from('pm_items').select('space_ref').eq('id', lookupItem).maybeSingle();
+                            effectiveSpaceId = itemRow?.space_ref || null;
+                        }
+                        if (!effectiveSpaceId) throw new Error('Impossibile risolvere pm_space per il doc_page');
+
                         // Trova o crea doc_space per questo pm_space
                         let { data: docSpaces } = await supabase
                             .from('doc_spaces')
                             .select('id')
-                            .eq('space_ref', spaceId)
+                            .eq('space_ref', effectiveSpaceId)
                             .limit(1);
                         let docSpaceId = docSpaces?.[0]?.id;
                         if (!docSpaceId) {
                             const { data: newDocSpace, error: dsErr } = await supabase
                                 .from('doc_spaces')
-                                .insert({ space_ref: spaceId, name: 'Report' })
+                                .insert({ space_ref: effectiveSpaceId, name: 'Report' })
                                 .select()
                                 .single();
                             if (dsErr) throw dsErr;
@@ -1256,22 +1334,27 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                                     audio_url: jobData.audio_url,
                                     summary: jobData.summary,
                                     action_items: jobData.action_items,
+                                    item_ref: itemId || jobData.item_ref || null,
                                 }
                             })
                             .select()
                             .single();
                         if (pageErr) throw pageErr;
                         docPageId = newPage.id;
+                        docPageObj = newPage;
 
-                        // Crea un doc_block "text" col markdown del report
-                        await supabase
-                            .from('doc_blocks')
-                            .insert({
+                        // Parse markdown in blocchi veri (heading/lista/paragrafo) per il viewer Notion-like
+                        const blocks = _markdownToDocBlocks(jobData.report_markdown || jobData.transcription || '');
+                        if (blocks.length > 0) {
+                            const blocksToInsert = blocks.map((b, idx) => ({
                                 page_ref: docPageId,
-                                block_type: 'text',
-                                content: { markdown: jobData.report_markdown || jobData.transcription || '' },
-                                position: 0,
-                            });
+                                type: b.type,
+                                content: b.content,
+                                order_index: idx,
+                            }));
+                            const { error: blkErr } = await supabase.from('doc_blocks').insert(blocksToInsert);
+                            if (blkErr) console.warn('[displayReportResult] block insert failed', blkErr);
+                        }
 
                         // Aggiorna il job con il doc_page_id
                         await supabase
@@ -1344,30 +1427,29 @@ export async function openHubDrawer(itemId, spaceId, parentId = null, itemType =
                 metaEl.textContent = (jobData.tokens_used ? jobData.tokens_used + ' token' : '') + (costNote ? ' · ' + costNote : '');
 
                 if (openDocBtn) {
-                    openDocBtn.onclick = () => {
-                        const fullbody = drawer.querySelector('#report-result-fullbody');
-                        const pre = drawer.querySelector('#report-result-fullbody-pre');
-                        if (!fullbody || !pre) return;
-                        const fullText = jobData.report_markdown
-                            || jobData.transcription
-                            || '(nessun contenuto disponibile)';
-                        pre.textContent = fullText;
-                        const wasHidden = fullbody.classList.contains('hidden');
-                        fullbody.classList.toggle('hidden');
-                        openDocBtn.innerHTML = wasHidden
-                            ? '<span class="material-icons-round" style="font-size: 1rem;">visibility_off</span> Nascondi report'
-                            : '<span class="material-icons-round" style="font-size: 1rem;">description</span> Mostra report integrale';
-                        // Wire copy button
-                        const copyBtn = drawer.querySelector('#report-copy-full-btn');
-                        if (copyBtn && wasHidden) {
-                            copyBtn.onclick = () => {
-                                navigator.clipboard.writeText(fullText).then(() => {
-                                    copyBtn.innerHTML = '<span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle;">check</span> Copiato!';
-                                    setTimeout(() => {
-                                        copyBtn.innerHTML = '<span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle;">content_copy</span> Copia testo';
-                                    }, 1500);
-                                });
-                            };
+                    openDocBtn.innerHTML = '<span class="material-icons-round" style="font-size: 1rem;">open_in_full</span> Apri report';
+                    openDocBtn.onclick = async () => {
+                        const pageId = docPageId || jobData.doc_page_id;
+                        if (!pageId) {
+                            // Fallback: il salvataggio doc_page è fallito — mostra il markdown grezzo
+                            window.showGlobalAlert?.('Pagina report non disponibile: mostro testo grezzo.', 'error');
+                            const fullbody = drawer.querySelector('#report-result-fullbody');
+                            const pre = drawer.querySelector('#report-result-fullbody-pre');
+                            if (fullbody && pre) {
+                                pre.textContent = jobData.report_markdown || jobData.transcription || '(vuoto)';
+                                fullbody.classList.remove('hidden');
+                            }
+                            return;
+                        }
+                        try {
+                            const { data: page, error } = await supabase
+                                .from('doc_pages').select('*').eq('id', pageId).single();
+                            if (error || !page) throw error || new Error('page not found');
+                            const { openFullscreenEditor } = await import('../../docs/DocsView.js?v=8000');
+                            await openFullscreenEditor(page);
+                        } catch (e) {
+                            console.error('[open report] error', e);
+                            window.showGlobalAlert?.('Errore apertura report: ' + (e?.message || e), 'error');
                         }
                     };
                 }

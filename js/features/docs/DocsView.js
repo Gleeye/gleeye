@@ -321,7 +321,7 @@ async function loadPage(pageId) {
     }
 }
 
-async function openFullscreenEditor(page) {
+export async function openFullscreenEditor(page) {
     const isWhiteboard = page.page_type === 'whiteboard';
     const modalId = 'fullscreen-doc-modal';
 

@@ -93,7 +93,7 @@ export async function renderSpaceOverview(container, spaceId, items, space) {
                     
                     <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                         ${urgencies.length === 0 ? `<div class="dash-empty">Nessuna scadenza imminente</div>` : urgencies.slice(0,5).map(u => `
-                            <div class="urg-item cursor-pointer" onclick="import('./hub_drawer.js?v=8023').then(m => m.openHubDrawer('${u.id}', '${spaceId}'))">
+                            <div class="urg-item cursor-pointer" onclick="import('./hub_drawer.js?v=8024').then(m => m.openHubDrawer('${u.id}', '${spaceId}'))">
                                 <div class="icon"><span class="material-icons-round">folder</span></div>
                                 <div style="flex:1; min-width:0;">
                                     <div style="font-size: 0.55rem; color: var(--text-tertiary); font-weight: 800; text-transform: uppercase;">${u.item_type || 'Task'}</div>
