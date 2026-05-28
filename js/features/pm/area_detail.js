@@ -134,11 +134,12 @@ export async function renderAreaDetail(container, areaSlug) {
                     tabContent.innerHTML = '<div style="padding:3rem; text-align:center; color:var(--text-tertiary);">Nessun progetto in questa area.</div>';
                     return;
                 }
-                const { renderDocsAggregate } = await import('../docs/docs_aggregate.js?v=8000');
-                await renderDocsAggregate(tabContent, allSpaceIds, {
+                const { renderWorkspaceNavigator } = await import('../workspace/workspace_navigator.js?v=8000');
+                await renderWorkspaceNavigator(tabContent, {
+                    scope: 'area',
+                    scopeId: areaSlug,
+                    pmSpaceIds: allSpaceIds,
                     spaceNamesMap,
-                    showSpaceLabel: true,
-                    emptyMessage: 'Nessun documento ancora creato nei progetti di questa area.',
                 });
             }
         };
