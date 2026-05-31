@@ -151,11 +151,11 @@ function render() {
                 break;
             case 'sales': // Clients list
                 if (pageTitle) pageTitle.textContent = 'Anagrafica Clienti';
-                import('../features/clients.js?v=9112').then(m => m.renderClients(contentArea));
+                import('../features/clients.js?v=9113').then(m => m.renderClients(contentArea));
                 break;
             case 'client-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Cliente';
-                import('../features/clients.js?v=9112').then(m => m.renderClientDetail(contentArea));
+                import('../features/clients.js?v=9113').then(m => m.renderClientDetail(contentArea));
                 break;
             case 'employees':
                 if (pageTitle) pageTitle.textContent = 'Collaboratori';

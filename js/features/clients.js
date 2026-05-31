@@ -554,6 +554,7 @@ export async function renderClients(container) {
             .crm-acc-bar-count { font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); min-width: 28px; text-align: right; }
 
             @media (max-width: 640px) {
+                .crm-page { margin: 0 -0.5rem -1rem -0.5rem; }
                 .crm-analytics-body { padding: 1rem; }
                 .crm-kpi-grid { grid-template-columns: repeat(3, 1fr); }
                 .crm-acc-bar-name { min-width: 90px; font-size: 0.75rem; }
