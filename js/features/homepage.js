@@ -1,6 +1,6 @@
 import { state } from '/js/modules/state.js?v=8000';
 import { supabase } from '../modules/config.js?v=8000';
-import { formatAmount, renderAvatar } from '../modules/utils.js?v=8000';
+import { formatAmount, renderAvatar, showGlobalAlert } from '../modules/utils.js?v=8000';
 
 import { fetchAvailabilityRules, fetchAvailabilityOverrides, fetchCollaborators, fetchAssignments, upsertAssignment, fetchGoogleCalendarBusy } from '../modules/api.js?v=8000';
 import { fetchAppointment, updatePMItem, fetchMyActivityFeed, fetchPMActivityLogs } from '../modules/pm_api.js?v=8000';
@@ -28,7 +28,7 @@ async function fetchDateEvents(collaboratorId, startArg, endArg) {
     const endIso = end.toISOString();
 
     // 1. Fetch Bookings
-    const { data: bookings } = await supabase
+    const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
             *,
@@ -40,9 +40,10 @@ async function fetchDateEvents(collaboratorId, startArg, endArg) {
         .gte('start_time', startIso)
         .lte('start_time', endIso)
         .neq('status', 'cancelled');
+    if (bookingsError) console.error('[homepage] bookings fetch failed:', bookingsError);
 
     // 2. Fetch Appointments (Use correct relation table)
-    const { data: appointments } = await supabase
+    const { data: appointments, error: appointmentsError } = await supabase
         .from('appointments')
         .select(`
             *,
@@ -59,6 +60,7 @@ async function fetchDateEvents(collaboratorId, startArg, endArg) {
         .lte('start_time', endIso)
         .neq('status', 'cancelled')
         .neq('status', 'annullato');
+    if (appointmentsError) console.error('[homepage] appointments fetch failed:', appointmentsError);
 
     // Merge & normalize
     const events = [];
@@ -131,7 +133,6 @@ async function fetchRecentProjects(collabId, userUuid) {
         const collaboratorId = collabId || state.profile?.id;
 
         if (!userId) {
-            console.log("[Homepage] No user session found for recent projects");
             return [];
         }
 
@@ -139,11 +140,12 @@ async function fetchRecentProjects(collabId, userUuid) {
         // We do NOT want to fallback to defaults or show admin data.
 
         // 1. Identify which orders this user technically "owns" for LINK routing only
-        const { data: myManagedSpaces } = await supabase
+        const { data: myManagedSpaces, error: spacesError } = await supabase
             .from('pm_spaces')
             .select('ref_ordine')
             .eq('default_pm_user_ref', userId)
             .eq('type', 'commessa');
+        if (spacesError) console.error('[homepage] pm_spaces fetch failed:', spacesError);
 
         const managedOrderIds = new Set((myManagedSpaces || []).map(s => s.ref_ordine).filter(Boolean));
 
@@ -422,7 +424,6 @@ async function fetchRecentProjects(collabId, userUuid) {
             }
         }
 
-        console.log("[Homepage] Verified Personal Projects:", results.length, results);
         return results;
 
     } catch (e) {
@@ -573,8 +574,6 @@ const getFirstName = (collab, profile) => {
 };
 
 export async function renderHomepage(container) {
-    console.log("Rendering Homepage...");
-
     const user = state.session?.user;
     if (!user) return;
 
@@ -660,7 +659,10 @@ export async function renderHomepage(container) {
             .eq('pm_item_assignees.user_ref', targetUserId)
             .neq('status', 'done');
 
-        if (pmError) console.error("PM Tasks fetch error:", pmError);
+        if (pmError) {
+            console.error('[homepage] PM Tasks fetch error:', pmError);
+            showGlobalAlert('Errore nel caricamento dei task', 'error');
+        }
 
         myTasks = (pmTasks || [])
             .map(t => {
@@ -728,7 +730,8 @@ export async function renderHomepage(container) {
         events = await fetchDateEvents(myId, new Date(), rangeEnd);
 
     } catch (err) {
-        console.error("Error fetching My Activities data:", err);
+        console.error('[homepage] Error fetching My Activities data:', err);
+        showGlobalAlert('Errore nel caricamento dei dati della homepage', 'error');
     }
 
     // Skeleton
@@ -1516,7 +1519,6 @@ export async function renderHomepage(container) {
             // Check if we are still on homepage
             if (!document.querySelector('.homepage-header')) return;
 
-            console.log("[Homepage] External change detected:", e.type, e.detail);
             if (window.updateHomepageTimeline) {
                 window.updateHomepageTimeline(window.homepageCurrentDate);
             }

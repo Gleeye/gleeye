@@ -4,7 +4,7 @@ import { formatAmount, showGlobalAlert, showConfirm, getInitials, getAvatarColor
 import { upsertPayment, deletePayment, upsertOrder, updateOrder, deleteOrder, updateOrderEconomics, fetchPayments, fetchOrders, fetchAssignments, fetchCollaborators, fetchServices, addOrderAccount, removeOrderAccount, fetchOrderAccounts, addOrderContact, removeOrderContact, fetchOrderContacts, updateOrderCloudLinks, generateNextOrderNumber } from '../modules/api.js?v=8000';
 import { CloudLinksManager } from './components/CloudLinksManager.js?v=8000';
 import { CustomSelect } from '../components/CustomSelect.js?v=8000';
-import { openPaymentModal } from './payments.js?v=8000';
+import { openPaymentModal } from './payments.js?v=9005';
 import { fetchProjectSpaceForOrder, fetchProjectItems, fetchAppointments } from '../modules/pm_api.js?v=8000';
 import { activityTranslate } from '../modules/pm_activity_helper.js?v=8000';
 import { tAssignment } from '../modules/i18n_labels.js?v=8002';

@@ -46,16 +46,15 @@ function initThemeLogic() {
 
 // Bootstrapper
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Gleeye Workspace v294 Booting...');
     initThemeLogic();
 
     // Init Feature Modals Lazily — catch prevents unhandledrejection from crashing the homepage
     import('./features/settings.js?v=8000').then(m => m.initSettingsModals()).catch(e => console.warn('[app] settings modals:', e));
-    import('./features/invoices.js?v=8000').then(m => m.InvoiceLogic.initInvoiceModals()).catch(e => console.warn('[app] invoices modals:', e));
+    import('./features/invoices.js?v=9004').then(m => m.InvoiceLogic.initInvoiceModals()).catch(e => console.warn('[app] invoices modals:', e));
     import('./features/collaborators.js?v=9000').then(m => m.initCollaboratorModals()).catch(e => console.warn('[app] collaborators modals:', e));
     import('./features/collaborator_services.js?v=8000').then(m => m.initCollaboratorServiceModals()).catch(e => console.warn('[app] collaborator_services modals:', e));
     import('./features/bank_transactions.js?v=8000').then(m => m.initBankTransactionModals()).catch(e => console.warn('[app] bank_transactions modals:', e));
-    import('./features/payments.js?v=8000').then(m => m.initPaymentModals()).catch(e => console.warn('[app] payments modals:', e));
+    import('./features/payments.js?v=9005').then(m => m.initPaymentModals()).catch(e => console.warn('[app] payments modals:', e));
     import('./features/services.js?v=8000').then(m => m.initServiceModals()).catch(e => console.warn('[app] services modals:', e));
     import('./features/white_label_partners.js?v=8000').then(m => m.initWhiteLabelPartnerModals()).catch(e => console.warn('[app] wl_partners modals:', e));
     import('./features/sap_services.js?v=8000').then(m => m.initSapServiceModals()).catch(e => console.warn('[app] sap_services modals:', e));
@@ -78,7 +77,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Listen for app ready to start router and render user data
     window.addEventListener('app:ready', () => {
-        console.log("App ready event received. Rendering profile and router.");
 
         // Unhide app early so router can find elements
         const app = document.getElementById('app');
@@ -115,7 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Refresh UI when data is loaded
     window.addEventListener('data:loaded', () => {
-        console.log("Data loaded event received. Refreshing UI.");
         router();
     });
 
@@ -126,13 +123,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('global-search');
     if (searchInput) {
         const debouncedRouter = debounce(() => {
-            console.log('Debounced router trigger for search:', state.searchTerm);
             router();
         }, 500);
 
-        console.log("Attaching global search listener");
         searchInput.addEventListener('input', (e) => {
-            console.log('Global search input:', e.target.value);
             state.searchTerm = e.target.value;
             debouncedRouter();
         });

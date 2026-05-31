@@ -1312,7 +1312,7 @@ async function refreshCurrentPage() {
         const { renderOrderDetail } = await import('../features/orders.js?v=8000');
         renderOrderDetail(container);
     } else if (hash.includes('payments')) {
-        const { renderPaymentsDashboard } = await import('../features/payments.js?v=8000');
+        const { renderPaymentsDashboard } = await import('../features/payments.js?v=9005');
         renderPaymentsDashboard(container);
     } else if (hash.includes('bank-transactions')) {
         const { renderBankTransactions } = await import('../features/bank_transactions.js?v=8000');
@@ -1321,7 +1321,7 @@ async function refreshCurrentPage() {
         const { renderCollaboratorServices } = await import('../features/collaborator_services.js?v=8000');
         renderCollaboratorServices(container);
     } else if (hash.includes('assignment-detail/')) {
-        const { renderAssignmentDetail } = await import('../features/assignments.js?v=8000');
+        const { renderAssignmentDetail } = await import('../features/assignments.js?v=9003');
         renderAssignmentDetail(container);
     } else if (hash.includes('collaborator-detail/')) {
         const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=9000');

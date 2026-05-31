@@ -735,7 +735,7 @@ window.saveAssignmentMultiStep = async () => {
 
         // Dynamic import including calculateProposedAssignmentPayments
         const { upsertAssignment, upsertCollaboratorService, fetchCollaboratorServices, fetchAssignments, upsertPayment, fetchPayments } = await import('../../modules/api.js?v=8000');
-        const { calculateProposedAssignmentPayments } = await import('../assignments.js?v=8000');
+        const { calculateProposedAssignmentPayments } = await import('../assignments.js?v=9003');
 
         console.log("Upserting Assignment...");
         const newAssignment = await upsertAssignment({

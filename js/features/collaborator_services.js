@@ -585,7 +585,7 @@ export async function refreshCollaboratorServicePage() {
     if (state.currentPage === 'collaborator-services') {
         renderCollaboratorServices(document.getElementById('content-area'));
     } else if (window.location.hash.includes('assignment-detail')) {
-        const { renderAssignmentDetail } = await import('./assignments.js?v=8000');
+        const { renderAssignmentDetail } = await import('./assignments.js?v=9003');
         renderAssignmentDetail(document.getElementById('content-area'));
     }
 }

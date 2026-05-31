@@ -1155,7 +1155,8 @@ export function openPaymentModal(id) {
                 document.getElementById('btn-reset-invite')?.addEventListener('click', async () => {
                     if (confirm('Annullare lo stato di invito e tornare a "Da Fare"?')) {
                         const { supabase } = await import('../modules/config.js?v=8000');
-                        await supabase.from('payments').update({ status: 'Da Fare' }).eq('id', p.id);
+                        const { error } = await supabase.from('payments').update({ status: 'Da Fare' }).eq('id', p.id);
+                        if (error) { showGlobalAlert('Errore nel ripristino: ' + error.message, 'error'); return; }
                         await fetchPayments(); openPaymentModal(p.id); showGlobalAlert('Ripristinato');
                     }
                 });
