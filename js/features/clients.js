@@ -117,7 +117,10 @@ function _renderCreditRiskBadge(client, opts = {}) {
 }
 
 export async function renderClients(container) {
-    // Ensure we have orders for analytics
+    // Show loading state while fetching
+    if (!state.orders || !state.collaborators) {
+        container.innerHTML = `<div class="loading-state"><div class="spinner"></div><p>Caricamento clienti...</p></div>`;
+    }
     const { fetchOrders, fetchCollaborators } = await import('../modules/api.js?v=8000');
     if (!state.orders || state.orders.length === 0) {
         await fetchOrders();
@@ -294,7 +297,11 @@ export async function renderClients(container) {
             </div>
         `;
     }).join('') : `
-        <div class="v7-empty">Nessun record trovato</div>
+        <div class="empty-state" style="grid-column: 1 / -1;">
+            <span class="empty-icon">📭</span>
+            <p class="empty-title">Nessun cliente trovato</p>
+            <p class="empty-subtitle">Prova a modificare i filtri o il termine di ricerca.</p>
+        </div>
     `;
 
     // Conta clienti per ogni account per il dropdown filtro

@@ -143,7 +143,7 @@ export function renderCollaborators(container) {
                             return `<button class="pill-filter-lifecycle" data-lifecycle="${ch.k}" style="padding: 6px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: 1px solid ${ch.color}${isActive ? '' : '30'}; background: ${isActive ? ch.color : ch.color + '15'}; color: ${isActive ? 'white' : ch.color};">${ch.label} ${counts[ch.k] || 0}</button>`;
                         }).join('');
                     })()}
-                    <button onclick="window.showCollabLifecycleHelp()" title="Cosa significano gli stati?" style="padding: 4px 8px; border-radius: 999px; border: 1px solid var(--glass-border); background: white; color: var(--text-tertiary); cursor: pointer; display: inline-flex; align-items: center;">
+                    <button onclick="window.showCollabLifecycleHelp()" title="Cosa significano gli stati?" class="icon-btn" style="border-radius: 999px; width: auto; padding: 4px 8px;">
                         <span class="material-icons-round" style="font-size: 1rem;">help_outline</span>
                     </button>
 
@@ -199,10 +199,10 @@ export function renderCollaborators(container) {
         const content = renderGrid();
         if (content.trim() === '') {
             grid.innerHTML = `
-                <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; color: var(--text-tertiary); text-align: center;">
-                    <span class="material-icons-round" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;">people_outline</span>
-                    <h3 style="font-size: 1.2rem; font-weight: 500; margin: 0; color: var(--text-secondary);">Nessun collaboratore trovato</h3>
-                    <p style="font-size: 0.95rem; margin-top: 0.5rem; max-width: 300px;">Prova a modificare i filtri o la ricerca.</p>
+                <div class="empty-state" style="grid-column: 1 / -1;">
+                    <span class="empty-icon">📭</span>
+                    <p class="empty-title">Nessun collaboratore trovato</p>
+                    <p class="empty-subtitle">Prova a modificare i filtri o la ricerca.</p>
                 </div>
             `;
         } else {

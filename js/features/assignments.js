@@ -354,10 +354,10 @@ export async function renderAssignmentDetail(container) {
                                 
                                 ${!isCollabView ? `
                                     <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
-                                        <button onclick="window.openManualAssignmentPaymentModal('${assignment.id}', '${assignment.collaborator_id}')" style="flex: 1; border: none; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.75rem; font-weight: 500; padding: 0.6rem; border-radius: 8px; cursor: pointer; border: 1px solid var(--glass-border);">
+                                        <button onclick="window.openManualAssignmentPaymentModal('${assignment.id}', '${assignment.collaborator_id}')" class="primary-btn secondary btn-sm" style="flex: 1;">
                                             <span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle;">add</span> Manuale
                                         </button>
-                                        <button onclick="window.generateAssignmentPayments('${assignment.id}')" style="flex: 1; border: none; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; font-size: 0.75rem; font-weight: 500; padding: 0.6rem; border-radius: 8px; cursor: pointer;">
+                                        <button onclick="window.generateAssignmentPayments('${assignment.id}')" class="primary-btn btn-sm" style="flex: 1; background: linear-gradient(135deg, #8b5cf6, #6366f1);">
                                             <span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle;">auto_fix_high</span> Genera
                                         </button>
                                     </div>
@@ -1243,12 +1243,10 @@ export function renderAssignmentsDashboard(container) {
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
                     ${filtered.length > 0 ? cardsHtml : `
-                        <div style="grid-column: 1/-1; text-align: center; padding: 6rem 2rem; background: var(--glass-bg); border-radius: 24px; border: 2px dashed var(--glass-border);">
-                            <div style="width: 80px; height: 80px; background: rgba(78, 146, 216, 0.05); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
-                                <span class="material-icons-round" style="font-size: 3rem; color: var(--text-tertiary);">search_off</span>
-                            </div>
-                            <h2 style="font-family: var(--font-titles); font-weight: 400; margin-bottom: 0.5rem;">Nessun incarico trovato</h2>
-                            <p style="color: var(--text-secondary);">Prova a cambiare i filtri o la ricerca.</p>
+                        <div class="empty-state" style="grid-column: 1 / -1;">
+                            <span class="empty-icon">📭</span>
+                            <p class="empty-title">Nessun incarico trovato</p>
+                            <p class="empty-subtitle">Prova a cambiare i filtri o la ricerca.</p>
                         </div>
                     `}
                 </div>
