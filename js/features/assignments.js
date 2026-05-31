@@ -1,5 +1,5 @@
 import { state } from '/js/modules/state.js?v=8000';
-import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=8000';
+import { formatAmount, showGlobalAlert, getInitials, getAvatarColor } from '../modules/utils.js?v=9200';
 import { supabase } from '../modules/config.js?v=8000';
 import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment, deleteAssignment } from '../modules/api.js?v=8000';
 import { openPaymentModal } from './payments.js?v=9005';
@@ -14,20 +14,6 @@ function getStatusColor(status) {
     if (s.includes('sospeso') || s.includes('hold')) return '#ef4444';
     if (s.includes('attesa') || s.includes('wait')) return '#3b82f6';
     return '#6366f1';
-}
-
-function getInitials(name) {
-    if (!name) return '??';
-    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-}
-
-function getAvatarColor(name) {
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-    let hash = 0;
-    for (let i = 0; i < (name || '').length; i++) {
-        hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
 }
 
 export async function renderAssignmentDetail(container) {

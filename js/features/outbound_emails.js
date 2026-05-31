@@ -3,6 +3,7 @@
 
 import { supabase } from '/js/modules/config.js?v=8000';
 import { state } from '/js/modules/state.js?v=8000';
+import { formatDatetime } from '/js/modules/utils.js?v=9200';
 
 const STATUS_LABELS = {
     draft: { label: 'Bozza', color: '#f59e0b', bg: '#fef3c7' },
@@ -131,8 +132,8 @@ function renderCard(e, ordersMap, clientsMap) {
     const order = ordersMap[e.order_id];
     const client = clientsMap[e.client_id];
     const dateLabel = e.sent_at
-        ? `Inviata il ${formatDate(e.sent_at)}`
-        : `Generata il ${formatDate(e.generated_at)}`;
+        ? `Inviata il ${formatDatetime(e.sent_at)}`
+        : `Generata il ${formatDatetime(e.generated_at)}`;
 
     return `
         <div class="oe-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem 1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
@@ -320,16 +321,6 @@ async function discardEmail(emailId, container) {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatDate(iso) {
-    if (!iso) return '—';
-    try {
-        return new Date(iso).toLocaleString('it-IT', {
-            day: '2-digit', month: '2-digit', year: 'numeric',
-            hour: '2-digit', minute: '2-digit',
-        });
-    } catch { return iso; }
-}
 
 function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({

@@ -1,4 +1,4 @@
-import { formatAmount } from '/js/modules/utils.js?v=8000';
+import { formatAmount, formatDateIT } from '/js/modules/utils.js?v=9200';
 import { supabase } from '/js/modules/config.js?v=8000';
 import { chat, extractText, AI_MODELS } from '/js/modules/ai_client.js?v=8000';
 
@@ -16,12 +16,6 @@ function daysSince(dateStr) {
     if (!dateStr) return null;
     const diff = today() - new Date(dateStr);
     return Math.floor(diff / 86400000);
-}
-
-function formatDateIT(iso) {
-    if (!iso) return '—';
-    const [y, m, d] = iso.split('-');
-    return d + '/' + m + '/' + y;
 }
 
 function bucketOf(days) {

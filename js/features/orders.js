@@ -1047,7 +1047,7 @@ export async function renderOrderDetail(container, orderId) {
 
     // Render NPS Feedback Card if order is closed
     if (isOrderClosed) {
-        import('./nps_survey.js?v=8000').then(mod => {
+        import('./nps_survey.js?v=9200').then(mod => {
             mod.populateNpsCard(order);
         }).catch(err => console.error("Error loading nps_survey module:", err));
     }

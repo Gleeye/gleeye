@@ -143,7 +143,7 @@ function render() {
                 break;
             case 'agenda':
                 if (pageTitle) pageTitle.textContent = 'Agenda Personale';
-                import('../features/personal_agenda.js?v=8001').then(m => m.renderAgenda(contentArea));
+                import('../features/personal_agenda.js?v=9200').then(m => m.renderAgenda(contentArea));
                 break;
             case 'tasks-summary':
                 if (pageTitle) pageTitle.textContent = 'Le mie task';
@@ -263,11 +263,11 @@ function render() {
                 break;
             case 'assignment-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Incarico';
-                import('../features/assignments.js?v=9004').then(m => m.renderAssignmentDetail(contentArea));
+                import('../features/assignments.js?v=9200').then(m => m.renderAssignmentDetail(contentArea));
                 break;
             case 'assignments':
                 if (pageTitle) pageTitle.textContent = 'Incarichi';
-                import('../features/assignments.js?v=9004').then(m => m.renderAssignmentsDashboard(contentArea));
+                import('../features/assignments.js?v=9200').then(m => m.renderAssignmentsDashboard(contentArea));
                 break;
             case 'my-assignments':
                 if (pageTitle) pageTitle.textContent = 'I miei incarichi';
@@ -299,7 +299,7 @@ function render() {
                 break;
             case 'outbound-emails':
                 if (pageTitle) pageTitle.textContent = 'Bozze Email';
-                import('../features/outbound_emails.js?v=8001').then(m => m.renderOutboundEmails(contentArea));
+                import('../features/outbound_emails.js?v=9200').then(m => m.renderOutboundEmails(contentArea));
                 break;
             case 'chat':
                 if (pageTitle) pageTitle.textContent = 'Chat Team';
@@ -391,7 +391,7 @@ function render() {
                 break;
             case 'agenda':
                 if (pageTitle) pageTitle.textContent = 'La Mia Agenda';
-                import('../features/personal_agenda.js?v=8001').then(m => m.renderAgenda(contentArea));
+                import('../features/personal_agenda.js?v=9200').then(m => m.renderAgenda(contentArea));
                 break;
             case 'admin-notifications':
                 if (pageTitle) pageTitle.textContent = 'Notifiche Admin';
@@ -403,7 +403,7 @@ function render() {
                 break;
             case 'cfo-cashflow':
                 if (pageTitle) pageTitle.textContent = 'Cash Flow Forecast';
-                import('../features/cfo/cfo_cashflow.js?v=8001').then(m => m.renderCFOCashflow(contentArea));
+                import('../features/cfo/cfo_cashflow.js?v=9200').then(m => m.renderCFOCashflow(contentArea));
                 break;
             case 'cfo-pnl-orders':
                 if (pageTitle) pageTitle.textContent = 'P&L per Commessa';
@@ -411,7 +411,7 @@ function render() {
                 break;
             case 'cfo-aging':
                 if (pageTitle) pageTitle.textContent = 'Aging Fatture';
-                import('../features/cfo/cfo_aging.js?v=8001').then(m => m.renderCFOAging(contentArea));
+                import('../features/cfo/cfo_aging.js?v=9200').then(m => m.renderCFOAging(contentArea));
                 break;
             case 'cfo-dso-dpo':
                 if (pageTitle) pageTitle.textContent = 'DSO / DPO';

@@ -3,6 +3,7 @@
 
 import { supabase } from '/js/modules/config.js?v=8000';
 import { state } from '/js/modules/state.js?v=8000';
+import { formatDateIT } from '/js/modules/utils.js?v=9200';
 
 const SCORE_COLOR = score => {
     if (score >= 9) return '#10b981'; // promoter
@@ -64,7 +65,7 @@ export async function populateNpsCard(order) {
             </div>
             ${latest.comment ? `<div style="background:var(--bg-tertiary);padding:.75rem;border-radius:8px;font-size:.85rem;color:var(--text-primary);margin-bottom:.5rem;font-style:italic;">"${escapeHtml(latest.comment)}"</div>` : ''}
             <div style="font-size:.7rem;color:var(--text-tertiary);">
-                Risposta ricevuta il ${formatDate(latest.completed_at)}
+                Risposta ricevuta il ${formatDateIT(latest.completed_at)}
             </div>
         `;
         return;
@@ -76,7 +77,7 @@ export async function populateNpsCard(order) {
         <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
             <span style="font-size:.7rem;padding:.2rem .55rem;border-radius:999px;background:${isExpired ? '#fee2e2' : '#fef3c7'};color:${isExpired ? '#dc2626' : '#d97706'};font-weight:600;text-transform:uppercase;">${isExpired ? 'Scaduto' : 'In attesa'}</span>
             <span style="font-size:.75rem;color:var(--text-secondary);">
-                ${isExpired ? `Scaduto il ${formatDate(latest.expires_at)}` : `Inviato il ${formatDate(latest.sent_at || latest.created_at)} a ${escapeHtml(latest.to_email || '—')}`}
+                ${isExpired ? `Scaduto il ${formatDateIT(latest.expires_at)}` : `Inviato il ${formatDateIT(latest.sent_at || latest.created_at)} a ${escapeHtml(latest.to_email || '—')}`}
             </span>
         </div>
         <button onclick="window.requestNpsFeedback('${order.id}', true)"
@@ -244,11 +245,3 @@ function openNpsEmailPickerModal({ defaultEmail, clientName, senderName }) {
     });
 }
 
-function formatDate(iso) {
-    if (!iso) return '—';
-    try {
-        return new Date(iso).toLocaleDateString('it-IT', {
-            day: '2-digit', month: '2-digit', year: 'numeric',
-        });
-    } catch { return iso; }
-}

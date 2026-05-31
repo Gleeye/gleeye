@@ -1,5 +1,6 @@
 import { supabase } from '../modules/config.js?v=8000';
 import { state } from '/js/modules/state.js?v=8000';
+import { formatDate } from '../modules/utils.js?v=9200';
 import { fetchAvailabilityRules, fetchRestDays, fetchAvailabilityOverrides } from '../modules/api.js?v=8000';
 import { fetchCollaboratorAppointments, fetchAppointment } from '../modules/pm_api.js?v=8000';
 import { openAvailabilityModal, checkAndHandleGoogleCallback } from './availability_manager.js?v=8000';
@@ -1395,20 +1396,6 @@ function toggleFilter(filterKey) {
         else el.classList.remove('active');
     }
     renderTimeline();
-}
-
-function formatDate(date, full = false) {
-    // Italian Formatting
-    if (full) {
-        const s = date.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
-        return s.charAt(0).toUpperCase() + s.slice(1);
-    }
-    // Short: "12 Gen"
-    const s = date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
-    const parts = s.split(' ');
-    // Assuming format "12 gen" or "gen 12", standardize if necessary
-    // Browser implementation varies, but let's trust default 'it-IT' output for short/medium
-    return s; // e.g. "12 gen"
 }
 
 // --- EVENT DETAIL MODAL ---

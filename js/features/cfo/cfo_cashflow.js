@@ -1,5 +1,5 @@
 import { state } from '/js/modules/state.js?v=8000';
-import { formatAmount } from '/js/modules/utils.js?v=8000';
+import { formatAmount, formatDateIT } from '/js/modules/utils.js?v=9200';
 import {
     fetchBankTransactions,
     fetchInvoices,
@@ -19,11 +19,6 @@ function addDays(date, n) {
 
 function isoDate(d) {
     return d.toISOString().split('T')[0];
-}
-
-function formatDateIT(iso) {
-    const [y, m, dd] = iso.split('-');
-    return `${dd}/${m}/${y}`;
 }
 
 // ─── data aggregation ────────────────────────────────────────────────────────
