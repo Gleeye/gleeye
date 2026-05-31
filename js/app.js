@@ -1,12 +1,12 @@
-import { initAuth } from './features/auth.js?v=8000';
-import { router } from './modules/router.js?v=8003';
-import { state } from '/js/modules/state.js?v=8000';
-import { initLayout, renderSidebarProfile } from './features/layout.js?v=8000';
-import { initNotifications } from './features/notifications.js?v=8000';
+import { initAuth } from './features/auth.js?v=8001';
+import { router } from './modules/router.js?v=8004';
+import { state } from '/js/modules/state.js?v=8001';
+import { initLayout, renderSidebarProfile } from './features/layout.js?v=8001';
+import { initNotifications } from './features/notifications.js?v=8001';
 // Chat UI is loaded lazily when user navigates to #chat
-import { runOneTimeFix } from './fix_phantom_data.js?v=8000';
+import { runOneTimeFix } from './fix_phantom_data.js?v=8001';
 // Utilities imported at top
-import { debounce } from './modules/utils.js?v=8000';
+import { debounce } from './modules/utils.js?v=8001';
 import './utils/modal-utils.js';
 
 // Suppress benign ResizeObserver error
@@ -49,15 +49,15 @@ document.addEventListener('DOMContentLoaded', () => {
     initThemeLogic();
 
     // Init Feature Modals Lazily — catch prevents unhandledrejection from crashing the homepage
-    import('./features/settings.js?v=8000').then(m => m.initSettingsModals()).catch(e => console.warn('[app] settings modals:', e));
-    import('./features/invoices.js?v=9101').then(m => m.InvoiceLogic.initInvoiceModals()).catch(e => console.warn('[app] invoices modals:', e));
-    import('./features/collaborators.js?v=9103').then(m => m.initCollaboratorModals()).catch(e => console.warn('[app] collaborators modals:', e));
-    import('./features/collaborator_services.js?v=8000').then(m => m.initCollaboratorServiceModals()).catch(e => console.warn('[app] collaborator_services modals:', e));
-    import('./features/bank_transactions.js?v=8000').then(m => m.initBankTransactionModals()).catch(e => console.warn('[app] bank_transactions modals:', e));
-    import('./features/payments.js?v=9102').then(m => m.initPaymentModals()).catch(e => console.warn('[app] payments modals:', e));
-    import('./features/services.js?v=8000').then(m => m.initServiceModals()).catch(e => console.warn('[app] services modals:', e));
-    import('./features/white_label_partners.js?v=8000').then(m => m.initWhiteLabelPartnerModals()).catch(e => console.warn('[app] wl_partners modals:', e));
-    import('./features/sap_services.js?v=8000').then(m => m.initSapServiceModals()).catch(e => console.warn('[app] sap_services modals:', e));
+    import('./features/settings.js?v=8001').then(m => m.initSettingsModals()).catch(e => console.warn('[app] settings modals:', e));
+    import('./features/invoices.js?v=9102').then(m => m.InvoiceLogic.initInvoiceModals()).catch(e => console.warn('[app] invoices modals:', e));
+    import('./features/collaborators.js?v=9104').then(m => m.initCollaboratorModals()).catch(e => console.warn('[app] collaborators modals:', e));
+    import('./features/collaborator_services.js?v=8001').then(m => m.initCollaboratorServiceModals()).catch(e => console.warn('[app] collaborator_services modals:', e));
+    import('./features/bank_transactions.js?v=8001').then(m => m.initBankTransactionModals()).catch(e => console.warn('[app] bank_transactions modals:', e));
+    import('./features/payments.js?v=9103').then(m => m.initPaymentModals()).catch(e => console.warn('[app] payments modals:', e));
+    import('./features/services.js?v=8001').then(m => m.initServiceModals()).catch(e => console.warn('[app] services modals:', e));
+    import('./features/white_label_partners.js?v=8001').then(m => m.initWhiteLabelPartnerModals()).catch(e => console.warn('[app] wl_partners modals:', e));
+    import('./features/sap_services.js?v=8001').then(m => m.initSapServiceModals()).catch(e => console.warn('[app] sap_services modals:', e));
 
     // Init Layout (Sidebar toggles) - run immediately since UI is visible
     initLayout();
@@ -98,12 +98,12 @@ document.addEventListener('DOMContentLoaded', () => {
         initNotifications();  // Initialize notifications after auth
 
         // Render sidebar pinned items (sotto profilo / sopra menu principale)
-        import('./features/homepage_pinned.js?v=8000')
+        import('./features/homepage_pinned.js?v=8001')
             .then(mod => mod.renderSidebarPinned())
             .catch(err => console.warn('[sidebar-pinned]', err));
 
         // Quick-capture FAB (bottone "+" galleggiante)
-        import('./features/quick_capture.js?v=8000')
+        import('./features/quick_capture.js?v=8001')
             .then(mod => mod.mountQuickCaptureFab())
             .catch(err => console.warn('[quick-capture]', err));
         // Chat initializes lazily when user navigates to #chat
@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Global HubDrawer Opener Helper
 window.openPmItemDetails = function (itemId, spaceId) {
-    import('./features/pm/components/hub_drawer.js?v=8026').then(mod => {
+    import('./features/pm/components/hub_drawer.js?v=8027').then(mod => {
         mod.openHubDrawer(itemId, spaceId);
     });
 };
