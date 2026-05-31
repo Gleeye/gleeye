@@ -623,7 +623,7 @@ export function renderPaymentsDashboard(container) {
                         <h2 style="font-size: 1.25rem;">${title}</h2>
                         <button class="close-modal-btn" style="background: none; border: none; cursor: pointer;"><span class="material-icons-round">close</span></button>
                     </div>
-                    <div style="padding: 1.5rem 2rem; max-height: 70vh; overflow-y: auto;" id="modal-payment-list">
+                    <div style="padding: 1.5rem 2rem; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px); overflow-y: auto; -webkit-overflow-scrolling: touch;" id="modal-payment-list">
                         ${filtered.map(p => renderCard(p, isBulk)).join('')}
                     </div>
                     ${isBulk ? `
@@ -915,7 +915,7 @@ export function initPaymentModals() {
                     </div>
 
                     <!-- Content: Single Scrollable Section -->
-                    <div style="padding: 2rem 2.5rem; max-height: 60vh; overflow-y: auto;">
+                    <div style="padding: 2rem 2.5rem; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px); overflow-y: auto; -webkit-overflow-scrolling: touch;">
                         
                         <!-- Payment Info Section -->
                         <div class="flex-column" style="gap: 1.5rem; margin-bottom: 2rem;">

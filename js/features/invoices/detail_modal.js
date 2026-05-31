@@ -18,11 +18,11 @@ export function initInvoiceDetailModals() {
     document.body.insertAdjacentHTML('beforeend', `
         <div id="invoice-detail-modal" class="modal" style="z-index: 10000;">
             <style>
-                #invoice-detail-modal .modal-content { max-width: 800px; padding: 0; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; }
-                
+                #invoice-detail-modal .modal-content { max-width: 800px; padding: 0; overflow: hidden; display: flex; flex-direction: column; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px); }
+
                 @media (max-width: 768px) {
-                    #invoice-detail-modal .modal-content { 
-                        max-height: 90vh; 
+                    #invoice-detail-modal .modal-content {
+                        max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px);
                         width: 95vw; 
                         margin: 5vh auto; 
                         border-radius: 20px; 

@@ -182,7 +182,7 @@ function render() {
                 break;
             case 'invoices': // Active Invoices List
                 if (pageTitle) pageTitle.textContent = 'Fatture Attive';
-                import('../features/invoices.js?v=9004').then(m => m.renderActiveInvoicesSafe(contentArea));
+                import('../features/invoices.js?v=9101').then(m => m.renderActiveInvoicesSafe(contentArea));
                 break;
             case 'invoices-dashboard':
                 if (pageTitle) pageTitle.textContent = 'Dashboard Fatturato';
@@ -190,15 +190,15 @@ function render() {
                 break;
             case 'passive-invoices-collab':
                 if (pageTitle) pageTitle.textContent = 'Fatture Collaboratori';
-                import('../features/invoices.js?v=9004').then(m => m.renderPassiveInvoicesCollab(contentArea));
+                import('../features/invoices.js?v=9101').then(m => m.renderPassiveInvoicesCollab(contentArea));
                 break;
             case 'passive-invoices-suppliers':
                 if (pageTitle) pageTitle.textContent = 'Fatture Fornitori';
-                import('../features/invoices.js?v=9004').then(m => m.renderPassiveInvoicesSuppliers(contentArea));
+                import('../features/invoices.js?v=9101').then(m => m.renderPassiveInvoicesSuppliers(contentArea));
                 break;
             case 'passive-invoices-partners':
                 if (pageTitle) pageTitle.textContent = 'Fatture Partner WL';
-                import('../features/invoices.js?v=9004').then(m => m.renderPassiveInvoicesPartners(contentArea));
+                import('../features/invoices.js?v=9101').then(m => m.renderPassiveInvoicesPartners(contentArea));
                 break;
             case 'bank-transactions':
                 if (pageTitle) pageTitle.textContent = 'Registro Movimenti';
@@ -275,7 +275,7 @@ function render() {
                 break;
             case 'payments':
                 if (pageTitle) pageTitle.textContent = 'Dashboard Pagamenti';
-                import('../features/payments.js?v=9005').then(m => {
+                import('../features/payments.js?v=9102').then(m => {
                     m.initPaymentModals();
                     m.renderPaymentsDashboard(contentArea);
                 });
