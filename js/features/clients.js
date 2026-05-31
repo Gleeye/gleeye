@@ -116,6 +116,73 @@ function _renderCreditRiskBadge(client, opts = {}) {
     return `<span class="credit-risk-badge" title="${title}" style="${baseStyle} ${fontSize} background: rgba(245, 158, 11, 0.12); color: #b45309; border: 1px solid rgba(245, 158, 11, 0.35);">🟡 Pagamento in ritardo</span>`;
 }
 
+// ── Rendering card singola cliente (riusata da render completo e da refresh lista) ──
+function _buildClientCard(client) {
+    const status = computeClientStatus(client);
+    const creditBadge = _renderCreditRiskBadge(client, { compact: true });
+    const acc = findAccountResponsible(client);
+    const accBadge = acc
+        ? (acc.avatar_url
+            ? `<img class="v7-acc-badge" title="Account: ${acc.full_name}" src="${acc.avatar_url}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid ${_accountColor(acc.id)}55;" alt="${_accountInitials(acc.full_name)}">`
+            : `<div class="v7-acc-badge" title="Account: ${acc.full_name}" style="width: 22px; height: 22px; border-radius: 50%; background: ${_accountColor(acc.id)}22; color: ${_accountColor(acc.id)}; display:flex; align-items:center; justify-content:center; font-size: 0.65rem; font-weight: 700; border: 1px solid ${_accountColor(acc.id)}55;">${_accountInitials(acc.full_name)}</div>`)
+        : `<div class="v7-acc-badge v7-acc-unassigned" title="Account non assegnato" style="width: 22px; height: 22px; border-radius: 50%; background: rgba(148,163,184,0.1); color: #94a3b8; display:flex; align-items:center; justify-content:center; border: 1px dashed #cbd5e1;"><span class="material-icons-round" style="font-size: 14px;">person_off</span></div>`;
+    const userTags = Array.isArray(client.tags) ? client.tags.filter(Boolean) : [];
+    const tagsHtml = userTags.length === 0 ? '' :
+        `<div style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px;">${userTags.slice(0, 4).map(t => `<span style="font-size: 0.62rem; padding: 1px 6px; border-radius: 4px; background: rgba(99,102,241,0.10); color: #6366f1; font-weight: 600;">${t}</span>`).join('')}${userTags.length > 4 ? `<span style="font-size: 0.62rem; color: var(--text-tertiary);">+${userTags.length - 4}</span>` : ''}</div>`;
+    return `
+        <div class="v7-rubrica-item animate-fade-in" onclick="window.location.hash='client-detail/${client.id}'">
+            <div class="v7-item-main">
+                <div class="v7-id-row">
+                    <span class="v7-id">${client.client_code || '---'}</span>
+                    <span class="v7-status-pill" style="background:${status.color}18; color:${status.color}; border:1px solid ${status.color}30;">${status.label}</span>
+                    ${creditBadge}
+                </div>
+                <div class="v7-name">${client.business_name}</div>
+                <div class="v7-city-mini">${client.city || '-'}</div>
+                ${tagsHtml}
+            </div>
+            <div class="v7-item-contacts">
+                ${accBadge}
+                <a href="mailto:${client.email || '#'}" onclick="event.stopPropagation()" class="v7-contact-icon" title="${client.email || 'Nessuna mail'}">
+                    <span class="material-icons-round">alternate_email</span>
+                </a>
+                <a href="tel:${client.phone || '#'}" onclick="event.stopPropagation()" class="v7-contact-icon" title="${client.phone || 'Nessun telefono'}">
+                    <span class="material-icons-round">phone_iphone</span>
+                </a>
+            </div>
+        </div>
+    `;
+}
+
+// ── Aggiorna solo la lista clienti senza rifare il DOM padre (fix focus input) ──
+function _refreshClientsList() {
+    const listEl = document.querySelector('.crm-sidebar-list');
+    if (!listEl) return;
+    const _currentUserId = state.session?.user?.id;
+    const _myCollabId = (state.collaborators || []).find(c => c.user_id === _currentUserId)?.id || null;
+    const filtered = (state.clients || []).filter(c => {
+        const q = (state.searchTerm || '').toLowerCase();
+        const matchesSearch = !q ||
+            (c.business_name || '').toLowerCase().includes(q) ||
+            (c.client_code || '').toLowerCase().includes(q) ||
+            (c.city || '').toLowerCase().includes(q);
+        if (!matchesSearch) return false;
+        if (state.clientsAccountFilter !== 'all') {
+            if (state.clientsAccountFilter === 'unassigned') { if (c.account_responsible_id) return false; }
+            else if (state.clientsAccountFilter === 'mine') { if (!_myCollabId || c.account_responsible_id !== _myCollabId) return false; }
+            else if (c.account_responsible_id !== state.clientsAccountFilter) return false;
+        }
+        if (state.clientsStatusFilter !== 'all') {
+            if (computeClientStatus(c).key !== state.clientsStatusFilter) return false;
+        }
+        return true;
+    });
+    listEl.innerHTML = filtered.length > 0
+        ? filtered.map(_buildClientCard).join('')
+        : `<div class="v7-empty">Nessun record trovato</div>`;
+}
+window._refreshClientsList = _refreshClientsList;
+
 export async function renderClients(container) {
     // Show loading state while fetching
     if (!state.orders || !state.collaborators) {
@@ -259,50 +326,9 @@ export async function renderClients(container) {
         });
     };
 
-    const clientsHTML = filteredClients.length > 0 ? filteredClients.map(client => {
-        const isActive = getActiveStatus(client);
-        const status = computeClientStatus(client);
-        const creditBadge = _renderCreditRiskBadge(client, { compact: true });
-        const acc = findAccountResponsible(client);
-        const accBadge = acc
-            ? (acc.avatar_url
-                ? `<img class="v7-acc-badge" title="Account: ${acc.full_name}" src="${acc.avatar_url}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid ${_accountColor(acc.id)}55;" alt="${_accountInitials(acc.full_name)}">`
-                : `<div class="v7-acc-badge" title="Account: ${acc.full_name}" style="width: 22px; height: 22px; border-radius: 50%; background: ${_accountColor(acc.id)}22; color: ${_accountColor(acc.id)}; display:flex; align-items:center; justify-content:center; font-size: 0.65rem; font-weight: 700; border: 1px solid ${_accountColor(acc.id)}55;">${_accountInitials(acc.full_name)}</div>`)
-            : `<div class="v7-acc-badge v7-acc-unassigned" title="Account non assegnato" style="width: 22px; height: 22px; border-radius: 50%; background: rgba(148,163,184,0.1); color: #94a3b8; display:flex; align-items:center; justify-content:center; border: 1px dashed #cbd5e1;"><span class="material-icons-round" style="font-size: 14px;">person_off</span></div>`;
-
-        const userTags = Array.isArray(client.tags) ? client.tags.filter(Boolean) : [];
-        const tagsHtml = userTags.length === 0 ? '' :
-            `<div style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px;">${userTags.slice(0, 4).map(t => `<span style="font-size: 0.62rem; padding: 1px 6px; border-radius: 4px; background: rgba(99,102,241,0.10); color: #6366f1; font-weight: 600;">${t}</span>`).join('')}${userTags.length > 4 ? `<span style="font-size: 0.62rem; color: var(--text-tertiary);">+${userTags.length - 4}</span>` : ''}</div>`;
-        return `
-            <div class="v7-rubrica-item animate-fade-in" onclick="window.location.hash='client-detail/${client.id}'">
-                <div class="v7-item-main">
-                    <div class="v7-id-row">
-                        <span class="v7-id">${client.client_code || '---'}</span>
-                        <span class="v7-status-pill" style="background:${status.color}18; color:${status.color}; border:1px solid ${status.color}30;">${status.label}</span>
-                        ${creditBadge}
-                    </div>
-                    <div class="v7-name">${client.business_name}</div>
-                    <div class="v7-city-mini">${client.city || '-'}</div>
-                    ${tagsHtml}
-                </div>
-                <div class="v7-item-contacts">
-                    ${accBadge}
-                    <a href="mailto:${client.email || '#'}" onclick="event.stopPropagation()" class="v7-contact-icon" title="${client.email || 'Nessuna mail'}">
-                        <span class="material-icons-round">alternate_email</span>
-                    </a>
-                    <a href="tel:${client.phone || '#'}" onclick="event.stopPropagation()" class="v7-contact-icon" title="${client.phone || 'Nessun telefono'}">
-                        <span class="material-icons-round">phone_iphone</span>
-                    </a>
-                </div>
-            </div>
-        `;
-    }).join('') : `
-        <div class="empty-state" style="grid-column: 1 / -1;">
-            <span class="empty-icon">📭</span>
-            <p class="empty-title">Nessun cliente trovato</p>
-            <p class="empty-subtitle">Prova a modificare i filtri o il termine di ricerca.</p>
-        </div>
-    `;
+    const clientsHTML = filteredClients.length > 0
+        ? filteredClients.map(_buildClientCard).join('')
+        : `<div class="v7-empty">Nessun record trovato</div>`;
 
     // Conta clienti per ogni account per il dropdown filtro
     const accountCounts = {};
@@ -317,193 +343,264 @@ export async function renderClients(container) {
     // Globalize for inline event handlers
     window.renderClients = renderClients;
 
+    // Analytics: distribuzione clienti per account responsabile
+    const accountDistData = getAccountCollaborators().map(a => ({
+        name: a.full_name,
+        count: (state.clients || []).filter(c => c.account_responsible_id === a.id).length,
+        color: _accountColor(a.id),
+    })).filter(a => a.count > 0).sort((a, b) => b.count - a.count);
+    const unassignedCount = (state.clients || []).filter(c => !c.account_responsible_id).length;
+    if (unassignedCount > 0) accountDistData.push({ name: 'Non assegnati', count: unassignedCount, color: '#94a3b8' });
+
+    if (typeof state.clientsActiveTab === 'undefined') state.clientsActiveTab = 'rubrica';
+
     container.innerHTML = `
         <style>
-            :root {
-                --crm-bg: radial-gradient(at 0% 0%, rgba(248, 250, 255, 1) 0%, rgba(239, 243, 249, 1) 100%),
-                          linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
-            }
             .crm-page {
-                display: grid;
-                grid-template-columns: 320px 1fr;
-                grid-template-rows: 100%;
-                height: calc(100dvh - env(safe-area-inset-top, 0px) - 80px);
-                background: var(--crm-bg);
-                overflow: hidden;
-                position: relative;
-                margin: 0 -3rem -3rem -3rem; /* Inverse the padding of .content-area to take full space */
-            }
-            
-            /* Decorative shapes for background depth */
-            .crm-page::before {
-                content: '';
-                position: absolute;
-                top: -10%;
-                right: -10%;
-                width: 40%;
-                height: 40%;
-                background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
-                filter: blur(100px);
-                z-index: 0;
-                pointer-events: none;
-            }
-
-            /* RUBRICA SIDEBAR */
-            .crm-sidebar {
-                background: rgba(255, 255, 255, 0.5);
-                backdrop-filter: blur(30px) saturate(180%);
-                -webkit-backdrop-filter: blur(30px) saturate(180%);
-                border-right: 1px solid rgba(0,0,0,0.06);
                 display: flex;
                 flex-direction: column;
-                z-index: 10;
-                position: relative;
-                height: 100%;
-                min-height: 0;
+                height: calc(100vh - 80px);
+                overflow: hidden;
+                margin: 0 -3rem -3rem -3rem;
+                background: var(--bg-primary, #f8fafc);
             }
-            .crm-sidebar-header {
-                padding: 1.5rem;
-                border-bottom: 1px solid rgba(0,0,0,0.05);
-                flex-shrink: 0;
-            }
-            .v7-search-box {
-                background: white;
-                border-radius: 12px;
-                padding: 8px 12px;
+
+            /* TAB BAR */
+            .crm-tabbar {
                 display: flex;
                 align-items: center;
-                gap: 10px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-                margin-top: 1.25rem;
-                border: 1px solid rgba(0,0,0,0.02);
+                gap: 0.25rem;
+                padding: 0.75rem 1.25rem 0;
+                background: white;
+                border-bottom: 1px solid rgba(0,0,0,0.06);
+                flex-shrink: 0;
+            }
+            .crm-tab-btn {
+                display: flex;
+                align-items: center;
+                gap: 0.4rem;
+                padding: 0.5rem 1rem;
+                border-radius: 10px 10px 0 0;
+                border: none;
+                background: transparent;
+                color: var(--text-tertiary);
+                font-size: 0.85rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.18s;
+                border-bottom: 2px solid transparent;
+                margin-bottom: -1px;
+            }
+            .crm-tab-btn:hover { color: var(--text-primary); background: rgba(0,0,0,0.03); }
+            .crm-tab-btn.active {
+                color: var(--brand-blue);
+                border-bottom-color: var(--brand-blue);
+                background: rgba(59,130,246,0.05);
+            }
+            .crm-tab-btn .material-icons-round { font-size: 1.05rem; }
+
+            /* TAB PANELS */
+            .crm-tab-panel { display: none; flex: 1; min-height: 0; flex-direction: column; overflow: hidden; }
+            .crm-tab-panel.active { display: flex; }
+
+            /* RUBRICA PANEL */
+            .crm-rubrica-header {
+                padding: 1rem 1.25rem 0.75rem;
+                background: white;
+                border-bottom: 1px solid rgba(0,0,0,0.05);
+                flex-shrink: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            .crm-rubrica-toprow {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+            }
+            .v7-search-box {
+                flex: 1;
+                background: var(--bg-secondary, #f1f5f9);
+                border-radius: 10px;
+                padding: 7px 12px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                border: 1px solid rgba(0,0,0,0.04);
             }
             .v7-search-box input {
                 border: none;
                 outline: none;
-                font-size: 0.9rem;
+                font-size: 0.88rem;
                 width: 100%;
+                background: transparent;
                 color: var(--text-primary);
             }
-            
             .crm-sidebar-list {
                 flex: 1;
                 overflow-y: auto;
-                padding: 1rem 0.75rem;
+                padding: 0.75rem;
                 min-height: 0;
             }
+
+            /* CARD CLIENTE */
             .v7-rubrica-item {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 14px 1rem;
-                border-radius: 14px;
-                margin-bottom: 6px;
+                padding: 12px 0.875rem;
+                border-radius: 12px;
+                margin-bottom: 4px;
                 cursor: pointer;
-                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                transition: background 0.18s, box-shadow 0.18s;
             }
             .v7-rubrica-item:hover {
                 background: white;
-                box-shadow: 0 10px 25px -10px rgba(0,0,0,0.1);
-                transform: translateX(6px);
+                box-shadow: 0 4px 16px -4px rgba(0,0,0,0.08);
             }
-            .v7-id-row { display: flex; align-items: center; gap: 8px; }
-            .v7-id { font-weight: 700; font-size: 1rem; color: var(--brand-blue); font-family: 'Questrial'; letter-spacing: -0.2px; }
-            .v7-active-dot { width: 7px; height: 7px; background: #10b981; border-radius: 50%; box-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
-            .v7-status-pill { font-size: 0.62rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; }
-            .v7-name { font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;}
-            .v7-city-mini { font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; font-weight: 600; }
-            
-            .v7-item-contacts { display: flex; gap: 10px; opacity: 0; transition: all 0.2s; transform: translateX(10px); }
-            .v7-rubrica-item:hover .v7-item-contacts { opacity: 1; transform: translateX(0); }
-            .v7-contact-icon { 
-                width: 32px; 
-                height: 32px; 
-                display: flex; 
-                align-items: center; 
-                justify-content: center; 
-                border-radius: 8px; 
-                background: var(--bg-secondary);
-                color: var(--text-tertiary); 
-                text-decoration: none; 
-                transition: all 0.2s;
+            .v7-item-main { flex: 1; min-width: 0; }
+            .v7-id-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+            .v7-id { font-weight: 700; font-size: 0.78rem; color: var(--brand-blue); font-family: 'Questrial', sans-serif; letter-spacing: 0.2px; }
+            .v7-status-pill { font-size: 0.6rem; font-weight: 700; padding: 1px 6px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; }
+            .v7-name { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .v7-city-mini { font-size: 0.68rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; font-weight: 600; }
+            .v7-tags-row { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+            .v7-item-contacts {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                flex-shrink: 0;
+                margin-left: 0.75rem;
+            }
+            .v7-contact-icon {
+                width: 28px;
+                height: 28px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 7px;
+                background: var(--bg-secondary, #f1f5f9);
+                color: var(--text-tertiary);
+                text-decoration: none;
+                transition: all 0.15s;
+                flex-shrink: 0;
             }
             .v7-contact-icon:hover { color: white; background: var(--brand-blue); }
-            .v7-contact-icon .material-icons-round { font-size: 1.1rem; }
-
-            /* DASHBOARD MAIN AREA */
-            .crm-dashboard {
-                padding: 2.5rem;
-                overflow-y: auto;
-                display: flex;
-                flex-direction: column;
-                gap: 2.5rem;
-                height: 100%;
-                min-height: 0;
-            }
-            .v7-stats-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-                gap: 2rem;
-            }
-            .v7-card {
-                background: white;
-                border-radius: 24px;
-                padding: 1.75rem;
-                box-shadow: 0 20px 40px -15px rgba(0,0,0,0.05);
-                border: 1px solid rgba(255,255,255,0.8);
-                transition: transform 0.3s;
-            }
-            .v7-card:hover { transform: translateY(-5px); }
-            .v7-card-title { font-size: 0.95rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 2rem; display: flex; align-items: center; gap: 10px; text-transform: uppercase; letter-spacing: 0.5px;}
-            .v7-chart-container { height: 280px; position: relative; }
-
-            .v7-hero-stats {
-                display: flex;
-                gap: 3rem;
-                margin-bottom: 1rem;
-            }
-            .hero-stat-item {
-                display: flex;
-                flex-direction: column;
-            }
-            .hero-stat-val { font-size: 3rem; font-weight: 800; color: var(--text-primary); letter-spacing: -2px; line-height: 1; }
-            .hero-stat-label { font-size: 0.85rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; margin-top: 8px; letter-spacing: 1px; }
-            
+            .v7-contact-icon .material-icons-round { font-size: 0.95rem; }
             .v7-empty { padding: 3rem; text-align: center; color: var(--text-tertiary); font-style: italic; opacity: 0.5; }
 
-            @media (max-width: 1024px) {
-                .crm-page { grid-template-columns: 1fr; }
-                .crm-sidebar { display: none; }
+            /* CHIP FILTRI STATO */
+            .crm-chips-row { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+            .crm-chip {
+                padding: 0.2rem 0.5rem;
+                border-radius: 999px;
+                font-size: 0.68rem;
+                font-weight: 700;
+                cursor: pointer;
+                border: 1px solid;
+                transition: all 0.15s;
+                line-height: 1.4;
+            }
+
+            /* ANALYTICS PANEL */
+            .crm-analytics-body {
+                flex: 1;
+                overflow-y: auto;
+                padding: 1.5rem;
+                display: flex;
+                flex-direction: column;
+                gap: 1.5rem;
+                min-height: 0;
+            }
+            .crm-kpi-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+                gap: 0.75rem;
+            }
+            .crm-kpi-card {
+                background: white;
+                border-radius: 14px;
+                padding: 1rem 1.25rem;
+                box-shadow: 0 2px 8px -2px rgba(0,0,0,0.06);
+                border: 1px solid rgba(0,0,0,0.04);
+            }
+            .crm-kpi-val { font-size: 2rem; font-weight: 800; letter-spacing: -1.5px; line-height: 1; }
+            .crm-kpi-label { font-size: 0.72rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 5px; }
+            .v7-card {
+                background: white;
+                border-radius: 18px;
+                padding: 1.5rem;
+                box-shadow: 0 4px 16px -6px rgba(0,0,0,0.07);
+                border: 1px solid rgba(0,0,0,0.04);
+            }
+            .v7-card-title { font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+            .v7-chart-container { height: 240px; position: relative; }
+            .v7-stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: 1rem;
+            }
+
+            /* ACCOUNT BAR (distribuzione account) */
+            .crm-acc-bar-row {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                margin-bottom: 0.6rem;
+            }
+            .crm-acc-bar-name { font-size: 0.82rem; font-weight: 600; color: var(--text-primary); min-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .crm-acc-bar-track { flex: 1; height: 8px; border-radius: 99px; background: rgba(0,0,0,0.05); overflow: hidden; }
+            .crm-acc-bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s cubic-bezier(0.4,0,0.2,1); }
+            .crm-acc-bar-count { font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); min-width: 28px; text-align: right; }
+
+            @media (max-width: 640px) {
+                .crm-analytics-body { padding: 1rem; }
+                .crm-kpi-grid { grid-template-columns: repeat(3, 1fr); }
+                .crm-acc-bar-name { min-width: 90px; font-size: 0.75rem; }
             }
         </style>
 
         <div class="crm-page animate-fade-in">
-            <!-- MASTER: RUBRICA -->
-            <div class="crm-sidebar">
-                <div class="crm-sidebar-header">
-                    <div style="display:flex; justify-content: space-between; align-items: center;">
-                        <h3 style="margin:0; font-size: 1.4rem; font-weight: 700; color: var(--text-primary);">Rubrica Clients</h3>
-                        <button class="primary-btn" onclick="openNewClientModal()" style="padding: 0.5rem; border-radius: 10px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;">
-                            <span class="material-icons-round">add</span>
-                        </button>
-                    </div>
-                    <div class="v7-search-box">
-                        <span class="material-icons-round" style="font-size: 1.2rem; color: var(--text-tertiary);">search</span>
-                        <input type="text" placeholder="Scansione istantanea..." value="${state.searchTerm}"
-                               oninput="state.searchTerm = this.value; renderClients(document.getElementById('content-area'))">
-                    </div>
-                    <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <span class="material-icons-round" style="font-size: 1rem; color: var(--text-tertiary);">supervisor_account</span>
-                        <select onchange="state.clientsAccountFilter = this.value; renderClients(document.getElementById('content-area'))"
-                            style="flex: 1; padding: 0.4rem 0.6rem; border: 1px solid var(--glass-border); border-radius: 8px; background: white; font-size: 0.82rem; color: var(--text-primary);">
-                            <option value="all" ${state.clientsAccountFilter === 'all' ? 'selected' : ''}>Tutti gli account</option>
-                            ${_myCollabId ? `<option value="mine" ${state.clientsAccountFilter === 'mine' ? 'selected' : ''}>👤 I miei clienti (${accountCounts[_myCollabId] || 0})</option>` : ''}
-                            <option value="unassigned" ${state.clientsAccountFilter === 'unassigned' ? 'selected' : ''}>Non assegnati (${accountCounts['__unassigned__'] || 0})</option>
+
+            <!-- TAB BAR -->
+            <div class="crm-tabbar">
+                <button class="crm-tab-btn ${state.clientsActiveTab === 'rubrica' ? 'active' : ''}"
+                        onclick="window._switchClientsTab('rubrica')">
+                    <span class="material-icons-round">contacts</span>
+                    Clienti
+                    <span style="font-size:0.72rem; font-weight:800; color:inherit; opacity:0.7;">${(state.clients||[]).length}</span>
+                </button>
+                <button class="crm-tab-btn ${state.clientsActiveTab === 'analytics' ? 'active' : ''}"
+                        onclick="window._switchClientsTab('analytics')">
+                    <span class="material-icons-round">insights</span>
+                    Analytics
+                </button>
+                <div style="flex:1;"></div>
+                <button class="primary-btn" onclick="openNewClientModal()"
+                        style="padding: 0.4rem 0.9rem; border-radius: 8px; font-size: 0.82rem; display:flex; align-items:center; gap:4px; margin-bottom: 0.25rem;">
+                    <span class="material-icons-round" style="font-size:1rem;">add</span>
+                    Nuovo
+                </button>
+            </div>
+
+            <!-- TAB: RUBRICA -->
+            <div class="crm-tab-panel ${state.clientsActiveTab === 'rubrica' ? 'active' : ''}" id="crm-panel-rubrica">
+                <div class="crm-rubrica-header">
+                    <div class="crm-rubrica-toprow">
+                        <div class="v7-search-box">
+                            <span class="material-icons-round" style="font-size: 1.1rem; color: var(--text-tertiary);">search</span>
+                            <input type="text" placeholder="Cerca cliente..." value="${state.searchTerm}"
+                                   oninput="state.searchTerm = this.value; window._refreshClientsList()">
+                        </div>
+                        <select onchange="state.clientsAccountFilter = this.value; window._refreshClientsList()"
+                            style="padding: 0.4rem 0.6rem; border: 1px solid var(--glass-border); border-radius: 8px; background: white; font-size: 0.8rem; color: var(--text-primary); max-width: 180px;">
+                            <option value="all" ${state.clientsAccountFilter === 'all' ? 'selected' : ''}>Tutti</option>
+                            ${_myCollabId ? `<option value="mine" ${state.clientsAccountFilter === 'mine' ? 'selected' : ''}>I miei (${accountCounts[_myCollabId] || 0})</option>` : ''}
+                            <option value="unassigned" ${state.clientsAccountFilter === 'unassigned' ? 'selected' : ''}>Non assegnati</option>
                             ${accountFilterOptions}
                         </select>
                     </div>
-                    <!-- Chip filtro stato cliente -->
-                    <div style="margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center;">
+                    <div class="crm-chips-row">
                         ${[
                             { key: 'all', label: 'Tutti', color: '#64748b', count: (state.clients || []).length },
                             { key: 'lead', label: 'Lead', color: '#3b82f6', count: statusCounts.lead },
@@ -513,10 +610,10 @@ export async function renderClients(container) {
                             { key: 'perso', label: 'Persi', color: '#ef4444', count: statusCounts.perso },
                         ].map(chip => {
                             const active = state.clientsStatusFilter === chip.key;
-                            return `<button onclick="state.clientsStatusFilter='${chip.key}'; renderClients(document.getElementById('content-area'))" style="padding: 0.25rem 0.55rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; cursor: pointer; border: 1px solid ${chip.color}${active ? '' : '30'}; background: ${active ? chip.color : chip.color + '15'}; color: ${active ? 'white' : chip.color};">${chip.label} ${chip.count}</button>`;
+                            return `<button class="crm-chip" onclick="state.clientsStatusFilter='${chip.key}'; window._refreshClientsList()" style="border-color:${chip.color}${active?'':'30'}; background:${active ? chip.color : chip.color+'15'}; color:${active ? 'white' : chip.color};">${chip.label} ${chip.count}</button>`;
                         }).join('')}
-                        <button onclick="window.showClientStatusHelp()" title="Cosa significano gli stati?" class="icon-btn" style="margin-left: auto; border-radius: 999px; width: auto; padding: 0.2rem 0.45rem;">
-                            <span class="material-icons-round" style="font-size: 0.9rem;">help_outline</span>
+                        <button onclick="window.showClientStatusHelp()" title="Cosa significano gli stati?" style="margin-left:auto; padding:0.2rem 0.45rem; border-radius:999px; border:1px solid var(--glass-border); background:white; color:var(--text-tertiary); font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:0.2rem;">
+                            <span class="material-icons-round" style="font-size:0.9rem;">help_outline</span>
                         </button>
                     </div>
                 </div>
@@ -525,59 +622,95 @@ export async function renderClients(container) {
                 </div>
             </div>
 
-            <!-- DETAIL: DASHBOARD -->
-            <div class="crm-dashboard">
-                <div class="animate-slide-up">
-                    <div class="v7-hero-stats">
-                        <div class="hero-stat-item">
-                            <span class="hero-stat-val">${analytics.total}</span>
-                            <span class="hero-stat-label">Stock Totale</span>
-                        </div>
-                        <div class="hero-stat-item">
-                            <span class="hero-stat-val" style="color: #10b981;">${analytics.activeClientsCount}</span>
-                            <span class="hero-stat-label">Active Hub</span>
-                        </div>
-                    </div>
-                    <p style="color: var(--text-tertiary); font-size: 1rem; max-width: 600px; line-height: 1.5;">Benvenuto nella centrale operativa. Qui puoi monitorare la crescita e la vitalità del tuo network commerciale.</p>
-                </div>
+            <!-- TAB: ANALYTICS -->
+            <div class="crm-tab-panel ${state.clientsActiveTab === 'analytics' ? 'active' : ''}" id="crm-panel-analytics">
+                <div class="crm-analytics-body">
 
-                <div class="v7-stats-grid">
-                    <div class="v7-card animate-slide-up" style="animation-delay: 0.1s;">
-                        <div class="v7-card-title">
-                            <span class="material-icons-round" style="color: var(--brand-blue)">insights</span>
-                            Acquisizione Parco Clienti
-                        </div>
-                        <div class="v7-chart-container">
-                            <canvas id="growthChart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="v7-card animate-slide-up" style="animation-delay: 0.2s;">
-                        <div class="v7-card-title">
-                            <span class="material-icons-round" style="color: #f59e0b">speed</span>
-                            Volume Transato (Ordini)
-                        </div>
-                        <div class="v7-chart-container">
-                            <canvas id="activityChart"></canvas>
-                        </div>
+                    <!-- KPI per stato -->
+                    <div class="crm-kpi-grid">
+                        ${[
+                            { label: 'Totali', val: analytics.total, color: '#1e293b' },
+                            { label: 'Con lavori attivi', val: analytics.activeClientsCount, color: '#10b981' },
+                            { label: 'Lead', val: statusCounts.lead, color: '#3b82f6' },
+                            { label: 'Potenziali', val: statusCounts.potenziale, color: '#f59e0b' },
+                            { label: 'Dormienti', val: statusCounts.dormante, color: '#94a3b8' },
+                            { label: 'Persi', val: statusCounts.perso, color: '#ef4444' },
+                        ].map(k => `
+                            <div class="crm-kpi-card">
+                                <div class="crm-kpi-val" style="color:${k.color}">${k.val}</div>
+                                <div class="crm-kpi-label">${k.label}</div>
+                            </div>
+                        `).join('')}
                     </div>
 
-                    <div class="v7-card animate-slide-up" style="animation-delay: 0.3s;">
+                    <!-- Distribuzione per account -->
+                    ${accountDistData.length > 0 ? `
+                    <div class="v7-card">
                         <div class="v7-card-title">
-                            <span class="material-icons-round" style="color: #ef4444">place</span>
-                            Geolocalizzazione Cluster
+                            <span class="material-icons-round" style="color:#6366f1">supervisor_account</span>
+                            Clienti per account responsabile
                         </div>
-                        <div class="v7-chart-container">
-                            <canvas id="geoChart"></canvas>
+                        ${accountDistData.map(a => `
+                            <div class="crm-acc-bar-row">
+                                <span class="crm-acc-bar-name" title="${a.name}">${a.name}</span>
+                                <div class="crm-acc-bar-track">
+                                    <div class="crm-acc-bar-fill" style="width:${Math.round(a.count / analytics.total * 100)}%; background:${a.color};"></div>
+                                </div>
+                                <span class="crm-acc-bar-count">${a.count}</span>
+                            </div>
+                        `).join('')}
+                    </div>` : ''}
+
+                    <!-- Grafici -->
+                    <div class="v7-stats-grid">
+                        <div class="v7-card">
+                            <div class="v7-card-title">
+                                <span class="material-icons-round" style="color:var(--brand-blue)">trending_up</span>
+                                Nuovi clienti per mese
+                            </div>
+                            <div class="v7-chart-container">
+                                <canvas id="growthChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="v7-card">
+                            <div class="v7-card-title">
+                                <span class="material-icons-round" style="color:#f59e0b">bar_chart</span>
+                                Ordini per mese
+                            </div>
+                            <div class="v7-chart-container">
+                                <canvas id="activityChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="v7-card">
+                            <div class="v7-card-title">
+                                <span class="material-icons-round" style="color:#8b5cf6">place</span>
+                                Clienti per città
+                            </div>
+                            <div class="v7-chart-container">
+                                <canvas id="geoChart"></canvas>
+                            </div>
                         </div>
                     </div>
+
                 </div>
             </div>
+
         </div>
     `;
 
-    // INITIALIZE CHARTS
-    setTimeout(() => {
+    // Switch tab helper
+    window._switchClientsTab = function(tab) {
+        state.clientsActiveTab = tab;
+        document.querySelectorAll('.crm-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.crm-tab-panel').forEach(p => p.classList.remove('active'));
+        const activeBtn = document.querySelector(`.crm-tab-btn[onclick*="'${tab}'"]`);
+        if (activeBtn) activeBtn.classList.add('active');
+        const activePanel = document.getElementById('crm-panel-' + tab);
+        if (activePanel) activePanel.classList.add('active');
+        if (tab === 'analytics') _initClientsCharts();
+    };
+
+    function _initClientsCharts() {
         const ctxGrowth = document.getElementById('growthChart');
         const ctxActivity = document.getElementById('activityChart');
         const ctxGeo = document.getElementById('geoChart');
@@ -677,7 +810,12 @@ export async function renderClients(container) {
                 }
             });
         }
-    }, 100);
+    }
+
+    // Init grafici subito se analytics è già il tab attivo
+    if (state.clientsActiveTab === 'analytics') {
+        setTimeout(_initClientsCharts, 50);
+    }
 }
 
 export function renderClientDetail(container) {
