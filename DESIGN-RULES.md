@@ -272,9 +272,14 @@ if (ok) { /* procedi */ }
 
 > `showAlert` e `showConfirm` sono globali (window.showAlert, window.showConfirm). Non serve import.
 
-### Alert inline ⚠️ DA CREARE
-Non esiste una classe CSS standard per alert inline tipo `.alert-success`, `.alert-error`, ecc.
-Nel frattempo usa badge o icone colorate. **Da definire** quando serve un pattern stabile.
+### Alert inline
+```html
+<div class="alert alert-success">Operazione completata.</div>
+<div class="alert alert-error">Si è verificato un errore.</div>
+<div class="alert alert-warning">Attenzione: verifica i dati.</div>
+<div class="alert alert-info">Informazione neutrale.</div>
+```
+Blocchi inline con bordo sinistro colorato. Definiti in `css/design-system.css`.
 
 ### Badge di stato
 ```html
@@ -452,7 +457,7 @@ Per la pagina, usa `.page-title` e `.page-subtitle` dentro `.page-header`:
 | ⚠️ DUPLICATO | `--shadow-soft` (variables-v2) e `--shadow-sm` (tokens) sono quasi identici (light: 0.03 vs 0.04). Preferire `--shadow-soft` |
 | ⚠️ DUPLICATO | `--border-radius-*` in variables-v2 e `--radius-*` in tokens hanno valori diversi. Usare sempre `--radius-*` da tokens |
 | ⚠️ DUPLICATO | `homepage.css` e `homepage-alt.css` coesistono — probabilmente dead code parziale |
-| ⚠️ DA CREARE | Classi alert inline (`.alert-success`, `.alert-error`, ecc.) non esistono |
-| ⚠️ DA CREARE | Classe `.btn-secondary` non esiste come standalone — si usa `.primary-btn.secondary` |
-| ⚠️ DA CREARE | Nessun utility di `text-truncate` o `text-ellipsis` codificato come classe |
+| ✅ OK | Classi alert inline disponibili: `.alert`, `.alert-success`, `.alert-error`, `.alert-warning`, `.alert-info` |
+| ✅ OK | `.btn-secondary` disponibile come standalone (alias di `.primary-btn.secondary`) |
+| ✅ OK | `.text-truncate` disponibile come utility |
 | ⚠️ ATTENZIONE | `--font-titles` (variables-v2) e `--font-display` (tokens) sono entrambi Satoshi — usa `--font-titles` in codice esistente, `--font-display` in codice nuovo |
