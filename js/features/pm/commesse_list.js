@@ -359,7 +359,7 @@ export async function renderCommesseList(container, forceRefresh = false) {
                                     <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--text-primary); font-family: var(--font-titles);">Elenco Commesse</h3>
                                     <span id="filter-badge" style="display: none; background: var(--brand-viola); color: white; padding: 3px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">FILTRO ATTIVO</span>
                                 </div>
-                                <button id="reset-filters" style="display: none; background: white; border: 1px solid var(--brand-viola); color: var(--brand-viola); padding: 6px 16px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--brand-viola)'; this.style.color='white'">Rimuovi Filtri</button>
+                                <button id="reset-filters" class="primary-btn secondary btn-sm" style="display: none;">Rimuovi Filtri</button>
                             </div>
 
                             <!-- New Interactive Filter Bar -->

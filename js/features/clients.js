@@ -515,7 +515,7 @@ export async function renderClients(container) {
                             const active = state.clientsStatusFilter === chip.key;
                             return `<button onclick="state.clientsStatusFilter='${chip.key}'; renderClients(document.getElementById('content-area'))" style="padding: 0.25rem 0.55rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; cursor: pointer; border: 1px solid ${chip.color}${active ? '' : '30'}; background: ${active ? chip.color : chip.color + '15'}; color: ${active ? 'white' : chip.color};">${chip.label} ${chip.count}</button>`;
                         }).join('')}
-                        <button onclick="window.showClientStatusHelp()" title="Cosa significano gli stati?" style="margin-left: auto; padding: 0.2rem 0.45rem; border-radius: 999px; border: 1px solid var(--glass-border); background: white; color: var(--text-tertiary); font-size: 0.75rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 0.2rem;">
+                        <button onclick="window.showClientStatusHelp()" title="Cosa significano gli stati?" class="icon-btn" style="margin-left: auto; border-radius: 999px; width: auto; padding: 0.2rem 0.45rem;">
                             <span class="material-icons-round" style="font-size: 0.9rem;">help_outline</span>
                         </button>
                     </div>
