@@ -320,6 +320,14 @@ export async function renderOrderDetail(container, orderId) {
     }
 
     container.innerHTML = `
+        <style>
+            @media (max-width: 1024px) {
+                .order-detail-grid { grid-template-columns: 1fr !important; }
+            }
+            @media (max-width: 768px) {
+                .order-detail-grid { grid-template-columns: 1fr !important; gap: 1rem !important; }
+            }
+        </style>
         <div class="animate-fade-in" style="max-width: 1400px; margin: 0 auto; padding: 1.5rem;">
             <!-- Header Section -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; background: var(--bg-secondary); padding: 1.5rem 2rem; border-radius: 16px; border: 1px solid var(--glass-border);">
@@ -412,7 +420,7 @@ export async function renderOrderDetail(container, orderId) {
             </div>
 
             <!-- Content Grid Layout -->
-            <div style="display: grid; grid-template-columns: 320px 1fr 340px; gap: 1.5rem; align-items: start;">
+            <div class="order-detail-grid" style="display: grid; grid-template-columns: minmax(0, 320px) 1fr minmax(0, 340px); gap: 1.5rem; align-items: start;">
                 
                 <!-- Column 1: Client, People, Assignments -->
                 <div style="display: flex; flex-direction: column; gap: 1.25rem;">

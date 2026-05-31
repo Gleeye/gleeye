@@ -159,11 +159,11 @@ function render() {
                 break;
             case 'employees':
                 if (pageTitle) pageTitle.textContent = 'Collaboratori';
-                import('../features/collaborators.js?v=9000').then(m => m.renderCollaborators(contentArea));
+                import('../features/collaborators.js?v=9103').then(m => m.renderCollaborators(contentArea));
                 break;
             case 'collaborator-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Collaboratore';
-                import('../features/collaborators.js?v=9000').then(m => m.renderCollaboratorDetail(contentArea));
+                import('../features/collaborators.js?v=9103').then(m => m.renderCollaboratorDetail(contentArea));
                 break;
             case 'white-label-partners':
                 if (pageTitle) pageTitle.textContent = 'Partner White Label';
@@ -224,7 +224,7 @@ function render() {
                 break;
             case 'order-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Ordine';
-                import('../features/orders.js?v=8010').then(m => m.renderOrderDetail(contentArea));
+                import('../features/orders.js?v=9104').then(m => m.renderOrderDetail(contentArea));
                 break;
             case 'suppliers':
                 state.currentPage = 'suppliers';

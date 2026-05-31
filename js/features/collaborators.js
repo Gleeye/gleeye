@@ -897,8 +897,14 @@ export function renderCollaboratorDetail(container) {
                 </div>
             </div>
 
+            <style>
+                @media (max-width: 768px) {
+                    .collab-detail-grid { grid-template-columns: 1fr !important; }
+                }
+            </style>
+
             <!-- Main Content Grid -->
-            <div style="display: grid; grid-template-columns: 320px 1fr; gap: 1.5rem; align-items: start;">
+            <div class="collab-detail-grid" style="display: grid; grid-template-columns: minmax(0, 320px) 1fr; gap: 1.5rem; align-items: start;">
                 
                 <!-- Left Column: Profile Info -->
                 <div style="display: flex; flex-direction: column; gap: 1rem;">
