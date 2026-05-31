@@ -19,13 +19,10 @@ export function renderContacts(container) {
 
         if (filtered.length === 0) {
             return `
-                <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; color: var(--text-tertiary); text-align: center;">
-                    <span class="material-icons-round" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;">contact_phone</span>
-                    <h3 style="font-size: 1.2rem; font-weight: 500; margin: 0; color: var(--text-secondary);">Nessun referente trovato</h3>
-                    <p style="font-size: 0.95rem; margin-top: 0.5rem; max-width: 320px;">
-                        Nessun match con il filtro corrente.<br>
-                        Aggiungi un referente da qui o dal dettaglio del cliente/partner/fornitore.
-                    </p>
+                <div class="empty-state" style="grid-column: 1 / -1;">
+                    <span class="empty-icon">📭</span>
+                    <p class="empty-title">Nessun referente trovato</p>
+                    <p class="empty-subtitle">Nessun match con il filtro corrente. Aggiungi un referente dal dettaglio del cliente.</p>
                 </div>
             `;
         }

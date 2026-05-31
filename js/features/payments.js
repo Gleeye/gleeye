@@ -426,7 +426,7 @@ export function renderPaymentsDashboard(container) {
                 const listHtml = `
                     <div class="flex-column" style="gap: 0.75rem;">
                         ${activeTab.items.map(p => renderCard(p, isBulk)).join('')}
-                        ${activeTab.items.length === 0 ? '<div style="padding: 3rem 1.5rem; text-align: center; color: var(--text-tertiary); font-style: italic; font-size: 0.85rem; background: var(--glass-highlight); border-radius: 16px;">Nessun pagamento in questa categoria</div>' : ''}
+                        ${activeTab.items.length === 0 ? '<div class="empty-state"><span class="empty-icon">📭</span><p class="empty-title">Nessun pagamento</p><p class="empty-subtitle">Nessun pagamento in questa categoria.</p></div>' : ''}
                     </div>
                 `;
 
@@ -464,7 +464,7 @@ export function renderPaymentsDashboard(container) {
                         </div>
                         <div class="flex-column custom-scrollbar" style="gap: 0.6rem; overflow-y: auto; flex: 1; padding-right: 4px;">
                             ${items.map(p => renderCard(p, isBulk)).join('')}
-                            ${items.length === 0 ? '<div style="padding: 2rem; text-align: center; color: var(--text-tertiary); font-style: italic; font-size: 0.85rem;">Nessun pagamento</div>' : ''}
+                            ${items.length === 0 ? '<div class="empty-state" style="padding:2rem 1rem;"><span class="empty-icon">📭</span><p class="empty-title">Nessun pagamento</p></div>' : ''}
                         </div>
                     </div>
                 `;

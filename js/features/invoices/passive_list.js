@@ -362,11 +362,10 @@ function renderPassiveInvoicesGeneric(container, title, type) {
             <!-- Invoice List -->
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                 ${cards ? cards : `
-                    <div style="text-align: center; padding: 4rem 2rem; border: 2px dashed var(--glass-border); border-radius: 12px; background: rgba(255,255,255,0.02);">
-                        <span class="material-icons-round" style="font-size: 3rem; color: var(--text-tertiary); margin-bottom: 1rem;">search_off</span>
-                        <p style="font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Nessuna fattura visualizzata per il ${currentYear}</p>
-                        <p style="font-size: 0.9rem; color: var(--text-tertiary);">Controlla il filtro anno in alto a destra o lo stato.</p>
-                        ${state.passiveInvoices.length > 0 ? `<p style="margin-top:1rem; color: #f59e0b; font-size: 0.85rem; background: rgba(245, 158, 11, 0.1); display: inline-block; padding: 0.25rem 0.75rem; border-radius: 1rem;">Ci sono ${state.passiveInvoices.length} fatture totali nel database (filtri attivi)</p>` : ''}
+                    <div class="empty-state">
+                        <span class="empty-icon">📭</span>
+                        <p class="empty-title">Nessuna fattura passiva per il ${currentYear}</p>
+                        <p class="empty-subtitle">Controlla il filtro anno o lo stato selezionato.${state.passiveInvoices.length > 0 ? ` (${state.passiveInvoices.length} fatture totali con altri filtri)` : ''}</p>
                     </div>
                 `}
             </div>

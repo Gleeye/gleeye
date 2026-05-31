@@ -394,7 +394,7 @@ export function renderActiveInvoicesSafe(container) {
             </style>
 
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                ${cards || '<div style="text-align: center; padding: 3rem; color: var(--text-tertiary);">Nessuna fattura trovata</div>'}
+                ${cards || `<div class="empty-state"><span class="empty-icon">📭</span><p class="empty-title">Nessuna fattura trovata</p><p class="empty-subtitle">Prova a modificare i filtri o l'anno selezionato.</p></div>`}
             </div>
         </div>`;
 

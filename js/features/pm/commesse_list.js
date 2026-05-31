@@ -26,7 +26,7 @@ function normalizeStatus(status) {
 
 export async function renderCommesseList(container, forceRefresh = false) {
     console.log(`[CommesseList] Starting render (force: ${forceRefresh})...`);
-    container.innerHTML = '<div style="padding:4rem; text-align:center;"><span class="loader"></span> Caricamento Dashboard Commesse...</div>';
+    container.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Caricamento commesse...</p></div>';
 
     try {
         // --- 1. DATA FETCHING ---
@@ -460,7 +460,7 @@ export async function renderCommesseList(container, forceRefresh = false) {
             if (!list) return;
 
             if (filteredSidebar.length === 0) {
-                list.innerHTML = `<div style="text-align: center; padding: 2rem; color: var(--text-tertiary); font-size: 0.75rem;">Nessuna commessa attiva</div>`;
+                list.innerHTML = `<div class="empty-state" style="padding:2rem 1rem;"><span class="empty-icon">📭</span><p class="empty-title" style="font-size:0.9rem;">Nessuna commessa attiva</p></div>`;
                 return;
             }
 
@@ -534,7 +534,7 @@ export async function renderCommesseList(container, forceRefresh = false) {
             if (resetBtn) resetBtn.style.display = hasFilters || searchTerm ? 'block' : 'none';
 
             if (sorted.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 4rem; color: var(--text-tertiary); font-size: 0.9rem;">Nessuna commessa trovata con i filtri attuali.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><span class="empty-icon">📭</span><p class="empty-title">Nessuna commessa trovata</p><p class="empty-subtitle">Prova a modificare i filtri o la ricerca.</p></div></td></tr>`;
                 return;
             }
 
