@@ -46,7 +46,6 @@ function initThemeLogic() {
 
 // Bootstrapper
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Gleeye Workspace v294 Booting...');
     initThemeLogic();
 
     // Init Feature Modals Lazily — catch prevents unhandledrejection from crashing the homepage
@@ -78,7 +77,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Listen for app ready to start router and render user data
     window.addEventListener('app:ready', () => {
-        console.log("App ready event received. Rendering profile and router.");
 
         // Unhide app early so router can find elements
         const app = document.getElementById('app');
@@ -115,7 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Refresh UI when data is loaded
     window.addEventListener('data:loaded', () => {
-        console.log("Data loaded event received. Refreshing UI.");
         router();
     });
 
@@ -126,13 +123,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('global-search');
     if (searchInput) {
         const debouncedRouter = debounce(() => {
-            console.log('Debounced router trigger for search:', state.searchTerm);
             router();
         }, 500);
 
-        console.log("Attaching global search listener");
         searchInput.addEventListener('input', (e) => {
-            console.log('Global search input:', e.target.value);
             state.searchTerm = e.target.value;
             debouncedRouter();
         });

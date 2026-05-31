@@ -133,7 +133,6 @@ async function fetchRecentProjects(collabId, userUuid) {
         const collaboratorId = collabId || state.profile?.id;
 
         if (!userId) {
-            console.log("[Homepage] No user session found for recent projects");
             return [];
         }
 
@@ -425,7 +424,6 @@ async function fetchRecentProjects(collabId, userUuid) {
             }
         }
 
-        console.log("[Homepage] Verified Personal Projects:", results.length, results);
         return results;
 
     } catch (e) {
@@ -576,8 +574,6 @@ const getFirstName = (collab, profile) => {
 };
 
 export async function renderHomepage(container) {
-    console.log("Rendering Homepage...");
-
     const user = state.session?.user;
     if (!user) return;
 
@@ -1523,7 +1519,6 @@ export async function renderHomepage(container) {
             // Check if we are still on homepage
             if (!document.querySelector('.homepage-header')) return;
 
-            console.log("[Homepage] External change detected:", e.type, e.detail);
             if (window.updateHomepageTimeline) {
                 window.updateHomepageTimeline(window.homepageCurrentDate);
             }

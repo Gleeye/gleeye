@@ -59,13 +59,9 @@ export async function renderAssignmentDetail(container) {
 
         // Fetch collaborator services if not loaded
         if (!state.collaboratorServices || state.collaboratorServices.length === 0) {
-            console.log('DEBUG: collaboratorServices missing or empty, fetching...');
             const { fetchCollaboratorServices } = await import('../modules/api.js?v=8000');
             await fetchCollaboratorServices();
         }
-
-        console.log('DEBUG: Current Assignment ID:', assignment.id);
-        console.log('DEBUG: Mapping logic - Order ID:', assignment.order_id, 'Legacy Order ID:', assignment.orders?.order_number, 'Collaborator ID:', assignment.collaborator_id);
 
         // Find associated services
         const linkedServices = (state.collaboratorServices || []).filter(s => {
@@ -79,9 +75,6 @@ export async function renderAssignmentDetail(container) {
 
             return (matchOrder || matchLegacyOrder) && matchCollaborator;
         });
-
-        console.log('DEBUG: Linked Services Count:', linkedServices.length);
-        console.log('DEBUG: Linked Services:', linkedServices);
 
         const totalCost = linkedServices.reduce((sum, s) => sum + (parseFloat(s.total_cost) || 0), 0);
         const totalRevenueFromServices = linkedServices.reduce((sum, s) => sum + (parseFloat(s.total_price) || 0), 0);
@@ -1332,7 +1325,6 @@ window.migrateLegacyAssignments = async (auto = false) => {
         return 0;
     };
 
-    console.log(`Starting Migration Check on ${state.assignments.length} assignments...`);
     const updates = [];
 
     // MASTER MIGRATION MAP (Generated from Incarichi.csv source of truth)
@@ -1365,7 +1357,6 @@ window.migrateLegacyAssignments = async (auto = false) => {
     }
 
     if (updates.length === 0) {
-        console.log("No legacy data candidates found. Migration skipped.");
         return;
     }
 
@@ -1375,7 +1366,6 @@ window.migrateLegacyAssignments = async (auto = false) => {
     }
 
     if (!auto) showGlobalAlert(`Migrazione in corso (${updates.length})...`, 'info');
-    else console.log(`Auto-migrating ${updates.length} assignments...`);
 
     try {
         let successCount = 0;
@@ -1389,7 +1379,6 @@ window.migrateLegacyAssignments = async (auto = false) => {
             }
         }
         if (!auto) showGlobalAlert('Migrazione completata. Ricarico...', 'success');
-        console.log('Migration completed successfully.');
         setTimeout(() => window.location.reload(), 1000);
     } catch (err) {
         console.error(err);
@@ -1719,7 +1708,6 @@ window.generateAssignmentLetter = async (assignmentId) => {
             Luogodinasciata: c.birth_place || ''
         };
 
-        console.log("DEBUG: Sending request to trigger-webhook Edge Function with payload:", payload);
         showGlobalAlert('Generazione Lettera in corso...', 'success');
 
         const { data, error: invokeError } = await supabase.functions.invoke('trigger-webhook', {
@@ -1825,7 +1813,6 @@ window.sendAssignmentEmail = async (assignmentId) => {
         };
 
         // Direct call to n8n Webhook as requested
-        console.log("Calling n8n Webhook for Assignment PDF generation...");
         const webhookUrl = 'https://sacred-roughy-renewing.ngrok-free.app/webhook/ae778d0c-125f-468e-aa3f-c2241599f4d6';
         
         // Extract Google Doc ID from link (Matches /d/[ID]/)
