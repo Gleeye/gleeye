@@ -843,7 +843,12 @@ async function populateSupplierDropdown() {
 
     if (!state.suppliers || state.suppliers.length === 0) {
         // Fetch suppliers if not loaded (assuming fetchSuppliers exists or generic fetch)
-        const { data } = await supabase.from('suppliers').select('*').order('name');
+        const { data, error } = await supabase.from('suppliers').select('*').order('name');
+        if (error) {
+            console.error('[invoices] suppliers fetch failed:', error);
+            showGlobalAlert('Errore nel caricamento dei fornitori', 'error');
+            return;
+        }
         state.suppliers = data || [];
     }
     const suppliers = state.suppliers || [];

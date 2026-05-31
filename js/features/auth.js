@@ -205,7 +205,7 @@ async function handleSession(session) {
                 ]);
 
                 // 2. Pre-fetch feature modules in background (No await)
-                import('./homepage.js?v=8000');
+                import('./homepage.js?v=9002');
                 import('./dashboard.js?v=8000');
                 import('./pm/internal_list.js?v=8000');
                 import('./pm/components/hub_drawer.js?v=8026');

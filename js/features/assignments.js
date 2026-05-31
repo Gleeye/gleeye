@@ -2,7 +2,7 @@ import { state } from '/js/modules/state.js?v=8000';
 import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=8000';
 import { supabase } from '../modules/config.js?v=8000';
 import { fetchAssignmentDetail, upsertPayment, deletePayment, fetchPayments, upsertAssignment, deleteAssignment } from '../modules/api.js?v=8000';
-import { openPaymentModal } from './payments.js?v=8000';
+import { openPaymentModal } from './payments.js?v=9005';
 import { CustomSelect } from '../components/CustomSelect.js?v=8000';
 import { inlineHelpButton, attachInlineHelp } from '../modules/help_inline_ai.js?v=8001';
 
@@ -1887,11 +1887,12 @@ async function loadAssignmentHubOperativo(assignment, myCollabId) {
     if (!orderId) return;
 
     // 1) Recupera il pm_space della commessa
-    const { data: spaces } = await supabase
+    const { data: spaces, error: spacesError } = await supabase
         .from('pm_spaces')
         .select('id')
         .eq('order_id', orderId)
         .limit(1);
+    if (spacesError) { console.error('[assignments] pm_spaces fetch failed:', spacesError); return; }
     const spaceId = spaces?.[0]?.id;
     if (!spaceId) {
         renderHubEmpty('hub-tasks-content', 'Nessuno spazio PM collegato a questa commessa.');
