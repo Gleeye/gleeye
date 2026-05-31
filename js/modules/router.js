@@ -131,15 +131,15 @@ function render() {
             switch (state.currentPage) {
             case 'home':
                 if (pageTitle) pageTitle.textContent = 'Homepage';
-                import('../features/homepage-alt.js?v=8004').then(m => m.renderHomepageAlt(contentArea));
+                import('../features/homepage-alt.js?v=9106').then(m => m.renderHomepageAlt(contentArea));
                 break;
             case 'home-alt':
                 if (pageTitle) pageTitle.textContent = 'Elite Dashboard';
-                import('../features/homepage-alt.js?v=8004').then(m => m.renderHomepageAlt(contentArea));
+                import('../features/homepage-alt.js?v=9106').then(m => m.renderHomepageAlt(contentArea));
                 break;
             case 'dashboard':
                 if (pageTitle) pageTitle.textContent = 'Commercial Dashboard';
-                import('../features/dashboard.js?v=8000').then(m => m.renderDashboard(contentArea));
+                import('../features/dashboard.js?v=9105').then(m => m.renderDashboard(contentArea));
                 break;
             case 'agenda':
                 if (pageTitle) pageTitle.textContent = 'Agenda Personale';
@@ -186,7 +186,7 @@ function render() {
                 break;
             case 'invoices-dashboard':
                 if (pageTitle) pageTitle.textContent = 'Dashboard Fatturato';
-                import('../features/revenue_dashboard.js?v=8000').then(m => m.renderRevenueDashboard(contentArea));
+                import('../features/revenue_dashboard.js?v=9105').then(m => m.renderRevenueDashboard(contentArea));
                 break;
             case 'passive-invoices-collab':
                 if (pageTitle) pageTitle.textContent = 'Fatture Collaboratori';
@@ -285,7 +285,7 @@ function render() {
                 break;
             case 'profile':
                 if (pageTitle) pageTitle.textContent = 'Il Mio Profilo';
-                import('../features/user_dashboard.js?v=8000').then(m => m.renderUserProfile(contentArea));
+                import('../features/user_dashboard.js?v=9105').then(m => m.renderUserProfile(contentArea));
                 break;
             case 'notifications':
                 if (pageTitle) pageTitle.textContent = 'Centro Notifiche';
@@ -293,7 +293,7 @@ function render() {
                 break;
             case 'admin':
                 if (pageTitle) pageTitle.textContent = 'Amministrazione';
-                import('../features/admin/admin-dashboard.js?v=8000').then(module => {
+                import('../features/admin/admin-dashboard.js?v=9105').then(module => {
                     module.renderAdminDashboard(contentArea);
                 });
                 break;

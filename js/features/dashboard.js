@@ -403,11 +403,11 @@ export function renderDashboard(container) {
                     align-items: start;
                 }
 
-                @media (max-width: 1200px) {
+                @media (max-width: 1024px) {
                     .dashboard-main-grid { grid-template-columns: 300px 1fr; gap: 1.5rem; }
                 }
 
-                @media (max-width: 1100px) {
+                @media (max-width: 1024px) {
                     .dashboard-main-grid { grid-template-columns: 1fr; gap: 1.5rem; }
                     .dashboard-side-col { order: 2; }
                     .dashboard-main-col { order: 1; }

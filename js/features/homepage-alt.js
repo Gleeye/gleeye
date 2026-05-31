@@ -219,7 +219,7 @@ export async function renderHomepageAlt(container) {
             .hp-mobile-banner { display: none; }
             .hp-mobile-agenda-pop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 20000; align-items: center; justify-content: center; padding: 15px; }
             
-            @media (max-width: 1150px) {
+            @media (max-width: 1024px) {
                 /* FORCE GLOBAL UNLOCK FOR MOBILE SCROLL */
                 body, #app, .main-content { height: auto !important; overflow: visible !important; min-height: 100vh !important; }
                 #content-area { height: auto !important; overflow: visible !important; padding: 0 !important; }
@@ -383,7 +383,7 @@ export async function renderHomepageAlt(container) {
                           height: 100%;
                       }
 
-                     @media (max-width: 1100px) {
+                     @media (max-width: 1024px) {
                          .hp-alt-sidebar-left { display: none !important; }
                          .hp-main-content-area { padding: 1rem !important; height: auto !important; overflow-y: visible !important; }
                          .hp-main-columns-container { flex-direction: column !important; height: auto !important; gap: 1.5rem; }
@@ -403,7 +403,7 @@ export async function renderHomepageAlt(container) {
                          .hp-mobile-banner { display: flex !important; position: sticky; top: 0; z-index: 100; margin-bottom: 20px; }
                      }
                      
-                     @media (min-width: 1101px) {
+                     @media (min-width: 1025px) {
                          .hp-main-columns-container {
                              min-height: 900px;
                          }
