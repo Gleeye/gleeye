@@ -1324,7 +1324,7 @@ async function refreshCurrentPage() {
         const { renderAssignmentDetail } = await import('../features/assignments.js?v=8000');
         renderAssignmentDetail(container);
     } else if (hash.includes('collaborator-detail/')) {
-        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=8000');
+        const { renderCollaboratorDetail } = await import('../features/collaborators.js?v=9000');
         renderCollaboratorDetail(container);
     } else if (hash.includes('client-detail/')) {
     }

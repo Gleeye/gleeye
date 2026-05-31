@@ -151,19 +151,19 @@ function render() {
                 break;
             case 'sales': // Clients list
                 if (pageTitle) pageTitle.textContent = 'Anagrafica Clienti';
-                import('../features/clients.js?v=8009').then(m => m.renderClients(contentArea));
+                import('../features/clients.js?v=9001').then(m => m.renderClients(contentArea));
                 break;
             case 'client-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Cliente';
-                import('../features/clients.js?v=8009').then(m => m.renderClientDetail(contentArea));
+                import('../features/clients.js?v=9001').then(m => m.renderClientDetail(contentArea));
                 break;
             case 'employees':
                 if (pageTitle) pageTitle.textContent = 'Collaboratori';
-                import('../features/collaborators.js?v=8000').then(m => m.renderCollaborators(contentArea));
+                import('../features/collaborators.js?v=9000').then(m => m.renderCollaborators(contentArea));
                 break;
             case 'collaborator-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Collaboratore';
-                import('../features/collaborators.js?v=8000').then(m => m.renderCollaboratorDetail(contentArea));
+                import('../features/collaborators.js?v=9000').then(m => m.renderCollaboratorDetail(contentArea));
                 break;
             case 'white-label-partners':
                 if (pageTitle) pageTitle.textContent = 'Partner White Label';
