@@ -145,7 +145,7 @@ export async function renderInternalProjects(container, initialFilter) {
             container.innerHTML = `
                 <style>
                     .project-hub { width: auto; margin: 0 -3rem !important; padding: 0 !important; background: transparent; font-family: var(--font-body); }
-                    .project-hub-container { display: flex; width: 100%; min-height: calc(100vh - 60px); gap: 2rem; padding: 1.5rem 2.5rem 2rem 2.5rem; }
+                    .project-hub-container { display: flex; width: 100%; min-height: calc(100dvh - env(safe-area-inset-top, 0px) - 60px); gap: 2rem; padding: 1.5rem 2.5rem 2rem 2.5rem; }
                     
                     .hub-sidebar { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 1rem; }
                     .hub-main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1rem; }

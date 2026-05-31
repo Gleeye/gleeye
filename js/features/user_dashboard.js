@@ -942,7 +942,7 @@ function renderAvailabilityEditor(container, collaboratorId, existingRules, rest
             }
         </style>
         
-        <div class="availability-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; height: calc(100vh - 280px); overflow: hidden;">
+        <div class="availability-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; height: calc(100dvh - env(safe-area-inset-top, 0px) - 280px); overflow: hidden;">
             
             <!-- LEFT COLUMN: WEEKLY SCHEDULE -->
             <section style="background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid var(--glass-border); display: flex; flex-direction: column; overflow: hidden;">

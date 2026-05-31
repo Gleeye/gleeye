@@ -220,7 +220,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
                 .project-hub-container {
                     display: flex;
                     width: 100%;
-                    min-height: calc(100vh - 60px);
+                    min-height: calc(100dvh - env(safe-area-inset-top, 0px) - 60px);
                     background: transparent;
                     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                     gap: 1.5rem;
@@ -1008,7 +1008,7 @@ export async function renderCommessaDetail(container, entityId, isInternal = fal
 
             switch (tabName) {
                 case 'overview':
-                    const { renderHubOverview } = await import('./components/hub_overview.js?v=8000');
+                    const { renderHubOverview } = await import('./components/hub_overview.js?v=9109');
                     renderHubOverview(tabContent, items, kpis, spaceId);
                     break;
                 case 'feed':

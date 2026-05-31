@@ -20,7 +20,7 @@ export function renderBooking(container) {
     }
 
     container.innerHTML = `
-        <div class="animate-fade-in" style="height: calc(100vh - 80px); width: 100%; overflow: hidden; border-radius: 12px; background: white; box-shadow: var(--shadow-sm);">
+        <div class="animate-fade-in" style="height: calc(100dvh - env(safe-area-inset-top, 0px) - 80px); width: 100%; overflow: hidden; border-radius: 12px; background: white; box-shadow: var(--shadow-sm);">
             <iframe 
                 id="booking-iframe"
                 src="${iframeUrl.toString()}" 

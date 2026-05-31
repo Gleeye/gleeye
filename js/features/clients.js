@@ -320,7 +320,7 @@ export async function renderClients(container) {
                 display: grid;
                 grid-template-columns: 320px 1fr;
                 grid-template-rows: 100%;
-                height: calc(100vh - 80px); /* Fixed height to match main content area minus topbar */
+                height: calc(100dvh - env(safe-area-inset-top, 0px) - 80px);
                 background: var(--crm-bg);
                 overflow: hidden;
                 position: relative;

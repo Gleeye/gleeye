@@ -75,7 +75,7 @@ export function renderPaymentsDashboard(container) {
         container.innerHTML = `
             <div class="animate-fade-in payments-container" style="width: 100%; max-width: 100%; margin: 0; padding: 1.5rem 2rem;">
                 
-                <div class="dashboard-grid-layout" style="display: grid; grid-template-columns: minmax(280px, 340px) 1fr; gap: 1.25rem; align-items: stretch; height: calc(100vh - 130px);">
+                <div class="dashboard-grid-layout" style="display: grid; grid-template-columns: minmax(280px, 340px) 1fr; gap: 1.25rem; align-items: stretch; height: calc(100dvh - env(safe-area-inset-top, 0px) - 130px);">
                     
                     <!-- LEFT COLUMN: KPIs -->
                     <div class="flex-column custom-scrollbar" style="gap: 1.25rem; overflow-y: auto; padding-right: 4px;">

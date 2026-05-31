@@ -147,15 +147,15 @@ function render() {
                 break;
             case 'tasks-summary':
                 if (pageTitle) pageTitle.textContent = 'Le mie task';
-                import('../features/dashboard/TasksDashboard.js?v=8000').then(m => m.renderMyWork(contentArea));
+                import('../features/dashboard/TasksDashboard.js?v=9113').then(m => m.renderMyWork(contentArea));
                 break;
             case 'sales': // Clients list
                 if (pageTitle) pageTitle.textContent = 'Anagrafica Clienti';
-                import('../features/clients.js?v=9001').then(m => m.renderClients(contentArea));
+                import('../features/clients.js?v=9111').then(m => m.renderClients(contentArea));
                 break;
             case 'client-detail':
                 if (pageTitle) pageTitle.textContent = 'Dettaglio Cliente';
-                import('../features/clients.js?v=9001').then(m => m.renderClientDetail(contentArea));
+                import('../features/clients.js?v=9111').then(m => m.renderClientDetail(contentArea));
                 break;
             case 'employees':
                 if (pageTitle) pageTitle.textContent = 'Collaboratori';
@@ -186,7 +186,7 @@ function render() {
                 break;
             case 'invoices-dashboard':
                 if (pageTitle) pageTitle.textContent = 'Dashboard Fatturato';
-                import('../features/revenue_dashboard.js?v=9105').then(m => m.renderRevenueDashboard(contentArea));
+                import('../features/revenue_dashboard.js?v=8000').then(m => m.renderRevenueDashboard(contentArea));
                 break;
             case 'passive-invoices-collab':
                 if (pageTitle) pageTitle.textContent = 'Fatture Collaboratori';
@@ -281,11 +281,11 @@ function render() {
                 });
                 break;
             case 'booking':
-                import('../features/booking.js?v=8000').then(m => m.renderBooking(contentArea));
+                import('../features/booking.js?v=9107').then(m => m.renderBooking(contentArea));
                 break;
             case 'profile':
                 if (pageTitle) pageTitle.textContent = 'Il Mio Profilo';
-                import('../features/user_dashboard.js?v=9105').then(m => m.renderUserProfile(contentArea));
+                import('../features/user_dashboard.js?v=9108').then(m => m.renderUserProfile(contentArea));
                 break;
             case 'notifications':
                 if (pageTitle) pageTitle.textContent = 'Centro Notifiche';
@@ -293,7 +293,7 @@ function render() {
                 break;
             case 'admin':
                 if (pageTitle) pageTitle.textContent = 'Amministrazione';
-                import('../features/admin/admin-dashboard.js?v=9105').then(module => {
+                import('../features/admin/admin-dashboard.js?v=8000').then(module => {
                     module.renderAdminDashboard(contentArea);
                 });
                 break;
@@ -314,7 +314,7 @@ function render() {
                 // Route: Commessa Detail (#pm/commessa/:orderId)
                 if (state.currentSubPage === 'commessa' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Dettaglio Commessa';
-                    import('../features/pm/commessa_detail.js?v=8000')
+                    import('../features/pm/commessa_detail.js?v=9110')
                         .then(async module => {
                             try {
                                 await module.renderCommessaDetail(contentArea, state.currentId, false);
@@ -331,7 +331,7 @@ function render() {
                     // Route: Internal Project Detail (#pm/space/:spaceId)
                 } else if (state.currentSubPage === 'space' && state.currentId) {
                     if (pageTitle) pageTitle.textContent = 'Workspace';
-                    import('../features/pm/commessa_detail.js?v=8000')
+                    import('../features/pm/commessa_detail.js?v=9110')
                         .then(async module => {
                             try {
                                 await module.renderCommessaDetail(contentArea, state.currentId, true);
@@ -348,7 +348,7 @@ function render() {
                     // Route: Internal Projects List (#pm/interni)
                 } else if (state.currentSubPage === 'interni') {
                     if (pageTitle) pageTitle.textContent = 'Progetti Interni';
-                    import('../features/pm/internal_list.js?v=8000')
+                    import('../features/pm/internal_list.js?v=9112')
                         .then(module => {
                             module.renderInternalProjects(contentArea, state.currentId);
                         })
@@ -375,7 +375,7 @@ function render() {
                     });;
                 } else if (state.currentSubPage === 'my-work') {
                     if (pageTitle) pageTitle.textContent = 'Le Mie Attività';
-                    import('../features/dashboard/TasksDashboard.js?v=8000').then(m => m.renderMyWork(contentArea));
+                    import('../features/dashboard/TasksDashboard.js?v=9113').then(m => m.renderMyWork(contentArea));
 
                 } else {
                     // Standard PM views (Dashboard)

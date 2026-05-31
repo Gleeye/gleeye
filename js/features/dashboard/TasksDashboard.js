@@ -300,7 +300,7 @@ export class TasksDashboard {
             <div class="tasks-premium-viewport ${isMobile ? 'is-mobile' : ''}">
                 <style>
                     .tasks-premium-viewport { 
-                        display: flex; flex-direction: column; height: calc(100vh - 70px); background: #fafbfc; font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; position: relative;
+                        display: flex; flex-direction: column; height: calc(100dvh - env(safe-area-inset-top, 0px) - 70px); background: #fafbfc; font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; position: relative;
                     }
                     
                     /* EXTREME GLASS TOOLBAR (DESKTOP) */

@@ -118,7 +118,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
                 display: grid;
                 grid-template-columns: 1.35fr 1fr 1fr;
                 gap: 1.5rem;
-                height: calc(100vh - 280px);
+                height: calc(100dvh - env(safe-area-inset-top, 0px) - 280px);
                 min-height: 600px;
                 padding-bottom: 2rem;
                 width: 100%;
@@ -174,7 +174,7 @@ export async function renderHubOverview(container, items, kpis, spaceId) {
                     min-height: 0;
                 }
                 .sub-column-grid {
-                    height: calc(100vh - 280px);
+                    height: calc(100dvh - env(safe-area-inset-top, 0px) - 280px);
                     min-height: 600px;
                 }
             }

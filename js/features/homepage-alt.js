@@ -201,7 +201,7 @@ export async function renderHomepageAlt(container) {
             #content-area { 
                 display: flex !important; 
                 flex-direction: row !important; 
-                height: calc(100vh - 70px) !important; 
+                height: calc(100dvh - env(safe-area-inset-top, 0px) - 70px) !important;
                 width: 100% !important;
                 overflow: hidden !important; 
                 position: relative !important;
