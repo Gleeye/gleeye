@@ -1,6 +1,6 @@
 import { state } from '/js/modules/state.js?v=8000';
 import { fetchContacts } from '../modules/api.js?v=8000';
-import { openClientContactModal } from './clients.js?v=8000';
+import { openClientContactModal } from './clients.js?v=9001';
 
 export function renderContacts(container) {
     if (typeof state.contactsRelationFilter === 'undefined') state.contactsRelationFilter = 'all';

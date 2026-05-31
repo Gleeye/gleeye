@@ -1,5 +1,5 @@
 import { state } from '/js/modules/state.js?v=8000';
-import { formatAmount } from '../modules/utils.js?v=8000';
+import { formatAmount, showGlobalAlert } from '../modules/utils.js?v=8000';
 import { openDepartmentManager } from './settings.js?v=8000';
 import { upsertCollaborator, fetchPayments, fetchAssignments, fetchPassiveInvoices, fetchAvailabilityRules, saveAvailabilityRules, fetchAvailabilityOverrides, upsertAvailabilityOverride, deleteAvailabilityOverride, fetchCollaboratorServices, fetchBookingItemCollaborators } from '../modules/api.js?v=8000';
 import { loadAvailabilityIntoContainer } from './availability_manager.js?v=8000';
@@ -19,7 +19,7 @@ if (!window.openSignedUrl) {
             window.open(data.signedUrl, '_blank');
         } catch (err) {
             console.error("Error signing URL:", err);
-            window.showAlert?.('Impossibile aprire il documento: ' + err.message, 'error');
+            showGlobalAlert('Impossibile aprire il documento: ' + err.message, 'error');
         }
     };
 }
@@ -531,8 +531,8 @@ export function initCollaboratorModals() {
                     renderCollaborators(document.getElementById('content-area'));
                 }
             } catch (err) {
-                window.showAlert('Errore durante il salvataggio: ' + err.message, 'error');
-                console.error(err);
+                showGlobalAlert('Errore durante il salvataggio: ' + err.message, 'error');
+                console.error('[collaborators] save failed:', err);
             }
         });
 
@@ -547,12 +547,12 @@ export function initCollaboratorModals() {
                     const { deleteCollaborator } = await import('../modules/api.js?v=8000');
                     await deleteCollaborator(collabId);
                     close();
-                    window.showAlert('Collaboratore eliminato con successo', 'success');
+                    showGlobalAlert('Collaboratore eliminato con successo', 'success');
                     // Navigate back to list
                     window.location.hash = 'employees';
                 } catch (err) {
-                    window.showAlert('Errore durante l\'eliminazione: ' + err.message, 'error');
-                    console.error(err);
+                    showGlobalAlert('Errore durante l\'eliminazione: ' + err.message, 'error');
+                    console.error('[collaborators] delete failed:', err);
                 }
             }
         });
@@ -718,14 +718,14 @@ window.impersonateCollaborator = async (collaboratorId) => {
 
             // Redirect to a safe page (Home as requested)
             window.location.hash = 'home';
-            window.showAlert(`Stai vedendo l'app come: ${c.full_name}`, 'success');
+            showGlobalAlert(`Stai vedendo l'app come: ${c.full_name}`, 'success');
         });
     }
 };
 
 window.sendMagicLink = async (email) => {
     if (!email) {
-        window.showAlert('Email non presente per questo collaboratore', 'error');
+        showGlobalAlert('Email non presente per questo collaboratore', 'error');
         return;
     }
 
@@ -759,10 +759,10 @@ window.sendMagicLink = async (email) => {
                 console.warn('[Security] Failed to log magic link send:', logErr);
             }
 
-            window.showAlert('Magic Link inviato con successo!', 'success');
+            showGlobalAlert('Magic Link inviato con successo!', 'success');
         } catch (err) {
-            console.error('Error sending magic link:', err);
-            window.showAlert('Errore durante l\'invio: ' + err.message, 'error');
+            console.error('[collaborators] Error sending magic link:', err);
+            showGlobalAlert('Errore durante l\'invio: ' + err.message, 'error');
         }
     }
 };

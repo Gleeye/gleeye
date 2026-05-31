@@ -1760,10 +1760,10 @@ export function openClientContactModal(clientId, contact, onSaved) {
         try {
             await deletePartnerContact(contact.id);
             close();
-            (window.showAlert || showGlobalAlert)('Referente eliminato', 'success');
+            showGlobalAlert('Referente eliminato', 'success');
             onSaved && onSaved();
         } catch (err) {
-            (window.showAlert || showGlobalAlert)('Errore: ' + err.message, 'error');
+            showGlobalAlert('Errore: ' + err.message, 'error');
         }
     };
 
@@ -1791,10 +1791,10 @@ export function openClientContactModal(clientId, contact, onSaved) {
         try {
             await upsertPartnerContact(payload);
             close();
-            (window.showAlert || showGlobalAlert)('Referente salvato', 'success');
+            showGlobalAlert('Referente salvato', 'success');
             onSaved && onSaved();
         } catch (err) {
-            (window.showAlert || showGlobalAlert)('Errore: ' + err.message, 'error');
+            showGlobalAlert('Errore: ' + err.message, 'error');
         } finally {
             btn.disabled = false;
             btn.innerHTML = orig;
