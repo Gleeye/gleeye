@@ -116,6 +116,73 @@ function _renderCreditRiskBadge(client, opts = {}) {
     return `<span class="credit-risk-badge" title="${title}" style="${baseStyle} ${fontSize} background: rgba(245, 158, 11, 0.12); color: #b45309; border: 1px solid rgba(245, 158, 11, 0.35);">🟡 Pagamento in ritardo</span>`;
 }
 
+// ── Rendering card singola cliente (riusata da render completo e da refresh lista) ──
+function _buildClientCard(client) {
+    const status = computeClientStatus(client);
+    const creditBadge = _renderCreditRiskBadge(client, { compact: true });
+    const acc = findAccountResponsible(client);
+    const accBadge = acc
+        ? (acc.avatar_url
+            ? `<img class="v7-acc-badge" title="Account: ${acc.full_name}" src="${acc.avatar_url}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid ${_accountColor(acc.id)}55;" alt="${_accountInitials(acc.full_name)}">`
+            : `<div class="v7-acc-badge" title="Account: ${acc.full_name}" style="width: 22px; height: 22px; border-radius: 50%; background: ${_accountColor(acc.id)}22; color: ${_accountColor(acc.id)}; display:flex; align-items:center; justify-content:center; font-size: 0.65rem; font-weight: 700; border: 1px solid ${_accountColor(acc.id)}55;">${_accountInitials(acc.full_name)}</div>`)
+        : `<div class="v7-acc-badge v7-acc-unassigned" title="Account non assegnato" style="width: 22px; height: 22px; border-radius: 50%; background: rgba(148,163,184,0.1); color: #94a3b8; display:flex; align-items:center; justify-content:center; border: 1px dashed #cbd5e1;"><span class="material-icons-round" style="font-size: 14px;">person_off</span></div>`;
+    const userTags = Array.isArray(client.tags) ? client.tags.filter(Boolean) : [];
+    const tagsHtml = userTags.length === 0 ? '' :
+        `<div style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px;">${userTags.slice(0, 4).map(t => `<span style="font-size: 0.62rem; padding: 1px 6px; border-radius: 4px; background: rgba(99,102,241,0.10); color: #6366f1; font-weight: 600;">${t}</span>`).join('')}${userTags.length > 4 ? `<span style="font-size: 0.62rem; color: var(--text-tertiary);">+${userTags.length - 4}</span>` : ''}</div>`;
+    return `
+        <div class="v7-rubrica-item animate-fade-in" onclick="window.location.hash='client-detail/${client.id}'">
+            <div class="v7-item-main">
+                <div class="v7-id-row">
+                    <span class="v7-id">${client.client_code || '---'}</span>
+                    <span class="v7-status-pill" style="background:${status.color}18; color:${status.color}; border:1px solid ${status.color}30;">${status.label}</span>
+                    ${creditBadge}
+                </div>
+                <div class="v7-name">${client.business_name}</div>
+                <div class="v7-city-mini">${client.city || '-'}</div>
+                ${tagsHtml}
+            </div>
+            <div class="v7-item-contacts">
+                ${accBadge}
+                <a href="mailto:${client.email || '#'}" onclick="event.stopPropagation()" class="v7-contact-icon" title="${client.email || 'Nessuna mail'}">
+                    <span class="material-icons-round">alternate_email</span>
+                </a>
+                <a href="tel:${client.phone || '#'}" onclick="event.stopPropagation()" class="v7-contact-icon" title="${client.phone || 'Nessun telefono'}">
+                    <span class="material-icons-round">phone_iphone</span>
+                </a>
+            </div>
+        </div>
+    `;
+}
+
+// ── Aggiorna solo la lista clienti senza rifare il DOM padre (fix focus input) ──
+function _refreshClientsList() {
+    const listEl = document.querySelector('.crm-sidebar-list');
+    if (!listEl) return;
+    const _currentUserId = state.session?.user?.id;
+    const _myCollabId = (state.collaborators || []).find(c => c.user_id === _currentUserId)?.id || null;
+    const filtered = (state.clients || []).filter(c => {
+        const q = (state.searchTerm || '').toLowerCase();
+        const matchesSearch = !q ||
+            (c.business_name || '').toLowerCase().includes(q) ||
+            (c.client_code || '').toLowerCase().includes(q) ||
+            (c.city || '').toLowerCase().includes(q);
+        if (!matchesSearch) return false;
+        if (state.clientsAccountFilter !== 'all') {
+            if (state.clientsAccountFilter === 'unassigned') { if (c.account_responsible_id) return false; }
+            else if (state.clientsAccountFilter === 'mine') { if (!_myCollabId || c.account_responsible_id !== _myCollabId) return false; }
+            else if (c.account_responsible_id !== state.clientsAccountFilter) return false;
+        }
+        if (state.clientsStatusFilter !== 'all') {
+            if (computeClientStatus(c).key !== state.clientsStatusFilter) return false;
+        }
+        return true;
+    });
+    listEl.innerHTML = filtered.length > 0
+        ? filtered.map(_buildClientCard).join('')
+        : `<div class="v7-empty">Nessun record trovato</div>`;
+}
+window._refreshClientsList = _refreshClientsList;
+
 export async function renderClients(container) {
     // Ensure we have orders for analytics
     const { fetchOrders, fetchCollaborators } = await import('../modules/api.js?v=8000');
@@ -256,46 +323,9 @@ export async function renderClients(container) {
         });
     };
 
-    const clientsHTML = filteredClients.length > 0 ? filteredClients.map(client => {
-        const isActive = getActiveStatus(client);
-        const status = computeClientStatus(client);
-        const creditBadge = _renderCreditRiskBadge(client, { compact: true });
-        const acc = findAccountResponsible(client);
-        const accBadge = acc
-            ? (acc.avatar_url
-                ? `<img class="v7-acc-badge" title="Account: ${acc.full_name}" src="${acc.avatar_url}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid ${_accountColor(acc.id)}55;" alt="${_accountInitials(acc.full_name)}">`
-                : `<div class="v7-acc-badge" title="Account: ${acc.full_name}" style="width: 22px; height: 22px; border-radius: 50%; background: ${_accountColor(acc.id)}22; color: ${_accountColor(acc.id)}; display:flex; align-items:center; justify-content:center; font-size: 0.65rem; font-weight: 700; border: 1px solid ${_accountColor(acc.id)}55;">${_accountInitials(acc.full_name)}</div>`)
-            : `<div class="v7-acc-badge v7-acc-unassigned" title="Account non assegnato" style="width: 22px; height: 22px; border-radius: 50%; background: rgba(148,163,184,0.1); color: #94a3b8; display:flex; align-items:center; justify-content:center; border: 1px dashed #cbd5e1;"><span class="material-icons-round" style="font-size: 14px;">person_off</span></div>`;
-
-        const userTags = Array.isArray(client.tags) ? client.tags.filter(Boolean) : [];
-        const tagsHtml = userTags.length === 0 ? '' :
-            `<div style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px;">${userTags.slice(0, 4).map(t => `<span style="font-size: 0.62rem; padding: 1px 6px; border-radius: 4px; background: rgba(99,102,241,0.10); color: #6366f1; font-weight: 600;">${t}</span>`).join('')}${userTags.length > 4 ? `<span style="font-size: 0.62rem; color: var(--text-tertiary);">+${userTags.length - 4}</span>` : ''}</div>`;
-        return `
-            <div class="v7-rubrica-item animate-fade-in" onclick="window.location.hash='client-detail/${client.id}'">
-                <div class="v7-item-main">
-                    <div class="v7-id-row">
-                        <span class="v7-id">${client.client_code || '---'}</span>
-                        <span class="v7-status-pill" style="background:${status.color}18; color:${status.color}; border:1px solid ${status.color}30;">${status.label}</span>
-                        ${creditBadge}
-                    </div>
-                    <div class="v7-name">${client.business_name}</div>
-                    <div class="v7-city-mini">${client.city || '-'}</div>
-                    ${tagsHtml}
-                </div>
-                <div class="v7-item-contacts">
-                    ${accBadge}
-                    <a href="mailto:${client.email || '#'}" onclick="event.stopPropagation()" class="v7-contact-icon" title="${client.email || 'Nessuna mail'}">
-                        <span class="material-icons-round">alternate_email</span>
-                    </a>
-                    <a href="tel:${client.phone || '#'}" onclick="event.stopPropagation()" class="v7-contact-icon" title="${client.phone || 'Nessun telefono'}">
-                        <span class="material-icons-round">phone_iphone</span>
-                    </a>
-                </div>
-            </div>
-        `;
-    }).join('') : `
-        <div class="v7-empty">Nessun record trovato</div>
-    `;
+    const clientsHTML = filteredClients.length > 0
+        ? filteredClients.map(_buildClientCard).join('')
+        : `<div class="v7-empty">Nessun record trovato</div>`;
 
     // Conta clienti per ogni account per il dropdown filtro
     const accountCounts = {};
@@ -482,12 +512,12 @@ export async function renderClients(container) {
                     </div>
                     <div class="v7-search-box">
                         <span class="material-icons-round" style="font-size: 1.2rem; color: var(--text-tertiary);">search</span>
-                        <input type="text" placeholder="Scansione istantanea..." value="${state.searchTerm}"
-                               oninput="state.searchTerm = this.value; renderClients(document.getElementById('content-area'))">
+                        <input type="text" placeholder="Cerca cliente..." value="${state.searchTerm}"
+                               oninput="state.searchTerm = this.value; window._refreshClientsList()">
                     </div>
                     <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
                         <span class="material-icons-round" style="font-size: 1rem; color: var(--text-tertiary);">supervisor_account</span>
-                        <select onchange="state.clientsAccountFilter = this.value; renderClients(document.getElementById('content-area'))"
+                        <select onchange="state.clientsAccountFilter = this.value; window._refreshClientsList()"
                             style="flex: 1; padding: 0.4rem 0.6rem; border: 1px solid var(--glass-border); border-radius: 8px; background: white; font-size: 0.82rem; color: var(--text-primary);">
                             <option value="all" ${state.clientsAccountFilter === 'all' ? 'selected' : ''}>Tutti gli account</option>
                             ${_myCollabId ? `<option value="mine" ${state.clientsAccountFilter === 'mine' ? 'selected' : ''}>👤 I miei clienti (${accountCounts[_myCollabId] || 0})</option>` : ''}
@@ -506,7 +536,7 @@ export async function renderClients(container) {
                             { key: 'perso', label: 'Persi', color: '#ef4444', count: statusCounts.perso },
                         ].map(chip => {
                             const active = state.clientsStatusFilter === chip.key;
-                            return `<button onclick="state.clientsStatusFilter='${chip.key}'; renderClients(document.getElementById('content-area'))" style="padding: 0.25rem 0.55rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; cursor: pointer; border: 1px solid ${chip.color}${active ? '' : '30'}; background: ${active ? chip.color : chip.color + '15'}; color: ${active ? 'white' : chip.color};">${chip.label} ${chip.count}</button>`;
+                            return `<button onclick="state.clientsStatusFilter='${chip.key}'; window._refreshClientsList()" style="padding: 0.25rem 0.55rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; cursor: pointer; border: 1px solid ${chip.color}${active ? '' : '30'}; background: ${active ? chip.color : chip.color + '15'}; color: ${active ? 'white' : chip.color};">${chip.label} ${chip.count}</button>`;
                         }).join('')}
                         <button onclick="window.showClientStatusHelp()" title="Cosa significano gli stati?" style="margin-left: auto; padding: 0.2rem 0.45rem; border-radius: 999px; border: 1px solid var(--glass-border); background: white; color: var(--text-tertiary); font-size: 0.75rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 0.2rem;">
                             <span class="material-icons-round" style="font-size: 0.9rem;">help_outline</span>
@@ -524,14 +554,13 @@ export async function renderClients(container) {
                     <div class="v7-hero-stats">
                         <div class="hero-stat-item">
                             <span class="hero-stat-val">${analytics.total}</span>
-                            <span class="hero-stat-label">Stock Totale</span>
+                            <span class="hero-stat-label">Clienti totali</span>
                         </div>
                         <div class="hero-stat-item">
                             <span class="hero-stat-val" style="color: #10b981;">${analytics.activeClientsCount}</span>
-                            <span class="hero-stat-label">Active Hub</span>
+                            <span class="hero-stat-label">Con lavori attivi</span>
                         </div>
                     </div>
-                    <p style="color: var(--text-tertiary); font-size: 1rem; max-width: 600px; line-height: 1.5;">Benvenuto nella centrale operativa. Qui puoi monitorare la crescita e la vitalità del tuo network commerciale.</p>
                 </div>
 
                 <div class="v7-stats-grid">
