@@ -1,0 +1,78 @@
+/* =====================================================
+   PageShell — layout shell condiviso
+   PROPRIETÀ DELLA REGIA: non modificare senza coordinamento.
+   Breakpoint: 768px | 1024px (valori standard, mai altri)
+   ===================================================== */
+
+.page-shell {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  padding: var(--space-4);
+  opacity: 0;
+  animation: page-shell-in 0.18s ease forwards;
+}
+
+@media (min-width: 768px) {
+  .page-shell {
+    padding: var(--space-6);
+  }
+}
+
+/* Variante fullscreen — niente padding, usata da viste CRM/mappa */
+.page-shell--fullscreen {
+  padding: 0;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* Header ------------------------------------------------ */
+.page-shell__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-5);
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+@media (min-width: 768px) {
+  .page-shell__header {
+    flex-wrap: nowrap;
+  }
+}
+
+/* Titolo ------------------------------------------------ */
+.page-shell__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-heading);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+@media (min-width: 768px) {
+  .page-shell__title {
+    font-size: var(--text-title);
+  }
+}
+
+/* Azioni header ----------------------------------------- */
+.page-shell__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+/* Contenuto --------------------------------------------- */
+.page-shell__content {
+  width: 100%;
+}
+
+/* Fade-in leggero --------------------------------------- */
+@keyframes page-shell-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
